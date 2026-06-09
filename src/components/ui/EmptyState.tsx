@@ -1,0 +1,35 @@
+import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+
+type Props = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  message: string;
+};
+
+export function EmptyState({ icon, title, message }: Props) {
+  return (
+    <View style={styles.wrap}>
+      <View style={styles.iconCircle}>
+        <Ionicons name={icon} size={32} color={colors.primary} />
+      </View>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.message}>{message}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.full,
+    backgroundColor: colors.infoBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  message: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', maxWidth: 280 },
+});
