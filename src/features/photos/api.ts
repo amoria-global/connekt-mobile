@@ -13,6 +13,7 @@ export type FoundPhoto = {
   /** Full-res URL (null for unpurchased paid-album photos). */
   url?: string;
   isPurchased: boolean;
+  albumId?: string;
   eventId?: string;
   eventTitle?: string;
   photographerName?: string;
@@ -31,6 +32,7 @@ function mapPhoto(r: Raw): FoundPhoto {
     thumbnailUrl: str(r.thumbnailUrl) ?? str(r.url),
     url: str(r.url),
     isPurchased: r.isPurchased === true,
+    albumId: str(r.albumId) ?? str((r.album as Raw)?.id),
     eventId: str(r.eventId),
     eventTitle: str(r.eventTitle),
     photographerName: str(r.photographerName),

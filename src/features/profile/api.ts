@@ -49,3 +49,24 @@ export async function updateProfilePicture(image: PickedImage): Promise<string |
   const url = d.profilePicture ?? d.url ?? d.profileFullUrl;
   return typeof url === 'string' ? url : undefined;
 }
+
+/** Uploads a new cover photo; returns the new full URL when provided. */
+export async function updateCoverPicture(image: PickedImage): Promise<string | undefined> {
+  const form = new FormData();
+  form.append('coverPicture', {
+    uri: image.uri,
+    name: image.name,
+    type: image.type,
+  } as unknown as Blob);
+
+  const res = await api.post<{ action?: number; message?: string; data?: Record<string, unknown> }>(
+    '/customer/profile/cover-picture',
+    form,
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not upload the cover photo.' } satisfies ApiError;
+  }
+  const d = res.data ?? {};
+  const url = d.coverPicture ?? d.url ?? d.coverFullUrl;
+  return typeof url === 'string' ? url : undefined;
+}

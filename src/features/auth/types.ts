@@ -11,6 +11,7 @@ export type User = {
   phone?: string;
   customerType?: CustomerType;
   profilePicture?: string;
+  coverPicture?: string;
   profileCompletionPercentage?: number;
 };
 

@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { listClients } from '@/features/clients/api';
@@ -9,6 +11,7 @@ import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 export default function ClientsScreen() {
+  const router = useRouter();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listClients(), []));
 
   return (
@@ -24,7 +27,10 @@ export default function ClientsScreen() {
         renderItem={({ item }) => {
           const initials = (item.name[0] ?? '?').toUpperCase();
           return (
-            <View style={styles.row}>
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+              onPress={() => router.push(`/client/${item.id}` as Href)}
+            >
               {item.avatar ? (
                 <Image source={{ uri: item.avatar }} style={styles.avatar} contentFit="cover" />
               ) : (
@@ -50,7 +56,8 @@ export default function ClientsScreen() {
               {item.totalSpent != null ? (
                 <Text style={styles.spent}>{formatMoney(item.totalSpent, item.currency)}</Text>
               ) : null}
-            </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
           );
         }}
         emptyIcon="people-outline"
@@ -72,6 +79,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     padding: spacing.md,
   },
+  pressed: { opacity: 0.7 },
   avatar: { width: 48, height: 48, borderRadius: radii.full, backgroundColor: colors.surfaceMuted },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   initials: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },

@@ -14,6 +14,33 @@ import type {
   User,
 } from './types';
 
+/**
+ * The backend is inconsistent about the coordinator role string
+ * ("Coordinator", "event-coordinator", "event_coordinator"). Normalize every
+ * variant to the four roles the app understands, the same way the web does.
+ */
+function normalizeRole(raw?: string): CustomerType | undefined {
+  if (!raw) return undefined;
+  const r = raw.toLowerCase().replace(/[\s_]+/g, '-');
+  if (r === 'photographer') return 'Photographer';
+  if (r === 'client') return 'Client';
+  if (r === 'viewer') return 'Viewer';
+  if (r === 'coordinator' || r === 'event-coordinator') return 'Coordinator';
+  return 'Client'; // unknown → safe default
+}
+
+/** Thrown by login() when the account exists but its email isn't verified yet. */
+export type NeedsVerificationError = ApiError & { needsVerification: true; customerId: string };
+
+export function isNeedsVerification(err: unknown): err is NeedsVerificationError {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { needsVerification?: unknown }).needsVerification === true &&
+    typeof (err as { customerId?: unknown }).customerId === 'string'
+  );
+}
+
 function userFromResponse(res: LoginResponse, fallbackEmail: string): User {
   return {
     customerId: res.customerId ?? '',
@@ -21,7 +48,7 @@ function userFromResponse(res: LoginResponse, fallbackEmail: string): User {
     firstName: res.firstName,
     lastName: res.lastName,
     phone: res.phone,
-    customerType: res.customerType,
+    customerType: normalizeRole(res.customerType as string | undefined),
     profilePicture: res.profilePicture,
     profileCompletionPercentage: res.profileCompletionPercentage,
   };
@@ -31,7 +58,19 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
   const res = await api.post<LoginResponse>('/auth/login', credentials, { skipAuth: true });
 
   if (res.action !== 1 || !res.token) {
-    // action 0 = OTP unverified / account locked, action 2 = 2FA required.
+    // Unverified email: backend returns action 0 + "OTP not verified" + a
+    // customerId (and re-sends the code). Surface it so the UI can route to
+    // the OTP screen instead of just showing an error.
+    const unverified = /not verified|verify.*otp|otp.*sent/i.test(res.message ?? '');
+    if (unverified && res.customerId) {
+      throw {
+        status: 403,
+        message: res.message || 'Please verify your email to continue.',
+        needsVerification: true,
+        customerId: res.customerId,
+      } as NeedsVerificationError;
+    }
+    // action 0 = locked / bad creds, action 2 = 2FA required.
     const message =
       res.action === 2
         ? 'Two-factor authentication is required. Please use the web app to finish signing in.'

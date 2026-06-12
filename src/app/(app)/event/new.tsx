@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -8,9 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +22,7 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { TimeField } from '@/components/ui/TimeField';
-import { createEvent, listEventCategories, uploadEventPhoto } from '@/features/events/api';
+import { createEvent, getEvent, listEventCategories, updateEvent, uploadEventPhoto } from '@/features/events/api';
 import { usePayment } from '@/features/payments/usePayment';
 import {
   getPhotographer,
@@ -67,15 +65,18 @@ export default function NewEventScreen() {
     packageId?: string;
     amount?: string;
     currency?: string;
+    editId?: string;
   }>();
 
   const amount = params.amount ? Number(params.amount) : undefined;
   const isBooking = !!params.photographerId;
+  const isEditing = !!params.editId;
   const { pay, paying } = usePayment();
 
   const [serverError, setServerError] = useState<string | null>(null);
   const [cover, setCover] = useState<PickedImage | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
+  const [existingCover, setExistingCover] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
 
   // Optional, non-text controls
@@ -100,6 +101,7 @@ export default function NewEventScreen() {
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -119,6 +121,45 @@ export default function NewEventScreen() {
       description: '',
     },
   });
+
+  // Prefill when editing an existing event.
+  const hhmm = (t?: string) => {
+    if (!t) return '';
+    const m = t.match(/(\d{1,2}):(\d{2})/);
+    return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
+  };
+  useEffect(() => {
+    if (!params.editId) return;
+    let active = true;
+    (async () => {
+      try {
+        const ev = await getEvent(params.editId!);
+        if (!active) return;
+        setExistingCover(ev.coverImage ?? null);
+        reset({
+          title: ev.title ?? '',
+          category: ev.category ?? '',
+          eventDate: (ev.eventDate ?? '').slice(0, 10),
+          startTime: hhmm(ev.startTime),
+          endTime: hhmm(ev.endTime),
+          venueName: ev.location ?? '',
+          address: '',
+          city: '',
+          country: '',
+          price: '',
+          maxGuests: '',
+          organizer: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+          description: ev.description ?? '',
+        });
+      } catch {
+        // leave the form empty; the user can still edit
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.editId]);
 
   const pickCover = async () => {
     const img = await pickFromLibrary();
@@ -159,7 +200,8 @@ export default function NewEventScreen() {
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
-    if (!cover) {
+    // A cover photo is required to create; on edit the existing one is kept.
+    if (!cover && !(isEditing && existingCover)) {
       setCoverError('A cover photo is required');
       return;
     }
@@ -178,28 +220,45 @@ export default function NewEventScreen() {
     const photographerId = params.photographerId ?? selPhotog?.id;
     const packageId = params.packageId ?? selPackage?.id;
 
+    const input = {
+      title: values.title,
+      description: values.description || undefined,
+      category: values.category,
+      eventDate: values.eventDate,
+      startTime: values.startTime,
+      endTime: values.endTime || undefined,
+      location: location || undefined,
+      organizer: values.organizer?.trim() || undefined,
+      price: amount ?? (priceNum || undefined),
+      currency: params.currency,
+      maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
+      eventVisibility: visibility,
+      tags: tags.length ? tags : undefined,
+      photographerId,
+      packageId,
+      escrowPercentage: packageId ? Number(escrow) : undefined,
+    };
+
     try {
-      const event = await createEvent({
-        title: values.title,
-        description: values.description || undefined,
-        category: values.category,
-        eventDate: values.eventDate,
-        startTime: values.startTime,
-        endTime: values.endTime || undefined,
-        location: location || undefined,
-        organizer: values.organizer?.trim() || undefined,
-        price: amount ?? (priceNum || undefined),
-        currency: params.currency,
-        maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
-        eventVisibility: visibility,
-        tags: tags.length ? tags : undefined,
-        photographerId,
-        packageId,
-        escrowPercentage: packageId ? Number(escrow) : undefined,
-      });
+      // --- Edit path -----------------------------------------------------
+      if (isEditing && params.editId) {
+        await updateEvent(params.editId, input);
+        if (cover) {
+          try {
+            await uploadEventPhoto(params.editId, cover);
+          } catch {
+            // non-fatal
+          }
+        }
+        router.replace(`/event/${params.editId}`);
+        return;
+      }
+
+      // --- Create / book path -------------------------------------------
+      const event = await createEvent(input);
 
       try {
-        await uploadEventPhoto(event.id, cover);
+        await uploadEventPhoto(event.id, cover!);
       } catch {
         // non-fatal
       }
@@ -228,8 +287,14 @@ export default function NewEventScreen() {
 
   return (
     <Screen padded={false}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+      >
           {isBooking ? (
             <View style={styles.banner}>
               <Text style={styles.bannerLabel}>Booking</Text>
@@ -237,7 +302,7 @@ export default function NewEventScreen() {
               {amount ? <Text style={styles.bannerPrice}>{formatMoney(amount, params.currency)}</Text> : null}
             </View>
           ) : (
-            <Text style={styles.title}>New event</Text>
+            <Text style={styles.title}>{isEditing ? 'Edit event' : 'New event'}</Text>
           )}
 
           <View style={styles.form}>
@@ -245,9 +310,9 @@ export default function NewEventScreen() {
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Cover photo</Text>
               <Pressable onPress={pickCover} style={[styles.cover, !!coverError && styles.coverError]}>
-                {cover ? (
+                {cover || existingCover ? (
                   <>
-                    <Image source={{ uri: cover.uri }} style={styles.coverImg} contentFit="cover" />
+                    <Image source={{ uri: cover?.uri ?? existingCover! }} style={styles.coverImg} contentFit="cover" />
                     <View style={styles.coverEditBadge}>
                       <Ionicons name="pencil" size={14} color={colors.textOnPrimary} />
                     </View>
@@ -482,13 +547,18 @@ export default function NewEventScreen() {
             {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
             <Button
-              title={amount ? `Book & pay ${formatMoney(amount, params.currency)}` : 'Create event'}
+              title={
+                isEditing
+                  ? 'Save changes'
+                  : amount
+                    ? `Book & pay ${formatMoney(amount, params.currency)}`
+                    : 'Create event'
+              }
               onPress={handleSubmit(onSubmit)}
               loading={busy}
             />
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* Photographer / package picker */}
       <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
@@ -562,7 +632,7 @@ export default function NewEventScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { padding: spacing.xl, gap: spacing.xl },
+  scroll: { padding: spacing.xl, paddingBottom: spacing['3xl'], gap: spacing.xl },
   title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
   banner: { backgroundColor: colors.primary, borderRadius: radii.lg, padding: spacing.lg, gap: 2 },
   bannerLabel: { color: colors.accentLight, fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase' },

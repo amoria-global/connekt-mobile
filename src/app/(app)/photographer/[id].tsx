@@ -4,15 +4,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Rating } from '@/components/ui/Rating';
 import { Screen } from '@/components/ui/Screen';
+import { Stars } from '@/components/ui/Stars';
 import { getPhotographer } from '@/features/photographers/api';
+import { listPhotographerReviews } from '@/features/reviews/api';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatDate, formatMoney } from '@/utils/format';
 
 export default function PhotographerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data, loading, error } = useAsync(useCallback(() => getPhotographer(id), [id]));
+  const reviews = useAsync(useCallback(() => listPhotographerReviews(id), [id]));
 
   const book = (pkg?: { id: string; price?: number; currency?: string }) => {
     if (!data) return;
@@ -104,6 +107,22 @@ export default function PhotographerProfileScreen() {
             <Text style={styles.requestText}>Request a booking</Text>
           </Pressable>
         )}
+
+        {reviews.data?.length ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Reviews ({reviews.data.length})</Text>
+            {reviews.data.map((r) => (
+              <View key={r.id} style={styles.reviewCard}>
+                <View style={styles.reviewTop}>
+                  <Text style={styles.reviewer}>{r.reviewerName ?? 'Client'}</Text>
+                  <Stars value={r.rating} />
+                </View>
+                {r.comment ? <Text style={styles.reviewComment}>{r.comment}</Text> : null}
+                {r.createdAt ? <Text style={styles.reviewDate}>{formatDate(r.createdAt)}</Text> : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -154,4 +173,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   requestText: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  reviewCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  reviewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  reviewer: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+  reviewComment: { fontSize: fontSize.sm, color: colors.textSoft, lineHeight: 20 },
+  reviewDate: { fontSize: fontSize.xs, color: colors.textMuted },
 });
