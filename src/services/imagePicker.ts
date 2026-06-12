@@ -20,6 +20,19 @@ export async function pickFromLibrary(): Promise<PickedImage | null> {
   return toPicked(res.assets[0]);
 }
 
+/** Pick several photos at once (for album uploads). */
+export async function pickMultipleFromLibrary(limit = 30): Promise<PickedImage[]> {
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) return [];
+  const res = await ImagePicker.launchImageLibraryAsync({
+    quality: 0.7,
+    allowsMultipleSelection: true,
+    selectionLimit: limit,
+  });
+  if (res.canceled || !res.assets?.length) return [];
+  return res.assets.map(toPicked);
+}
+
 export async function takeSelfie(): Promise<PickedImage | null> {
   // Camera isn't available on web — fall back to the library.
   if (Platform.OS === 'web') return pickFromLibrary();

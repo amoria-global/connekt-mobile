@@ -75,6 +75,13 @@ export default function WalletScreen() {
               <Text style={styles.menuLabel}>Payments</Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </Pressable>
+            {isPhotographer ? (
+              <Pressable style={[styles.menuRow, styles.menuBorderTop]} onPress={() => router.push('/payroll')}>
+                <Ionicons name="bar-chart-outline" size={20} color={colors.primary} />
+                <Text style={styles.menuLabel}>Payroll report</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
 
           {data?.pots.length ? (

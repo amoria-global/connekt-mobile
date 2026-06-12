@@ -23,6 +23,40 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
+function bool(v: unknown): boolean {
+  return v === true || v === 'true' || v === 'PUBLISHED' || v === 'LIVE';
+}
+
+/** Builds the shared event payload used by both create (book) and update (PUT). */
+function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    title: input.title.trim(),
+    description: input.description ?? '',
+    eventType: input.category,
+    startTime: toApiTime(input.startTime),
+    endTime: toApiTime(input.endTime || input.startTime),
+    eventDate: input.eventDate,
+    location: input.location ?? '',
+    eventOrganizer: input.organizer || 'Organizer',
+    eventVisibility: input.eventVisibility || 'PUBLIC',
+    eventTags: input.tags && input.tags.length ? input.tags.join(',') : input.category,
+    price: input.price ?? 0,
+    priceCurrency: input.currency || 'RWF',
+    maxGuests: input.maxGuests ?? 0,
+    notes: '',
+  };
+  if (input.photographerId && UUID_RE.test(input.photographerId)) {
+    payload.photographerId = input.photographerId;
+  }
+  if (input.packageId && UUID_RE.test(input.packageId)) {
+    payload.packageId = input.packageId;
+  }
+  if (payload.photographerId && payload.packageId) {
+    payload.escrowPercentage = input.escrowPercentage ?? 50;
+  }
+  return payload;
+}
+
 function mapEvent(r: RawEvent): EventItem {
   const photographer = (r.photographer ?? {}) as RawEvent;
   const photographerName =
@@ -41,6 +75,7 @@ function mapEvent(r: RawEvent): EventItem {
     description: str(r.description),
     startTime: str(r.startTime),
     endTime: str(r.endTime),
+    published: bool(r.published) || bool(r.isPublished) || bool(r.status),
   };
 }
 
@@ -90,34 +125,7 @@ export async function getPublicEvent(id: string): Promise<EventItem> {
  * only sent when they are valid UUIDs, to avoid backend "id must not be null".
  */
 export async function createEvent(input: CreateEventInput): Promise<EventItem> {
-  const payload: Record<string, unknown> = {
-    title: input.title.trim(),
-    description: input.description ?? '',
-    eventType: input.category,
-    startTime: toApiTime(input.startTime),
-    endTime: toApiTime(input.endTime || input.startTime),
-    eventDate: input.eventDate,
-    location: input.location ?? '',
-    eventOrganizer: input.organizer || 'Organizer',
-    eventVisibility: input.eventVisibility || 'PUBLIC',
-    eventTags: input.tags && input.tags.length ? input.tags.join(',') : input.category,
-    price: input.price ?? 0,
-    priceCurrency: input.currency || 'RWF',
-    maxGuests: input.maxGuests ?? 0,
-    notes: '',
-  };
-
-  if (input.photographerId && UUID_RE.test(input.photographerId)) {
-    payload.photographerId = input.photographerId;
-  }
-  if (input.packageId && UUID_RE.test(input.packageId)) {
-    payload.packageId = input.packageId;
-  }
-  if (payload.photographerId && payload.packageId) {
-    payload.escrowPercentage = input.escrowPercentage ?? 50;
-  }
-
-  const res = await api.post<ApiEnvelope<RawEvent>>('/customer/events/book', payload);
+  const res = await api.post<ApiEnvelope<RawEvent>>('/customer/events/book', buildEventPayload(input));
   if (res.action !== 1) {
     throw {
       status: 400,
@@ -130,11 +138,64 @@ export async function createEvent(input: CreateEventInput): Promise<EventItem> {
   return mapEvent(ev);
 }
 
+/** Updates an event (web parity: PUT /customer/events/{id}). */
+export async function updateEvent(id: string, input: CreateEventInput): Promise<EventItem> {
+  const res = await api.put<ApiEnvelope<RawEvent>>(
+    `/customer/events/${encodeURIComponent(id)}`,
+    buildEventPayload(input),
+  );
+  if (res.action !== 1) {
+    throw { status: 400, message: res.message || 'Could not save your changes.' } satisfies ApiError;
+  }
+  const d = (res?.data ?? {}) as RawEvent;
+  return mapEvent((d.event ?? d) as RawEvent);
+}
+
 /** Uploads the event cover image (same as web: POST .../{id}/photo, field "file"). */
 export async function uploadEventPhoto(eventId: string, image: PickedImage): Promise<void> {
   const form = new FormData();
   form.append('file', { uri: image.uri, name: image.name, type: image.type } as unknown as Blob);
   await api.post(`/customer/events/${encodeURIComponent(eventId)}/photo`, form);
+}
+
+async function action(path: string, fallback: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<unknown>>(path);
+  if (res.action !== 1) {
+    throw { status: 400, message: res.message || fallback } satisfies ApiError;
+  }
+}
+
+/** Publishes an event (makes it public/live). */
+export function publishEvent(id: string): Promise<void> {
+  return action(`/customer/events/${encodeURIComponent(id)}/publish`, 'Could not publish the event.');
+}
+
+/** Takes a published event back offline. */
+export function unpublishEvent(id: string): Promise<void> {
+  return action(`/customer/events/${encodeURIComponent(id)}/unpublish`, 'Could not unpublish the event.');
+}
+
+/** Deletes an event. */
+export async function deleteEvent(id: string): Promise<void> {
+  const res = await api.delete<ApiEnvelope<unknown>>(`/customer/events/${encodeURIComponent(id)}`);
+  if (res.action !== 1) {
+    throw { status: 400, message: res.message || 'Could not delete the event.' } satisfies ApiError;
+  }
+}
+
+/** Confirms event completion: COMPLETED (satisfied) or REQUIRE_CHANGES. */
+export async function confirmCompletion(
+  id: string,
+  status: 'COMPLETED' | 'REQUIRE_CHANGES',
+  comment?: string,
+): Promise<void> {
+  const res = await api.post<ApiEnvelope<unknown>>(
+    `/customer/events/${encodeURIComponent(id)}/confirm-completion`,
+    { status, comment: comment || null },
+  );
+  if (res.action !== 1) {
+    throw { status: 400, message: res.message || 'Could not submit your confirmation.' } satisfies ApiError;
+  }
 }
 
 /** Event categories for the picker (public, no auth). */

@@ -88,3 +88,45 @@ export async function listWalletMovements(): Promise<Movement[]> {
     } satisfies Movement;
   }).filter((m) => m.id);
 }
+
+// --- Payroll report (photographer) ---------------------------------------
+
+export type PayrollEntry = {
+  id: string;
+  date?: string;
+  description?: string;
+  type?: string;
+  amount: number;
+  status?: string;
+};
+
+export type PayrollReport = {
+  total: number;
+  paid: number;
+  pending: number;
+  currency?: string;
+  entries: PayrollEntry[];
+};
+
+/** Photographer earnings summary (web parity: GET /photographer/payroll-report). */
+export async function getPayrollReport(): Promise<PayrollReport> {
+  const res = await api.get<ApiEnvelope<Record<string, unknown>>>('/photographer/payroll-report');
+  const d = (res?.data ?? {}) as Record<string, unknown>;
+  const txs = Array.isArray(d.transactions) ? (d.transactions as Record<string, unknown>[]) : [];
+  return {
+    total: num(d.total),
+    paid: num(d.paid),
+    pending: num(d.pending),
+    currency: str(d.currency) ?? str(d.currencyCode),
+    entries: txs
+      .map((t) => ({
+        id: String(t.id ?? ''),
+        date: str(t.date) ?? str(t.createdAt),
+        description: str(t.description) ?? str(t.eventTitle),
+        type: str(t.type),
+        amount: num(t.amount) || num(t.amountInUsd),
+        status: str(t.status),
+      }))
+      .filter((e) => e.id),
+  };
+}

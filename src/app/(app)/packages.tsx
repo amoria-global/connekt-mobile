@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
 import { Fab } from '@/components/ui/Fab';
 import { Screen } from '@/components/ui/Screen';
@@ -46,19 +46,42 @@ export default function PackagesScreen() {
         onRefresh={refresh}
         keyExtractor={(p) => p.id}
         renderItem={({ item }) => (
-          <View style={[styles.card, busyId === item.id && styles.dim]}>
+          <Pressable
+            style={({ pressed }) => [styles.card, busyId === item.id && styles.dim, pressed && styles.pressed]}
+            onPress={() =>
+              router.push({
+                pathname: '/package/new',
+                params: { editId: item.id, data: JSON.stringify(item) },
+              })
+            }
+          >
             <View style={styles.row}>
               <Text style={styles.name}>{item.name}</Text>
               {item.price != null ? (
-                <Text style={styles.price}>{formatMoney(item.price, item.currency)}</Text>
+                <Text style={styles.price}>
+                  {formatMoney(item.price, item.currency)}
+                  {item.priceUnit ? ` ${item.priceUnit}` : ''}
+                </Text>
               ) : null}
             </View>
             {item.description ? <Text style={styles.desc}>{item.description}</Text> : null}
-            {item.duration ? <Text style={styles.meta}>{item.duration}</Text> : null}
-            <Text style={styles.delete} onPress={() => onDelete(item)}>
-              Delete
+            <Text style={styles.meta}>
+              {[
+                item.durationHours ? `${item.durationHours}h` : null,
+                item.includedPhotos ? `${item.includedPhotos} photos` : null,
+                item.includedVideos ? `${item.includedVideos} videos` : null,
+                item.hasLiveStream ? 'Live stream' : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
-          </View>
+            <View style={styles.cardActions}>
+              <Text style={styles.editHint}>Tap to edit</Text>
+              <Text style={styles.delete} onPress={() => onDelete(item)}>
+                Delete
+              </Text>
+            </View>
+          </Pressable>
         )}
         emptyIcon="pricetags-outline"
         emptyTitle="No packages yet"
@@ -79,10 +102,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   dim: { opacity: 0.5 },
+  pressed: { opacity: 0.7 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
+  editHint: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   name: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text, flex: 1 },
   price: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
   desc: { fontSize: fontSize.sm, color: colors.textSoft },
   meta: { fontSize: fontSize.xs, color: colors.textMuted },
-  delete: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.error, marginTop: spacing.sm },
+  delete: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.error },
 });

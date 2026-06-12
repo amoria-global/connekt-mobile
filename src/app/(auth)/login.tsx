@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
+import { isNeedsVerification } from '@/features/auth/api';
 import { GoogleButton } from '@/features/auth/GoogleButton';
 import { RoleModal } from '@/features/auth/RoleModal';
 import type { CustomerType } from '@/features/auth/types';
@@ -56,6 +57,11 @@ export default function LoginScreen() {
       await login(values);
       // Navigation is handled by the protected-route guard in the root layout.
     } catch (err) {
+      // Unverified email → send them to the OTP screen (the code was re-sent).
+      if (isNeedsVerification(err)) {
+        router.push({ pathname: '/verify-otp', params: { customerId: err.customerId, email: values.email } });
+        return;
+      }
       setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
     }
   };

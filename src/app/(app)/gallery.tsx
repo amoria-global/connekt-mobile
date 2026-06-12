@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
+import { Fab } from '@/components/ui/Fab';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useRole } from '@/features/auth/role';
@@ -23,6 +24,13 @@ export default function GalleryScreen() {
         title={isPhotographer ? 'My Albums' : 'Galleries'}
         subtitle={isPhotographer ? 'Your photo collections' : 'Photos from your events'}
       />
+      {!isPhotographer ? (
+        <Pressable style={styles.photobookLink} onPress={() => router.push('/photobooks' as Href)}>
+          <Ionicons name="book-outline" size={20} color={colors.primary} />
+          <Text style={styles.photobookText}>Photobooks</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
+      ) : null}
       <DataList
         data={data}
         loading={loading}
@@ -57,10 +65,11 @@ export default function GalleryScreen() {
         emptyTitle={isPhotographer ? 'No albums yet' : 'No galleries yet'}
         emptyMessage={
           isPhotographer
-            ? 'Create albums on the web app to sell your photo collections.'
+            ? 'Tap + to create a paid album and sell your photo collections.'
             : 'Photos from your events will appear here once a photographer shares them.'
         }
       />
+      {isPhotographer ? <Fab icon="add" onPress={() => router.push('/album/new')} /> : null}
     </Screen>
   );
 }
@@ -77,6 +86,20 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
   },
   pressed: { opacity: 0.85 },
+  photobookLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  photobookText: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
   cover: { width: 64, height: 64, borderRadius: radii.md, backgroundColor: colors.surfaceMuted },
   coverFallback: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },

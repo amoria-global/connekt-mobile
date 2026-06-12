@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
-import { updateProfile, updateProfilePicture } from '@/features/profile/api';
+import { updateCoverPicture, updateProfile, updateProfilePicture } from '@/features/profile/api';
 import { pickFromLibrary } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -29,7 +29,9 @@ export default function EditProfileScreen() {
   const [lastName, setLastName] = useState(user?.lastName ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [avatar, setAvatar] = useState(user?.profilePicture);
+  const [cover, setCover] = useState(user?.coverPicture);
   const [uploading, setUploading] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +51,23 @@ export default function EditProfileScreen() {
       setError(isApiError(err) ? err.message : 'Could not upload the photo.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const onPickCover = async () => {
+    const img = await pickFromLibrary();
+    if (!img) return;
+    setError(null);
+    setCoverUploading(true);
+    try {
+      const url = await updateCoverPicture(img);
+      const next = url ?? img.uri;
+      setCover(next);
+      updateUser({ coverPicture: next });
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'Could not upload the cover photo.');
+    } finally {
+      setCoverUploading(false);
     }
   };
 
@@ -74,6 +93,24 @@ export default function EditProfileScreen() {
     <Screen padded={false}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Pressable style={styles.coverWrap} onPress={onPickCover} disabled={coverUploading}>
+            {cover ? (
+              <Image source={{ uri: cover }} style={styles.cover} contentFit="cover" />
+            ) : (
+              <View style={[styles.cover, styles.coverFallback]}>
+                <Ionicons name="image-outline" size={26} color={colors.textMuted} />
+                <Text style={styles.coverHint}>Add cover photo</Text>
+              </View>
+            )}
+            <View style={styles.coverBadge}>
+              {coverUploading ? (
+                <ActivityIndicator size="small" color={colors.textOnPrimary} />
+              ) : (
+                <Ionicons name="camera" size={14} color={colors.textOnPrimary} />
+              )}
+            </View>
+          </Pressable>
+
           <Pressable style={styles.avatarWrap} onPress={onPickAvatar} disabled={uploading}>
             {avatar ? (
               <Image source={{ uri: avatar }} style={styles.avatar} contentFit="cover" />
@@ -109,8 +146,23 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { padding: spacing.xl, gap: spacing.xl, alignItems: 'stretch' },
-  avatarWrap: { alignSelf: 'center' },
-  avatar: { width: 104, height: 104, borderRadius: radii.full, backgroundColor: colors.surfaceMuted },
+  coverWrap: { alignSelf: 'stretch' },
+  cover: { width: '100%', height: 130, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted },
+  coverFallback: { alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 1, borderColor: colors.borderSoft },
+  coverHint: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  coverBadge: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: spacing.md,
+    width: 30,
+    height: 30,
+    borderRadius: radii.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarWrap: { alignSelf: 'center', marginTop: -spacing['3xl'] },
+  avatar: { width: 104, height: 104, borderRadius: radii.full, backgroundColor: colors.surfaceMuted, borderWidth: 3, borderColor: colors.background },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   initials: { color: colors.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
   editBadge: {
