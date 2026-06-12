@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
+import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -132,9 +135,19 @@ export function FindMyPhotos() {
 }
 
 function PhotoCell({ photo, size }: { photo: FoundPhoto; size: number }) {
+  const router = useRouter();
   const locked = !photo.isPurchased && photo.price != null && photo.price > 0;
+
+  const onPress = () => {
+    if (locked && photo.albumId) {
+      router.push(`/album/${photo.albumId}` as Href); // buy/unlock the album
+    } else if (photo.url) {
+      WebBrowser.openBrowserAsync(photo.url); // view full-res
+    }
+  };
+
   return (
-    <View style={[styles.cell, { width: size, height: size }]}>
+    <Pressable style={[styles.cell, { width: size, height: size }]} onPress={onPress}>
       <Image
         source={{ uri: photo.thumbnailUrl }}
         style={StyleSheet.absoluteFill}
@@ -154,7 +167,7 @@ function PhotoCell({ photo, size }: { photo: FoundPhoto; size: number }) {
           </Text>
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 

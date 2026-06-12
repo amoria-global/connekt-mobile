@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { getStream, joinStream, tipStream } from '@/features/streams/api';
+import { getStream, joinStream, listStreamChats, tipStream, type StreamChat } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
@@ -16,13 +16,51 @@ export default function StreamDetailScreen() {
   const { data, loading, error } = useAsync(useCallback(() => getStream(id), [id]));
   const [joining, setJoining] = useState(false);
   const [tipping, setTipping] = useState<number | null>(null);
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
+  const [chats, setChats] = useState<StreamChat[]>([]);
+
+  const player = useVideoPlayer(null, (p) => {
+    p.loop = false;
+  });
+
+  // Start playback once we have a URL (live HLS streams).
+  useEffect(() => {
+    if (!playUrl) return;
+    try {
+      player.replace(playUrl);
+      player.play();
+    } catch {
+      // unsupported URL (e.g. WebRTC) — surface gracefully
+      Alert.alert('Playback unavailable', 'This stream format cannot play in the app yet.');
+    }
+  }, [playUrl, player]);
+
+  // Poll live chat while watching.
+  useEffect(() => {
+    if (!playUrl || !data?.eventId) return;
+    let active = true;
+    const load = async () => {
+      try {
+        const msgs = await listStreamChats(data.eventId!);
+        if (active) setChats(msgs);
+      } catch {
+        // ignore transient errors
+      }
+    };
+    load();
+    const t = setInterval(load, 5000);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, [playUrl, data?.eventId]);
 
   const onJoin = async () => {
     setJoining(true);
     try {
       const url = (await joinStream(id)) ?? data?.playbackUrl;
       if (url) {
-        await WebBrowser.openBrowserAsync(url);
+        setPlayUrl(url);
       } else {
         Alert.alert('Stream unavailable', 'This stream cannot be opened right now.');
       }
@@ -70,7 +108,17 @@ export default function StreamDetailScreen() {
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.hero}>
-          <Ionicons name="videocam" size={40} color={colors.textOnPrimary} />
+          {playUrl ? (
+            <VideoView
+              player={player}
+              style={StyleSheet.absoluteFill}
+              contentFit="contain"
+              allowsFullscreen
+              nativeControls
+            />
+          ) : (
+            <Ionicons name="videocam" size={40} color={colors.textOnPrimary} />
+          )}
           {data?.isLive ? (
             <View style={styles.liveBadge}>
               <Text style={styles.liveText}>LIVE</Text>
@@ -81,7 +129,9 @@ export default function StreamDetailScreen() {
         <Text style={styles.title}>{data?.title}</Text>
         {data?.photographerName ? <Text style={styles.meta}>{data.photographerName}</Text> : null}
 
-        <Button title={data?.isLive ? 'Join stream' : 'Watch'} onPress={onJoin} loading={joining} />
+        {!playUrl ? (
+          <Button title={data?.isLive ? 'Join stream' : 'Watch'} onPress={onJoin} loading={joining} />
+        ) : null}
 
         <View style={styles.tipSection}>
           <Text style={styles.tipTitle}>Send a tip</Text>
@@ -102,6 +152,22 @@ export default function StreamDetailScreen() {
             ))}
           </View>
         </View>
+
+        {playUrl ? (
+          <View style={styles.chatSection}>
+            <Text style={styles.tipTitle}>Live chat</Text>
+            {chats.length ? (
+              chats.map((c) => (
+                <View key={c.id} style={styles.chatRow}>
+                  {c.sender ? <Text style={styles.chatSender}>{c.sender}</Text> : null}
+                  <Text style={styles.chatMsg}>{c.message}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.chatEmpty}>No messages yet.</Text>
+            )}
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -112,12 +178,13 @@ const styles = StyleSheet.create({
   muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, gap: spacing.lg },
   hero: {
-    height: 180,
+    height: 220,
     borderRadius: radii.xl,
-    backgroundColor: colors.primary,
+    backgroundColor: '#000',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    overflow: 'hidden',
   },
   liveBadge: {
     position: 'absolute',
@@ -146,4 +213,16 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.8 },
   tipText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  chatSection: { gap: spacing.sm, marginTop: spacing.sm },
+  chatRow: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.md,
+    gap: 2,
+  },
+  chatSender: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
+  chatMsg: { fontSize: fontSize.sm, color: colors.text },
+  chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted },
 });

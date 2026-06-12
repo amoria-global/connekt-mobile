@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
@@ -54,6 +54,7 @@ export default function ProfileScreen() {
           <MenuRow icon="lock-closed-outline" label="Two-factor authentication" onPress={() => router.push('/two-factor')} />
           <MenuRow icon="shield-checkmark-outline" label="Identity verification" onPress={() => router.push('/kyc')} />
           <MenuRow icon="notifications-outline" label="Notifications" onPress={() => router.push('/notifications')} />
+          <MenuRow icon="bar-chart-outline" label="Analytics" onPress={() => router.push('/analytics' as Href)} />
           <MenuRow icon="images-outline" label="Gallery" onPress={() => router.push('/gallery')} last />
         </View>
 
