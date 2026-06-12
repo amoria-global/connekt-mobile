@@ -15,7 +15,10 @@ export type Stream = {
 
 export type StreamDetail = Stream & {
   playbackUrl?: string;
+  eventId?: string;
 };
+
+export type StreamChat = { id: string; sender?: string; message: string; createdAt?: string };
 
 type Raw = Record<string, unknown>;
 
@@ -53,7 +56,38 @@ export async function listStreams(): Promise<Stream[]> {
 export async function getStream(id: string): Promise<StreamDetail> {
   const res = await api.get<ApiEnvelope<Raw>>(`/streams/${encodeURIComponent(id)}`);
   const d = (res?.data ?? {}) as Raw;
-  return { ...mapStream(d), playbackUrl: str(d.playbackUrl) ?? str(d.hls) ?? str(d.rtmpUrl) };
+  return {
+    ...mapStream(d),
+    playbackUrl: str(d.playbackUrl) ?? str(d.hls) ?? str(d.rtmpUrl),
+    eventId: str(d.eventId) ?? str(d.event && (d.event as Raw).id) ?? String(d.id ?? id),
+  };
+}
+
+function pageContent(data: unknown): Raw[] {
+  if (Array.isArray(data)) return data as Raw[];
+  const c = (data as { content?: unknown })?.content;
+  return Array.isArray(c) ? (c as Raw[]) : [];
+}
+
+/** Live chat messages for a stream (web parity: GET /customer/events/{eventId}/chats). */
+export async function listStreamChats(eventId: string): Promise<StreamChat[]> {
+  const res = await api.get<ApiEnvelope<unknown>>(
+    `/customer/events/${encodeURIComponent(eventId)}/chats?page=0&size=200`,
+  );
+  return pageContent(res?.data)
+    .map((m) => {
+      const sender =
+        str(m.senderName) ??
+        str(m.userName) ??
+        ([str(m.firstName), str(m.lastName)].filter(Boolean).join(' ') || str(m.name));
+      return {
+        id: String(m.id ?? ''),
+        sender: sender || undefined,
+        message: str(m.message) ?? str(m.content) ?? str(m.text) ?? '',
+        createdAt: str(m.createdAt) ?? str(m.timestamp),
+      };
+    })
+    .filter((c) => c.id && c.message);
 }
 
 export async function joinStream(id: string): Promise<string | undefined> {

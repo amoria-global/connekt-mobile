@@ -77,6 +77,34 @@ export async function listPayments(): Promise<PaymentRecord[]> {
     .filter((p) => p.id);
 }
 
+export type PaymentDetail = PaymentRecord & {
+  paymentType?: string;
+  photographerName?: string;
+  method?: string;
+  reference?: string;
+  description?: string;
+};
+
+/** Full detail for one payment (web parity: GET /customer/payments/{id}). */
+export async function getPayment(id: string): Promise<PaymentDetail> {
+  const res = await api.get<ApiEnvelope<Raw>>(`/customer/payments/${encodeURIComponent(id)}`);
+  const r = (res?.data ?? {}) as Raw;
+  const n = (v: unknown) => (typeof v === 'number' ? v : undefined);
+  return {
+    id: String(r.id ?? id),
+    title: str(r.eventName) ?? str(r.eventTitle) ?? str(r.title) ?? str(r.description) ?? 'Payment',
+    amount: n(r.amount) ?? n(r.amountDue) ?? n(r.totalAmount),
+    currency: str(r.currency) ?? str(r.currencyCode) ?? str(r.currencyAbbreviation),
+    status: str(r.status) ?? str(r.paymentStatus),
+    createdAt: str(r.createdAt) ?? str(r.date),
+    paymentType: str(r.paymentType) ?? str(r.type),
+    photographerName: str(r.photographerName),
+    method: str(r.method) ?? str(r.paymentMethod) ?? str(r.gateway),
+    reference: str(r.reference) ?? str(r.transactionId) ?? str(r.refId),
+    description: str(r.description),
+  };
+}
+
 export async function getPaymentStatus(refId: string): Promise<PaymentStatus> {
   const res = await api.get<ApiEnvelope<Raw> & Raw>(
     `/payments/xentripay/status/${encodeURIComponent(refId)}`,

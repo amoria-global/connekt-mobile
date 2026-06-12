@@ -37,4 +37,5 @@ export type EventItem = {
   description?: string;
   startTime?: string;
   endTime?: string;
+  published?: boolean;
 };
