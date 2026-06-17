@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, Modal } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
@@ -61,6 +62,7 @@ type Preview = { id: string; title: string; subtitle?: string; status?: string; 
 
 export default function HomeScreen() {
   const user = useAuth((s) => s.user);
+  const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const { role, isPhotographer, isViewer, isCoordinator } = useRole();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -138,7 +140,13 @@ export default function HomeScreen() {
             <Pressable
               key={a.label}
               style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-              onPress={() => router.push(a.href)}
+              onPress={() => {
+                if (a.href === '/find-my-photos') {
+                  setFindPhotosModalVisible(true);
+                } else {
+                  router.push(a.href);
+                }
+              }}
             >
               <View style={styles.tileIcon}>
                 <Ionicons name={a.icon} size={22} color={colors.textOnPrimary} />
@@ -185,13 +193,16 @@ export default function HomeScreen() {
           <Text style={styles.muted}>Nothing here yet.</Text>
         )}
       </ScrollView>
+
+      <FindPhotosBottomSheet visible={findPhotosModalVisible} onClose={() => setFindPhotosModalVisible(false)} getPhotosRoute="/find-my-photos" />
+
       <TopBar />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: spacing.xl, gap: spacing.xl },
+  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120, gap: spacing.xl },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   greeting: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
   roleBadge: {
@@ -275,3 +286,4 @@ const styles = StyleSheet.create({
   previewTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
   previewSub: { fontSize: fontSize.sm, color: colors.textMuted },
 });
+

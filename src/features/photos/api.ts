@@ -1,16 +1,25 @@
 /**
- * Find My Photos — facial-recognition photo search.
- * Mirrors the web: POST /public/face-search (multipart) with a selfie and an
- * optional invite `code`. Returns matched photos across events / paid albums.
+ * Find My Photos — facial-recognition photo search + album access.
+ * Mirrors the web: face-search, invite-code album lookup, free album flow,
+ * paid album purchase, and photo download.
  */
 import { api } from '@/api/client';
+import { env } from '@/config/env';
 import type { ApiEnvelope, ID } from '@/types';
 import type { PickedImage } from '@/services/imagePicker';
+import { storage } from '@/services/storage';
+
+// ─── Shared helpers ────────────────────────────────────────────────────────
+
+type Raw = Record<string, unknown>;
+const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : undefined);
+
+// ─── Face search ───────────────────────────────────────────────────────────
 
 export type FoundPhoto = {
   id: ID;
   thumbnailUrl?: string;
-  /** Full-res URL (null for unpurchased paid-album photos). */
   url?: string;
   isPurchased: boolean;
   albumId?: string;
@@ -19,14 +28,12 @@ export type FoundPhoto = {
   photographerName?: string;
   price?: number;
   currency?: string;
+  currencyId?: string;
+  currencyAbbreviation?: string;
   createdAt?: string;
 };
 
-type Raw = Record<string, unknown>;
-const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
-const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : undefined);
-
-function mapPhoto(r: Raw): FoundPhoto {
+function mapFoundPhoto(r: Raw): FoundPhoto {
   return {
     id: String(r.id ?? ''),
     thumbnailUrl: str(r.thumbnailUrl) ?? str(r.url),
@@ -37,22 +44,390 @@ function mapPhoto(r: Raw): FoundPhoto {
     eventTitle: str(r.eventTitle),
     photographerName: str(r.photographerName),
     price: num(r.price) ?? num(r.pricePerImage),
-    currency: str(r.currency) ?? str(r.currencyCode),
+    currency: str(r.currency) ?? str(r.currencyCode) ?? str(r.currencyAbbreviation),
+    currencyId: str(r.currencyId),
+    currencyAbbreviation: str(r.currencyAbbreviation) ?? str(r.currency) ?? str(r.currencyCode),
     createdAt: str(r.createdAt),
   };
 }
 
-/**
- * @param selfie picked image (camera or library)
- * @param code optional invite code to scope the search to one event/album
- */
 export async function faceSearch(selfie: PickedImage, code?: string): Promise<FoundPhoto[]> {
   const form = new FormData();
-  // React Native multipart file shape.
   form.append('selfie', { uri: selfie.uri, name: selfie.name, type: selfie.type } as unknown as Blob);
   if (code && code.trim()) form.append('code', code.trim());
 
   const res = await api.post<ApiEnvelope<Raw[]>>('/public/face-search', form);
   const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapPhoto).filter((p) => p.id);
+  return data.map(mapFoundPhoto).filter((p) => p.id);
+}
+
+// ─── Viewer ID + preview URL watermarking ──────────────────────────────────
+
+export async function getViewerId(buyerId?: string | null): Promise<string> {
+  if (buyerId) return `B${buyerId.slice(0, 8)}`;
+  try {
+    let id = await storage.get('photoViewerId');
+    if (!id) {
+      id = 'V' + Math.random().toString(36).slice(2, 10).toUpperCase();
+      await storage.set('photoViewerId', id);
+    }
+    return id;
+  } catch {
+    return 'anon';
+  }
+}
+
+export function stampPreviewUrl(
+  url: string | undefined,
+  viewerId: string,
+  purchase?: { buyerId?: string | null; refid?: string | null }
+): string | undefined {
+  if (!url) return url;
+  if (!url.includes('/api/photos/') || !url.includes('/preview')) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  let out = `${url}${sep}v=${viewerId}`;
+  if (purchase?.buyerId) out += `&buyerId=${purchase.buyerId}`;
+  if (purchase?.refid) out += `&refid=${purchase.refid}`;
+  return out;
+}
+
+// ─── Invite-code album lookup ───────────────────────────────────────────────
+
+export type AlbumPhotoItem = {
+  id: string;
+  url: string;
+  thumbnailUrl?: string;
+  price?: number;
+  albumId?: string;
+  albumType?: string;
+  currencyAbbreviation?: string;
+  currencyId?: string;
+  isPurchased?: boolean;
+  alt?: string;
+};
+
+export type AlbumData = {
+  albumId: string;
+  eventId?: string;
+  title?: string;
+  photographerName?: string;
+  albumType?: string;
+  pricing?: {
+    pricePerImage?: number;
+    currencyId?: string;
+    currencyAbbreviation?: string;
+  };
+  photos: AlbumPhotoItem[];
+};
+
+export async function getAlbumByCode(code: string): Promise<AlbumData> {
+  const res = await api.get<ApiEnvelope<Raw>>(`/public/albums?code=${encodeURIComponent(code)}`);
+  // Backend wraps in { action:1, data: {...} }; api client puts that into res.data
+  const d = (res?.data ?? res ?? {}) as Raw;
+  const pricing = (d.pricing as Raw) || {};
+  const perPhoto = num(pricing.pricePerImage) ?? num(d.pricePerPhoto);
+  const curId = str(pricing.currencyId) ?? str(d.currencyId);
+  const curAbbr = str(pricing.currencyAbbreviation) ?? str(d.currencyAbbreviation);
+  const albumId = str(d.albumId) ?? str(d.id) ?? '';
+  const albumType = str(d.albumType);
+  const rawPhotos = Array.isArray(d.photos) ? (d.photos as Raw[]) : [];
+  return {
+    albumId,
+    eventId: str(d.eventId),
+    title: str(d.title) ?? str(d.eventTitle),
+    photographerName: str(d.photographerName),
+    albumType,
+    pricing: { pricePerImage: perPhoto, currencyId: curId, currencyAbbreviation: curAbbr },
+    photos: rawPhotos.map((p) => ({
+      id: String(p.id ?? ''),
+      url: str(p.url) ?? str(p.thumbnailUrl) ?? '',
+      thumbnailUrl: str(p.thumbnailUrl) ?? str(p.url),
+      price: num(p.price) ?? perPhoto,
+      albumId,
+      albumType,
+      currencyId: curId,
+      currencyAbbreviation: curAbbr,
+    })).filter((p) => p.id),
+  };
+}
+
+// ─── Free album flow ────────────────────────────────────────────────────────
+
+export type FreeAlbumPhoto = {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  caption?: string;
+};
+
+export type FreeAlbumData = {
+  albumId: string;
+  title: string;
+  photographerName?: string;
+  expiresAt?: string;
+  photos: FreeAlbumPhoto[];
+  maxFreeDownloads?: number | null;
+  pricePerExtraImage?: number | null;
+  currencyId?: string;
+  currencyAbbreviation?: string;
+  alreadyAcquiredPhotoIds?: string[];
+};
+
+function parseFreeAlbumData(raw: Raw): FreeAlbumData {
+  // Handle double-wrap { action, data: { ...actual fields } }
+  const d: Raw = (raw?.data && typeof raw.data === 'object') ? (raw.data as Raw) : raw;
+  const photos = Array.isArray(d.photos) ? (d.photos as Raw[]) : [];
+  const maxRaw = d.maxFreeDownloads ?? d.max_free_downloads ?? null;
+  const priceRaw = d.pricePerExtraImage ?? d.price_per_extra_image ?? null;
+  const acquired = Array.isArray(d.alreadyAcquiredPhotoIds)
+    ? (d.alreadyAcquiredPhotoIds as string[])
+    : Array.isArray(d.acquiredPhotoIds)
+      ? (d.acquiredPhotoIds as string[])
+      : [];
+  return {
+    albumId: str(d.albumId) ?? str(d.id) ?? '',
+    title: str(d.title) ?? str(d.eventTitle) ?? '',
+    photographerName: str(d.photographerName),
+    expiresAt: str(d.expiresAt),
+    maxFreeDownloads: maxRaw !== null ? Number(maxRaw) : null,
+    pricePerExtraImage: priceRaw !== null ? Number(priceRaw) : null,
+    currencyId: str(d.currencyId),
+    currencyAbbreviation: str(d.currencyAbbreviation) ?? str(d.currencySymbol),
+    alreadyAcquiredPhotoIds: acquired,
+    photos: photos.map((p) => ({
+      id: String(p.id ?? ''),
+      url: str(p.url) ?? '',
+      thumbnailUrl: str(p.thumbnailUrl) ?? str(p.url) ?? '',
+      caption: str(p.caption),
+    })).filter((p) => p.id),
+  };
+}
+
+/** Request OTP for a free album. Throws on failure. */
+export async function requestFreeAlbumAccess(accessCode: string, email: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>('/public/albums/free/request-access', {
+    accessCode: accessCode.trim(),
+    email: email.trim().toLowerCase(),
+  });
+  // action !== 1 means error from backend
+  if ((res as unknown as Raw)?.action === 0) {
+    const msg = str((res as unknown as Raw)?.message);
+    throw new Error(msg || 'Failed to send access code.');
+  }
+}
+
+/** Verify OTP and return the free album with photos. Throws on failure. */
+export async function verifyFreeAlbumAccess(
+  accessCode: string,
+  email: string,
+  otp: string
+): Promise<FreeAlbumData> {
+  const res = await api.post<ApiEnvelope<Raw>>('/public/albums/free/verify-access', {
+    accessCode: accessCode.trim(),
+    email: email.trim().toLowerCase(),
+    otp: otp.trim(),
+  });
+  const envelope = (res ?? {}) as Raw;
+  if (envelope.action === 0) {
+    const msg = str(envelope.message);
+    throw new Error(msg || 'Invalid verification code.');
+  }
+  const inner = (envelope.data ?? envelope) as Raw;
+  const albumData = parseFreeAlbumData(inner);
+  // If photos came back in verify, we're done
+  if (albumData.photos.length > 0) return albumData;
+  // Otherwise fetch photos separately
+  if (albumData.albumId) {
+    const full = await getFreeAlbum(albumData.albumId);
+    return { ...albumData, ...full };
+  }
+  return albumData;
+}
+
+/** Fetch free album photos after OTP verification. */
+export async function getFreeAlbum(albumId: string): Promise<FreeAlbumData> {
+  const res = await api.get<ApiEnvelope<Raw>>(`/public/albums/free/${encodeURIComponent(albumId)}`);
+  const envelope = (res ?? {}) as Raw;
+  const inner = (envelope.data ?? envelope) as Raw;
+  return parseFreeAlbumData(inner);
+}
+
+/** Persist which photos the viewer downloaded (for OWNED tracking). */
+export async function logFreeAlbumDownload(albumId: string, photoIds: string[]): Promise<void> {
+  try {
+    await api.post(`/public/albums/free/${encodeURIComponent(albumId)}/log-download`, { photoIds });
+  } catch { /* best-effort */ }
+}
+
+// ─── Paid album purchase ────────────────────────────────────────────────────
+
+export type IdentifyBuyerResult = {
+  buyerId: string;
+  purchasedPhotoIds: string[];
+};
+
+export async function identifyAlbumBuyer(
+  albumId: string,
+  data: { name: string; email: string; phone: string }
+): Promise<IdentifyBuyerResult> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/albums/${encodeURIComponent(albumId)}/identify-buyer`,
+    { ...data, deviceFingerprint: '' },
+  );
+  const d = (res?.data ?? {}) as Raw;
+  return {
+    buyerId: str(d.buyerId) ?? '',
+    purchasedPhotoIds: Array.isArray(d.purchasedPhotoIds) ? (d.purchasedPhotoIds as string[]) : [],
+  };
+}
+
+export type AlbumPurchaseResult = {
+  refid: string;
+  paymentUrl?: string;
+};
+
+export async function initiateAlbumPurchase(data: {
+  albumId: string;
+  photoIds: string[];
+  buyerId: string;
+  amount: number;
+  currencyId: string;
+}): Promise<AlbumPurchaseResult> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    '/public/payments/xentripay/initiate-album-purchase',
+    data,
+  );
+  const d = (res?.data ?? res ?? {}) as Raw;
+  const refid = str(d.refid) ?? str(d.reference) ?? str(d.transactionId) ?? str(d.refId) ?? '';
+  const paymentUrl = str(d.paymentUrl) ?? str(d.redirectUrl) ?? str(d.url) ?? str(d.checkoutUrl);
+  return { refid, paymentUrl };
+}
+
+/** One slice of a cross-album purchase: a face-scan can match photos across
+ * multiple photographers' albums — each slice becomes its own AlbumPurchase
+ * row server-side so revenue routes to the right photographer. */
+export type MultiAlbumPurchaseItem = {
+  albumId: string;
+  photoIds: string[];
+  amount: number;
+  currencyId: string;
+};
+
+export async function initiateMultiAlbumPurchase(data: {
+  items: MultiAlbumPurchaseItem[];
+  buyerId?: string;
+  viewerEmail?: string;
+}): Promise<AlbumPurchaseResult> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    '/public/payments/xentripay/initiate-multi-album-purchase',
+    data,
+  );
+  const d = (res?.data ?? res ?? {}) as Raw;
+  const refid = str(d.refid) ?? str(d.reference) ?? str(d.transactionId) ?? str(d.refId) ?? '';
+  const paymentUrl = str(d.paymentUrl) ?? str(d.redirectUrl) ?? str(d.url) ?? str(d.checkoutUrl);
+  return { refid, paymentUrl };
+}
+
+export type RecordPurchaseResult = {
+  unlockCode?: string;
+  status?: string;
+};
+
+export async function recordAlbumPurchase(
+  refid: string,
+  buyerId?: string
+): Promise<RecordPurchaseResult> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    '/public/payments/record-album-purchase',
+    buyerId ? { refid, buyerId } : { refid },
+  );
+  const d = (res?.data ?? {}) as Raw;
+  return { unlockCode: str(d.unlockCode), status: str(d.status) };
+}
+
+export type PublicPaymentStatus = 'success' | 'pending' | 'failed';
+
+export async function getPublicPaymentStatus(refid: string): Promise<PublicPaymentStatus> {
+  const res = await api.get<ApiEnvelope<Raw> & Raw>(
+    `/public/payments/xentripay/status/${encodeURIComponent(refid)}`,
+  );
+  const d = (res?.data ?? res ?? {}) as Raw;
+  const raw = (str(d.status) ?? str(d.paymentStatus) ?? '').toUpperCase();
+  if (/SUCCESS|COMPLETED|PAID|APPROVED/.test(raw)) return 'success';
+  if (/FAIL|CANCEL|DECLIN|ERROR/.test(raw)) return 'failed';
+  return 'pending';
+}
+
+/** Build the URL for downloading a purchased photo (auth via query params). */
+export function getPhotoDownloadUrl(
+  albumId: string,
+  photoId: string,
+  token: { refid?: string; buyerId?: string }
+): string {
+  const base = env.apiBaseUrl.replace(/\/$/, '');
+  const qs = new URLSearchParams();
+  if (token.refid) qs.set('refid', token.refid);
+  if (token.buyerId) qs.set('buyerId', token.buyerId);
+  const q = qs.toString();
+  return `${base}/public/albums/${albumId}/photo/${photoId}/download${q ? `?${q}` : ''}`;
+}
+
+// ─── Unlock already-purchased photos ───────────────────────────────────────
+
+export type UnlockResult = {
+  buyerId?: string;
+  purchasedPhotoIds?: string[];
+  refid?: string;
+};
+
+export async function unlockAlbumPhotos(albumId: string, identifier: string): Promise<UnlockResult> {
+  const isEmail = identifier.includes('@');
+  const body = isEmail ? { albumId, email: identifier } : { albumId, unlockCode: identifier };
+  const res = await api.post<ApiEnvelope<Raw>>('/public/unlock-photos', body);
+  const d = (res?.data ?? {}) as Raw;
+  return {
+    buyerId: str(d.buyerId),
+    purchasedPhotoIds: Array.isArray(d.purchasedPhotoIds) ? (d.purchasedPhotoIds as string[]) : [],
+    refid: str(d.refid),
+  };
+}
+
+// ─── Browse photos (stock library) ─────────────────────────────────────────
+
+export interface BrowseRow {
+  imageId: string;
+  galleryId: string;
+  title: string;
+  category: string | null;
+  categoryLabel: string | null;
+  fileUrl: string;
+  photographerId: string | null;
+  photographerName: string;
+  photographerLogo: string | null;
+  listingPrice: number;
+  listingCurrency: string | null;
+  buyerPrice: number;
+  buyerCurrency: string;
+}
+
+export async function fetchBrowsePhotos(page: number, size: number = 50): Promise<BrowseRow[]> {
+  // Browse is served from /api/public (not /api/remote) — pass a full URL so the client skips the base prefix
+  const base = env.apiBaseUrl.replace(/\/api\/remote$/, '');
+  const res = await api.get<ApiEnvelope<{ items: Raw[]; total: number }>>(`${base}/api/public/content/browse?page=${page}&size=${size}`);
+  const items = res?.data?.items || [];
+  return items.map((r: any) => ({
+    imageId: String(r.imageId ?? r.id),
+    galleryId: String(r.galleryId ?? ''),
+    title: String(r.title ?? ''),
+    category: str(r.category) ?? null,
+    categoryLabel: str(r.categoryLabel) ?? null,
+    fileUrl: String(r.fileUrl ?? r.url ?? ''),
+    photographerId: str(r.photographerId) ?? null,
+    photographerName: String(r.photographerName ?? 'Unknown'),
+    photographerLogo: str(r.photographerLogo) ?? null,
+    listingPrice: Number(r.listingPrice || 0),
+    listingCurrency: str(r.listingCurrency) ?? null,
+    buyerPrice: Number(r.buyerPrice || 0),
+    buyerCurrency: String(r.buyerCurrency ?? 'USD'),
+  }));
 }

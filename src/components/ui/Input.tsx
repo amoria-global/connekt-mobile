@@ -13,10 +13,11 @@ import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 type Props = TextInputProps & {
   label?: string;
   error?: string;
+  leftElement?: React.ReactNode;
 };
 
 export const Input = forwardRef<TextInput, Props>(function Input(
-  { label, error, style, secureTextEntry, ...rest },
+  { label, error, leftElement, style, secureTextEntry, ...rest },
   ref,
 ) {
   const isPassword = secureTextEntry === true;
@@ -26,6 +27,7 @@ export const Input = forwardRef<TextInput, Props>(function Input(
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={[styles.inputRow, !!error && styles.inputError]}>
+        {leftElement}
         <TextInput
           ref={ref}
           placeholderTextColor={colors.textMuted}
