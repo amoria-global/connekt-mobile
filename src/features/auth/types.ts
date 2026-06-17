@@ -54,4 +54,5 @@ export type LoginResponse = {
   token?: string;
   refreshToken?: string;
   token_expiry?: string;
+  mustChangePassword?: boolean;
 };

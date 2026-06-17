@@ -4,19 +4,23 @@ import {
   type PressableProps,
   StyleSheet,
   Text,
+  type StyleProp,
+  type TextStyle,
 } from 'react-native';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
-type Variant = 'primary' | 'accent' | 'ghost';
+type Variant = 'primary' | 'accent' | 'ghost' | 'outline';
 
 type Props = Omit<PressableProps, 'children'> & {
   title: string;
   variant?: Variant;
   loading?: boolean;
+  textStyle?: StyleProp<TextStyle>;
 };
 
-export function Button({ title, variant = 'primary', loading, disabled, style, ...rest }: Props) {
+export function Button({ title, variant = 'primary', loading, disabled, style, textStyle, ...rest }: Props) {
   const isDisabled = disabled || loading;
+  const isOutlined = variant === 'ghost' || variant === 'outline';
   return (
     <Pressable
       accessibilityRole="button"
@@ -31,9 +35,9 @@ export function Button({ title, variant = 'primary', loading, disabled, style, .
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'ghost' ? colors.primary : colors.textOnPrimary} />
+        <ActivityIndicator color={isOutlined ? colors.primary : colors.textOnPrimary} />
       ) : (
-        <Text style={[styles.label, variant === 'ghost' && styles.labelGhost]}>{title}</Text>
+        <Text style={[styles.label, isOutlined && styles.labelGhost, textStyle]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -61,4 +65,5 @@ const variantStyles = StyleSheet.create({
   primary: { backgroundColor: colors.primary },
   accent: { backgroundColor: colors.accent },
   ghost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
+  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
 });

@@ -17,6 +17,8 @@ export default function PublicLayout() {
       >
         <Stack.Screen name="explore-events" options={{ title: 'Explore events' }} />
         <Stack.Screen name="find-photos" options={{ title: 'Find My Photos' }} />
+        <Stack.Screen name="browse-photos" options={{ title: 'Browse Photos' }} />
+        <Stack.Screen name="gallery" options={{ title: 'Gallery' }} />
       </Stack>
       <StatusBar style="light" />
     </>

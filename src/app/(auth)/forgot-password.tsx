@@ -56,10 +56,10 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.title}>Check your email</Text>
           <Text style={styles.subtitle}>
             We sent a password reset link to{'\n'}
-            <Text style={styles.email}>{email.trim()}</Text>. Click the link in the email to reset
-            your password.
+            <Text style={styles.email}>{email.trim()}</Text>. You can click the link in the email, or enter the code here to reset your password.
           </Text>
-          <Button title="Back to sign in" onPress={() => router.replace('/login')} />
+          <Button title="Enter reset code" onPress={() => router.push({ pathname: '/reset-password', params: { email: email.trim() } })} style={{ width: '100%' }} />
+          <Button title="Back to sign in" variant="outline" onPress={() => router.replace('/login')} style={{ width: '100%', marginTop: spacing.sm }} />
           <Pressable onPress={onResend} style={styles.back}>
             <Text style={styles.backText}>
               {resent ? 'Reset link resent ✓' : "Didn't get it? Resend link"}

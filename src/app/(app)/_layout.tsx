@@ -42,7 +42,6 @@ export default function AppLayout() {
         <Stack.Screen name="find-my-photos" options={{ title: 'Find My Photos' }} />
         <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />
         <Stack.Screen name="preferences" options={{ title: 'Notifications' }} />
-        <Stack.Screen name="gallery" options={{ title: 'Gallery' }} />
         <Stack.Screen
           name="album/new"
           options={{
