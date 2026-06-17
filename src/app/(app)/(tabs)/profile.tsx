@@ -94,7 +94,7 @@ function MenuRow({
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: spacing.xl, gap: spacing.lg },
+  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120, paddingTop: spacing.md, gap: spacing.xl },
   card: {
     alignItems: 'center',
     gap: spacing.sm,

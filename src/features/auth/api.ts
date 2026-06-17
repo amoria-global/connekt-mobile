@@ -41,6 +41,28 @@ export function isNeedsVerification(err: unknown): err is NeedsVerificationError
   );
 }
 
+export type NeedsTotpError = ApiError & { needsTotp: true; customerId: string };
+
+export function isNeedsTotp(err: unknown): err is NeedsTotpError {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { needsTotp?: unknown }).needsTotp === true &&
+    typeof (err as { customerId?: unknown }).customerId === 'string'
+  );
+}
+
+export type NeedsPasswordChangeError = ApiError & { needsPasswordChange: true; email: string };
+
+export function isNeedsPasswordChange(err: unknown): err is NeedsPasswordChangeError {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { needsPasswordChange?: unknown }).needsPasswordChange === true &&
+    typeof (err as { email?: unknown }).email === 'string'
+  );
+}
+
 function userFromResponse(res: LoginResponse, fallbackEmail: string): User {
   return {
     customerId: res.customerId ?? '',
@@ -71,11 +93,25 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
       } as NeedsVerificationError;
     }
     // action 0 = locked / bad creds, action 2 = 2FA required.
-    const message =
-      res.action === 2
-        ? 'Two-factor authentication is required. Please use the web app to finish signing in.'
-        : res.message || 'Login failed. Check your email and password.';
-    throw { status: 401, message } satisfies ApiError;
+    if (res.action === 2 && res.customerId) {
+      throw {
+        status: 403,
+        message: res.message || 'Two-factor authentication is required.',
+        needsTotp: true,
+        customerId: res.customerId,
+      } as NeedsTotpError;
+    }
+
+    throw { status: 401, message: res.message || 'Login failed. Check your email and password.' } satisfies ApiError;
+  }
+
+  if (res.mustChangePassword) {
+    throw {
+      status: 403,
+      message: 'You must change your password to continue.',
+      needsPasswordChange: true,
+      email: credentials.email,
+    } as NeedsPasswordChangeError;
   }
 
   const session: AuthSession = {
@@ -119,6 +155,26 @@ export async function verifyOtp(customerId: string, otp: string): Promise<AuthSe
   return session;
 }
 
+/** Verifies a TOTP code during login for users with 2FA enabled. */
+export async function verifyTotp(customerId: string, code: string): Promise<AuthSession> {
+  const res = await api.post<LoginResponse>('/auth/verify-totp', { customerId, code }, {
+    skipAuth: true,
+  });
+  if (res.action !== 1 || !res.token) {
+    throw {
+      status: 400,
+      message: res.message || 'That code is invalid.',
+    } satisfies ApiError;
+  }
+  const session: AuthSession = {
+    token: res.token,
+    refreshToken: res.refreshToken,
+    user: userFromResponse(res, ''),
+  };
+  await persistSession(session);
+  return session;
+}
+
 export async function resendOtp(customerId: string): Promise<void> {
   await api.post(`/auth/resend-otp?customerId=${encodeURIComponent(customerId)}`, undefined, {
     skipAuth: true,
@@ -140,6 +196,24 @@ export async function forgotPassword(email: string): Promise<void> {
     throw {
       status: 400,
       message: res.message || 'We could not send a reset link. Check the email and try again.',
+    } satisfies ApiError;
+  }
+}
+
+export async function setNewPassword(data: {
+  email: string;
+  code: string;
+  password: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<void> {
+  const res = await api.post<{ action: number; message?: string }>('/auth/set-new-password', data, {
+    skipAuth: true,
+  });
+  if (res.action !== 1) {
+    throw {
+      status: 400,
+      message: res.message || 'Password reset failed. Please try again.',
     } satisfies ApiError;
   }
 }

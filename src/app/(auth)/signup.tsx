@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { CUSTOMER_TYPES, signup } from '@/features/auth/api';
+import { GoogleButton } from '@/features/auth/GoogleButton';
 import type { CustomerType } from '@/features/auth/types';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -26,6 +27,10 @@ const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
   phone: z.string().min(6, 'Enter a valid phone number'),
   password: z.string().min(8, 'Use at least 8 characters'),
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -45,13 +50,14 @@ export default function SignupScreen() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { firstName: '', lastName: '', email: '', phone: '', password: '' },
+    defaultValues: { firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '' },
   });
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
     try {
-      const { customerId } = await signup({ ...values, customerType: role });
+      const { confirmPassword, ...restValues } = values;
+      const { customerId } = await signup({ ...restValues, customerType: role });
       router.push({ pathname: '/verify-otp', params: { customerId, email: values.email } });
     } catch (err) {
       setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
@@ -87,6 +93,11 @@ export default function SignupScreen() {
               label="Phone"
               error={errors.phone?.message}
               keyboardType="phone-pad"
+              leftElement={
+                <View style={styles.phonePrefix}>
+                  <Text style={styles.phonePrefixText}>+250</Text>
+                </View>
+              }
             />
             <Field
               control={control}
@@ -96,10 +107,26 @@ export default function SignupScreen() {
               secureTextEntry
               autoCapitalize="none"
             />
+            <Field
+              control={control}
+              name="confirmPassword"
+              label="Confirm Password"
+              error={errors.confirmPassword?.message}
+              secureTextEntry
+              autoCapitalize="none"
+            />
 
             {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
             <Button title="Create account" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+
+            <View style={styles.divider}>
+              <View style={styles.line} />
+              <Text style={styles.orText}>OR</Text>
+              <View style={styles.line} />
+            </View>
+
+            <GoogleButton label={`Sign up with Google`} customerType={role} />
           </View>
 
           <Pressable onPress={() => router.back()}>
@@ -122,9 +149,10 @@ type FieldProps = {
   keyboardType?: 'email-address' | 'phone-pad';
   secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'sentences';
+  leftElement?: React.ReactNode;
 };
 
-function Field({ control, name, label, error, keyboardType, secureTextEntry, autoCapitalize }: FieldProps) {
+function Field({ control, name, label, error, keyboardType, secureTextEntry, autoCapitalize, leftElement }: FieldProps) {
   return (
     <Controller
       control={control}
@@ -139,6 +167,7 @@ function Field({ control, name, label, error, keyboardType, secureTextEntry, aut
           keyboardType={keyboardType}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
+          leftElement={leftElement}
         />
       )}
     />
@@ -165,6 +194,19 @@ const styles = StyleSheet.create({
   roleTextActive: { color: colors.textOnPrimary },
   form: { gap: spacing.lg },
   serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-  footer: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.sm },
+  footer: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.sm, marginTop: spacing.md },
   link: { color: colors.primary, fontWeight: fontWeight.bold },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.sm },
+  line: { flex: 1, height: 1, backgroundColor: colors.border },
+  orText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  phonePrefix: {
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    marginRight: spacing.xs,
+    justifyContent: 'center',
+    height: '100%',
+  },
+  phonePrefixText: { fontSize: fontSize.md, color: colors.textSoft },
 });

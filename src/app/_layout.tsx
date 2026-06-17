@@ -1,8 +1,14 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  useFonts,
+  PragatiNarrow_400Regular,
+  PragatiNarrow_700Bold,
+} from '@expo-google-fonts/pragati-narrow';
 import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
 import { colors } from '@/theme';
@@ -46,6 +52,10 @@ export default function RootLayout() {
   const status = useAuth((s) => s.status);
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
+  const [fontsLoaded] = useFonts({
+    PragatiNarrow_400Regular,
+    PragatiNarrow_700Bold,
+  });
 
   useEffect(() => {
     bootstrap();
@@ -55,21 +65,23 @@ export default function RootLayout() {
   useProtectedRoute();
 
   return (
-    <SafeAreaProvider>
-      {status === 'idle' || status === 'loading' ? (
-        <View style={styles.splash}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(public)" />
-          <Stack.Screen name="(app)" />
-        </Stack>
-      )}
-      <StatusBar style="dark" />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        {status === 'idle' || status === 'loading' || !fontsLoaded ? (
+          <View style={styles.splash}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(public)" />
+            <Stack.Screen name="(app)" />
+          </Stack>
+        )}
+        <StatusBar style="dark" />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
