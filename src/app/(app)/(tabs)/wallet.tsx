@@ -109,7 +109,7 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { padding: spacing.xl, gap: spacing.xl },
+  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120, gap: spacing.xl },
   headerBlock: { gap: 2 },
   screenTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
   screenSubtitle: { fontSize: fontSize.sm, color: colors.textMuted },

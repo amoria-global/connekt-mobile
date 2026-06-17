@@ -16,9 +16,10 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
-import { isNeedsVerification } from '@/features/auth/api';
+import { isNeedsVerification, isNeedsTotp, isNeedsPasswordChange } from '@/features/auth/api';
 import { GoogleButton } from '@/features/auth/GoogleButton';
 import { RoleModal } from '@/features/auth/RoleModal';
+import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import type { CustomerType } from '@/features/auth/types';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -35,6 +36,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [roleModalVisible, setRoleModalVisible] = useState(false);
+  const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
 
   const onPickRole = (role: CustomerType) => {
     setRoleModalVisible(false);
@@ -57,6 +59,14 @@ export default function LoginScreen() {
       await login(values);
       // Navigation is handled by the protected-route guard in the root layout.
     } catch (err) {
+      if (isNeedsPasswordChange(err)) {
+        router.push({ pathname: '/change-password', params: { email: err.email } });
+        return;
+      }
+      if (isNeedsTotp(err)) {
+        router.push({ pathname: '/verify-totp', params: { customerId: err.customerId } });
+        return;
+      }
       // Unverified email → send them to the OTP screen (the code was re-sent).
       if (isNeedsVerification(err)) {
         router.push({ pathname: '/verify-otp', params: { customerId: err.customerId, email: values.email } });
@@ -151,7 +161,7 @@ export default function LoginScreen() {
             <Button
               title="Find my photos"
               variant="accent"
-              onPress={() => router.push('/find-photos')}
+              onPress={() => setFindPhotosModalVisible(true)}
               style={styles.guestBtn}
             />
             <Pressable onPress={() => router.push('/explore-events')}>
@@ -167,11 +177,8 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <RoleModal
-        visible={roleModalVisible}
-        onClose={() => setRoleModalVisible(false)}
-        onSelect={onPickRole}
-      />
+      <RoleModal visible={roleModalVisible} onClose={() => setRoleModalVisible(false)} onSelect={onPickRole} />
+      <FindPhotosBottomSheet visible={findPhotosModalVisible} onClose={() => setFindPhotosModalVisible(false)} getPhotosRoute="/find-photos" />
     </Screen>
   );
 }

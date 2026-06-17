@@ -78,7 +78,10 @@ export function DataList<T>({
       keyExtractor={keyExtractor}
       renderItem={renderItem}
       ListHeaderComponent={header}
-      contentContainerStyle={[styles.listContent, { paddingTop: topInset + spacing.md }]}
+      contentContainerStyle={[
+        styles.listContent, 
+        { paddingTop: topInset + spacing.md, paddingBottom: 120 }
+      ]}
       refreshControl={
         <RefreshControl
           refreshing={loading}
