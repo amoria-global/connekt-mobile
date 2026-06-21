@@ -7,7 +7,7 @@
 import { api } from '@/api/client';
 import type { PickedImage } from '@/services/imagePicker';
 import type { ApiError, ApiEnvelope } from '@/types';
-import type { CreateEventInput, EventItem } from './types';
+import type { CreateEventInput, EventItem, PublicEvent } from './types';
 
 type RawEvent = Record<string, unknown>;
 
@@ -114,6 +114,65 @@ export async function getPublicEvent(id: string): Promise<EventItem> {
     skipAuth: true,
   });
   return mapEvent((res?.data ?? {}) as RawEvent);
+}
+
+/**
+ * Map the rich public-events payload (used by the web join + live-stream
+ * flows) to a stable shape. Keep nullable everywhere — most public events
+ * have at least one field the backend omits.
+ */
+function mapPublicEvent(r: RawEvent): PublicEvent {
+  const cat = (r.eventCategory ?? {}) as RawEvent;
+  const photographer = (r.photographer ?? {}) as RawEvent;
+  const photographerName =
+    str(r.photographerName) ??
+    ([str(photographer.firstName), str(photographer.lastName)].filter(Boolean).join(' ') || undefined);
+  const tagsCsv = str(r.eventTags);
+  const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : undefined);
+
+  return {
+    id: String(r.id ?? ''),
+    title: str(r.title) ?? 'Untitled event',
+    description: str(r.description),
+    category: str(cat.name) ?? str(r.eventType) ?? tagsCsv?.split(',')[0],
+    tags: tagsCsv ? tagsCsv.split(',').map((t) => t.trim()).filter(Boolean) : [],
+    eventDate: str(r.eventDate),
+    startTime: str(r.startTime),
+    endTime: str(r.endTime),
+    location: str(r.location),
+    organizer: str(r.eventOrganizer) ?? str(r.organizer),
+    coverImage: str(r.eventPhoto) ?? str(r.coverImage) ?? str(r.thumbnail),
+    status: str(r.eventStatus) ?? str(r.status),
+    streamStatus: str(r.streamStatus),
+    hasLiveStream: r.hasLiveStream === true,
+    hasInviteCode: r.hasInviteCode === true,
+    photographerName,
+    photographerImage: str(r.photographerImage) ?? str((photographer as RawEvent).profilePicture),
+    photographerId: str(r.photographerId) ?? str((photographer as RawEvent).id),
+    streamFee: num(r.streamFee) ?? num(r.price) ?? 0,
+    streamFeeCurrencyCode: str(r.streamFeeCurrencyAbbreviation) ?? str(r.priceCurrency) ?? 'RWF',
+    streamFeeCurrencySymbol: str(r.streamFeeCurrencySymbol),
+    packageName: str(r.packageName),
+    packagePrice: num(r.packagePrice),
+    packageCurrencyCode: str(r.packageCurrencyAbbreviation),
+    maxGuests: num(r.maxGuests),
+  };
+}
+
+/** Public events list with the richer shape used by the public guest flow. */
+export async function listPublicEventsDetailed(): Promise<PublicEvent[]> {
+  const res = await api.get<ApiEnvelope<unknown>>('/public/events/list?page=0&size=100', {
+    skipAuth: true,
+  });
+  return unwrapList(res?.data).map(mapPublicEvent).filter((e) => e.id);
+}
+
+/** Single public event for the guest detail screen. */
+export async function getPublicEventDetailed(id: string): Promise<PublicEvent> {
+  const res = await api.get<ApiEnvelope<RawEvent>>(`/public/events/${encodeURIComponent(id)}`, {
+    skipAuth: true,
+  });
+  return mapPublicEvent((res?.data ?? {}) as RawEvent);
 }
 
 /**

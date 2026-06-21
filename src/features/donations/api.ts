@@ -61,3 +61,47 @@ export async function donate(input: {
     throw { status: 400, message: res?.message || 'Could not submit your donation.' };
   }
 }
+
+/**
+ * Public donation creation (no auth, web parity:
+ * POST /public/donations?amount=&currencyId=&donorName=&donorEmail=&message=&paymentMethod=&eventId=).
+ * Returns the donation row used by `initiateXentriPayDonation` to take payment.
+ */
+export type PublicDonationInput = {
+  amount: number;
+  currencyId?: string;
+  donorName?: string;
+  donorEmail?: string;
+  message?: string;
+  paymentMethod?: string;
+  eventId?: string;
+};
+
+export type PublicDonationCreated = {
+  id: ID;
+  amount?: number;
+  status?: string;
+};
+
+export async function createPublicDonation(
+  input: PublicDonationInput,
+): Promise<PublicDonationCreated> {
+  const qs = new URLSearchParams({ amount: String(input.amount) });
+  if (input.currencyId) qs.set('currencyId', input.currencyId);
+  if (input.donorName?.trim()) qs.set('donorName', input.donorName.trim());
+  if (input.donorEmail?.trim()) qs.set('donorEmail', input.donorEmail.trim());
+  if (input.message?.trim()) qs.set('message', input.message.trim());
+  if (input.paymentMethod) qs.set('paymentMethod', input.paymentMethod);
+  if (input.eventId) qs.set('eventId', input.eventId);
+
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/donations?${qs.toString()}`,
+    undefined,
+    { skipAuth: true },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not submit your donation.' };
+  }
+  const d = (res?.data ?? {}) as Raw;
+  return { id: String(d.id ?? ''), amount: num(d.amount), status: str(d.status) };
+}
