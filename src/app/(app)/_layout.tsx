@@ -53,6 +53,17 @@ export default function AppLayout() {
           }}
         />
         <Stack.Screen name="album/[id]" options={{ title: 'Album' }} />
+        <Stack.Screen name="content-albums" options={{ title: 'Content Albums' }} />
+        <Stack.Screen
+          name="content-album/new"
+          options={{
+            title: 'New content album',
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.8, 1],
+            sheetGrabberVisible: true,
+            sheetCornerRadius: 24,
+          }}
+        />
         <Stack.Screen name="photobooks" options={{ title: 'Photobooks' }} />
         <Stack.Screen name="photobook/[id]" options={{ title: 'Photobook' }} />
         <Stack.Screen name="withdraw" options={{ title: 'Withdraw' }} />

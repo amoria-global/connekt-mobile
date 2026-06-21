@@ -39,3 +39,39 @@ export type EventItem = {
   endTime?: string;
   published?: boolean;
 };
+
+/**
+ * Public event payload returned by `/public/events/list` and
+ * `/public/events/{id}`. Carries the fields the web join/payment/live-stream
+ * flows depend on (price, stream fee + currency, hasLiveStream, organizer,
+ * photographer). Used by the public (guest) flows in (public)/events/*.
+ */
+export type PublicEvent = {
+  id: ID;
+  title: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  eventDate?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  organizer?: string;
+  coverImage?: string;
+  status?: string;
+  streamStatus?: string;
+  hasLiveStream: boolean;
+  hasInviteCode: boolean;
+  photographerName?: string;
+  photographerImage?: string;
+  photographerId?: string;
+  /** Stream entry fee — 0 when the event is free. */
+  streamFee: number;
+  streamFeeCurrencyCode: string;
+  streamFeeCurrencySymbol?: string;
+  /** Package booking price (separate from streamFee). */
+  packageName?: string;
+  packagePrice?: number;
+  packageCurrencyCode?: string;
+  maxGuests?: number;
+};

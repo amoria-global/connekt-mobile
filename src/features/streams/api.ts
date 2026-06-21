@@ -99,3 +99,129 @@ export async function joinStream(id: string): Promise<string | undefined> {
 export async function tipStream(id: string, amount: number): Promise<void> {
   await api.post(`/streams/${encodeURIComponent(id)}/tip`, { amount });
 }
+
+// ────── Public stream access (guest / anonymous viewer flow) ──────────────
+//
+// Mirrors the web's `validateStreamToken` / `requestStreamAccess` /
+// anonymous-viewer endpoints so the mobile guest flow can validate an invite
+// token and join a free or pre-paid live stream the same way.
+
+export type ValidatedStreamToken = {
+  valid: boolean;
+  eventId?: string;
+  eventTitle?: string;
+  hasLiveStream: boolean;
+  hlsManifestUrl?: string;
+  streamFee?: number;
+  currencyCode?: string;
+  currencySymbol?: string;
+  requiresPayment: boolean;
+};
+
+export async function validateStreamToken(
+  eventId: string,
+  inviteToken: string,
+): Promise<ValidatedStreamToken> {
+  const res = await api.post<ApiEnvelope<Raw> & Raw>(
+    `/public/events/${encodeURIComponent(eventId)}/stream/validate-token`,
+    { inviteToken },
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? res ?? {}) as Raw;
+  return {
+    valid: d.valid === true,
+    eventId: str(d.eventId) ?? eventId,
+    eventTitle: str(d.eventTitle),
+    hasLiveStream: d.hasLiveStream === true,
+    hlsManifestUrl: str(d.hlsManifestUrl) ?? undefined,
+    streamFee: num(d.streamFee),
+    currencyCode: str(d.currencyAbbreviation),
+    currencySymbol: str(d.currencySymbol),
+    requiresPayment: d.requiresPayment === true,
+  };
+}
+
+export type StreamAccess = { whepUrl?: string; hlsManifestUrl?: string; eventTitle?: string };
+
+export async function requestStreamAccess(
+  eventId: string,
+  inviteToken: string,
+  viewerUsername: string,
+): Promise<StreamAccess> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/events/${encodeURIComponent(eventId)}/stream/access`,
+    { inviteToken, viewerUsername },
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? {}) as Raw;
+  return {
+    whepUrl: str(d.whepUrl),
+    hlsManifestUrl: str(d.hlsManifestUrl),
+    eventTitle: str(d.eventTitle),
+  };
+}
+
+/** Public viewer count for the event detail screen (no auth). */
+export async function getPublicViewerCount(eventId: string): Promise<number> {
+  const res = await api.get<ApiEnvelope<Raw>>(
+    `/public/events/${encodeURIComponent(eventId)}/viewers`,
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? {}) as Raw;
+  return num(d.viewerCount) ?? 0;
+}
+
+// ────── Anonymous viewer (paid live stream, no account) ──────────────────
+
+export type AnonymousViewerRegistration = {
+  viewerId: string;
+  needsPayment: boolean;
+  amount?: number;
+  currencyCode?: string;
+  hlsManifestUrl?: string;
+};
+
+export async function registerAnonymousViewer(
+  eventId: string,
+  payload: { name: string; email: string; phone?: string; deviceId: string },
+): Promise<AnonymousViewerRegistration> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/register`,
+    payload,
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? {}) as Raw;
+  return {
+    viewerId: String(d.viewerId ?? d.id ?? ''),
+    needsPayment: d.needsPayment === true || d.requiresPayment === true,
+    amount: num(d.amount) ?? num(d.streamFee),
+    currencyCode: str(d.currencyAbbreviation) ?? str(d.currencyCode),
+    hlsManifestUrl: str(d.hlsManifestUrl),
+  };
+}
+
+export async function confirmAnonymousPayment(
+  eventId: string,
+  payload: { viewerId: string; refid: string },
+): Promise<{ hlsManifestUrl?: string }> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/confirm-payment`,
+    payload,
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? {}) as Raw;
+  return { hlsManifestUrl: str(d.hlsManifestUrl) };
+}
+
+export async function checkAnonymousAccessStatus(
+  eventId: string,
+  viewerId: string,
+): Promise<{ active: boolean; hlsManifestUrl?: string }> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/access-status`,
+    { viewerId },
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? {}) as Raw;
+  return { active: d.active === true || d.status === 'ACTIVE', hlsManifestUrl: str(d.hlsManifestUrl) };
+}
