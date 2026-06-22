@@ -147,6 +147,16 @@ export default function LoginScreen() {
 
               <Button title="Sign in" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
 
+              <Pressable
+                style={styles.registerLine}
+                onPress={() => setRoleModalVisible(true)}
+                hitSlop={8}
+              >
+                <Text style={styles.registerText}>
+                  Not a member? <Text style={styles.registerLink}>Register</Text>
+                </Text>
+              </Pressable>
+
               <View style={styles.divider}>
                 <View style={styles.line} />
                 <Text style={styles.dividerText}>or</Text>
@@ -173,12 +183,6 @@ export default function LoginScreen() {
               </Pressable>
             </View>
           </View>
-
-          <Pressable style={styles.footerWrap} onPress={() => setRoleModalVisible(true)}>
-            <Text style={styles.footer}>
-              Don&apos;t have an account? <Text style={styles.link}>Create one</Text>
-            </Text>
-          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -205,14 +209,13 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
-    justifyContent: 'space-between',
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
-  top: { gap: spacing.lg },
+  top: { gap: spacing.md },
 
-  header: { alignItems: 'center', gap: 2 },
-  logo: { width: 96, height: 48, marginBottom: spacing.xs },
+  header: { alignItems: 'center', gap: 2, marginBottom: spacing.sm },
+  logo: { width: 88, height: 44, marginBottom: spacing.xs },
   title: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
@@ -224,6 +227,10 @@ const styles = StyleSheet.create({
   forgotWrap: { alignSelf: 'flex-end', marginTop: -spacing.xs, marginBottom: spacing.xs },
   forgotText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
+
+  registerLine: { alignSelf: 'center', paddingVertical: spacing.xs },
+  registerText: { color: colors.textMuted, fontSize: fontSize.sm },
+  registerLink: { color: colors.primary, fontWeight: fontWeight.bold },
 
   divider: {
     flexDirection: 'row',
@@ -263,8 +270,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
   },
-
-  footerWrap: { paddingTop: spacing.md },
-  footer: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.sm },
-  link: { color: colors.primary, fontWeight: fontWeight.bold },
 });
