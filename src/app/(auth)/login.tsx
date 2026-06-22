@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
+import { Ionicons } from '@expo/vector-icons';
 import {
   Image,
   KeyboardAvoidingView,
@@ -57,7 +58,6 @@ export default function LoginScreen() {
     setServerError(null);
     try {
       await login(values);
-      // Navigation is handled by the protected-route guard in the root layout.
     } catch (err) {
       if (isNeedsPasswordChange(err)) {
         router.push({ pathname: '/change-password', params: { email: err.email } });
@@ -67,9 +67,11 @@ export default function LoginScreen() {
         router.push({ pathname: '/verify-totp', params: { customerId: err.customerId } });
         return;
       }
-      // Unverified email → send them to the OTP screen (the code was re-sent).
       if (isNeedsVerification(err)) {
-        router.push({ pathname: '/verify-otp', params: { customerId: err.customerId, email: values.email } });
+        router.push({
+          pathname: '/verify-otp',
+          params: { customerId: err.customerId, email: values.email },
+        });
         return;
       }
       setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
@@ -85,91 +87,94 @@ export default function LoginScreen() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <Image
-              source={require('../../../assets/images/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>Sign in to your Connekyt account</Text>
-          </View>
-
-          <View style={styles.form}>
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Email"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.email?.message}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Password"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.password?.message}
-                />
-              )}
-            />
-
-            <Pressable
-              style={styles.forgotWrap}
-              onPress={() =>
-                router.push({ pathname: '/forgot-password', params: { email: getValues('email') } })
-              }
-            >
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </Pressable>
-
-            {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
-
-            <Button
-              title="Sign in"
-              onPress={handleSubmit(onSubmit)}
-              loading={isSubmitting}
-              style={styles.submit}
-            />
-
-            <View style={styles.divider}>
-              <View style={styles.line} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.line} />
+          <View style={styles.top}>
+            <View style={styles.header}>
+              <Image
+                source={require('../../../assets/images/logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+              <Text style={styles.title}>Welcome back</Text>
+              <Text style={styles.subtitle}>Sign in to continue</Text>
             </View>
 
-            <GoogleButton label="Continue with Google" />
+            <View style={styles.form}>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Email"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    keyboardType="email-address"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.email?.message}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Password"
+                    secureTextEntry
+                    autoCapitalize="none"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.password?.message}
+                  />
+                )}
+              />
+
+              <Pressable
+                style={styles.forgotWrap}
+                onPress={() =>
+                  router.push({ pathname: '/forgot-password', params: { email: getValues('email') } })
+                }
+                hitSlop={8}
+              >
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </Pressable>
+
+              {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
+
+              <Button title="Sign in" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+
+              <View style={styles.divider}>
+                <View style={styles.line} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.line} />
+              </View>
+
+              <GoogleButton label="Continue with Google" />
+            </View>
+
+            <View style={styles.guestRow}>
+              <Pressable
+                style={({ pressed }) => [styles.guestPill, pressed && styles.guestPillPressed]}
+                onPress={() => setFindPhotosModalVisible(true)}
+              >
+                <Ionicons name="scan" size={16} color={colors.accent} />
+                <Text style={styles.guestPillText}>Find my photos</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.guestPill, pressed && styles.guestPillPressed]}
+                onPress={() => router.push('/explore-events')}
+              >
+                <Ionicons name="calendar" size={16} color={colors.primary} />
+                <Text style={styles.guestPillText}>Explore events</Text>
+              </Pressable>
+            </View>
           </View>
 
-          <View style={styles.guestSection}>
-            <Text style={styles.guestLabel}>Just looking? No account needed</Text>
-            <Button
-              title="Find my photos"
-              variant="accent"
-              onPress={() => setFindPhotosModalVisible(true)}
-              style={styles.guestBtn}
-            />
-            <Pressable onPress={() => router.push('/explore-events')}>
-              <Text style={styles.guestLink}>or explore events</Text>
-            </Pressable>
-          </View>
-
-          <Pressable onPress={() => setRoleModalVisible(true)}>
+          <Pressable style={styles.footerWrap} onPress={() => setRoleModalVisible(true)}>
             <Text style={styles.footer}>
               Don&apos;t have an account? <Text style={styles.link}>Create one</Text>
             </Text>
@@ -177,41 +182,89 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <RoleModal visible={roleModalVisible} onClose={() => setRoleModalVisible(false)} onSelect={onPickRole} />
-      <FindPhotosBottomSheet visible={findPhotosModalVisible} onClose={() => setFindPhotosModalVisible(false)} getPhotosRoute="/find-photos" />
+      <RoleModal
+        visible={roleModalVisible}
+        onClose={() => setRoleModalVisible(false)}
+        onSelect={onPickRole}
+      />
+      <FindPhotosBottomSheet
+        visible={findPhotosModalVisible}
+        onClose={() => setFindPhotosModalVisible(false)}
+        getPhotosRoute="/find-photos"
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  // `flexGrow: 1` + `justifyContent: 'space-between'` lets the form sit in
+  // the natural flow on tall devices and pin the signup link to the bottom
+  // edge so guests don't hunt for it. On short devices the scroll view
+  // still lets everything scroll into view.
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing['3xl'],
-    gap: spacing['2xl'],
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    justifyContent: 'space-between',
   },
-  header: { alignItems: 'center', gap: spacing.sm },
-  logo: { width: 120, height: 64, marginBottom: spacing.sm },
+  top: { gap: spacing.lg },
+
+  header: { alignItems: 'center', gap: 2 },
+  logo: { width: 96, height: 48, marginBottom: spacing.xs },
   title: {
-    fontSize: fontSize['2xl'],
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
     color: colors.primary,
   },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted },
-  form: { gap: spacing.lg },
-  submit: { marginTop: spacing.sm },
-  serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-  forgotWrap: { alignSelf: 'flex-end', marginTop: -spacing.sm },
+  subtitle: { fontSize: fontSize.sm, color: colors.textMuted },
+
+  form: { gap: spacing.md },
+  forgotWrap: { alignSelf: 'flex-end', marginTop: -spacing.xs, marginBottom: spacing.xs },
   forgotText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
+
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginVertical: spacing.xs,
+  },
   line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  dividerText: { color: colors.textMuted, fontSize: fontSize.sm },
+  dividerText: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+
+  // Side-by-side guest pills so both options are equally weighted and the
+  // section fits in a single row on every supported width (down to 320px:
+  // the row uses `flex: 1` and shrinks the labels with `numberOfLines`).
+  guestRow: { flexDirection: 'row', gap: spacing.sm },
+  guestPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  guestPillPressed: { opacity: 0.6 },
+  guestPillText: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+  },
+
+  footerWrap: { paddingTop: spacing.md },
   footer: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.sm },
   link: { color: colors.primary, fontWeight: fontWeight.bold },
-  guestSection: { gap: spacing.sm, alignItems: 'center' },
-  guestLabel: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.xs },
-  guestBtn: { alignSelf: 'stretch', borderRadius: radii.full },
-  guestLink: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 });
