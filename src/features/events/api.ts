@@ -7,7 +7,15 @@
 import { api } from '@/api/client';
 import type { PickedImage } from '@/services/imagePicker';
 import type { ApiError, ApiEnvelope } from '@/types';
-import type { CreateEventInput, EventItem, PublicEvent } from './types';
+import type {
+  CreateEventInput,
+  EventItem,
+  PublicEvent,
+  PublicEventCategory,
+  PublicEventCreator,
+  PublicEventsPage,
+  PublicEventsQuery,
+} from './types';
 
 type RawEvent = Record<string, unknown>;
 
@@ -118,53 +126,113 @@ export async function getPublicEvent(id: string): Promise<EventItem> {
 
 /**
  * Map the rich public-events payload (used by the web join + live-stream
- * flows) to a stable shape. Keep nullable everywhere — most public events
- * have at least one field the backend omits.
+ * flows) to a stable shape. Field names are preserved verbatim from the
+ * backend response so the web's status rules (knockout events.tsx)
+ * carry over unchanged.
  */
 function mapPublicEvent(r: RawEvent): PublicEvent {
   const cat = (r.eventCategory ?? {}) as RawEvent;
   const photographer = (r.photographer ?? {}) as RawEvent;
+  const creator = (r.creator ?? {}) as RawEvent;
+  const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : undefined);
   const photographerName =
     str(r.photographerName) ??
-    ([str(photographer.firstName), str(photographer.lastName)].filter(Boolean).join(' ') || undefined);
-  const tagsCsv = str(r.eventTags);
-  const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : undefined);
+    ([str(photographer.firstName), str(photographer.lastName)].filter(Boolean).join(' ') ||
+      undefined);
+
+  const category: PublicEventCategory | null = cat && (str(cat.id) || str(cat.name))
+    ? {
+        id: str(cat.id),
+        name: str(cat.name),
+        description: str(cat.description),
+        isActive: cat.isActive === true,
+      }
+    : null;
+
+  const creatorObj: PublicEventCreator | undefined = creator && Object.keys(creator).length
+    ? {
+        firstName: str(creator.firstName),
+        lastName: str(creator.lastName),
+        profilePicture: str(creator.profilePicture),
+        customerType: str(creator.customerType),
+      }
+    : undefined;
 
   return {
     id: String(r.id ?? ''),
     title: str(r.title) ?? 'Untitled event',
     description: str(r.description),
-    category: str(cat.name) ?? str(r.eventType) ?? tagsCsv?.split(',')[0],
-    tags: tagsCsv ? tagsCsv.split(',').map((t) => t.trim()).filter(Boolean) : [],
     eventDate: str(r.eventDate),
     startTime: str(r.startTime),
     endTime: str(r.endTime),
     location: str(r.location),
-    organizer: str(r.eventOrganizer) ?? str(r.organizer),
-    coverImage: str(r.eventPhoto) ?? str(r.coverImage) ?? str(r.thumbnail),
-    status: str(r.eventStatus) ?? str(r.status),
-    streamStatus: str(r.streamStatus),
-    hasLiveStream: r.hasLiveStream === true,
-    hasInviteCode: r.hasInviteCode === true,
-    photographerName,
-    photographerImage: str(r.photographerImage) ?? str((photographer as RawEvent).profilePicture),
-    photographerId: str(r.photographerId) ?? str((photographer as RawEvent).id),
-    streamFee: num(r.streamFee) ?? num(r.price) ?? 0,
-    streamFeeCurrencyCode: str(r.streamFeeCurrencyAbbreviation) ?? str(r.priceCurrency) ?? 'RWF',
+    eventOrganizer: str(r.eventOrganizer),
+    eventTags: str(r.eventTags),
+    eventPhoto: str(r.eventPhoto),
+    eventCategory: category,
+    price: num(r.price),
+    eventStatus: str(r.eventStatus),
+    completionStatus: str(r.completionStatus),
+    bookingStatus: str(r.bookingStatus),
+    maxGuests: num(r.maxGuests),
+    creator: creatorObj,
+    notes: str(r.notes),
+    streamFee: num(r.streamFee),
     streamFeeCurrencySymbol: str(r.streamFeeCurrencySymbol),
+    streamFeeCurrencyAbbreviation: str(r.streamFeeCurrencyAbbreviation),
+    hasLiveStream: r.hasLiveStream === true,
+    streamType: (str(r.streamType) as PublicEvent['streamType']) ?? null,
+    groupDiscountPercentage: num(r.groupDiscountPercentage) ?? null,
+    hasInviteCode: r.hasInviteCode === true,
+    liveInputId: str(r.liveInputId) ?? null,
+    hlsManifestUrl: str(r.hlsManifestUrl) ?? null,
+    whepUrl: str(r.whepUrl) ?? null,
+    streamStatus: str(r.streamStatus) ?? null,
+    hasPurchasedAccess: r.hasPurchasedAccess === true,
+    eventPriceId: str(r.eventPriceId) ?? null,
+    photographerName,
+    photographerImage: str(r.photographerImage) ?? str(photographer.profilePicture),
+    photographerId: str(r.photographerId) ?? str(photographer.id),
     packageName: str(r.packageName),
     packagePrice: num(r.packagePrice),
-    packageCurrencyCode: str(r.packageCurrencyAbbreviation),
-    maxGuests: num(r.maxGuests),
+    packageCurrencyAbbreviation: str(r.packageCurrencyAbbreviation),
   };
 }
 
-/** Public events list with the richer shape used by the public guest flow. */
-export async function listPublicEventsDetailed(): Promise<PublicEvent[]> {
-  const res = await api.get<ApiEnvelope<unknown>>('/public/events/list?page=0&size=100', {
-    skipAuth: true,
-  });
-  return unwrapList(res?.data).map(mapPublicEvent).filter((e) => e.id);
+/**
+ * Public events list with the richer shape used by the public guest flow.
+ * Mirrors knockout/lib/APIs/public/get-events/route.ts `getPublicEvents`
+ * 1:1 (same query params, same sort defaults, same envelope unwrap).
+ */
+export async function listPublicEventsDetailed(
+  params: PublicEventsQuery = {},
+): Promise<PublicEventsPage> {
+  const qs = new URLSearchParams();
+  qs.set('page', String(params.page ?? 0));
+  qs.set('size', String(params.size ?? 12));
+  qs.set('sortColumn', params.sortColumn ?? 'eventDate');
+  qs.set('sortDirection', params.sortDirection ?? 'asc');
+  if (params.category) qs.set('category', params.category);
+  if (params.location) qs.set('location', params.location);
+  if (params.status) qs.set('status', params.status);
+  if (params.dateRange) qs.set('dateRange', params.dateRange);
+  if (params.search) qs.set('search', params.search);
+
+  const res = await api.get<ApiEnvelope<Record<string, unknown>>>(
+    `/public/events/list?${qs.toString()}`,
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? {}) as Record<string, unknown>;
+  const content = Array.isArray(d.content) ? (d.content as RawEvent[]) : [];
+  return {
+    content: content.map(mapPublicEvent).filter((e) => e.id),
+    totalPages: typeof d.totalPages === 'number' ? d.totalPages : 0,
+    totalElements: typeof d.totalElements === 'number' ? d.totalElements : 0,
+    number: typeof d.number === 'number' ? d.number : 0,
+    size: typeof d.size === 'number' ? d.size : 12,
+    first: d.first === true,
+    last: d.last === true,
+  };
 }
 
 /** Single public event for the guest detail screen. */

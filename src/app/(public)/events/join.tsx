@@ -30,9 +30,9 @@ const COVER_FALLBACK =
 
 type Pkg = 'individual' | 'group';
 
-function feeLabel(fee: number, code: string, symbol?: string): string {
+function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
-  return `${fee.toLocaleString()} ${symbol ?? code}`;
+  return `${fee.toLocaleString()} ${symbol || code || 'RWF'}`;
 }
 
 export default function JoinPackageScreen() {
@@ -66,14 +66,18 @@ export default function JoinPackageScreen() {
   }
 
   const peopleNum = Math.max(1, parseInt(people || '1', 10) || 1);
-  const perPerson = data.streamFee;
+  const perPerson = data.streamFee ?? 0;
+  // Web's join-package shows a 10% group preview when group is selected —
+  // server-side reconciles the real total on initiate, so this is purely
+  // for the totals card UX.
+  const groupDiscount = data.groupDiscountPercentage ?? 10;
   const total =
     pkg === 'group'
-      ? Math.round(perPerson * peopleNum * 0.9) // mirror web's 10% group preview
+      ? Math.round(perPerson * peopleNum * (1 - groupDiscount / 100))
       : perPerson;
   const totalLabel = feeLabel(
     total,
-    data.streamFeeCurrencyCode,
+    data.streamFeeCurrencyAbbreviation,
     data.streamFeeCurrencySymbol,
   );
 
@@ -91,7 +95,7 @@ export default function JoinPackageScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.previewCard}>
           <Image
-            source={{ uri: data.coverImage || COVER_FALLBACK }}
+            source={{ uri: data.eventPhoto || COVER_FALLBACK }}
             style={styles.previewCover}
             contentFit="cover"
           />
@@ -100,10 +104,10 @@ export default function JoinPackageScreen() {
               {data.title}
             </Text>
             <Text style={styles.previewMeta}>
-              {data.location ?? data.organizer ?? data.category ?? 'Connekyt event'}
+              {data.location ?? data.eventOrganizer ?? data.eventCategory?.name ?? 'Connekyt event'}
             </Text>
             <Text style={styles.previewFee}>
-              {feeLabel(perPerson, data.streamFeeCurrencyCode, data.streamFeeCurrencySymbol)} / person
+              {feeLabel(perPerson, data.streamFeeCurrencyAbbreviation, data.streamFeeCurrencySymbol)} / person
             </Text>
           </View>
         </View>
