@@ -14,8 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { getPublicEventDetailed } from '@/features/events/api';
+import { isEventEnded, isEventLive } from '@/features/events/types';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
@@ -34,9 +34,22 @@ function formatTime12h(t?: string): string {
   return `${h12}:${m} ${ampm}`;
 }
 
-function feeLabel(fee: number, code: string, symbol?: string): string {
-  if (!fee || fee <= 0) return 'Free';
-  return `${fee.toLocaleString()} ${symbol ?? code}`;
+/**
+ * Price text — mirrors web events.tsx:2363-2372 (streamFee > 0 → "From
+ * {code} {amount}", else price > 0 → "From …", else "Free").
+ */
+function priceLabel(e: { streamFee?: number | null; price?: number; streamFeeCurrencyAbbreviation?: string | null }): {
+  label: string;
+  amount: string;
+} {
+  const code = e.streamFeeCurrencyAbbreviation || 'RWF';
+  if (e.streamFee && e.streamFee > 0) {
+    return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
+  }
+  if (e.price && e.price > 0) {
+    return { label: 'From', amount: `${code} ${e.price.toLocaleString()}` };
+  }
+  return { label: '', amount: 'Free' };
 }
 
 export default function PublicEventDetailScreen() {
@@ -60,8 +73,10 @@ export default function PublicEventDetailScreen() {
 
   const onJoin = () => {
     if (!data) return;
+    // Web parity: a paid event always routes through join-package first;
+    // a free event jumps straight to the live-stream invite-token entry.
     const target =
-      data.streamFee > 0
+      data.streamFee && data.streamFee > 0
         ? (`/events/join?id=${id}` as unknown as Href)
         : (`/events/live-stream?id=${id}` as unknown as Href);
     router.push(target);
@@ -91,41 +106,53 @@ export default function PublicEventDetailScreen() {
 
   if (!data) return null;
 
-  const live = data.hasLiveStream || data.streamStatus === 'live' || data.status === 'ONGOING';
-  const fee = feeLabel(data.streamFee, data.streamFeeCurrencyCode, data.streamFeeCurrencySymbol);
+  // Status uses the web-parity helpers (isEventLive/isEventEnded) so the
+  // detail page agrees with the events list on the badge it shows.
+  const live = isEventLive(data);
+  const ended = isEventEnded(data);
+  const price = priceLabel(data);
+  const organizer = data.creator
+    ? `${data.creator.firstName ?? ''} ${data.creator.lastName ?? ''}`.trim() ||
+      data.eventOrganizer
+    : data.eventOrganizer;
 
   return (
     <Screen padded={false} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View>
           <Image
-            source={{ uri: data.coverImage || COVER_FALLBACK }}
+            source={{ uri: data.eventPhoto || COVER_FALLBACK }}
             style={styles.cover}
             contentFit="cover"
             transition={250}
           />
           {live ? (
-            <View style={styles.livePill}>
-              <View style={styles.liveDot} />
-              <Text style={styles.livePillText}>LIVE NOW</Text>
+            <View style={[styles.statusBadge, styles.statusLive, styles.statusBadgeAbs]}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusBadgeText}>LIVE</Text>
             </View>
-          ) : null}
+          ) : ended ? (
+            <View style={[styles.statusBadge, styles.statusEnded, styles.statusBadgeAbs]}>
+              <Text style={styles.statusBadgeText}>ENDED</Text>
+            </View>
+          ) : (
+            <View style={[styles.statusBadge, styles.statusUpcoming, styles.statusBadgeAbs]}>
+              <Text style={styles.statusBadgeText}>UPCOMING</Text>
+            </View>
+          )}
           <Pressable style={styles.shareFab} onPress={onShare} hitSlop={8}>
             <Ionicons name="share-social-outline" size={20} color={colors.text} />
           </Pressable>
         </View>
 
         <View style={styles.body}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{data.title}</Text>
-            <StatusPill status={data.status} />
-          </View>
+          <Text style={styles.title}>{data.title}</Text>
 
-          {data.category ? (
+          {data.eventCategory?.name ? (
             <View style={styles.chipRow}>
               <View style={styles.chip}>
                 <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
-                <Text style={styles.chipText}>{data.category}</Text>
+                <Text style={styles.chipText}>{data.eventCategory.name}</Text>
               </View>
             </View>
           ) : null}
@@ -145,7 +172,7 @@ export default function PublicEventDetailScreen() {
               />
             ) : null}
             {data.location ? <Row icon="location-outline" text={data.location} /> : null}
-            {data.organizer ? <Row icon="person-outline" text={data.organizer} /> : null}
+            {organizer ? <Row icon="person-outline" text={organizer} /> : null}
             {data.photographerName ? (
               <Row icon="camera-outline" text={data.photographerName} />
             ) : null}
@@ -164,7 +191,10 @@ export default function PublicEventDetailScreen() {
           <View style={styles.feeCard}>
             <View style={{ flex: 1 }}>
               <Text style={styles.feeLabel}>Stream entry</Text>
-              <Text style={styles.feeValue}>{fee}</Text>
+              <Text style={styles.feeValue}>
+                {price.label ? `${price.label} ` : ''}
+                {price.amount}
+              </Text>
             </View>
             <View style={styles.feeBadge}>
               <Ionicons name="videocam" size={14} color={colors.textOnPrimary} />
@@ -173,7 +203,13 @@ export default function PublicEventDetailScreen() {
           </View>
 
           <Button
-            title={data.streamFee > 0 ? 'Join event' : live ? 'Watch live' : 'Join when live'}
+            title={
+              data.streamFee && data.streamFee > 0
+                ? 'Join event'
+                : live
+                ? 'Watch live'
+                : 'Join when live'
+            }
             onPress={onJoin}
           />
           <Pressable
@@ -203,20 +239,20 @@ const styles = StyleSheet.create({
   errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { paddingBottom: 120 },
   cover: { width: '100%', height: 260, backgroundColor: colors.surfaceMuted },
-  livePill: {
-    position: 'absolute',
-    top: spacing.lg,
-    left: spacing.lg,
+  statusBadgeAbs: { position: 'absolute', top: spacing.lg, left: spacing.lg },
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: radii.full,
+    borderRadius: radii.sm,
   },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  livePillText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  statusBadgeText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
+  statusUpcoming: { backgroundColor: colors.primary },
+  statusLive: { backgroundColor: colors.accent },
+  statusEnded: { backgroundColor: '#6A6D76' },
   shareFab: {
     position: 'absolute',
     top: spacing.lg,
@@ -229,8 +265,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: { padding: spacing.xl, gap: spacing.lg },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, justifyContent: 'space-between' },
-  title: { flex: 1, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
   chipRow: { flexDirection: 'row' },
   chip: {
     flexDirection: 'row',

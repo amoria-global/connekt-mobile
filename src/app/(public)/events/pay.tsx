@@ -54,9 +54,9 @@ const PROVIDERS_FALLBACK: ProviderOpt[] = [
   { id: 'AIRTEL', label: 'Airtel Money', icon: 'phone-portrait-outline' },
 ];
 
-function feeLabel(fee: number, code: string, symbol?: string): string {
+function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
-  return `${fee.toLocaleString()} ${symbol ?? code}`;
+  return `${fee.toLocaleString()} ${symbol || code || 'RWF'}`;
 }
 
 export default function EventPaymentScreen() {
@@ -119,9 +119,8 @@ export default function EventPaymentScreen() {
     if (!event.data || currencyId) return;
     listCurrencies()
       .then((all) => {
-        const match = all.find(
-          (c) => c.code.toUpperCase() === event.data!.streamFeeCurrencyCode.toUpperCase(),
-        );
+        const wanted = (event.data!.streamFeeCurrencyAbbreviation ?? 'RWF').toUpperCase();
+        const match = all.find((c) => c.code.toUpperCase() === wanted);
         if (match) setCurrencyId(match.id);
       })
       .catch(() => {});
@@ -148,12 +147,15 @@ export default function EventPaymentScreen() {
   }
 
   const data = event.data;
-  const baseFee = data.streamFee;
+  const baseFee = data.streamFee ?? 0;
+  const groupDiscount = data.groupDiscountPercentage ?? 10;
   const totalFee =
-    pkg === 'group' ? Math.round(baseFee * peopleNum * 0.9) : baseFee;
+    pkg === 'group'
+      ? Math.round(baseFee * peopleNum * (1 - groupDiscount / 100))
+      : baseFee;
   const totalLabel = feeLabel(
     totalFee,
-    data.streamFeeCurrencyCode,
+    data.streamFeeCurrencyAbbreviation,
     data.streamFeeCurrencySymbol,
   );
 

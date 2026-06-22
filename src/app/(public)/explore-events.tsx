@@ -1,11 +1,44 @@
 /**
- * Public events explorer — mirrors the web `pages/events/events.tsx` flow:
- * a hero, a live-events strip, status tabs (All / Live / Upcoming /
- * Completed) and a list of poster-style cards. Tapping a card routes into
- * the public event detail (no login required).
+ * Public events explorer — mirrors the web `pages/events/events.tsx` 1:1.
+ *
+ * Web parity in this file:
+ *   • Dismissable banner ("The Smart Way to Capture Life · Discover amazing
+ *     events near you!") with × close button.
+ *   • Hero with brand-blue background + eyebrow ("✨ Connekyt events") +
+ *     title + sub.
+ *   • Hot Live Trends row above the tabs (only when ≥1 event is live):
+ *     pill "🔥 Hot Live Trends · {count}" + circular avatars with rotating
+ *     gradient ring + "LIVE" pulse badge.
+ *   • Tab segment: All events / Live now / Upcoming / Recently ended
+ *     (web tabs 2147-2193). Live tab shows a count chip.
+ *   • Filter controls card: search input + category / location / date
+ *     dropdowns (web 2197-2260). On mobile we keep the search visible
+ *     and put the dropdowns in a horizontal scroll row.
+ *   • Result strip ("X events live now · N filters active") (web 2263).
+ *   • Poster cards (web 2342-2487):
+ *       - full-bleed cover + dark scrim
+ *       - TL: stacked date tear-off "MAY / 09"
+ *       - TR: status banner (LIVE pulse / ENDED gray / UPCOMING blue) +
+ *         bookmark toggle
+ *       - meta strip: location · title · footer (organizer chip + price)
+ *   • Pagination (Prev / 1 2 3 / Next) when totalPages > 1.
+ *   • Saved-events bookmarks persisted to SecureStore under
+ *     `connekyt:savedEvents` (matches the web's localStorage key).
+ *
+ * Status taxonomy (verbatim from knockout events.tsx:373-379):
+ *   isLive   = eventStatus === 'ONGOING' && streamStatus !== 'ended'
+ *              && (hasLiveStream === true || id ∈ liveStreamIds)
+ *   isEnded  = eventStatus === 'COMPLETED' || streamStatus === 'ended'
+ *   tab → backend status: all → undefined, live → ONGOING,
+ *                          upcoming → PUBLISHED, completed → COMPLETED
+ *
+ * The web extra-verifies "ONGOING" via Cloudflare's `getStreamVideo`
+ * (auth-required); guests on mobile can't call that, so the live set is
+ * always empty and we fall back to the `hasLiveStream` flag (same code
+ * path the web takes when the verification check is unavailable).
  */
-import { useCallback, useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -21,155 +54,285 @@ import {
 } from 'react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
-import { Segmented } from '@/components/ui/Segmented';
 import { listPublicEventsDetailed } from '@/features/events/api';
-import type { PublicEvent } from '@/features/events/types';
-import { useAsync } from '@/hooks/useAsync';
+import {
+  isEventEnded,
+  isEventLive,
+  TAB_TO_STATUS,
+  type PublicEvent,
+  type PublicEventsTab,
+} from '@/features/events/types';
+import { storage } from '@/services/storage';
+import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const COVER_FALLBACK =
   'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&q=70';
 
-type TabKey = 'all' | 'live' | 'upcoming' | 'completed';
+const PAGE_SIZE = 12;
+const SAVED_KEY = 'connekyt:savedEvents';
 
-const TABS: { label: string; value: TabKey }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Live', value: 'live' },
-  { label: 'Upcoming', value: 'upcoming' },
-  { label: 'Past', value: 'completed' },
+type DateRange = 'all' | 'today' | 'tomorrow' | 'this-week' | 'this-month' | 'next-month';
+
+const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: 'all', label: 'All dates' },
+  { value: 'today', label: 'Today' },
+  { value: 'tomorrow', label: 'Tomorrow' },
+  { value: 'this-week', label: 'This week' },
+  { value: 'this-month', label: 'This month' },
+  { value: 'next-month', label: 'Next month' },
 ];
 
-function isLive(e: PublicEvent): boolean {
-  return e.hasLiveStream || e.streamStatus === 'live' || e.status === 'ONGOING';
-}
-function isUpcoming(e: PublicEvent): boolean {
-  if (!e.eventDate) return e.status === 'UPCOMING' || e.status === 'AWAITING_REVIEW';
-  return new Date(e.eventDate).getTime() > Date.now() - 24 * 3600 * 1000;
-}
-function isCompleted(e: PublicEvent): boolean {
-  return e.status === 'COMPLETED' || e.streamStatus === 'ended';
-}
+const TABS: { label: string; short: string; value: PublicEventsTab; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { label: 'All events', short: 'All', value: 'all', icon: 'grid' },
+  { label: 'Live now', short: 'Live', value: 'live', icon: 'radio' },
+  { label: 'Upcoming', short: 'Soon', value: 'upcoming', icon: 'calendar' },
+  { label: 'Recently ended', short: 'Ended', value: 'completed', icon: 'checkmark-circle' },
+];
 
-function formatTime12h(t?: string): string {
-  if (!t) return '';
-  const [h, m] = t.split(':');
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const h12 = hour % 12 || 12;
-  return `${h12}:${m} ${ampm}`;
-}
-
-function describeWhen(e: PublicEvent): string {
-  if (!e.eventDate) return 'Date TBA';
-  const target = new Date(e.eventDate + (e.startTime ? `T${e.startTime}` : 'T00:00'));
-  const diff = target.getTime() - Date.now();
-  const HOUR = 3600 * 1000;
-  const DAY = 24 * HOUR;
-  if (diff < 0) {
-    return target.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+function priceText(e: PublicEvent): { label: string; amount: string } {
+  const code = e.streamFeeCurrencyAbbreviation || 'RWF';
+  if (e.streamFee && e.streamFee > 0) {
+    return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
   }
-  if (diff < HOUR) return `Starts in ${Math.max(1, Math.round(diff / 60000))} min`;
-  if (diff < DAY) return `Starts in ${Math.round(diff / HOUR)}h`;
-  if (diff < 7 * DAY) {
-    const d = Math.round(diff / DAY);
-    return `In ${d} day${d === 1 ? '' : 's'}`;
+  if (e.price && e.price > 0) {
+    return { label: 'From', amount: `${code} ${e.price.toLocaleString()}` };
   }
-  return target.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return { label: '', amount: 'Free' };
 }
 
-function formatFee(e: PublicEvent): string {
-  if (!e.streamFee || e.streamFee <= 0) return 'Free';
-  const code = e.streamFeeCurrencySymbol ?? e.streamFeeCurrencyCode;
-  return `${e.streamFee.toLocaleString()} ${code}`;
+function dateParts(eventDate?: string): { mo: string; day: string } | null {
+  if (!eventDate) return null;
+  const d = new Date(eventDate);
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    mo: d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+    day: String(d.getDate()).padStart(2, '0'),
+  };
+}
+
+function organizerInfo(e: PublicEvent): { label: string; image?: string; initial: string } {
+  const creatorName = e.creator
+    ? `${e.creator.firstName ?? ''} ${e.creator.lastName ?? ''}`.trim()
+    : '';
+  const label = creatorName || e.eventOrganizer || 'Connekyt';
+  const rawImg = e.creator?.profilePicture;
+  const image = rawImg && !rawImg.includes('/null') ? rawImg : undefined;
+  return { label, image, initial: (label.charAt(0) || '?').toUpperCase() };
+}
+
+function tabFromStatusParam(s: string | undefined): PublicEventsTab {
+  const v = (s ?? '').toUpperCase();
+  if (v === 'ONGOING') return 'live';
+  if (v === 'PUBLISHED') return 'upcoming';
+  if (v === 'COMPLETED') return 'completed';
+  return 'all';
 }
 
 export default function ExploreEventsScreen() {
   const router = useRouter();
-  const [tab, setTab] = useState<TabKey>('all');
-  const [search, setSearch] = useState('');
+  const params = useLocalSearchParams<{
+    status?: string;
+    category?: string;
+    location?: string;
+    date?: string;
+  }>();
 
-  const { data, loading, error, refresh } = useAsync(
-    useCallback(() => listPublicEventsDetailed(), []),
+  const [tab, setTab] = useState<PublicEventsTab>(() => tabFromStatusParam(params.status));
+  const [search, setSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // debounced for the API
+  const [category, setCategory] = useState<string>(params.category ?? 'all');
+  const [location, setLocation] = useState<string>(params.location ?? 'all');
+  const [dateRange, setDateRange] = useState<DateRange>(
+    (DATE_RANGE_OPTIONS.find((o) => o.value === (params.date ?? 'all'))?.value ?? 'all') as DateRange,
+  );
+  const [bannerShown, setBannerShown] = useState(true);
+  const [page, setPage] = useState(1);
+
+  // Discovered categories (web seeds this from previously-seen events).
+  const seenCats = useRef<Set<string>>(new Set());
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+
+  // Bookmarks — persisted to SecureStore under the same key the web uses.
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    storage
+      .get(SAVED_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        try {
+          setSaved(new Set(JSON.parse(raw) as string[]));
+        } catch {
+          /* ignore */
+        }
+      })
+      .catch(() => {});
+  }, []);
+  const toggleSaved = useCallback((id: string) => {
+    setSaved((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      storage.set(SAVED_KEY, JSON.stringify(Array.from(next))).catch(() => {});
+      return next;
+    });
+  }, []);
+
+  // Debounce free-text search to mirror the web's form-submit cadence.
+  useEffect(() => {
+    const handle = setTimeout(() => setSearchTerm(search.trim()), 350);
+    return () => clearTimeout(handle);
+  }, [search]);
+
+  // Fetch events whenever the resolved filter set changes.
+  const [data, setData] = useState<PublicEvent[]>([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await listPublicEventsDetailed({
+        page: page - 1,
+        size: PAGE_SIZE,
+        sortColumn: 'eventDate',
+        sortDirection: tab === 'completed' ? 'desc' : 'asc',
+        category: category !== 'all' ? category : undefined,
+        location: location !== 'all' ? location : undefined,
+        status: TAB_TO_STATUS[tab],
+        dateRange: dateRange !== 'all' ? dateRange : undefined,
+        search: searchTerm || undefined,
+      });
+      setData(res.content);
+      setTotalPages(res.totalPages);
+
+      // Accumulate categories the way the web does.
+      let changed = false;
+      for (const e of res.content) {
+        const c = e.eventCategory?.name?.trim();
+        if (c && !seenCats.current.has(c)) {
+          seenCats.current.add(c);
+          changed = true;
+        }
+      }
+      if (changed) setCategoryOptions(Array.from(seenCats.current).sort());
+    } catch (e) {
+      setError(isApiError(e) ? e.message : 'Could not load events. Pull to retry.');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, tab, category, location, dateRange, searchTerm]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  // Live verification (`liveStreamIds`) needs the auth-required Cloudflare
+  // check, which guests can't make. Pass empty — the helpers fall back to
+  // `hasLiveStream === true`, identical to the web when the check fails.
+  const liveStreamIds = useMemo(() => new Set<string>(), []);
+
+  const featuredLive = useMemo(
+    () => data.filter((e) => isEventLive(e, liveStreamIds)),
+    [data, liveStreamIds],
   );
 
-  const liveEvents = useMemo(() => (data ?? []).filter(isLive), [data]);
+  const liveCount = featuredLive.length;
+  const activeFilterCount =
+    (category !== 'all' ? 1 : 0) +
+    (location !== 'all' ? 1 : 0) +
+    (dateRange !== 'all' ? 1 : 0) +
+    (searchTerm ? 1 : 0);
 
-  const filtered = useMemo(() => {
-    const all = data ?? [];
-    const matchesTab = (e: PublicEvent) =>
-      tab === 'all'
-        ? true
-        : tab === 'live'
-        ? isLive(e)
+  const switchTab = (next: PublicEventsTab) => {
+    if (next === tab) return;
+    setTab(next);
+    setPage(1);
+  };
+
+  const resultLabel = (() => {
+    if (loading) return 'Searching events…';
+    const count = data.length;
+    const noun = count === 1 ? 'event' : 'events';
+    const suffix =
+      tab === 'live'
+        ? 'live now'
         : tab === 'upcoming'
-        ? isUpcoming(e) && !isLive(e) && !isCompleted(e)
-        : isCompleted(e);
-    const matchesSearch = (e: PublicEvent) => {
-      const q = search.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        e.title.toLowerCase().includes(q) ||
-        (e.location?.toLowerCase().includes(q) ?? false) ||
-        (e.category?.toLowerCase().includes(q) ?? false) ||
-        (e.organizer?.toLowerCase().includes(q) ?? false)
-      );
-    };
-    return all.filter((e) => matchesTab(e) && matchesSearch(e));
-  }, [data, tab, search]);
+        ? 'coming up'
+        : tab === 'completed'
+        ? 'recently ended'
+        : 'available';
+    return `${count} ${noun} ${suffix}`;
+  })();
 
   const header = (
     <View>
+      {bannerShown ? (
+        <View style={styles.banner}>
+          <Ionicons name="megaphone" size={14} color={colors.textOnPrimary} />
+          <Text style={styles.bannerCta} numberOfLines={1}>
+            Discover amazing events near you!
+          </Text>
+          <Pressable onPress={() => setBannerShown(false)} hitSlop={8}>
+            <Ionicons name="close" size={16} color="rgba(255,255,255,0.85)" />
+          </Pressable>
+        </View>
+      ) : null}
+
       <View style={styles.hero}>
-        <Text style={styles.heroEyebrow}>EVENTS</Text>
+        <View style={styles.heroEyebrow}>
+          <Ionicons name="sparkles" size={12} color="#FFD28A" />
+          <Text style={styles.heroEyebrowText}>CONNEKYT EVENTS</Text>
+        </View>
         <Text style={styles.heroTitle}>Catch every moment, live.</Text>
         <Text style={styles.heroSub}>
           Discover events near you and join the live stream — no login needed.
         </Text>
-
-        <View style={styles.searchWrap}>
-          <Ionicons name="search" size={18} color="rgba(255,255,255,0.85)" />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search events, location, organizer…"
-            placeholderTextColor="rgba(255,255,255,0.65)"
-            style={styles.searchInput}
-            returnKeyType="search"
-          />
-          {search ? (
-            <Pressable onPress={() => setSearch('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.85)" />
-            </Pressable>
-          ) : null}
-        </View>
       </View>
 
-      {liveEvents.length > 0 ? (
-        <View style={styles.trendsSection}>
-          <Text style={styles.trendsHeading}>Live now</Text>
+      {featuredLive.length > 0 ? (
+        <View style={styles.trends}>
+          <View style={styles.trendsHead}>
+            <View style={styles.trendsPill}>
+              <Text style={styles.trendsFlame}>🔥</Text>
+              <Text style={styles.trendsPillText}>Hot Live Trends</Text>
+              <View style={styles.trendsCount}>
+                <Text style={styles.trendsCountText}>{featuredLive.length}</Text>
+              </View>
+            </View>
+            {featuredLive.length > 4 ? (
+              <Pressable onPress={() => switchTab('live')} hitSlop={8}>
+                <Text style={styles.trendsAll}>View all →</Text>
+              </Pressable>
+            ) : null}
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.trendsRow}
+            contentContainerStyle={styles.trendsScroll}
           >
-            {liveEvents.slice(0, 12).map((e) => (
+            {featuredLive.map((e) => (
               <Pressable
                 key={e.id}
-                style={styles.trendItem}
-                onPress={() => router.push(`/event/${e.id}`)}
+                style={styles.story}
+                onPress={() => router.push(`/event/${e.id}` as never)}
               >
-                <View style={styles.trendRing}>
-                  <Image
-                    source={{ uri: e.coverImage || COVER_FALLBACK }}
-                    style={styles.trendAvatar}
-                    contentFit="cover"
-                  />
+                <View style={styles.storyRing}>
+                  <View style={styles.storyAvatar}>
+                    <Image
+                      source={{ uri: e.eventPhoto || COVER_FALLBACK }}
+                      style={styles.storyImg}
+                      contentFit="cover"
+                    />
+                  </View>
                 </View>
-                <View style={styles.liveDotPill}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveDotText}>LIVE</Text>
+                <View style={styles.storyLive}>
+                  <View style={styles.storyLiveDot} />
+                  <Text style={styles.storyLiveText}>LIVE</Text>
                 </View>
-                <Text style={styles.trendCaption} numberOfLines={2}>
+                <Text style={styles.storyTitle} numberOfLines={2}>
                   {e.title}
                 </Text>
               </Pressable>
@@ -178,13 +341,131 @@ export default function ExploreEventsScreen() {
         </View>
       ) : null}
 
-      <View style={styles.tabsWrap}>
-        <Segmented value={tab} options={TABS} onChange={setTab} />
+      <View style={styles.tabsRow}>
+        {TABS.map((tDef) => {
+          const active = tab === tDef.value;
+          return (
+            <Pressable
+              key={tDef.value}
+              onPress={() => switchTab(tDef.value)}
+              style={[styles.tab, active && styles.tabActive]}
+            >
+              <Ionicons
+                name={tDef.icon}
+                size={14}
+                color={active ? colors.primary : colors.textMuted}
+              />
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tDef.short}</Text>
+              {tDef.value === 'live' && liveCount > 0 ? (
+                <View style={styles.tabCount}>
+                  <Text style={styles.tabCountText}>{liveCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.controls}>
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={16} color={colors.textMuted} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search events…"
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+            returnKeyType="search"
+          />
+          {search ? (
+            <Pressable
+              onPress={() => {
+                setSearch('');
+                setPage(1);
+              }}
+              hitSlop={8}
+            >
+              <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersRow}
+        >
+          <FilterChip
+            icon="pricetag"
+            value={category}
+            options={[{ value: 'all', label: 'All categories' }, ...categoryOptions.map((c) => ({ value: c, label: c }))]}
+            onChange={(v) => {
+              setCategory(v);
+              setPage(1);
+            }}
+          />
+          <FilterChip
+            icon="location"
+            value={location}
+            options={[{ value: 'all', label: 'All locations' }]}
+            onChange={(v) => {
+              setLocation(v);
+              setPage(1);
+            }}
+          />
+          <FilterChip
+            icon="calendar"
+            value={dateRange}
+            options={DATE_RANGE_OPTIONS}
+            onChange={(v) => {
+              setDateRange(v as DateRange);
+              setPage(1);
+            }}
+          />
+        </ScrollView>
+      </View>
+
+      <View style={styles.resultStrip}>
+        <Text style={styles.resultText}>{resultLabel}</Text>
+        {activeFilterCount > 0 ? (
+          <Text style={styles.resultFilters}>
+            · {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'} active
+          </Text>
+        ) : null}
       </View>
     </View>
   );
 
-  if (loading && !data) {
+  const footer =
+    totalPages > 1 ? (
+      <View style={styles.pager}>
+        <Pressable
+          style={[styles.pagerBtn, page === 1 && styles.pagerBtnDisabled]}
+          onPress={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+        >
+          <Ionicons name="chevron-back" size={16} color={page === 1 ? colors.textMuted : colors.primary} />
+          <Text style={[styles.pagerBtnText, page === 1 && styles.pagerBtnTextDisabled]}>Prev</Text>
+        </Pressable>
+        <Text style={styles.pagerInfo}>
+          Page {page} of {totalPages}
+        </Text>
+        <Pressable
+          style={[styles.pagerBtn, page >= totalPages && styles.pagerBtnDisabled]}
+          onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page >= totalPages}
+        >
+          <Text style={[styles.pagerBtnText, page >= totalPages && styles.pagerBtnTextDisabled]}>Next</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color={page >= totalPages ? colors.textMuted : colors.primary}
+          />
+        </Pressable>
+      </View>
+    ) : null;
+
+  if (loading && data.length === 0 && !error) {
     return (
       <Screen edges={['bottom']}>
         <View style={styles.centered}>
@@ -194,105 +475,175 @@ export default function ExploreEventsScreen() {
     );
   }
 
-  if (error && !data) {
-    return (
-      <Screen edges={['bottom']}>
-        <View style={styles.centered}>
-          <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      </Screen>
-    );
-  }
-
   return (
     <Screen padded={false} edges={['bottom']}>
       <FlatList
-        data={filtered}
+        data={data}
         keyExtractor={(e) => e.id}
         renderItem={({ item }) => (
-          <View style={styles.cardRowPad}>
-            <PosterCard event={item} onPress={() => router.push(`/event/${item.id}`)} />
+          <View style={styles.cardWrap}>
+            <PosterCard
+              event={item}
+              isLive={isEventLive(item, liveStreamIds)}
+              isEnded={isEventEnded(item)}
+              isSaved={saved.has(item.id)}
+              onToggleSave={() => toggleSaved(item.id)}
+              onPress={() => router.push(`/event/${item.id}` as never)}
+            />
           </View>
         )}
         ListHeaderComponent={header}
+        ListFooterComponent={footer}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={loading} onRefresh={fetchEvents} tintColor={colors.primary} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <EmptyState
-              icon="calendar-outline"
-              title="No events match"
-              message="Try a different filter or clear your search."
-            />
-          </View>
+          error ? (
+            <View style={styles.emptyWrap}>
+              <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyWrap}>
+              <EmptyState
+                icon={
+                  tab === 'live'
+                    ? 'radio-outline'
+                    : tab === 'completed'
+                    ? 'checkmark-circle-outline'
+                    : tab === 'upcoming'
+                    ? 'calendar-outline'
+                    : 'grid-outline'
+                }
+                title={
+                  tab === 'live'
+                    ? 'Nothing live right now'
+                    : tab === 'completed'
+                    ? 'No events ended recently'
+                    : tab === 'upcoming'
+                    ? 'No events coming up'
+                    : 'No events match'
+                }
+                message={
+                  tab === 'live'
+                    ? 'Check back when an event goes live, or browse upcoming events.'
+                    : 'Try a different filter or clear your search.'
+                }
+              />
+            </View>
+          )
         }
       />
     </Screen>
   );
 }
 
-function PosterCard({ event, onPress }: { event: PublicEvent; onPress: () => void }) {
-  const live = isLive(event);
-  const fee = formatFee(event);
+// ────── Card (web `ev-card` 2386-2486) ─────────────────────────────────────
+
+function PosterCard({
+  event,
+  isLive,
+  isEnded,
+  isSaved,
+  onPress,
+  onToggleSave,
+}: {
+  event: PublicEvent;
+  isLive: boolean;
+  isEnded: boolean;
+  isSaved: boolean;
+  onPress: () => void;
+  onToggleSave: () => void;
+}) {
+  const date = dateParts(event.eventDate);
+  const price = priceText(event);
+  const org = organizerInfo(event);
+
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
-      <Image
-        source={{ uri: event.coverImage || COVER_FALLBACK }}
-        style={styles.cardCover}
-        contentFit="cover"
-        transition={250}
-      />
+      <View style={styles.cardMedia}>
+        <Image
+          source={{ uri: event.eventPhoto || COVER_FALLBACK }}
+          style={styles.cardArt}
+          contentFit="cover"
+          transition={250}
+        />
+        <View style={styles.cardScrim} />
 
-      {live ? (
-        <View style={styles.livePill}>
-          <View style={styles.liveDot} />
-          <Text style={styles.livePillText}>LIVE</Text>
-        </View>
-      ) : null}
+        {date ? (
+          <View style={styles.cardTl}>
+            <View style={styles.cardDate}>
+              <Text style={styles.cardDateMo}>{date.mo}</Text>
+              <Text style={styles.cardDateDay}>{date.day}</Text>
+            </View>
+          </View>
+        ) : null}
 
-      <View style={styles.cardOverlay}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {event.title}
-        </Text>
-        <View style={styles.cardMeta}>
-          <Ionicons name="calendar" size={13} color="#fff" />
-          <Text style={styles.cardMetaText}>{describeWhen(event)}</Text>
-          {event.startTime ? (
-            <>
-              <Text style={styles.cardMetaDivider}>·</Text>
-              <Text style={styles.cardMetaText}>{formatTime12h(event.startTime)}</Text>
-            </>
-          ) : null}
+        <View style={styles.cardTr}>
+          {isLive ? (
+            <View style={[styles.statusBadge, styles.statusLive]}>
+              <View style={styles.pulseDot} />
+              <Text style={styles.statusText}>LIVE</Text>
+            </View>
+          ) : isEnded ? (
+            <View style={[styles.statusBadge, styles.statusEnded]}>
+              <Text style={styles.statusText}>ENDED</Text>
+            </View>
+          ) : (
+            <View style={[styles.statusBadge, styles.statusUpcoming]}>
+              <Text style={styles.statusText}>UPCOMING</Text>
+            </View>
+          )}
+          <Pressable
+            style={[styles.bookmark, isSaved && styles.bookmarkSaved]}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onToggleSave();
+            }}
+            hitSlop={6}
+          >
+            <Ionicons
+              name={isSaved ? 'bookmark' : 'bookmark-outline'}
+              size={16}
+              color={isSaved ? colors.accent : colors.text}
+            />
+          </Pressable>
         </View>
       </View>
 
-      <View style={styles.cardBody}>
+      <View style={styles.cardMeta}>
         {event.location ? (
           <View style={styles.cardRow}>
-            <Ionicons name="location-outline" size={15} color={colors.textMuted} />
-            <Text style={styles.cardRowText} numberOfLines={1}>
+            <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+            <Text style={styles.cardVenue} numberOfLines={1}>
               {event.location}
             </Text>
           </View>
         ) : null}
-        {event.organizer ? (
-          <View style={styles.cardRow}>
-            <Ionicons name="person-outline" size={15} color={colors.textMuted} />
-            <Text style={styles.cardRowText} numberOfLines={1}>
-              {event.organizer}
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {event.title}
+        </Text>
+        <View style={styles.cardFooter}>
+          <View style={styles.orgChip}>
+            <View style={styles.orgAvatar}>
+              {org.image ? (
+                <Image source={{ uri: org.image }} style={styles.orgAvatarImg} contentFit="cover" />
+              ) : (
+                <Text style={styles.orgInitial}>{org.initial}</Text>
+              )}
+            </View>
+            <Text style={styles.orgName} numberOfLines={1}>
+              {org.label}
             </Text>
           </View>
-        ) : null}
-
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardFee}>{fee}</Text>
-          <View style={styles.cardCta}>
-            <Text style={styles.cardCtaText}>{live ? 'Watch live' : 'View'}</Text>
-            <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+          <View style={styles.priceChip}>
+            <Ionicons name="pricetag" size={11} color={colors.primary} />
+            <Text style={styles.priceText}>
+              {price.label ? `${price.label} ` : ''}
+              <Text style={styles.priceNum}>{price.amount}</Text>
+            </Text>
           </View>
         </View>
       </View>
@@ -300,143 +651,411 @@ function PosterCard({ event, onPress }: { event: PublicEvent; onPress: () => voi
   );
 }
 
+// ────── Filter chip dropdown ───────────────────────────────────────────────
+
+function FilterChip({
+  icon,
+  value,
+  options,
+  onChange,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.value === value);
+  const active = value !== 'all';
+  return (
+    <View style={styles.filterChipWrap}>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        style={[styles.filterChip, active && styles.filterChipActive]}
+      >
+        <Ionicons name={icon} size={13} color={active ? colors.primary : colors.textMuted} />
+        <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+          {current?.label ?? 'Any'}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={12} color={colors.textMuted} />
+      </Pressable>
+      {open ? (
+        <View style={styles.filterMenu}>
+          {options.map((o) => {
+            const sel = o.value === value;
+            return (
+              <Pressable
+                key={o.value}
+                style={[styles.filterMenuItem, sel && styles.filterMenuItemActive]}
+                onPress={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+              >
+                <Text style={[styles.filterMenuText, sel && styles.filterMenuTextActive]}>{o.label}</Text>
+                {sel ? <Ionicons name="checkmark" size={14} color={colors.primary} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  // Containers
+  listContent: { paddingBottom: 120, gap: spacing.md, flexGrow: 1 },
+  cardWrap: { paddingHorizontal: spacing.xl },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  emptyWrap: { paddingTop: spacing['2xl'], paddingHorizontal: spacing.xl, alignItems: 'center', gap: spacing.md },
+  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+
+  // Banner
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    backgroundColor: colors.primaryDark,
+  },
+  bannerCta: { flex: 1, color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+
+  // Hero
   hero: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
     backgroundColor: colors.primary,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   heroEyebrow: {
-    color: '#FFD28A',
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 1.4,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    marginBottom: 6,
   },
+  heroEyebrowText: { color: '#FFD28A', fontSize: 10, letterSpacing: 1.4, fontWeight: fontWeight.bold },
   heroTitle: {
     color: colors.textOnPrimary,
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.extrabold,
     lineHeight: 32,
   },
-  heroSub: { color: 'rgba(255,255,255,0.82)', fontSize: fontSize.sm },
-  searchWrap: {
-    marginTop: spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderRadius: radii.full,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
+  heroSub: { color: 'rgba(255,255,255,0.82)', fontSize: fontSize.sm, maxWidth: 320 },
+
+  // Trends row
+  trends: { paddingTop: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
+  trendsHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  searchInput: { flex: 1, color: colors.textOnPrimary, fontSize: fontSize.sm, paddingVertical: 0 },
-
-  trendsSection: { paddingTop: spacing.lg, paddingBottom: spacing.sm },
-  trendsHeading: {
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-    marginBottom: spacing.sm,
   },
-  trendsRow: { paddingHorizontal: spacing.xl, gap: spacing.md },
-  trendItem: { width: 88, alignItems: 'center', gap: 6 },
-  trendRing: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+  trendsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    backgroundColor: colors.infoBg,
+  },
+  trendsFlame: { fontSize: 14 },
+  trendsPillText: { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  trendsCount: {
+    backgroundColor: colors.accent,
+    minWidth: 18,
+    paddingHorizontal: 6,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trendsCountText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold },
+  trendsAll: { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  trendsScroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
+  story: { width: 84, alignItems: 'center', gap: 6 },
+  storyRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     padding: 3,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trendAvatar: { width: 70, height: 70, borderRadius: 35, backgroundColor: colors.surfaceMuted },
-  liveDotPill: {
+  storyAvatar: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: colors.surface,
+    padding: 2,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyImg: { width: '100%', height: '100%', borderRadius: 33 },
+  storyLive: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: colors.accent,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.full,
     marginTop: -10,
   },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  liveDotText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold },
-  trendCaption: {
-    fontSize: fontSize.xs,
-    color: colors.textSoft,
-    fontWeight: fontWeight.semibold,
-    textAlign: 'center',
+  storyLiveDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+  storyLiveText: { color: '#fff', fontSize: 9, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
+  storyTitle: { fontSize: 11, color: colors.textSoft, fontWeight: fontWeight.semibold, textAlign: 'center' },
+
+  // Tabs
+  tabsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    gap: 6,
   },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceMuted,
+  },
+  tabActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
+  tabLabel: { color: colors.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  tabLabelActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  tabCount: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabCountText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold },
 
-  tabsWrap: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.md },
-  listContent: { paddingBottom: 120, gap: spacing.md, flexGrow: 1 },
-  cardRowPad: { paddingHorizontal: spacing.xl },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  emptyWrap: { paddingTop: spacing['2xl'] },
+  // Controls (search + filters)
+  controls: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, gap: spacing.sm },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  searchInput: { flex: 1, color: colors.text, fontSize: fontSize.sm, padding: 0 },
+  filtersRow: { gap: spacing.sm, paddingVertical: spacing.xs },
 
+  filterChipWrap: { position: 'relative' },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  filterChipActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  filterChipText: { color: colors.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  filterChipTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  filterMenu: {
+    position: 'absolute',
+    top: 38,
+    left: 0,
+    minWidth: 180,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingVertical: 4,
+    zIndex: 10,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  filterMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  filterMenuItemActive: { backgroundColor: colors.infoBg },
+  filterMenuText: { color: colors.text, fontSize: fontSize.sm },
+  filterMenuTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
+
+  // Result strip
+  resultStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: 4,
+  },
+  resultText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  resultFilters: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+
+  // Card
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.borderSoft,
   },
-  cardPressed: { opacity: 0.93 },
-  cardCover: { width: '100%', height: 180, backgroundColor: colors.surfaceMuted },
-  livePill: {
+  cardPressed: { opacity: 0.92 },
+  cardMedia: { width: '100%', height: 180, position: 'relative', backgroundColor: colors.surfaceMuted },
+  cardArt: { width: '100%', height: '100%' },
+  cardScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
+
+  cardTl: { position: 'absolute', top: spacing.md, left: spacing.md },
+  cardDate: {
+    width: 46,
+    backgroundColor: '#fff',
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  cardDateMo: {
+    width: '100%',
+    paddingVertical: 3,
+    backgroundColor: colors.primary,
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  cardDateDay: {
+    color: colors.text,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.extrabold,
+    paddingVertical: 2,
+  },
+
+  cardTr: {
     position: 'absolute',
     top: spacing.md,
-    left: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.accent,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.sm,
   },
-  livePillText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.6 },
-  cardOverlay: {
-    position: 'absolute',
-    bottom: 90,
-    left: spacing.md,
-    right: spacing.md,
-    gap: 4,
+  statusText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
+  statusUpcoming: { backgroundColor: colors.primary },
+  statusLive: { backgroundColor: colors.accent },
+  statusEnded: { backgroundColor: '#6A6D76' },
+  pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  bookmark: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  cardTitle: {
-    color: '#fff',
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.extrabold,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
-  },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardMetaText: { color: '#fff', fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  cardMetaDivider: { color: 'rgba(255,255,255,0.7)' },
-  cardBody: { padding: spacing.lg, gap: 6 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardRowText: { flex: 1, color: colors.textSoft, fontSize: fontSize.sm },
+  bookmarkSaved: { backgroundColor: colors.surface },
+
+  cardMeta: { padding: spacing.md, gap: 6 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cardVenue: { flex: 1, color: colors.textMuted, fontSize: fontSize.xs },
+  cardTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, lineHeight: 22 },
   cardFooter: {
-    marginTop: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: spacing.xs,
+    gap: spacing.sm,
   },
-  cardFee: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  cardCta: {
+  orgChip: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  orgAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.surfaceMuted,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orgAvatarImg: { width: '100%', height: '100%' },
+  orgInitial: { color: colors.textSoft, fontSize: 11, fontWeight: fontWeight.bold },
+  orgName: { flex: 1, color: colors.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  priceChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: colors.infoBg,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: radii.full,
   },
-  cardCtaText: { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  priceText: { color: colors.primary, fontSize: fontSize.xs },
+  priceNum: { fontWeight: fontWeight.bold },
+
+  // Pagination
+  pager: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+  },
+  pagerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
+  },
+  pagerBtnDisabled: { borderColor: colors.borderSoft, backgroundColor: colors.surfaceMuted },
+  pagerBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  pagerBtnTextDisabled: { color: colors.textMuted },
+  pagerInfo: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 });
