@@ -82,12 +82,14 @@ export default function LoginScreen() {
     <Screen padded={false}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets
         >
           <View style={styles.top}>
             <View style={styles.header}>
@@ -97,7 +99,7 @@ export default function LoginScreen() {
                 resizeMode="contain"
               />
               <Text style={styles.title}>Welcome back</Text>
-              <Text style={styles.subtitle}>Sign in to continue</Text>
+              <Text style={styles.subtitle}>Sign in to your account</Text>
             </View>
 
             <View style={styles.form}>
@@ -107,6 +109,7 @@ export default function LoginScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
                     label="Email"
+                    placeholder="you@example.com"
                     autoCapitalize="none"
                     autoComplete="email"
                     keyboardType="email-address"
@@ -123,6 +126,7 @@ export default function LoginScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
                     label="Password"
+                    placeholder="••••••••"
                     secureTextEntry
                     autoCapitalize="none"
                     value={value}
@@ -159,7 +163,7 @@ export default function LoginScreen() {
 
               <View style={styles.divider}>
                 <View style={styles.line} />
-                <Text style={styles.dividerText}>or</Text>
+                <Text style={styles.dividerText}>or continue with</Text>
                 <View style={styles.line} />
               </View>
 
