@@ -21,17 +21,19 @@ import type { CustomerType } from '@/features/auth/types';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
-const schema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().min(1, 'Email is required').email('Enter a valid email'),
-  phone: z.string().min(6, 'Enter a valid phone number'),
-  password: z.string().min(8, 'Use at least 8 characters'),
-  confirmPassword: z.string().min(1, 'Please confirm your password'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword'],
-});
+const schema = z
+  .object({
+    firstName: z.string().min(1, 'First name is required'),
+    lastName: z.string().min(1, 'Last name is required'),
+    email: z.string().min(1, 'Email is required').email('Enter a valid email'),
+    phone: z.string().min(6, 'Enter a valid phone number'),
+    password: z.string().min(8, 'Use at least 8 characters'),
+    confirmPassword: z.string().min(1, 'Please confirm your password'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -50,13 +52,21 @@ export default function SignupScreen() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '' },
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+    },
   });
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
     try {
       const { confirmPassword, ...restValues } = values;
+      void confirmPassword;
       const { customerId } = await signup({ ...restValues, customerType: role });
       router.push({ pathname: '/verify-otp', params: { customerId, email: values.email } });
     } catch (err) {
@@ -70,15 +80,40 @@ export default function SignupScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.header}>
             <Text style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>Creating your {role} account</Text>
+            <View style={styles.rolePill}>
+              <Text style={styles.rolePillText}>{role}</Text>
+            </View>
           </View>
 
           <View style={styles.form}>
-            <Field control={control} name="firstName" label="First name" error={errors.firstName?.message} />
-            <Field control={control} name="lastName" label="Last name" error={errors.lastName?.message} />
+            {/* First + last share one row so the form starts with two
+                values per scroll height instead of one. */}
+            <View style={styles.row}>
+              <View style={styles.col}>
+                <Field
+                  control={control}
+                  name="firstName"
+                  label="First name"
+                  error={errors.firstName?.message}
+                />
+              </View>
+              <View style={styles.col}>
+                <Field
+                  control={control}
+                  name="lastName"
+                  label="Last name"
+                  error={errors.lastName?.message}
+                />
+              </View>
+            </View>
+
             <Field
               control={control}
               name="email"
@@ -110,7 +145,7 @@ export default function SignupScreen() {
             <Field
               control={control}
               name="confirmPassword"
-              label="Confirm Password"
+              label="Confirm password"
               error={errors.confirmPassword?.message}
               secureTextEntry
               autoCapitalize="none"
@@ -118,22 +153,26 @@ export default function SignupScreen() {
 
             {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
-            <Button title="Create account" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+            <Button
+              title="Create account"
+              onPress={handleSubmit(onSubmit)}
+              loading={isSubmitting}
+            />
+
+            <Pressable style={styles.signInLine} onPress={() => router.back()} hitSlop={8}>
+              <Text style={styles.signInText}>
+                Already a member? <Text style={styles.signInLink}>Sign in</Text>
+              </Text>
+            </Pressable>
 
             <View style={styles.divider}>
               <View style={styles.line} />
-              <Text style={styles.orText}>OR</Text>
+              <Text style={styles.dividerText}>or</Text>
               <View style={styles.line} />
             </View>
 
-            <GoogleButton label={`Sign up with Google`} customerType={role} />
+            <GoogleButton label="Sign up with Google" customerType={role} />
           </View>
-
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.footer}>
-              Already have an account? <Text style={styles.link}>Sign in</Text>
-            </Text>
-          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -152,7 +191,16 @@ type FieldProps = {
   leftElement?: React.ReactNode;
 };
 
-function Field({ control, name, label, error, keyboardType, secureTextEntry, autoCapitalize, leftElement }: FieldProps) {
+function Field({
+  control,
+  name,
+  label,
+  error,
+  keyboardType,
+  secureTextEntry,
+  autoCapitalize,
+  leftElement,
+}: FieldProps) {
   return (
     <Controller
       control={control}
@@ -176,29 +224,61 @@ function Field({ control, name, label, error, keyboardType, secureTextEntry, aut
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { paddingHorizontal: spacing.xl, paddingVertical: spacing['2xl'], gap: spacing.xl },
-  header: { gap: spacing.xs },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted },
-  roleRow: { flexDirection: 'row', gap: spacing.sm },
-  roleChip: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
-  roleChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  roleText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
-  roleTextActive: { color: colors.textOnPrimary },
-  form: { gap: spacing.lg },
+
+  // Header: title + a small role pill on its own line so it stays
+  // unmistakably the user-chosen role without competing with the field
+  // labels below.
+  header: { alignItems: 'flex-start', gap: spacing.xs, marginBottom: spacing.xs },
+  title: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    color: colors.primary,
+  },
+  rolePill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    backgroundColor: colors.infoBg,
+  },
+  rolePillText: {
+    color: colors.primary,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
+  },
+
+  form: { gap: spacing.md },
+  row: { flexDirection: 'row', gap: spacing.sm },
+  col: { flex: 1 },
   serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-  footer: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.sm, marginTop: spacing.md },
-  link: { color: colors.primary, fontWeight: fontWeight.bold },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.sm },
-  line: { flex: 1, height: 1, backgroundColor: colors.border },
-  orText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.semibold },
+
+  signInLine: { alignSelf: 'center', paddingVertical: spacing.xs },
+  signInText: { color: colors.textMuted, fontSize: fontSize.sm },
+  signInLink: { color: colors.primary, fontWeight: fontWeight.bold },
+
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginVertical: spacing.xs,
+  },
+  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  dividerText: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+
   phonePrefix: {
     paddingLeft: spacing.md,
     paddingRight: spacing.xs,
