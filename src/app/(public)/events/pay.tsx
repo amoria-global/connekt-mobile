@@ -40,6 +40,7 @@ import {
 } from '@/features/streams/api';
 import { detectPaymentCountry, getPaymentOptions, listCurrencies } from '@/features/reference/api';
 import { useAsync } from '@/hooks/useAsync';
+import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -185,7 +186,10 @@ export default function EventPaymentScreen() {
       if (!reg.viewerId) throw { status: 0, message: 'Could not register your viewer access.' };
 
       // Free stream: skip payment and go straight to the live screen.
+      // Persist the viewerId so the event detail's CTA shows "Start
+      // watching" instead of "Watch live" on a later visit.
       if (!reg.needsPayment) {
+        await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
         router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href);
         return;
       }
@@ -222,6 +226,7 @@ export default function EventPaymentScreen() {
         await confirmAnonymousPayment(id, { viewerId: reg.viewerId, refid: initiate.refid }).catch(
           () => {},
         );
+        await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
         setStatus('success');
         setStatusNote('Payment received. Taking you to the live stream…');
         setTimeout(
@@ -237,6 +242,7 @@ export default function EventPaymentScreen() {
         // pending — last hopeful check then bow out
         const last = await getPublicPaymentStatus(initiate.refid).catch(() => 'pending' as const);
         if (last === 'success') {
+          await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
           setStatus('success');
           setStatusNote('Payment received. Taking you to the live stream…');
           setTimeout(
