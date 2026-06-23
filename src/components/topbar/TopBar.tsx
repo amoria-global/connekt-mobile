@@ -31,9 +31,9 @@ export function TopBar() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
-  const { isPhotographer } = useRole();
+  const { role } = useRole();
 
-  const { data } = useAsync(useCallback(() => listNotifications(isPhotographer), [isPhotographer]));
+  const { data } = useAsync(useCallback(() => listNotifications(role), [role]));
   const hasUnread = !!data?.some((n) => !n.read);
 
   return (

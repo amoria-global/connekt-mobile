@@ -10,16 +10,16 @@ import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
 
 export default function NotificationsScreen() {
-  const { isPhotographer } = useRole();
+  const { role } = useRole();
   const { data, loading, error, refresh } = useAsync(
-    useCallback(() => listNotifications(isPhotographer), [isPhotographer]),
+    useCallback(() => listNotifications(role), [role]),
   );
   const [working, setWorking] = useState(false);
 
   const onTap = async (id: string, alreadyRead: boolean) => {
     if (alreadyRead) return;
     try {
-      await markRead(isPhotographer, id);
+      await markRead(role, id);
       await refresh();
     } catch {
       // ignore
@@ -29,7 +29,7 @@ export default function NotificationsScreen() {
   const onMarkAll = async () => {
     setWorking(true);
     try {
-      await markAllRead(isPhotographer);
+      await markAllRead(role);
       await refresh();
     } catch {
       // ignore
