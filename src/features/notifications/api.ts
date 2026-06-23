@@ -19,8 +19,14 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
-function base(isPhotographer: boolean): string {
-  return isPhotographer ? '/photographer/notifications' : '/customer/notifications';
+export type NotificationsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer';
+
+function base(role: NotificationsRole | boolean): string {
+  // Backward-compat: legacy callers pass `role: NotificationsRole | boolean`.
+  if (typeof role === 'boolean') return role ? '/photographer/notifications' : '/customer/notifications';
+  if (role === 'Photographer') return '/photographer/notifications';
+  if (role === 'Coordinator') return '/coordinator/notifications';
+  return '/customer/notifications';
 }
 
 function mapNotification(r: Raw): AppNotification {
@@ -34,16 +40,16 @@ function mapNotification(r: Raw): AppNotification {
   };
 }
 
-export async function listNotifications(isPhotographer: boolean): Promise<AppNotification[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(base(isPhotographer));
+export async function listNotifications(role: NotificationsRole | boolean): Promise<AppNotification[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>(base(role));
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map(mapNotification).filter((n) => n.id);
 }
 
-export async function markRead(isPhotographer: boolean, id: string): Promise<void> {
-  await api.post(`${base(isPhotographer)}/${encodeURIComponent(id)}/mark-read`);
+export async function markRead(role: NotificationsRole | boolean, id: string): Promise<void> {
+  await api.post(`${base(role)}/${encodeURIComponent(id)}/mark-read`);
 }
 
-export async function markAllRead(isPhotographer: boolean): Promise<void> {
-  await api.post(`${base(isPhotographer)}/mark-all-read`);
+export async function markAllRead(role: NotificationsRole | boolean): Promise<void> {
+  await api.post(`${base(role)}/mark-all-read`);
 }

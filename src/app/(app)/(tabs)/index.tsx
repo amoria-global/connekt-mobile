@@ -102,7 +102,8 @@ type Href =
   | '/find-my-photos'
   | '/donations'
   | '/clients'
-  | '/payments';
+  | '/payments'
+  | '/team';
 
 type Action = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -124,6 +125,7 @@ const ACTIONS_BY_ROLE: Record<string, Action[]> = {
   ],
   Coordinator: [
     { label: 'Find Photographers', icon: 'camera', href: '/photographers' },
+    { label: 'Team', icon: 'people-circle', href: '/team' },
     { label: 'Find My Photos', icon: 'scan', href: '/find-my-photos' },
     ...COMMON_TAIL,
   ],

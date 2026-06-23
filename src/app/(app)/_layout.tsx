@@ -77,6 +77,11 @@ export default function AppLayout() {
         <Stack.Screen name="client/[id]" options={{ title: 'Client' }} />
         <Stack.Screen name="two-factor" options={{ title: 'Two-factor' }} />
         <Stack.Screen name="kyc" options={{ title: 'Verification' }} />
+        <Stack.Screen name="team/index" options={{ title: 'Team' }} />
+        <Stack.Screen name="team/invite" options={{ title: 'Invite member', presentation: 'modal' }} />
+        <Stack.Screen name="team/roles" options={{ title: 'Roles & permissions' }} />
+        <Stack.Screen name="team/role/[id]" options={{ title: 'Role' }} />
+        <Stack.Screen name="team/member/[id]" options={{ title: 'Member' }} />
       </Stack>
       <StatusBar style={inTabs ? 'dark' : 'light'} />
     </>
