@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   useFonts,
@@ -12,6 +12,28 @@ import {
 import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
 import { colors } from '@/theme';
+
+/**
+ * Default every `<Text>` and `<TextInput>` to Pragati Narrow so the
+ * mobile app matches the web (knockout/app/globals.css line 43:
+ * `font-family: 'Pragati Narrow', -apple-system, BlinkMacSystemFont,
+ * 'Segoe UI', 'Roboto'…`). React Native has no CSS-style "body font",
+ * so the canonical way is overriding `defaultProps.style` once at
+ * boot. `weight: '700'` callers already in the codebase pick up
+ * PragatiNarrow_700Bold automatically; everything else uses the
+ * 400-weight regular.
+ */
+function applyDefaultFont() {
+  const TextAny = Text as unknown as { defaultProps?: { style?: unknown } };
+  TextAny.defaultProps = TextAny.defaultProps ?? {};
+  const existing = (TextAny.defaultProps.style ?? {}) as Record<string, unknown>;
+  TextAny.defaultProps.style = [existing, { fontFamily: 'PragatiNarrow_400Regular' }];
+
+  const InputAny = TextInput as unknown as { defaultProps?: { style?: unknown } };
+  InputAny.defaultProps = InputAny.defaultProps ?? {};
+  const inputExisting = (InputAny.defaultProps.style ?? {}) as Record<string, unknown>;
+  InputAny.defaultProps.style = [inputExisting, { fontFamily: 'PragatiNarrow_400Regular' }];
+}
 
 /**
  * Redirects between the (onboarding), (auth) and (app) groups based on auth
@@ -61,6 +83,14 @@ export default function RootLayout() {
     bootstrap();
     loadOnboarding();
   }, [bootstrap, loadOnboarding]);
+
+  // Apply the global Pragati Narrow default ONCE the Google Font has
+  // loaded — applying earlier would print the family name as text since
+  // the font file isn't registered yet on Android.
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    applyDefaultFont();
+  }, [fontsLoaded]);
 
   useProtectedRoute();
 
