@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { RefreshControl, ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
+import { RefreshControl, ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,6 @@ import { Stars } from '@/components/ui/Stars';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
-const { width } = Dimensions.get('window');
 let hasAutoShownWizard = false;
 
 function CalendarPreview() {

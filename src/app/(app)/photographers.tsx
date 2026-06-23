@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { useRouter, Stack } from 'expo-router';
-import { Pressable, StyleSheet, View, Text, FlatList, RefreshControl, ActivityIndicator, Dimensions } from 'react-native';
+import { Pressable, StyleSheet, View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { useResponsive } from '@/hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { Input } from '@/components/ui/Input';
@@ -12,7 +13,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
-const { width } = Dimensions.get('window');
 const ITEMS_PER_PAGE = 4;
 let hasAutoShownWizard = false;
 
@@ -32,6 +32,11 @@ export default function PhotographersScreen() {
   const [showBanner, setShowBanner] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const bottomSheetRef = useRef<BottomSheet>(null);
+  // Live width — keeps the 2-column grid in step with rotation /
+  // tablet split / web window resize. Replaces a module-level
+  // Dimensions.get that froze the column width at JS-bundle load.
+  const { width: deviceWidth } = useResponsive();
+  const cardWidth = (deviceWidth - spacing.sm * 2) / 2;
   
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotographers(), []));
   const router = useRouter();
@@ -232,7 +237,7 @@ export default function PhotographersScreen() {
             ListEmptyComponent={<EmptyState icon="camera-outline" title="No photographers found" message="Try a different search, or pull to refresh." />}
             renderItem={({ item }) => (
               <Pressable 
-                style={styles.cardWrapper}
+                style={[styles.cardWrapper, { width: cardWidth }]}
                 onPress={() => handlePhotographerPress(item.id)}
               >
                 <PhotographerCard photographer={item} />
@@ -261,7 +266,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   cardWrapper: {
-    width: (width - spacing.sm * 2) / 2,
+    // Width applied inline via cardWidth (responsive on rotation/resize).
     padding: spacing.xs,
   },
   headerContainer: {
