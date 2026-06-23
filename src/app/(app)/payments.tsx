@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
+import { useRole } from '@/features/auth/role';
 import { listPayments } from '@/features/payments/api';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -12,7 +13,10 @@ import { formatDate, formatMoney } from '@/utils/format';
 
 export default function PaymentsScreen() {
   const router = useRouter();
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listPayments(), []));
+  const { role } = useRole();
+  const { data, loading, error, refresh } = useAsync(
+    useCallback(() => listPayments(role), [role]),
+  );
 
   return (
     <Screen padded={false}>

@@ -60,21 +60,48 @@ function pageContent(data: unknown): Raw[] {
   return Array.isArray(c) ? (c as Raw[]) : [];
 }
 
-export async function listPayments(): Promise<PaymentRecord[]> {
-  const res = await api.get<ApiEnvelope<unknown>>('/customer/payments?page=0&size=20');
-  return pageContent(res?.data)
-    .map((r) => ({
-      id: String(r.id ?? r.declarationId ?? ''),
-      title: str(r.eventName) ?? str(r.eventTitle) ?? str(r.title) ?? str(r.description) ?? 'Payment',
-      amount:
-        (typeof r.amount === 'number' ? r.amount : undefined) ??
-        (typeof r.amountDue === 'number' ? r.amountDue : undefined) ??
-        (typeof r.totalAmount === 'number' ? r.totalAmount : undefined),
-      currency: str(r.currency) ?? str(r.currencyCode),
-      status: str(r.status) ?? str(r.paymentStatus),
-      createdAt: str(r.createdAt) ?? str(r.date),
-    }))
-    .filter((p) => p.id);
+export type PaymentsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer';
+
+/**
+ * Payment-history endpoint by role.
+ *
+ * The backend keeps a SEPARATE controller per role:
+ *   /api/remote/customer/payments    → ClientPaymentController
+ *   /api/remote/coordinator/payments → CoordinatorController#listPayments
+ *
+ * Mobile used to call `/customer/payments` for every role, which meant
+ * coordinators never saw any of their own payments and the screen
+ * looked empty / "not working". The role-aware base path fixes that.
+ */
+function paymentsBase(role: PaymentsRole | undefined): string {
+  if (role === 'Coordinator') return '/coordinator/payments';
+  // Photographer / Viewer don't have their own payment-history endpoint
+  // exposed yet; they fall through to the customer path which the
+  // backend serves with role-appropriate filters.
+  return '/customer/payments';
+}
+
+function mapPaymentRecord(r: Raw): PaymentRecord {
+  return {
+    id: String(r.id ?? r.declarationId ?? ''),
+    title: str(r.eventName) ?? str(r.eventTitle) ?? str(r.title) ?? str(r.description) ?? 'Payment',
+    amount:
+      (typeof r.amount === 'number' ? r.amount : undefined) ??
+      (typeof r.amountDue === 'number' ? r.amountDue : undefined) ??
+      (typeof r.totalAmount === 'number' ? r.totalAmount : undefined) ??
+      (typeof r.amountInUsd === 'number' ? r.amountInUsd : undefined),
+    currency:
+      str(r.currency) ?? str(r.currencyCode) ?? str(r.currencyAbbreviation),
+    status: str(r.status) ?? str(r.paymentStatus),
+    createdAt: str(r.createdAt) ?? str(r.date) ?? str(r.dueDate),
+  };
+}
+
+export async function listPayments(role?: PaymentsRole): Promise<PaymentRecord[]> {
+  const res = await api.get<ApiEnvelope<unknown>>(
+    `${paymentsBase(role)}?page=0&size=20`,
+  );
+  return pageContent(res?.data).map(mapPaymentRecord).filter((p) => p.id);
 }
 
 export type PaymentDetail = PaymentRecord & {
@@ -85,9 +112,11 @@ export type PaymentDetail = PaymentRecord & {
   description?: string;
 };
 
-/** Full detail for one payment (web parity: GET /customer/payments/{id}). */
-export async function getPayment(id: string): Promise<PaymentDetail> {
-  const res = await api.get<ApiEnvelope<Raw>>(`/customer/payments/${encodeURIComponent(id)}`);
+/** Full detail for one payment (web parity: GET /{role}/payments/{id}). */
+export async function getPayment(id: string, role?: PaymentsRole): Promise<PaymentDetail> {
+  const res = await api.get<ApiEnvelope<Raw>>(
+    `${paymentsBase(role)}/${encodeURIComponent(id)}`,
+  );
   const r = (res?.data ?? {}) as Raw;
   const n = (v: unknown) => (typeof v === 'number' ? v : undefined);
   return {

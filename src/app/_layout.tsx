@@ -17,22 +17,43 @@ import { colors } from '@/theme';
  * Default every `<Text>` and `<TextInput>` to Pragati Narrow so the
  * mobile app matches the web (knockout/app/globals.css line 43:
  * `font-family: 'Pragati Narrow', -apple-system, BlinkMacSystemFont,
- * 'Segoe UI', 'Roboto'…`). React Native has no CSS-style "body font",
- * so the canonical way is overriding `defaultProps.style` once at
- * boot. `weight: '700'` callers already in the codebase pick up
- * PragatiNarrow_700Bold automatically; everything else uses the
- * 400-weight regular.
+ * 'Segoe UI', 'Roboto'…`).
+ *
+ * React 19 silently drops `defaultProps` on function/forwardRef
+ * components, so the earlier `Text.defaultProps = …` approach was a
+ * no-op. The reliable workaround is to wrap the underlying `render`
+ * function on the forwardRef object — every `<Text>` call ultimately
+ * routes through it, so injecting `{ fontFamily }` into the style
+ * array there makes the family default global.
+ *
+ * Style arrays merge right-to-left, so any inline `fontFamily:
+ * 'PragatiNarrow_700Bold'` (e.g. the FindMyPhotos hero) still wins.
  */
-function applyDefaultFont() {
-  const TextAny = Text as unknown as { defaultProps?: { style?: unknown } };
-  TextAny.defaultProps = TextAny.defaultProps ?? {};
-  const existing = (TextAny.defaultProps.style ?? {}) as Record<string, unknown>;
-  TextAny.defaultProps.style = [existing, { fontFamily: 'PragatiNarrow_400Regular' }];
+type ForwardRefRenderable = {
+  render: (props: { style?: unknown }, ref: unknown) => unknown;
+};
 
-  const InputAny = TextInput as unknown as { defaultProps?: { style?: unknown } };
-  InputAny.defaultProps = InputAny.defaultProps ?? {};
-  const inputExisting = (InputAny.defaultProps.style ?? {}) as Record<string, unknown>;
-  InputAny.defaultProps.style = [inputExisting, { fontFamily: 'PragatiNarrow_400Regular' }];
+let fontDefaultsApplied = false;
+
+function applyDefaultFont() {
+  if (fontDefaultsApplied) return;
+  fontDefaultsApplied = true;
+
+  const injectFamily = (component: unknown) => {
+    const c = component as Partial<ForwardRefRenderable>;
+    const original = c.render;
+    if (typeof original !== 'function') return;
+    (c as ForwardRefRenderable).render = function patchedRender(props, ref) {
+      const next = {
+        ...props,
+        style: [{ fontFamily: 'PragatiNarrow_400Regular' }, props?.style],
+      };
+      return original.call(this, next, ref);
+    };
+  };
+
+  injectFamily(Text);
+  injectFamily(TextInput);
 }
 
 /**

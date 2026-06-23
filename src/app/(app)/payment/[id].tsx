@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
+import { useRole } from '@/features/auth/role';
 import { getPayment } from '@/features/payments/api';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -11,7 +12,10 @@ import { formatDate, formatMoney } from '@/utils/format';
 
 export default function PaymentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data, loading, error } = useAsync(useCallback(() => getPayment(id), [id]));
+  const { role } = useRole();
+  const { data, loading, error } = useAsync(
+    useCallback(() => getPayment(id, role), [id, role]),
+  );
 
   if (loading && !data) {
     return (
