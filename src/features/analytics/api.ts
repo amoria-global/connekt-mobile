@@ -155,6 +155,69 @@ export async function getCustomerAnalytics(): Promise<CustomerAnalytics> {
   };
 }
 
+export type PhotographerAnalytics = {
+  totalEvents: number;
+  upcomingEvents: number;
+  completedEvents: number;
+  totalClients: number;
+  totalBookings: number;
+  totalEarnings: number;
+  totalTips: number;
+  pendingPayments: number;
+  bonuses: number;
+  averageRating: number;
+  totalPhotosUploaded: number;
+  unreadNotifications: number;
+};
+
+function defaultPhotographerAnalytics(): PhotographerAnalytics {
+  return {
+    totalEvents: 0,
+    upcomingEvents: 0,
+    completedEvents: 0,
+    totalClients: 0,
+    totalBookings: 0,
+    totalEarnings: 0,
+    totalTips: 0,
+    pendingPayments: 0,
+    bonuses: 0,
+    averageRating: 5,
+    totalPhotosUploaded: 0,
+    unreadNotifications: 0,
+  };
+}
+
+export async function getPhotographerAnalytics(): Promise<PhotographerAnalytics> {
+  const res = await api.get<ApiEnvelope<Raw>>('/photographer/analytics');
+  const d = (res?.data ?? {}) as Raw;
+  const def = defaultPhotographerAnalytics();
+  return {
+    totalEvents: num(d.totalEvents) ?? def.totalEvents,
+    upcomingEvents: num(d.upcomingEvents) ?? def.upcomingEvents,
+    completedEvents: num(d.completedEvents) ?? def.completedEvents,
+    totalClients: num(d.totalClients) ?? def.totalClients,
+    totalBookings: num(d.totalBookings) ?? def.totalBookings,
+    totalEarnings: num(d.totalEarnings) ?? def.totalEarnings,
+    totalTips: num(d.totalTips) ?? def.totalTips,
+    pendingPayments: num(d.pendingPayments) ?? def.pendingPayments,
+    bonuses: num(d.bonuses) ?? def.bonuses,
+    averageRating: num(d.averageRating) ?? def.averageRating,
+    totalPhotosUploaded: num(d.totalPhotosUploaded) ?? def.totalPhotosUploaded,
+    unreadNotifications: num(d.unreadNotifications) ?? def.unreadNotifications,
+  };
+}
+
+export async function getPhotographerTrends(
+  period: AnalyticsPeriod,
+  from?: string,
+  to?: string,
+): Promise<TrendsMap> {
+  const res = await api.get<ApiEnvelope<Raw>>(
+    `/photographer/analytics/trends?${trendsQuery(period, from, to)}`,
+  );
+  return mapTrends(res?.data as Raw);
+}
+
 export async function getCoordinatorAnalytics(): Promise<CoordinatorAnalytics> {
   const res = await api.get<ApiEnvelope<Raw>>('/coordinator/analytics');
   const d = (res?.data ?? {}) as Raw;

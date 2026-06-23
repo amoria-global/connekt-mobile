@@ -42,6 +42,7 @@ import {
   type CoordinatorAnalytics,
   type CustomerAnalytics,
   type PendingPayment,
+  type PhotographerAnalytics,
   type RecentActivity,
   type TrendsMap,
   getCoordinatorAnalytics,
@@ -51,6 +52,8 @@ import {
   getCustomerPendingPayments,
   getCustomerRecentActivities,
   getCustomerTrends,
+  getPhotographerAnalytics,
+  getPhotographerTrends,
 } from '@/features/analytics/api';
 import { listBookings } from '@/features/bookings/api';
 import { listCoordinatorEvents, listEvents } from '@/features/events/api';
@@ -162,7 +165,7 @@ export default function HomeScreen() {
   const topBarHeight = useTopBarHeight();
   const name = user?.firstName || 'there';
 
-  const showsDashboard = isClient || isCoordinator;
+  const showsDashboard = isClient || isCoordinator || isPhotographer;
 
   // ── Greeting + cycling lead copy ────────────────────────────────────────
   const [timeOfDay, setTimeOfDay] = useState<keyof typeof GREETINGS>(getTimeOfDay);
@@ -219,9 +222,10 @@ export default function HomeScreen() {
     }, [isPhotographer, isViewer, isCoordinator, router]),
   );
 
-  // ── Dashboard data (Client + Coordinator only) ─────────────────────────
+  // ── Dashboard data (Client + Coordinator + Photographer) ──────────────
   const [analyticsClient, setAnalyticsClient] = useState<CustomerAnalytics | null>(null);
   const [analyticsCoord, setAnalyticsCoord] = useState<CoordinatorAnalytics | null>(null);
+  const [analyticsPhotog, setAnalyticsPhotog] = useState<PhotographerAnalytics | null>(null);
   const [trends, setTrends] = useState<TrendsMap>({});
   const [pending, setPending] = useState<PendingPayment[]>([]);
   const [activities, setActivities] = useState<RecentActivity[]>([]);
@@ -251,11 +255,18 @@ export default function HomeScreen() {
         if (a.status === 'fulfilled') setAnalyticsCoord(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (p.status === 'fulfilled') setPending(p.value);
+      } else if (isPhotographer) {
+        const [a, t] = await Promise.allSettled([
+          getPhotographerAnalytics(),
+          getPhotographerTrends(period),
+        ]);
+        if (a.status === 'fulfilled') setAnalyticsPhotog(a.value);
+        if (t.status === 'fulfilled') setTrends(t.value);
       }
     } finally {
       setLoadingDash(false);
     }
-  }, [showsDashboard, isClient, isCoordinator, period]);
+  }, [showsDashboard, isClient, isCoordinator, isPhotographer, period]);
 
   useEffect(() => {
     loadDashboard();
@@ -277,8 +288,15 @@ export default function HomeScreen() {
         { label: 'Photographers', value: String(analyticsCoord.totalPhotographers), tone: '#10B981' },
       ];
     }
+    if (isPhotographer && analyticsPhotog) {
+      return [
+        { label: 'Earnings', value: formatMoney(analyticsPhotog.totalEarnings, wallet.data?.currency), tone: colors.primary },
+        { label: 'Clients', value: String(analyticsPhotog.totalClients), tone: colors.accent },
+        { label: 'Photos', value: String(analyticsPhotog.totalPhotosUploaded), tone: '#10B981' },
+      ];
+    }
     return [];
-  }, [isClient, isCoordinator, analyticsClient, analyticsCoord, wallet.data?.currency]);
+  }, [isClient, isCoordinator, isPhotographer, analyticsClient, analyticsCoord, analyticsPhotog, wallet.data?.currency]);
 
   const kpis = useMemo(() => {
     if (isClient && analyticsClient) {
@@ -299,8 +317,24 @@ export default function HomeScreen() {
         kpi('Photographers', String(analyticsCoord.totalPhotographers), 'camera-outline', '#8B5CF6', trends.totalPhotographers, '/photographers'),
       ];
     }
+    if (isPhotographer && analyticsPhotog) {
+      return [
+        kpi('Total Earnings', formatMoney(analyticsPhotog.totalEarnings, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalEarnings, '/transactions'),
+        kpi('Pending', formatMoney(analyticsPhotog.pendingPayments, wallet.data?.currency), 'time-outline', '#F59E0B', trends.pending, '/transactions'),
+        kpi('Total clients', String(analyticsPhotog.totalClients), 'people-outline', '#3B82F6', trends.clients, '/clients'),
+        kpi('Bonuses', formatMoney(analyticsPhotog.bonuses, wallet.data?.currency), 'gift-outline', '#10B981', trends.bonuses, '/transactions'),
+        kpi(
+          'Ratings',
+          `${(analyticsPhotog.averageRating ?? 5).toFixed(1)}/5`,
+          'star-outline',
+          '#8B5CF6',
+          trends.rating,
+          '/profile',
+        ),
+      ];
+    }
     return [];
-  }, [isClient, isCoordinator, analyticsClient, analyticsCoord, wallet.data?.currency, trends]);
+  }, [isClient, isCoordinator, isPhotographer, analyticsClient, analyticsCoord, analyticsPhotog, wallet.data?.currency, trends]);
 
   const totalPendingAmount = pending.reduce((s, p) => s + (p.amount - p.paidAmount), 0);
   const hasFailedPayments = pending.some((p) => p.status === 'failed');
