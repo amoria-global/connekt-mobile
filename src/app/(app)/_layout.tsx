@@ -54,6 +54,7 @@ export default function AppLayout() {
         />
         <Stack.Screen name="album/[id]" options={{ title: 'Album' }} />
         <Stack.Screen name="gallery" options={{ title: 'Gallery' }} />
+        <Stack.Screen name="bookings" options={{ title: 'Bookings' }} />
         <Stack.Screen name="content-albums" options={{ title: 'Content Albums' }} />
         <Stack.Screen
           name="content-album/new"
