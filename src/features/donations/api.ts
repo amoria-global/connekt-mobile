@@ -28,7 +28,13 @@ function pageContent(data: unknown): Raw[] {
 }
 
 export async function getDonationTiers(): Promise<DonationTier[]> {
-  const res = await api.get<ApiEnvelope<Raw> & Raw>('/donation-tiers', { skipAuth: true });
+  // Web parity: PublicRemoteController@GetMapping("/donation-tiers")
+  // lives under @RequestMapping("/api/remote/public"), so the real
+  // path is /public/donation-tiers. The previous /donation-tiers
+  // call 404'd which made the donation screen crash on load.
+  const res = await api.get<ApiEnvelope<Raw> & Raw>('/public/donation-tiers', {
+    skipAuth: true,
+  });
   const d = (res?.data ?? res ?? {}) as Raw;
   const tiers = Array.isArray(d.tiers) ? (d.tiers as Raw[]) : [];
   return tiers
