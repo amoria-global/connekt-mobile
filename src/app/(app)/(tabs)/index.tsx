@@ -54,6 +54,7 @@ import {
 } from '@/features/analytics/api';
 import { listBookings } from '@/features/bookings/api';
 import { listCoordinatorEvents, listEvents } from '@/features/events/api';
+import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { listStreams } from '@/features/streams/api';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -154,6 +155,8 @@ const PERIOD_LABEL: Record<AnalyticsPeriod, string> = {
 export default function HomeScreen() {
   const user = useAuth((s) => s.user);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
+  const [payNowOpen, setPayNowOpen] = useState(false);
+  const [payNowPayment, setPayNowPayment] = useState<PendingPayment | null>(null);
   const { role, isClient, isCoordinator, isPhotographer, isViewer } = useRole();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -358,6 +361,10 @@ export default function HomeScreen() {
                 totalPendingAmount={totalPendingAmount}
                 currency={wallet.data?.currency}
                 onViewAll={() => router.push('/payments')}
+                onPayNow={(p) => {
+                  setPayNowPayment(p);
+                  setPayNowOpen(true);
+                }}
               />
             ) : null}
 
@@ -437,6 +444,17 @@ export default function HomeScreen() {
         visible={findPhotosModalVisible}
         onClose={() => setFindPhotosModalVisible(false)}
         getPhotosRoute="/find-my-photos"
+      />
+
+      <PayNowSheet
+        payment={payNowPayment}
+        visible={payNowOpen}
+        onClose={() => setPayNowOpen(false)}
+        onSuccess={() => {
+          // Refresh the dashboard data so the just-paid item disappears
+          // and the KPI cards reflect the new totals.
+          loadDashboard();
+        }}
       />
 
       <TopBar />
@@ -554,12 +572,14 @@ function PendingPaymentsAlert({
   totalPendingAmount,
   currency,
   onViewAll,
+  onPayNow,
 }: {
   items: PendingPayment[];
   hasFailed: boolean;
   totalPendingAmount: number;
   currency?: string;
   onViewAll: () => void;
+  onPayNow: (p: PendingPayment) => void;
 }) {
   const tone = hasFailed ? colors.errorBg : colors.warningBg;
   const stroke = hasFailed ? colors.error : colors.warning;
@@ -590,11 +610,13 @@ function PendingPaymentsAlert({
         contentContainerStyle={styles.alertScroll}
       >
         {items.map((p) => (
-          <View
+          <Pressable
             key={p.id}
-            style={[
+            onPress={() => onPayNow(p)}
+            style={({ pressed }) => [
               styles.payCard,
               p.status === 'failed' && { borderColor: colors.error + '60' },
+              pressed && { opacity: 0.85 },
             ]}
           >
             <View style={styles.payAvatar}>
@@ -630,8 +652,12 @@ function PendingPaymentsAlert({
               >
                 {formatMoney(p.amount - p.paidAmount, currency)}
               </Text>
+              <View style={styles.payNowChip}>
+                <Ionicons name="card" size={11} color={colors.textOnPrimary} />
+                <Text style={styles.payNowChipText}>Pay now</Text>
+              </View>
             </View>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
     </View>
@@ -831,6 +857,18 @@ const styles = StyleSheet.create({
   payChipText: { fontSize: 9, fontWeight: fontWeight.bold },
   payEvent: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 },
   payAmount: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, marginTop: 2 },
+  payNowChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    marginTop: 6,
+  },
+  payNowChipText: { color: colors.textOnPrimary, fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
 
   // Activity
   activityRow: {

@@ -43,6 +43,79 @@ export async function initiatePayment(input: PaymentInput): Promise<InitiatedPay
   return { refId, redirectUrl };
 }
 
+/**
+ * Pay an existing booking declaration (web parity:
+ * lib/xentripay.ts → initiateBookingPayment). Used by the Pay-Now
+ * sheet on the dashboard: the user picks a method, types a phone for
+ * mobile money, and the backend returns either a paymentUrl (card) or
+ * just a refid to poll (mobile money).
+ */
+export type InitiateBookingPaymentInput = {
+  declarationId: string;
+  phone?: string;
+  telecomProvider?: string; // 'MTN' | 'AIRTEL' | 'MPESA' | …
+  paymentMethod: 'MOBILE_MONEY' | 'CARD';
+  currencyId?: string;
+  donationAmount?: number;
+  escrowPercentage?: number;
+  /** ISO-2 country code — drives backend gateway routing. */
+  country?: string;
+  redirectUrl?: string;
+};
+
+export async function initiateBookingPayment(
+  input: InitiateBookingPaymentInput,
+): Promise<InitiatedPayment> {
+  const body: Record<string, unknown> = {
+    declarationId: input.declarationId,
+    paymentMethod: input.paymentMethod,
+  };
+  if (input.phone) body.phone = input.phone;
+  if (input.telecomProvider) body.telecomProvider = input.telecomProvider;
+  if (input.currencyId) body.currencyId = input.currencyId;
+  if (input.donationAmount) body.donationAmount = input.donationAmount;
+  if (input.escrowPercentage) body.escrowPercentage = input.escrowPercentage;
+  if (input.country) body.country = input.country;
+  if (input.redirectUrl) body.redirectUrl = input.redirectUrl;
+
+  const res = await api.post<ApiEnvelope<Raw> & Raw>('/payments/xentripay/initiate', body);
+  const d = (res?.data ?? res ?? {}) as Raw;
+  const refId =
+    str(d.refid) ?? str(d.refId) ?? str(d.reference) ?? str(d.transactionId) ?? '';
+  const redirectUrl =
+    str(d.paymentUrl) ?? str(d.redirectUrl) ?? str(d.url) ?? str(d.checkoutUrl);
+  return { refId, redirectUrl };
+}
+
+/**
+ * Poll the auth-required XentriPay status endpoint until it resolves.
+ * The grace window mirrors the web's pollXentriPayStatus — card
+ * sessions return FAILED for a few seconds before the user finishes
+ * paying, so we suppress early FAILEDs inside `graceMs`.
+ */
+export async function pollBookingPaymentStatus(
+  refId: string,
+  options?: { intervalMs?: number; maxAttempts?: number; graceMs?: number },
+): Promise<PaymentStatus> {
+  const intervalMs = options?.intervalMs ?? 2500;
+  const maxAttempts = options?.maxAttempts ?? 60;
+  const graceMs = options?.graceMs ?? 0;
+  const startedAt = Date.now();
+  for (let i = 0; i < maxAttempts; i++) {
+    const status = await getPaymentStatus(refId).catch(() => 'pending' as const);
+    if (status === 'success') return 'success';
+    if (status === 'failed') {
+      if (Date.now() - startedAt < graceMs) {
+        await new Promise((r) => setTimeout(r, intervalMs));
+        continue;
+      }
+      return 'failed';
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return 'pending';
+}
+
 // --- Payment history -----------------------------------------------------
 
 export type PaymentRecord = {
