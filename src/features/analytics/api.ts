@@ -65,3 +65,270 @@ export async function getAnalytics(role: AnalyticsRole, currency?: string): Prom
   }
   return stats;
 }
+
+// ────── Dashboard-shaped helpers (web parity) ──────────────────────────────
+//
+// Mirrors the salo-run Client/Coordinator dashboards (pages/client/home.tsx
+// + pages/event-coordinator/home.tsx). Each endpoint is fetched as-is and
+// mapped defensively so the mobile home can rebuild the same hero + KPI
+// grid + pending-payments banner + recent activity/transactions sections.
+
+const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+
+export type CustomerAnalytics = {
+  totalEvents: number;
+  upcomingEvents: number;
+  completedEvents: number;
+  cancelledEvents: number;
+  totalBookings: number;
+  totalSpent: number;
+  pendingAmount: number;
+  gifts: number;
+  totalPhotos: number;
+  totalVideos: number;
+  bookmarkedPhotographers: number;
+  unreadNotifications: number;
+};
+
+export type CoordinatorAnalytics = {
+  totalCustomers: number;
+  totalPhotographers: number;
+  totalEvents: number;
+  totalRevenue: number;
+  totalPaid: number;
+  totalPending: number;
+  pendingProfileReviews: number;
+  activeStreams: number;
+  totalNotifications: number;
+  unreadContactMessages: number;
+};
+
+function defaultCustomerAnalytics(): CustomerAnalytics {
+  return {
+    totalEvents: 0,
+    upcomingEvents: 0,
+    completedEvents: 0,
+    cancelledEvents: 0,
+    totalBookings: 0,
+    totalSpent: 0,
+    pendingAmount: 0,
+    gifts: 0,
+    totalPhotos: 0,
+    totalVideos: 0,
+    bookmarkedPhotographers: 0,
+    unreadNotifications: 0,
+  };
+}
+
+function defaultCoordinatorAnalytics(): CoordinatorAnalytics {
+  return {
+    totalCustomers: 0,
+    totalPhotographers: 0,
+    totalEvents: 0,
+    totalRevenue: 0,
+    totalPaid: 0,
+    totalPending: 0,
+    pendingProfileReviews: 0,
+    activeStreams: 0,
+    totalNotifications: 0,
+    unreadContactMessages: 0,
+  };
+}
+
+export async function getCustomerAnalytics(): Promise<CustomerAnalytics> {
+  const res = await api.get<ApiEnvelope<Raw>>('/customer/analytics');
+  const d = (res?.data ?? {}) as Raw;
+  const def = defaultCustomerAnalytics();
+  return {
+    totalEvents: num(d.totalEvents) ?? def.totalEvents,
+    upcomingEvents: num(d.upcomingEvents) ?? def.upcomingEvents,
+    completedEvents: num(d.completedEvents) ?? def.completedEvents,
+    cancelledEvents: num(d.cancelledEvents) ?? def.cancelledEvents,
+    totalBookings: num(d.totalBookings) ?? def.totalBookings,
+    totalSpent: num(d.totalSpent) ?? def.totalSpent,
+    pendingAmount: num(d.pendingAmount) ?? def.pendingAmount,
+    gifts: num(d.gifts) ?? def.gifts,
+    totalPhotos: num(d.totalPhotos) ?? def.totalPhotos,
+    totalVideos: num(d.totalVideos) ?? def.totalVideos,
+    bookmarkedPhotographers: num(d.bookmarkedPhotographers) ?? def.bookmarkedPhotographers,
+    unreadNotifications: num(d.unreadNotifications) ?? def.unreadNotifications,
+  };
+}
+
+export async function getCoordinatorAnalytics(): Promise<CoordinatorAnalytics> {
+  const res = await api.get<ApiEnvelope<Raw>>('/coordinator/analytics');
+  const d = (res?.data ?? {}) as Raw;
+  const def = defaultCoordinatorAnalytics();
+  return {
+    totalCustomers: num(d.totalCustomers) ?? def.totalCustomers,
+    totalPhotographers: num(d.totalPhotographers) ?? def.totalPhotographers,
+    totalEvents: num(d.totalEvents) ?? def.totalEvents,
+    totalRevenue: num(d.totalRevenue) ?? def.totalRevenue,
+    totalPaid: num(d.totalPaid) ?? def.totalPaid,
+    totalPending: num(d.totalPending) ?? def.totalPending,
+    pendingProfileReviews: num(d.pendingProfileReviews) ?? def.pendingProfileReviews,
+    activeStreams: num(d.activeStreams) ?? def.activeStreams,
+    totalNotifications: num(d.totalNotifications) ?? def.totalNotifications,
+    unreadContactMessages: num(d.unreadContactMessages) ?? def.unreadContactMessages,
+  };
+}
+
+// ────── Trends (% change per stat for the selected period) ────────────────
+
+export type Trend = { percentage: string; direction: 'up' | 'down' };
+export type TrendsMap = Record<string, Trend>;
+
+export type AnalyticsPeriod = 'today' | 'week' | 'month' | 'custom';
+
+function trendsQuery(period: AnalyticsPeriod, from?: string, to?: string): string {
+  const qs = new URLSearchParams();
+  qs.set('period', period);
+  if (period === 'custom' && from && to) {
+    qs.set('from', from);
+    qs.set('to', to);
+  }
+  return qs.toString();
+}
+
+function mapTrends(raw: Raw | undefined | null): TrendsMap {
+  const out: TrendsMap = {};
+  if (!raw) return out;
+  for (const [key, value] of Object.entries(raw)) {
+    if (!value || typeof value !== 'object') continue;
+    const v = value as Raw;
+    const pct = num(v.changePercent);
+    out[key] = {
+      percentage: pct != null ? `${Math.abs(pct).toFixed(1)}%` : '0%',
+      direction: v.trend === 'down' ? 'down' : 'up',
+    };
+  }
+  return out;
+}
+
+export async function getCustomerTrends(
+  period: AnalyticsPeriod,
+  from?: string,
+  to?: string,
+): Promise<TrendsMap> {
+  const res = await api.get<ApiEnvelope<Raw>>(
+    `/customer/analytics/trends?${trendsQuery(period, from, to)}`,
+  );
+  return mapTrends(res?.data as Raw);
+}
+
+export async function getCoordinatorTrends(
+  period: AnalyticsPeriod,
+  from?: string,
+  to?: string,
+): Promise<TrendsMap> {
+  const res = await api.get<ApiEnvelope<Raw>>(
+    `/coordinator/analytics/trends?${trendsQuery(period, from, to)}`,
+  );
+  return mapTrends(res?.data as Raw);
+}
+
+// ────── Pending payments banner (web parity) ─────────────────────────────
+
+export type PendingPayment = {
+  id: string;
+  eventName: string;
+  photographerName: string;
+  photographerImage?: string;
+  amount: number;
+  paidAmount: number;
+  dueDate?: string;
+  status: 'pending' | 'failed' | 'partially_paid';
+};
+
+function mapPendingPayment(r: Raw): PendingPayment {
+  const rawStatus = (str(r.status) ?? '').toUpperCase();
+  const status: PendingPayment['status'] =
+    rawStatus === 'FAILED'
+      ? 'failed'
+      : rawStatus === 'PARTIAL'
+        ? 'partially_paid'
+        : 'pending';
+  return {
+    id: String(r.id ?? ''),
+    eventName: str(r.eventTitle) ?? str(r.eventName) ?? 'Event',
+    photographerName: str(r.photographerName) ?? 'Photographer',
+    photographerImage: str(r.photographerImage),
+    amount: num(r.amountInUsd) ?? num(r.amount) ?? 0,
+    paidAmount: num(r.paidAmountInUsd) ?? num(r.paidAmount) ?? 0,
+    dueDate: str(r.dueDate),
+    status,
+  };
+}
+
+export async function getCustomerPendingPayments(): Promise<PendingPayment[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>('/customer/payments/pending');
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data.map(mapPendingPayment).filter((p) => p.id);
+}
+
+export async function getCoordinatorPendingPayments(): Promise<PendingPayment[]> {
+  const res = await api.get<ApiEnvelope<Raw>>('/coordinator/payments?page=0&size=10');
+  const d = (res?.data ?? {}) as Raw;
+  const items: Raw[] = Array.isArray(d.content)
+    ? (d.content as Raw[])
+    : Array.isArray(d)
+      ? (d as unknown as Raw[])
+      : [];
+  return items
+    .filter((p) => {
+      const s = (str(p.status) ?? '').toUpperCase();
+      return s !== 'COMPLETED' && s !== 'SUCCESS';
+    })
+    .map(mapPendingPayment)
+    .filter((p) => p.id);
+}
+
+// ────── Recent activities + photographers (Client only) ───────────────────
+
+export type RecentActivity = {
+  id: string;
+  type: string;
+  title: string;
+  message?: string;
+  createdAt?: string;
+};
+
+export async function getCustomerRecentActivities(size = 6): Promise<RecentActivity[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>(
+    `/customer/analytics/recent-activities?size=${size}`,
+  );
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data
+    .map((r) => ({
+      id: String(r.id ?? ''),
+      type: str(r.type) ?? 'Activity',
+      title: str(r.title) ?? str(r.message) ?? 'Activity',
+      message: str(r.message),
+      createdAt: str(r.createdAt),
+    }))
+    .filter((a) => a.id);
+}
+
+export type RecentPhotographer = {
+  id: string;
+  name: string;
+  event: string;
+  status: 'In Progress' | 'Completed' | 'Pending';
+  avatar?: string;
+};
+
+export async function getCustomerPhotographers(size = 5): Promise<RecentPhotographer[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>(
+    `/customer/analytics/photographers?size=${size}`,
+  );
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data
+    .map((r) => ({
+      id: String(r.id ?? ''),
+      name: str(r.name) ?? 'Photographer',
+      event: str(r.event) ?? 'Event',
+      status: (str(r.status) as RecentPhotographer['status']) ?? 'Pending',
+      avatar: str(r.avatar),
+    }))
+    .filter((p) => p.id);
+}
