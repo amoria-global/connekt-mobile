@@ -88,15 +88,17 @@ function mapEvent(r: RawEvent): EventItem {
 }
 
 export async function listEvents(): Promise<EventItem[]> {
-  const res = await api.get<ApiEnvelope<RawEvent[]>>('/customer/events');
-  const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapEvent).filter((e) => e.id);
+  // Backend wraps the list in a Spring Page object
+  // ({ content: [...], pageable: {...} }). `unwrapList` already handles
+  // both the page-envelope and a bare array shape — using it here fixes
+  // the empty-list bug where `Array.isArray(res.data)` was always false.
+  const res = await api.get<ApiEnvelope<unknown>>('/customer/events');
+  return unwrapList(res?.data).map(mapEvent).filter((e) => e.id);
 }
 
 export async function listCoordinatorEvents(): Promise<EventItem[]> {
-  const res = await api.get<ApiEnvelope<RawEvent[]>>('/coordinator/events');
-  const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapEvent).filter((e) => e.id);
+  const res = await api.get<ApiEnvelope<unknown>>('/coordinator/events');
+  return unwrapList(res?.data).map(mapEvent).filter((e) => e.id);
 }
 
 export async function getEvent(id: string): Promise<EventItem> {
