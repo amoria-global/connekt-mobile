@@ -40,10 +40,19 @@ function mapNotification(r: Raw): AppNotification {
   };
 }
 
+function pageContent(data: unknown): Raw[] {
+  // Backend wraps notifications in a Spring Page object:
+  //   { content: [...], pageable: {...}, totalElements, ... }
+  // Older / alternate endpoints sometimes return a flat array directly,
+  // so accept both shapes.
+  if (Array.isArray(data)) return data as Raw[];
+  const c = (data as { content?: unknown })?.content;
+  return Array.isArray(c) ? (c as Raw[]) : [];
+}
+
 export async function listNotifications(role: NotificationsRole | boolean): Promise<AppNotification[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(base(role));
-  const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapNotification).filter((n) => n.id);
+  const res = await api.get<ApiEnvelope<unknown>>(base(role));
+  return pageContent(res?.data).map(mapNotification).filter((n) => n.id);
 }
 
 export async function markRead(role: NotificationsRole | boolean, id: string): Promise<void> {
