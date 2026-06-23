@@ -88,6 +88,45 @@ export async function initiateBookingPayment(
 }
 
 /**
+ * Step 2 of the authenticated donation flow: pay an existing donation
+ * row (web parity: salo-run lib/xentripay → initiateDonationPayment).
+ * The previous mobile donate screen stopped after creating the row,
+ * which made the donate button silently inert — no money ever moved.
+ */
+export type InitiateDonationPaymentInput = {
+  donationId: string;
+  phone?: string;
+  telecomProvider?: string;
+  paymentMethod: 'MOBILE_MONEY' | 'CARD';
+  country?: string;
+  redirectUrl?: string;
+};
+
+export async function initiateAuthenticatedDonationPayment(
+  input: InitiateDonationPaymentInput,
+): Promise<InitiatedPayment> {
+  const body: Record<string, unknown> = {
+    donationId: input.donationId,
+    paymentMethod: input.paymentMethod,
+  };
+  if (input.phone) body.phone = input.phone;
+  if (input.telecomProvider) body.telecomProvider = input.telecomProvider;
+  if (input.country) body.country = input.country;
+  if (input.redirectUrl) body.redirectUrl = input.redirectUrl;
+
+  const res = await api.post<ApiEnvelope<Raw> & Raw>(
+    '/payments/xentripay/initiate-donation',
+    body,
+  );
+  const d = (res?.data ?? res ?? {}) as Raw;
+  const refId =
+    str(d.refid) ?? str(d.refId) ?? str(d.reference) ?? str(d.transactionId) ?? '';
+  const redirectUrl =
+    str(d.paymentUrl) ?? str(d.redirectUrl) ?? str(d.url) ?? str(d.checkoutUrl);
+  return { refId, redirectUrl };
+}
+
+/**
  * Poll the auth-required XentriPay status endpoint until it resolves.
  * The grace window mirrors the web's pollXentriPayStatus — card
  * sessions return FAILED for a few seconds before the user finishes

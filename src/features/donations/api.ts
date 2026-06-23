@@ -55,17 +55,36 @@ export async function listDonations(): Promise<Donation[]> {
     .filter((d) => d.id);
 }
 
+/**
+ * Step 1 of the authenticated donation flow: record the donation row.
+ * Returns the donation id which is used by `initiateAuthenticatedDonationPayment`
+ * to actually take payment. The previous `Promise<void>` shape hid that
+ * step 2 was missing — the screen showed "Thank you!" while never
+ * charging anything.
+ */
+export type DonationCreated = {
+  id: ID;
+  amount?: number;
+  status?: string;
+};
+
 export async function donate(input: {
   amount: number;
   currencyId: string;
   message?: string;
-}): Promise<void> {
+  paymentMethod?: 'MOBILE_MONEY' | 'CARD';
+  eventId?: string;
+}): Promise<DonationCreated> {
   const qs = new URLSearchParams({ amount: String(input.amount), currencyId: input.currencyId });
   if (input.message?.trim()) qs.append('message', input.message.trim());
+  if (input.paymentMethod) qs.append('paymentMethod', input.paymentMethod);
+  if (input.eventId) qs.append('eventId', input.eventId);
   const res = await api.post<ApiEnvelope<Raw>>(`/donations?${qs.toString()}`, undefined);
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not submit your donation.' };
   }
+  const d = (res?.data ?? {}) as Raw;
+  return { id: String(d.id ?? ''), amount: num(d.amount), status: str(d.status) };
 }
 
 /**
