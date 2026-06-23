@@ -70,20 +70,49 @@ function mapEvent(r: RawEvent): EventItem {
   const photographerName =
     [str(photographer.firstName), str(photographer.lastName)].filter(Boolean).join(' ') ||
     str(photographer.name);
+  const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : undefined);
+
+  // The backend nests the category as `{ id, name, … }` on detail
+  // responses (eventCategory) but sometimes returns just the name as
+  // `category` on list rows. Accept both shapes so the edit form can
+  // pre-select the right row.
+  const cat = (r.eventCategory ?? {}) as RawEvent;
+  const categoryName = str(cat.name) ?? str(r.category) ?? str(r.eventType);
+  const categoryId = str(cat.id);
+
+  // Event tags arrive as a comma-separated CSV string; the form holds
+  // an array, so split here once.
+  const tagsCsv = str(r.eventTags);
+  const tags = tagsCsv ? tagsCsv.split(',').map((t) => t.trim()).filter(Boolean) : undefined;
 
   return {
     id: String(r.id ?? r.slug ?? r.eventId ?? ''),
     title: str(r.title) ?? str(r.name) ?? 'Untitled event',
     eventDate: str(r.eventDate) ?? str(r.startTime) ?? str(r.date),
     location: str(r.location) ?? str(r.venue),
-    status: str(r.status) ?? str(r.completionStatus),
-    category: str(r.category),
+    status: str(r.eventStatus) ?? str(r.status) ?? str(r.completionStatus),
+    category: categoryName,
+    categoryId,
     photographerName,
-    coverImage: str(r.coverImage) ?? str(r.thumbnail) ?? str(r.coverPhoto),
+    // Backend returns the event hero as `eventPhoto` on every events
+    // endpoint (/customer/events, /coordinator/events, /public/events).
+    // The legacy `coverImage` / `thumbnail` / `coverPhoto` fallbacks
+    // never matched, so the events list rendered without images.
+    coverImage:
+      str(r.eventPhoto) ?? str(r.coverImage) ?? str(r.thumbnail) ?? str(r.coverPhoto),
     description: str(r.description),
     startTime: str(r.startTime),
     endTime: str(r.endTime),
     published: bool(r.published) || bool(r.isPublished) || bool(r.status),
+
+    // Edit-form fields (web parity)
+    price: num(r.price) ?? num(r.streamFee),
+    currency: str(r.priceCurrency) ?? str(r.streamFeeCurrencyAbbreviation),
+    maxGuests: num(r.maxGuests),
+    organizer: str(r.eventOrganizer) ?? str(r.organizer),
+    tags,
+    eventVisibility: str(r.eventVisibility),
+    notes: str(r.notes),
   };
 }
 

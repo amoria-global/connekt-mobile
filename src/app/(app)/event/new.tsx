@@ -36,20 +36,32 @@ import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
+/**
+ * Required → optional split mirrors the web event form: title /
+ * category / date / start time and the headline location + organizer +
+ * description are required; the "more settings" reveal (price /
+ * maxGuests / city / country / visibility / tags) keep their fields
+ * optional so a quick draft is still possible.
+ *
+ * Previously the "more settings" group was entirely optional which let
+ * users save half-empty events that needed re-editing later; now the
+ * organizer name and description are required so the published event
+ * is at least usable on the public site.
+ */
 const schema = z.object({
   title: z.string().min(1, 'Give your event a title'),
   category: z.string().min(1, 'Pick a category'),
   eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date'),
   startTime: z.string().regex(/^\d{1,2}:\d{2}$/, 'Pick a start time'),
   endTime: z.string().optional(),
-  venueName: z.string().optional(),
+  venueName: z.string().min(1, 'Where is it happening?'),
   address: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
   price: z.string().optional(),
   maxGuests: z.string().optional(),
-  organizer: z.string().optional(),
-  description: z.string().optional(),
+  organizer: z.string().min(1, "Who's organizing this event?"),
+  description: z.string().min(10, 'Add a short description (10+ characters)'),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -136,6 +148,10 @@ export default function NewEventScreen() {
         const ev = await getEvent(params.editId!);
         if (!active) return;
         setExistingCover(ev.coverImage ?? null);
+        // Pull every editable field from the server, not just title/
+        // date/time/venue. Previously price, maxGuests, organizer, tags
+        // and visibility were silently cleared on each edit — the user
+        // had to retype them or lose them on save.
         reset({
           title: ev.title ?? '',
           category: ev.category ?? '',
@@ -146,11 +162,27 @@ export default function NewEventScreen() {
           address: '',
           city: '',
           country: '',
-          price: '',
-          maxGuests: '',
-          organizer: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+          price: ev.price != null ? String(ev.price) : '',
+          maxGuests: ev.maxGuests != null ? String(ev.maxGuests) : '',
+          organizer:
+            ev.organizer ?? `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
           description: ev.description ?? '',
         });
+        if (ev.tags?.length) setTags(ev.tags);
+        if (ev.eventVisibility === 'PRIVATE' || ev.eventVisibility === 'PUBLIC') {
+          setVisibility(ev.eventVisibility);
+        }
+        // Open the "more settings" reveal automatically when the
+        // existing event uses any of those values, so the user can see
+        // (and edit) the data that's actually on the record.
+        if (
+          ev.price != null ||
+          ev.maxGuests != null ||
+          ev.eventVisibility ||
+          (ev.tags?.length ?? 0) > 0
+        ) {
+          setShowMore(true);
+        }
       } catch {
         // leave the form empty; the user can still edit
       }
