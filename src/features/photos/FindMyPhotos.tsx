@@ -931,8 +931,10 @@ export function FindMyPhotos() {
       end={{ x: 1, y: 1 }}
       style={styles.webContainer}
     >
-      {/* Badge */}
-      <View style={{ alignItems: 'center', marginBottom: 24 }}>
+      {/* Badge + hero (compact: title + one-line lead, drops the
+          redundant "Facial Recognition Scan" sub-heading that repeated
+          everything the hero already said). */}
+      <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
         <View style={styles.badgeWrap}>
           <Text style={styles.badgeText}>FACE RECOGNITION</Text>
         </View>
@@ -940,19 +942,9 @@ export function FindMyPhotos() {
           Find <Text style={{ color: '#FF6B6B' }}>Your Photos</Text>
         </Text>
         <Text style={styles.lead}>
-          Search for your photos across all events using facial recognition, or use an invite code to access a specific gallery.
+          Snap a selfie or paste an invite code — we&apos;ll find every photo you appear in.
         </Text>
       </View>
-
-      {/* Sub-heading */}
-      {!selfie && !searching && (
-        <View style={{ alignItems: 'center' }}>
-          <Text style={styles.subHeading}>Facial Recognition Scan</Text>
-          <Text style={styles.subLead}>
-            {"Don't have an invite code? Take a selfie or upload your photo and we'll find every photo you appear in."}
-          </Text>
-        </View>
-      )}
 
       {/* Scanning animation */}
       {searching && selfie ? (
@@ -964,7 +956,8 @@ export function FindMyPhotos() {
                 pointerEvents="none"
                 style={[
                   styles.scanLineWrap,
-                  { transform: [{ translateY: scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 177] }) }] },
+                  // 137 = scanningCircle height (140) − scanLineWrap height (3)
+                  { transform: [{ translateY: scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 137] }) }] },
                 ]}
               >
                 <LinearGradient
@@ -1071,12 +1064,13 @@ export function FindMyPhotos() {
         </View>
       )}
 
-      {/* Invite code */}
+      {/* Invite code (compact: heading + single-line hint, no
+          three-divider footer that was eating space below). */}
       {!searching && (
         <>
-          <Text style={styles.inviteHeading}>Enter Invite Code</Text>
+          <Text style={styles.inviteHeading}>Have an invite code?</Text>
           <Text style={styles.inviteSubText}>
-            Received an invite code from your photographer? Enter it to go directly to that event gallery.
+            Enter it to jump straight into that event&apos;s gallery.
           </Text>
 
           <TextInput
@@ -1101,14 +1095,6 @@ export function FindMyPhotos() {
               ? <ActivityIndicator size="small" color="#052047" />
               : <Text style={styles.accessBtnText}>Access Gallery</Text>}
           </Pressable>
-
-          <View style={styles.inviteFooterHint}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.inviteFooterText}>
-              Your photographer or event owner can share the invite code after the event
-            </Text>
-            <View style={styles.dividerLine} />
-          </View>
         </>
       )}
     </LinearGradient>
@@ -1633,17 +1619,20 @@ export function FindMyPhotos() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView
           contentContainerStyle={[
             styles.scroll,
             {
-              paddingTop: insets.top + spacing.xl,
-              paddingBottom: Math.max(insets.bottom + spacing.xl, 100),
+              paddingTop: insets.top + spacing.sm,
+              paddingBottom: Math.max(insets.bottom + spacing.lg, 60),
             },
           ]}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets
         >
           {showFreeFlow && freeFlow === 'email' && renderFreeEmail()}
           {showFreeFlow && freeFlow === 'otp' && renderFreeOtp()}
@@ -1757,59 +1746,62 @@ export function FindMyPhotos() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  scroll: { padding: spacing.xl, gap: spacing.lg },
+  scroll: { padding: spacing.lg, gap: spacing.md },
 
-  // Connect screen
+  // Connect screen — gradient card now sits flush at the top (no extra
+  // marginTop) and uses tighter padding so the invite-code + Access
+  // Gallery button reach inside the visible viewport on 360×640 phones.
   webContainer: {
-    borderRadius: 28,
-    padding: spacing.xl + 4,
-    marginTop: spacing.xl,
+    borderRadius: 24,
+    padding: spacing.lg,
+    marginTop: 0,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
   },
   badgeWrap: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: radii.full,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
   },
-  badgeText: { color: '#FF6B6B', fontSize: 13, fontWeight: '600', letterSpacing: 1 },
-  heroTitle: { fontFamily: 'PragatiNarrow_700Bold', fontSize: 32, color: '#FFF', marginBottom: spacing.sm, textAlign: 'center', lineHeight: 38 },
-  lead: { fontSize: 15, color: 'rgba(255,255,255,0.7)', lineHeight: 24, textAlign: 'center', marginBottom: spacing.xl },
-  subHeading: { fontSize: 16, fontWeight: '700', color: '#FFF', marginBottom: 6, marginTop: spacing.sm, textAlign: 'center' },
-  subLead: { fontSize: 13, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 20, marginBottom: spacing.xl },
+  badgeText: { color: '#FF6B6B', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  heroTitle: { fontFamily: 'PragatiNarrow_700Bold', fontSize: 26, color: '#FFF', marginBottom: 4, textAlign: 'center', lineHeight: 30 },
+  lead: { fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 18, textAlign: 'center', paddingHorizontal: spacing.sm },
+  subHeading: { fontSize: 14, fontWeight: '700', color: '#FFF', marginBottom: 4, marginTop: 0, textAlign: 'center' },
+  subLead: { fontSize: 12, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 18, marginBottom: spacing.md },
 
-  // Scanning state
-  scanningWrap: { alignItems: 'center', marginVertical: spacing.xl },
-  scanningCircleWrap: { width: 180, height: 180 },
+  // Scanning state — shrunk from 180×180 to 140×140 so the lead +
+  // status copy still fits above the Find My Photos button.
+  scanningWrap: { alignItems: 'center', marginVertical: spacing.md },
+  scanningCircleWrap: { width: 140, height: 140 },
   scanningCircle: {
-    width: 180, height: 180, borderRadius: 90,
+    width: 140, height: 140, borderRadius: 70,
     overflow: 'hidden',
-    borderWidth: 4, borderColor: '#FF6B6B',
-    shadowColor: '#FF6B6B', shadowOpacity: 0.4, shadowRadius: 20, shadowOffset: { width: 0, height: 0 },
+    borderWidth: 3, borderColor: '#FF6B6B',
+    shadowColor: '#FF6B6B', shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
   },
   scanLineWrap: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   scanPulseRing: {
-    position: 'absolute', top: -4, left: -4, right: -4, bottom: -4,
-    borderRadius: 94, borderWidth: 3, borderColor: 'rgba(255,107,107,0.5)',
+    position: 'absolute', top: -3, left: -3, right: -3, bottom: -3,
+    borderRadius: 73, borderWidth: 2, borderColor: 'rgba(255,107,107,0.5)',
   },
-  scanningTitle: { color: '#FFF', fontSize: 16, fontWeight: '600', marginTop: 12 },
-  scanningSubText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6 },
+  scanningTitle: { color: '#FFF', fontSize: 15, fontWeight: '600', marginTop: 10 },
+  scanningSubText: { color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 4 },
 
-  // Selfie ready state
-  selfieReadyWrap: { alignItems: 'center', marginBottom: spacing.xl },
+  // Selfie ready state — 90×90 instead of 120×120
+  selfieReadyWrap: { alignItems: 'center', marginBottom: spacing.md },
   selfiePreviewCircle: {
-    width: 120, height: 120, borderRadius: 60,
+    width: 90, height: 90, borderRadius: 45,
     overflow: 'hidden',
     borderWidth: 3, borderColor: '#FF6B6B',
-    marginBottom: 12,
-    shadowColor: '#FF6B6B', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
+    marginBottom: 8,
+    shadowColor: '#FF6B6B', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
   },
-  selfieReadyText: { color: '#10B981', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  selfieReadyText: { color: '#10B981', fontSize: 12, fontWeight: '600', marginBottom: 6 },
   changeSelfieBtn: {
     paddingHorizontal: 14, paddingVertical: 6,
     borderRadius: 8, borderWidth: 1,
@@ -1818,24 +1810,24 @@ const styles = StyleSheet.create({
   changeSelfieBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '500' },
 
   // Pick options
-  webPickOptions: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xl },
+  webPickOptions: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   webPickCard: {
     flex: 1,
     alignItems: 'center',
-    padding: spacing.md,
-    paddingVertical: spacing.lg,
-    borderRadius: 16,
-    borderWidth: 2,
+    padding: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.15)',
     borderStyle: 'dashed',
   },
   webIconWrap: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: 6,
   },
-  webPickTitle: { fontSize: 13, fontWeight: '700', color: '#FFF', textAlign: 'center', marginBottom: 2 },
-  webPickSub: { fontSize: 11, color: 'rgba(255,255,255,0.45)', textAlign: 'center' },
+  webPickTitle: { fontSize: 12, fontWeight: '700', color: '#FFF', textAlign: 'center', marginBottom: 1 },
+  webPickSub: { fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'center' },
   infoBadge: {
     position: 'absolute', top: 8, right: 8,
     width: 18, height: 18, borderRadius: 9,
@@ -1847,49 +1839,50 @@ const styles = StyleSheet.create({
   webFindBtn: {
     width: '100%',
     backgroundColor: '#FF6B6B',
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: 10,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
-  webFindBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  webFindBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 
-  // Invite footer hint
-  inviteFooterHint: { marginTop: spacing.xl, alignItems: 'center', gap: 10 },
-  inviteFooterText: { color: 'rgba(255,255,255,0.4)', fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  // Invite footer hint (kept in stylesheet for legacy callers; no
+  // longer rendered on the connect screen).
+  inviteFooterHint: { marginTop: spacing.md, alignItems: 'center', gap: 8 },
+  inviteFooterText: { color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', lineHeight: 16 },
 
-  error: { color: '#EF4444', textAlign: 'center', marginTop: spacing.sm, fontSize: 13 },
+  error: { color: '#EF4444', textAlign: 'center', marginTop: spacing.xs, fontSize: 12 },
 
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.md },
   dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  dividerText: { color: 'rgba(255,255,255,0.4)', paddingHorizontal: spacing.md, fontSize: 13, fontWeight: '600' },
+  dividerText: { color: 'rgba(255,255,255,0.4)', paddingHorizontal: spacing.md, fontSize: 12, fontWeight: '600' },
 
-  inviteHeading: { fontSize: 16, fontWeight: '700', color: '#fff', marginBottom: 6, textAlign: 'center' },
-  inviteSubText: { fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 20, textAlign: 'center', marginBottom: 16 },
+  inviteHeading: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 4, textAlign: 'center' },
+  inviteSubText: { fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 16, textAlign: 'center', marginBottom: 10 },
 
   codeInput: {
     width: '100%',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.15)',
     backgroundColor: 'rgba(255,255,255,0.06)',
     color: '#fff',
-    fontSize: 16,
-    letterSpacing: 2,
+    fontSize: 15,
+    letterSpacing: 1.5,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   accessBtn: {
     width: '100%',
     backgroundColor: '#FF6B6B',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 10,
+    paddingVertical: 12,
     alignItems: 'center',
   },
-  accessBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  accessBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   // Album / results
   albumHeader: {
