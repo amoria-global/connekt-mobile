@@ -32,12 +32,27 @@ export type EventItem = {
   location?: string;
   status?: EventStatus;
   category?: string;
+  /** Category id when available (lets edit forms pre-select the row). */
+  categoryId?: string;
   photographerName?: string;
   coverImage?: string;
   description?: string;
   startTime?: string;
   endTime?: string;
   published?: boolean;
+
+  // ──────── Edit-form fields (web parity) ────────
+  // Without these, opening the edit modal cleared half the form and
+  // forced the user to retype everything. Now the mapper carries the
+  // full payload through so the form can prefill every "more settings"
+  // field the create modal exposes.
+  price?: number;
+  currency?: string;
+  maxGuests?: number;
+  organizer?: string;
+  tags?: string[];
+  eventVisibility?: string;
+  notes?: string;
 };
 
 /**
