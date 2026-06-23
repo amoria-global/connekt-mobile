@@ -1,0 +1,324 @@
+/**
+ * Bookings — Photographer accept/reject queue.
+ *
+ * For Photographers this is the inbox of booking requests from clients.
+ * Each row shows the event title, client name, status and proposed
+ * price, plus Accept / Reject actions when the status is PENDING.
+ *
+ * Clients hit the same endpoint to see their booking requests (the
+ * backend filters /bookings by the signed-in user's role internally),
+ * so the screen renders in read-only mode for non-photographer roles —
+ * action buttons disappear and a hint replaces them.
+ *
+ * Endpoints (web parity):
+ *   GET  /bookings                         → list
+ *   POST /bookings/{id}/accept             → accept
+ *   POST /bookings/{id}/reject  { reason } → reject
+ */
+import { useCallback, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Screen } from '@/components/ui/Screen';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { useRole } from '@/features/auth/role';
+import { acceptBooking, listBookings, rejectBooking, type Booking } from '@/features/bookings/api';
+import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
+import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { formatDate, formatMoney } from '@/utils/format';
+
+export default function BookingsScreen() {
+  const router = useRouter();
+  const { isPhotographer } = useRole();
+  const { data, loading, error, refresh } = useAsync(useCallback(() => listBookings(), []));
+
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<Booking | null>(null);
+  const [reason, setReason] = useState('');
+
+  const onAccept = (booking: Booking) => {
+    Alert.alert(
+      'Accept booking',
+      `Confirm "${booking.eventTitle}" with ${booking.clientName ?? 'this client'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Accept',
+          onPress: async () => {
+            setBusyId(booking.id);
+            try {
+              await acceptBooking(booking.id);
+              await refresh();
+            } catch (e) {
+              Alert.alert('Could not accept', isApiError(e) ? e.message : 'Please try again.');
+            } finally {
+              setBusyId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const submitReject = async () => {
+    if (!rejecting) return;
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      Alert.alert('Reason required', 'Add a short note so the client knows why.');
+      return;
+    }
+    setBusyId(rejecting.id);
+    try {
+      await rejectBooking(rejecting.id, trimmed);
+      setRejecting(null);
+      setReason('');
+      await refresh();
+    } catch (e) {
+      Alert.alert('Could not reject', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <Screen padded={false}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Bookings</Text>
+        <Text style={styles.subtitle}>
+          {isPhotographer
+            ? 'Booking requests from clients waiting for your reply.'
+            : "Your booking requests to photographers and their status."}
+        </Text>
+      </View>
+
+      {loading && !data ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : error && !data?.length ? (
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
+          <Text style={styles.muted}>{error}</Text>
+        </View>
+      ) : !data?.length ? (
+        <View style={styles.centered}>
+          <EmptyState
+            icon="briefcase-outline"
+            title="No bookings yet"
+            message={
+              isPhotographer
+                ? 'New requests from clients land here. Configure your packages to start receiving them.'
+                : 'When you book a photographer from an event, the request appears here.'
+            }
+          />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
+          }
+        >
+          {data.map((b) => {
+            const isPending = (b.status ?? '').toUpperCase() === 'PENDING';
+            const isBusy = busyId === b.id;
+            return (
+              <Pressable
+                key={b.id}
+                style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                onPress={() => router.push(`/event/${b.id}` as never)}
+              >
+                <View style={styles.cardHead}>
+                  <Text style={styles.eventTitle} numberOfLines={1}>
+                    {b.eventTitle}
+                  </Text>
+                  <StatusPill status={b.status} />
+                </View>
+
+                {b.clientName ? (
+                  <Row icon="person-outline" text={b.clientName} />
+                ) : null}
+                {b.eventDate ? (
+                  <Row icon="calendar-outline" text={formatDate(b.eventDate)} />
+                ) : null}
+                {b.proposedPrice != null ? (
+                  <Row
+                    icon="cash-outline"
+                    text={`Proposed ${formatMoney(b.proposedPrice, b.currency)}`}
+                  />
+                ) : null}
+
+                {isPhotographer && isPending ? (
+                  <View style={styles.actionRow}>
+                    <Pressable
+                      onPress={() => {
+                        setRejecting(b);
+                        setReason('');
+                      }}
+                      disabled={isBusy}
+                      style={[styles.action, styles.actionGhost]}
+                    >
+                      <Ionicons name="close" size={16} color={colors.error} />
+                      <Text style={[styles.actionText, { color: colors.error }]}>Reject</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => onAccept(b)}
+                      disabled={isBusy}
+                      style={[styles.action, styles.actionPrimary]}
+                    >
+                      {isBusy ? (
+                        <ActivityIndicator color={colors.textOnPrimary} />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark" size={16} color={colors.textOnPrimary} />
+                          <Text style={[styles.actionText, styles.actionTextPrimary]}>Accept</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      <Modal
+        visible={!!rejecting}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setRejecting(null);
+          setReason('');
+        }}
+      >
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => {
+            setRejecting(null);
+            setReason('');
+          }}
+        />
+        <View style={styles.sheet}>
+          <View style={styles.handle} />
+          <Text style={styles.sheetTitle}>Reject booking</Text>
+          <Text style={styles.sheetSub}>
+            Let {rejecting?.clientName ?? 'the client'} know why so they can adjust the request.
+          </Text>
+          <TextInput
+            value={reason}
+            onChangeText={setReason}
+            placeholder="e.g. Already booked that weekend."
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+          />
+          <Button
+            title="Send rejection"
+            onPress={submitReject}
+            loading={busyId === rejecting?.id}
+            disabled={!reason.trim() || busyId === rejecting?.id}
+          />
+        </View>
+      </Modal>
+    </Screen>
+  );
+}
+
+function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  return (
+    <View style={styles.row}>
+      <Ionicons name={icon} size={14} color={colors.textMuted} />
+      <Text style={styles.rowText} numberOfLines={1}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, gap: 4 },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
+  subtitle: { fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.md },
+
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
+  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+
+  list: { padding: spacing.xl, paddingBottom: 120, gap: spacing.md },
+
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+    gap: 4,
+  },
+  cardPressed: { opacity: 0.85 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginBottom: 4 },
+  eventTitle: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  rowText: { flex: 1, fontSize: fontSize.sm, color: colors.textSoft },
+
+  actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  action: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+  },
+  actionGhost: { borderColor: colors.error, backgroundColor: colors.errorBg },
+  actionPrimary: { borderColor: colors.primary, backgroundColor: colors.primary },
+  actionText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  actionTextPrimary: { color: colors.textOnPrimary },
+
+  // Reject sheet
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,18,23,0.55)' },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.sm },
+  sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
+  sheetSub: { fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.sm },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.md,
+    color: colors.text,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginBottom: spacing.sm,
+  },
+});

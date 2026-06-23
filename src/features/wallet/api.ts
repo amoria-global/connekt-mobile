@@ -22,6 +22,7 @@ function num(v: unknown): number {
 
 /** Known balance fields → friendly labels. */
 const POT_LABELS: Record<string, string> = {
+  balanceAvailable: 'Available',
   balanceBooking: 'Bookings',
   balanceTips: 'Tips',
   balanceDonations: 'Donations',
@@ -29,8 +30,9 @@ const POT_LABELS: Record<string, string> = {
   balanceGifts: 'Gifts',
   balanceStreamFees: 'Streaming',
   balanceAdRevenue: 'Ad revenue',
-  balancePending: 'Pending',
-  balanceHeld: 'Held',
+  balancePhotoPurchase: 'Photo purchases',
+  pendingAmount: 'Pending',
+  heldForDelivery: 'Held for delivery',
 };
 
 export async function getWallet(): Promise<Wallet> {
@@ -41,13 +43,22 @@ export async function getWallet(): Promise<Wallet> {
     .map(([key, label]) => ({ key, label, amount: num(d[key]) }))
     .filter((p) => p.amount !== 0);
 
+  // Backend keeps `balanceAvailable` as the user-spendable total. Fall
+  // back to summing the non-empty pots, then to `totalBalance` (legacy
+  // shape). Showing 0 is fine when nothing has happened yet.
   const total =
-    num(d.totalBalance) || pots.reduce((sum, p) => sum + p.amount, 0);
+    num(d.balanceAvailable) ||
+    num(d.totalBalance) ||
+    pots.reduce((sum, p) => sum + p.amount, 0);
 
+  // Wallet endpoint never returns a top-level currency — every pot is
+  // stored in USD by backend convention (see WalletService). Defaulting
+  // to USD here means the wallet screen reads "USD 0" instead of bare
+  // "0" with no symbol at all.
   const currency =
     (typeof d.currency === 'string' && d.currency) ||
     (typeof d.currencyCode === 'string' && d.currencyCode) ||
-    '';
+    'USD';
 
   return { total, currency, pots };
 }

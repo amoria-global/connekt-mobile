@@ -228,9 +228,13 @@ export default function AppTabsLayout() {
       : []),
     ...(isPhotographer
       ? [
+          { label: 'Bookings', icon: 'briefcase-outline' as const, href: '/bookings' as Href },
           { label: 'My packages', icon: 'pricetags-outline' as const, href: '/packages' as Href },
           { label: 'Clients', icon: 'people-outline' as const, href: '/clients' as Href },
         ]
+      : []),
+    ...(isClient || isCoordinator
+      ? [{ label: 'My bookings', icon: 'briefcase-outline' as const, href: '/bookings' as Href }]
       : []),
     { label: 'Gallery', icon: 'images-outline', href: '/gallery' as Href },
     { label: 'Donations', icon: 'heart-outline', href: '/donations' as Href },
