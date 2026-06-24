@@ -81,14 +81,137 @@ export async function getPhotographer(id: string): Promise<PhotographerDetail> {
     api.get<ApiEnvelope<Raw>>(`/public/photographers/${encodeURIComponent(id)}`),
     api.get<ApiEnvelope<Raw[]>>(`/public/photographers/${encodeURIComponent(id)}/packages`).catch(() => ({ data: [] }))
   ]);
-  
+
   const d = (res?.data ?? {}) as Raw;
   const base = mapPhotographer(d);
   const rawPackages = Array.isArray(packagesRes?.data) ? packagesRes.data : [];
-  
+
   return {
     ...base,
     bio: str(d.bio) ?? str(d.about),
     packages: rawPackages.map(mapPackage).filter((p) => p.id),
   };
+}
+
+// ────── Bookmark (favorite) ──────────────────────────────────────────────
+//
+// Web parity: BookmarkedPhotographerController. The list endpoint returns
+// the customer's bookmarked photographers; bookmark / unbookmark toggle
+// the relationship.
+
+export type BookmarkedRef = { id: string; bookmarkedAt?: string };
+
+export async function listBookmarkedPhotographers(): Promise<BookmarkedRef[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>('/customer/photographers/bookmarks');
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data
+    .map((r) => ({
+      id: String((r as any).photographerId ?? (r as any).id ?? ''),
+      bookmarkedAt: str((r as any).bookmarkedAt) ?? str((r as any).createdAt),
+    }))
+    .filter((r) => r.id);
+}
+
+export async function bookmarkPhotographer(photographerId: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/customer/photographers/bookmark/${encodeURIComponent(photographerId)}`,
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not bookmark photographer.' };
+  }
+}
+
+export async function unbookmarkPhotographer(photographerId: string): Promise<void> {
+  // The web removes via DELETE on /bookmark/{id}; the mobile API client
+  // uses DELETE method too.
+  const res = await api.delete<ApiEnvelope<Raw>>(
+    `/customer/photographers/bookmark/${encodeURIComponent(photographerId)}`,
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not remove bookmark.' };
+  }
+}
+
+/**
+ * Report a photographer. Backend accepts `{ reason, description }`;
+ * "reason" is a short pick from a fixed list, "description" is free text.
+ */
+export async function reportPhotographer(
+  photographerId: string,
+  reason: string,
+  description?: string,
+): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/customer/photographers/${encodeURIComponent(photographerId)}/report`,
+    { reason, description: description?.trim() || '' },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not submit report.' };
+  }
+}
+
+// ────── Rebook (customer side) ──────────────────────────────────────────
+//
+// Web parity: CustomerRebookController.@PostMapping("/rebook"). The
+// caller must have previously worked with this photographer (the
+// backend enforces it), so the UI surfaces Rebook only on the
+// photographer detail when the relationship exists.
+
+export type RebookInput = {
+  photographerId: string;
+  packageId: string;
+  title: string;
+  description?: string;
+  eventDate: string;     // YYYY-MM-DD
+  startTime: string;     // HH:mm:ss
+  endTime: string;       // HH:mm:ss
+  location: string;
+  eventOrganizer?: string;
+  eventType?: string;
+  notes?: string;
+};
+
+export async function rebookPhotographer(
+  input: RebookInput,
+  asCoordinator = false,
+): Promise<void> {
+  const base = asCoordinator ? '/coordinator/rebook' : '/customer/rebook';
+  const res = await api.post<ApiEnvelope<Raw>>(base, {
+    photographerId: input.photographerId,
+    packageId: input.packageId,
+    title: input.title.trim(),
+    description: input.description ?? '',
+    eventDate: input.eventDate,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    location: input.location,
+    eventOrganizer: input.eventOrganizer ?? 'Organizer',
+    eventType: input.eventType ?? 'Event',
+    notes: input.notes ?? '',
+  });
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not rebook photographer.' };
+  }
+}
+
+// ────── Coordinator: invite a photographer by email ─────────────────────
+//
+// Web parity: CoordinatorController.invitePhotographer →
+// POST /coordinator/photographers/invite?email=...&message=...&eventId=...
+// The backend persists the invite and triggers a Brevo email.
+
+export async function inviteCoordinatorPhotographer(
+  email: string,
+  message?: string,
+  eventId?: string,
+): Promise<void> {
+  const qs = new URLSearchParams({ email: email.trim() });
+  if (message?.trim()) qs.set('message', message.trim());
+  if (eventId) qs.set('eventId', eventId);
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/coordinator/photographers/invite?${qs.toString()}`,
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not send invite.' };
+  }
 }

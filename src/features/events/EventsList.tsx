@@ -4,10 +4,11 @@ import { Pressable } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
 import { Segmented } from '@/components/ui/Segmented';
 import { useAsync } from '@/hooks/useAsync';
-import { listCoordinatorEvents, listEvents } from './api';
+import { listCoordinatorEvents, listEvents, listPhotographerEvents } from './api';
 import { EventCard } from './EventCard';
 
 type Filter = 'upcoming' | 'past' | 'all';
+type Variant = 'default' | 'photographer';
 
 const startOfToday = () => {
   const d = new Date();
@@ -17,20 +18,24 @@ const startOfToday = () => {
 
 export function EventsList({
   coordinator = false,
+  variant = 'default',
   title,
   subtitle,
   topInset,
 }: {
   coordinator?: boolean;
+  variant?: Variant;
   title?: string;
   subtitle?: string;
   topInset?: number;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('upcoming');
-  const { data, loading, error, refresh } = useAsync(
-    useCallback(() => (coordinator ? listCoordinatorEvents() : listEvents()), [coordinator]),
-  );
+  const fetcher = useCallback(() => {
+    if (variant === 'photographer') return listPhotographerEvents();
+    return coordinator ? listCoordinatorEvents() : listEvents();
+  }, [coordinator, variant]);
+  const { data, loading, error, refresh } = useAsync(fetcher);
 
   const filtered = useMemo(() => {
     if (!data || filter === 'all') return data;
@@ -79,7 +84,7 @@ export function EventsList({
           })}
           onPress={() => router.push(`/event/${item.id}` as never)}
         >
-          <EventCard event={item} />
+          <EventCard event={item} variant={variant} />
         </Pressable>
       )}
       emptyIcon="calendar-outline"

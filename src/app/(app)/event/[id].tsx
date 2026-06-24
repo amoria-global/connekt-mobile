@@ -10,12 +10,16 @@ import { StarInput } from '@/components/ui/Stars';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { useRole } from '@/features/auth/role';
 import {
+  acceptEventBooking,
   confirmCompletion,
+  declineEventBooking,
   deleteEvent,
   getEvent,
   markEventCompletedByPhotographer,
+  pauseEvent,
   publishEvent,
   resetEventStream,
+  resumeEvent,
   startEventStream,
   unpublishEvent,
   type StreamSetup,
@@ -31,7 +35,7 @@ const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { ownsEvents, isPhotographer } = useRole();
+  const { ownsEvents, isPhotographer, isCoordinator } = useRole();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getEvent(id), [id]));
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -40,6 +44,8 @@ export default function EventDetailScreen() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [streamSheetOpen, setStreamSheetOpen] = useState(false);
   const [streamSetup, setStreamSetup] = useState<StreamSetup | null>(null);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
 
@@ -98,6 +104,41 @@ export default function EventDetailScreen() {
         },
       },
     ]);
+  };
+
+  /**
+   * Pause / Resume — owner side. Pause sets status PAUSED on the event,
+   * which freezes any open streams and prevents new bookings; Resume
+   * restores it to the prior status (UPCOMING / ONGOING). Both endpoints
+   * are role-aware: coordinator-owned events route through
+   * /coordinator/events/{id}/{pause|resume}, otherwise /customer.
+   */
+  const onPause = () =>
+    run('pause', () => pauseEvent(id, isCoordinator));
+  const onResume = () =>
+    run('resume', () => resumeEvent(id, isCoordinator));
+
+  /**
+   * Photographer accept / decline from the event detail page. Web parity:
+   * web shows these buttons on both /photographer/events and on the
+   * event-detail page. Mobile previously required the photographer to
+   * jump to /bookings — now both screens work.
+   */
+  const onAcceptBooking = () =>
+    run('accept', () => acceptEventBooking(id));
+
+  const submitDecline = async () => {
+    setDeclineOpen(false);
+    setBusy('decline');
+    try {
+      await declineEventBooking(id, declineReason);
+      setDeclineReason('');
+      await refresh();
+    } catch (e) {
+      Alert.alert('Could not decline', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   /**
@@ -267,6 +308,31 @@ export default function EventDetailScreen() {
         {isPhotographer && !ownsEvents ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Photographer actions</Text>
+
+            {/*
+             * Web parity: when the booking is PENDING, show big Accept /
+             * Decline buttons before the rest of the action grid. Mobile
+             * previously required the photographer to leave for /bookings
+             * to do this; now both surfaces work.
+             */}
+            {data?.bookingStatus?.toUpperCase() === 'PENDING' ? (
+              <View style={styles.actionGrid}>
+                <ActionPill
+                  icon="checkmark-circle-outline"
+                  label="Accept booking"
+                  onPress={onAcceptBooking}
+                  loading={busy === 'accept'}
+                />
+                <ActionPill
+                  icon="close-circle-outline"
+                  label="Decline"
+                  danger
+                  onPress={() => setDeclineOpen(true)}
+                  loading={busy === 'decline'}
+                />
+              </View>
+            ) : null}
+
             <View style={styles.actionGrid}>
               <ActionPill
                 icon="videocam-outline"
@@ -304,6 +370,27 @@ export default function EventDetailScreen() {
                 onPress={onGoLive}
                 loading={busy === 'stream'}
               />
+              {/*
+               * Pause / Resume — web parity. When the event status is
+               * already PAUSED, surface Resume; otherwise show Pause. The
+               * pauseEvent / resumeEvent helpers route role-aware so the
+               * Coordinator-owned events hit /coordinator/events/{id}/...
+               */}
+              {data?.status === 'PAUSED' ? (
+                <ActionPill
+                  icon="play-circle-outline"
+                  label="Resume"
+                  onPress={onResume}
+                  loading={busy === 'resume'}
+                />
+              ) : (
+                <ActionPill
+                  icon="pause-circle-outline"
+                  label="Pause"
+                  onPress={onPause}
+                  loading={busy === 'pause'}
+                />
+              )}
               <ActionPill
                 icon="checkmark-done-outline"
                 label="Confirm done"
@@ -362,6 +449,31 @@ export default function EventDetailScreen() {
             >
               <Text style={styles.requestChangesText}>Request changes</Text>
             </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Decline-booking reason sheet — Photographer side */}
+      <Modal
+        visible={declineOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setDeclineOpen(false)}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setDeclineOpen(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>Decline booking</Text>
+            <Text style={styles.sheetHint}>
+              Share a short reason so the client knows why you're not taking this on.
+            </Text>
+            <Input
+              placeholder="e.g. Schedule conflict, location too far, etc."
+              value={declineReason}
+              onChangeText={setDeclineReason}
+              multiline
+              style={styles.commentInput}
+            />
+            <Button title="Submit decline" onPress={submitDecline} loading={busy === 'decline'} />
           </Pressable>
         </Pressable>
       </Modal>

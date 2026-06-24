@@ -1,13 +1,25 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { RefreshControl, ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
+import { RefreshControl, ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomSheet from '@gorhom/bottom-sheet';
-import { getPhotographer } from '@/features/photographers/api';
+import {
+  bookmarkPhotographer,
+  getPhotographer,
+  listBookmarkedPhotographers,
+  rebookPhotographer,
+  reportPhotographer,
+  unbookmarkPhotographer,
+  type RebookInput,
+} from '@/features/photographers/api';
 import { listPhotographerReviews } from '@/features/reviews/api';
+import { useRole } from '@/features/auth/role';
 import { BookingBottomSheet } from '@/features/booking/BookingBottomSheet';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { isApiError } from '@/store/auth';
 import { Stars } from '@/components/ui/Stars';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -87,10 +99,53 @@ function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyph
   );
 }
 
+const REPORT_REASONS = [
+  'Inappropriate content',
+  'No-show',
+  'Poor communication',
+  'Quality issues',
+  'Misleading profile',
+  'Other',
+];
+
 export default function PhotographerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { isCoordinator } = useRole();
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkBusy, setBookmarkBusy] = useState(false);
+
+  // Report state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState(REPORT_REASONS[0]);
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  // Rebook state
+  const [rebookOpen, setRebookOpen] = useState(false);
+  const [rebookPackageId, setRebookPackageId] = useState('');
+  const [rebookTitle, setRebookTitle] = useState('');
+  const [rebookDate, setRebookDate] = useState('');
+  const [rebookStart, setRebookStart] = useState('');
+  const [rebookEnd, setRebookEnd] = useState('');
+  const [rebookLocation, setRebookLocation] = useState('');
+  const [rebookNotes, setRebookNotes] = useState('');
+  const [rebookSubmitting, setRebookSubmitting] = useState(false);
+
+  // Hydrate bookmark state on mount. Best-effort: a failure here just
+  // leaves the button in the not-bookmarked default; we don't tank the
+  // profile view.
+  useEffect(() => {
+    let cancelled = false;
+    listBookmarkedPhotographers()
+      .then((rows) => {
+        if (!cancelled) setIsBookmarked(rows.some((r) => r.id === id));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const handleShare = async () => {
     try {
@@ -103,11 +158,77 @@ export default function PhotographerProfileScreen() {
     }
   };
 
-  const toggleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    if (!isBookmarked) {
-      Alert.alert('Saved', 'Photographer added to your bookmarks');
+  const toggleBookmark = async () => {
+    if (bookmarkBusy) return;
+    setBookmarkBusy(true);
+    const next = !isBookmarked;
+    try {
+      if (next) await bookmarkPhotographer(id);
+      else await unbookmarkPhotographer(id);
+      setIsBookmarked(next);
+    } catch (e) {
+      Alert.alert('Could not update bookmark', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setBookmarkBusy(false);
     }
+  };
+
+  const submitReport = async () => {
+    setReportSubmitting(true);
+    try {
+      await reportPhotographer(id, reportReason, reportDescription);
+      setReportOpen(false);
+      setReportDescription('');
+      Alert.alert('Report submitted', 'Our team will review the report shortly.');
+    } catch (e) {
+      Alert.alert('Could not submit report', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
+  const submitRebook = async () => {
+    if (!rebookPackageId) {
+      Alert.alert('Pick a package', 'Choose one of the photographer’s packages first.');
+      return;
+    }
+    if (!rebookTitle.trim() || !rebookDate.trim() || !rebookStart.trim() || !rebookEnd.trim() || !rebookLocation.trim()) {
+      Alert.alert('Missing fields', 'Title, date, start/end time, and location are required.');
+      return;
+    }
+    setRebookSubmitting(true);
+    try {
+      const input: RebookInput = {
+        photographerId: id,
+        packageId: rebookPackageId,
+        title: rebookTitle,
+        eventDate: rebookDate,
+        startTime: rebookStart.length === 5 ? `${rebookStart}:00` : rebookStart,
+        endTime: rebookEnd.length === 5 ? `${rebookEnd}:00` : rebookEnd,
+        location: rebookLocation,
+        notes: rebookNotes,
+      };
+      await rebookPhotographer(input, isCoordinator);
+      setRebookOpen(false);
+      Alert.alert('Rebook submitted', 'Your rebooking request has been sent to the photographer.');
+    } catch (e) {
+      Alert.alert('Could not rebook', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setRebookSubmitting(false);
+    }
+  };
+
+  // Long-press → action menu
+  const onLongPressHeader = () => {
+    Alert.alert(
+      'Photographer actions',
+      undefined,
+      [
+        { text: 'Rebook', onPress: () => setRebookOpen(true) },
+        { text: 'Report', style: 'destructive', onPress: () => setReportOpen(true) },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
   };
   const insets = useSafeAreaInsets();
   
@@ -181,8 +302,13 @@ export default function PhotographerProfileScreen() {
           <View style={[styles.topNav, { top: Math.max(insets.top, 20) }]}>
             <IconButton icon="arrow-left" onPress={() => router.back()} />
             <View style={styles.topNavRight}>
+              <IconButton icon="more-horizontal" style={{ marginRight: 8 }} onPress={onLongPressHeader} />
               <IconButton icon="share-2" style={{ marginRight: 8 }} onPress={handleShare} />
-              <IconButton icon="bookmark" onPress={toggleBookmark} style={isBookmarked ? { backgroundColor: colors.surfaceMuted } : {}} />
+              <IconButton
+                icon="bookmark"
+                onPress={toggleBookmark}
+                style={isBookmarked ? { backgroundColor: colors.primary } : {}}
+              />
             </View>
           </View>
 
@@ -321,13 +447,140 @@ export default function PhotographerProfileScreen() {
         </View>
       </ScrollView>
 
-      <BookingBottomSheet 
-        ref={bottomSheetRef} 
-        photographerId={id as string} 
+      <BookingBottomSheet
+        ref={bottomSheetRef}
+        photographerId={id as string}
         photographerName={data?.name}
         photographerImage={data?.avatar}
         packages={data?.packages || []}
       />
+
+      {/* Report photographer sheet */}
+      <Modal
+        visible={reportOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReportOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setReportOpen(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>Report photographer</Text>
+            <Text style={styles.sheetHint}>
+              Pick a reason and add details so our team can take action.
+            </Text>
+            <View style={styles.chipRow}>
+              {REPORT_REASONS.map((r) => {
+                const active = r === reportReason;
+                return (
+                  <Pressable
+                    key={r}
+                    onPress={() => setReportReason(r)}
+                    style={[styles.chip, active && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{r}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Input
+              placeholder="Describe what happened (optional)"
+              value={reportDescription}
+              onChangeText={setReportDescription}
+              multiline
+              style={styles.modalInput}
+            />
+            <Button title="Submit report" onPress={submitReport} loading={reportSubmitting} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Rebook sheet — only enabled if there are packages */}
+      <Modal
+        visible={rebookOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRebookOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setRebookOpen(false)}>
+          <Pressable style={[styles.sheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.sheetTitle}>Rebook photographer</Text>
+              <Text style={styles.sheetHint}>
+                Book this photographer again for a new event. Backend enforces that you’ve worked
+                with them before.
+              </Text>
+              <Text style={styles.formLabel}>Package</Text>
+              <View style={styles.chipRow}>
+                {(data?.packages ?? []).map((p) => {
+                  const active = p.id === rebookPackageId;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => setRebookPackageId(p.id)}
+                      style={[styles.chip, active && styles.chipActive]}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {p.name}
+                        {p.price ? ` · ${p.currency ?? ''} ${p.price}` : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Input
+                label="Event title"
+                value={rebookTitle}
+                onChangeText={setRebookTitle}
+                placeholder="e.g. Eric & Diana — Reception"
+                style={styles.modalInput}
+              />
+              <Input
+                label="Event date (YYYY-MM-DD)"
+                value={rebookDate}
+                onChangeText={setRebookDate}
+                placeholder="2026-08-12"
+                autoCapitalize="none"
+                style={styles.modalInput}
+              />
+              <Input
+                label="Start time (HH:mm)"
+                value={rebookStart}
+                onChangeText={setRebookStart}
+                placeholder="15:00"
+                autoCapitalize="none"
+                style={styles.modalInput}
+              />
+              <Input
+                label="End time (HH:mm)"
+                value={rebookEnd}
+                onChangeText={setRebookEnd}
+                placeholder="20:00"
+                autoCapitalize="none"
+                style={styles.modalInput}
+              />
+              <Input
+                label="Location"
+                value={rebookLocation}
+                onChangeText={setRebookLocation}
+                placeholder="Venue + city"
+                style={styles.modalInput}
+              />
+              <Input
+                label="Notes (optional)"
+                value={rebookNotes}
+                onChangeText={setRebookNotes}
+                multiline
+                style={styles.modalInput}
+              />
+              <Button
+                title={rebookSubmitting ? 'Sending…' : 'Submit rebook'}
+                onPress={submitRebook}
+                loading={rebookSubmitting}
+              />
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -336,6 +589,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' },
   muted: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 10 },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  sheetHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
+  formLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textSoft, marginTop: spacing.sm, letterSpacing: 0.4 },
+  modalInput: { marginTop: spacing.sm },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: fontWeight.semibold },
+  chipTextActive: { color: colors.textOnPrimary },
   
   headerArea: {
     height: 480, // Substantial height for the cover and gradient

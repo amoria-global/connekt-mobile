@@ -104,6 +104,7 @@ function mapEvent(r: RawEvent): EventItem {
     startTime: str(r.startTime),
     endTime: str(r.endTime),
     published: bool(r.published) || bool(r.isPublished) || bool(r.status),
+    bookingStatus: str(r.bookingStatus),
 
     // Edit-form fields (web parity)
     price: num(r.price) ?? num(r.streamFee),
@@ -127,6 +128,18 @@ export async function listEvents(): Promise<EventItem[]> {
 
 export async function listCoordinatorEvents(): Promise<EventItem[]> {
   const res = await api.get<ApiEnvelope<unknown>>('/coordinator/events');
+  return unwrapList(res?.data).map(mapEvent).filter((e) => e.id);
+}
+
+/**
+ * Assigned-to-me feed for a Photographer. Web parity:
+ * GET /photographer/events returns the union of bookings + manual
+ * assignments, deduplicated by event id. Each row may carry a
+ * `bookingStatus` so the UI can flip between Accept/Decline and the
+ * post-acceptance actions.
+ */
+export async function listPhotographerEvents(): Promise<EventItem[]> {
+  const res = await api.get<ApiEnvelope<unknown>>('/photographer/events');
   return unwrapList(res?.data).map(mapEvent).filter((e) => e.id);
 }
 
@@ -331,6 +344,51 @@ export function publishEvent(id: string): Promise<void> {
 /** Takes a published event back offline. */
 export function unpublishEvent(id: string): Promise<void> {
   return action(`/customer/events/${encodeURIComponent(id)}/unpublish`, 'Could not unpublish the event.');
+}
+
+/**
+ * Pauses an in-flight event. The Customer endpoint is aliased at both
+ * /api/remote/customer/events/{id}/pause and /api/remote/events/{id}/pause;
+ * Coordinator-owned events route through /coordinator/events/{id}/pause
+ * because eventService.pauseEvent checks ownership.
+ */
+export function pauseEvent(id: string, asCoordinator = false): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  return action(`${base}/${encodeURIComponent(id)}/pause`, 'Could not pause the event.');
+}
+
+/** Resumes a previously-paused event. */
+export function resumeEvent(id: string, asCoordinator = false): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  return action(`${base}/${encodeURIComponent(id)}/resume`, 'Could not resume the event.');
+}
+
+/**
+ * Photographer-side accept / decline of an event booking. Web parity:
+ *   POST /photographer/events/{eventId}/accept
+ *   POST /photographer/events/{eventId}/decline   body { reason }
+ *
+ * Mirrors the bookings screen's per-booking accept/reject but works
+ * with the event id directly so the photographer can accept from the
+ * event detail page without round-tripping to bookings.
+ */
+export async function acceptEventBooking(eventId: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<unknown>>(
+    `/photographer/events/${encodeURIComponent(eventId)}/accept`,
+  );
+  if (res.action !== 1) {
+    throw { status: 400, message: res.message || 'Could not accept the booking.' } satisfies ApiError;
+  }
+}
+
+export async function declineEventBooking(eventId: string, reason?: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<unknown>>(
+    `/photographer/events/${encodeURIComponent(eventId)}/decline`,
+    { reason: reason?.trim() || 'No reason provided' },
+  );
+  if (res.action !== 1) {
+    throw { status: 400, message: res.message || 'Could not decline the booking.' } satisfies ApiError;
+  }
 }
 
 /** Deletes an event. */
