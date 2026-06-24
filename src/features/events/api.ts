@@ -105,6 +105,7 @@ function mapEvent(r: RawEvent): EventItem {
     endTime: str(r.endTime),
     published: bool(r.published) || bool(r.isPublished) || bool(r.status),
     bookingStatus: str(r.bookingStatus),
+    streamStatus: str(r.streamStatus),
 
     // Edit-form fields (web parity)
     price: num(r.price) ?? num(r.streamFee),

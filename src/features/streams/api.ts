@@ -48,18 +48,44 @@ function mapStream(r: Raw): Stream {
 }
 
 export async function listStreams(): Promise<Stream[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>('/streams');
-  const data = Array.isArray(res?.data) ? res.data : [];
+  // Backend route is /api/remote/customer/streams (ClientStreamController);
+  // /api/remote/streams returns 404 ("No static resource"). The old
+  // /streams path was never wired and silently broke the Live Streams
+  // tab + every in-app stream/[id] open.
+  const res = await api.get<ApiEnvelope<unknown>>('/customer/streams');
+  const raw = res?.data;
+  const data: Raw[] = Array.isArray(raw)
+    ? (raw as Raw[])
+    : Array.isArray((raw as any)?.content)
+      ? ((raw as any).content as Raw[])
+      : [];
   return data.map(mapStream).filter((s) => s.id);
 }
 
+/**
+ * Backend has no `GET /streams/{id}` — there's only the list endpoint
+ * and the event-by-id endpoint, and the event itself carries the
+ * stream fields (hlsManifestUrl, whepUrl, peakViewers, etc.). So we
+ * resolve the "stream detail" view by fetching the event with the
+ * same id and mapping the relevant fields across.
+ */
 export async function getStream(id: string): Promise<StreamDetail> {
-  const res = await api.get<ApiEnvelope<Raw>>(`/streams/${encodeURIComponent(id)}`);
+  const res = await api.get<ApiEnvelope<Raw>>(`/customer/events/${encodeURIComponent(id)}`);
   const d = (res?.data ?? {}) as Raw;
+  // The event response has photographer{} nested; the mapStream helper
+  // already handles that shape, so feed it the event raw.
   return {
     ...mapStream(d),
-    playbackUrl: str(d.playbackUrl) ?? str(d.hls) ?? str(d.rtmpUrl),
-    eventId: str(d.eventId) ?? str(d.event && (d.event as Raw).id) ?? String(d.id ?? id),
+    playbackUrl:
+      str(d.hlsManifestUrl) ??
+      str(d.playbackUrl) ??
+      str(d.whepUrl) ??
+      str(d.hls) ??
+      str(d.rtmpUrl),
+    eventId: String(d.id ?? id),
+    title: str(d.title) ?? 'Live stream',
+    isLive: str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended',
+    thumbnail: str(d.eventPhoto) ?? str(d.thumbnail) ?? str(d.coverImage),
   };
 }
 
@@ -185,18 +211,35 @@ export async function registerAnonymousViewer(
   eventId: string,
   payload: { name: string; email: string; phone?: string; deviceId: string },
 ): Promise<AnonymousViewerRegistration> {
-  const res = await api.post<ApiEnvelope<Raw>>(
+  // Backend DTO (AnonymousViewerRequest) requires the field as
+  // `deviceFingerprint`, not `deviceId`. Phone is @NotBlank too —
+  // pass a safe empty string when missing so the form still
+  // validates (the lookup-by-email path doesn't actually use phone).
+  const body = {
+    name: payload.name,
+    email: payload.email,
+    phone: payload.phone ?? '',
+    deviceFingerprint: payload.deviceId,
+  };
+  const res = await api.post<ApiEnvelope<Raw> & Raw>(
     `/public/anonymous-viewer/${encodeURIComponent(eventId)}/register`,
-    payload,
+    body,
     { skipAuth: true },
   );
-  const d = (res?.data ?? {}) as Raw;
+  // Register returns the fields at the TOP level (not under data):
+  //   { action, status, viewerId, whepUrl?, name? }
+  const top = (res ?? {}) as Raw;
+  const d = (top.data ?? top) as Raw;
+  const status = str((top as any).status) ?? str(d.status);
   return {
-    viewerId: String(d.viewerId ?? d.id ?? ''),
-    needsPayment: d.needsPayment === true || d.requiresPayment === true,
+    viewerId: String((top as any).viewerId ?? d.viewerId ?? d.id ?? ''),
+    needsPayment: status === 'REQUIRES_PAYMENT' || d.needsPayment === true || d.requiresPayment === true,
     amount: num(d.amount) ?? num(d.streamFee),
     currencyCode: str(d.currencyAbbreviation) ?? str(d.currencyCode),
-    hlsManifestUrl: str(d.hlsManifestUrl),
+    // ACCESS_GRANTED returns whepUrl (WebRTC); free streams may carry
+    // hlsManifestUrl. Either resolves the "Already paid? Recover by
+    // email" flow.
+    hlsManifestUrl: str(d.hlsManifestUrl) ?? str((top as any).whepUrl) ?? str(d.whepUrl),
   };
 }
 

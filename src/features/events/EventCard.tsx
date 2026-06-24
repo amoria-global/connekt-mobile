@@ -32,6 +32,7 @@ export function EventCard({
   const isPhotog = variant === 'photographer';
   const bookingStatus = (event.bookingStatus ?? '').toUpperCase();
   const status = (event.status ?? '').toUpperCase();
+  const streamStatus = (event.streamStatus ?? '').toLowerCase();
   // "Album sent" → the completion flow is past the album hand-off.
   // Treated as: the event is completed AND the customer's completion
   // status has moved past AWAITING_REVIEW. We rely on event.status
@@ -39,6 +40,14 @@ export function EventCard({
   const albumSent = isPhotog && (status === 'COMPLETED' || status === 'AWAITING_REVIEW');
   const canCreateAlbum =
     isPhotog && (status === 'COMPLETED' || bookingStatus === 'ACCEPTED');
+  const isPending = isPhotog && bookingStatus === 'PENDING';
+  const canGoLive =
+    isPhotog &&
+    bookingStatus === 'ACCEPTED' &&
+    streamStatus !== 'ended' &&
+    status !== 'COMPLETED' &&
+    status !== 'AWAITING_REVIEW' &&
+    status !== 'CANCELLED';
 
   return (
     <View style={styles.card}>
@@ -67,15 +76,30 @@ export function EventCard({
         ) : null}
 
         {/*
-         * Photographer-tab per-status CTAs.
-         *   • Pending booking → Accept / Decline (route to event detail
-         *     where the dedicated photographer-actions panel handles it).
-         *   • Accepted / completed → Create Album (route to /album/new
-         *     pre-filled with eventId).
-         *   • Already sent → green "Album Sent" chip (read-only).
+         * Photographer-tab per-status CTAs and badges. Each row
+         * mirrors the salo-run photographer/events card actions:
+         *   • PENDING booking → Pending Approval chip + "Review →"
+         *     hint so the photographer knows the card is actionable.
+         *   • ACCEPTED + stream not ended → Go Live + Create Album
+         *   • COMPLETED / AWAITING_REVIEW → "Album sent" chip.
          */}
         {isPhotog ? (
           <View style={styles.ctaRow}>
+            {isPending ? (
+              <View style={styles.pendingChip}>
+                <Ionicons name="time-outline" size={12} color="#fff" />
+                <Text style={styles.pendingChipText}>Pending — tap to review</Text>
+              </View>
+            ) : null}
+            {canGoLive ? (
+              <Pressable
+                style={[styles.cta, { backgroundColor: '#7C3AED' }]}
+                onPress={() => router.push(`/event/${event.id}` as never)}
+              >
+                <Ionicons name="videocam" size={14} color="#fff" />
+                <Text style={styles.ctaText}>Live Stream</Text>
+              </Pressable>
+            ) : null}
             {albumSent ? (
               <View style={styles.sentChip}>
                 <Ionicons name="checkmark-done" size={12} color="#fff" />
@@ -84,10 +108,7 @@ export function EventCard({
             ) : canCreateAlbum ? (
               <Pressable
                 style={styles.cta}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  router.push(`/album/new?eventId=${event.id}` as never);
-                }}
+                onPress={() => router.push(`/album/new?eventId=${event.id}` as never)}
               >
                 <Ionicons name="add-circle-outline" size={14} color="#fff" />
                 <Text style={styles.ctaText}>Create Album</Text>
@@ -160,4 +181,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
   },
   sentChipText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pendingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.md,
+  },
+  pendingChipText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
