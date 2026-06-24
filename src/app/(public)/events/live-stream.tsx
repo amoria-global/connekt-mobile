@@ -55,6 +55,76 @@ import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const REACTION_EMOJIS = ['🔥', '❤️', '👏', '😍', '🎉', '😮'];
 
+// ── Welcome splash (web parity: showWelcomeSplash state, auto-dismiss 2.6s) ─
+
+function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismiss: () => void }) {
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 320, useNativeDriver: true }).start(
+        onDismiss,
+      );
+    }, 2600);
+    return () => clearTimeout(t);
+  }, [fadeAnim, onDismiss]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[splashStyles.wrap, { opacity: fadeAnim }]}
+    >
+      <View style={splashStyles.content}>
+        <View style={splashStyles.iconWrap}>
+          <Ionicons name="play-circle" size={40} color="#fff" />
+        </View>
+        <Text style={splashStyles.headline}>Welcome, you're in!</Text>
+        {eventTitle ? (
+          <Text style={splashStyles.sub} numberOfLines={2}>
+            {eventTitle}
+          </Text>
+        ) : null}
+        <View style={splashStyles.livePill}>
+          <View style={splashStyles.liveDot} />
+          <Text style={splashStyles.liveText}>LIVE</Text>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+const splashStyles = StyleSheet.create({
+  wrap: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7,8,13,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99,
+  },
+  content: { alignItems: 'center', gap: 14, paddingHorizontal: 40 },
+  iconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(220,38,38,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headline: { fontSize: 22, fontWeight: '800', color: '#f4f6fb', textAlign: 'center' },
+  sub: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(220,38,38,0.88)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#fff' },
+  liveText: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+});
+
 export default function PublicLiveStreamScreen() {
   const { id, viewerId: initialViewerId, token: initialToken } = useLocalSearchParams<{
     id: string;
@@ -77,6 +147,11 @@ export default function PublicLiveStreamScreen() {
   const [chatDraft, setChatDraft] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  // Welcome splash (web parity: auto-dismiss 2.6s on stream load)
+  const [splashVisible, setSplashVisible] = useState(false);
+  // Trigger splash once manifestUrl is set for the first time
+  const splashFiredRef = useRef(false);
+
   const [floatingEmoji, setFloatingEmoji] = useState<{ id: string; emoji: string; anim: Animated.Value }[]>([]);
 
   // Recover-by-email state — when storage is wiped, the viewer can
@@ -208,6 +283,15 @@ export default function PublicLiveStreamScreen() {
       clearInterval(handle);
     };
   }, [id, manifestUrl]);
+
+  // Show welcome splash the first time the manifest URL becomes available
+  // (web parity: showWelcomeSplash auto-dismissed after 2.6s).
+  useEffect(() => {
+    if (manifestUrl && !splashFiredRef.current) {
+      splashFiredRef.current = true;
+      setSplashVisible(true);
+    }
+  }, [manifestUrl]);
 
   /**
    * Poll the public chat panel while we have a manifest. 2.5s feels
@@ -833,6 +917,14 @@ export default function PublicLiveStreamScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Welcome splash (web parity: dismisses automatically after 2.6s) */}
+      {splashVisible ? (
+        <WelcomeSplash
+          eventTitle={event.data?.title}
+          onDismiss={() => setSplashVisible(false)}
+        />
+      ) : null}
     </Screen>
   );
 }

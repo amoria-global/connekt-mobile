@@ -476,6 +476,86 @@ export async function switchAnonymousDevice(
   return { ok: res?.action === 1, message: str(res?.message) };
 }
 
+// ────── Group-code access (web parity: join-package.tsx group flow) ─────────
+
+export type GroupAccessResult = {
+  shareCode: string;
+  expiresAt?: string;
+  viewerCount: number;
+  remainingInvites: number;
+};
+
+/**
+ * Generate a shareable group invite code after a successful group payment.
+ * Web: POST /api/remote/public/streams/{eventId}/group-access
+ */
+export async function generateGroupAccess(
+  eventId: string,
+  data: { paymentRefId: string; viewerCount: number; purchaserEmail: string },
+): Promise<GroupAccessResult> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/streams/${encodeURIComponent(eventId)}/group-access`,
+    data,
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? res) as Raw;
+  return {
+    shareCode: str(d.shareCode) ?? str(d.code) ?? '',
+    expiresAt: str(d.expiresAt) ?? str(d.expiry),
+    viewerCount: num(d.viewerCount) ?? num(d.people) ?? 0,
+    remainingInvites: num(d.remainingInvites) ?? 0,
+  };
+}
+
+export type GroupRedeemResult = {
+  ok: boolean;
+  hlsManifestUrl?: string;
+  viewerId?: string;
+  message?: string;
+};
+
+/**
+ * Redeem a group invite code on behalf of a new viewer.
+ * Web: POST /api/remote/public/streams/{eventId}/redeem-group-code
+ */
+export async function redeemGroupCode(
+  eventId: string,
+  data: { inviteCode: string; viewerUsername: string },
+): Promise<GroupRedeemResult> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/streams/${encodeURIComponent(eventId)}/redeem-group-code`,
+    data,
+    { skipAuth: true },
+  );
+  const d = (res?.data ?? res) as Raw;
+  return {
+    ok: res?.action === 1 || d?.success === true,
+    hlsManifestUrl: str(d.hlsManifestUrl),
+    viewerId: str(d.viewerId),
+    message: str(res?.message) ?? str(d.message),
+  };
+}
+
+// ────── Event wishes (web parity: view-event.client.tsx wishes section) ──────
+
+/**
+ * Send a pre-event text wish to the organizer.
+ * Web: POST /api/remote/public/events/{id}/wishes
+ */
+export async function sendEventWish(
+  eventId: string,
+  data: { name: string; email: string; message: string },
+): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/events/${encodeURIComponent(eventId)}/wishes`,
+    data,
+    { skipAuth: true },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not send wish.' };
+  }
+}
+
 /**
  * In-app (authenticated) chat send — Coordinator-side endpoint. Used by
  * the in-app stream/[id] viewer.
