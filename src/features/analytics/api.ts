@@ -395,3 +395,211 @@ export async function getCustomerPhotographers(size = 5): Promise<RecentPhotogra
     }))
     .filter((p) => p.id);
 }
+
+// ────── Recent Payments (Client only) ────────────────────────────────────────
+
+export type RecentPayment = {
+  id: string;
+  name: string;
+  type: 'Pending' | 'Partially paid' | 'Failed';
+  amount: number;
+  avatar?: string;
+};
+
+export async function getCustomerRecentPayments(size = 5): Promise<RecentPayment[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>(
+    `/customer/analytics/recent-payments?size=${size}`,
+  );
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data
+    .filter((p) => {
+      const s = (str(p.status) ?? '').toUpperCase();
+      return s !== 'COMPLETED' && s !== 'SUCCESS';
+    })
+    .slice(0, size)
+    .map((p) => {
+      const s = (str(p.status) ?? '').toUpperCase();
+      return {
+        id: String(p.id ?? ''),
+        name: str(p.photographerName) ?? 'Payment',
+        type: (s === 'PARTIAL' ? 'Partially paid' : s === 'FAILED' ? 'Failed' : 'Pending') as RecentPayment['type'],
+        amount: num(p.amountInUsd) ?? num(p.amount) ?? 0,
+        avatar: str(p.photographerImage),
+      };
+    })
+    .filter((p) => p.id);
+}
+
+// ────── Performance chart (Client only) ───────────────────────────────────────
+
+export type PerformancePoint = { day: string; value1: number; value2: number };
+
+export async function getCustomerPerformance(
+  period: AnalyticsPeriod,
+  from?: string,
+  to?: string,
+): Promise<PerformancePoint[]> {
+  const qs = new URLSearchParams();
+  if (period === 'custom' && from && to) {
+    qs.set('period', 'custom');
+    qs.set('from', from);
+    qs.set('to', to);
+  } else {
+    qs.set('period', period === 'custom' ? 'week' : period);
+  }
+  const res = await api.get<ApiEnvelope<Raw[]>>(`/customer/analytics/performance?${qs}`);
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data.map((d) => ({
+    day: str(d.day) ?? '',
+    value1: num(d.value1) ?? 0,
+    value2: num(d.value2) ?? 0,
+  }));
+}
+
+// ────── Coordinator extras ─────────────────────────────────────────────────
+
+export type CoordinatorPhotographer = {
+  id: string;
+  name: string;
+  email?: string;
+  avatar?: string;
+  totalEvents: number;
+  status: string;
+};
+
+export async function getCoordinatorPerformance(
+  period: AnalyticsPeriod,
+  from?: string,
+  to?: string,
+): Promise<PerformancePoint[]> {
+  const qs = new URLSearchParams();
+  if (period === 'custom' && from && to) {
+    qs.set('period', 'custom');
+    qs.set('from', from);
+    qs.set('to', to);
+  } else {
+    qs.set('period', period === 'custom' ? 'week' : period);
+  }
+  const res = await api.get<ApiEnvelope<Raw[]>>(`/coordinator/analytics/performance?${qs}`);
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data.map((d) => ({
+    day: str(d.day) ?? '',
+    value1: num(d.value1) ?? 0,
+    value2: num(d.value2) ?? 0,
+  }));
+}
+
+export async function getCoordinatorPhotographers(size = 5): Promise<CoordinatorPhotographer[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>(`/coordinator/photographers?page=0&size=${size}`);
+  const raw = res?.data;
+  const items: Raw[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as any)?.content)
+      ? (raw as any).content
+      : [];
+  return items.map((r) => ({
+    id: String(r.id ?? ''),
+    name: str(r.name) ?? str(r.firstName) ?? 'Photographer',
+    email: str(r.email),
+    avatar: str(r.avatar) ?? str(r.profilePicture),
+    totalEvents: num(r.totalEvents) ?? 0,
+    status: str(r.status) ?? 'Active',
+  })).filter((p) => p.id);
+}
+
+export type DashboardActivity = {
+  id: string;
+  title: string;
+  type: string;
+  createdAt?: string;
+};
+
+export async function getCoordinatorRecentActivities(size = 6): Promise<DashboardActivity[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>(`/coordinator/notifications?page=0&size=${size}`);
+  const raw = res?.data;
+  const items: Raw[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as any)?.content)
+      ? (raw as any).content
+      : [];
+  return items.map((r) => ({
+    id: String(r.id ?? ''),
+    title: str(r.title) ?? str(r.message) ?? 'Notification',
+    type: str(r.type) ?? 'Notification',
+    createdAt: str(r.createdAt),
+  })).filter((a) => a.id);
+}
+
+// ────── Photographer extras ────────────────────────────────────────────────
+
+export type PhotographerClient = {
+  id: string;
+  name: string;
+  avatar?: string;
+  totalEvents: number;
+  lastEvent?: string;
+};
+
+export async function getPhotographerPerformance(
+  period: AnalyticsPeriod,
+  from?: string,
+  to?: string,
+): Promise<PerformancePoint[]> {
+  const qs = new URLSearchParams();
+  if (period === 'custom' && from && to) {
+    qs.set('period', 'custom');
+    qs.set('from', from);
+    qs.set('to', to);
+  } else {
+    qs.set('period', period === 'custom' ? 'week' : period);
+  }
+  const res = await api.get<ApiEnvelope<Raw[]>>(`/photographer/performance?${qs}`);
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data.map((d) => ({
+    day: str(d.day) ?? '',
+    value1: num(d.value1) ?? 0,
+    value2: num(d.value2) ?? 0,
+  }));
+}
+
+export async function getPhotographerClients(size = 5): Promise<PhotographerClient[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>(`/photographer/clients?page=0&size=${size}`);
+  const raw = res?.data;
+  const items: Raw[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as any)?.content)
+      ? (raw as any).content
+      : [];
+  return items.map((r) => ({
+    id: String(r.id ?? ''),
+    name: [str(r.firstName), str(r.lastName)].filter(Boolean).join(' ') || str(r.name) || 'Client',
+    avatar: str(r.avatar) ?? str(r.profilePicture),
+    totalEvents: num(r.totalEvents) ?? 0,
+    lastEvent: str(r.lastEvent) ?? str(r.lastEventDate),
+  })).filter((c) => c.id);
+}
+
+export type RecentTransaction = {
+  id: string;
+  eventName: string;
+  amount: number;
+  status: string;
+  createdAt?: string;
+};
+
+export async function getPhotographerRecentTransactions(size = 5): Promise<RecentTransaction[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>(`/photographer/transactions?page=0&size=${size}`);
+  const raw = res?.data;
+  const items: Raw[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as any)?.content)
+      ? (raw as any).content
+      : [];
+  return items.map((r) => ({
+    id: String(r.id ?? ''),
+    eventName: str(r.eventTitle) ?? str(r.eventName) ?? 'Event',
+    amount: num(r.amountInUsd) ?? num(r.amount) ?? 0,
+    status: str(r.status) ?? 'Pending',
+    createdAt: str(r.createdAt),
+  })).filter((t) => t.id);
+}

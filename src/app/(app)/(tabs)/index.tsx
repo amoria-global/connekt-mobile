@@ -30,6 +30,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
@@ -42,15 +43,21 @@ import {
   type CoordinatorAnalytics,
   type CustomerAnalytics,
   type PendingPayment,
+  type PerformancePoint,
   type PhotographerAnalytics,
   type RecentActivity,
+  type RecentPayment,
+  type RecentPhotographer,
   type TrendsMap,
   getCoordinatorAnalytics,
   getCoordinatorPendingPayments,
   getCoordinatorTrends,
   getCustomerAnalytics,
   getCustomerPendingPayments,
+  getCustomerPerformance,
+  getCustomerPhotographers,
   getCustomerRecentActivities,
+  getCustomerRecentPayments,
   getCustomerTrends,
   getPhotographerAnalytics,
   getPhotographerTrends,
@@ -146,6 +153,7 @@ const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'This week' },
   { value: 'month', label: 'This month' },
+  { value: 'custom', label: 'Custom' },
 ];
 
 const PERIOD_LABEL: Record<AnalyticsPeriod, string> = {
@@ -229,6 +237,11 @@ export default function HomeScreen() {
   const [trends, setTrends] = useState<TrendsMap>({});
   const [pending, setPending] = useState<PendingPayment[]>([]);
   const [activities, setActivities] = useState<RecentActivity[]>([]);
+  const [photographers, setPhotographers] = useState<RecentPhotographer[]>([]);
+  const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
+  const [performance, setPerformance] = useState<PerformancePoint[]>([]);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
   const [loadingDash, setLoadingDash] = useState(false);
 
   const loadDashboard = useCallback(async () => {
@@ -236,16 +249,24 @@ export default function HomeScreen() {
     setLoadingDash(true);
     try {
       if (isClient) {
-        const [a, t, p, recent] = await Promise.allSettled([
+        const from = period === 'custom' ? customFrom : undefined;
+        const to = period === 'custom' ? customTo : undefined;
+        const [a, t, p, recent, photogs, payments, perf] = await Promise.allSettled([
           getCustomerAnalytics(),
-          getCustomerTrends(period),
+          getCustomerTrends(period, from, to),
           getCustomerPendingPayments(),
           getCustomerRecentActivities(),
+          getCustomerPhotographers(),
+          getCustomerRecentPayments(),
+          getCustomerPerformance(period, from, to),
         ]);
         if (a.status === 'fulfilled') setAnalyticsClient(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (p.status === 'fulfilled') setPending(p.value);
         if (recent.status === 'fulfilled') setActivities(recent.value);
+        if (photogs.status === 'fulfilled') setPhotographers(photogs.value);
+        if (payments.status === 'fulfilled') setRecentPayments(payments.value);
+        if (perf.status === 'fulfilled') setPerformance(perf.value);
       } else if (isCoordinator) {
         const [a, t, p] = await Promise.allSettled([
           getCoordinatorAnalytics(),
@@ -266,7 +287,7 @@ export default function HomeScreen() {
     } finally {
       setLoadingDash(false);
     }
-  }, [showsDashboard, isClient, isCoordinator, isPhotographer, period]);
+  }, [showsDashboard, isClient, isCoordinator, isPhotographer, period, customFrom, customTo]);
 
   useEffect(() => {
     loadDashboard();
@@ -369,6 +390,35 @@ export default function HomeScreen() {
               })}
             </View>
 
+            {period === 'custom' ? (
+              <View style={styles.customDateRow}>
+                <View style={styles.customDateField}>
+                  <Text style={styles.customDateLabel}>From</Text>
+                  <TextInput
+                    style={styles.customDateInput}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.textMuted}
+                    value={customFrom}
+                    onChangeText={setCustomFrom}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                </View>
+                <View style={styles.customDateField}>
+                  <Text style={styles.customDateLabel}>To</Text>
+                  <TextInput
+                    style={styles.customDateInput}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.textMuted}
+                    value={customTo}
+                    onChangeText={setCustomTo}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+            ) : null}
+
             {loadingDash && kpis.length === 0 ? (
               <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />
             ) : (
@@ -407,6 +457,32 @@ export default function HomeScreen() {
                 {activities.map((a) => (
                   <ActivityRow key={a.id} activity={a} router={router} />
                 ))}
+              </Section>
+            ) : null}
+
+            {performance.length > 0 ? (
+              <Section title="Performance">
+                <PerformanceMiniChart data={performance} />
+              </Section>
+            ) : null}
+
+            {photographers.length > 0 ? (
+              <Section title="Photographers">
+                <View style={styles.photographerCard}>
+                  {photographers.map((p) => (
+                    <PhotographerRow key={p.id} photographer={p} onPress={() => router.push('/photographers' as never)} />
+                  ))}
+                </View>
+              </Section>
+            ) : null}
+
+            {recentPayments.length > 0 ? (
+              <Section title="Recent payments">
+                <View style={styles.photographerCard}>
+                  {recentPayments.map((p) => (
+                    <RecentPaymentRow key={p.id} payment={p} currency={wallet.data?.currency} />
+                  ))}
+                </View>
               </Section>
             ) : null}
           </>
@@ -820,6 +896,102 @@ function SimpleHeader({
   );
 }
 
+function PerformanceMiniChart({ data }: { data: PerformancePoint[] }) {
+  const maxVal = Math.max(...data.flatMap((d) => [d.value1, d.value2]), 1);
+  return (
+    <View style={styles.perfCard}>
+      <View style={styles.perfBars}>
+        {data.map((d, i) => (
+          <View key={i} style={styles.perfCol}>
+            <View style={styles.perfBarGroup}>
+              <View style={[styles.perfBar, styles.perfBar1, { height: Math.max(4, (d.value1 / maxVal) * 80) }]} />
+              <View style={[styles.perfBar, styles.perfBar2, { height: Math.max(4, (d.value2 / maxVal) * 80) }]} />
+            </View>
+            <Text style={styles.perfDayLabel} numberOfLines={1}>{d.day.slice(0, 3)}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={styles.perfLegend}>
+        <View style={styles.perfLegendItem}>
+          <View style={[styles.perfLegendDot, { backgroundColor: colors.primary }]} />
+          <Text style={styles.perfLegendText}>Bookings</Text>
+        </View>
+        <View style={styles.perfLegendItem}>
+          <View style={[styles.perfLegendDot, { backgroundColor: colors.accent }]} />
+          <Text style={styles.perfLegendText}>Spent</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
+  'In Progress': { bg: '#FCE7F3', text: '#DB2777' },
+  Completed: { bg: '#D1FAE5', text: '#059669' },
+  Pending: { bg: '#FEF3C7', text: '#D97706' },
+};
+
+function PhotographerRow({
+  photographer,
+  onPress,
+}: {
+  photographer: RecentPhotographer;
+  onPress: () => void;
+}) {
+  const chip = STATUS_COLOR[photographer.status] ?? { bg: colors.surfaceMuted, text: colors.textMuted };
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.photogRow, pressed && styles.pressed]}
+      onPress={onPress}
+    >
+      <View style={styles.photogAvatar}>
+        {photographer.avatar ? (
+          <RNImage source={{ uri: photographer.avatar }} style={styles.photogAvatarImg} />
+        ) : (
+          <Ionicons name="person" size={18} color={colors.textMuted} />
+        )}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.photogName} numberOfLines={1}>{photographer.name}</Text>
+        <Text style={styles.photogEvent} numberOfLines={1}>{photographer.event}</Text>
+      </View>
+      <View style={[styles.photogChip, { backgroundColor: chip.bg }]}>
+        <Text style={[styles.photogChipText, { color: chip.text }]}>{photographer.status}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+    </Pressable>
+  );
+}
+
+function RecentPaymentRow({
+  payment,
+  currency,
+}: {
+  payment: RecentPayment;
+  currency?: string;
+}) {
+  const isFailure = payment.type === 'Failed';
+  const typeColor = isFailure ? colors.error : colors.warning;
+  return (
+    <View style={styles.photogRow}>
+      <View style={styles.photogAvatar}>
+        {payment.avatar ? (
+          <RNImage source={{ uri: payment.avatar }} style={styles.photogAvatarImg} />
+        ) : (
+          <Ionicons name="person" size={18} color={colors.textMuted} />
+        )}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.photogName} numberOfLines={1}>{payment.name}</Text>
+        <Text style={[styles.photogEvent, { color: typeColor }]}>{payment.type}</Text>
+      </View>
+      <Text style={[styles.recentPayAmount, { color: isFailure ? colors.error : colors.primary }]}>
+        {formatMoney(payment.amount, currency)}
+      </Text>
+    </View>
+  );
+}
+
 // ────── Styles ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
@@ -1057,6 +1229,74 @@ const styles = StyleSheet.create({
 
   loader: { alignSelf: 'flex-start' },
   muted: { color: colors.textMuted, fontSize: fontSize.sm },
+
+  // Custom date range
+  customDateRow: { flexDirection: 'row', gap: spacing.sm },
+  customDateField: { flex: 1, gap: 4 },
+  customDateLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  customDateInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSize.sm,
+    color: colors.text,
+  },
+
+  // Performance chart
+  perfCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  perfBars: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 96 },
+  perfCol: { flex: 1, alignItems: 'center', gap: 4 },
+  perfBarGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  perfBar: { width: 8, borderRadius: 4 },
+  perfBar1: { backgroundColor: colors.primary },
+  perfBar2: { backgroundColor: colors.accent },
+  perfDayLabel: { fontSize: 9, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  perfLegend: { flexDirection: 'row', gap: spacing.md },
+  perfLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  perfLegendDot: { width: 8, height: 8, borderRadius: 4 },
+  perfLegendText: { fontSize: fontSize.xs, color: colors.textMuted },
+
+  // Photographers + Recent Payments
+  photographerCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    overflow: 'hidden',
+  },
+  photogRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
+  },
+  photogAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  photogAvatarImg: { width: 36, height: 36 },
+  photogName: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  photogEvent: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  photogChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
+  photogChipText: { fontSize: 10, fontWeight: fontWeight.bold },
+  recentPayAmount: { fontSize: fontSize.sm, fontWeight: fontWeight.extrabold },
   previewRow: {
     flexDirection: 'row',
     alignItems: 'center',
