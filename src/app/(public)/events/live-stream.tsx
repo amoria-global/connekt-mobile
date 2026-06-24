@@ -10,16 +10,19 @@
  * The web equivalents are `events/live-stream/page.tsx` (anonymous viewer
  * resume) and `events/join-event/page.tsx` (free + token flow).
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import {
   ActivityIndicator,
+  Animated,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Button } from '@/components/ui/Button';
@@ -28,15 +31,24 @@ import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import {
   checkAnonymousAccessStatus,
+  getPublicStreamChats,
   getPublicViewerCount,
+  registerAnonymousViewer,
+  sendPublicStreamChat,
+  sendPublicStreamReaction,
   validateStreamToken,
+  type PublicStreamChat,
 } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
+import { storage } from '@/services/storage';
+import { getDeviceId } from '@/utils/deviceId';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
+const REACTION_EMOJIS = ['🔥', '❤️', '👏', '😍', '🎉', '😮'];
+
 export default function PublicLiveStreamScreen() {
-  const { id, viewerId, token: initialToken } = useLocalSearchParams<{
+  const { id, viewerId: initialViewerId, token: initialToken } = useLocalSearchParams<{
     id: string;
     viewerId?: string;
     token?: string;
@@ -49,6 +61,26 @@ export default function PublicLiveStreamScreen() {
   const [error, setError] = useState<string | null>(null);
   const [manifestUrl, setManifestUrl] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState<number>(0);
+
+  // Chat state — only populated when we know the viewerId (i.e. the
+  // viewer has paid + been registered as an AnonymousStreamViewer).
+  const [viewerId, setViewerId] = useState<string | undefined>(initialViewerId);
+  const [chats, setChats] = useState<PublicStreamChat[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [floatingEmoji, setFloatingEmoji] = useState<{ id: string; emoji: string; anim: Animated.Value }[]>([]);
+
+  // Recover-by-email state — when storage is wiped, the viewer can
+  // re-enter their email to ask the backend whether they already paid.
+  // The /anonymous-viewer/{id}/register endpoint dedupes by email, so
+  // matching an existing COMPLETED record returns ACCESS_GRANTED.
+  const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoverName, setRecoverName] = useState('');
+  const [recoverEmail, setRecoverEmail] = useState('');
+  const [recoverPhone, setRecoverPhone] = useState('');
+  const [recoverBusy, setRecoverBusy] = useState(false);
+  const [recoverError, setRecoverError] = useState<string | null>(null);
 
   // Auto-resume paid anonymous-viewer access if we already have a viewerId.
   useEffect(() => {
@@ -91,6 +123,131 @@ export default function PublicLiveStreamScreen() {
       clearInterval(handle);
     };
   }, [id]);
+
+  /**
+   * Poll the public chat panel while we have a manifest. 2.5s feels
+   * snappy without hammering the backend; reactions burst-render as
+   * floating emoji animations, plain messages append into the chat
+   * list. We only fetch when manifestUrl is set so the chat doesn't
+   * eagerly load before the viewer can actually watch.
+   */
+  useEffect(() => {
+    if (!manifestUrl || !id) return;
+    let cancelled = false;
+    const seenIds = new Set<string>();
+    const tick = async () => {
+      try {
+        const page = await getPublicStreamChats(id);
+        if (cancelled) return;
+        setChats(page.messages);
+        // Burst any new reactions that arrived since the last poll.
+        for (const r of page.reactions) {
+          if (seenIds.has(r.id)) continue;
+          seenIds.add(r.id);
+          burstFloating(r.message);
+        }
+      } catch {
+        /* not fatal — keep last chat */
+      }
+    };
+    tick();
+    const handle = setInterval(tick, 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(handle);
+    };
+  }, [manifestUrl, id]);
+
+  // Quick optimistic floating-emoji burst.
+  const burstFloating = (emoji: string) => {
+    const anim = new Animated.Value(0);
+    const itemId = Math.random().toString(36).slice(2);
+    setFloatingEmoji((prev) => [...prev, { id: itemId, emoji, anim }]);
+    Animated.timing(anim, { toValue: 1, duration: 2200, useNativeDriver: true }).start(() => {
+      setFloatingEmoji((prev) => prev.filter((x) => x.id !== itemId));
+    });
+  };
+
+  const onSendChat = async () => {
+    const msg = chatDraft.trim();
+    if (!msg) return;
+    if (!viewerId) {
+      setChatError('You need to recover your access first to chat.');
+      return;
+    }
+    setChatSending(true);
+    setChatError(null);
+    try {
+      const fingerprint = await getDeviceId();
+      await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+      setChatDraft('');
+    } catch (e) {
+      setChatError(isApiError(e) ? e.message : 'Could not send message.');
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const onSendReaction = async (emoji: string) => {
+    burstFloating(emoji); // optimistic local burst
+    if (!viewerId) {
+      setChatError('Reactions need access first — recover or buy access.');
+      return;
+    }
+    try {
+      const fingerprint = await getDeviceId();
+      await sendPublicStreamReaction(id, { viewerId, deviceFingerprint: fingerprint, emoji });
+    } catch (e) {
+      // Silent fail on reaction send — the local burst already played.
+      setChatError(isApiError(e) ? e.message : 'Reaction not sent.');
+    }
+  };
+
+  /**
+   * Recover paid access by re-entering the email used during checkout.
+   * The backend's registerOrLookup is identity-keyed by email and
+   * returns ACCESS_GRANTED (with a fresh viewerId) when a matching
+   * COMPLETED record exists. We persist the new viewerId so future
+   * launches resume directly.
+   */
+  const onRecover = async () => {
+    if (!recoverName.trim() || !recoverEmail.includes('@')) {
+      setRecoverError('Please enter your name and the email used at checkout.');
+      return;
+    }
+    setRecoverBusy(true);
+    setRecoverError(null);
+    try {
+      const fingerprint = await getDeviceId();
+      const reg = await registerAnonymousViewer(id, {
+        name: recoverName.trim(),
+        email: recoverEmail.trim(),
+        phone: recoverPhone.trim() || undefined,
+        deviceId: fingerprint,
+      });
+      if (reg.needsPayment) {
+        setRecoverError(
+          "We couldn't find a paid record for this email. Buy access to start watching.",
+        );
+        return;
+      }
+      // Paid — persist and load the manifest.
+      await storage.set(`anonymousViewer_${id}`, reg.viewerId);
+      setViewerId(reg.viewerId);
+      if (reg.hlsManifestUrl) setManifestUrl(reg.hlsManifestUrl);
+      else {
+        // Fall back to the access-status lookup if register didn't
+        // return the manifest (some flows defer that until check).
+        const status = await checkAnonymousAccessStatus(id, reg.viewerId);
+        if (status.hlsManifestUrl) setManifestUrl(status.hlsManifestUrl);
+      }
+      setRecoverOpen(false);
+    } catch (e) {
+      setRecoverError(isApiError(e) ? e.message : 'Could not recover access.');
+    } finally {
+      setRecoverBusy(false);
+    }
+  };
 
   const onJoinWithToken = async () => {
     if (!token.trim()) {
@@ -167,9 +324,83 @@ export default function PublicLiveStreamScreen() {
               autoCorrect={false}
             />
             <Button title="Join stream" onPress={onJoinWithToken} loading={busy} />
+
+            {/* Recover-by-email — only for paid streams. We don't gate
+                on isPaid here because the modal is harmless on free
+                streams (registerOrLookup will just say REQUIRES_PAYMENT
+                with amount = 0). */}
+            <Pressable onPress={() => setRecoverOpen(true)} hitSlop={6}>
+              <Text style={styles.linkText}>Already paid? Recover access by email</Text>
+            </Pressable>
             <Pressable onPress={() => router.replace(`/event/${id}` as unknown as Href)}>
               <Text style={styles.linkText}>← Back to event details</Text>
             </Pressable>
+          </View>
+        ) : null}
+
+        {/*
+         * Chat panel — visible whenever the manifest is loaded so the
+         * viewer can read messages while watching. Sending is gated on
+         * viewerId; without it, the user is prompted to recover access.
+         */}
+        {manifestUrl ? (
+          <View style={styles.chatCard}>
+            <Text style={styles.chatTitle}>Live chat</Text>
+
+            <View style={styles.chatList}>
+              {chats.length === 0 ? (
+                <Text style={styles.chatEmpty}>No messages yet — say hi 👋</Text>
+              ) : (
+                chats.map((c) => (
+                  <View key={c.id} style={styles.chatBubble}>
+                    {c.viewerName ? (
+                      <Text style={styles.chatBubbleSender}>{c.viewerName}</Text>
+                    ) : null}
+                    <Text style={styles.chatBubbleText}>{c.message}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* Reactions row */}
+            <View style={styles.reactionsRow}>
+              {REACTION_EMOJIS.map((emoji) => (
+                <Pressable
+                  key={emoji}
+                  style={styles.reactionBtn}
+                  onPress={() => onSendReaction(emoji)}
+                  hitSlop={6}
+                >
+                  <Text style={styles.reactionEmoji}>{emoji}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Message input */}
+            <View style={styles.composer}>
+              <TextInput
+                value={chatDraft}
+                onChangeText={setChatDraft}
+                placeholder={viewerId ? 'Say something…' : 'Recover access to chat'}
+                placeholderTextColor={colors.textMuted}
+                editable={!!viewerId && !chatSending}
+                style={styles.composerInput}
+                returnKeyType="send"
+                onSubmitEditing={onSendChat}
+              />
+              <Pressable
+                style={[styles.sendBtn, (!viewerId || chatSending) && { opacity: 0.5 }]}
+                onPress={onSendChat}
+                disabled={!viewerId || chatSending || !chatDraft.trim()}
+              >
+                {chatSending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={18} color="#fff" />
+                )}
+              </Pressable>
+            </View>
+            {chatError ? <Text style={styles.chatError}>{chatError}</Text> : null}
           </View>
         ) : null}
 
@@ -180,6 +411,83 @@ export default function PublicLiveStreamScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      {/* Floating reactions overlay — covers the screen so reactions
+          rise across the player from bottom to top. Each entry self-
+          removes after its animation finishes. */}
+      {floatingEmoji.length > 0 ? (
+        <View pointerEvents="none" style={styles.floatingLayer}>
+          {floatingEmoji.map((fx) => (
+            <Animated.Text
+              key={fx.id}
+              style={[
+                styles.floatingEmoji,
+                {
+                  opacity: fx.anim.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }),
+                  transform: [
+                    {
+                      translateY: fx.anim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -260],
+                      }),
+                    },
+                  ],
+                  left: `${20 + Math.random() * 60}%`,
+                },
+              ]}
+            >
+              {fx.emoji}
+            </Animated.Text>
+          ))}
+        </View>
+      ) : null}
+
+      {/* Recover-by-email sheet */}
+      <Modal
+        visible={recoverOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRecoverOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setRecoverOpen(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Recover your access</Text>
+            <Text style={styles.modalHint}>
+              Enter the name + email you used when paying. We'll restore your viewer access on this
+              device.
+            </Text>
+            <Input
+              label="Name"
+              value={recoverName}
+              onChangeText={setRecoverName}
+              placeholder="The name on your ticket"
+              autoCapitalize="words"
+            />
+            <Input
+              label="Email"
+              value={recoverEmail}
+              onChangeText={setRecoverEmail}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <Input
+              label="Phone (optional)"
+              value={recoverPhone}
+              onChangeText={setRecoverPhone}
+              placeholder="+250…"
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+            />
+            {recoverError ? <Text style={styles.chatError}>{recoverError}</Text> : null}
+            <Button
+              title={recoverBusy ? 'Checking…' : 'Recover access'}
+              onPress={onRecover}
+              loading={recoverBusy}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -251,4 +559,70 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
   },
   errorText: { flex: 1, color: colors.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+
+  chatCard: {
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    gap: spacing.md,
+  },
+  chatTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  chatList: { gap: 6, maxHeight: 280 },
+  chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
+  chatBubble: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    gap: 2,
+  },
+  chatBubbleSender: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  chatBubbleText: { fontSize: fontSize.sm, color: colors.text },
+  reactionsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  reactionBtn: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.full,
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  reactionEmoji: { fontSize: 18 },
+  composer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  composerInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    color: colors.text,
+    fontSize: fontSize.sm,
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatError: { color: colors.error, fontSize: 12 },
+
+  floatingLayer: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end' },
+  floatingEmoji: { position: 'absolute', bottom: 80, fontSize: 32 },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  modalHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
 });
