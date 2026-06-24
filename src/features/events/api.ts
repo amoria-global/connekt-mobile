@@ -356,6 +356,31 @@ export async function confirmCompletion(
   }
 }
 
+/**
+ * Photographer-side completion flag. The photographer marks the event
+ * as "shoot complete" with optional notes; the client then confirms via
+ * confirmCompletion() above. Two-step model lets the client request
+ * changes before escrow is released.
+ *
+ * Web parity: PhotographerRemoteController.markEventCompleted →
+ * POST /photographer/events/{eventId}/mark-completed?notes=
+ */
+export async function markEventCompletedByPhotographer(
+  eventId: string,
+  notes?: string,
+): Promise<void> {
+  const qs = notes?.trim() ? `?notes=${encodeURIComponent(notes.trim())}` : '';
+  const res = await api.post<ApiEnvelope<unknown>>(
+    `/photographer/events/${encodeURIComponent(eventId)}/mark-completed${qs}`,
+  );
+  if (res.action !== 1) {
+    throw {
+      status: 400,
+      message: res.message || 'Could not mark the event as completed.',
+    } satisfies ApiError;
+  }
+}
+
 /** Event categories for the picker (public, no auth). */
 export async function listEventCategories(): Promise<string[]> {
   const res = await api.get<ApiEnvelope<unknown>>('/public/events/categories', { skipAuth: true });
