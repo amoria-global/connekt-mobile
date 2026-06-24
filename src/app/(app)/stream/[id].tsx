@@ -16,8 +16,7 @@ const TIP_AMOUNTS = [500, 1000, 2000, 5000];
 export default function StreamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isCoordinator } = useRole();
-  const { data, loading, error } = useAsync(useCallback(() => getStream(id), [id]));
-  const [joining, setJoining] = useState(false);
+  const { data, loading, error, refresh } = useAsync(useCallback(() => getStream(id), [id]));
   const [tipping, setTipping] = useState<number | null>(null);
   const [playUrl, setPlayUrl] = useState<string | null>(null);
   const [chats, setChats] = useState<StreamChat[]>([]);
@@ -26,17 +25,62 @@ export default function StreamDetailScreen() {
 
   const player = useVideoPlayer(null, (p) => {
     p.loop = false;
+    p.muted = false;
+    p.audioMixingMode = 'auto';
   });
 
-  // Start playback once we have a URL (live HLS streams).
+  // Surface native playback errors. Without this, Android ExoPlayer
+  // failures (codec not supported, segment 404, manifest empty) sat
+  // silently behind a frozen black box.
+  useEffect(() => {
+    const sub = player.addListener('statusChange', ({ status, error }) => {
+      if (status === 'error' && error?.message) {
+        console.warn('[stream] playback error', error.message);
+      }
+    });
+    return () => sub.remove();
+  }, [player]);
+
+  /**
+   * Auto-fetch HLS manifest as soon as we have an event id, and refresh
+   * every 8s until one becomes available. Cloudflare HLS goes live
+   * after the photographer connects OBS — without polling, the viewer
+   * had to back out and re-open the screen to pick up the manifest.
+   *
+   * Backend has no GET /streams/{id} so we read the event detail and
+   * use its hlsManifestUrl / playbackUrl / whepUrl.
+   */
+  useEffect(() => {
+    if (data?.playbackUrl && !playUrl) setPlayUrl(data.playbackUrl);
+  }, [data?.playbackUrl, playUrl]);
+
+  useEffect(() => {
+    if (playUrl || !id) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        await refresh();
+      } catch {
+        /* ignore — keep polling */
+      }
+    };
+    const handle = setInterval(tick, 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(handle);
+    };
+  }, [playUrl, id, refresh]);
+
+  // Drive the player whenever the URL flips. Use the object-form
+  // source so native HLS picks the right loader (bare strings can
+  // leave ExoPlayer in a permanent stalled state on Android).
   useEffect(() => {
     if (!playUrl) return;
     try {
-      player.replace(playUrl);
+      player.replace({ uri: playUrl });
       player.play();
-    } catch {
-      // unsupported URL (e.g. WebRTC) — surface gracefully
-      Alert.alert('Playback unavailable', 'This stream format cannot play in the app yet.');
+    } catch (e) {
+      Alert.alert('Playback unavailable', isApiError(e) ? e.message : 'Could not start the stream.');
     }
   }, [playUrl, player]);
 
@@ -60,19 +104,16 @@ export default function StreamDetailScreen() {
     };
   }, [playUrl, data?.eventId]);
 
-  const onJoin = async () => {
-    setJoining(true);
+  // Manual "Retry now" — most users won't need it since the 8s poll
+  // picks up the stream automatically, but on flaky networks the user
+  // wants control.
+  const onRetry = async () => {
     try {
       const url = (await joinStream(id)) ?? data?.playbackUrl;
-      if (url) {
-        setPlayUrl(url);
-      } else {
-        Alert.alert('Stream unavailable', 'This stream cannot be opened right now.');
-      }
-    } catch {
-      Alert.alert('Could not join', 'Please try again.');
-    } finally {
-      setJoining(false);
+      if (url) setPlayUrl(url);
+      else Alert.alert('Not live yet', 'The photographer hasn’t connected the encoder.');
+    } catch (e) {
+      Alert.alert('Could not refresh', isApiError(e) ? e.message : 'Please try again.');
     }
   };
 
@@ -154,7 +195,18 @@ export default function StreamDetailScreen() {
         {data?.photographerName ? <Text style={styles.meta}>{data.photographerName}</Text> : null}
 
         {!playUrl ? (
-          <Button title={data?.isLive ? 'Join stream' : 'Watch'} onPress={onJoin} loading={joining} />
+          <View style={styles.waitingCard}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.waitingTitle}>Waiting for the stream…</Text>
+            <Text style={styles.waitingText}>
+              {data?.isLive
+                ? "The photographer is online but the player hasn't received video yet."
+                : 'The stream hasn’t started. We will start playing as soon as it goes live.'}
+            </Text>
+            <Pressable onPress={onRetry} hitSlop={6}>
+              <Text style={styles.waitingLink}>Tap to refresh</Text>
+            </Pressable>
+          </View>
         ) : null}
 
         <View style={styles.tipSection}>
@@ -283,6 +335,18 @@ const styles = StyleSheet.create({
   chatSender: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
   chatMsg: { fontSize: fontSize.sm, color: colors.text },
   chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted },
+  waitingCard: {
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    alignItems: 'center',
+    gap: 6,
+  },
+  waitingTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  waitingText: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center' },
+  waitingLink: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold, marginTop: 4 },
 
   composer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.sm },
   composerInput: {

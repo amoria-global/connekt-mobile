@@ -74,14 +74,11 @@ export async function getStream(id: string): Promise<StreamDetail> {
   const d = (res?.data ?? {}) as Raw;
   // The event response has photographer{} nested; the mapStream helper
   // already handles that shape, so feed it the event raw.
+  // playbackUrl is HLS only — see joinStream() above for why we don't
+  // fall back to whepUrl on mobile.
   return {
     ...mapStream(d),
-    playbackUrl:
-      str(d.hlsManifestUrl) ??
-      str(d.playbackUrl) ??
-      str(d.whepUrl) ??
-      str(d.hls) ??
-      str(d.rtmpUrl),
+    playbackUrl: str(d.hlsManifestUrl) ?? str(d.playbackUrl) ?? str(d.hls),
     eventId: String(d.id ?? id),
     title: str(d.title) ?? 'Live stream',
     isLive: str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended',
@@ -116,10 +113,25 @@ export async function listStreamChats(eventId: string): Promise<StreamChat[]> {
     .filter((c) => c.id && c.message);
 }
 
+/**
+ * Returns a playable HLS manifest URL for the given event/stream. We
+ * fetch the event itself because there's no dedicated /streams/{id}/
+ * join endpoint on the backend — the event already carries
+ * `hlsManifestUrl` (Cloudflare HLS) once the photographer has called
+ * /stream/start.
+ *
+ * Falls back to a Cloudflare-shape URL built from the liveInputId
+ * when the column is still null (the backend's getHlsManifestUrl
+ * helper does the same).
+ */
 export async function joinStream(id: string): Promise<string | undefined> {
-  const res = await api.post<ApiEnvelope<Raw>>(`/customer/streams/${encodeURIComponent(id)}/join`);
+  const res = await api.get<ApiEnvelope<Raw>>(`/customer/events/${encodeURIComponent(id)}`);
   const d = (res?.data ?? {}) as Raw;
-  return str(d.playbackUrl) ?? str(d.hls);
+  // HLS ONLY. expo-video has no WebRTC codec — feeding it a whepUrl
+  // sends the player to Cloudflare's /webRTC/play endpoint, which
+  // 404s on inactive streams and returns SDP (not video) when active.
+  // Either way, the result is a black box with no video.
+  return str(d.hlsManifestUrl) ?? str(d.playbackUrl);
 }
 
 export async function tipStream(id: string, amount: number): Promise<void> {
@@ -236,10 +248,10 @@ export async function registerAnonymousViewer(
     needsPayment: status === 'REQUIRES_PAYMENT' || d.needsPayment === true || d.requiresPayment === true,
     amount: num(d.amount) ?? num(d.streamFee),
     currencyCode: str(d.currencyAbbreviation) ?? str(d.currencyCode),
-    // ACCESS_GRANTED returns whepUrl (WebRTC); free streams may carry
-    // hlsManifestUrl. Either resolves the "Already paid? Recover by
-    // email" flow.
-    hlsManifestUrl: str(d.hlsManifestUrl) ?? str((top as any).whepUrl) ?? str(d.whepUrl),
+    // HLS only. Backend's ACCESS_GRANTED now returns hlsManifestUrl
+    // alongside whepUrl (see backend fix); expo-video has no WebRTC
+    // codec, so we deliberately drop whepUrl from the recovery path.
+    hlsManifestUrl: str(d.hlsManifestUrl) ?? str((top as any).hlsManifestUrl),
   };
 }
 
@@ -256,17 +268,34 @@ export async function confirmAnonymousPayment(
   return { hlsManifestUrl: str(d.hlsManifestUrl) };
 }
 
+/**
+ * Backend signature: GET /public/anonymous-viewer/{id}/access-status
+ *   ?fingerprint=…&viewerId=…
+ * Old mobile code POSTed a JSON body — backend rejected with
+ * 405 "Method 'POST' is not supported", which was the red banner
+ * users saw on the public live-stream screen when arriving with a
+ * stored viewerId. Response carries `hasAccess` (not `active`) and
+ * `whepUrl` (WebRTC). HLS manifest is only available after the
+ * register flow — fall back to whepUrl as the playback URL.
+ */
 export async function checkAnonymousAccessStatus(
   eventId: string,
   viewerId: string,
-): Promise<{ active: boolean; hlsManifestUrl?: string }> {
-  const res = await api.post<ApiEnvelope<Raw>>(
-    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/access-status`,
-    { viewerId },
+  fingerprint: string,
+): Promise<{ active: boolean; hlsManifestUrl?: string; reason?: string }> {
+  const qs = new URLSearchParams({ viewerId, fingerprint });
+  const res = await api.get<ApiEnvelope<Raw> & Raw>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/access-status?${qs.toString()}`,
     { skipAuth: true },
   );
-  const d = (res?.data ?? {}) as Raw;
-  return { active: d.active === true || d.status === 'ACTIVE', hlsManifestUrl: str(d.hlsManifestUrl) };
+  const top = (res ?? {}) as Raw;
+  return {
+    active: top.hasAccess === true,
+    // HLS only — feeding whepUrl to expo-video triggered a 404 on
+    // Cloudflare's /webRTC/play endpoint (WebRTC, not a video file).
+    hlsManifestUrl: str(top.hlsManifestUrl),
+    reason: str(top.reason),
+  };
 }
 
 // ────── Public stream chat + reactions ───────────────────────────────────
