@@ -1,6 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii } from '@/theme';
+
+const TAB_BAR_HEIGHT = 64;
+const TAB_BAR_MARGIN = 20;
 
 type Props = {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -8,11 +12,15 @@ type Props = {
 };
 
 export function Fab({ icon = 'add', onPress }: Props) {
+  const insets = useSafeAreaInsets();
+  const tabBarBottom = insets.bottom > 0 ? insets.bottom : TAB_BAR_MARGIN;
+  const bottom = tabBarBottom + TAB_BAR_HEIGHT + 12;
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.fab, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.fab, { bottom }, pressed && styles.pressed]}
     >
       <Ionicons name={icon} size={28} color={colors.textOnPrimary} />
     </Pressable>
@@ -23,7 +31,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 24,
     width: 56,
     height: 56,
     borderRadius: radii.full,
