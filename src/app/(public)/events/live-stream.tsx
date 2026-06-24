@@ -134,18 +134,23 @@ export default function PublicLiveStreamScreen() {
   useEffect(() => {
     if (!manifestUrl || !id) return;
     let cancelled = false;
+    let isFirstPoll = true;
     const seenIds = new Set<string>();
     const tick = async () => {
       try {
         const page = await getPublicStreamChats(id);
         if (cancelled) return;
         setChats(page.messages);
-        // Burst any new reactions that arrived since the last poll.
+        // On the first poll, seed seenIds with every historical
+        // reaction so the viewer doesn't get flooded with a wall of
+        // floating emoji on screen-open. From the second poll onward,
+        // only NEW reactions burst.
         for (const r of page.reactions) {
           if (seenIds.has(r.id)) continue;
           seenIds.add(r.id);
-          burstFloating(r.message);
+          if (!isFirstPoll) burstFloating(r.message);
         }
+        isFirstPoll = false;
       } catch {
         /* not fatal — keep last chat */
       }
