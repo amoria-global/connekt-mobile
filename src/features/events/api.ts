@@ -365,3 +365,60 @@ export async function listEventCategories(): Promise<string[]> {
     .map((c) => (typeof c === 'string' ? c : str((c as RawEvent)?.name) ?? str((c as RawEvent)?.category)))
     .filter((c): c is string => !!c);
 }
+
+// ────── Stream lifecycle (Photographer / owner) ─────────────────────────
+//
+// Mirrors EventRemoteController:
+//   POST /customer/events/{eventId}/stream/start  → boot stream, return
+//                                                   WHIP URL + token
+//   POST /customer/events/{eventId}/stream/reset  → rotate WHIP URL
+//   GET  /customer/events/{eventId}/stream/status → live status snapshot
+//
+// The Photographer points OBS at the returned WHIP URL, then the event
+// goes live for viewers. Mobile surfaces the URL and a "Copy" affordance
+// so the user can paste it into OBS on a laptop.
+
+export type StreamSetup = {
+  whipUrl?: string;
+  hlsManifestUrl?: string;
+  liveInputId?: string;
+  token?: string;
+  status?: string;
+};
+
+function mapStreamSetup(d: RawEvent): StreamSetup {
+  return {
+    whipUrl: str(d.whipUrl),
+    hlsManifestUrl: str(d.hlsManifestUrl),
+    liveInputId: str(d.liveInputId),
+    token: str(d.token),
+    status: str(d.status) ?? str(d.streamStatus) ?? str(d.connectionStatus),
+  };
+}
+
+export async function startEventStream(eventId: string): Promise<StreamSetup> {
+  const res = await api.post<ApiEnvelope<RawEvent>>(
+    `/customer/events/${encodeURIComponent(eventId)}/stream/start`,
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not start the stream.' };
+  }
+  return mapStreamSetup((res?.data ?? {}) as RawEvent);
+}
+
+export async function resetEventStream(eventId: string): Promise<StreamSetup> {
+  const res = await api.post<ApiEnvelope<RawEvent>>(
+    `/customer/events/${encodeURIComponent(eventId)}/stream/reset`,
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not reset the stream.' };
+  }
+  return mapStreamSetup((res?.data ?? {}) as RawEvent);
+}
+
+export async function getEventStreamStatus(eventId: string): Promise<StreamSetup> {
+  const res = await api.get<ApiEnvelope<RawEvent>>(
+    `/customer/events/${encodeURIComponent(eventId)}/stream/status`,
+  );
+  return mapStreamSetup((res?.data ?? {}) as RawEvent);
+}

@@ -70,6 +70,14 @@ export default function WalletScreen() {
               <Text style={styles.menuLabel}>Transactions</Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </Pressable>
+            <Pressable
+              style={[styles.menuRow, styles.menuBorderTop]}
+              onPress={() => router.push('/wallet/movements')}
+            >
+              <Ionicons name="list-outline" size={20} color={colors.primary} />
+              <Text style={styles.menuLabel}>Wallet movements</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
             <Pressable style={[styles.menuRow, styles.menuBorderTop]} onPress={() => router.push('/payments')}>
               <Ionicons name="card-outline" size={20} color={colors.primary} />
               <Text style={styles.menuLabel}>Payments</Text>

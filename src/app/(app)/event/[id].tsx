@@ -9,7 +9,16 @@ import { Screen } from '@/components/ui/Screen';
 import { StarInput } from '@/components/ui/Stars';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { useRole } from '@/features/auth/role';
-import { confirmCompletion, deleteEvent, getEvent, publishEvent, unpublishEvent } from '@/features/events/api';
+import {
+  confirmCompletion,
+  deleteEvent,
+  getEvent,
+  publishEvent,
+  resetEventStream,
+  startEventStream,
+  unpublishEvent,
+  type StreamSetup,
+} from '@/features/events/api';
 import { submitReview } from '@/features/reviews/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
@@ -28,6 +37,8 @@ export default function EventDetailScreen() {
   const [completionOpen, setCompletionOpen] = useState(false);
   const [comment, setComment] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [streamSheetOpen, setStreamSheetOpen] = useState(false);
+  const [streamSetup, setStreamSetup] = useState<StreamSetup | null>(null);
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
 
@@ -86,6 +97,36 @@ export default function EventDetailScreen() {
         },
       },
     ]);
+  };
+
+  /**
+   * Boot a Cloudflare Stream for this event and surface the WHIP URL.
+   * The photographer points OBS at that URL on their laptop, then the
+   * event goes live for any viewer holding the invite token.
+   */
+  const onGoLive = async () => {
+    setBusy('stream');
+    try {
+      const setup = await startEventStream(id);
+      setStreamSetup(setup);
+      setStreamSheetOpen(true);
+    } catch (e) {
+      Alert.alert('Could not start stream', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onResetStream = async () => {
+    setBusy('stream');
+    try {
+      const setup = await resetEventStream(id);
+      setStreamSetup(setup);
+    } catch (e) {
+      Alert.alert('Could not reset stream', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const submitCompletion = async (status: 'COMPLETED' | 'REQUIRE_CHANGES') => {
@@ -171,6 +212,12 @@ export default function EventDetailScreen() {
               <ActionPill icon="create-outline" label="Edit" onPress={() => router.push(`/event/new?editId=${id}`)} />
               <ActionPill icon="share-social-outline" label="Share" onPress={onShare} />
               <ActionPill
+                icon="videocam-outline"
+                label="Go live"
+                onPress={onGoLive}
+                loading={busy === 'stream'}
+              />
+              <ActionPill
                 icon="checkmark-done-outline"
                 label="Confirm done"
                 onPress={() => setCompletionOpen(true)}
@@ -227,6 +274,69 @@ export default function EventDetailScreen() {
               disabled={busy === 'completion'}
             >
               <Text style={styles.requestChangesText}>Request changes</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/*
+       * Stream setup sheet — opens after a successful Go-Live. Shows the
+       * WHIP URL the photographer pastes into OBS, with a "rotate"
+       * action that calls /stream/reset to invalidate the previous URL
+       * (useful if it accidentally leaked).
+       */}
+      <Modal
+        visible={streamSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setStreamSheetOpen(false)}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setStreamSheetOpen(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>Stream setup</Text>
+            <Text style={styles.sheetHint}>
+              Paste this WHIP URL into OBS → Settings → Stream → Service: WHIP. When OBS connects,
+              the event goes live for everyone holding your invite link.
+            </Text>
+
+            {streamSetup?.whipUrl ? (
+              <>
+                <Text style={styles.streamLabel}>WHIP URL</Text>
+                <View style={styles.streamUrlBox} pointerEvents="box-none">
+                  <Text style={styles.streamUrlText} selectable>
+                    {streamSetup.whipUrl}
+                  </Text>
+                </View>
+              </>
+            ) : null}
+
+            {streamSetup?.hlsManifestUrl ? (
+              <>
+                <Text style={styles.streamLabel}>HLS manifest (viewer)</Text>
+                <View style={styles.streamUrlBox} pointerEvents="box-none">
+                  <Text style={styles.streamUrlText} selectable>
+                    {streamSetup.hlsManifestUrl}
+                  </Text>
+                </View>
+              </>
+            ) : null}
+
+            <Button
+              title="Open viewer screen"
+              onPress={() => {
+                setStreamSheetOpen(false);
+                router.push(`/stream/${id}` as never);
+              }}
+            />
+
+            <Pressable
+              style={styles.requestChanges}
+              onPress={onResetStream}
+              disabled={busy === 'stream'}
+            >
+              <Text style={styles.requestChangesText}>
+                {busy === 'stream' ? 'Resetting…' : 'Rotate WHIP URL'}
+              </Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -326,6 +436,9 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   sheetHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
   commentInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
+  streamLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textSoft, marginTop: spacing.sm, letterSpacing: 0.4 },
+  streamUrlBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, padding: spacing.md, borderWidth: 1, borderColor: colors.borderSoft },
+  streamUrlText: { fontSize: fontSize.sm, color: colors.text, fontFamily: 'monospace' },
   starRow: { alignItems: 'center', paddingVertical: spacing.sm },
   requestChanges: { alignItems: 'center', paddingVertical: spacing.md },
   requestChangesText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.accent },
