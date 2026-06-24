@@ -225,3 +225,118 @@ export async function checkAnonymousAccessStatus(
   const d = (res?.data ?? {}) as Raw;
   return { active: d.active === true || d.status === 'ACTIVE', hlsManifestUrl: str(d.hlsManifestUrl) };
 }
+
+// ────── Public stream chat + reactions ───────────────────────────────────
+//
+// Mirrors the web view-event chat panel:
+//   GET  /public/events/{id}/chats?page=0&size=50 → { data: messages[], reactions: [] }
+//   POST /public/events/{id}/chats   body { viewerId, message, deviceFingerprint, messageType? }
+// Reactions reuse the same POST endpoint with messageType=REACTION; the
+// message field carries the emoji literal. Backend rate-limits chats
+// (10/min) and reactions (30/min) per viewer.
+
+export type PublicStreamChat = {
+  id: string;
+  viewerName?: string;
+  senderName?: string;
+  message: string;
+  type?: string; // TEXT | REACTION | WISH | VIDEO
+  videoUrl?: string;
+  timestamp?: string;
+};
+
+export type PublicStreamChatPage = {
+  messages: PublicStreamChat[];
+  reactions: PublicStreamChat[];
+};
+
+function mapPublicChat(m: Raw): PublicStreamChat {
+  const sender = str(m.viewerName) ?? str(m.senderName) ?? str(m.userName) ??
+    ([str(m.firstName), str(m.lastName)].filter(Boolean).join(' ') || str(m.name));
+  return {
+    id: String(m.id ?? ''),
+    viewerName: sender,
+    senderName: sender,
+    message: str(m.content) ?? str(m.message) ?? str(m.text) ?? '',
+    type: str(m.chatType) ?? str(m.type),
+    videoUrl: str(m.videoUrl) ?? str(m.fileUrl),
+    timestamp: str(m.timestamp) ?? str(m.createdAt),
+  };
+}
+
+export async function getPublicStreamChats(
+  eventId: string,
+  page = 0,
+  size = 50,
+): Promise<PublicStreamChatPage> {
+  const res = await api.get<ApiEnvelope<unknown> & Raw>(
+    `/public/events/${encodeURIComponent(eventId)}/chats?page=${page}&size=${size}`,
+    { skipAuth: true },
+  );
+  // Endpoint shape: { data: [...messages], reactions: [...] }
+  const data = (res as any)?.data;
+  const messages: Raw[] = Array.isArray(data) ? data : (data?.content ?? []);
+  const reactions: Raw[] = Array.isArray((res as any)?.reactions)
+    ? (res as any).reactions
+    : (Array.isArray(data?.reactions) ? data.reactions : []);
+  return {
+    messages: messages.map(mapPublicChat).filter((m) => m.id && (m.message || m.videoUrl)),
+    reactions: reactions.map(mapPublicChat).filter((m) => m.id),
+  };
+}
+
+export async function sendPublicStreamChat(
+  eventId: string,
+  payload: { viewerId: string; deviceFingerprint: string; message: string },
+): Promise<PublicStreamChat | null> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/events/${encodeURIComponent(eventId)}/chats`,
+    payload,
+    { skipAuth: true },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not send message.' };
+  }
+  return res?.data ? mapPublicChat(res.data) : null;
+}
+
+/**
+ * Reactions are stored as REACTION-typed chat rows; the backend
+ * fans them out via the same broadcaster so every viewer sees them
+ * as floating emoji animations. message carries the emoji literal.
+ */
+export async function sendPublicStreamReaction(
+  eventId: string,
+  payload: { viewerId: string; deviceFingerprint: string; emoji: string },
+): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/events/${encodeURIComponent(eventId)}/chats`,
+    {
+      viewerId: payload.viewerId,
+      deviceFingerprint: payload.deviceFingerprint,
+      message: payload.emoji,
+      messageType: 'REACTION',
+    },
+    { skipAuth: true },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not send reaction.' };
+  }
+}
+
+/**
+ * In-app (authenticated) chat send — Coordinator-side endpoint. Used by
+ * the in-app stream/[id] viewer.
+ */
+export async function sendInAppStreamChat(
+  eventId: string,
+  message: string,
+): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/coordinator/streams/${encodeURIComponent(eventId)}/chats`,
+    { message },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not send message.' };
+  }
+}

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { getStream, joinStream, listStreamChats, tipStream, type StreamChat } from '@/features/streams/api';
+import { getStream, joinStream, listStreamChats, sendInAppStreamChat, tipStream, type StreamChat } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const TIP_AMOUNTS = [500, 1000, 2000, 5000];
@@ -18,6 +19,8 @@ export default function StreamDetailScreen() {
   const [tipping, setTipping] = useState<number | null>(null);
   const [playUrl, setPlayUrl] = useState<string | null>(null);
   const [chats, setChats] = useState<StreamChat[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [chatSending, setChatSending] = useState(false);
 
   const player = useVideoPlayer(null, (p) => {
     p.loop = false;
@@ -68,6 +71,25 @@ export default function StreamDetailScreen() {
       Alert.alert('Could not join', 'Please try again.');
     } finally {
       setJoining(false);
+    }
+  };
+
+  const onSendChat = async () => {
+    const msg = chatDraft.trim();
+    if (!msg || !data?.eventId) return;
+    setChatSending(true);
+    try {
+      await sendInAppStreamChat(data.eventId, msg);
+      setChatDraft('');
+      // Optimistic — the poll will pick up the real row on the next tick.
+      setChats((prev) => [
+        ...prev,
+        { id: `local-${Date.now()}`, sender: 'You', message: msg, createdAt: new Date().toISOString() },
+      ]);
+    } catch (e) {
+      Alert.alert('Could not send', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setChatSending(false);
     }
   };
 
@@ -166,6 +188,30 @@ export default function StreamDetailScreen() {
             ) : (
               <Text style={styles.chatEmpty}>No messages yet.</Text>
             )}
+
+            <View style={styles.composer}>
+              <TextInput
+                value={chatDraft}
+                onChangeText={setChatDraft}
+                placeholder="Say something…"
+                placeholderTextColor={colors.textMuted}
+                style={styles.composerInput}
+                returnKeyType="send"
+                onSubmitEditing={onSendChat}
+                editable={!chatSending}
+              />
+              <Pressable
+                style={[styles.sendBtn, (chatSending || !chatDraft.trim()) && { opacity: 0.5 }]}
+                onPress={onSendChat}
+                disabled={chatSending || !chatDraft.trim()}
+              >
+                {chatSending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={18} color="#fff" />
+                )}
+              </Pressable>
+            </View>
           </View>
         ) : null}
       </ScrollView>
@@ -225,4 +271,25 @@ const styles = StyleSheet.create({
   chatSender: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
   chatMsg: { fontSize: fontSize.sm, color: colors.text },
   chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted },
+
+  composer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.sm },
+  composerInput: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    color: colors.text,
+    fontSize: fontSize.sm,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
