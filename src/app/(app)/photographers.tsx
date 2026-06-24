@@ -1,16 +1,19 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { useRouter, Stack } from 'expo-router';
-import { Pressable, StyleSheet, View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet from '@gorhom/bottom-sheet';
+import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
-import { listPhotographers } from '@/features/photographers/api';
+import { inviteCoordinatorPhotographer, listPhotographers } from '@/features/photographers/api';
 import { PhotographerCard } from '@/features/photographers/PhotographerCard';
+import { useRole } from '@/features/auth/role';
 import { BookingBottomSheet } from '@/features/booking/BookingBottomSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const ITEMS_PER_PAGE = 4;
@@ -28,10 +31,36 @@ function FilterButton({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; l
 }
 
 export default function PhotographersScreen() {
+  const { isCoordinator } = useRole();
   const [query, setQuery] = useState('');
   const [showBanner, setShowBanner] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const bottomSheetRef = useRef<BottomSheet>(null);
+
+  // Coordinator invite-by-email state — gated to Coordinator role.
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+
+  const submitInvite = async () => {
+    if (!inviteEmail.includes('@')) {
+      Alert.alert('Invalid email', 'Enter a valid email address.');
+      return;
+    }
+    setInviteSubmitting(true);
+    try {
+      await inviteCoordinatorPhotographer(inviteEmail, inviteMessage);
+      setInviteOpen(false);
+      setInviteEmail('');
+      setInviteMessage('');
+      Alert.alert('Invitation sent', `An invite was emailed to ${inviteEmail}.`);
+    } catch (e) {
+      Alert.alert('Could not send invite', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
   // Live width — keeps the 2-column grid in step with rotation /
   // tablet split / web window resize. Replaces a module-level
   // Dimensions.get that froze the column width at JS-bundle load.
@@ -148,11 +177,25 @@ export default function PhotographersScreen() {
         <Text style={styles.resultsText}>
           <Text style={styles.resultsCount}>{filtered?.length ?? 0}</Text> photographers found
         </Text>
-        <Pressable style={styles.sortButton}>
-          <Ionicons name="swap-vertical" size={14} color={colors.text} />
-          <Text style={styles.sortText}>Sort: <Text style={styles.sortValue}>Newest</Text></Text>
-          <Ionicons name="chevron-up" size={14} color={colors.textMuted} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {/*
+           * Coordinator-only invite pill. Web parity: salo-run
+           * coordinator/photographers shows this CTA so a workspace
+           * owner can email a photographer who isn't on the platform
+           * yet. Backend persists the invite + sends a Brevo email.
+           */}
+          {isCoordinator ? (
+            <Pressable style={styles.invitePill} onPress={() => setInviteOpen(true)}>
+              <Ionicons name="mail-outline" size={14} color="#fff" />
+              <Text style={styles.invitePillText}>Invite</Text>
+            </Pressable>
+          ) : null}
+          <Pressable style={styles.sortButton}>
+            <Ionicons name="swap-vertical" size={14} color={colors.text} />
+            <Text style={styles.sortText}>Sort: <Text style={styles.sortValue}>Newest</Text></Text>
+            <Ionicons name="chevron-up" size={14} color={colors.textMuted} />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -246,10 +289,47 @@ export default function PhotographersScreen() {
           />
         )}
       </Screen>
-      <BookingBottomSheet 
-        ref={bottomSheetRef} 
-        photographerId={undefined} 
+      <BookingBottomSheet
+        ref={bottomSheetRef}
+        photographerId={undefined}
       />
+
+      <Modal
+        visible={inviteOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setInviteOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setInviteOpen(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Invite a photographer</Text>
+            <Text style={styles.modalHint}>
+              They'll receive an email with a link to join your workspace.
+            </Text>
+            <Input
+              label="Email"
+              placeholder="photographer@example.com"
+              value={inviteEmail}
+              onChangeText={setInviteEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <Input
+              label="Personal note (optional)"
+              placeholder="Add a short message for context"
+              value={inviteMessage}
+              onChangeText={setInviteMessage}
+              multiline
+              style={{ height: 80, paddingTop: spacing.md, textAlignVertical: 'top', marginTop: spacing.sm }}
+            />
+            <Button
+              title={inviteSubmitting ? 'Sending…' : 'Send invitation'}
+              onPress={submitInvite}
+              loading={inviteSubmitting}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   );
 }
@@ -483,4 +563,26 @@ const styles = StyleSheet.create({
   pageNumberTextActive: {
     color: 'white',
   },
+
+  invitePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.lg,
+  },
+  invitePillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
+  modalHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
 });

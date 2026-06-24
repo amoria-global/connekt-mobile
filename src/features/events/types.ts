@@ -40,6 +40,12 @@ export type EventItem = {
   startTime?: string;
   endTime?: string;
   published?: boolean;
+  /**
+   * Booking lifecycle: PENDING | ACCEPTED | DECLINED | CANCELLED.
+   * Surfaced so the photographer-facing event-detail page can show
+   * Accept / Decline CTAs only while the booking is PENDING.
+   */
+  bookingStatus?: string;
 
   // ──────── Edit-form fields (web parity) ────────
   // Without these, opening the edit modal cleared half the form and
