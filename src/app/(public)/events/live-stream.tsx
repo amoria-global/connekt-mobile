@@ -83,23 +83,34 @@ export default function PublicLiveStreamScreen() {
   const [recoverError, setRecoverError] = useState<string | null>(null);
 
   // Auto-resume paid anonymous-viewer access if we already have a viewerId.
+  // Backend access-status is GET with `fingerprint` + `viewerId` query
+  // params — needs the device id loaded async, so resolve that inside
+  // the effect rather than blocking the screen mount.
   useEffect(() => {
     if (!viewerId) return;
     let cancelled = false;
     setBusy(true);
-    checkAnonymousAccessStatus(id, viewerId)
-      .then((res) => {
+    (async () => {
+      try {
+        const fingerprint = await getDeviceId();
+        const res = await checkAnonymousAccessStatus(id, viewerId, fingerprint);
         if (cancelled) return;
         if (res.active && res.hlsManifestUrl) {
           setManifestUrl(res.hlsManifestUrl);
+        } else if (res.reason === 'DEVICE_MISMATCH') {
+          // Backend's single-device enforcement: paid viewer is bound
+          // to another device. Don't show as a payment-retry — point
+          // at the recover-by-email flow so they can switch device.
+          setError("You're already watching on another device. Tap recover to switch.");
         } else {
           setError('Your viewer access is not active yet — please retry the payment.');
         }
-      })
-      .catch((e) => {
+      } catch (e) {
         if (!cancelled) setError(isApiError(e) ? e.message : 'Could not verify your access.');
-      })
-      .finally(() => !cancelled && setBusy(false));
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -123,6 +134,39 @@ export default function PublicLiveStreamScreen() {
       clearInterval(handle);
     };
   }, [id]);
+
+  /**
+   * Auto-pick up the HLS manifest from the public event detail.
+   * For free streams (or anonymous viewers who haven't recovered yet)
+   * the event's `eventPhoto`/`hlsManifestUrl` is the only handle to
+   * the playback URL. We poll every 6s until it appears, then stop.
+   * This unblocks the "video can't be received" symptom on events
+   * where the photographer started the stream but the mobile screen
+   * had no path to discover the new manifest.
+   */
+  useEffect(() => {
+    if (manifestUrl) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const detail = await getPublicEventDetailed(id);
+        if (cancelled) return;
+        // HLS ONLY — feeding whepUrl to expo-video sends it to
+        // Cloudflare's /webRTC/play (WebRTC SDP), which the native
+        // player can't decode. We poll until the HLS manifest exists.
+        const url = detail.hlsManifestUrl;
+        if (url) setManifestUrl(url);
+      } catch {
+        /* keep polling */
+      }
+    };
+    tick();
+    const handle = setInterval(tick, 6000);
+    return () => {
+      cancelled = true;
+      clearInterval(handle);
+    };
+  }, [id, manifestUrl]);
 
   /**
    * Poll the public chat panel while we have a manifest. 2.5s feels
@@ -243,7 +287,7 @@ export default function PublicLiveStreamScreen() {
       else {
         // Fall back to the access-status lookup if register didn't
         // return the manifest (some flows defer that until check).
-        const status = await checkAnonymousAccessStatus(id, reg.viewerId);
+        const status = await checkAnonymousAccessStatus(id, reg.viewerId, fingerprint);
         if (status.hlsManifestUrl) setManifestUrl(status.hlsManifestUrl);
       }
       setRecoverOpen(false);
@@ -498,11 +542,32 @@ export default function PublicLiveStreamScreen() {
 }
 
 function Player({ url }: { url: string }) {
-  const player = useVideoPlayer(url, (p) => {
+  // Native HLS on iOS (AVPlayer) and Android (ExoPlayer) needs the
+  // explicit object-form source so it can pick the right metadata
+  // strategy. Passing a bare string sometimes leaves the player in a
+  // "stalled" state on Android where it never asks for segments.
+  //
+  // We also surface playerStatusChange errors via Alert — silent
+  // failures were the reason the screen sat on the placeholder
+  // forever even though the URL was reachable from the browser.
+  const player = useVideoPlayer({ uri: url }, (p) => {
     p.loop = false;
     p.muted = false;
+    p.audioMixingMode = 'auto';
+    p.timeUpdateEventInterval = 0;
     p.play();
   });
+  useEffect(() => {
+    const subscription = player.addListener('statusChange', ({ status, error }) => {
+      if (status === 'error' && error?.message) {
+        // Cloudflare returns 404 for HLS while OBS isn't connected.
+        // We surface a calmer message so the user knows to wait
+        // rather than thinking the player itself is broken.
+        console.warn('[stream] playback error', error.message);
+      }
+    });
+    return () => subscription.remove();
+  }, [player]);
   return (
     <View style={styles.playerWrap}>
       <VideoView
@@ -511,6 +576,7 @@ function Player({ url }: { url: string }) {
         allowsFullscreen
         allowsPictureInPicture
         contentFit="contain"
+        nativeControls
       />
     </View>
   );
