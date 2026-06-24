@@ -103,15 +103,19 @@ export default function TeamScreen() {
   }
 
   if (!me?.isOwner) {
+    // The team / RBAC surface is gated on the organization owner flag at
+    // the backend (TeamController.requireOwner). This screen mirrors that
+    // gate and explains what kind of account is needed.
     return (
       <Screen>
         <ScreenHeader title="Team" />
         <View style={styles.centered}>
-          <Ionicons name="lock-closed-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.titleMuted}>Owner only</Text>
+          <Ionicons name="business-outline" size={40} color={colors.textMuted} />
+          <Text style={styles.titleMuted}>Business account required</Text>
           <Text style={styles.muted}>
-            Team management is restricted to the organization owner. Reach out to{' '}
-            {me?.organizationName ?? 'your owner'} if you need access changes.
+            Team management is for business / organization owners only. Reach out to{' '}
+            {me?.organizationName ?? 'your owner'} if you need permission changes, or contact
+            support to convert your account into a business workspace.
           </Text>
         </View>
       </Screen>

@@ -139,3 +139,53 @@ export async function deleteAlbum(id: string): Promise<void> {
     throw { status: 400, message: res?.message || 'Could not delete the album.' } satisfies ApiError;
   }
 }
+
+// ────── Face-scan / AWS Rekognition index ───────────────────────────────
+//
+// When a photographer uploads photos to an album, the backend kicks off
+// AWS Rekognition to index faces in each image. The resulting "face
+// collection" is what powers the public face-search endpoint that
+// clients use to find their own photos. This helper surfaces the
+// indexing status so a photographer can verify their album is
+// face-searchable.
+
+export type AlbumFaceStatus = {
+  albumId: string;
+  eventId?: string;
+  isPublished?: boolean;
+  galleryImageCount: number;
+  eventMediaCount?: number;
+  /** Face collection metadata from Rekognition (faceCount, status). */
+  collection?: {
+    faceCount?: number;
+    status?: string;
+    error?: string;
+    message?: string;
+  };
+  message?: string;
+};
+
+export async function getAlbumFaceStatus(albumId: string): Promise<AlbumFaceStatus> {
+  const res = await api.get<ApiEnvelope<Raw>>(
+    `/photographer/albums/${encodeURIComponent(albumId)}/face-status`,
+  );
+  const d = (res?.data ?? {}) as Raw;
+  const col = (d.collection ?? {}) as Raw;
+  const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : undefined);
+  return {
+    albumId,
+    eventId: str(d.eventId),
+    isPublished: d.isPublished === true,
+    galleryImageCount: num(d.galleryImageCount) ?? 0,
+    eventMediaCount: num(d.eventMediaCount),
+    collection: col
+      ? {
+          faceCount: num(col.faceCount) ?? num(col.totalFaces),
+          status: str(col.status),
+          error: str(col.error),
+          message: str(col.message),
+        }
+      : undefined,
+    message: str(res?.message),
+  };
+}
