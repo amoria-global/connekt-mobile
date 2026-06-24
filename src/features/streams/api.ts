@@ -396,6 +396,86 @@ export async function sendPublicStreamReaction(
   }
 }
 
+// ────── Public gift / sponsor flow ───────────────────────────────────────
+//
+// Web parity: AnonymousViewerController.@PostMapping("/{id}/gift") —
+// the same endpoint the web uses for anonymous viewers. Triggers
+// XentriPay (MoMo or Card) and returns a paymentUrl. Backend body:
+//   { viewerId, deviceFingerprint, amount, currencyId, paymentMethod,
+//     phone?, telecomProvider?, donationAmount?, redirectUrl?, message? }
+
+export type GiftInitiation = {
+  refid?: string;
+  paymentUrl?: string;
+  message?: string;
+};
+
+export async function initiatePublicGift(
+  eventId: string,
+  payload: {
+    viewerId: string;
+    deviceFingerprint: string;
+    amount: number;
+    currencyId: string;
+    paymentMethod: 'MOMO' | 'CARD';
+    phone?: string;
+    telecomProvider?: 'MTN' | 'AIRTEL';
+    redirectUrl?: string;
+    giftMessage?: string;
+  },
+): Promise<GiftInitiation> {
+  const body: Record<string, unknown> = {
+    viewerId: payload.viewerId,
+    deviceFingerprint: payload.deviceFingerprint,
+    amount: payload.amount,
+    currencyId: payload.currencyId,
+    paymentMethod: payload.paymentMethod,
+  };
+  if (payload.paymentMethod === 'MOMO') {
+    body.phone = payload.phone ?? '';
+    body.telecomProvider = payload.telecomProvider ?? 'MTN';
+  }
+  if (payload.paymentMethod === 'CARD' && payload.redirectUrl) {
+    body.redirectUrl = payload.redirectUrl;
+  }
+  if (payload.giftMessage?.trim()) body.message = payload.giftMessage.trim();
+
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/gift`,
+    body,
+    { skipAuth: true },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not start the gift payment.' };
+  }
+  const d = (res?.data ?? {}) as Raw;
+  return {
+    refid: str(d.refid) ?? str(d.refId) ?? str(d.referenceId),
+    paymentUrl: str(d.paymentUrl) ?? str(d.checkoutUrl),
+    message: str(res?.message),
+  };
+}
+
+// ────── Device-switch confirmation (single-device enforcement) ──────────
+//
+// The DEVICE_MISMATCH reason from access-status means the paid viewer
+// is currently watching from another device. The user explicitly
+// confirms via switch-device, which deactivates the old session and
+// anchors the viewer to this device's fingerprint.
+
+export async function switchAnonymousDevice(
+  eventId: string,
+  viewerId: string,
+  fingerprint: string,
+): Promise<{ ok: boolean; message?: string }> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/switch-device`,
+    { viewerId, deviceFingerprint: fingerprint },
+    { skipAuth: true },
+  );
+  return { ok: res?.action === 1, message: str(res?.message) };
+}
+
 /**
  * In-app (authenticated) chat send — Coordinator-side endpoint. Used by
  * the in-app stream/[id] viewer.

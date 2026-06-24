@@ -33,12 +33,20 @@ import {
   checkAnonymousAccessStatus,
   getPublicStreamChats,
   getPublicViewerCount,
+  initiatePublicGift,
   registerAnonymousViewer,
   sendPublicStreamChat,
   sendPublicStreamReaction,
+  switchAnonymousDevice,
   validateStreamToken,
   type PublicStreamChat,
 } from '@/features/streams/api';
+import { listCurrencies, type Currency } from '@/features/reference/api';
+import {
+  getPublicPaymentStatus,
+  pollPublicPaymentStatus,
+} from '@/features/payments/anonymous';
+import * as WebBrowser from 'expo-web-browser';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { storage } from '@/services/storage';
@@ -82,6 +90,39 @@ export default function PublicLiveStreamScreen() {
   const [recoverBusy, setRecoverBusy] = useState(false);
   const [recoverError, setRecoverError] = useState<string | null>(null);
 
+  // Device-conflict modal — surfaces when the backend returns reason
+  // DEVICE_MISMATCH for a paid viewer. The user explicitly confirms
+  // they want to switch ownership to this device (web parity).
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [conflictBusy, setConflictBusy] = useState(false);
+
+  // Gift / sponsor flow state. Web parity: anonymous-viewer/{id}/gift
+  // endpoint accepts MoMo (MTN/Airtel) and Card. Mobile defaults to
+  // MoMo with the viewer's stored phone number; Card opens the
+  // gateway URL via WebBrowser like the rest of the public flow.
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [giftAmount, setGiftAmount] = useState('1000');
+  const [giftMessage, setGiftMessage] = useState('');
+  const [giftPhone, setGiftPhone] = useState('');
+  const [giftMethod, setGiftMethod] = useState<'MOMO' | 'CARD'>('MOMO');
+  const [giftTelecom, setGiftTelecom] = useState<'MTN' | 'AIRTEL'>('MTN');
+  const [giftBusy, setGiftBusy] = useState(false);
+  const [giftError, setGiftError] = useState<string | null>(null);
+  const [giftCurrencyId, setGiftCurrencyId] = useState<string | null>(null);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
+
+  // Hydrate currencies once so the gift modal can resolve the currency
+  // id without blocking the screen. Default to RWF when possible.
+  useEffect(() => {
+    listCurrencies()
+      .then((list) => {
+        setCurrencies(list);
+        const rwf = list.find((c) => c.code.toUpperCase() === 'RWF');
+        setGiftCurrencyId(rwf?.id ?? list[0]?.id ?? null);
+      })
+      .catch(() => {});
+  }, []);
+
   // Auto-resume paid anonymous-viewer access if we already have a viewerId.
   // Backend access-status is GET with `fingerprint` + `viewerId` query
   // params — needs the device id loaded async, so resolve that inside
@@ -99,9 +140,9 @@ export default function PublicLiveStreamScreen() {
           setManifestUrl(res.hlsManifestUrl);
         } else if (res.reason === 'DEVICE_MISMATCH') {
           // Backend's single-device enforcement: paid viewer is bound
-          // to another device. Don't show as a payment-retry — point
-          // at the recover-by-email flow so they can switch device.
-          setError("You're already watching on another device. Tap recover to switch.");
+          // to another device. Open the confirmation modal so the user
+          // explicitly decides to take over the session on THIS device.
+          setConflictOpen(true);
         } else {
           setError('Your viewer access is not active yet — please retry the payment.');
         }
@@ -298,6 +339,100 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
+  /**
+   * Confirm device-switch: deactivate the old session, anchor the
+   * viewerId to this device's fingerprint, then re-check access.
+   */
+  const confirmSwitchDevice = async () => {
+    if (!viewerId) return;
+    setConflictBusy(true);
+    try {
+      const fingerprint = await getDeviceId();
+      const res = await switchAnonymousDevice(id, viewerId, fingerprint);
+      if (!res.ok) {
+        setError(res.message ?? 'Could not switch device.');
+        setConflictOpen(false);
+        return;
+      }
+      // Re-verify; the access-status response carries the manifest now.
+      const status = await checkAnonymousAccessStatus(id, viewerId, fingerprint);
+      if (status.active && status.hlsManifestUrl) {
+        setManifestUrl(status.hlsManifestUrl);
+        setConflictOpen(false);
+      } else {
+        setError('Switched, but the stream isn’t live yet. Tap retry.');
+      }
+    } catch (e) {
+      setError(isApiError(e) ? e.message : 'Could not switch device.');
+    } finally {
+      setConflictBusy(false);
+    }
+  };
+
+  /**
+   * Initiate a gift. MoMo path uses StorageQ phone + telecom; Card
+   * opens the gateway URL via expo-web-browser like the rest of the
+   * public flow. We poll the public payment-status endpoint until
+   * COMPLETED or FAILED.
+   */
+  const onSubmitGift = async () => {
+    setGiftError(null);
+    if (!viewerId) {
+      setGiftError('You need viewer access first — recover or buy access.');
+      return;
+    }
+    if (!giftCurrencyId) {
+      setGiftError('Currencies haven’t loaded yet — try again in a moment.');
+      return;
+    }
+    const amount = parseInt(giftAmount, 10);
+    if (Number.isNaN(amount) || amount <= 0) {
+      setGiftError('Enter a valid amount.');
+      return;
+    }
+    if (giftMethod === 'MOMO' && (!giftPhone.trim() || giftPhone.length < 9)) {
+      setGiftError('Enter the mobile-money phone number.');
+      return;
+    }
+    setGiftBusy(true);
+    try {
+      const fingerprint = await getDeviceId();
+      const init = await initiatePublicGift(id, {
+        viewerId,
+        deviceFingerprint: fingerprint,
+        amount,
+        currencyId: giftCurrencyId,
+        paymentMethod: giftMethod,
+        phone: giftMethod === 'MOMO' ? giftPhone.trim() : undefined,
+        telecomProvider: giftMethod === 'MOMO' ? giftTelecom : undefined,
+        redirectUrl: giftMethod === 'CARD' ? 'https://connekyt.com/payment-callback' : undefined,
+        giftMessage: giftMessage,
+      });
+      if (init.paymentUrl) {
+        await WebBrowser.openBrowserAsync(init.paymentUrl).catch(() => {});
+      }
+      if (init.refid) {
+        const settled = await pollPublicPaymentStatus(init.refid, {
+          maxAttempts: 30,
+          intervalMs: 4000,
+          graceMs: 8000,
+        });
+        if (settled === 'success') {
+          setGiftOpen(false);
+          setGiftAmount('1000');
+          setGiftMessage('');
+        } else {
+          const last = await getPublicPaymentStatus(init.refid).catch(() => 'pending' as const);
+          setGiftError(`Payment ${last}. Please try again.`);
+        }
+      }
+    } catch (e) {
+      setGiftError(isApiError(e) ? e.message : 'Could not start the gift.');
+    } finally {
+      setGiftBusy(false);
+    }
+  };
+
   const onJoinWithToken = async () => {
     if (!token.trim()) {
       setError('Please paste the invite token from your invitation.');
@@ -394,7 +529,21 @@ export default function PublicLiveStreamScreen() {
          */}
         {manifestUrl ? (
           <View style={styles.chatCard}>
-            <Text style={styles.chatTitle}>Live chat</Text>
+            <View style={styles.chatTitleRow}>
+              <Text style={styles.chatTitle}>Live chat</Text>
+              {/*
+               * Gift button — opens the sponsor sheet. Web parity:
+               * always visible while watching, opens the gift modal
+               * regardless of free/paid event (anonymous viewer gift
+               * endpoint accepts both).
+               */}
+              {viewerId ? (
+                <Pressable style={styles.giftPill} onPress={() => setGiftOpen(true)}>
+                  <Ionicons name="gift-outline" size={14} color="#fff" />
+                  <Text style={styles.giftPillText}>Sponsor</Text>
+                </Pressable>
+              ) : null}
+            </View>
 
             <View style={styles.chatList}>
               {chats.length === 0 ? (
@@ -490,6 +639,153 @@ export default function PublicLiveStreamScreen() {
           ))}
         </View>
       ) : null}
+
+      {/* Device-conflict confirmation — web parity: explicit
+          switch-device confirmation to take ownership on this device. */}
+      <Modal
+        visible={conflictOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setConflictOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setConflictOpen(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>You're watching on another device</Text>
+            <Text style={styles.modalHint}>
+              Only one device can watch at a time on a single paid ticket. Switch ownership to this
+              device and the old session will be ended.
+            </Text>
+            <Button
+              title={conflictBusy ? 'Switching…' : 'Switch to this device'}
+              onPress={confirmSwitchDevice}
+              loading={conflictBusy}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Gift / sponsor sheet — web parity: amount + currency + payment
+          method picker, opens XentriPay gateway URL via WebBrowser. */}
+      <Modal
+        visible={giftOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setGiftOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setGiftOpen(false)}>
+          <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>Sponsor this stream</Text>
+              <Text style={styles.modalHint}>
+                Send a gift to the photographer running this event. Mobile Money is processed
+                instantly; Card goes through XentriPay.
+              </Text>
+
+              <Text style={styles.giftLabel}>Amount</Text>
+              <View style={styles.amountChipRow}>
+                {[500, 1000, 2000, 5000, 10000].map((preset) => {
+                  const active = String(preset) === giftAmount;
+                  return (
+                    <Pressable
+                      key={preset}
+                      style={[styles.amountChip, active && styles.amountChipActive]}
+                      onPress={() => setGiftAmount(String(preset))}
+                    >
+                      <Text style={[styles.amountChipText, active && styles.amountChipTextActive]}>
+                        {preset.toLocaleString()}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Input
+                value={giftAmount}
+                onChangeText={(t) => setGiftAmount(t.replace(/[^0-9]/g, ''))}
+                placeholder="Custom amount"
+                keyboardType="number-pad"
+              />
+
+              <Text style={styles.giftLabel}>Payment method</Text>
+              <View style={styles.payTabs}>
+                <Pressable
+                  style={[styles.payTab, giftMethod === 'MOMO' && styles.payTabActive]}
+                  onPress={() => setGiftMethod('MOMO')}
+                >
+                  <Ionicons
+                    name="phone-portrait-outline"
+                    size={16}
+                    color={giftMethod === 'MOMO' ? colors.primary : colors.textMuted}
+                  />
+                  <Text style={[styles.payTabText, giftMethod === 'MOMO' && styles.payTabTextActive]}>
+                    Mobile Money
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.payTab, giftMethod === 'CARD' && styles.payTabActive]}
+                  onPress={() => setGiftMethod('CARD')}
+                >
+                  <Ionicons
+                    name="card-outline"
+                    size={16}
+                    color={giftMethod === 'CARD' ? colors.primary : colors.textMuted}
+                  />
+                  <Text style={[styles.payTabText, giftMethod === 'CARD' && styles.payTabTextActive]}>
+                    Card
+                  </Text>
+                </Pressable>
+              </View>
+
+              {giftMethod === 'MOMO' ? (
+                <>
+                  <View style={styles.payTabs}>
+                    <Pressable
+                      style={[styles.payTab, giftTelecom === 'MTN' && styles.payTabActive]}
+                      onPress={() => setGiftTelecom('MTN')}
+                    >
+                      <Text style={[styles.payTabText, giftTelecom === 'MTN' && styles.payTabTextActive]}>
+                        MTN
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.payTab, giftTelecom === 'AIRTEL' && styles.payTabActive]}
+                      onPress={() => setGiftTelecom('AIRTEL')}
+                    >
+                      <Text style={[styles.payTabText, giftTelecom === 'AIRTEL' && styles.payTabTextActive]}>
+                        Airtel
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <Input
+                    label="Phone"
+                    value={giftPhone}
+                    onChangeText={(t) => setGiftPhone(t.replace(/[^0-9+]/g, ''))}
+                    placeholder="+2507…"
+                    keyboardType="phone-pad"
+                    autoCapitalize="none"
+                  />
+                </>
+              ) : null}
+
+              <Input
+                label="Message (optional)"
+                value={giftMessage}
+                onChangeText={setGiftMessage}
+                placeholder="Say something nice"
+                multiline
+                style={{ height: 80, paddingTop: spacing.md, textAlignVertical: 'top', marginTop: spacing.sm }}
+              />
+
+              {giftError ? <Text style={styles.chatError}>{giftError}</Text> : null}
+
+              <Button
+                title={giftBusy ? 'Processing…' : `Send ${giftAmount} ${currencies.find((c) => c.id === giftCurrencyId)?.code ?? 'RWF'}`}
+                onPress={onSubmitGift}
+                loading={giftBusy}
+              />
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Recover-by-email sheet */}
       <Modal
@@ -639,7 +935,53 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     gap: spacing.md,
   },
+  chatTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   chatTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  giftPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+  },
+  giftPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  giftLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    color: colors.textSoft,
+    marginTop: spacing.sm,
+    letterSpacing: 0.4,
+  },
+  amountChipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginVertical: 6 },
+  amountChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  amountChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  amountChipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: '700' },
+  amountChipTextActive: { color: '#fff' },
+  payTabs: { flexDirection: 'row', gap: 6, marginVertical: 6 },
+  payTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1.5,
+    borderColor: colors.borderSoft,
+  },
+  payTabActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  payTabText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: '700' },
+  payTabTextActive: { color: colors.primary },
   chatList: { gap: 6, maxHeight: 280 },
   chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
   chatBubble: {
