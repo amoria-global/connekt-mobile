@@ -405,7 +405,7 @@ export default function HomeScreen() {
             {activities.length > 0 ? (
               <Section title="Recent activity">
                 {activities.map((a) => (
-                  <ActivityRow key={a.id} activity={a} />
+                  <ActivityRow key={a.id} activity={a} router={router} />
                 ))}
               </Section>
             ) : null}
@@ -707,11 +707,40 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function ActivityRow({ activity }: { activity: RecentActivity }) {
-  const label = activity.type.charAt(0).toUpperCase() + activity.type.slice(1).toLowerCase();
+/**
+ * Recent activity row on the Home dashboard.
+ *
+ * The backend returns activities as `{ id, type, title, createdAt }`
+ * with `type` shaped like `BOOKING_CREATED` / `EVENT_COMPLETED` /
+ * `PAYMENT_RECEIVED`. Previously this rendered as a plain View with
+ * the type stringified as `Booking_created` (a half-cased enum that
+ * looked unfinished) — and the row didn't react to taps.
+ *
+ * Now: pretty label (snake_case → Title Case), per-type icon, chevron,
+ * and the row navigates to the matching list screen based on type
+ * prefix (the activity payload doesn't carry the underlying entityId,
+ * so we route to the list and let the user pick from there).
+ */
+function ActivityRow({
+  activity,
+  router,
+}: {
+  activity: RecentActivity;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const { label, icon, href } = describeActivity(activity.type);
+
   return (
-    <View style={styles.activityRow}>
-      <View style={styles.activityDot} />
+    <Pressable
+      style={({ pressed }) => [styles.activityRow, pressed && styles.pressed]}
+      onPress={() => router.push(href as never)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${label}: ${activity.title}`}
+      android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
+    >
+      <View style={styles.activityIcon}>
+        <Ionicons name={icon} size={16} color={colors.primary} />
+      </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.activityLabel}>{label}</Text>
         <Text style={styles.activityTitle} numberOfLines={2}>
@@ -721,8 +750,37 @@ function ActivityRow({ activity }: { activity: RecentActivity }) {
       {activity.createdAt ? (
         <Text style={styles.activityTime}>{formatDate(activity.createdAt)}</Text>
       ) : null}
-    </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+    </Pressable>
   );
+}
+
+function describeActivity(rawType: string): {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  href: string;
+} {
+  const t = (rawType || '').toUpperCase();
+  // Pretty-format BOOKING_CREATED → "Booking created".
+  const label = t
+    .split('_')
+    .filter(Boolean)
+    .map((w, i) => (i === 0 ? w.charAt(0) + w.slice(1).toLowerCase() : w.toLowerCase()))
+    .join(' ');
+
+  if (t.startsWith('BOOKING')) return { label, icon: 'calendar-outline', href: '/bookings' };
+  if (t.startsWith('EVENT')) return { label, icon: 'calendar', href: '/events' };
+  if (t.startsWith('PAYMENT') || t.startsWith('TRANSACTION'))
+    return { label, icon: 'card-outline', href: '/transactions' };
+  if (t.startsWith('PHOTOBOOK')) return { label, icon: 'book-outline', href: '/photobooks' };
+  if (t.startsWith('ALBUM') || t.startsWith('GALLERY'))
+    return { label, icon: 'images-outline', href: '/gallery' };
+  if (t.startsWith('REVIEW') || t.startsWith('RATING'))
+    return { label, icon: 'star-outline', href: '/profile' };
+  if (t.startsWith('MESSAGE') || t.startsWith('CHAT'))
+    return { label, icon: 'chatbubble-outline', href: '/inbox' };
+  if (t.startsWith('STREAM')) return { label, icon: 'videocam-outline', href: '/streams' };
+  return { label: label || 'Activity', icon: 'pulse-outline', href: '/events' };
 }
 
 function SimpleHeader({
@@ -916,6 +974,14 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
   },
   activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  activityIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.infoBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   activityLabel: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, textTransform: 'uppercase' },
   activityTitle: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.semibold, marginTop: 2 },
   activityTime: { fontSize: 10, color: colors.textMuted },
