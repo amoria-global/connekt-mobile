@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +17,15 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
-import { addAlbumImages, deleteAlbum, getAlbum, unlockAlbum, type AlbumImage } from '@/features/gallery/api';
+import {
+  addAlbumImages,
+  deleteAlbum,
+  getAlbum,
+  getAlbumFaceStatus,
+  unlockAlbum,
+  type AlbumFaceStatus,
+  type AlbumImage,
+} from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
@@ -34,6 +42,23 @@ export default function AlbumDetailScreen() {
   );
   const [unlocking, setUnlocking] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [faceStatus, setFaceStatus] = useState<AlbumFaceStatus | null>(null);
+
+  // Pull the face-index status alongside the album so the photographer
+  // can verify their photos are searchable. Best-effort: a failure here
+  // shouldn't tank the album view.
+  useEffect(() => {
+    if (!isPhotographer || !id) return;
+    let cancelled = false;
+    getAlbumFaceStatus(id)
+      .then((s) => {
+        if (!cancelled) setFaceStatus(s);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isPhotographer]);
 
   const onAddPhotos = async () => {
     const imgs = await pickMultipleFromLibrary(30);
@@ -149,6 +174,39 @@ export default function AlbumDetailScreen() {
               </View>
             ) : null}
 
+            {/*
+             * Face-scan index status — Photographer-only. AWS Rekognition
+             * indexes faces server-side when photos are uploaded. This
+             * card surfaces the indexed-face count + status so a
+             * photographer can verify their album is searchable from the
+             * public face-search endpoint that clients use to find
+             * themselves.
+             */}
+            {isPhotographer && faceStatus ? (
+              <View style={styles.faceCard}>
+                <View style={styles.faceHead}>
+                  <Ionicons name="scan-outline" size={18} color={colors.primary} />
+                  <Text style={styles.faceTitle}>Face-scan index</Text>
+                </View>
+                {faceStatus.collection?.error ? (
+                  <Text style={[styles.faceMsg, { color: colors.error }]}>
+                    Indexing error: {faceStatus.collection.message || faceStatus.collection.error}
+                  </Text>
+                ) : (
+                  <Text style={styles.faceMsg}>
+                    {faceStatus.collection?.faceCount ?? 0} face
+                    {(faceStatus.collection?.faceCount ?? 0) === 1 ? '' : 's'} indexed across{' '}
+                    {faceStatus.galleryImageCount} photo
+                    {faceStatus.galleryImageCount === 1 ? '' : 's'}
+                    {faceStatus.collection?.status
+                      ? ` · status: ${faceStatus.collection.status}`
+                      : ''}
+                    .
+                  </Text>
+                )}
+              </View>
+            ) : null}
+
             {locked ? (
               <View style={styles.lockedCard}>
                 <Ionicons name="lock-closed" size={28} color={colors.primary} />
@@ -194,6 +252,18 @@ const styles = StyleSheet.create({
   header: { gap: 2, marginBottom: spacing.md },
   title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
   meta: { fontSize: fontSize.sm, color: colors.textMuted },
+  faceCard: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.infoBg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    gap: 4,
+  },
+  faceHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  faceTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.primary },
+  faceMsg: { fontSize: fontSize.xs, color: colors.textSoft, lineHeight: 18 },
   manageRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   manageBtn: {
     flex: 1,
