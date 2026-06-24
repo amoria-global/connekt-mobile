@@ -46,6 +46,12 @@ export type EventItem = {
    * Accept / Decline CTAs only while the booking is PENDING.
    */
   bookingStatus?: string;
+  /**
+   * Cloudflare stream lifecycle: disconnected | connected | paused | ended.
+   * Drives Go Live / Reset / hidden states on the owner panel — once an
+   * event's stream is "ended" it can't be restarted (backend rejects).
+   */
+  streamStatus?: string;
 
   // ──────── Edit-form fields (web parity) ────────
   // Without these, opening the edit modal cleared half the form and

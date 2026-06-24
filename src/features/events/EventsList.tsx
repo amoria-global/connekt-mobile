@@ -37,13 +37,37 @@ export function EventsList({
   }, [coordinator, variant]);
   const { data, loading, error, refresh } = useAsync(fetcher);
 
+  /**
+   * Filter + sort. Default ordering is newest first across all three
+   * tabs — both salo-run and the user's expectation: a coordinator
+   * with 30 events doesn't want to scroll past 2024 to see today's.
+   *
+   *   • upcoming → soonest-first (ascending by date)
+   *   • past     → most-recent first (descending by date)
+   *   • all      → most-recent first (descending by date)
+   *
+   * Undated rows sort to the bottom of each list.
+   */
   const filtered = useMemo(() => {
-    if (!data || filter === 'all') return data;
+    if (!data) return data;
     const today = startOfToday();
-    return data.filter((e) => {
-      const t = e.eventDate ? new Date(e.eventDate).getTime() : NaN;
-      if (Number.isNaN(t)) return filter === 'upcoming'; // undated → treat as upcoming
-      return filter === 'upcoming' ? t >= today : t < today;
+    const list = filter === 'all'
+      ? [...data]
+      : data.filter((e) => {
+          const t = e.eventDate ? new Date(e.eventDate).getTime() : NaN;
+          if (Number.isNaN(t)) return filter === 'upcoming';
+          return filter === 'upcoming' ? t >= today : t < today;
+        });
+
+    return list.sort((a, b) => {
+      const ta = a.eventDate ? new Date(a.eventDate).getTime() : NaN;
+      const tb = b.eventDate ? new Date(b.eventDate).getTime() : NaN;
+      const aDated = !Number.isNaN(ta);
+      const bDated = !Number.isNaN(tb);
+      if (!aDated && !bDated) return 0;
+      if (!aDated) return 1;
+      if (!bDated) return -1;
+      return filter === 'upcoming' ? ta - tb : tb - ta;
     });
   }, [data, filter]);
 

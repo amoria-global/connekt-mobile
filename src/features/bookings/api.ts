@@ -13,6 +13,7 @@ export type Booking = {
   proposedPrice?: number;
   currency?: string;
   eventDate?: string;
+  createdAt?: string;
 };
 
 type Raw = Record<string, unknown>;
@@ -37,13 +38,30 @@ function mapBooking(r: Raw): Booking {
     proposedPrice: num(r.proposedPrice) ?? num(r.price),
     currency: str(r.currency) ?? str(r.currencyCode),
     eventDate: str(event.eventDate) ?? str(r.eventDate),
+    createdAt: str(r.createdAt) ?? str(r.requestedAt) ?? str(r.updatedAt),
   };
 }
 
 export async function listBookings(): Promise<Booking[]> {
   const res = await api.get<ApiEnvelope<Raw[]>>('/bookings');
   const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapBooking).filter((b) => b.id);
+  // Newest first: backend returns insertion-order so the photographer
+  // had to scroll past stale requests to see fresh ones. Sort by
+  // createdAt desc; rows with no createdAt fall back to eventDate desc;
+  // last-resort original order if neither is set.
+  return data
+    .map(mapBooking)
+    .filter((b) => b.id)
+    .sort((a, b) => {
+      const at = a.createdAt ? new Date(a.createdAt).getTime() : NaN;
+      const bt = b.createdAt ? new Date(b.createdAt).getTime() : NaN;
+      if (!Number.isNaN(at) && !Number.isNaN(bt)) return bt - at;
+      if (!Number.isNaN(bt)) return 1;
+      if (!Number.isNaN(at)) return -1;
+      const ae = a.eventDate ? new Date(a.eventDate).getTime() : 0;
+      const be = b.eventDate ? new Date(b.eventDate).getTime() : 0;
+      return be - ae;
+    });
 }
 
 export async function acceptBooking(id: string): Promise<void> {

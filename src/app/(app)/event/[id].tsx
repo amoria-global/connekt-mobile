@@ -334,12 +334,14 @@ export default function EventDetailScreen() {
             ) : null}
 
             <View style={styles.actionGrid}>
-              <ActionPill
-                icon="videocam-outline"
-                label="Go live"
-                onPress={onGoLive}
-                loading={busy === 'stream'}
-              />
+              {data?.streamStatus !== 'ended' ? (
+                <ActionPill
+                  icon="videocam-outline"
+                  label="Go live"
+                  onPress={onGoLive}
+                  loading={busy === 'stream'}
+                />
+              ) : null}
               <ActionPill
                 icon="checkmark-done-outline"
                 label="Mark completed"
@@ -364,12 +366,14 @@ export default function EventDetailScreen() {
             <View style={styles.actionGrid}>
               <ActionPill icon="create-outline" label="Edit" onPress={() => router.push(`/event/new?editId=${id}`)} />
               <ActionPill icon="share-social-outline" label="Share" onPress={onShare} />
-              <ActionPill
-                icon="videocam-outline"
-                label="Go live"
-                onPress={onGoLive}
-                loading={busy === 'stream'}
-              />
+              {data?.streamStatus !== 'ended' ? (
+                <ActionPill
+                  icon="videocam-outline"
+                  label="Go live"
+                  onPress={onGoLive}
+                  loading={busy === 'stream'}
+                />
+              ) : null}
               {/*
                * Pause / Resume — web parity. When the event status is
                * already PAUSED, surface Resume; otherwise show Pause. The
@@ -382,6 +386,20 @@ export default function EventDetailScreen() {
                   label="Resume"
                   onPress={onResume}
                   loading={busy === 'resume'}
+                />
+              ) : data?.streamStatus === 'ended' ? (
+                /*
+                 * Stream has reached the permanent "ended" state — the
+                 * backend rejects start with BusinessRuleException.
+                 * Surface a Reset action instead so the photographer can
+                 * cycle a fresh Cloudflare live input if they truly need
+                 * to re-stream this event.
+                 */
+                <ActionPill
+                  icon="refresh-circle-outline"
+                  label="Reset stream"
+                  onPress={onResetStream}
+                  loading={busy === 'stream'}
                 />
               ) : (
                 <ActionPill
@@ -494,13 +512,39 @@ export default function EventDetailScreen() {
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.sheetTitle}>Stream setup</Text>
             <Text style={styles.sheetHint}>
-              Paste this WHIP URL into OBS → Settings → Stream → Service: WHIP. When OBS connects,
-              the event goes live for everyone holding your invite link.
+              Paste the WHIP URL into OBS → Settings → Stream → Service: WHIP. Once OBS connects,
+              the event goes live for anyone watching.
             </Text>
+
+            {/* Step indicator — orients the photographer in the flow */}
+            <View style={styles.streamSteps}>
+              <Text style={styles.streamStepText}>
+                <Text style={styles.streamStepNum}>1.</Text> Copy WHIP URL · <Text style={styles.streamStepNum}>2.</Text> Paste in OBS · <Text style={styles.streamStepNum}>3.</Text> Start broadcasting
+              </Text>
+            </View>
 
             {streamSetup?.whipUrl ? (
               <>
-                <Text style={styles.streamLabel}>WHIP URL</Text>
+                <View style={styles.streamLabelRow}>
+                  <Text style={styles.streamLabel}>WHIP URL (encoder)</Text>
+                  <Pressable
+                    onPress={async () => {
+                      try {
+                        await Share.share({
+                          title: 'OBS WHIP URL',
+                          message: streamSetup.whipUrl ?? '',
+                        });
+                      } catch {
+                        /* dismissed */
+                      }
+                    }}
+                    hitSlop={6}
+                    style={styles.copyChip}
+                  >
+                    <Ionicons name="share-outline" size={12} color={colors.primary} />
+                    <Text style={styles.copyChipText}>Share / Copy</Text>
+                  </Pressable>
+                </View>
                 <View style={styles.streamUrlBox} pointerEvents="box-none">
                   <Text style={styles.streamUrlText} selectable>
                     {streamSetup.whipUrl}
@@ -511,7 +555,26 @@ export default function EventDetailScreen() {
 
             {streamSetup?.hlsManifestUrl ? (
               <>
-                <Text style={styles.streamLabel}>HLS manifest (viewer)</Text>
+                <View style={styles.streamLabelRow}>
+                  <Text style={styles.streamLabel}>HLS manifest (viewers)</Text>
+                  <Pressable
+                    onPress={async () => {
+                      try {
+                        await Share.share({
+                          title: 'Viewer playback URL',
+                          message: streamSetup.hlsManifestUrl ?? '',
+                        });
+                      } catch {
+                        /* dismissed */
+                      }
+                    }}
+                    hitSlop={6}
+                    style={styles.copyChip}
+                  >
+                    <Ionicons name="share-outline" size={12} color={colors.primary} />
+                    <Text style={styles.copyChipText}>Share / Copy</Text>
+                  </Pressable>
+                </View>
                 <View style={styles.streamUrlBox} pointerEvents="box-none">
                   <Text style={styles.streamUrlText} selectable>
                     {streamSetup.hlsManifestUrl}
@@ -636,8 +699,14 @@ const styles = StyleSheet.create({
   sheetHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
   commentInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
   streamLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textSoft, marginTop: spacing.sm, letterSpacing: 0.4 },
+  streamLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
   streamUrlBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, padding: spacing.md, borderWidth: 1, borderColor: colors.borderSoft },
   streamUrlText: { fontSize: fontSize.sm, color: colors.text, fontFamily: 'monospace' },
+  streamSteps: { backgroundColor: colors.infoBg, padding: spacing.sm, borderRadius: radii.md },
+  streamStepText: { color: colors.info, fontSize: 12 },
+  streamStepNum: { fontWeight: '800' },
+  copyChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.infoBg, borderRadius: radii.full },
+  copyChipText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
   starRow: { alignItems: 'center', paddingVertical: spacing.sm },
   requestChanges: { alignItems: 'center', paddingVertical: spacing.md },
   requestChangesText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.accent },
