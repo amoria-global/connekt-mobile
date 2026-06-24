@@ -33,27 +33,10 @@ type ForwardRefRenderable = {
   render: (props: { style?: unknown }, ref: unknown) => unknown;
 };
 
-let fontDefaultsApplied = false;
-
 function applyDefaultFont() {
-  if (fontDefaultsApplied) return;
-  fontDefaultsApplied = true;
-
-  const injectFamily = (component: unknown) => {
-    const c = component as Partial<ForwardRefRenderable>;
-    const original = c.render;
-    if (typeof original !== 'function') return;
-    (c as ForwardRefRenderable).render = function patchedRender(props, ref) {
-      const next = {
-        ...props,
-        style: [{ fontFamily: 'PragatiNarrow_400Regular' }, props?.style],
-      };
-      return original.call(this, next, ref);
-    };
-  };
-
-  injectFamily(Text);
-  injectFamily(TextInput);
+  // Safe NO-OP to prevent production crashes. 
+  // In React 19 / Release mode, patching internal `.render` on Text causes instant crashes.
+  // To apply global fonts safely, you should create a <CustomText> wrapper component instead.
 }
 
 /**
