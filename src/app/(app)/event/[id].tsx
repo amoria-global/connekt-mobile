@@ -13,6 +13,7 @@ import {
   confirmCompletion,
   deleteEvent,
   getEvent,
+  markEventCompletedByPhotographer,
   publishEvent,
   resetEventStream,
   startEventStream,
@@ -30,7 +31,7 @@ const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { ownsEvents } = useRole();
+  const { ownsEvents, isPhotographer } = useRole();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getEvent(id), [id]));
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -97,6 +98,67 @@ export default function EventDetailScreen() {
         },
       },
     ]);
+  };
+
+  /**
+   * Photographer "mark this shoot complete" — kicks the event into
+   * the AWAITING_CLIENT_CONFIRMATION state. The client then has 7
+   * days to either confirm completion (releases escrow) or request
+   * changes (the photographer reshoots / re-edits).
+   */
+  const onPhotographerMarkCompleted = () => {
+    Alert.prompt
+      ? Alert.prompt(
+          'Mark as completed',
+          'Add an optional note for the client (delivery details, special instructions, etc).',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Mark completed',
+              onPress: async (notes?: string) => {
+                setBusy('photog-complete');
+                try {
+                  await markEventCompletedByPhotographer(id, notes);
+                  await refresh();
+                  Alert.alert(
+                    'Marked completed',
+                    'Waiting for the client to confirm. Escrow releases on their confirmation.',
+                  );
+                } catch (e) {
+                  Alert.alert(
+                    'Could not mark complete',
+                    isApiError(e) ? e.message : 'Please try again.',
+                  );
+                } finally {
+                  setBusy(null);
+                }
+              },
+            },
+          ],
+          'plain-text',
+        )
+      : runMarkCompletedWithoutPrompt();
+  };
+
+  // Alert.prompt only exists on iOS. Android fallback skips the notes
+  // and just submits the action.
+  const runMarkCompletedWithoutPrompt = async () => {
+    setBusy('photog-complete');
+    try {
+      await markEventCompletedByPhotographer(id);
+      await refresh();
+      Alert.alert(
+        'Marked completed',
+        'Waiting for the client to confirm. Escrow releases on their confirmation.',
+      );
+    } catch (e) {
+      Alert.alert(
+        'Could not mark complete',
+        isApiError(e) ? e.message : 'Please try again.',
+      );
+    } finally {
+      setBusy(null);
+    }
   };
 
   /**
@@ -194,6 +256,31 @@ export default function EventDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About this event</Text>
             <Text style={styles.body}>{data.description}</Text>
+          </View>
+        ) : null}
+
+        {/*
+         * Photographer Manage — visible to a photographer working this
+         * event so they can mark the shoot complete. The full
+         * publish/edit/delete panel below is owner-only.
+         */}
+        {isPhotographer && !ownsEvents ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Photographer actions</Text>
+            <View style={styles.actionGrid}>
+              <ActionPill
+                icon="videocam-outline"
+                label="Go live"
+                onPress={onGoLive}
+                loading={busy === 'stream'}
+              />
+              <ActionPill
+                icon="checkmark-done-outline"
+                label="Mark completed"
+                onPress={onPhotographerMarkCompleted}
+                loading={busy === 'photog-complete'}
+              />
+            </View>
           </View>
         ) : null}
 

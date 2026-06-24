@@ -64,7 +64,21 @@ export function EventsList({
       }
       keyExtractor={(e) => e.id}
       renderItem={({ item }) => (
-        <Pressable onPress={() => router.push(`/event/${item.id}`)}>
+        <Pressable
+          // Explicit width + opacity feedback so the tap is obvious.
+          // Without this, on smaller phones the card felt inert because
+          // there was no visual confirmation of the press before the
+          // navigation kicked in.
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${item.title}`}
+          android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
+          style={({ pressed }) => ({
+            width: '100%',
+            opacity: pressed ? 0.85 : 1,
+            transform: pressed ? [{ scale: 0.99 }] : undefined,
+          })}
+          onPress={() => router.push(`/event/${item.id}` as never)}
+        >
           <EventCard event={item} />
         </Pressable>
       )}

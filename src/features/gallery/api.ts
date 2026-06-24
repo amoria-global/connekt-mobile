@@ -140,6 +140,52 @@ export async function deleteAlbum(id: string): Promise<void> {
   }
 }
 
+// ────── Album lifecycle (Send / Publish / Submit) ───────────────────────
+//
+// Mirrors PhotographerAlbumController:
+//   POST /photographer/albums/{id}/send            → email link to client
+//   POST /photographer/albums/{id}/publish         → publish to Face-AI search
+//   POST /photographer/albums/content/{id}/submit  → content album review
+
+export async function sendAlbumToClient(albumId: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/photographer/albums/${encodeURIComponent(albumId)}/send`,
+    {},
+  );
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'Could not send the album to the client.',
+    } satisfies ApiError;
+  }
+}
+
+export async function publishAlbumToFaceSearch(albumId: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/photographer/albums/${encodeURIComponent(albumId)}/publish`,
+    {},
+  );
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'Could not publish the album.',
+    } satisfies ApiError;
+  }
+}
+
+export async function submitContentAlbum(albumId: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/photographer/albums/content/${encodeURIComponent(albumId)}/submit`,
+    {},
+  );
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'Could not submit the album for review.',
+    } satisfies ApiError;
+  }
+}
+
 // ────── Face-scan / AWS Rekognition index ───────────────────────────────
 //
 // When a photographer uploads photos to an album, the backend kicks off

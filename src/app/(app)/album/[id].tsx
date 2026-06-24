@@ -22,6 +22,9 @@ import {
   deleteAlbum,
   getAlbum,
   getAlbumFaceStatus,
+  publishAlbumToFaceSearch,
+  sendAlbumToClient,
+  submitContentAlbum,
   unlockAlbum,
   type AlbumFaceStatus,
   type AlbumImage,
@@ -94,6 +97,60 @@ export default function AlbumDetailScreen() {
     ]);
   };
 
+  /**
+   * Album lifecycle actions (Photographer only):
+   *   • Send       → emails the album link to the linked client
+   *   • Publish    → publishes to Face-AI search so clients can find
+   *                  themselves via /find-my-photos
+   *   • Submit     → submits a content album for review (paid catalog)
+   * The three actions are best-effort, each surfaces its own success
+   * toast via Alert and refreshes the album view on completion.
+   */
+  const runLifecycle = async (
+    key: 'send' | 'publish' | 'submit',
+    fn: () => Promise<void>,
+    successTitle: string,
+    successMessage: string,
+  ) => {
+    setBusy(key);
+    try {
+      await fn();
+      await refresh();
+      Alert.alert(successTitle, successMessage);
+    } catch (err) {
+      Alert.alert(
+        'Could not complete',
+        isApiError(err) ? err.message : 'Please try again.',
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onSendToClient = () =>
+    runLifecycle(
+      'send',
+      () => sendAlbumToClient(id),
+      'Album sent',
+      "The client now has an email with the link to view this album.",
+    );
+
+  const onPublishToFaceSearch = () =>
+    runLifecycle(
+      'publish',
+      () => publishAlbumToFaceSearch(id),
+      'Album published',
+      "Your photos are now searchable through the Find My Photos face-scan.",
+    );
+
+  const onSubmitForReview = () =>
+    runLifecycle(
+      'submit',
+      () => submitContentAlbum(id),
+      'Submitted for review',
+      "Our team will publish this album to the catalog once it's approved.",
+    );
+
   const gap = spacing.sm;
   const cols = 3;
   const cell = (width - spacing.lg * 2 - gap * (cols - 1)) / cols;
@@ -150,28 +207,64 @@ export default function AlbumDetailScreen() {
             </Text>
 
             {isPhotographer ? (
-              <View style={styles.manageRow}>
-                <Pressable style={styles.manageBtn} onPress={onAddPhotos} disabled={!!busy}>
-                  {busy === 'add' ? (
+              <>
+                <View style={styles.manageRow}>
+                  <Pressable style={styles.manageBtn} onPress={onAddPhotos} disabled={!!busy}>
+                    {busy === 'add' ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="add" size={18} color={colors.primary} />
+                        <Text style={styles.manageText}>Add photos</Text>
+                      </>
+                    )}
+                  </Pressable>
+                  <Pressable style={[styles.manageBtn, styles.manageDanger]} onPress={onDelete} disabled={!!busy}>
+                    {busy === 'delete' ? (
+                      <ActivityIndicator color={colors.error} />
+                    ) : (
+                      <>
+                        <Ionicons name="trash-outline" size={18} color={colors.error} />
+                        <Text style={[styles.manageText, styles.manageTextDanger]}>Delete</Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+
+                <View style={styles.manageRow}>
+                  <Pressable style={styles.manageBtn} onPress={onSendToClient} disabled={!!busy}>
+                    {busy === 'send' ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="paper-plane-outline" size={18} color={colors.primary} />
+                        <Text style={styles.manageText}>Send to client</Text>
+                      </>
+                    )}
+                  </Pressable>
+                  <Pressable style={styles.manageBtn} onPress={onPublishToFaceSearch} disabled={!!busy}>
+                    {busy === 'publish' ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="scan-outline" size={18} color={colors.primary} />
+                        <Text style={styles.manageText}>Publish to Face-AI</Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+
+                <Pressable style={styles.manageBtn} onPress={onSubmitForReview} disabled={!!busy}>
+                  {busy === 'submit' ? (
                     <ActivityIndicator color={colors.primary} />
                   ) : (
                     <>
-                      <Ionicons name="add" size={18} color={colors.primary} />
-                      <Text style={styles.manageText}>Add photos</Text>
+                      <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
+                      <Text style={styles.manageText}>Submit album for review</Text>
                     </>
                   )}
                 </Pressable>
-                <Pressable style={[styles.manageBtn, styles.manageDanger]} onPress={onDelete} disabled={!!busy}>
-                  {busy === 'delete' ? (
-                    <ActivityIndicator color={colors.error} />
-                  ) : (
-                    <>
-                      <Ionicons name="trash-outline" size={18} color={colors.error} />
-                      <Text style={[styles.manageText, styles.manageTextDanger]}>Delete</Text>
-                    </>
-                  )}
-                </Pressable>
-              </View>
+              </>
             ) : null}
 
             {/*
