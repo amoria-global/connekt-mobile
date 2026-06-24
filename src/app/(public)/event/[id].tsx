@@ -293,7 +293,6 @@ export default function PublicEventDetailScreen() {
   }, [id]);
   const hasPurchasedAccess = !!viewerId;
 
-<<<<<<< Updated upstream
   // Bookmarks
   const [isSaved, setIsSaved] = useState(false);
   useEffect(() => {
