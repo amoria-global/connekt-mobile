@@ -5,6 +5,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
+import { useRole } from '@/features/auth/role';
 import { getStream, joinStream, listStreamChats, sendInAppStreamChat, tipStream, type StreamChat } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
@@ -14,6 +15,7 @@ const TIP_AMOUNTS = [500, 1000, 2000, 5000];
 
 export default function StreamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { isCoordinator } = useRole();
   const { data, loading, error } = useAsync(useCallback(() => getStream(id), [id]));
   const [joining, setJoining] = useState(false);
   const [tipping, setTipping] = useState<number | null>(null);
@@ -189,29 +191,39 @@ export default function StreamDetailScreen() {
               <Text style={styles.chatEmpty}>No messages yet.</Text>
             )}
 
-            <View style={styles.composer}>
-              <TextInput
-                value={chatDraft}
-                onChangeText={setChatDraft}
-                placeholder="Say something…"
-                placeholderTextColor={colors.textMuted}
-                style={styles.composerInput}
-                returnKeyType="send"
-                onSubmitEditing={onSendChat}
-                editable={!chatSending}
-              />
-              <Pressable
-                style={[styles.sendBtn, (chatSending || !chatDraft.trim()) && { opacity: 0.5 }]}
-                onPress={onSendChat}
-                disabled={chatSending || !chatDraft.trim()}
-              >
-                {chatSending ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Ionicons name="send" size={18} color="#fff" />
-                )}
-              </Pressable>
-            </View>
+            {/*
+             * Composer is Coordinator-only — the backend's
+             * /coordinator/streams/{id}/chats endpoint enforces the
+             * coordinator role, so clients/viewers/photographers in
+             * the in-app stream watch the chat but can't post. The
+             * web behaves the same way (it routes to the coord
+             * endpoint only for coordinator userRole).
+             */}
+            {isCoordinator ? (
+              <View style={styles.composer}>
+                <TextInput
+                  value={chatDraft}
+                  onChangeText={setChatDraft}
+                  placeholder="Say something…"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.composerInput}
+                  returnKeyType="send"
+                  onSubmitEditing={onSendChat}
+                  editable={!chatSending}
+                />
+                <Pressable
+                  style={[styles.sendBtn, (chatSending || !chatDraft.trim()) && { opacity: 0.5 }]}
+                  onPress={onSendChat}
+                  disabled={chatSending || !chatDraft.trim()}
+                >
+                  {chatSending ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Ionicons name="send" size={18} color="#fff" />
+                  )}
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         ) : null}
       </ScrollView>
