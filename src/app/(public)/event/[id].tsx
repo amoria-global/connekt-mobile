@@ -1,22 +1,64 @@
 /**
  * Public event detail (guest-facing).
  *
- * Renders the full poster + description + organizer / photographer rows,
- * the live/paid badge, and routes guests into the join-package flow (or
- * straight to the live stream when the event is free + live + has invite
- * code). Mirrors the web `view-event/view-event.client.tsx` decision
- * points without forcing a login.
+ * Web parity: knockout/app/user/events/view-event/view-event.client.tsx
+ *
+ * What this port includes (matching the web 1:1):
+ *   • Cover image with cinematic scrim + glass back / share / save buttons
+ *     overlaid in the top-rail (web `.ve-glass-btn` + `.ve-hero-top`)
+ *   • Status pill: LIVE (red + pulse) / UPCOMING (blue) / ENDED / CANCELLED
+ *   • Countdown timer (dd / hh / mm / ss) when event is upcoming + has a date
+ *     (web `.ve-countdown-card` inside the sidebar)
+ *   • About section + "Read more" expand toggle
+ *   • Hosts & crew section: organizer (mic icon) + photographer (camera/avatar)
+ *   • Fee card: price display + "Watch live" / "Live stream" badge
+ *   • Primary CTA matrix (web `renderPrimaryCTA`):
+ *       cancelled  → disabled "Event cancelled"
+ *       ended      → disabled "Event ended"
+ *       live  + free            → "Watch live"
+ *       live  + paid + access   → "Start watching"
+ *       live  + paid            → "Buy access" (+ price)
+ *       upcoming + free         → "Get notified"
+ *       upcoming + paid + access → "Access reserved" (disabled)
+ *       upcoming + paid         → "Reserve your spot" (+ price)
+ *   • "Already paid? Verify access" button for live/upcoming paid events
+ *     (opens recover modal → re-registers by email to get viewerId)
+ *   • Group invite code redeem field: shown when event is live + paid + not owned
+ *     (web `.ve-hero-group`)
+ *   • "Send a wish" form for upcoming events
+ *     (web `.ve-wishes` → POST /public/events/{id}/wishes)
+ *   • Donation link (non-cancelled events)
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import type { PublicEvent } from '@/features/events/types';
+import {
+  redeemGroupCode,
+  registerAnonymousViewer,
+  sendEventWish,
+} from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
+import { isApiError } from '@/store/auth';
+import { getDeviceId } from '@/utils/deviceId';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
 
@@ -24,6 +66,7 @@ const COVER_FALLBACK =
   'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
+const SAVED_KEY = 'connekyt:savedEvents';
 
 function formatTime12h(t?: string): string {
   if (!t) return '';
@@ -34,50 +77,19 @@ function formatTime12h(t?: string): string {
   return `${h12}:${m} ${ampm}`;
 }
 
-/**
- * Price text — mirrors web events.tsx:2363-2372 (streamFee > 0 → "From
- * {code} {amount}", else price > 0 → "From …", else "Free").
- */
-function priceLabel(e: { streamFee?: number | null; price?: number; streamFeeCurrencyAbbreviation?: string | null }): {
-  label: string;
-  amount: string;
-} {
+function priceLabel(e: {
+  streamFee?: number | null;
+  price?: number;
+  streamFeeCurrencyAbbreviation?: string | null;
+}): { label: string; amount: string } {
   const code = e.streamFeeCurrencyAbbreviation || 'RWF';
-  if (e.streamFee && e.streamFee > 0) {
+  if (e.streamFee && e.streamFee > 0)
     return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
-  }
-  if (e.price && e.price > 0) {
+  if (e.price && e.price > 0)
     return { label: 'From', amount: `${code} ${e.price.toLocaleString()}` };
-  }
   return { label: '', amount: 'Free' };
 }
 
-/**
- * Status + CTA derivation — ported verbatim from
- * knockout/app/user/events/view-event/view-event.client.tsx:1206-1410.
- *
- *   rawStatus   = eventStatus.toUpperCase()
- *   streamEnded = streamStatus === 'ended'
- *   isLive      = rawStatus === 'ONGOING' && !streamEnded
- *   isCompleted = rawStatus === 'COMPLETED' || streamEnded
- *   isCancelled = rawStatus === 'CANCELLED'
- *   isUpcoming  = !isLive && !isCompleted && !isCancelled
- *   isPaid      = streamFee > 0 || price > 0
- *
- * The CTA matrix decides the primary action label/tone:
- *   cancelled                              → "Event cancelled" (disabled)
- *   completed/ended                        → "Event ended"     (disabled)
- *   live  + free                           → "Watch live"
- *   live  + paid + hasPurchasedAccess      → "Start watching"
- *   live  + paid                           → "Buy access"      (+ price)
- *   upcoming + free                        → "Get notified"
- *   upcoming + paid + hasPurchasedAccess   → "Access reserved" (disabled)
- *   upcoming + paid                        → "Reserve your spot" (+ price)
- *
- * `hasPurchasedAccess` is the web's local-only ownership proof — it
- * checks `anonymousViewer_{id}` or `groupCode_{id}` in storage so an
- * anonymous viewer can resume a paid stream after closing the app.
- */
 type CtaTone = 'live' | 'reserve' | 'owned' | 'ended' | 'cancelled';
 type Cta = {
   label: string;
@@ -107,16 +119,15 @@ function buildCta(
   viewerId: string | null,
 ): Cta | null {
   const { isCancelled, isCompleted, isLive, isUpcoming, isPaid } = status;
-  const price = `${(e.price || e.streamFee || 0).toLocaleString()} ${e.streamFeeCurrencyAbbreviation || 'RWF'}`;
-
-  if (isCancelled) {
+  const price = `${(e.price || e.streamFee || 0).toLocaleString()} ${
+    e.streamFeeCurrencyAbbreviation || 'RWF'
+  }`;
+  if (isCancelled)
     return { label: 'Event cancelled', icon: 'close-circle', tone: 'cancelled', disabled: true };
-  }
-  if (isCompleted) {
+  if (isCompleted)
     return { label: 'Event ended', icon: 'archive', tone: 'ended', disabled: true };
-  }
   if (isLive) {
-    if (!isPaid) {
+    if (!isPaid)
       return {
         label: 'Watch live',
         icon: 'play-circle',
@@ -124,8 +135,7 @@ function buildCta(
         disabled: false,
         href: `/events/live-stream?id=${e.id}` as unknown as Href,
       };
-    }
-    if (hasPurchasedAccess) {
+    if (hasPurchasedAccess)
       return {
         label: 'Start watching',
         icon: 'play-circle',
@@ -133,7 +143,6 @@ function buildCta(
         disabled: false,
         href: `/events/live-stream?id=${e.id}${viewerId ? `&viewerId=${viewerId}` : ''}` as unknown as Href,
       };
-    }
     return {
       label: 'Buy access',
       sub: price,
@@ -144,12 +153,10 @@ function buildCta(
     };
   }
   if (isUpcoming) {
-    if (!isPaid) {
+    if (!isPaid)
       return { label: 'Get notified', icon: 'notifications', tone: 'reserve', disabled: false };
-    }
-    if (hasPurchasedAccess) {
+    if (hasPurchasedAccess)
       return { label: 'Access reserved', icon: 'checkmark-circle', tone: 'owned', disabled: true };
-    }
     return {
       label: 'Reserve your spot',
       sub: price,
@@ -162,23 +169,47 @@ function buildCta(
   return null;
 }
 
+// ── Countdown helpers ────────────────────────────────────────────────────────
+
+function parseEventStart(dateStr?: string, timeStr?: string): Date | null {
+  if (!dateStr) return null;
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (timeStr) {
+      const [hh, mm] = timeStr.split(':').map(Number);
+      return new Date(y, m - 1, d, hh, mm);
+    }
+    return new Date(y, m - 1, d);
+  } catch {
+    return null;
+  }
+}
+
+function msToCountdown(ms: number) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+  return { days, hours, minutes, seconds };
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+// ── Main screen ──────────────────────────────────────────────────────────────
+
 export default function PublicEventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => getPublicEventDetailed(id), [id]),
   );
 
-  // Local-only proof of purchase (web parity: view-event.client.tsx:1215-1224).
-  // The mobile equivalents of localStorage keys: we save `anonymousViewer_{id}`
-  // after the pay flow completes; checking it here resolves the "Start
-  // watching" / "Access reserved" CTAs without needing auth.
+  // Proof of purchase (web parity: anonymousViewer_{id} / groupCode_{id})
   const [viewerId, setViewerId] = useState<string | null>(null);
   useEffect(() => {
-    Promise.all([
-      storage.get(`anonymousViewer_${id}`),
-      storage.get(`groupCode_${id}`),
-    ])
+    Promise.all([storage.get(`anonymousViewer_${id}`), storage.get(`groupCode_${id}`)])
       .then(([v, g]) => {
         if (v) setViewerId(v);
         else if (g) setViewerId(g);
@@ -187,6 +218,156 @@ export default function PublicEventDetailScreen() {
   }, [id]);
   const hasPurchasedAccess = !!viewerId;
 
+  // Bookmarks
+  const [isSaved, setIsSaved] = useState(false);
+  useEffect(() => {
+    storage
+      .get(SAVED_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        try {
+          const set = new Set<string>(JSON.parse(raw) as string[]);
+          setIsSaved(set.has(id));
+        } catch { /* ignore */ }
+      })
+      .catch(() => {});
+  }, [id]);
+  const toggleSaved = async () => {
+    try {
+      const raw = await storage.get(SAVED_KEY).catch(() => null);
+      const set = new Set<string>(raw ? (JSON.parse(raw) as string[]) : []);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      await storage.set(SAVED_KEY, JSON.stringify(Array.from(set)));
+      setIsSaved(set.has(id));
+    } catch { /* ignore */ }
+  };
+
+  // Countdown
+  const [msUntilStart, setMsUntilStart] = useState<number | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    const start = parseEventStart(data.eventDate, data.startTime);
+    if (!start) return;
+    const tick = () => setMsUntilStart(start.getTime() - Date.now());
+    tick();
+    countdownRef.current = setInterval(tick, 1000);
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [data]);
+
+  // Description expand/collapse (web `.ve-readmore`)
+  const [descExpanded, setDescExpanded] = useState(false);
+  const DESC_LIMIT = 200;
+
+  // Group code redeem
+  const [groupCode, setGroupCode] = useState('');
+  const [groupCodeBusy, setGroupCodeBusy] = useState(false);
+  const [groupCodeError, setGroupCodeError] = useState('');
+  const onRedeemGroupCode = async () => {
+    if (!groupCode.trim()) return;
+    setGroupCodeBusy(true);
+    setGroupCodeError('');
+    try {
+      const fingerprint = await getDeviceId();
+      const res = await redeemGroupCode(id, {
+        inviteCode: groupCode.trim(),
+        viewerUsername: fingerprint,
+      });
+      if (!res.ok) {
+        setGroupCodeError(res.message ?? 'This code is not valid for this event.');
+        return;
+      }
+      if (res.viewerId) {
+        await storage.set(`anonymousViewer_${id}`, res.viewerId).catch(() => {});
+        setViewerId(res.viewerId);
+      }
+      if (res.hlsManifestUrl) {
+        router.push(
+          `/events/live-stream?id=${id}${res.viewerId ? `&viewerId=${res.viewerId}` : ''}` as unknown as Href,
+        );
+      }
+    } catch (e) {
+      setGroupCodeError(isApiError(e) ? e.message : 'Could not redeem the code.');
+    } finally {
+      setGroupCodeBusy(false);
+    }
+  };
+
+  // Verify access modal (web `.ve-btn--verify`)
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verifyName, setVerifyName] = useState('');
+  const [verifyEmail, setVerifyEmail] = useState('');
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const onVerifyAccess = async () => {
+    if (!verifyName.trim() || !verifyEmail.includes('@')) {
+      setVerifyError('Enter the name and email you used at checkout.');
+      return;
+    }
+    setVerifyBusy(true);
+    setVerifyError(null);
+    try {
+      const fingerprint = await getDeviceId();
+      const reg = await registerAnonymousViewer(id, {
+        name: verifyName.trim(),
+        email: verifyEmail.trim(),
+        deviceId: fingerprint,
+      });
+      if (reg.needsPayment) {
+        setVerifyError("We couldn't find a paid record for this email. Please buy access.");
+        return;
+      }
+      await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
+      setViewerId(reg.viewerId);
+      setVerifyOpen(false);
+      if (data) {
+        const status = deriveStatus(data);
+        if (status.isLive) {
+          router.push(
+            `/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href,
+          );
+        }
+      }
+    } catch (e) {
+      setVerifyError(isApiError(e) ? e.message : 'Could not verify access.');
+    } finally {
+      setVerifyBusy(false);
+    }
+  };
+
+  // Send a wish (web `.ve-wishes`)
+  const [wishName, setWishName] = useState('');
+  const [wishEmail, setWishEmail] = useState('');
+  const [wishMessage, setWishMessage] = useState('');
+  const [wishBusy, setWishBusy] = useState(false);
+  const [wishError, setWishError] = useState<string | null>(null);
+  const [wishSuccess, setWishSuccess] = useState<string | null>(null);
+  const onSendWish = async () => {
+    if (!wishName.trim() || !wishEmail.includes('@') || !wishMessage.trim()) {
+      setWishError('Please fill in your name, email and message.');
+      return;
+    }
+    setWishBusy(true);
+    setWishError(null);
+    setWishSuccess(null);
+    try {
+      await sendEventWish(id, {
+        name: wishName.trim(),
+        email: wishEmail.trim(),
+        message: wishMessage.trim(),
+      });
+      setWishSuccess('Your wish was sent to the event organizer!');
+      setWishMessage('');
+    } catch (e) {
+      setWishError(isApiError(e) ? e.message : 'Could not send your wish. Please try again.');
+    } finally {
+      setWishBusy(false);
+    }
+  };
+
   const onShare = async () => {
     if (!data) return;
     try {
@@ -194,10 +375,10 @@ export default function PublicEventDetailScreen() {
         title: data.title,
         message: `Check out "${data.title}" on Connekyt\n${SHARE_BASE}${id}`,
       });
-    } catch {
-      /* user dismissed */
-    }
+    } catch { /* user dismissed */ }
   };
+
+  // ── Loading / Error ────────────────────────────────────────────────────────
 
   if (loading && !data) {
     return (
@@ -208,7 +389,6 @@ export default function PublicEventDetailScreen() {
       </Screen>
     );
   }
-
   if (error && !data) {
     return (
       <Screen>
@@ -222,12 +402,8 @@ export default function PublicEventDetailScreen() {
       </Screen>
     );
   }
-
   if (!data) return null;
 
-  // Status comes from the same web-parity derivation as the CTA gate,
-  // so the badge and the button can never disagree on whether the event
-  // is ended.
   const status = deriveStatus(data);
   const cta = buildCta(data, status, hasPurchasedAccess, viewerId);
   const price = priceLabel(data);
@@ -236,51 +412,144 @@ export default function PublicEventDetailScreen() {
       data.eventOrganizer
     : data.eventOrganizer;
 
+  const countdown =
+    status.isUpcoming && msUntilStart !== null && msUntilStart > 0
+      ? msToCountdown(msUntilStart)
+      : null;
+
+  const desc = data.description ?? '';
+  const descTruncated = desc.length > DESC_LIMIT && !descExpanded;
+  const descText = descTruncated ? `${desc.slice(0, DESC_LIMIT)}…` : desc;
+
+  // Tags from the comma-separated eventTags field
+  const tags = data.eventTags
+    ? data.eventTags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
+
   return (
     <Screen padded={false} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View>
+        {/* ── Hero: cover + glass buttons ─────────────────────────── */}
+        <View style={styles.heroWrap}>
           <Image
             source={{ uri: data.eventPhoto || COVER_FALLBACK }}
             style={styles.cover}
             contentFit="cover"
             transition={250}
           />
+          {/* Dark scrim over the cover, matching web `.ve-hero-veil` */}
+          <View style={styles.coverScrim} />
+
+          {/* Top rail: back + spacer + share + bookmark (web `.ve-hero-top`) */}
+          <View style={[styles.heroTopRail, { paddingTop: Math.max(insets.top, 12) }]}>
+            <Pressable
+              style={styles.glassBtn}
+              onPress={() => router.back()}
+              hitSlop={8}
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="chevron-back" size={20} color="#fff" />
+            </Pressable>
+            <View style={{ flex: 1 }} />
+            <Pressable
+              style={styles.glassBtn}
+              onPress={onShare}
+              hitSlop={8}
+              accessibilityLabel="Share event"
+            >
+              <Ionicons name="share-social-outline" size={18} color="#fff" />
+            </Pressable>
+            <Pressable
+              style={[styles.glassBtn, isSaved && styles.glassBtnSaved]}
+              onPress={toggleSaved}
+              hitSlop={8}
+              accessibilityLabel={isSaved ? 'Remove from saved' : 'Save event'}
+            >
+              <Ionicons
+                name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                size={18}
+                color={isSaved ? '#F59E0B' : '#fff'}
+              />
+            </Pressable>
+          </View>
+
+          {/* Status pill (web `.ve-status-pill`) */}
           {status.isLive ? (
-            <View style={[styles.statusBadge, styles.statusLive, styles.statusBadgeAbs]}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusBadgeText}>LIVE</Text>
+            <View style={[styles.statusPill, styles.statusPillLive]}>
+              <View style={styles.pulseRed} />
+              <Text style={styles.statusPillText}>HAPPENING NOW</Text>
             </View>
           ) : status.isCancelled ? (
-            <View style={[styles.statusBadge, styles.statusCancelled, styles.statusBadgeAbs]}>
-              <Text style={styles.statusBadgeText}>CANCELLED</Text>
+            <View style={[styles.statusPill, styles.statusPillCancelled]}>
+              <Text style={styles.statusPillText}>CANCELLED</Text>
             </View>
           ) : status.isCompleted ? (
-            <View style={[styles.statusBadge, styles.statusEnded, styles.statusBadgeAbs]}>
-              <Text style={styles.statusBadgeText}>ENDED</Text>
+            <View style={[styles.statusPill, styles.statusPillEnded]}>
+              <Text style={styles.statusPillText}>ENDED</Text>
             </View>
           ) : (
-            <View style={[styles.statusBadge, styles.statusUpcoming, styles.statusBadgeAbs]}>
-              <Text style={styles.statusBadgeText}>UPCOMING</Text>
+            <View style={[styles.statusPill, styles.statusPillUpcoming]}>
+              <Text style={styles.statusPillText}>UPCOMING</Text>
             </View>
           )}
-          <Pressable style={styles.shareFab} onPress={onShare} hitSlop={8}>
-            <Ionicons name="share-social-outline" size={20} color={colors.text} />
-          </Pressable>
+
+          {/* Category eyebrow */}
+          {data.eventCategory?.name ? (
+            <View style={styles.coverCat}>
+              <Text style={styles.coverCatText}>{data.eventCategory.name.toUpperCase()}</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.body}>
           <Text style={styles.title}>{data.title}</Text>
 
-          {data.eventCategory?.name ? (
-            <View style={styles.chipRow}>
-              <View style={styles.chip}>
-                <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
-                <Text style={styles.chipText}>{data.eventCategory.name}</Text>
+          {/* Tags row */}
+          {tags.length > 0 ? (
+            <View style={styles.tagsRow}>
+              {tags.map((tag) => (
+                <View key={tag} style={styles.tag}>
+                  <Text style={styles.tagText}># {tag}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Countdown card (web `.ve-countdown-card`) */}
+          {countdown ? (
+            <View style={styles.countdownCard}>
+              <Text style={styles.countdownEyebrow}>
+                <Ionicons name="hourglass-outline" size={12} color={colors.primary} /> Starts in
+              </Text>
+              <View style={styles.countdownGrid}>
+                {countdown.days > 0 ? (
+                  <View style={styles.countdownCell}>
+                    <Text style={styles.countdownNum}>{pad(countdown.days)}</Text>
+                    <Text style={styles.countdownUnit}>
+                      {countdown.days === 1 ? 'day' : 'days'}
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={styles.countdownCell}>
+                  <Text style={styles.countdownNum}>{pad(countdown.hours)}</Text>
+                  <Text style={styles.countdownUnit}>hr</Text>
+                </View>
+                <View style={styles.countdownCell}>
+                  <Text style={styles.countdownNum}>{pad(countdown.minutes)}</Text>
+                  <Text style={styles.countdownUnit}>min</Text>
+                </View>
+                <View style={styles.countdownCell}>
+                  <Text style={styles.countdownNum}>{pad(countdown.seconds)}</Text>
+                  <Text style={styles.countdownUnit}>sec</Text>
+                </View>
               </View>
             </View>
           ) : null}
 
+          {/* Event quick-info card */}
           <View style={styles.infoCard}>
             {data.eventDate ? (
               <Row icon="calendar-outline" text={formatDate(data.eventDate)} />
@@ -296,28 +565,71 @@ export default function PublicEventDetailScreen() {
               />
             ) : null}
             {data.location ? <Row icon="location-outline" text={data.location} /> : null}
-            {organizer ? <Row icon="person-outline" text={organizer} /> : null}
-            {data.photographerName ? (
-              <Row icon="camera-outline" text={data.photographerName} />
-            ) : null}
             {data.maxGuests ? (
-              <Row icon="people-outline" text={`Up to ${data.maxGuests.toLocaleString()} guests`} />
+              <Row
+                icon="people-outline"
+                text={`Up to ${data.maxGuests.toLocaleString()} guests`}
+              />
             ) : null}
           </View>
 
-          {data.description ? (
+          {/* About this event (web `.ve-card` about section + `.ve-readmore`) */}
+          {desc ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>About this event</Text>
-              <Text style={styles.bodyText}>{data.description}</Text>
+              <Text style={styles.bodyText}>{descText}</Text>
+              {desc.length > DESC_LIMIT ? (
+                <Pressable onPress={() => setDescExpanded((v) => !v)}>
+                  <Text style={styles.readMore}>
+                    {descExpanded ? 'Show less ↑' : 'Read more ↓'}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
 
-          {/*
-           * Fee card is only shown when the event is still actionable
-           * (live or upcoming). For ended/cancelled events the web hides
-           * the price hint and just renders the dead CTA, so we mirror
-           * that here.
-           */}
+          {/* Hosts & crew (web `.ve-hosts-grid`) */}
+          {(organizer || data.photographerName || data.photographerId) ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Hosts &amp; crew</Text>
+              <View style={styles.hostsGrid}>
+                {organizer ? (
+                  <View style={styles.hostCard}>
+                    <View style={[styles.hostAvatarWrap, styles.hostAvatarOrganizer]}>
+                      <Ionicons name="mic" size={20} color="#fff" />
+                    </View>
+                    <View style={styles.hostInfo}>
+                      <Text style={styles.hostRole}>Organized by</Text>
+                      <Text style={styles.hostName}>{organizer}</Text>
+                      <Text style={styles.hostSub}>Event organizer</Text>
+                    </View>
+                  </View>
+                ) : null}
+                {data.photographerName ? (
+                  <View style={styles.hostCard}>
+                    <View style={styles.hostAvatarWrap}>
+                      {data.photographerImage ? (
+                        <Image
+                          source={{ uri: data.photographerImage }}
+                          style={styles.hostAvatar}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <Ionicons name="camera" size={20} color="#fff" />
+                      )}
+                    </View>
+                    <View style={styles.hostInfo}>
+                      <Text style={styles.hostRole}>Photographer</Text>
+                      <Text style={styles.hostName}>{data.photographerName}</Text>
+                      <Text style={styles.hostSub}>Capturing the moment</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Fee card */}
           {!status.isCompleted && !status.isCancelled ? (
             <View style={styles.feeCard}>
               <View style={{ flex: 1 }}>
@@ -336,13 +648,110 @@ export default function PublicEventDetailScreen() {
             </View>
           ) : null}
 
-          {cta ? <CtaButton cta={cta} onPress={() => cta.href && router.push(cta.href)} /> : null}
+          {/* Primary CTA */}
+          {cta ? (
+            <CtaButton cta={cta} onPress={() => cta.href && router.push(cta.href)} />
+          ) : null}
 
-          {/*
-           * Donation is hidden for cancelled events — there's nothing to
-           * support. Ended events still allow donating because the web
-           * keeps the donation surface available post-event.
-           */}
+          {/* Verify access + group code redeem — web parity:
+              shown for paid live/upcoming events where access isn't confirmed */}
+          {!status.isCompleted && !status.isCancelled && status.isPaid && !hasPurchasedAccess ? (
+            <>
+              <Pressable style={styles.verifyBtn} onPress={() => setVerifyOpen(true)}>
+                <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} />
+                <Text style={styles.verifyBtnText}>Already paid? Verify access</Text>
+              </Pressable>
+
+              {/* Group invite code redeem (web `.ve-hero-group`) — only shown for live paid events */}
+              {status.isLive ? (
+                <View style={styles.groupCodeCard}>
+                  <View style={styles.groupCodeHeader}>
+                    <Ionicons name="ticket-outline" size={16} color={colors.primary} />
+                    <Text style={styles.groupCodeTitle}>Have a group invite code?</Text>
+                  </View>
+                  <View style={styles.groupCodeRow}>
+                    <TextInput
+                      value={groupCode}
+                      onChangeText={(t) => {
+                        setGroupCode(t);
+                        setGroupCodeError('');
+                      }}
+                      placeholder="Enter code"
+                      placeholderTextColor={colors.textMuted}
+                      style={styles.groupCodeInput}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      returnKeyType="done"
+                      onSubmitEditing={onRedeemGroupCode}
+                    />
+                    <Pressable
+                      style={[
+                        styles.groupCodeBtn,
+                        (!groupCode.trim() || groupCodeBusy) && { opacity: 0.6 },
+                      ]}
+                      onPress={onRedeemGroupCode}
+                      disabled={!groupCode.trim() || groupCodeBusy}
+                    >
+                      {groupCodeBusy ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.groupCodeBtnText}>Redeem</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                  {groupCodeError ? (
+                    <Text style={styles.groupCodeError}>{groupCodeError}</Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </>
+          ) : null}
+
+          {/* Send a wish (web `.ve-wishes`) — only for upcoming events */}
+          {status.isUpcoming ? (
+            <View style={styles.wishCard}>
+              <View style={styles.wishHeader}>
+                <Ionicons name="chatbubble-ellipses" size={18} color={colors.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.wishTitle}>Send a wish to the organizer</Text>
+                  <Text style={styles.wishSub}>
+                    Your message will appear on screen during the event.
+                  </Text>
+                </View>
+              </View>
+              <Input
+                placeholder="Your name"
+                value={wishName}
+                onChangeText={setWishName}
+                autoCapitalize="words"
+              />
+              <Input
+                placeholder="Email"
+                value={wishEmail}
+                onChangeText={setWishEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <TextInput
+                value={wishMessage}
+                onChangeText={setWishMessage}
+                placeholder="Write your message…"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                style={styles.wishTextarea}
+              />
+              {wishError ? <Text style={styles.wishMsg}>{wishError}</Text> : null}
+              {wishSuccess ? (
+                <View style={styles.wishSuccessBox}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={styles.wishSuccessText}>{wishSuccess}</Text>
+                </View>
+              ) : null}
+              <Button title={wishBusy ? 'Sending…' : 'Send wish'} onPress={onSendWish} loading={wishBusy} />
+            </View>
+          ) : null}
+
+          {/* Donation */}
           {!status.isCancelled ? (
             <Pressable
               style={styles.secondary}
@@ -354,9 +763,53 @@ export default function PublicEventDetailScreen() {
           ) : null}
         </View>
       </ScrollView>
+
+      {/* Verify access modal */}
+      <Modal
+        visible={verifyOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setVerifyOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setVerifyOpen(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Verify your access</Text>
+            <Text style={styles.modalHint}>
+              Enter the name and email you used when buying your ticket. We'll restore access on
+              this device.
+            </Text>
+            <Input
+              label="Name"
+              value={verifyName}
+              onChangeText={setVerifyName}
+              placeholder="Full name"
+              autoCapitalize="words"
+            />
+            <Input
+              label="Email"
+              value={verifyEmail}
+              onChangeText={setVerifyEmail}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            {verifyError ? <Text style={styles.wishMsg}>{verifyError}</Text> : null}
+            <Button
+              title={verifyBusy ? 'Checking…' : 'Verify access'}
+              onPress={onVerifyAccess}
+              loading={verifyBusy}
+            />
+            <Pressable onPress={() => setVerifyOpen(false)} style={{ alignSelf: 'center', marginTop: 4 }}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
   return (
@@ -367,11 +820,6 @@ function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: strin
   );
 }
 
-/**
- * Mirrors the web `renderPrimaryCTA` (view-event.client.tsx:1417-1433):
- * one tone class per state, disabled rendered with reduced opacity,
- * optional sub-label for the price hint on Buy access / Reserve.
- */
 function CtaButton({ cta, onPress }: { cta: Cta; onPress: () => void }) {
   return (
     <Pressable
@@ -390,7 +838,9 @@ function CtaButton({ cta, onPress }: { cta: Cta; onPress: () => void }) {
         color={cta.disabled ? colors.textMuted : colors.textOnPrimary}
       />
       <View style={styles.ctaText}>
-        <Text style={[styles.ctaLabel, cta.disabled && styles.ctaLabelDisabled]}>{cta.label}</Text>
+        <Text style={[styles.ctaLabel, cta.disabled && styles.ctaLabelDisabled]}>
+          {cta.label}
+        </Text>
         {cta.sub ? (
           <Text style={[styles.ctaSub, cta.disabled && styles.ctaLabelDisabled]}>{cta.sub}</Text>
         ) : null}
@@ -399,30 +849,220 @@ function CtaButton({ cta, onPress }: { cta: Cta; onPress: () => void }) {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.xl,
+  },
   errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { paddingBottom: 120 },
-  cover: { width: '100%', height: 260, backgroundColor: colors.surfaceMuted },
-  statusBadgeAbs: { position: 'absolute', top: spacing.lg, left: spacing.lg },
-  statusBadge: {
+
+  // ── Hero ──────────────────────────────────────────────────────────────────
+  heroWrap: { width: '100%', height: 280, position: 'relative' },
+  cover: { width: '100%', height: '100%', backgroundColor: colors.surfaceMuted },
+  coverScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7,8,13,0.42)',
+  },
+  heroTopRail: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  glassBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(7,8,13,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassBtnSaved: {
+    borderColor: 'rgba(245,158,11,0.55)',
+    backgroundColor: 'rgba(245,158,11,0.15)',
+  },
+
+  // Status pill (web `.ve-status-pill`)
+  statusPill: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
+  statusPillLive: { backgroundColor: 'rgba(220,38,38,0.92)' },
+  statusPillUpcoming: { backgroundColor: 'rgba(31,107,255,0.55)' },
+  statusPillEnded: { backgroundColor: 'rgba(107,114,128,0.78)' },
+  statusPillCancelled: { backgroundColor: 'rgba(239,68,68,0.78)' },
+  statusPillText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.9,
+  },
+  pulseRed: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+  },
+
+  coverCat: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: radii.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: radii.sm,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  statusBadgeText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
-  statusUpcoming: { backgroundColor: colors.primary },
-  statusLive: { backgroundColor: colors.accent },
-  statusEnded: { backgroundColor: '#6A6D76' },
-  statusCancelled: { backgroundColor: '#991B1B' },
+  coverCatText: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
 
-  // CTA tones — mirrors the web's ve-btn--{tone} classes
-  // (view-event.client.tsx:2350-2360). Disabled tones use a muted surface
-  // so it's unmistakably not actionable.
+  // ── Body ──────────────────────────────────────────────────────────────────
+  body: { padding: spacing.xl, gap: spacing.lg },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
+
+  // Tags
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tag: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  tagText: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold },
+
+  // Countdown
+  countdownCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  countdownEyebrow: {
+    color: colors.primary,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  countdownGrid: { flexDirection: 'row', gap: spacing.md },
+  countdownCell: { alignItems: 'center', minWidth: 48 },
+  countdownNum: {
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.extrabold,
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  countdownUnit: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold },
+
+  // Info card
+  infoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  rowText: { flex: 1, fontSize: fontSize.md, color: colors.textSoft },
+
+  // About section
+  section: { gap: spacing.sm },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  bodyText: { fontSize: fontSize.md, color: colors.textSoft, lineHeight: 24 },
+  readMore: {
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    marginTop: 2,
+  },
+
+  // Hosts & crew (web `.ve-hosts-grid`)
+  hostsGrid: { gap: spacing.md },
+  hostCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.md,
+  },
+  hostAvatarWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  hostAvatarOrganizer: { backgroundColor: '#083A85' },
+  hostAvatar: { width: '100%', height: '100%' },
+  hostInfo: { flex: 1, gap: 2 },
+  hostRole: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, letterSpacing: 0.4 },
+  hostName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  hostSub: { fontSize: 11, color: colors.textMuted },
+
+  // Fee card
+  feeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  feeLabel: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.5,
+  },
+  feeValue: {
+    color: colors.primary,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    marginTop: 2,
+  },
+  feeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+  },
+  feeBadgeText: { color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+
+  // CTA
   ctaBase: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -438,46 +1078,64 @@ const styles = StyleSheet.create({
   ctaLabel: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   ctaSub: { color: 'rgba(255,255,255,0.85)', fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginTop: 2 },
   ctaLabelDisabled: { color: colors.textMuted },
-  shareFab: {
-    position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+
+  // Verify access
+  verifyBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  body: { padding: spacing.xl, gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  chipRow: { flexDirection: 'row' },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
     backgroundColor: colors.infoBg,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.full,
   },
-  chipText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.bold },
-  infoCard: {
+  verifyBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+
+  // Group code redeem (web `.ve-hero-group`)
+  groupCodeCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     padding: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  rowText: { flex: 1, fontSize: fontSize.md, color: colors.textSoft },
-  section: { gap: spacing.sm },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  bodyText: { fontSize: fontSize.md, color: colors.textSoft, lineHeight: 24 },
-  feeCard: {
+  groupCodeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  groupCodeTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  groupCodeRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  groupCodeInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    color: colors.text,
+    fontSize: fontSize.sm,
+  },
+  groupCodeBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+    height: 42,
+  },
+  groupCodeBtnText: { color: '#fff', fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  groupCodeError: { color: colors.error, fontSize: 12 },
+
+  // Send a wish (web `.ve-wishes`)
+  wishCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -485,18 +1143,38 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  feeLabel: { color: colors.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, letterSpacing: 0.5 },
-  feeValue: { color: colors.primary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, marginTop: 2 },
-  feeBadge: {
+  wishHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  wishTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  wishSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  wishTextarea: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    color: colors.text,
+    fontSize: fontSize.sm,
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  wishMsg: { color: colors.error, fontSize: 12, fontWeight: fontWeight.semibold },
+  wishSuccessBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radii.full,
+    backgroundColor: colors.successBg,
+    borderRadius: radii.md,
+    padding: spacing.md,
   },
-  feeBadgeText: { color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  wishSuccessText: { color: colors.success, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, flex: 1 },
+
+  // Donation
   secondary: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -506,6 +1184,7 @@ const styles = StyleSheet.create({
   },
   secondaryText: { color: colors.accent, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
+  // Retry
   retryBtn: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
@@ -513,15 +1192,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   retryText: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+
+  // Modal
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  modalHint: {
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+    lineHeight: 20,
+    marginBottom: spacing.sm,
+  },
+  cancelText: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 4 },
 });
 
-/**
- * Per-tone background. Live & reserve get the primary brand fill so the
- * active CTA stands out; owned/ended/cancelled are flat muted styles so
- * the user can read the state at a glance without thinking it's still
- * actionable. Mirrors ve-btn--live / --reserve / --owned / --ended /
- * --cancelled (view-event.client.tsx:2348-2358).
- */
 const ctaToneStyles = StyleSheet.create({
   live: { backgroundColor: colors.accent },
   reserve: { backgroundColor: colors.primary },
