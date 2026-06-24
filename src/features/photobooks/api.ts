@@ -66,3 +66,46 @@ export async function getPhotobook(id: string): Promise<PhotobookDetail> {
       .filter((p) => p.id),
   };
 }
+
+// ────── Photobook authoring (Photographer / Coordinator) ────────────────
+
+export type CreatePhotobookInput = {
+  name: string;
+  description?: string;
+  mediaIds: string[];
+  layout?: string;
+  coverImage?: string;
+  eventId?: string;
+};
+
+/**
+ * Web parity: POST /customer/events/photobook (also aliased at
+ * /events/photobook). Body shape:
+ *   { name, description, mediaIds: UUID[], layout, coverImage, eventId? }
+ */
+export async function createPhotobook(input: CreatePhotobookInput): Promise<Photobook> {
+  const body: Record<string, unknown> = {
+    name: input.name.trim(),
+    mediaIds: input.mediaIds,
+  };
+  if (input.description?.trim()) body.description = input.description.trim();
+  if (input.layout) body.layout = input.layout;
+  if (input.coverImage) body.coverImage = input.coverImage;
+  if (input.eventId) body.eventId = input.eventId;
+
+  const res = await api.post<ApiEnvelope<Raw>>('/customer/events/photobook', body);
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not create the photobook.' };
+  }
+  return mapPhotobook((res?.data ?? {}) as Raw);
+}
+
+/** Send the photobook to the client (web parity: /photobook/{id}/send). */
+export async function sendPhotobookToClient(id: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/customer/events/photobook/${encodeURIComponent(id)}/send`,
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not send the photobook.' };
+  }
+}
