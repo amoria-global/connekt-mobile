@@ -7,6 +7,12 @@ import type { ApiEnvelope, ID } from '@/types';
 
 export type Booking = {
   id: ID;
+  /**
+   * The underlying event id — surfaced so dashboard preview rows and
+   * the bookings list can deep-link to /event/{eventId} rather than
+   * just dumping the user on the bookings tab.
+   */
+  eventId?: string;
   eventTitle: string;
   clientName?: string;
   status?: string;
@@ -32,6 +38,7 @@ function mapBooking(r: Raw): Booking {
     [str(client.firstName), str(client.lastName)].filter(Boolean).join(' ') || str(client.name);
   return {
     id: String(r.id ?? r.bookingId ?? ''),
+    eventId: str(event.id) ?? str(r.eventId),
     eventTitle: str(event.title) ?? str(r.eventTitle) ?? str(r.title) ?? 'Booking request',
     clientName,
     status: str(r.status),

@@ -206,7 +206,14 @@ export default function HomeScreen() {
           title: b.eventTitle,
           subtitle: b.clientName,
           status: b.status,
-          onPress: () => router.push('/events'),
+          // Deep-link to the booking's underlying event so the
+          // photographer can review + accept/decline from the event
+          // detail page. Previously every row dumped them on the
+          // /events tab, which made the preview feel inert.
+          onPress: () =>
+            b.eventId
+              ? router.push(`/event/${b.eventId}` as never)
+              : router.push('/bookings' as never),
         }));
       }
       if (isViewer) {
