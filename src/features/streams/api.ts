@@ -468,9 +468,12 @@ export async function switchAnonymousDevice(
   viewerId: string,
   fingerprint: string,
 ): Promise<{ ok: boolean; message?: string }> {
+  // Backend expects `newDeviceFingerprint`, not `deviceFingerprint`.
+  // Mismatch produced "viewerId and newDeviceFingerprint are required"
+  // in the red banner on the viewer screen.
   const res = await api.post<ApiEnvelope<Raw>>(
     `/public/anonymous-viewer/${encodeURIComponent(eventId)}/switch-device`,
-    { viewerId, deviceFingerprint: fingerprint },
+    { viewerId, newDeviceFingerprint: fingerprint },
     { skipAuth: true },
   );
   return { ok: res?.action === 1, message: str(res?.message) };
