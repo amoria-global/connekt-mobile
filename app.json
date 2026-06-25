@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.connekt-mobile"
+      "bundleIdentifier": "com.anonymous.connekt-mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -41,7 +44,15 @@
       ],
       "expo-secure-store",
       "expo-video",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class expo.modules.kotlin.views.ComposeViewFunctionDefinitionBuilder { *; }\n-keep class expo.modules.kotlin.** { *; }"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
