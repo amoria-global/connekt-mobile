@@ -1,16 +1,60 @@
 /**
- * Public live-stream viewer.
+ * Public live-stream viewer — mobile port of
+ * `knockout/app/pages/events/live-stream.tsx`.
  *
- * Two entry shapes:
- *   1. /events/live-stream?id=…&viewerId=…   (post-payment, paid stream)
- *      → checkAnonymousAccessStatus → render HLS via expo-video
- *   2. /events/live-stream?id=…              (free stream / invite token)
- *      → token input → validateStreamToken → render HLS
+ * This file is a full rewrite modeled on the web's flow. The web's
+ * 10,885 lines include multi-event swipe carousel, embedded auth modal,
+ * full emoji picker and video-message recorder — none of which are part
+ * of the mobile public flow (auth lives in (auth), and the user only
+ * ever arrives here for one specific event). What's kept verbatim:
  *
- * The web equivalents are `events/live-stream/page.tsx` (anonymous viewer
- * resume) and `events/join-event/page.tsx` (free + token flow).
+ *   1. ACCESS DETECTION (web lines 595-755 in pages/events/live-stream)
+ *      a. If event type is `entry_fee` (streamFee > 0):
+ *           viewerId from URL ?? from SecureStore(`anonymousViewer_{id}`)
+ *           → checkAnonymousAccessStatus(eventId, fingerprint, viewerId)
+ *             - hasAccess true + whepUrl|hlsManifestUrl → granted
+ *             - reason === DEVICE_MISMATCH → device-switch modal
+ *             - fromPayment param → retry after 2s (backend may not
+ *               have processed yet)
+ *           If no viewerId at all → show viewer-info modal (web parity
+ *               with "Recover access by email" + buy-access link).
+ *      b. If event type is `invite_token`:
+ *           token from URL ?? from SecureStore(`streamToken_{id}`)
+ *           → requestStreamAccess → granted
+ *           If no token → show invite-token entry card.
+ *      c. If event is free + no entry_fee:
+ *           HLS poll picks up `hlsManifestUrl` from /public/events/{id}
+ *           directly.
+ *
+ *   2. PLAYER + STATUS MESSAGING
+ *      Driven off `event.eventStatus` (not manifest presence). ONGOING +
+ *      not ended → "Stream is starting" spinner until manifest arrives.
+ *      COMPLETED → "This event has ended."
+ *
+ *   3. CHAT PANEL
+ *      Renders whenever the event is ONGOING (not gated on manifestUrl).
+ *      Polls /public/events/{id}/chats every 2.5s. Sends via
+ *      sendPublicStreamChat (rate-limited 10/min). Reactions row sends
+ *      via sendPublicStreamReaction (rate-limited 30/min) and bursts
+ *      floating emoji on screen. Other viewers' reactions also burst.
+ *
+ *   4. GIFT MODAL (sponsor)
+ *      Web parity: 5 preset amount chips + custom + MoMo / Card. Posts
+ *      to /public/anonymous-viewer/{id}/gift then opens gateway URL.
+ *
+ *   5. DEVICE-CONFLICT MODAL
+ *      Surfaced when access-status returns DEVICE_MISMATCH. Confirm
+ *      → switchAnonymousDevice (sends newDeviceFingerprint per backend
+ *      DTO), then re-check access.
+ *
+ *   6. VIEWER-INFO MODAL
+ *      The web's "Verify your access" form: name + email + phone +
+ *      fingerprint → registerAnonymousViewer. If a paid record exists,
+ *      backend dedupes by email and returns ACCESS_GRANTED with the
+ *      viewerId we persist.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -25,6 +69,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -35,6 +80,7 @@ import {
   getPublicViewerCount,
   initiatePublicGift,
   registerAnonymousViewer,
+  requestStreamAccess,
   sendPublicStreamChat,
   sendPublicStreamReaction,
   switchAnonymousDevice,
@@ -46,7 +92,6 @@ import {
   getPublicPaymentStatus,
   pollPublicPaymentStatus,
 } from '@/features/payments/anonymous';
-import * as WebBrowser from 'expo-web-browser';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { storage } from '@/services/storage';
@@ -54,24 +99,23 @@ import { getDeviceId } from '@/utils/deviceId';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const REACTION_EMOJIS = ['🔥', '❤️', '👏', '😍', '🎉', '😮'];
+const COVER_FALLBACK =
+  'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80';
 
-// ── Welcome splash (web parity: showWelcomeSplash state, auto-dismiss 2.6s) ─
+// ─── Welcome splash ────────────────────────────────────────────────────────
+// Web parity: showWelcomeSplash auto-dismisses after 2.6s once the stream
+// loads, so first-time viewers get a friendly intro before the player.
 
 function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismiss: () => void }) {
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const fade = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const t = setTimeout(() => {
-      Animated.timing(fadeAnim, { toValue: 0, duration: 320, useNativeDriver: true }).start(
-        onDismiss,
-      );
+      Animated.timing(fade, { toValue: 0, duration: 320, useNativeDriver: true }).start(onDismiss);
     }, 2600);
     return () => clearTimeout(t);
-  }, [fadeAnim, onDismiss]);
+  }, [fade, onDismiss]);
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[splashStyles.wrap, { opacity: fadeAnim }]}
-    >
+    <Animated.View pointerEvents="none" style={[splashStyles.wrap, { opacity: fade }]}>
       <View style={splashStyles.content}>
         <View style={splashStyles.iconWrap}>
           <Ionicons name="play-circle" size={40} color="#fff" />
@@ -91,90 +135,115 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
   );
 }
 
-const splashStyles = StyleSheet.create({
-  wrap: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(7,8,13,0.88)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 99,
-  },
-  content: { alignItems: 'center', gap: 14, paddingHorizontal: 40 },
-  iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(220,38,38,0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headline: { fontSize: 22, fontWeight: '800', color: '#f4f6fb', textAlign: 'center' },
-  sub: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
-  livePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(220,38,38,0.88)',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#fff' },
-  liveText: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
-});
+// ─── Player ────────────────────────────────────────────────────────────────
+// expo-video has no WebRTC codec — we feed it HLS only. The web's WHEPPlayer
+// is web-only (WebRTC over HTTP). Object-form source so AVPlayer/ExoPlayer
+// pick the right HLS loader.
+
+function Player({ url }: { url: string }) {
+  const player = useVideoPlayer({ uri: url }, (p) => {
+    p.loop = false;
+    p.muted = false;
+    p.audioMixingMode = 'auto';
+    p.play();
+  });
+  useEffect(() => {
+    const sub = player.addListener('statusChange', ({ status, error }) => {
+      if (status === 'error' && error?.message) {
+        console.warn('[stream] playback error', error.message);
+      }
+    });
+    return () => sub.remove();
+  }, [player]);
+  return (
+    <View style={styles.playerWrap}>
+      <VideoView
+        player={player}
+        style={styles.player}
+        allowsFullscreen
+        allowsPictureInPicture
+        contentFit="contain"
+        nativeControls
+      />
+    </View>
+  );
+}
+
+// ─── Main screen ───────────────────────────────────────────────────────────
 
 export default function PublicLiveStreamScreen() {
-  const { id, viewerId: initialViewerId, token: initialToken } = useLocalSearchParams<{
+  const {
+    id,
+    viewerId: urlViewerId,
+    token: urlToken,
+    fromPayment,
+  } = useLocalSearchParams<{
     id: string;
     viewerId?: string;
     token?: string;
+    fromPayment?: string;
   }>();
   const router = useRouter();
 
+  // ── Event load ───────────────────────────────────────────────────────────
   const event = useAsync(useCallback(() => getPublicEventDetailed(id), [id]));
-  const [token, setToken] = useState(initialToken ?? '');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [manifestUrl, setManifestUrl] = useState<string | null>(null);
-  const [viewerCount, setViewerCount] = useState<number>(0);
 
-  // Chat state — only populated when we know the viewerId (i.e. the
-  // viewer has paid + been registered as an AnonymousStreamViewer).
-  const [viewerId, setViewerId] = useState<string | undefined>(initialViewerId);
+  // Derived event status — kept verbatim with the web's gate (live, ended,
+  // upcoming, cancelled).
+  const status = useMemo(() => {
+    const ev = event.data;
+    const raw = (ev?.eventStatus || '').toUpperCase();
+    const streamEnded = ev?.streamStatus === 'ended';
+    const isLive = raw === 'ONGOING' && !streamEnded;
+    const isEnded = raw === 'COMPLETED' || streamEnded;
+    const isCancelled = raw === 'CANCELLED';
+    const streamFee = ev?.streamFee ?? 0;
+    const price = ev?.price ?? 0;
+    const isPaid = streamFee > 0 || price > 0;
+    return { isLive, isEnded, isCancelled, isPaid };
+  }, [event.data]);
+
+  // ── Stream + access state ────────────────────────────────────────────────
+  const [manifestUrl, setManifestUrl] = useState<string | null>(null);
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [viewerId, setViewerId] = useState<string | undefined>(urlViewerId);
+  const [viewerName, setViewerName] = useState<string | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+
+  // Welcome splash — fires once after the manifest first appears.
+  const [splashVisible, setSplashVisible] = useState(false);
+  const splashFiredRef = useRef(false);
+
+  // ── Token (invite-code) state ────────────────────────────────────────────
+  const [tokenInput, setTokenInput] = useState(urlToken ?? '');
+  const [tokenBusy, setTokenBusy] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+
+  // ── Viewer-info modal (web "Verify your access") ─────────────────────────
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoName, setInfoName] = useState('');
+  const [infoEmail, setInfoEmail] = useState('');
+  const [infoPhone, setInfoPhone] = useState('');
+  const [infoBusy, setInfoBusy] = useState(false);
+  const [infoError, setInfoError] = useState<string | null>(null);
+
+  // ── Device-conflict modal ────────────────────────────────────────────────
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [conflictBusy, setConflictBusy] = useState(false);
+
+  // ── Viewer count badge ───────────────────────────────────────────────────
+  const [viewerCount, setViewerCount] = useState(0);
+
+  // ── Chat state ───────────────────────────────────────────────────────────
   const [chats, setChats] = useState<PublicStreamChat[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
-  // Welcome splash (web parity: auto-dismiss 2.6s on stream load)
-  const [splashVisible, setSplashVisible] = useState(false);
-  // Trigger splash once manifestUrl is set for the first time
-  const splashFiredRef = useRef(false);
+  const [floatingEmoji, setFloatingEmoji] = useState<
+    { id: string; emoji: string; anim: Animated.Value }[]
+  >([]);
 
-  const [floatingEmoji, setFloatingEmoji] = useState<{ id: string; emoji: string; anim: Animated.Value }[]>([]);
-
-  // Recover-by-email state — when storage is wiped, the viewer can
-  // re-enter their email to ask the backend whether they already paid.
-  // The /anonymous-viewer/{id}/register endpoint dedupes by email, so
-  // matching an existing COMPLETED record returns ACCESS_GRANTED.
-  const [recoverOpen, setRecoverOpen] = useState(false);
-  const [recoverName, setRecoverName] = useState('');
-  const [recoverEmail, setRecoverEmail] = useState('');
-  const [recoverPhone, setRecoverPhone] = useState('');
-  const [recoverBusy, setRecoverBusy] = useState(false);
-  const [recoverError, setRecoverError] = useState<string | null>(null);
-
-  // Device-conflict modal — surfaces when the backend returns reason
-  // DEVICE_MISMATCH for a paid viewer. The user explicitly confirms
-  // they want to switch ownership to this device (web parity).
-  const [conflictOpen, setConflictOpen] = useState(false);
-  const [conflictBusy, setConflictBusy] = useState(false);
-
-  // Gift / sponsor flow state. Web parity: anonymous-viewer/{id}/gift
-  // endpoint accepts MoMo (MTN/Airtel) and Card. Mobile defaults to
-  // MoMo with the viewer's stored phone number; Card opens the
-  // gateway URL via WebBrowser like the rest of the public flow.
+  // ── Gift modal (sponsor) ─────────────────────────────────────────────────
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftAmount, setGiftAmount] = useState('1000');
   const [giftMessage, setGiftMessage] = useState('');
@@ -183,11 +252,9 @@ export default function PublicLiveStreamScreen() {
   const [giftTelecom, setGiftTelecom] = useState<'MTN' | 'AIRTEL'>('MTN');
   const [giftBusy, setGiftBusy] = useState(false);
   const [giftError, setGiftError] = useState<string | null>(null);
-  const [giftCurrencyId, setGiftCurrencyId] = useState<string | null>(null);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [giftCurrencyId, setGiftCurrencyId] = useState<string | null>(null);
 
-  // Hydrate currencies once so the gift modal can resolve the currency
-  // id without blocking the screen. Default to RWF when possible.
   useEffect(() => {
     listCurrencies()
       .then((list) => {
@@ -198,97 +265,133 @@ export default function PublicLiveStreamScreen() {
       .catch(() => {});
   }, []);
 
-  // Auto-resume paid anonymous-viewer access if we already have a viewerId.
-  // Backend access-status is GET with `fingerprint` + `viewerId` query
-  // params — needs the device id loaded async, so resolve that inside
-  // the effect rather than blocking the screen mount.
+  // ── Access detection (web parity: lines 595-755) ─────────────────────────
   //
-  // We deliberately skip the access call for FREE events: a stored
-  // viewerId from a previous session would cause backend hasAccess to
-  // return false (no paid record) and the red banner to fire on a
-  // stream that's actually free to watch. The HLS auto-poll below
-  // handles those by reading hlsManifestUrl off the public event.
+  // Runs once event.data is loaded. Picks the right path based on the
+  // event's type: invite_token + token, paid + viewerId, or free.
+
   useEffect(() => {
-    if (!viewerId) return;
-    const streamFee = event.data?.streamFee ?? 0;
-    const eventPrice = event.data?.price ?? 0;
-    const isPaid = streamFee > 0 || eventPrice > 0;
-    if (event.data && !isPaid) return;
+    if (!event.data || event.loading) return;
+    if (status.isEnded || status.isCancelled) return;
+
     let cancelled = false;
-    setBusy(true);
     (async () => {
-      try {
-        const fingerprint = await getDeviceId();
-        const res = await checkAnonymousAccessStatus(id, viewerId, fingerprint);
-        if (cancelled) return;
-        if (res.active && res.hlsManifestUrl) {
-          setManifestUrl(res.hlsManifestUrl);
-        } else if (res.reason === 'DEVICE_MISMATCH') {
-          // Backend's single-device enforcement: paid viewer is bound
-          // to another device. Open the confirmation modal so the user
-          // explicitly decides to take over the session on THIS device.
-          setConflictOpen(true);
-        } else {
-          // Stored viewerId no longer maps to a paid record. Drop it
-          // from state + storage so future opens don't keep failing,
-          // and surface a non-error CTA inviting the user to recover
-          // or buy. We intentionally don't show "please retry payment"
-          // anymore — that error misled users who'd never paid in the
-          // first place into thinking something was broken.
-          await storage.remove(`anonymousViewer_${id}`).catch(() => {});
-          setViewerId(undefined);
+      // Paid event — anonymous viewer access check
+      if (status.isPaid) {
+        const storedViewerId = await storage.get(`anonymousViewer_${id}`).catch(() => null);
+        const vId = urlViewerId || storedViewerId;
+        if (!vId) {
+          // No viewerId — surface the Verify your access modal so the
+          // user can re-identify by email (web's "viewer info" modal).
+          if (!cancelled) {
+            setViewerId(undefined);
+            setInfoModalOpen(true);
+          }
+          return;
         }
-      } catch (e) {
-        if (!cancelled) setError(isApiError(e) ? e.message : 'Could not verify your access.');
-      } finally {
-        if (!cancelled) setBusy(false);
+        if (cancelled) return;
+        setViewerId(vId);
+        setAccessLoading(true);
+        try {
+          const fingerprint = await getDeviceId();
+          const res = await checkAnonymousAccessStatus(id, vId, fingerprint);
+          if (cancelled) return;
+          if (res.active && res.hlsManifestUrl) {
+            setManifestUrl(res.hlsManifestUrl);
+            setAccessGranted(true);
+            await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+          } else if (res.reason === 'DEVICE_MISMATCH') {
+            setConflictOpen(true);
+          } else if (fromPayment === '1') {
+            // Just came from payment — backend may not have flipped the
+            // viewer's status to COMPLETED yet. Retry once after 2s.
+            setTimeout(async () => {
+              if (cancelled) return;
+              try {
+                const fp = await getDeviceId();
+                const retry = await checkAnonymousAccessStatus(id, vId, fp);
+                if (cancelled) return;
+                if (retry.active && retry.hlsManifestUrl) {
+                  setManifestUrl(retry.hlsManifestUrl);
+                  setAccessGranted(true);
+                } else if (retry.reason === 'DEVICE_MISMATCH') {
+                  setConflictOpen(true);
+                } else {
+                  setInfoModalOpen(true);
+                }
+              } catch {
+                /* swallow */
+              }
+            }, 2000);
+          } else {
+            // viewerId mapped to no paid record — clear it and surface
+            // the recover-by-email form (web's "Verify your access").
+            await storage.remove(`anonymousViewer_${id}`).catch(() => {});
+            if (!cancelled) {
+              setViewerId(undefined);
+              setInfoModalOpen(true);
+            }
+          }
+        } catch (e) {
+          if (!cancelled) {
+            setTokenError(isApiError(e) ? e.message : 'Could not verify your access.');
+          }
+        } finally {
+          if (!cancelled) setAccessLoading(false);
+        }
+        return;
       }
+
+      // Free + invite-token event
+      const storedToken = await storage.get(`streamToken_${id}`).catch(() => null);
+      const tk = urlToken || storedToken;
+      if (tk) {
+        if (cancelled) return;
+        setTokenInput(tk);
+        setTokenBusy(true);
+        try {
+          const validation = await validateStreamToken(id, tk);
+          if (cancelled) return;
+          if (validation.valid && validation.hlsManifestUrl) {
+            setManifestUrl(validation.hlsManifestUrl);
+            setAccessGranted(true);
+            await storage.set(`streamToken_${id}`, tk).catch(() => {});
+          } else if (validation.requiresPayment) {
+            router.replace(`/events/join?id=${id}` as unknown as Href);
+          }
+        } catch {
+          /* user can try again from the token card */
+        } finally {
+          if (!cancelled) setTokenBusy(false);
+        }
+      }
+      // No token → the token card is rendered below for user input.
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [id, viewerId, event.data]);
+  }, [event.data, event.loading, status.isPaid, status.isEnded, status.isCancelled, id, urlViewerId, urlToken, fromPayment, router]);
 
-  // Poll public viewer count for the badge.
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const c = await getPublicViewerCount(id);
-        if (!cancelled) setViewerCount(c);
-      } catch {
-        /* not fatal */
-      }
-    };
-    tick();
-    const handle = setInterval(tick, 15_000);
-    return () => {
-      cancelled = true;
-      clearInterval(handle);
-    };
-  }, [id]);
+  // ── Auto-poll for HLS manifest (free streams or paid without granted) ────
+  // Picks up `hlsManifestUrl` directly off the public event detail. Stops
+  // once we have it.
 
-  /**
-   * Auto-pick up the HLS manifest from the public event detail.
-   * For free streams (or anonymous viewers who haven't recovered yet)
-   * the event's `eventPhoto`/`hlsManifestUrl` is the only handle to
-   * the playback URL. We poll every 6s until it appears, then stop.
-   * This unblocks the "video can't be received" symptom on events
-   * where the photographer started the stream but the mobile screen
-   * had no path to discover the new manifest.
-   */
   useEffect(() => {
     if (manifestUrl) return;
+    if (!status.isLive) return;
     let cancelled = false;
     const tick = async () => {
       try {
         const detail = await getPublicEventDetailed(id);
         if (cancelled) return;
-        // HLS ONLY — feeding whepUrl to expo-video sends it to
-        // Cloudflare's /webRTC/play (WebRTC SDP), which the native
-        // player can't decode. We poll until the HLS manifest exists.
         const url = detail.hlsManifestUrl;
-        if (url) setManifestUrl(url);
+        if (url) {
+          setManifestUrl(url);
+          // Free + token-less stream → grant chat to the viewer with a
+          // best-effort fingerprint. Send is still gated on viewerId.
+          if (!status.isPaid) setAccessGranted(true);
+        }
       } catch {
         /* keep polling */
       }
@@ -299,46 +402,54 @@ export default function PublicLiveStreamScreen() {
       cancelled = true;
       clearInterval(handle);
     };
-  }, [id, manifestUrl]);
+  }, [manifestUrl, status.isLive, status.isPaid, id]);
 
-  // Show welcome splash the first time the manifest URL becomes available
-  // (web parity: showWelcomeSplash auto-dismissed after 2.6s).
+  // ── Welcome splash trigger ───────────────────────────────────────────────
   useEffect(() => {
     if (manifestUrl && !splashFiredRef.current) {
-      splashFiredRef.current = true;
       setSplashVisible(true);
+      splashFiredRef.current = true;
     }
   }, [manifestUrl]);
 
-  /**
-   * Poll the public chat panel while we have a manifest. 2.5s feels
-   * snappy without hammering the backend; reactions burst-render as
-   * floating emoji animations, plain messages append into the chat
-   * list. We only fetch when manifestUrl is set so the chat doesn't
-   * eagerly load before the viewer can actually watch.
-   */
+  // ── Viewer count badge poll ──────────────────────────────────────────────
   useEffect(() => {
-    if (!manifestUrl || !id) return;
     let cancelled = false;
-    let isFirstPoll = true;
-    const seenIds = new Set<string>();
+    const tick = async () => {
+      try {
+        const c = await getPublicViewerCount(id);
+        if (!cancelled) setViewerCount(c);
+      } catch {
+        /* swallow */
+      }
+    };
+    tick();
+    const handle = setInterval(tick, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(handle);
+    };
+  }, [id]);
+
+  // ── Chat poll (2.5s) ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!status.isLive) return;
+    let cancelled = false;
+    let isFirst = true;
+    const seenReactions = new Set<string>();
     const tick = async () => {
       try {
         const page = await getPublicStreamChats(id);
         if (cancelled) return;
         setChats(page.messages);
-        // On the first poll, seed seenIds with every historical
-        // reaction so the viewer doesn't get flooded with a wall of
-        // floating emoji on screen-open. From the second poll onward,
-        // only NEW reactions burst.
         for (const r of page.reactions) {
-          if (seenIds.has(r.id)) continue;
-          seenIds.add(r.id);
-          if (!isFirstPoll) burstFloating(r.message);
+          if (seenReactions.has(r.id)) continue;
+          seenReactions.add(r.id);
+          if (!isFirst) burstFloating(r.message);
         }
-        isFirstPoll = false;
+        isFirst = false;
       } catch {
-        /* not fatal — keep last chat */
+        /* keep polling */
       }
     };
     tick();
@@ -347,9 +458,8 @@ export default function PublicLiveStreamScreen() {
       cancelled = true;
       clearInterval(handle);
     };
-  }, [manifestUrl, id]);
+  }, [status.isLive, id]);
 
-  // Quick optimistic floating-emoji burst.
   const burstFloating = (emoji: string) => {
     const anim = new Animated.Value(0);
     const itemId = Math.random().toString(36).slice(2);
@@ -359,11 +469,118 @@ export default function PublicLiveStreamScreen() {
     });
   };
 
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const onJoinWithToken = async () => {
+    if (!tokenInput.trim()) {
+      setTokenError('Please paste the invite token from your invitation.');
+      return;
+    }
+    setTokenBusy(true);
+    setTokenError(null);
+    try {
+      const validation = await validateStreamToken(id, tokenInput.trim());
+      if (!validation.valid) {
+        setTokenError('That token is not valid for this event.');
+        return;
+      }
+      if (validation.requiresPayment) {
+        router.replace(`/events/join?id=${id}` as unknown as Href);
+        return;
+      }
+      if (validation.hlsManifestUrl) {
+        setManifestUrl(validation.hlsManifestUrl);
+        setAccessGranted(true);
+        await storage.set(`streamToken_${id}`, tokenInput.trim()).catch(() => {});
+      } else if (status.isLive) {
+        setTokenError('The stream is starting — please try again in a moment.');
+      } else {
+        setTokenError('This event has no live stream right now.');
+      }
+    } catch (e) {
+      setTokenError(isApiError(e) ? e.message : 'Could not validate the token.');
+    } finally {
+      setTokenBusy(false);
+    }
+  };
+
+  const onConfirmSwitchDevice = async () => {
+    if (!viewerId) return;
+    setConflictBusy(true);
+    try {
+      const fingerprint = await getDeviceId();
+      const swap = await switchAnonymousDevice(id, viewerId, fingerprint);
+      if (!swap.ok) {
+        setTokenError(swap.message ?? 'Could not switch device.');
+        setConflictOpen(false);
+        return;
+      }
+      const res = await checkAnonymousAccessStatus(id, viewerId, fingerprint);
+      if (res.active && res.hlsManifestUrl) {
+        setManifestUrl(res.hlsManifestUrl);
+        setAccessGranted(true);
+        setConflictOpen(false);
+      } else {
+        setTokenError('Switched, but the stream isn’t live yet — try again in a moment.');
+      }
+    } catch (e) {
+      setTokenError(isApiError(e) ? e.message : 'Could not switch device.');
+    } finally {
+      setConflictBusy(false);
+    }
+  };
+
+  const onSubmitViewerInfo = async () => {
+    if (!infoName.trim() || !infoEmail.includes('@')) {
+      setInfoError('Enter the name and email you used at checkout.');
+      return;
+    }
+    if (!infoPhone.trim() || infoPhone.replace(/[^0-9]/g, '').length < 9) {
+      setInfoError('Enter the phone number you used at checkout.');
+      return;
+    }
+    setInfoBusy(true);
+    setInfoError(null);
+    try {
+      const fingerprint = await getDeviceId();
+      const reg = await registerAnonymousViewer(id, {
+        name: infoName.trim(),
+        email: infoEmail.trim(),
+        phone: infoPhone.trim(),
+        deviceId: fingerprint,
+      });
+      if (reg.needsPayment) {
+        setInfoError("We couldn't find a paid record for this email — buy access to start.");
+        return;
+      }
+      await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
+      setViewerId(reg.viewerId);
+      setViewerName(infoName.trim());
+      if (reg.hlsManifestUrl) {
+        setManifestUrl(reg.hlsManifestUrl);
+        setAccessGranted(true);
+      } else {
+        // Fall back to the access-status check for the manifest.
+        const res = await checkAnonymousAccessStatus(id, reg.viewerId, fingerprint);
+        if (res.hlsManifestUrl) {
+          setManifestUrl(res.hlsManifestUrl);
+          setAccessGranted(true);
+        }
+      }
+      setInfoModalOpen(false);
+    } catch (e) {
+      setInfoError(isApiError(e) ? e.message : 'Could not verify your access.');
+    } finally {
+      setInfoBusy(false);
+    }
+  };
+
   const onSendChat = async () => {
     const msg = chatDraft.trim();
     if (!msg) return;
     if (!viewerId) {
-      setChatError('You need to recover your access first to chat.');
+      setChatError('Verify your access to chat.');
+      setInfoModalOpen(true);
       return;
     }
     setChatSending(true);
@@ -373,7 +590,7 @@ export default function PublicLiveStreamScreen() {
       await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
       setChatDraft('');
     } catch (e) {
-      setChatError(isApiError(e) ? e.message : 'Could not send message.');
+      setChatError(isApiError(e) ? e.message : 'Could not send.');
     } finally {
       setChatSending(false);
     }
@@ -381,113 +598,23 @@ export default function PublicLiveStreamScreen() {
 
   const onSendReaction = async (emoji: string) => {
     burstFloating(emoji); // optimistic local burst
-    if (!viewerId) {
-      setChatError('Reactions need access first — recover or buy access.');
-      return;
-    }
+    if (!viewerId) return;
     try {
       const fingerprint = await getDeviceId();
       await sendPublicStreamReaction(id, { viewerId, deviceFingerprint: fingerprint, emoji });
-    } catch (e) {
-      // Silent fail on reaction send — the local burst already played.
-      setChatError(isApiError(e) ? e.message : 'Reaction not sent.');
+    } catch {
+      /* local burst already played */
     }
   };
 
-  /**
-   * Recover paid access by re-entering the email used during checkout.
-   * The backend's registerOrLookup is identity-keyed by email and
-   * returns ACCESS_GRANTED (with a fresh viewerId) when a matching
-   * COMPLETED record exists. We persist the new viewerId so future
-   * launches resume directly.
-   */
-  const onRecover = async () => {
-    if (!recoverName.trim() || !recoverEmail.includes('@')) {
-      setRecoverError('Please enter your name and the email used at checkout.');
-      return;
-    }
-    if (!recoverPhone.trim() || recoverPhone.replace(/[^0-9]/g, '').length < 9) {
-      setRecoverError('Please enter the phone number you used at checkout.');
-      return;
-    }
-    setRecoverBusy(true);
-    setRecoverError(null);
-    try {
-      const fingerprint = await getDeviceId();
-      const reg = await registerAnonymousViewer(id, {
-        name: recoverName.trim(),
-        email: recoverEmail.trim(),
-        phone: recoverPhone.trim(),
-        deviceId: fingerprint,
-      });
-      if (reg.needsPayment) {
-        setRecoverError(
-          "We couldn't find a paid record for this email. Buy access to start watching.",
-        );
-        return;
-      }
-      // Paid — persist and load the manifest.
-      await storage.set(`anonymousViewer_${id}`, reg.viewerId);
-      setViewerId(reg.viewerId);
-      if (reg.hlsManifestUrl) setManifestUrl(reg.hlsManifestUrl);
-      else {
-        // Fall back to the access-status lookup if register didn't
-        // return the manifest (some flows defer that until check).
-        const status = await checkAnonymousAccessStatus(id, reg.viewerId, fingerprint);
-        if (status.hlsManifestUrl) setManifestUrl(status.hlsManifestUrl);
-      }
-      setRecoverOpen(false);
-    } catch (e) {
-      setRecoverError(isApiError(e) ? e.message : 'Could not recover access.');
-    } finally {
-      setRecoverBusy(false);
-    }
-  };
-
-  /**
-   * Confirm device-switch: deactivate the old session, anchor the
-   * viewerId to this device's fingerprint, then re-check access.
-   */
-  const confirmSwitchDevice = async () => {
-    if (!viewerId) return;
-    setConflictBusy(true);
-    try {
-      const fingerprint = await getDeviceId();
-      const res = await switchAnonymousDevice(id, viewerId, fingerprint);
-      if (!res.ok) {
-        setError(res.message ?? 'Could not switch device.');
-        setConflictOpen(false);
-        return;
-      }
-      // Re-verify; the access-status response carries the manifest now.
-      const status = await checkAnonymousAccessStatus(id, viewerId, fingerprint);
-      if (status.active && status.hlsManifestUrl) {
-        setManifestUrl(status.hlsManifestUrl);
-        setConflictOpen(false);
-      } else {
-        setError('Switched, but the stream isn’t live yet. Tap retry.');
-      }
-    } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not switch device.');
-    } finally {
-      setConflictBusy(false);
-    }
-  };
-
-  /**
-   * Initiate a gift. MoMo path uses StorageQ phone + telecom; Card
-   * opens the gateway URL via expo-web-browser like the rest of the
-   * public flow. We poll the public payment-status endpoint until
-   * COMPLETED or FAILED.
-   */
   const onSubmitGift = async () => {
     setGiftError(null);
     if (!viewerId) {
-      setGiftError('You need viewer access first — recover or buy access.');
+      setGiftError('Verify your access first.');
       return;
     }
     if (!giftCurrencyId) {
-      setGiftError('Currencies haven’t loaded yet — try again in a moment.');
+      setGiftError('Currencies are still loading — try again in a moment.');
       return;
     }
     const amount = parseInt(giftAmount, 10);
@@ -511,7 +638,7 @@ export default function PublicLiveStreamScreen() {
         phone: giftMethod === 'MOMO' ? giftPhone.trim() : undefined,
         telecomProvider: giftMethod === 'MOMO' ? giftTelecom : undefined,
         redirectUrl: giftMethod === 'CARD' ? 'https://connekyt.com/payment-callback' : undefined,
-        giftMessage: giftMessage,
+        giftMessage,
       });
       if (init.paymentUrl) {
         await WebBrowser.openBrowserAsync(init.paymentUrl).catch(() => {});
@@ -538,46 +665,18 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
-  const onJoinWithToken = async () => {
-    if (!token.trim()) {
-      setError('Please paste the invite token from your invitation.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await validateStreamToken(id, token.trim());
-      if (!res.valid) {
-        setError('That token is not valid for this event.');
-        return;
-      }
-      if (res.requiresPayment) {
-        // Forward to the payment screen for a paid stream.
-        router.replace(`/events/join?id=${id}` as unknown as Href);
-        return;
-      }
-      if (res.hlsManifestUrl) {
-        setManifestUrl(res.hlsManifestUrl);
-      } else {
-        setError(
-          res.hasLiveStream
-            ? 'The stream is starting soon. Please try again in a moment.'
-            : 'This event has no live stream right now.',
-        );
-      }
-    } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not validate the token.');
-    } finally {
-      setBusy(false);
-    }
-  };
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  const eventTitle = event.data?.title ?? 'Live stream';
+  const eventThumb = event.data?.eventPhoto || COVER_FALLBACK;
 
   return (
     <Screen padded={false} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Title row + viewer count badge */}
         <View style={styles.header}>
           <Text style={styles.title} numberOfLines={2}>
-            {event.data?.title ?? 'Live stream'}
+            {eventTitle}
           </Text>
           {viewerCount > 0 ? (
             <View style={styles.viewerBadge}>
@@ -587,90 +686,72 @@ export default function PublicLiveStreamScreen() {
           ) : null}
         </View>
 
-        {/*
-         * Player / placeholder. Derived from the *event's* status, not
-         * the manifestUrl: when the photographer is broadcasting we
-         * always say "Stream is starting…" instead of the misleading
-         * "Stream will appear here." Web parity — knockout shows the
-         * loading state while waiting for Cloudflare to emit the
-         * first segment.
-         */}
-        {(() => {
-          const ev = event.data;
-          const rawStatus = (ev?.eventStatus || '').toUpperCase();
-          const streamEnded = ev?.streamStatus === 'ended';
-          const eventIsLive = rawStatus === 'ONGOING' && !streamEnded;
-          const eventIsEnded = rawStatus === 'COMPLETED' || streamEnded;
-
-          if (manifestUrl) return <Player url={manifestUrl} />;
-          return (
-            <View style={styles.placeholder}>
-              {busy || eventIsLive ? (
-                <ActivityIndicator color={colors.primary} />
+        {/* Player or placeholder, driven off eventStatus */}
+        {manifestUrl ? (
+          <Player url={manifestUrl} />
+        ) : (
+          <View style={styles.placeholder}>
+            <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+            <View style={styles.placeholderScrim} />
+            <View style={styles.placeholderContent}>
+              {accessLoading || tokenBusy || status.isLive ? (
+                <ActivityIndicator color="#fff" />
               ) : (
-                <Ionicons name="videocam-outline" size={48} color={colors.textMuted} />
+                <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
               )}
               <Text style={styles.placeholderText}>
-                {eventIsEnded
-                  ? 'This event has ended.'
-                  : eventIsLive
-                    ? 'Stream is starting — hang tight.'
-                    : busy
-                      ? 'Connecting to the stream…'
+                {status.isCancelled
+                  ? 'This event has been cancelled.'
+                  : status.isEnded
+                    ? 'This event has ended.'
+                    : status.isLive
+                      ? accessGranted
+                        ? 'Stream is starting — hang tight.'
+                        : 'Verify your access to start watching.'
                       : 'Stream will appear here once it goes live.'}
               </Text>
+              {status.isLive && !accessGranted && status.isPaid ? (
+                <Pressable
+                  style={styles.placeholderCta}
+                  onPress={() => setInfoModalOpen(true)}
+                >
+                  <Text style={styles.placeholderCtaText}>Verify your access</Text>
+                </Pressable>
+              ) : null}
             </View>
-          );
-        })()}
+          </View>
+        )}
 
-        {!manifestUrl && !viewerId ? (
+        {/* Invite-token card — shown when no paid access + free invite_token event */}
+        {!manifestUrl && !status.isPaid && status.isLive ? (
           <View style={styles.tokenCard}>
             <Text style={styles.tokenLabel}>Have an invite token?</Text>
             <Input
-              value={token}
-              onChangeText={setToken}
+              value={tokenInput}
+              onChangeText={setTokenInput}
               placeholder="Paste the token from your invitation"
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Button title="Join stream" onPress={onJoinWithToken} loading={busy} />
-
-            {/* Recover-by-email — only for paid streams. We don't gate
-                on isPaid here because the modal is harmless on free
-                streams (registerOrLookup will just say REQUIRES_PAYMENT
-                with amount = 0). */}
-            <Pressable onPress={() => setRecoverOpen(true)} hitSlop={6}>
-              <Text style={styles.linkText}>Already paid? Recover access by email</Text>
-            </Pressable>
-            <Pressable onPress={() => router.replace(`/event/${id}` as unknown as Href)}>
+            <Button title="Join stream" onPress={onJoinWithToken} loading={tokenBusy} />
+            <Pressable
+              onPress={() => router.replace(`/event/${id}` as unknown as Href)}
+              style={{ alignItems: 'center', marginTop: 4 }}
+            >
               <Text style={styles.linkText}>← Back to event details</Text>
             </Pressable>
           </View>
         ) : null}
 
         {/*
-         * Chat panel — render whenever the event is LIVE so the viewer
-         * can read along even before their own playback connects.
-         * Previously this was gated on manifestUrl; that hid chat while
-         * the player was buffering, which the user reported as "where
-         * is live chat" while watching a stream that was already live
-         * server-side.
+         * Chat panel. Shown whenever the event is LIVE — chat works even
+         * before the local player has connected. Send is gated on viewerId;
+         * tapping the input opens the Verify modal for non-paid viewers.
          */}
-        {(() => {
-          const ev = event.data;
-          const eventIsLive =
-            (ev?.eventStatus || '').toUpperCase() === 'ONGOING' && ev?.streamStatus !== 'ended';
-          return eventIsLive || manifestUrl;
-        })() ? (
+        {status.isLive ? (
           <View style={styles.chatCard}>
             <View style={styles.chatTitleRow}>
               <Text style={styles.chatTitle}>Live chat</Text>
-              {/*
-               * Gift button — opens the sponsor sheet. Web parity:
-               * always visible while watching, opens the gift modal
-               * regardless of free/paid event (anonymous viewer gift
-               * endpoint accepts both).
-               */}
               {viewerId ? (
                 <Pressable style={styles.giftPill} onPress={() => setGiftOpen(true)}>
                   <Ionicons name="gift-outline" size={14} color="#fff" />
@@ -694,7 +775,6 @@ export default function PublicLiveStreamScreen() {
               )}
             </View>
 
-            {/* Reactions row */}
             <View style={styles.reactionsRow}>
               {REACTION_EMOJIS.map((emoji) => (
                 <Pressable
@@ -708,22 +788,21 @@ export default function PublicLiveStreamScreen() {
               ))}
             </View>
 
-            {/* Message input */}
             <View style={styles.composer}>
               <TextInput
                 value={chatDraft}
                 onChangeText={setChatDraft}
-                placeholder={viewerId ? 'Say something…' : 'Recover access to chat'}
+                placeholder={viewerId ? 'Say something…' : 'Verify access to chat'}
                 placeholderTextColor={colors.textMuted}
-                editable={!!viewerId && !chatSending}
+                editable={!chatSending}
                 style={styles.composerInput}
                 returnKeyType="send"
                 onSubmitEditing={onSendChat}
               />
               <Pressable
-                style={[styles.sendBtn, (!viewerId || chatSending) && { opacity: 0.5 }]}
+                style={[styles.sendBtn, (chatSending || !chatDraft.trim()) && { opacity: 0.5 }]}
                 onPress={onSendChat}
-                disabled={!viewerId || chatSending || !chatDraft.trim()}
+                disabled={chatSending || !chatDraft.trim()}
               >
                 {chatSending ? (
                   <ActivityIndicator color="#fff" />
@@ -732,21 +811,19 @@ export default function PublicLiveStreamScreen() {
                 )}
               </Pressable>
             </View>
-            {chatError ? <Text style={styles.chatError}>{chatError}</Text> : null}
+            {chatError ? <Text style={styles.chatErrorText}>{chatError}</Text> : null}
           </View>
         ) : null}
 
-        {error ? (
+        {tokenError ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={20} color={colors.error} />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{tokenError}</Text>
           </View>
         ) : null}
       </ScrollView>
 
-      {/* Floating reactions overlay — covers the screen so reactions
-          rise across the player from bottom to top. Each entry self-
-          removes after its animation finishes. */}
+      {/* Floating reactions overlay */}
       {floatingEmoji.length > 0 ? (
         <View pointerEvents="none" style={styles.floatingLayer}>
           {floatingEmoji.map((fx) => (
@@ -757,12 +834,7 @@ export default function PublicLiveStreamScreen() {
                 {
                   opacity: fx.anim.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }),
                   transform: [
-                    {
-                      translateY: fx.anim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -260],
-                      }),
-                    },
+                    { translateY: fx.anim.interpolate({ inputRange: [0, 1], outputRange: [0, -260] }) },
                   ],
                   left: `${20 + Math.random() * 60}%`,
                 },
@@ -774,45 +846,88 @@ export default function PublicLiveStreamScreen() {
         </View>
       ) : null}
 
-      {/* Device-conflict confirmation — web parity: explicit
-          switch-device confirmation to take ownership on this device. */}
-      <Modal
-        visible={conflictOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setConflictOpen(false)}
-      >
+      {/* Welcome splash */}
+      {splashVisible ? (
+        <WelcomeSplash eventTitle={eventTitle} onDismiss={() => setSplashVisible(false)} />
+      ) : null}
+
+      {/* Device-conflict modal */}
+      <Modal visible={conflictOpen} transparent animationType="slide" onRequestClose={() => setConflictOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setConflictOpen(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>You're watching on another device</Text>
             <Text style={styles.modalHint}>
-              Only one device can watch at a time on a single paid ticket. Switch ownership to this
-              device and the old session will be ended.
+              Only one device can watch on the same paid ticket. Switch ownership to this device —
+              the old session will be ended.
             </Text>
             <Button
               title={conflictBusy ? 'Switching…' : 'Switch to this device'}
-              onPress={confirmSwitchDevice}
+              onPress={onConfirmSwitchDevice}
               loading={conflictBusy}
             />
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Gift / sponsor sheet — web parity: amount + currency + payment
-          method picker, opens XentriPay gateway URL via WebBrowser. */}
-      <Modal
-        visible={giftOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setGiftOpen(false)}
-      >
+      {/* Viewer-info modal (Verify your access) */}
+      <Modal visible={infoModalOpen} transparent animationType="slide" onRequestClose={() => setInfoModalOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setInfoModalOpen(false)}>
+          <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>Verify your access</Text>
+              <Text style={styles.modalHint}>
+                Enter the name, email and phone you used when buying your ticket. We'll restore
+                access on this device.
+              </Text>
+              <Input
+                label="Name"
+                value={infoName}
+                onChangeText={setInfoName}
+                placeholder="Full name"
+                autoCapitalize="words"
+              />
+              <Input
+                label="Email"
+                value={infoEmail}
+                onChangeText={setInfoEmail}
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <Input
+                label="Phone"
+                value={infoPhone}
+                onChangeText={(t) => setInfoPhone(t.replace(/[^0-9+]/g, ''))}
+                placeholder="+2507…"
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+              />
+              {infoError ? <Text style={styles.chatErrorText}>{infoError}</Text> : null}
+              <Button
+                title={infoBusy ? 'Verifying…' : 'Verify access'}
+                onPress={onSubmitViewerInfo}
+                loading={infoBusy}
+              />
+              <Pressable
+                onPress={() => router.replace(`/events/join?id=${id}` as unknown as Href)}
+                style={{ alignItems: 'center', marginTop: 8 }}
+              >
+                <Text style={styles.linkText}>Buy access instead</Text>
+              </Pressable>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Gift modal (sponsor) */}
+      <Modal visible={giftOpen} transparent animationType="slide" onRequestClose={() => setGiftOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setGiftOpen(false)}>
           <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>Sponsor this stream</Text>
               <Text style={styles.modalHint}>
-                Send a gift to the photographer running this event. Mobile Money is processed
-                instantly; Card goes through XentriPay.
+                Send a gift to the creator. Mobile Money settles instantly; Card goes through
+                XentriPay.
               </Text>
 
               <Text style={styles.giftLabel}>Amount</Text>
@@ -906,13 +1021,22 @@ export default function PublicLiveStreamScreen() {
                 onChangeText={setGiftMessage}
                 placeholder="Say something nice"
                 multiline
-                style={{ height: 80, paddingTop: spacing.md, textAlignVertical: 'top', marginTop: spacing.sm }}
+                style={{
+                  height: 80,
+                  paddingTop: spacing.md,
+                  textAlignVertical: 'top',
+                  marginTop: spacing.sm,
+                }}
               />
 
-              {giftError ? <Text style={styles.chatError}>{giftError}</Text> : null}
+              {giftError ? <Text style={styles.chatErrorText}>{giftError}</Text> : null}
 
               <Button
-                title={giftBusy ? 'Processing…' : `Send ${giftAmount} ${currencies.find((c) => c.id === giftCurrencyId)?.code ?? 'RWF'}`}
+                title={
+                  giftBusy
+                    ? 'Processing…'
+                    : `Send ${giftAmount} ${currencies.find((c) => c.id === giftCurrencyId)?.code ?? 'RWF'}`
+                }
                 onPress={onSubmitGift}
                 loading={giftBusy}
               />
@@ -920,108 +1044,15 @@ export default function PublicLiveStreamScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-
-      {/* Recover-by-email sheet */}
-      <Modal
-        visible={recoverOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setRecoverOpen(false)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setRecoverOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Recover your access</Text>
-            <Text style={styles.modalHint}>
-              Enter the name + email you used when paying. We'll restore your viewer access on this
-              device.
-            </Text>
-            <Input
-              label="Name"
-              value={recoverName}
-              onChangeText={setRecoverName}
-              placeholder="The name on your ticket"
-              autoCapitalize="words"
-            />
-            <Input
-              label="Email"
-              value={recoverEmail}
-              onChangeText={setRecoverEmail}
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <Input
-              label="Phone"
-              value={recoverPhone}
-              onChangeText={(t) => setRecoverPhone(t.replace(/[^0-9+]/g, ''))}
-              placeholder="+2507…"
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-            />
-            {recoverError ? <Text style={styles.chatError}>{recoverError}</Text> : null}
-            <Button
-              title={recoverBusy ? 'Checking…' : 'Recover access'}
-              onPress={onRecover}
-              loading={recoverBusy}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Welcome splash (web parity: dismisses automatically after 2.6s) */}
-      {splashVisible ? (
-        <WelcomeSplash
-          eventTitle={event.data?.title}
-          onDismiss={() => setSplashVisible(false)}
-        />
-      ) : null}
     </Screen>
   );
 }
 
-function Player({ url }: { url: string }) {
-  // Native HLS on iOS (AVPlayer) and Android (ExoPlayer) needs the
-  // explicit object-form source so it can pick the right metadata
-  // strategy. Passing a bare string sometimes leaves the player in a
-  // "stalled" state on Android where it never asks for segments.
-  //
-  // We also surface playerStatusChange errors via Alert — silent
-  // failures were the reason the screen sat on the placeholder
-  // forever even though the URL was reachable from the browser.
-  const player = useVideoPlayer({ uri: url }, (p) => {
-    p.loop = false;
-    p.muted = false;
-    p.audioMixingMode = 'auto';
-    p.timeUpdateEventInterval = 0;
-    p.play();
-  });
-  useEffect(() => {
-    const subscription = player.addListener('statusChange', ({ status, error }) => {
-      if (status === 'error' && error?.message) {
-        // Cloudflare returns 404 for HLS while OBS isn't connected.
-        // We surface a calmer message so the user knows to wait
-        // rather than thinking the player itself is broken.
-        console.warn('[stream] playback error', error.message);
-      }
-    });
-    return () => subscription.remove();
-  }, [player]);
-  return (
-    <View style={styles.playerWrap}>
-      <VideoView
-        player={player}
-        style={styles.player}
-        allowsFullscreen
-        allowsPictureInPicture
-        contentFit="contain"
-        nativeControls
-      />
-    </View>
-  );
-}
+// ─── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 120 },
+  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 140 },
+
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   title: { flex: 1, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.text },
   viewerBadge: {
@@ -1037,13 +1068,27 @@ const styles = StyleSheet.create({
 
   placeholder: {
     aspectRatio: 16 / 9,
-    backgroundColor: '#0F1217',
     borderRadius: radii.lg,
+    overflow: 'hidden',
+    backgroundColor: '#0F1217',
+  },
+  placeholderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(7,8,13,0.62)' },
+  placeholderContent: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
+    paddingHorizontal: spacing.xl,
   },
-  placeholderText: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.sm },
+  placeholderText: { color: 'rgba(255,255,255,0.92)', fontSize: fontSize.sm, textAlign: 'center' },
+  placeholderCta: {
+    marginTop: spacing.sm,
+    backgroundColor: '#fff',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: radii.full,
+  },
+  placeholderCtaText: { color: colors.primary, fontWeight: '800', fontSize: fontSize.sm },
 
   playerWrap: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: '#000' },
   player: { width: '100%', height: '100%' },
@@ -1057,7 +1102,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   tokenLabel: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  linkText: { textAlign: 'center', color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  linkText: {
+    textAlign: 'center',
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
 
   errorBox: {
     flexDirection: 'row',
@@ -1077,7 +1127,11 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     gap: spacing.md,
   },
-  chatTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  chatTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   chatTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
   giftPill: {
     flexDirection: 'row',
@@ -1089,41 +1143,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
   },
   giftPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  giftLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-    color: colors.textSoft,
-    marginTop: spacing.sm,
-    letterSpacing: 0.4,
-  },
-  amountChipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginVertical: 6 },
-  amountChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-  },
-  amountChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  amountChipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: '700' },
-  amountChipTextActive: { color: '#fff' },
-  payTabs: { flexDirection: 'row', gap: 6, marginVertical: 6 },
-  payTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1.5,
-    borderColor: colors.borderSoft,
-  },
-  payTabActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  payTabText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: '700' },
-  payTabTextActive: { color: colors.primary },
   chatList: { gap: 6, maxHeight: 280 },
   chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
   chatBubble: {
@@ -1165,7 +1184,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chatError: { color: colors.error, fontSize: 12 },
+  chatErrorText: { color: colors.error, fontSize: 12 },
 
   floatingLayer: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end' },
   floatingEmoji: { position: 'absolute', bottom: 80, fontSize: 32 },
@@ -1180,4 +1199,74 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   modalHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
+
+  giftLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    color: colors.textSoft,
+    marginTop: spacing.sm,
+    letterSpacing: 0.4,
+  },
+  amountChipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginVertical: 6 },
+  amountChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  amountChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  amountChipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: '700' },
+  amountChipTextActive: { color: '#fff' },
+  payTabs: { flexDirection: 'row', gap: 6, marginVertical: 6 },
+  payTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1.5,
+    borderColor: colors.borderSoft,
+  },
+  payTabActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  payTabText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: '700' },
+  payTabTextActive: { color: colors.primary },
+});
+
+const splashStyles = StyleSheet.create({
+  wrap: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7,8,13,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99,
+  },
+  content: { alignItems: 'center', gap: 14, paddingHorizontal: 40 },
+  iconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(220,38,38,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headline: { fontSize: 22, fontWeight: '800', color: '#f4f6fb', textAlign: 'center' },
+  sub: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(220,38,38,0.88)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#fff' },
+  liveText: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
 });
