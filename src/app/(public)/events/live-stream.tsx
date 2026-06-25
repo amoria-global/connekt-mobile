@@ -33,20 +33,12 @@
  *
  *   3. CHAT PANEL
  *      Renders whenever the event is ONGOING (not gated on manifestUrl).
- *      Polls /public/events/{id}/chats every 2s, page size 100. Web
- *      uses 1s/500 but mobile can't virtualize the chat list (the JSX
- *      below uses ScrollView, not FlatList), so a 500-bubble first
- *      paint stalls the JS thread long enough for the WebView player
- *      to glitch. Dedupe matches web verbatim via seenApiMessageIds
- *      ref, with the sender pre-seeding their POST response id to
- *      prevent echo. Chat send is optimistic. Reactions POST to the
- *      open /reactions endpoint (no viewerId / payment required).
- *      First-poll storm prevention marks historical reactions seen
- *      without animating. Newly-seen reactions stagger by 120ms.
- *      Sliding window: chats state capped at 200, JSX renders the
- *      last 60.
+ *      Polls /public/events/{id}/chats every 2.5s. Sends via
+ *      sendPublicStreamChat (rate-limited 10/min). Reactions row sends
+ *      via sendPublicStreamReaction (rate-limited 30/min) and bursts
+ *      floating emoji on screen. Other viewers' reactions also burst.
  *
- *   4. GIFT / DONATION MODAL
+ *   4. GIFT MODAL (sponsor)
  *      Web parity: 5 preset amount chips + custom + MoMo / Card. Posts
  *      to /public/anonymous-viewer/{id}/gift then opens gateway URL.
  *
@@ -243,14 +235,8 @@ export default function PublicLiveStreamScreen() {
   const [floatingEmoji, setFloatingEmoji] = useState<
     { id: string; emoji: string; anim: Animated.Value }[]
   >([]);
-  // Web parity: shared dedupe set across chat polls + reaction
-  // POSTs. Persists across renders without retriggering the chat
-  // effect, so the sender's own POST id can be pre-seeded the
-  // moment the response lands and the next 1s poll won't re-render
-  // the same row.
-  const seenApiMessageIds = useRef<Set<string>>(new Set());
 
-  // ── Gift / donation modal ────────────────────────────────────────────────
+  // ── Gift modal (sponsor) ─────────────────────────────────────────────────
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftAmount, setGiftAmount] = useState('1000');
   const [giftMessage, setGiftMessage] = useState('');
@@ -500,66 +486,29 @@ export default function PublicLiveStreamScreen() {
     };
   }, [id]);
 
-  // ── Chat poll ────────────────────────────────────────────────────────────
-  //
-  // Web parity for dedupe + reactions, but the cadence and page size
-  // differ from web because React Native can't virtualize the chat
-  // panel — it renders every bubble as a real <View>, and on first
-  // poll with 500 messages that blocks the JS thread long enough for
-  // the WebView player to look like it stopped working. The dedupe
-  // ref still mirrors web (knockout live-stream.tsx 1107-1309) so the
-  // sender's own POST doesn't echo back. Settings:
-  //   - 2s poll  (1s was overlapping with the player's autoplay logic)
-  //   - size=100 (still 2x what we had pre-parity, but bounded)
-  //   - chats state capped at 200 entries (sliding window) so memory
-  //     doesn't grow unbounded over a long stream
-  //   - rendered chat list further capped in the JSX to the last 60
+  // ── Chat poll (2.5s) ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!status.isLive) return;
     let cancelled = false;
     let isFirst = true;
+    const seenReactions = new Set<string>();
     const tick = async () => {
       try {
-        const page = await getPublicStreamChats(id, 0, 100);
+        const page = await getPublicStreamChats(id);
         if (cancelled) return;
-
-        // ── REACTION bucket ────────────────────────────────────────────
-        const fresh: string[] = [];
+        setChats(page.messages);
         for (const r of page.reactions) {
-          if (seenApiMessageIds.current.has(r.id)) continue;
-          seenApiMessageIds.current.add(r.id);
-          if (isFirst) continue; // mark seen, skip animation
-          if (r.message) fresh.push(r.message);
+          if (seenReactions.has(r.id)) continue;
+          seenReactions.add(r.id);
+          if (!isFirst) burstFloating(r.message);
         }
-        fresh.forEach((emoji, idx) => {
-          setTimeout(() => burstFloating(emoji), idx * 120);
-        });
-
-        // ── CHAT bucket (merged, deduped) ──────────────────────────────
-        const incoming = page.messages.filter(
-          (m) => m.id && !seenApiMessageIds.current.has(m.id),
-        );
-        if (incoming.length > 0) {
-          incoming.forEach((m) => seenApiMessageIds.current.add(m.id));
-          const incomingTexts = new Set(incoming.map((m) => m.message));
-          setChats((prev) => {
-            const kept = prev.filter(
-              (m) => !m.id.startsWith('opt:') || !incomingTexts.has(m.message),
-            );
-            const merged = [...kept, ...incoming];
-            // Sliding window: keep at most the last 200 in memory so a
-            // long stream doesn't blow up the chat state.
-            return merged.length > 200 ? merged.slice(merged.length - 200) : merged;
-          });
-        }
+        isFirst = false;
       } catch {
         /* keep polling */
-      } finally {
-        isFirst = false;
       }
     };
     tick();
-    const handle = setInterval(tick, 2000);
+    const handle = setInterval(tick, 2500);
     return () => {
       cancelled = true;
       clearInterval(handle);
@@ -691,58 +640,25 @@ export default function PublicLiveStreamScreen() {
     }
     setChatSending(true);
     setChatError(null);
-    // Optimistic add — the bubble appears immediately, then the next
-    // 1s poll replaces this row with the server's authoritative copy
-    // (the poll's incomingTexts filter drops this opt: row by text
-    // match).
-    const optimisticId = `opt:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-    const optimistic: PublicStreamChat = {
-      id: optimisticId,
-      viewerName: viewerName ?? 'You',
-      senderName: viewerName ?? 'You',
-      message: msg,
-      type: 'TEXT',
-      timestamp: new Date().toISOString(),
-    };
-    setChats((prev) => [...prev, optimistic]);
-    setChatDraft('');
     try {
       const fingerprint = await getDeviceId();
-      const saved = await sendPublicStreamChat(id, {
-        viewerId,
-        deviceFingerprint: fingerprint,
-        message: msg,
-      });
-      // Pre-seed the saved row's id so the next poll doesn't render
-      // a second copy of the sender's own bubble alongside the
-      // optimistic one.
-      if (saved?.id) seenApiMessageIds.current.add(saved.id);
+      await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+      setChatDraft('');
     } catch (e) {
       setChatError(isApiError(e) ? e.message : 'Could not send.');
-      // Roll back the optimistic row on failure so the sender knows
-      // the message didn't go through.
-      setChats((prev) => prev.filter((m) => m.id !== optimisticId));
     } finally {
       setChatSending(false);
     }
   };
 
   const onSendReaction = async (emoji: string) => {
-    burstFloating(emoji); // optimistic local burst — sender sees instantly
+    burstFloating(emoji); // optimistic local burst
+    if (!viewerId) return;
     try {
       const fingerprint = await getDeviceId();
-      // Web parity: /reactions is open to all viewers (no viewerId, no
-      // payment) — anyone watching the page can fire a heart.
-      const saved = await sendPublicStreamReaction(id, {
-        deviceFingerprint: fingerprint,
-        emoji,
-        name: viewerName ?? undefined,
-      });
-      // Pre-seed dedupe so the next 1s poll doesn't echo the sender's
-      // own reaction back as a fresh float-up.
-      if (saved?.id) seenApiMessageIds.current.add(saved.id);
+      await sendPublicStreamReaction(id, { viewerId, deviceFingerprint: fingerprint, emoji });
     } catch {
-      /* local burst already played; reactions are fire-and-forget */
+      /* local burst already played */
     }
   };
 
@@ -927,7 +843,7 @@ export default function PublicLiveStreamScreen() {
               {viewerId ? (
                 <Pressable style={styles.giftPill} onPress={() => setGiftOpen(true)}>
                   <Ionicons name="gift-outline" size={14} color="#fff" />
-                  <Text style={styles.giftPillText}>Send Gift</Text>
+                  <Text style={styles.giftPillText}>Sponsor</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -936,12 +852,7 @@ export default function PublicLiveStreamScreen() {
               {chats.length === 0 ? (
                 <Text style={styles.chatEmpty}>No messages yet — say hi 👋</Text>
               ) : (
-                // Render only the last 60 bubbles. The chats state itself
-                // holds up to 200 (sliding window) so dedupe still works,
-                // but mounting 200+ <View>s inside a non-virtualized
-                // <ScrollView> blocks the JS thread long enough for the
-                // WebView player to glitch on slower devices.
-                chats.slice(Math.max(0, chats.length - 60)).map((c) => (
+                chats.map((c) => (
                   <View key={c.id} style={styles.chatBubble}>
                     {c.viewerName ? (
                       <Text style={styles.chatBubbleSender}>{c.viewerName}</Text>
@@ -1096,17 +1007,15 @@ export default function PublicLiveStreamScreen() {
         </Pressable>
       </Modal>
 
-      {/* Gift modal — web parity ("Send a gift", with an optional
-          donation prompt overlay). Donation is the same endpoint with
-          a non-zero donationAmount, not a separate flow. */}
+      {/* Gift modal (sponsor) */}
       <Modal visible={giftOpen} transparent animationType="slide" onRequestClose={() => setGiftOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setGiftOpen(false)}>
           <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Send a gift</Text>
+              <Text style={styles.modalTitle}>Sponsor this stream</Text>
               <Text style={styles.modalHint}>
-                Support the creator with a gift or donation. Mobile Money settles instantly;
-                Card goes through XentriPay.
+                Send a gift to the creator. Mobile Money settles instantly; Card goes through
+                XentriPay.
               </Text>
 
               <Text style={styles.giftLabel}>Amount</Text>
