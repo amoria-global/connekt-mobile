@@ -62,8 +62,7 @@ import {
   getPhotographerAnalytics,
   getPhotographerTrends,
 } from '@/features/analytics/api';
-import { listBookings } from '@/features/bookings/api';
-import { listCoordinatorEvents, listEvents } from '@/features/events/api';
+import { listCoordinatorEvents, listEvents, listPhotographerEvents } from '@/features/events/api';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { listStreams } from '@/features/streams/api';
 import { getWallet } from '@/features/wallet/api';
@@ -200,20 +199,30 @@ export default function HomeScreen() {
   const upcoming = useAsync(
     useCallback(async (): Promise<Preview[]> => {
       if (isPhotographer) {
-        const bookings = await listBookings();
-        return bookings.slice(0, 3).map((b) => ({
-          id: b.id,
-          title: b.eventTitle,
-          subtitle: b.clientName,
-          status: b.status,
-          // Deep-link to the booking's underlying event so the
-          // photographer can review + accept/decline from the event
-          // detail page. Previously every row dumped them on the
-          // /events tab, which made the preview feel inert.
-          onPress: () =>
-            b.eventId
-              ? router.push(`/event/${b.eventId}` as never)
-              : router.push('/bookings' as never),
+        // Pull from /photographer/events (assigned-to-me feed) so
+        // every preview row carries a real event id we can route to.
+        // listBookings() rows sometimes shipped without eventId (the
+        // /bookings DTO nests Event differently per endpoint) and the
+        // fallback /bookings route doesn't exist anymore — the tap
+        // became a no-op. Photographer events come back already
+        // sorted newest-first (see EventsList) so .slice(0,3) is
+        // exactly what we want for the dashboard preview.
+        const events = await listPhotographerEvents();
+        // Sort newest-first by createdAt so the preview matches the
+        // /events tab the photographer sees one tap away.
+        const sorted = [...events].sort((a, b) => {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tb - ta;
+        });
+        return sorted.slice(0, 3).map((e) => ({
+          id: e.id,
+          title: e.title,
+          subtitle: [e.eventDate ? formatDate(e.eventDate) : null, e.location]
+            .filter(Boolean)
+            .join(' · '),
+          status: e.bookingStatus ?? e.status,
+          onPress: () => router.push(`/event/${e.id}` as never),
         }));
       }
       if (isViewer) {

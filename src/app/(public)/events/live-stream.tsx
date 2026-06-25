@@ -45,7 +45,7 @@
  *      mid-stream doesn't replay the entire reaction history. Newly-
  *      seen reactions in the same poll stagger by 120ms.
  *
- *   4. GIFT MODAL (sponsor)
+ *   4. GIFT / DONATION MODAL
  *      Web parity: 5 preset amount chips + custom + MoMo / Card. Posts
  *      to /public/anonymous-viewer/{id}/gift then opens gateway URL.
  *
@@ -249,7 +249,7 @@ export default function PublicLiveStreamScreen() {
   // the same row.
   const seenApiMessageIds = useRef<Set<string>>(new Set());
 
-  // ── Gift modal (sponsor) ─────────────────────────────────────────────────
+  // ── Gift / donation modal ────────────────────────────────────────────────
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftAmount, setGiftAmount] = useState('1000');
   const [giftMessage, setGiftMessage] = useState('');
@@ -931,7 +931,7 @@ export default function PublicLiveStreamScreen() {
               {viewerId ? (
                 <Pressable style={styles.giftPill} onPress={() => setGiftOpen(true)}>
                   <Ionicons name="gift-outline" size={14} color="#fff" />
-                  <Text style={styles.giftPillText}>Sponsor</Text>
+                  <Text style={styles.giftPillText}>Send Gift</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -1095,15 +1095,17 @@ export default function PublicLiveStreamScreen() {
         </Pressable>
       </Modal>
 
-      {/* Gift modal (sponsor) */}
+      {/* Gift modal — web parity ("Send a gift", with an optional
+          donation prompt overlay). Donation is the same endpoint with
+          a non-zero donationAmount, not a separate flow. */}
       <Modal visible={giftOpen} transparent animationType="slide" onRequestClose={() => setGiftOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setGiftOpen(false)}>
           <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Sponsor this stream</Text>
+              <Text style={styles.modalTitle}>Send a gift</Text>
               <Text style={styles.modalHint}>
-                Send a gift to the creator. Mobile Money settles instantly; Card goes through
-                XentriPay.
+                Support the creator with a gift or donation. Mobile Money settles instantly;
+                Card goes through XentriPay.
               </Text>
 
               <Text style={styles.giftLabel}>Amount</Text>
