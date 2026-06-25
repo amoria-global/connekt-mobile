@@ -358,25 +358,29 @@ export default function PublicLiveStreamScreen() {
                 } else if (retry.reason === 'DEVICE_MISMATCH') {
                   setConflictOpen(true);
                 } else {
-                  // Retry also failed — bounce to /event/{id}
-                  // (consistent with the no-viewerId branch above; the
-                  // detail page is the single access entry point).
-                  await storage.remove(`anonymousViewer_${id}`).catch(() => {});
-                  router.replace(`/event/${id}` as unknown as Href);
+                  // Retry also failed — stay on the page and surface a
+                  // clear error so the user can act. Previously we
+                  // bounced silently which caused a verify-then-back
+                  // loop with the event page.
+                  setTokenError(
+                    "We couldn't confirm your access. Tap retry below or tap the back button to buy access.",
+                  );
                 }
               } catch {
                 /* swallow */
               }
             }, 2000);
           } else {
-            // viewerId mapped to no paid record — clear it and bounce to
-            // /event/{id} where the user can pick Buy / Verify / Have
-            // invite code from the proper 3-CTA surface. Previously we
-            // opened the Verify modal here, which kept popping back even
-            // after the user closed it — the screenshot symptom.
-            await storage.remove(`anonymousViewer_${id}`).catch(() => {});
+            // Access-status returned hasAccess=false with no
+            // DEVICE_MISMATCH reason. KEEP the user on this page and
+            // show what happened — bouncing back to /event/{id} just
+            // restarts the verify loop. The user came here with a
+            // viewerId from a previous flow; they deserve a clear
+            // status, not a silent kick.
             if (!cancelled) {
-              router.replace(`/event/${id}` as unknown as Href);
+              setTokenError(
+                "We couldn't confirm your access on this device. Try the Verify button on the event page, or buy access.",
+              );
             }
           }
         } catch (e) {
