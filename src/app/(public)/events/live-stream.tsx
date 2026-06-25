@@ -304,10 +304,16 @@ export default function PublicLiveStreamScreen() {
           const fingerprint = await getDeviceId();
           const res = await checkAnonymousAccessStatus(id, vId, fingerprint);
           if (cancelled) return;
-          if (res.active && res.hlsManifestUrl) {
-            setManifestUrl(res.hlsManifestUrl);
+          if (res.active) {
+            // Access is its own thing — the manifest is separate. The
+            // HLS URL may be null while OBS hasn't connected yet; the
+            // auto-poll below picks it up the moment it appears.
+            // Requiring `&& res.hlsManifestUrl` was the bug that made
+            // /event/{id} Verify succeed (it only checks `active`) and
+            // /events/live-stream fail seconds later for the same call.
             setAccessGranted(true);
             await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+            if (res.hlsManifestUrl) setManifestUrl(res.hlsManifestUrl);
           } else if (res.reason === 'DEVICE_MISMATCH') {
             /*
              * Backend's access-status returns DEVICE_MISMATCH on ANY
@@ -326,14 +332,11 @@ export default function PublicLiveStreamScreen() {
             if (swap.ok) {
               const reverify = await checkAnonymousAccessStatus(id, vId, fingerprint);
               if (cancelled) return;
-              if (reverify.active && reverify.hlsManifestUrl) {
-                setManifestUrl(reverify.hlsManifestUrl);
+              if (reverify.active) {
                 setAccessGranted(true);
                 await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+                if (reverify.hlsManifestUrl) setManifestUrl(reverify.hlsManifestUrl);
               } else {
-                // Switched but stream still not playable — surface the
-                // device-conflict modal as a fallback so the user has a
-                // path forward.
                 setConflictOpen(true);
               }
             } else {
@@ -352,9 +355,9 @@ export default function PublicLiveStreamScreen() {
                 const fp = await getDeviceId();
                 const retry = await checkAnonymousAccessStatus(id, vId, fp);
                 if (cancelled) return;
-                if (retry.active && retry.hlsManifestUrl) {
-                  setManifestUrl(retry.hlsManifestUrl);
+                if (retry.active) {
                   setAccessGranted(true);
+                  if (retry.hlsManifestUrl) setManifestUrl(retry.hlsManifestUrl);
                 } else if (retry.reason === 'DEVICE_MISMATCH') {
                   setConflictOpen(true);
                 } else {
@@ -371,15 +374,13 @@ export default function PublicLiveStreamScreen() {
               }
             }, 2000);
           } else {
-            // Access-status returned hasAccess=false with no
-            // DEVICE_MISMATCH reason. KEEP the user on this page and
-            // show what happened — bouncing back to /event/{id} just
-            // restarts the verify loop. The user came here with a
-            // viewerId from a previous flow; they deserve a clear
-            // status, not a silent kick.
+            // hasAccess=false without DEVICE_MISMATCH. If event/[id]
+            // verified access right before pushing here, this is a
+            // disagreement we shouldn't paper over. Surface the raw
+            // backend signal so we (and the user) can see what changed.
             if (!cancelled) {
               setTokenError(
-                "We couldn't confirm your access on this device. Try the Verify button on the event page, or buy access.",
+                "Backend returned hasAccess=false for this viewerId — even though it accepted you on the event page. Tell support which event id you're testing.",
               );
             }
           }
