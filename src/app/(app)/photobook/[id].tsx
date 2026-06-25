@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Image } from 'expo-image';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -22,6 +22,7 @@ import { formatMoney } from '@/utils/format';
 
 export default function PhotobookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const { data, loading, error } = useAsync(useCallback(() => getPhotobook(id), [id]));
 
@@ -70,12 +71,26 @@ export default function PhotobookDetailScreen() {
             {data?.photographerName ? <Text style={styles.meta}>By {data.photographerName}</Text> : null}
             {data?.description ? <Text style={styles.desc}>{data.description}</Text> : null}
             {data?.paymentRequired && data?.extraPhotosAmount ? (
-              <View style={styles.payBanner}>
+              <Pressable
+                style={({ pressed }) => [styles.payBanner, pressed && { opacity: 0.85 }]}
+                onPress={() => {
+                  // Web parity: tapping the banner opens the payment
+                  // declaration so the customer can unlock extras.
+                  // Without this the banner was decorative and the
+                  // customer had no way to actually pay.
+                  if (data?.paymentDeclarationId) {
+                    router.push(`/payment/${data.paymentDeclarationId}` as never);
+                  } else {
+                    router.push('/payments' as never);
+                  }
+                }}
+              >
                 <Ionicons name="card-outline" size={18} color={colors.primary} />
                 <Text style={styles.payText}>
                   {data.extraPhotosCount ?? 0} extra photos · {formatMoney(data.extraPhotosAmount)}
                 </Text>
-              </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+              </Pressable>
             ) : null}
           </View>
         }

@@ -26,6 +26,13 @@ export type PhotobookDetail = Photobook & {
   extraPhotosCount?: number;
   extraPhotosAmount?: number;
   paymentRequired?: boolean;
+  /**
+   * Set when extra photos exist that need to be paid for. Web parity:
+   * the "Pay for extras" CTA routes to /payments/{paymentDeclarationId}.
+   * Without this, the mobile pay banner had no tap target — it was
+   * decorative and the customer had no way to actually pay.
+   */
+  paymentDeclarationId?: string;
 };
 
 type Raw = Record<string, unknown>;
@@ -61,6 +68,7 @@ export async function getPhotobook(id: string): Promise<PhotobookDetail> {
     extraPhotosCount: num(d.extraPhotosCount),
     extraPhotosAmount: num(d.extraPhotosAmount),
     paymentRequired: d.paymentRequired === true,
+    paymentDeclarationId: str(d.paymentDeclarationId),
     photos: media
       .map((m) => ({ id: String(m.id ?? ''), url: str(m.fileUrl) ?? str(m.url), caption: str(m.caption) }))
       .filter((p) => p.id),
