@@ -1,22 +1,66 @@
 /**
- * Native HLS player for iOS / Android. AVPlayer (iOS) and ExoPlayer
- * (Android) both decode HLS natively, so expo-video does the work.
- * Web platform uses HlsPlayer.web.tsx via the `.web.tsx` extension
- * with hls.js.
+ * Native HLS / Cloudflare iframe player for iOS + Android.
  *
- * Auto-recovery: statusChange listener retries on `error` / `idle`
- * by re-sourcing after a 3s backoff, mirroring the web's reconnect
- * pattern (knockout/lib/streaming/WHEPClient.ts: maxReconnectAttempts
- * effectively unbounded).
+ * For Cloudflare Live Inputs configured with `force-flavor="whep"`,
+ * HLS isn't available (Cloudflare's own /manifest/video.m3u8 endpoint
+ * returns 204 No Content for these inputs). The only way to play
+ * them is via Cloudflare's iframe player, which negotiates WebRTC
+ * internally — we wrap that in a WebView.
+ *
+ * For inputs that DO expose HLS, we fall back to expo-video's native
+ * HLS playback path (AVPlayer / ExoPlayer) which is lighter than
+ * loading a WebView.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { WebView } from 'react-native-webview';
+
+function toIframeUrl(url: string): string | null {
+  if (url.endsWith('/iframe') || url.includes('/iframe?')) return url;
+  const cf = url.match(
+    /^(https:\/\/customer-[a-z0-9]+\.cloudflarestream.com\/[a-f0-9-]+)\/(webRTC\/play|manifest\/video\.m3u8.*)$/i,
+  );
+  if (cf) return `${cf[1]}/iframe`;
+  return null;
+}
 
 export function HlsPlayer({ url, style }: { url: string; style?: any }) {
+  const iframeUrl = toIframeUrl(url);
+  if (iframeUrl) {
+    return <CloudflareIframePlayer url={iframeUrl} style={style} />;
+  }
+  return <NativeHlsPlayer url={url} style={style} />;
+}
+
+function CloudflareIframePlayer({ url, style }: { url: string; style?: any }) {
+  // The iframe is auto-play + muted via the URL fragment to bypass
+  // mobile autoplay restrictions. The Cloudflare player picks these up.
+  const playUrl = url.includes('?') ? `${url}&autoplay=true&muted=true` : `${url}?autoplay=true&muted=true`;
+  return (
+    <View style={[styles.wrap, style]}>
+      <WebView
+        source={{ uri: playUrl }}
+        allowsFullscreenVideo
+        allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
+        javaScriptEnabled
+        domStorageEnabled
+        style={styles.webview}
+        // The Cloudflare iframe is self-contained — we don't need
+        // bounces, scroll, or any RN gestures inside.
+        scrollEnabled={false}
+        bounces={false}
+        scalesPageToFit
+      />
+    </View>
+  );
+}
+
+function NativeHlsPlayer({ url, style }: { url: string; style?: any }) {
   const player = useVideoPlayer({ uri: url }, (p) => {
     p.loop = false;
-    p.muted = true; // browser autoplay parity; native is fine too
+    p.muted = true;
     p.audioMixingMode = 'auto';
     p.staysActiveInBackground = false;
     p.play();
@@ -90,4 +134,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   video: { width: '100%', height: '100%' },
+  webview: { width: '100%', height: '100%', backgroundColor: '#000' },
 });

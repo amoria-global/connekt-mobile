@@ -108,15 +108,32 @@ const COVER_FALLBACK =
 
 function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismiss: () => void }) {
   const fade = useRef(new Animated.Value(1)).current;
+  // Stable ref for onDismiss — putting onDismiss directly in the effect
+  // deps caused the 2.6s timer to reset on every parent re-render (the
+  // chat poll alone fires every 2.5s, so the timer never elapsed and
+  // the splash stayed on screen forever). With the ref, the effect
+  // runs exactly once on mount.
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+
+  const dismiss = () => {
+    Animated.timing(fade, { toValue: 0, duration: 280, useNativeDriver: true }).start(() => {
+      onDismissRef.current();
+    });
+  };
+
   useEffect(() => {
-    const t = setTimeout(() => {
-      Animated.timing(fade, { toValue: 0, duration: 320, useNativeDriver: true }).start(onDismiss);
-    }, 2600);
+    const t = setTimeout(dismiss, 2600);
     return () => clearTimeout(t);
-  }, [fade, onDismiss]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <Animated.View pointerEvents="none" style={[splashStyles.wrap, { opacity: fade }]}>
-      <View style={splashStyles.content}>
+    <Animated.View style={[splashStyles.wrap, { opacity: fade }]}>
+      {/* Whole overlay is tappable — viewer can dismiss instantly
+          instead of waiting for the 2.6s timer. */}
+      <Pressable style={StyleSheet.absoluteFillObject} onPress={dismiss} />
+      <View style={splashStyles.content} pointerEvents="none">
         <View style={splashStyles.iconWrap}>
           <Ionicons name="play-circle" size={40} color="#fff" />
         </View>
@@ -130,6 +147,7 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
           <View style={splashStyles.liveDot} />
           <Text style={splashStyles.liveText}>LIVE</Text>
         </View>
+        <Text style={splashStyles.tapHint}>Tap anywhere to continue</Text>
       </View>
     </Animated.View>
   );
@@ -1354,4 +1372,5 @@ const splashStyles = StyleSheet.create({
   },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#fff' },
   liveText: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  tapHint: { color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 12, textAlign: 'center' },
 });
