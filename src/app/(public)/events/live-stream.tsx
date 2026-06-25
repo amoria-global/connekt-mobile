@@ -309,7 +309,40 @@ export default function PublicLiveStreamScreen() {
             setAccessGranted(true);
             await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
           } else if (res.reason === 'DEVICE_MISMATCH') {
-            setConflictOpen(true);
+            /*
+             * Backend's access-status returns DEVICE_MISMATCH on ANY
+             * fingerprint mismatch for a paid viewer, regardless of
+             * whether the old device is actively watching. That's too
+             * strict for "anyone with the same link can watch" — we
+             * silently call switch-device which DOES check the old
+             * session's heartbeat. If switch succeeds, the viewer's
+             * fingerprint is rewritten to this device and we re-check.
+             * Only when switch returns "other device active" do we
+             * open the explicit conflict modal so the user can confirm
+             * taking ownership over.
+             */
+            const swap = await switchAnonymousDevice(id, vId, fingerprint);
+            if (cancelled) return;
+            if (swap.ok) {
+              const reverify = await checkAnonymousAccessStatus(id, vId, fingerprint);
+              if (cancelled) return;
+              if (reverify.active && reverify.hlsManifestUrl) {
+                setManifestUrl(reverify.hlsManifestUrl);
+                setAccessGranted(true);
+                await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+              } else {
+                // Switched but stream still not playable — surface the
+                // device-conflict modal as a fallback so the user has a
+                // path forward.
+                setConflictOpen(true);
+              }
+            } else {
+              // Old session active OR backend rejected — user must
+              // confirm explicitly via the modal (which calls switch
+              // again under the hood; backend will release the old
+              // session if it has timed out since this attempt).
+              setConflictOpen(true);
+            }
           } else if (fromPayment === '1') {
             // Just came from payment — backend may not have flipped the
             // viewer's status to COMPLETED yet. Retry once after 2s.
