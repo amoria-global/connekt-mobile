@@ -325,19 +325,25 @@ export default function PublicLiveStreamScreen() {
                 } else if (retry.reason === 'DEVICE_MISMATCH') {
                   setConflictOpen(true);
                 } else {
-                  setInfoModalOpen(true);
+                  // Retry also failed — bounce to /event/{id}
+                  // (consistent with the no-viewerId branch above; the
+                  // detail page is the single access entry point).
+                  await storage.remove(`anonymousViewer_${id}`).catch(() => {});
+                  router.replace(`/event/${id}` as unknown as Href);
                 }
               } catch {
                 /* swallow */
               }
             }, 2000);
           } else {
-            // viewerId mapped to no paid record — clear it and surface
-            // the recover-by-email form (web's "Verify your access").
+            // viewerId mapped to no paid record — clear it and bounce to
+            // /event/{id} where the user can pick Buy / Verify / Have
+            // invite code from the proper 3-CTA surface. Previously we
+            // opened the Verify modal here, which kept popping back even
+            // after the user closed it — the screenshot symptom.
             await storage.remove(`anonymousViewer_${id}`).catch(() => {});
             if (!cancelled) {
-              setViewerId(undefined);
-              setInfoModalOpen(true);
+              router.replace(`/event/${id}` as unknown as Href);
             }
           }
         } catch (e) {
