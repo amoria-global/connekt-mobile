@@ -202,8 +202,18 @@ export default function PublicLiveStreamScreen() {
   // Backend access-status is GET with `fingerprint` + `viewerId` query
   // params — needs the device id loaded async, so resolve that inside
   // the effect rather than blocking the screen mount.
+  //
+  // We deliberately skip the access call for FREE events: a stored
+  // viewerId from a previous session would cause backend hasAccess to
+  // return false (no paid record) and the red banner to fire on a
+  // stream that's actually free to watch. The HLS auto-poll below
+  // handles those by reading hlsManifestUrl off the public event.
   useEffect(() => {
     if (!viewerId) return;
+    const streamFee = event.data?.streamFee ?? 0;
+    const eventPrice = event.data?.price ?? 0;
+    const isPaid = streamFee > 0 || eventPrice > 0;
+    if (event.data && !isPaid) return;
     let cancelled = false;
     setBusy(true);
     (async () => {
@@ -219,7 +229,14 @@ export default function PublicLiveStreamScreen() {
           // explicitly decides to take over the session on THIS device.
           setConflictOpen(true);
         } else {
-          setError('Your viewer access is not active yet — please retry the payment.');
+          // Stored viewerId no longer maps to a paid record. Drop it
+          // from state + storage so future opens don't keep failing,
+          // and surface a non-error CTA inviting the user to recover
+          // or buy. We intentionally don't show "please retry payment"
+          // anymore — that error misled users who'd never paid in the
+          // first place into thinking something was broken.
+          await storage.remove(`anonymousViewer_${id}`).catch(() => {});
+          setViewerId(undefined);
         }
       } catch (e) {
         if (!cancelled) setError(isApiError(e) ? e.message : 'Could not verify your access.');
@@ -230,7 +247,7 @@ export default function PublicLiveStreamScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, viewerId]);
+  }, [id, viewerId, event.data]);
 
   // Poll public viewer count for the badge.
   useEffect(() => {
