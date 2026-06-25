@@ -230,7 +230,7 @@ export default function EventPaymentScreen() {
         setStatus('success');
         setStatusNote('Payment received. Taking you to the live stream…');
         setTimeout(
-          () => router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href),
+          () => router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}&fromPayment=1` as unknown as Href),
           1200,
         );
         return;
@@ -246,7 +246,7 @@ export default function EventPaymentScreen() {
           setStatus('success');
           setStatusNote('Payment received. Taking you to the live stream…');
           setTimeout(
-            () => router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href),
+            () => router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}&fromPayment=1` as unknown as Href),
             1200,
           );
           return;
