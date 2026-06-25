@@ -401,27 +401,35 @@ export async function sendPublicStreamChat(
 }
 
 /**
- * Reactions are stored as REACTION-typed chat rows; the backend
- * fans them out via the same broadcaster so every viewer sees them
- * as floating emoji animations. message carries the emoji literal.
+ * Reactions are stored as REACTION-typed chat rows that GET /chats
+ * returns in the `reactions` bucket. The dedicated /reactions endpoint
+ * (NOT /chats) is open to anyone with a deviceFingerprint — no viewerId,
+ * no payment, no ownership required — so free viewers, paid anonymous
+ * viewers and the event owner can all send float-up reactions.
+ *
+ * Returns the saved row's id so the caller can pre-seed it into the
+ * dedupe set to prevent the next chat poll from echoing the sender's
+ * own reaction back as a fresh float-up.
  */
 export async function sendPublicStreamReaction(
   eventId: string,
-  payload: { viewerId: string; deviceFingerprint: string; emoji: string },
-): Promise<void> {
+  payload: { deviceFingerprint: string; emoji: string; name?: string },
+): Promise<{ id?: string }> {
+  const body: Record<string, unknown> = {
+    emoji: payload.emoji,
+    deviceFingerprint: payload.deviceFingerprint,
+  };
+  if (payload.name && payload.name.trim()) body.name = payload.name.trim();
   const res = await api.post<ApiEnvelope<Raw>>(
-    `/public/events/${encodeURIComponent(eventId)}/chats`,
-    {
-      viewerId: payload.viewerId,
-      deviceFingerprint: payload.deviceFingerprint,
-      message: payload.emoji,
-      messageType: 'REACTION',
-    },
+    `/public/events/${encodeURIComponent(eventId)}/reactions`,
+    body,
     { skipAuth: true },
   );
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not send reaction.' };
   }
+  const d = (res?.data ?? {}) as Raw;
+  return { id: str(d.id) ?? (d.id != null ? String(d.id) : undefined) };
 }
 
 // ────── Public gift / sponsor flow ───────────────────────────────────────

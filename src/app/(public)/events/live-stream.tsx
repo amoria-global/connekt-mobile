@@ -33,10 +33,17 @@
  *
  *   3. CHAT PANEL
  *      Renders whenever the event is ONGOING (not gated on manifestUrl).
- *      Polls /public/events/{id}/chats every 2.5s. Sends via
- *      sendPublicStreamChat (rate-limited 10/min). Reactions row sends
- *      via sendPublicStreamReaction (rate-limited 30/min) and bursts
- *      floating emoji on screen. Other viewers' reactions also burst.
+ *      Polls /public/events/{id}/chats every 1s, page size 500 (web
+ *      parity — 2.5s/50 was lossy on busy streams). Shared
+ *      seenApiMessageIds ref dedupes chats AND reactions, with the
+ *      sender pre-seeding their own POST response id to prevent echo.
+ *      Chat send is optimistic: bubble appears immediately, gets
+ *      reconciled when the server row arrives. Reactions POST to the
+ *      open /reactions endpoint (no viewerId / payment required — any
+ *      viewer can fire a heart). First-poll storm prevention marks
+ *      historical reactions as seen without animating them so a reload
+ *      mid-stream doesn't replay the entire reaction history. Newly-
+ *      seen reactions in the same poll stagger by 120ms.
  *
  *   4. GIFT MODAL (sponsor)
  *      Web parity: 5 preset amount chips + custom + MoMo / Card. Posts
@@ -235,6 +242,12 @@ export default function PublicLiveStreamScreen() {
   const [floatingEmoji, setFloatingEmoji] = useState<
     { id: string; emoji: string; anim: Animated.Value }[]
   >([]);
+  // Web parity: shared dedupe set across chat polls + reaction
+  // POSTs. Persists across renders without retriggering the chat
+  // effect, so the sender's own POST id can be pre-seeded the
+  // moment the response lands and the next 1s poll won't re-render
+  // the same row.
+  const seenApiMessageIds = useRef<Set<string>>(new Set());
 
   // ── Gift modal (sponsor) ─────────────────────────────────────────────────
   const [giftOpen, setGiftOpen] = useState(false);
@@ -486,29 +499,71 @@ export default function PublicLiveStreamScreen() {
     };
   }, [id]);
 
-  // ── Chat poll (2.5s) ─────────────────────────────────────────────────────
+  // ── Chat poll (1s — web parity) ──────────────────────────────────────────
+  //
+  // Web parity (knockout/app/pages/events/live-stream.tsx lines 1107-1309):
+  //   - poll cadence 1s, page size 500 (50 was losing messages on busy
+  //     streams and made the chat panel look stalled)
+  //   - shared seenApiMessageIds ref dedupes chats AND reactions across
+  //     polls so the sender's own POST never echoes back as a fresh row
+  //   - first-poll storm prevention: every reaction in the initial
+  //     response gets marked seen but NOT animated — otherwise reloading
+  //     mid-stream replays the entire reaction history as a fresh storm
+  //   - 120ms stagger between newly-seen reactions in the same batch so
+  //     a wave of hearts from other viewers reads as a cascade instead
+  //     of 3 clumped emoji
+  //   - chat list is merged (append-new, dedupe by id) instead of
+  //     replaced wholesale, so optimistic sender bubbles don't flash
+  //     and scroll position can be preserved by the renderer
   useEffect(() => {
     if (!status.isLive) return;
     let cancelled = false;
     let isFirst = true;
-    const seenReactions = new Set<string>();
     const tick = async () => {
       try {
-        const page = await getPublicStreamChats(id);
+        const page = await getPublicStreamChats(id, 0, 500);
         if (cancelled) return;
-        setChats(page.messages);
+
+        // ── REACTION bucket ────────────────────────────────────────────
+        const fresh: string[] = [];
         for (const r of page.reactions) {
-          if (seenReactions.has(r.id)) continue;
-          seenReactions.add(r.id);
-          if (!isFirst) burstFloating(r.message);
+          if (seenApiMessageIds.current.has(r.id)) continue;
+          seenApiMessageIds.current.add(r.id);
+          if (isFirst) continue; // mark seen, skip animation
+          if (r.message) fresh.push(r.message);
         }
-        isFirst = false;
+        fresh.forEach((emoji, idx) => {
+          setTimeout(() => burstFloating(emoji), idx * 120);
+        });
+
+        // ── CHAT bucket (merged, deduped) ──────────────────────────────
+        const incoming = page.messages.filter(
+          (m) => m.id && !seenApiMessageIds.current.has(m.id),
+        );
+        if (incoming.length > 0) {
+          incoming.forEach((m) => seenApiMessageIds.current.add(m.id));
+          // Drop optimistic locally-added rows (id prefixed with `opt:`)
+          // whose text now matches an arriving server row, so the
+          // sender's own bubble doesn't appear twice.
+          const incomingTexts = new Set(incoming.map((m) => m.message));
+          setChats((prev) => {
+            const kept = prev.filter(
+              (m) => !m.id.startsWith('opt:') || !incomingTexts.has(m.message),
+            );
+            return [...kept, ...incoming];
+          });
+        }
       } catch {
         /* keep polling */
+      } finally {
+        // Flip in finally so a first-poll network error doesn't trap us
+        // in initial mode forever — recoveries still animate new
+        // reactions normally.
+        isFirst = false;
       }
     };
     tick();
-    const handle = setInterval(tick, 2500);
+    const handle = setInterval(tick, 1000);
     return () => {
       cancelled = true;
       clearInterval(handle);
@@ -640,25 +695,58 @@ export default function PublicLiveStreamScreen() {
     }
     setChatSending(true);
     setChatError(null);
+    // Optimistic add — the bubble appears immediately, then the next
+    // 1s poll replaces this row with the server's authoritative copy
+    // (the poll's incomingTexts filter drops this opt: row by text
+    // match).
+    const optimisticId = `opt:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    const optimistic: PublicStreamChat = {
+      id: optimisticId,
+      viewerName: viewerName ?? 'You',
+      senderName: viewerName ?? 'You',
+      message: msg,
+      type: 'TEXT',
+      timestamp: new Date().toISOString(),
+    };
+    setChats((prev) => [...prev, optimistic]);
+    setChatDraft('');
     try {
       const fingerprint = await getDeviceId();
-      await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
-      setChatDraft('');
+      const saved = await sendPublicStreamChat(id, {
+        viewerId,
+        deviceFingerprint: fingerprint,
+        message: msg,
+      });
+      // Pre-seed the saved row's id so the next poll doesn't render
+      // a second copy of the sender's own bubble alongside the
+      // optimistic one.
+      if (saved?.id) seenApiMessageIds.current.add(saved.id);
     } catch (e) {
       setChatError(isApiError(e) ? e.message : 'Could not send.');
+      // Roll back the optimistic row on failure so the sender knows
+      // the message didn't go through.
+      setChats((prev) => prev.filter((m) => m.id !== optimisticId));
     } finally {
       setChatSending(false);
     }
   };
 
   const onSendReaction = async (emoji: string) => {
-    burstFloating(emoji); // optimistic local burst
-    if (!viewerId) return;
+    burstFloating(emoji); // optimistic local burst — sender sees instantly
     try {
       const fingerprint = await getDeviceId();
-      await sendPublicStreamReaction(id, { viewerId, deviceFingerprint: fingerprint, emoji });
+      // Web parity: /reactions is open to all viewers (no viewerId, no
+      // payment) — anyone watching the page can fire a heart.
+      const saved = await sendPublicStreamReaction(id, {
+        deviceFingerprint: fingerprint,
+        emoji,
+        name: viewerName ?? undefined,
+      });
+      // Pre-seed dedupe so the next 1s poll doesn't echo the sender's
+      // own reaction back as a fresh float-up.
+      if (saved?.id) seenApiMessageIds.current.add(saved.id);
     } catch {
-      /* local burst already played */
+      /* local burst already played; reactions are fire-and-forget */
     }
   };
 
