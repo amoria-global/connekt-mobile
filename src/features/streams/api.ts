@@ -72,13 +72,18 @@ export async function listStreams(): Promise<Stream[]> {
 export async function getStream(id: string): Promise<StreamDetail> {
   const res = await api.get<ApiEnvelope<Raw>>(`/customer/events/${encodeURIComponent(id)}`);
   const d = (res?.data ?? {}) as Raw;
-  // The event response has photographer{} nested; the mapStream helper
-  // already handles that shape, so feed it the event raw.
-  // playbackUrl is HLS only — see joinStream() above for why we don't
-  // fall back to whepUrl on mobile.
+  // playbackUrl is HLS only; we derive it from whepUrl when the
+  // backend's hlsManifestUrl is null (the same fallback as the public
+  // access-status path — Cloudflare's manifest URL shares the customer
+  // hash + live input id with WHEP, only path differs).
+  const derivedHls = ((u?: string) =>
+    u && u.includes('/webRTC/play') ? u.replace('/webRTC/play', '/manifest/video.m3u8') : undefined)(
+    str(d.whepUrl),
+  );
   return {
     ...mapStream(d),
-    playbackUrl: str(d.hlsManifestUrl) ?? str(d.playbackUrl) ?? str(d.hls),
+    playbackUrl:
+      str(d.hlsManifestUrl) ?? str(d.playbackUrl) ?? str(d.hls) ?? derivedHls,
     eventId: String(d.id ?? id),
     title: str(d.title) ?? 'Live stream',
     isLive: str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended',
@@ -291,11 +296,34 @@ export async function checkAnonymousAccessStatus(
   const top = (res ?? {}) as Raw;
   return {
     active: top.hasAccess === true,
-    // HLS only — feeding whepUrl to expo-video triggered a 404 on
-    // Cloudflare's /webRTC/play endpoint (WebRTC, not a video file).
-    hlsManifestUrl: str(top.hlsManifestUrl),
+    /*
+     * Backend builds hlsManifestUrl from liveInputId via
+     * cloudflareStreamService.getHlsManifestUrl() but that call
+     * silently swallows errors and returns null on failure. When that
+     * happens we derive HLS from whepUrl, which shares the same
+     * Cloudflare customer hash + live input id — only the path differs:
+     *   WHEP:  /webRTC/play
+     *   HLS:   /manifest/video.m3u8
+     * Mobile expo-video can ONLY play HLS, so this is the fallback
+     * that lets a paid viewer actually see video instead of an
+     * empty placeholder.
+     */
+    hlsManifestUrl: str(top.hlsManifestUrl) ?? deriveHlsFromWhep(str(top.whepUrl)),
     reason: str(top.reason),
   };
+}
+
+/**
+ * Cloudflare Stream WHEP → HLS URL conversion. Only swaps the path;
+ * the customer hash + live input id stay identical. Returns undefined
+ * if the input doesn't look like a WHEP URL.
+ */
+function deriveHlsFromWhep(whepUrl?: string): string | undefined {
+  if (!whepUrl) return undefined;
+  if (whepUrl.includes('/webRTC/play')) {
+    return whepUrl.replace('/webRTC/play', '/manifest/video.m3u8');
+  }
+  return undefined;
 }
 
 // ────── Public stream chat + reactions ───────────────────────────────────

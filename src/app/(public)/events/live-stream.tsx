@@ -437,7 +437,17 @@ export default function PublicLiveStreamScreen() {
       try {
         const detail = await getPublicEventDetailed(id);
         if (cancelled) return;
-        const url = detail.hlsManifestUrl;
+        // Backend's public event endpoint exposes hlsManifestUrl
+        // when populated. When it's null (Cloudflare manifest hasn't
+        // been built backend-side) we derive HLS from whepUrl — they
+        // share the same customer hash + live input id, only the path
+        // differs (/webRTC/play → /manifest/video.m3u8). This lets the
+        // player kick in the moment OBS connects, even before backend
+        // persists the manifest URL.
+        const derived = detail.whepUrl?.includes('/webRTC/play')
+          ? detail.whepUrl.replace('/webRTC/play', '/manifest/video.m3u8')
+          : undefined;
+        const url = detail.hlsManifestUrl ?? derived ?? undefined;
         if (url) {
           setManifestUrl(url);
           // Free + token-less stream → grant chat to the viewer with a
