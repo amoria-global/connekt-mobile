@@ -13,6 +13,7 @@ export const colors = {
   // Surfaces (light)
   background: '#F4F6FB',
   surface: '#FFFFFF',
+  card: '#FFFFFF',
   surfaceMuted: '#E9EAEE',
 
   // Text
@@ -49,7 +50,9 @@ export const spacing = {
   lg: 16,
   xl: 24,
   '2xl': 32,
+  xxl: 32,
   '3xl': 48,
+  xxxl: 48,
 } as const;
 
 export const radii = {
@@ -68,7 +71,9 @@ export const fontSize = {
   lg: 18,
   xl: 22,
   '2xl': 28,
+  xxl: 28,
   '3xl': 34,
+  xxxl: 34,
 } as const;
 
 export const fontWeight = {

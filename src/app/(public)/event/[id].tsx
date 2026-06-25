@@ -84,58 +84,7 @@ function eventStartMs(date?: string, time?: string): number | null {
   return Number.isNaN(t) ? null : t;
 }
 
-function Countdown({ ms }: { ms: number }) {
-  const p = getCountdownParts(ms);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return (
-    <View style={styles.countdown}>
-      <Ionicons name="hourglass-outline" size={12} color="#92400e" />
-      <Text style={styles.countdownEyebrow}>Starts in</Text>
-      <View style={styles.countdownGrid}>
-        {p.days > 0 ? (
-          <View style={styles.countdownCell}>
-            <Text style={styles.countdownNum}>{pad(p.days)}</Text>
-            <Text style={styles.countdownUnit}>d</Text>
-          </View>
-        ) : null}
-        <View style={styles.countdownCell}>
-          <Text style={styles.countdownNum}>{pad(p.hours)}</Text>
-          <Text style={styles.countdownUnit}>hr</Text>
-        </View>
-        <View style={styles.countdownCell}>
-          <Text style={styles.countdownNum}>{pad(p.minutes)}</Text>
-          <Text style={styles.countdownUnit}>min</Text>
-        </View>
-        <View style={styles.countdownCell}>
-          <Text style={styles.countdownNum}>{pad(p.seconds)}</Text>
-          <Text style={styles.countdownUnit}>sec</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
 
-/** Web parity: .ve-pulse white circle animated 1.6s ease-out. */
-function LivePulse() {
-  const [scale] = useState(() => new Animated.Value(1));
-  const [opacity] = useState(() => new Animated.Value(0.7));
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.parallel([
-        Animated.timing(scale, { toValue: 2.4, duration: 1600, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0, duration: 1600, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [scale, opacity]);
-  return (
-    <View style={styles.livePulseWrap}>
-      <Animated.View style={[styles.livePulseRing, { transform: [{ scale }], opacity }]} />
-      <View style={styles.livePulseDot} />
-    </View>
-  );
-}
 
 const COVER_FALLBACK =
   'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80';
