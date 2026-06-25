@@ -389,6 +389,10 @@ export default function PublicLiveStreamScreen() {
       setRecoverError('Please enter your name and the email used at checkout.');
       return;
     }
+    if (!recoverPhone.trim() || recoverPhone.replace(/[^0-9]/g, '').length < 9) {
+      setRecoverError('Please enter the phone number you used at checkout.');
+      return;
+    }
     setRecoverBusy(true);
     setRecoverError(null);
     try {
@@ -396,7 +400,7 @@ export default function PublicLiveStreamScreen() {
       const reg = await registerAnonymousViewer(id, {
         name: recoverName.trim(),
         email: recoverEmail.trim(),
-        phone: recoverPhone.trim() || undefined,
+        phone: recoverPhone.trim(),
         deviceId: fingerprint,
       });
       if (reg.needsPayment) {
@@ -901,10 +905,10 @@ export default function PublicLiveStreamScreen() {
               keyboardType="email-address"
             />
             <Input
-              label="Phone (optional)"
+              label="Phone"
               value={recoverPhone}
-              onChangeText={setRecoverPhone}
-              placeholder="+250…"
+              onChangeText={(t) => setRecoverPhone(t.replace(/[^0-9+]/g, ''))}
+              placeholder="+2507…"
               keyboardType="phone-pad"
               autoCapitalize="none"
             />
