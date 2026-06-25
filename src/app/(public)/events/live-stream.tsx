@@ -587,20 +587,41 @@ export default function PublicLiveStreamScreen() {
           ) : null}
         </View>
 
-        {manifestUrl ? (
-          <Player url={manifestUrl} />
-        ) : (
-          <View style={styles.placeholder}>
-            {busy ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <Ionicons name="videocam-outline" size={48} color={colors.textMuted} />
-            )}
-            <Text style={styles.placeholderText}>
-              {busy ? 'Connecting to the stream…' : 'Stream will appear here.'}
-            </Text>
-          </View>
-        )}
+        {/*
+         * Player / placeholder. Derived from the *event's* status, not
+         * the manifestUrl: when the photographer is broadcasting we
+         * always say "Stream is starting…" instead of the misleading
+         * "Stream will appear here." Web parity — knockout shows the
+         * loading state while waiting for Cloudflare to emit the
+         * first segment.
+         */}
+        {(() => {
+          const ev = event.data;
+          const rawStatus = (ev?.eventStatus || '').toUpperCase();
+          const streamEnded = ev?.streamStatus === 'ended';
+          const eventIsLive = rawStatus === 'ONGOING' && !streamEnded;
+          const eventIsEnded = rawStatus === 'COMPLETED' || streamEnded;
+
+          if (manifestUrl) return <Player url={manifestUrl} />;
+          return (
+            <View style={styles.placeholder}>
+              {busy || eventIsLive ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Ionicons name="videocam-outline" size={48} color={colors.textMuted} />
+              )}
+              <Text style={styles.placeholderText}>
+                {eventIsEnded
+                  ? 'This event has ended.'
+                  : eventIsLive
+                    ? 'Stream is starting — hang tight.'
+                    : busy
+                      ? 'Connecting to the stream…'
+                      : 'Stream will appear here once it goes live.'}
+              </Text>
+            </View>
+          );
+        })()}
 
         {!manifestUrl && !viewerId ? (
           <View style={styles.tokenCard}>
@@ -628,11 +649,19 @@ export default function PublicLiveStreamScreen() {
         ) : null}
 
         {/*
-         * Chat panel — visible whenever the manifest is loaded so the
-         * viewer can read messages while watching. Sending is gated on
-         * viewerId; without it, the user is prompted to recover access.
+         * Chat panel — render whenever the event is LIVE so the viewer
+         * can read along even before their own playback connects.
+         * Previously this was gated on manifestUrl; that hid chat while
+         * the player was buffering, which the user reported as "where
+         * is live chat" while watching a stream that was already live
+         * server-side.
          */}
-        {manifestUrl ? (
+        {(() => {
+          const ev = event.data;
+          const eventIsLive =
+            (ev?.eventStatus || '').toUpperCase() === 'ONGOING' && ev?.streamStatus !== 'ended';
+          return eventIsLive || manifestUrl;
+        })() ? (
           <View style={styles.chatCard}>
             <View style={styles.chatTitleRow}>
               <Text style={styles.chatTitle}>Live chat</Text>
