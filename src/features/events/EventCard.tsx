@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
+import { acceptEventBooking, declineEventBooking } from './api';
 import type { EventItem } from './types';
 
 const COVER_FALLBACK =
@@ -19,17 +21,26 @@ const COVER_FALLBACK =
 export function EventCard({
   event,
   variant = 'default',
+  onChanged,
 }: {
   event: EventItem;
   /**
    * Photographer-tab variant exposes the per-status CTAs from the web
-   * (Create Album button, Album Sent chip). Default variant stays
-   * clean for the Client / Coordinator events feed.
+   * (Create Album button, Album Sent chip, plus inline Accept / Decline
+   * for pending bookings). Default variant stays clean for the Client /
+   * Coordinator events feed.
    */
   variant?: 'default' | 'photographer';
+  /**
+   * Fires after a successful Accept / Decline so the parent list can
+   * refresh — the booking row mutates the event's booking status and
+   * the card needs to swap its CTAs.
+   */
+  onChanged?: () => void;
 }) {
   const router = useRouter();
   const isPhotog = variant === 'photographer';
+  const [busy, setBusy] = useState<'accept' | 'decline' | null>(null);
   const bookingStatus = (event.bookingStatus ?? '').toUpperCase();
   const status = (event.status ?? '').toUpperCase();
   const streamStatus = (event.streamStatus ?? '').toLowerCase();
@@ -86,10 +97,62 @@ export function EventCard({
         {isPhotog ? (
           <View style={styles.ctaRow}>
             {isPending ? (
-              <View style={styles.pendingChip}>
-                <Ionicons name="time-outline" size={12} color="#fff" />
-                <Text style={styles.pendingChipText}>Pending — tap to review</Text>
-              </View>
+              // Inline Accept / Decline so the photographer doesn't have
+              // to open the event detail. e.stopPropagation() blocks the
+              // outer Pressable on the list from also navigating.
+              <>
+                <Pressable
+                  style={[styles.cta, { backgroundColor: colors.success }]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setBusy('accept');
+                    acceptEventBooking(event.id)
+                      .then(() => onChanged?.())
+                      .catch(() => Alert.alert('Could not accept', 'Please try again.'))
+                      .finally(() => setBusy(null));
+                  }}
+                  disabled={busy !== null}
+                >
+                  {busy === 'accept' ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                      <Text style={styles.ctaText}>Accept</Text>
+                    </>
+                  )}
+                </Pressable>
+                <Pressable
+                  style={[styles.cta, { backgroundColor: colors.error }]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    Alert.alert('Decline booking?', 'This will notify the client.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Decline',
+                        style: 'destructive',
+                        onPress: () => {
+                          setBusy('decline');
+                          declineEventBooking(event.id, 'Not available')
+                            .then(() => onChanged?.())
+                            .catch(() => Alert.alert('Could not decline', 'Please try again.'))
+                            .finally(() => setBusy(null));
+                        },
+                      },
+                    ]);
+                  }}
+                  disabled={busy !== null}
+                >
+                  {busy === 'decline' ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="close-circle" size={14} color="#fff" />
+                      <Text style={styles.ctaText}>Decline</Text>
+                    </>
+                  )}
+                </Pressable>
+              </>
             ) : null}
             {canGoLive ? (
               <Pressable

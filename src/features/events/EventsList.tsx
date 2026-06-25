@@ -38,15 +38,18 @@ export function EventsList({
   const { data, loading, error, refresh } = useAsync(fetcher);
 
   /**
-   * Filter + sort. Default ordering is newest first across all three
-   * tabs — both salo-run and the user's expectation: a coordinator
-   * with 30 events doesn't want to scroll past 2024 to see today's.
+   * Filter + sort. Newest-first across every tab — sorting by
+   * eventDate alone meant a brand-new booking for next month appeared
+   * BELOW a year-old upcoming event, which read as random ordering to
+   * the photographer. Primary key is `createdAt` (request/booking
+   * insert time), with `eventDate` as a tie-break for legacy rows
+   * that pre-date the createdAt mapping.
    *
-   *   • upcoming → soonest-first (ascending by date)
-   *   • past     → most-recent first (descending by date)
-   *   • all      → most-recent first (descending by date)
+   *   • upcoming → newest booking first
+   *   • past     → most-recently-completed first
+   *   • all      → newest booking first
    *
-   * Undated rows sort to the bottom of each list.
+   * Undated rows fall to the bottom of each list.
    */
   const filtered = useMemo(() => {
     if (!data) return data;
@@ -59,15 +62,19 @@ export function EventsList({
           return filter === 'upcoming' ? t >= today : t < today;
         });
 
+    const ts = (s?: string) => (s ? new Date(s).getTime() : NaN);
     return list.sort((a, b) => {
-      const ta = a.eventDate ? new Date(a.eventDate).getTime() : NaN;
-      const tb = b.eventDate ? new Date(b.eventDate).getTime() : NaN;
-      const aDated = !Number.isNaN(ta);
-      const bDated = !Number.isNaN(tb);
-      if (!aDated && !bDated) return 0;
-      if (!aDated) return 1;
-      if (!bDated) return -1;
-      return filter === 'upcoming' ? ta - tb : tb - ta;
+      const ca = ts(a.createdAt);
+      const cb = ts(b.createdAt);
+      if (!Number.isNaN(ca) && !Number.isNaN(cb) && ca !== cb) return cb - ca;
+      if (!Number.isNaN(cb) && Number.isNaN(ca)) return 1;
+      if (!Number.isNaN(ca) && Number.isNaN(cb)) return -1;
+      const ea = ts(a.eventDate);
+      const eb = ts(b.eventDate);
+      if (Number.isNaN(ea) && Number.isNaN(eb)) return 0;
+      if (Number.isNaN(ea)) return 1;
+      if (Number.isNaN(eb)) return -1;
+      return eb - ea;
     });
   }, [data, filter]);
 
@@ -108,7 +115,7 @@ export function EventsList({
           })}
           onPress={() => router.push(`/event/${item.id}` as never)}
         >
-          <EventCard event={item} variant={variant} />
+          <EventCard event={item} variant={variant} onChanged={refresh} />
         </Pressable>
       )}
       emptyIcon="calendar-outline"
