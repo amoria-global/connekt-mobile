@@ -49,7 +49,12 @@
         "expo-build-properties",
         {
           "android": {
-            "extraProguardRules": "-keep class expo.modules.kotlin.views.ComposeViewFunctionDefinitionBuilder { *; }\n-keep class expo.modules.kotlin.** { *; }"
+            "extraProguardRules": "-keep class expo.modules.kotlin.** { *; }\n-keep class expo.modules.** { *; }\n-dontwarn expo.modules.**\n-keep class com.facebook.react.** { *; }\n-keep class com.swmansion.** { *; }\n-keep class com.horcrux.svg.** { *; }",
+            "enableProguardInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
           }
         }
       ]
