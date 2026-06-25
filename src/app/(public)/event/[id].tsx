@@ -52,9 +52,11 @@ import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import type { PublicEvent } from '@/features/events/types';
 import {
+  checkAnonymousAccessStatus,
   redeemGroupCode,
   registerAnonymousViewer,
   sendEventWish,
+  switchAnonymousDevice,
 } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
@@ -308,11 +310,15 @@ export default function PublicEventDetailScreen() {
         await storage.set(`anonymousViewer_${id}`, res.viewerId).catch(() => {});
         setViewerId(res.viewerId);
       }
-      if (res.hlsManifestUrl) {
-        router.push(
-          `/events/live-stream?id=${id}${res.viewerId ? `&viewerId=${res.viewerId}` : ''}` as unknown as Href,
-        );
-      }
+      // Always navigate to live-stream on a valid redeem, not only when
+      // hlsManifestUrl is already populated. The manifest may be null
+      // (Cloudflare hasn't generated it yet) but the user has earned
+      // access — live-stream will auto-poll for the manifest and play
+      // as soon as it appears. Previously a valid code left the user
+      // on the event page with no feedback when stream wasn't broadcasting.
+      router.push(
+        `/events/live-stream?id=${id}${res.viewerId ? `&viewerId=${res.viewerId}` : ''}` as unknown as Href,
+      );
     } catch (e) {
       setGroupCodeError(isApiError(e) ? e.message : 'Could not redeem the code.');
     } finally {
@@ -354,17 +360,51 @@ export default function PublicEventDetailScreen() {
         setVerifyError("We couldn't find a paid record for this email. Please buy access.");
         return;
       }
+      /*
+       * VALIDATE access before navigating. Previously we trusted
+       * register's ACCESS_GRANTED status and pushed to live-stream;
+       * but DEVICE_CONFLICT and edge-case backend states would also
+       * pass the `!needsPayment` gate, then live-stream's access-status
+       * call would return hasAccess=false → live-stream would bounce
+       * back here → infinite loop. Now we run the same access-status
+       * check here, attempt a silent device switch if needed, and only
+       * push to live-stream when the viewerId is truly playable.
+       */
+      let granted = false;
+      let accessRes = await checkAnonymousAccessStatus(id, reg.viewerId, fingerprint);
+      if (accessRes.active) {
+        granted = true;
+      } else if (accessRes.reason === 'DEVICE_MISMATCH') {
+        // Try the silent device switch: backend already releases the
+        // old session if it's inactive (>60s) and rewrites the
+        // fingerprint to this device. If the old device is actively
+        // watching we get a switch failure and ask the user to act.
+        const swap = await switchAnonymousDevice(id, reg.viewerId, fingerprint);
+        if (swap.ok) {
+          accessRes = await checkAnonymousAccessStatus(id, reg.viewerId, fingerprint);
+          if (accessRes.active) granted = true;
+        } else {
+          setVerifyError(
+            'Your viewer is currently watching on another device. Stop the other session and try again.',
+          );
+          return;
+        }
+      }
+      if (!granted) {
+        // No clear access — keep the verify modal open so the user sees
+        // the error inline instead of getting bounced into the live-
+        // stream → back-to-here loop.
+        setVerifyError(
+          "Your access couldn't be confirmed. The payment record may not have settled yet — try again in a moment, or buy access.",
+        );
+        return;
+      }
       await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
       setViewerId(reg.viewerId);
       setVerifyOpen(false);
-      if (data) {
-        const status = deriveStatus(data);
-        if (status.isLive) {
-          router.push(
-            `/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href,
-          );
-        }
-      }
+      router.push(
+        `/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href,
+      );
     } catch (e) {
       setVerifyError(isApiError(e) ? e.message : 'Could not verify access.');
     } finally {
