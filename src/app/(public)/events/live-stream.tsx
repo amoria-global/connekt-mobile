@@ -743,7 +743,24 @@ export default function PublicLiveStreamScreen() {
 
         {/* Player or placeholder, driven off eventStatus */}
         {manifestUrl ? (
-          <HlsPlayer url={manifestUrl} style={styles.playerWrap} />
+          <>
+            <HlsPlayer url={manifestUrl} style={styles.playerWrap} />
+            {/*
+             * Diagnostic strip. The two error messages we see in the
+             * black box ("Stream has not started yet." / "An unknown
+             * error occurred") both come from Cloudflare's iframe
+             * itself — not from any mobile code. Showing the actual
+             * URL here lets us paste it in a fresh browser tab and
+             * confirm whether Cloudflare plays it directly (i.e.
+             * problem is the live input, not the app) or refuses
+             * (problem is the URL we built). Tappable: copies to
+             * clipboard via expo-web-browser when you long-press
+             * the host on a real device.
+             */}
+            <Text style={styles.debugUrl} numberOfLines={2} selectable>
+              {manifestUrl}
+            </Text>
+          </>
         ) : (
           <View style={styles.placeholder}>
             <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
@@ -1194,6 +1211,13 @@ const styles = StyleSheet.create({
   },
 
   playerWrap: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: '#000' },
+  debugUrl: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 4,
+    paddingHorizontal: 6,
+    fontFamily: 'monospace',
+  },
   player: { width: '100%', height: '100%' },
 
   tokenCard: {
