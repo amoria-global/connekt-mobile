@@ -141,20 +141,79 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
 // pick the right HLS loader.
 
 function Player({ url }: { url: string }) {
+  /*
+   * Auto-play, auto-recover. We start MUTED so the first play() goes
+   * through even on web (browsers block auto-playing audio without a
+   * user gesture). We unmute right after play resolves so the viewer
+   * gets audio without having to tap the control.
+   *
+   * statusChange triggers a re-source on `error` and `idle` (silent
+   * playback drops) without forcing the user to reload the screen.
+   * Web's WHEPClient has the same "never stop retrying" pattern
+   * (knockout/lib/streaming/WHEPClient.ts: maxReconnectAttempts = 999).
+   */
   const player = useVideoPlayer({ uri: url }, (p) => {
     p.loop = false;
-    p.muted = false;
+    p.muted = true;
     p.audioMixingMode = 'auto';
+    p.staysActiveInBackground = false;
     p.play();
   });
+
   useEffect(() => {
+    let isMounted = true;
+    let retryHandle: ReturnType<typeof setTimeout> | null = null;
+
+    const tryUnmute = () => {
+      // Give the browser tick to register the play(); then drop mute
+      // so the viewer has sound. On mobile native this also works
+      // since AVPlayer / ExoPlayer don't need the muted-autoplay trick
+      // but doing it twice is harmless.
+      setTimeout(() => {
+        if (!isMounted) return;
+        try {
+          player.muted = false;
+        } catch {
+          /* ignore */
+        }
+      }, 400);
+    };
+
     const sub = player.addListener('statusChange', ({ status, error }) => {
-      if (status === 'error' && error?.message) {
-        console.warn('[stream] playback error', error.message);
+      if (!isMounted) return;
+      if (status === 'readyToPlay') {
+        try {
+          player.play();
+          tryUnmute();
+        } catch {
+          /* ignore */
+        }
+      } else if (status === 'error' || status === 'idle') {
+        if (error?.message) console.warn('[stream] playback', status, error.message);
+        // Re-source after a backoff to recover from transient
+        // network drops or Cloudflare HLS rebuffer. Don't loop too
+        // aggressively — 3s is enough to dodge a transient stall
+        // without spamming.
+        if (retryHandle) clearTimeout(retryHandle);
+        retryHandle = setTimeout(() => {
+          if (!isMounted) return;
+          try {
+            player.replace({ uri: url });
+            player.play();
+          } catch {
+            /* ignore */
+          }
+        }, 3000);
       }
     });
-    return () => sub.remove();
-  }, [player]);
+    tryUnmute();
+    return () => {
+      isMounted = false;
+      if (retryHandle) clearTimeout(retryHandle);
+      sub.remove();
+    };
+  }, [player, url]);
+
   return (
     <View style={styles.playerWrap}>
       <VideoView
