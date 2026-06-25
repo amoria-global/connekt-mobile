@@ -1,46 +1,64 @@
 /**
- * Web-only HLS player. Chrome / Firefox / Edge can't decode HLS in the
- * native <video> element ("PipelineStatus::DEMUXER_ERROR_COULD_NOT_PARSE"
- * is what they spit out when you try). Safari + iOS Safari can, but
- * we use hls.js universally on web so we don't have to split code paths.
+ * Web-only video player.
  *
- * This module is resolved only on web (via the `.web.tsx` extension);
- * iOS and Android pick up `HlsPlayer.tsx` which delegates to
- * expo-video's native HLS support.
+ * Cloudflare Live Inputs configured with `force-flavor="whep"` (which
+ * is what amoria's input 01c6d1e7... uses) do NOT serve HLS — the
+ * `/manifest/video.m3u8` endpoint returns 204 No Content. The only
+ * playback path Cloudflare exposes for this kind of input is its
+ * iframe player, which negotiates WebRTC internally.
  *
- * Auto-recovery is built-in: hls.js' ERROR event covers transient
- * network drops + media decode failures + manifest 404s while OBS is
- * reconnecting. Latency target is ~10s (Cloudflare HLS default segment
- * size). For sub-second latency we'd need WebRTC + WHEPClient like the
- * web app, but that's a separate native dependency.
+ * Strategy:
+ *   - If `url` looks like an HLS .m3u8 → use hls.js + <video>
+ *   - If `url` is a Cloudflare URL (customer-*.cloudflarestream.com)
+ *     OR ends with /iframe → wrap it in an <iframe> at that URL
+ *     (or derive the iframe URL from a WHEP URL)
+ *
+ * The iframe gracefully handles WHEP / HLS / DRM / token refresh /
+ * autoplay policy / picture-in-picture — none of which we'd want to
+ * own client-side.
  */
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Hls from 'hls.js';
 
+function toIframeUrl(url: string): string | null {
+  // Already an iframe URL
+  if (url.endsWith('/iframe') || url.includes('/iframe?')) return url;
+  // Convert a Cloudflare playback URL (HLS or WHEP) to the iframe form
+  // by replacing the path component. Both URLs use the same customer
+  // hash + live input id, so the substitution is safe.
+  const cf = url.match(
+    /^(https:\/\/customer-[a-z0-9]+\.cloudflarestream\.com\/[a-f0-9-]+)\/(webRTC\/play|manifest\/video\.m3u8.*)$/i,
+  );
+  if (cf) return `${cf[1]}/iframe`;
+  return null;
+}
+
 export function HlsPlayer({ url, style }: { url: string; style?: any }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
 
+  // Decide strategy. Cloudflare live inputs without HLS enabled can only
+  // be played via their iframe; raw HLS playback would return 204.
+  const iframeUrl = toIframeUrl(url);
+
   useEffect(() => {
+    if (iframeUrl) return; // iframe path doesn't need hls.js
     const video = videoRef.current;
     if (!video || !url) return;
 
-    // Safari + iOS Safari can play HLS natively — use the simple path.
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url;
-      video.muted = true; // browser autoplay policy
+      video.muted = true;
       video
         .play()
         .then(() => {
-          // Try to unmute once playback is active so the viewer gets
-          // sound without a manual tap.
           setTimeout(() => {
             if (video) video.muted = false;
           }, 400);
         })
         .catch(() => {
-          /* user gesture required; controls visible */
+          /* user gesture required */
         });
       return () => {
         try {
@@ -53,20 +71,16 @@ export function HlsPlayer({ url, style }: { url: string; style?: any }) {
     }
 
     if (!Hls.isSupported()) {
-      // Last-resort: nothing we can do besides set src and hope
       video.src = url;
       return;
     }
 
     const hls = new Hls({
-      // Live-stream friendly defaults
       enableWorker: true,
       lowLatencyMode: true,
       backBufferLength: 30,
       maxBufferLength: 30,
       liveSyncDurationCount: 3,
-      // Aggressive recovery — mirrors knockout WHEPClient's
-      // "never stop retrying" pattern.
       manifestLoadingMaxRetry: 6,
       manifestLoadingRetryDelay: 1500,
       manifestLoadingMaxRetryTimeout: 64_000,
@@ -91,14 +105,13 @@ export function HlsPlayer({ url, style }: { url: string; style?: any }) {
           }, 400);
         })
         .catch(() => {
-          /* autoplay denied; controls visible */
+          /* autoplay denied */
         });
     });
 
     hls.on(Hls.Events.ERROR, (_event, data) => {
       if (!data.fatal) return;
       if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-        // hls.js' built-in recovery: re-trigger loading
         try {
           hls.startLoad();
         } catch {
@@ -114,17 +127,17 @@ export function HlsPlayer({ url, style }: { url: string; style?: any }) {
         }
         return;
       }
-      // Last-resort: destroy + recreate the player after 3s
       try {
         hls.destroy();
       } catch {
         /* ignore */
       }
       setTimeout(() => {
+        if (!videoRef.current) return;
         const fresh = new Hls();
         hlsRef.current = fresh;
         fresh.loadSource(url);
-        fresh.attachMedia(video);
+        fresh.attachMedia(videoRef.current);
       }, 3000);
     });
 
@@ -136,22 +149,35 @@ export function HlsPlayer({ url, style }: { url: string; style?: any }) {
       }
       hlsRef.current = null;
     };
-  }, [url]);
+  }, [url, iframeUrl]);
 
-  // React Native Web flattens <View> to a <div>. We render the <video>
-  // as a native HTML element inside it so hls.js can attach to it via
-  // ref. The wrapping View keeps the React Native layout system happy.
+  const IframeTag = 'iframe' as any;
   const VideoTag = 'video' as any;
+
   return (
     <View style={[styles.wrap, style]}>
-      <VideoTag
-        ref={videoRef}
-        style={styles.video as any}
-        controls
-        playsInline
-        autoPlay
-        muted
-      />
+      {iframeUrl ? (
+        <IframeTag
+          src={iframeUrl}
+          // Cloudflare's iframe negotiates WebRTC / HLS internally and
+          // exposes a normal player UI with controls + autoplay.
+          // allow=autoplay covers Chrome's permission policy so the
+          // stream starts the moment it's ready.
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          style={styles.video as any}
+          frameBorder="0"
+        />
+      ) : (
+        <VideoTag
+          ref={videoRef}
+          style={styles.video as any}
+          controls
+          playsInline
+          autoPlay
+          muted
+        />
+      )}
     </View>
   );
 }
@@ -167,5 +193,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     objectFit: 'contain',
+    border: 0,
   } as any,
 });
