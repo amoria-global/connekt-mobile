@@ -304,53 +304,80 @@ export default function EventDetailScreen() {
          * Photographer Manage — visible to a photographer working this
          * event so they can mark the shoot complete. The full
          * publish/edit/delete panel below is owner-only.
+         *
+         * Gating (web parity, see knockout/app/pages/photographer/events.tsx):
+         *   Go live    — booking ACCEPTED, event not COMPLETED/CANCELLED,
+         *                stream not already ended or live.
+         *   Mark done  — booking ACCEPTED, event not already
+         *                COMPLETED/CANCELLED/AWAITING_REVIEW (so the
+         *                button isn't a no-op after the client confirmed
+         *                or the photographer already submitted).
+         * Without these gates we showed both pills for already-completed
+         * events and the photographer could trigger a 400 from the
+         * backend by tapping "Go live" on an ended stream.
          */}
-        {isPhotographer && !ownsEvents ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Photographer actions</Text>
-
-            {/*
-             * Web parity: when the booking is PENDING, show big Accept /
-             * Decline buttons before the rest of the action grid. Mobile
-             * previously required the photographer to leave for /bookings
-             * to do this; now both surfaces work.
-             */}
-            {data?.bookingStatus?.toUpperCase() === 'PENDING' ? (
-              <View style={styles.actionGrid}>
-                <ActionPill
-                  icon="checkmark-circle-outline"
-                  label="Accept booking"
-                  onPress={onAcceptBooking}
-                  loading={busy === 'accept'}
-                />
-                <ActionPill
-                  icon="close-circle-outline"
-                  label="Decline"
-                  danger
-                  onPress={() => setDeclineOpen(true)}
-                  loading={busy === 'decline'}
-                />
-              </View>
-            ) : null}
-
-            <View style={styles.actionGrid}>
-              {data?.streamStatus !== 'ended' ? (
-                <ActionPill
-                  icon="videocam-outline"
-                  label="Go live"
-                  onPress={onGoLive}
-                  loading={busy === 'stream'}
-                />
+        {(() => {
+          if (!isPhotographer || ownsEvents) return null;
+          const eventStatus = (data?.status ?? '').toUpperCase();
+          const streamStatus = (data?.streamStatus ?? '').toLowerCase();
+          const bookingStatus = (data?.bookingStatus ?? '').toUpperCase();
+          const isPending = bookingStatus === 'PENDING';
+          const isAccepted = bookingStatus === 'ACCEPTED' || !bookingStatus;
+          const isEventDone =
+            eventStatus === 'COMPLETED' ||
+            eventStatus === 'CANCELLED' ||
+            eventStatus === 'AWAITING_REVIEW';
+          const isStreamLive = streamStatus === 'live' || streamStatus === 'connected';
+          const canGoLive =
+            isAccepted && !isEventDone && streamStatus !== 'ended' && !isStreamLive;
+          const canMarkComplete = isAccepted && !isEventDone;
+          // Hide the whole section if there is nothing actionable for
+          // this photographer right now (e.g. cancelled event, or already
+          // completed and awaiting client confirmation).
+          if (!isPending && !canGoLive && !canMarkComplete) return null;
+          return (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Photographer actions</Text>
+              {isPending ? (
+                <View style={styles.actionGrid}>
+                  <ActionPill
+                    icon="checkmark-circle-outline"
+                    label="Accept booking"
+                    onPress={onAcceptBooking}
+                    loading={busy === 'accept'}
+                  />
+                  <ActionPill
+                    icon="close-circle-outline"
+                    label="Decline"
+                    danger
+                    onPress={() => setDeclineOpen(true)}
+                    loading={busy === 'decline'}
+                  />
+                </View>
               ) : null}
-              <ActionPill
-                icon="checkmark-done-outline"
-                label="Mark completed"
-                onPress={onPhotographerMarkCompleted}
-                loading={busy === 'photog-complete'}
-              />
+              {canGoLive || canMarkComplete ? (
+                <View style={styles.actionGrid}>
+                  {canGoLive ? (
+                    <ActionPill
+                      icon="videocam-outline"
+                      label="Go live"
+                      onPress={onGoLive}
+                      loading={busy === 'stream'}
+                    />
+                  ) : null}
+                  {canMarkComplete ? (
+                    <ActionPill
+                      icon="checkmark-done-outline"
+                      label="Mark completed"
+                      onPress={onPhotographerMarkCompleted}
+                      loading={busy === 'photog-complete'}
+                    />
+                  ) : null}
+                </View>
+              ) : null}
             </View>
-          </View>
-        ) : null}
+          );
+        })()}
 
         {/* Manage (owner only) */}
         {ownsEvents ? (
@@ -366,14 +393,29 @@ export default function EventDetailScreen() {
             <View style={styles.actionGrid}>
               <ActionPill icon="create-outline" label="Edit" onPress={() => router.push(`/event/new?editId=${id}`)} />
               <ActionPill icon="share-social-outline" label="Share" onPress={onShare} />
-              {data?.streamStatus !== 'ended' ? (
-                <ActionPill
-                  icon="videocam-outline"
-                  label="Go live"
-                  onPress={onGoLive}
-                  loading={busy === 'stream'}
-                />
-              ) : null}
+              {(() => {
+                // Owner-side Go-live gating mirrors the photographer
+                // section above so a completed/cancelled event doesn't
+                // expose a button that 400s on the backend.
+                const eventStatus = (data?.status ?? '').toUpperCase();
+                const streamStatus = (data?.streamStatus ?? '').toLowerCase();
+                const isStreamLive = streamStatus === 'live' || streamStatus === 'connected';
+                const canGoLive =
+                  eventStatus !== 'COMPLETED' &&
+                  eventStatus !== 'CANCELLED' &&
+                  eventStatus !== 'AWAITING_REVIEW' &&
+                  streamStatus !== 'ended' &&
+                  !isStreamLive;
+                if (!canGoLive) return null;
+                return (
+                  <ActionPill
+                    icon="videocam-outline"
+                    label="Go live"
+                    onPress={onGoLive}
+                    loading={busy === 'stream'}
+                  />
+                );
+              })()}
               {/*
                * Pause / Resume — web parity. When the event status is
                * already PAUSED, surface Resume; otherwise show Pause. The

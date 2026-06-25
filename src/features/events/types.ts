@@ -52,6 +52,12 @@ export type EventItem = {
    * event's stream is "ended" it can't be restarted (backend rejects).
    */
   streamStatus?: string;
+  /**
+   * ISO timestamp of when this event row was created. Surfaced as the
+   * primary sort key on the events list (newest-first) so a freshly
+   * booked event always lands at the top regardless of its event date.
+   */
+  createdAt?: string;
 
   // ──────── Edit-form fields (web parity) ────────
   // Without these, opening the edit modal cleared half the form and
