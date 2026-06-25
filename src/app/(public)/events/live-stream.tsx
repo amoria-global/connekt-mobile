@@ -279,14 +279,22 @@ export default function PublicLiveStreamScreen() {
       // Paid event — anonymous viewer access check
       if (status.isPaid) {
         const storedViewerId = await storage.get(`anonymousViewer_${id}`).catch(() => null);
+        const storedToken = await storage.get(`streamToken_${id}`).catch(() => null);
         const vId = urlViewerId || storedViewerId;
-        if (!vId) {
-          // No viewerId — surface the Verify your access modal so the
-          // user can re-identify by email (web's "viewer info" modal).
+        if (!vId && !urlToken && !storedToken) {
+          // No viewerId and no token at all — bounce to the event detail
+          // page where the user can pick Buy / Verify / Have invite code
+          // from the same three CTAs the web exposes. The live-stream
+          // screen isn't a sensible landing page for someone who's
+          // never opened the event before.
           if (!cancelled) {
-            setViewerId(undefined);
-            setInfoModalOpen(true);
+            router.replace(`/event/${id}` as unknown as Href);
           }
+          return;
+        }
+        if (!vId) {
+          // No viewerId but the user has a token — fall through to the
+          // invite-token validation path below.
           return;
         }
         if (cancelled) return;
@@ -694,30 +702,63 @@ export default function PublicLiveStreamScreen() {
             <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
             <View style={styles.placeholderScrim} />
             <View style={styles.placeholderContent}>
-              {accessLoading || tokenBusy || status.isLive ? (
-                <ActivityIndicator color="#fff" />
+              {/*
+               * Web parity (lines 7320-7400 of knockout/pages/events/
+               * live-stream.tsx). 4 states for the access gate:
+               *   1. accessLoading           → spinner + "Verifying Access..."
+               *   2. hasPurchasedAccess      → hourglass + "Access Confirmed"
+               *   3. paid + no access        → lock + "Paid Stream" + Purchase
+               *   4. ended/cancelled/upcoming → status-appropriate copy
+               */}
+              {status.isCancelled || status.isEnded ? (
+                <>
+                  <Ionicons
+                    name={status.isCancelled ? 'close-circle' : 'archive'}
+                    size={42}
+                    color="rgba(255,255,255,0.85)"
+                  />
+                  <Text style={styles.placeholderHeadline}>
+                    {status.isCancelled ? 'Event cancelled' : 'Event ended'}
+                  </Text>
+                </>
+              ) : accessLoading ? (
+                <>
+                  <ActivityIndicator color="#10b981" size="large" />
+                  <Text style={styles.placeholderHeadline}>Verifying access…</Text>
+                  <Text style={styles.placeholderText}>
+                    Please wait while we confirm your access.
+                  </Text>
+                </>
+              ) : status.isLive && accessGranted ? (
+                <>
+                  <Ionicons name="hourglass" size={42} color="#10b981" />
+                  <Text style={styles.placeholderHeadline}>Access confirmed</Text>
+                  <Text style={styles.placeholderText}>Waiting for the stream to start…</Text>
+                </>
+              ) : status.isLive && status.isPaid ? (
+                // No-access viewers are bounced to /event/{id} by the
+                // useEffect above where the same 3 CTAs (Buy / Verify /
+                // Invite code) live. This branch only fires if the bounce
+                // is in-flight — show a brief loader instead of letting
+                // the user dwell on a half-state.
+                <>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.placeholderHeadline}>Loading…</Text>
+                </>
+              ) : status.isLive ? (
+                <>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.placeholderHeadline}>Stream is starting…</Text>
+                  <Text style={styles.placeholderText}>Hang tight, the stream is loading.</Text>
+                </>
               ) : (
-                <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
+                <>
+                  <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
+                  <Text style={styles.placeholderText}>
+                    Stream will appear here once it goes live.
+                  </Text>
+                </>
               )}
-              <Text style={styles.placeholderText}>
-                {status.isCancelled
-                  ? 'This event has been cancelled.'
-                  : status.isEnded
-                    ? 'This event has ended.'
-                    : status.isLive
-                      ? accessGranted
-                        ? 'Stream is starting — hang tight.'
-                        : 'Verify your access to start watching.'
-                      : 'Stream will appear here once it goes live.'}
-              </Text>
-              {status.isLive && !accessGranted && status.isPaid ? (
-                <Pressable
-                  style={styles.placeholderCta}
-                  onPress={() => setInfoModalOpen(true)}
-                >
-                  <Text style={styles.placeholderCtaText}>Verify your access</Text>
-                </Pressable>
-              ) : null}
             </View>
           </View>
         )}
@@ -1080,15 +1121,30 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.xl,
   },
-  placeholderText: { color: 'rgba(255,255,255,0.92)', fontSize: fontSize.sm, textAlign: 'center' },
+  placeholderHeadline: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  placeholderText: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.sm, textAlign: 'center', maxWidth: 320 },
   placeholderCta: {
     marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#fff',
     paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: radii.full,
   },
   placeholderCtaText: { color: colors.primary, fontWeight: '800', fontSize: fontSize.sm },
+  placeholderLinkText: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: fontSize.xs,
+    textDecorationLine: 'underline',
+    fontWeight: '700',
+  },
 
   playerWrap: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: '#000' },
   player: { width: '100%', height: '100%' },
