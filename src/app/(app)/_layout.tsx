@@ -1,5 +1,7 @@
 import { Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
+import { PersistentBottomBar } from '@/components/PersistentBottomBar';
 import { colors } from '@/theme';
 
 export default function AppLayout() {
@@ -8,7 +10,7 @@ export default function AppLayout() {
   const inTabs = segments.includes('(tabs)');
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Stack
         screenOptions={{
           // Branded blue headers, matching the top/bottom chrome.
@@ -87,7 +89,14 @@ export default function AppLayout() {
         <Stack.Screen name="team/role/[id]" options={{ title: 'Role' }} />
         <Stack.Screen name="team/member/[id]" options={{ title: 'Member' }} />
       </Stack>
+      {/*
+       * Persistent bottom bar across every (app) route. The bar lives
+       * *below* the Stack so it overlays each screen content. Detail
+       * screens already pad their ScrollView contentContainerStyle with
+       * paddingBottom 100+, so the bar doesn't cover anything important.
+       */}
+      <PersistentBottomBar />
       <StatusBar style={inTabs ? 'dark' : 'light'} />
-    </>
+    </View>
   );
 }

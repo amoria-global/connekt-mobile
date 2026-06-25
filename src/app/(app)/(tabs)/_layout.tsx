@@ -261,9 +261,10 @@ export default function AppTabsLayout() {
   return (
     <>
       <Tabs
-        tabBar={(props) => (
-          <CustomTabBar {...props} insets={insets} onMore={() => setMoreOpen(true)} />
-        )}
+        // The visible bar moved to (app)/_layout.tsx (PersistentBottomBar)
+        // so it stays on every (app) route, not just (tabs). We render a
+        // null bar here so this Tabs container doesn't paint its own.
+        tabBar={() => null}
         screenOptions={{
           headerShown: false,
           tabBarHideOnKeyboard: Platform.OS === 'android',
