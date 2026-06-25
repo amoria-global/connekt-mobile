@@ -33,17 +33,18 @@
  *
  *   3. CHAT PANEL
  *      Renders whenever the event is ONGOING (not gated on manifestUrl).
- *      Polls /public/events/{id}/chats every 1s, page size 500 (web
- *      parity — 2.5s/50 was lossy on busy streams). Shared
- *      seenApiMessageIds ref dedupes chats AND reactions, with the
- *      sender pre-seeding their own POST response id to prevent echo.
- *      Chat send is optimistic: bubble appears immediately, gets
- *      reconciled when the server row arrives. Reactions POST to the
- *      open /reactions endpoint (no viewerId / payment required — any
- *      viewer can fire a heart). First-poll storm prevention marks
- *      historical reactions as seen without animating them so a reload
- *      mid-stream doesn't replay the entire reaction history. Newly-
- *      seen reactions in the same poll stagger by 120ms.
+ *      Polls /public/events/{id}/chats every 2s, page size 100. Web
+ *      uses 1s/500 but mobile can't virtualize the chat list (the JSX
+ *      below uses ScrollView, not FlatList), so a 500-bubble first
+ *      paint stalls the JS thread long enough for the WebView player
+ *      to glitch. Dedupe matches web verbatim via seenApiMessageIds
+ *      ref, with the sender pre-seeding their POST response id to
+ *      prevent echo. Chat send is optimistic. Reactions POST to the
+ *      open /reactions endpoint (no viewerId / payment required).
+ *      First-poll storm prevention marks historical reactions seen
+ *      without animating. Newly-seen reactions stagger by 120ms.
+ *      Sliding window: chats state capped at 200, JSX renders the
+ *      last 60.
  *
  *   4. GIFT / DONATION MODAL
  *      Web parity: 5 preset amount chips + custom + MoMo / Card. Posts
@@ -499,29 +500,27 @@ export default function PublicLiveStreamScreen() {
     };
   }, [id]);
 
-  // ── Chat poll (1s — web parity) ──────────────────────────────────────────
+  // ── Chat poll ────────────────────────────────────────────────────────────
   //
-  // Web parity (knockout/app/pages/events/live-stream.tsx lines 1107-1309):
-  //   - poll cadence 1s, page size 500 (50 was losing messages on busy
-  //     streams and made the chat panel look stalled)
-  //   - shared seenApiMessageIds ref dedupes chats AND reactions across
-  //     polls so the sender's own POST never echoes back as a fresh row
-  //   - first-poll storm prevention: every reaction in the initial
-  //     response gets marked seen but NOT animated — otherwise reloading
-  //     mid-stream replays the entire reaction history as a fresh storm
-  //   - 120ms stagger between newly-seen reactions in the same batch so
-  //     a wave of hearts from other viewers reads as a cascade instead
-  //     of 3 clumped emoji
-  //   - chat list is merged (append-new, dedupe by id) instead of
-  //     replaced wholesale, so optimistic sender bubbles don't flash
-  //     and scroll position can be preserved by the renderer
+  // Web parity for dedupe + reactions, but the cadence and page size
+  // differ from web because React Native can't virtualize the chat
+  // panel — it renders every bubble as a real <View>, and on first
+  // poll with 500 messages that blocks the JS thread long enough for
+  // the WebView player to look like it stopped working. The dedupe
+  // ref still mirrors web (knockout live-stream.tsx 1107-1309) so the
+  // sender's own POST doesn't echo back. Settings:
+  //   - 2s poll  (1s was overlapping with the player's autoplay logic)
+  //   - size=100 (still 2x what we had pre-parity, but bounded)
+  //   - chats state capped at 200 entries (sliding window) so memory
+  //     doesn't grow unbounded over a long stream
+  //   - rendered chat list further capped in the JSX to the last 60
   useEffect(() => {
     if (!status.isLive) return;
     let cancelled = false;
     let isFirst = true;
     const tick = async () => {
       try {
-        const page = await getPublicStreamChats(id, 0, 500);
+        const page = await getPublicStreamChats(id, 0, 100);
         if (cancelled) return;
 
         // ── REACTION bucket ────────────────────────────────────────────
@@ -542,28 +541,25 @@ export default function PublicLiveStreamScreen() {
         );
         if (incoming.length > 0) {
           incoming.forEach((m) => seenApiMessageIds.current.add(m.id));
-          // Drop optimistic locally-added rows (id prefixed with `opt:`)
-          // whose text now matches an arriving server row, so the
-          // sender's own bubble doesn't appear twice.
           const incomingTexts = new Set(incoming.map((m) => m.message));
           setChats((prev) => {
             const kept = prev.filter(
               (m) => !m.id.startsWith('opt:') || !incomingTexts.has(m.message),
             );
-            return [...kept, ...incoming];
+            const merged = [...kept, ...incoming];
+            // Sliding window: keep at most the last 200 in memory so a
+            // long stream doesn't blow up the chat state.
+            return merged.length > 200 ? merged.slice(merged.length - 200) : merged;
           });
         }
       } catch {
         /* keep polling */
       } finally {
-        // Flip in finally so a first-poll network error doesn't trap us
-        // in initial mode forever — recoveries still animate new
-        // reactions normally.
         isFirst = false;
       }
     };
     tick();
-    const handle = setInterval(tick, 1000);
+    const handle = setInterval(tick, 2000);
     return () => {
       cancelled = true;
       clearInterval(handle);
@@ -940,7 +936,12 @@ export default function PublicLiveStreamScreen() {
               {chats.length === 0 ? (
                 <Text style={styles.chatEmpty}>No messages yet — say hi 👋</Text>
               ) : (
-                chats.map((c) => (
+                // Render only the last 60 bubbles. The chats state itself
+                // holds up to 200 (sliding window) so dedupe still works,
+                // but mounting 200+ <View>s inside a non-virtualized
+                // <ScrollView> blocks the JS thread long enough for the
+                // WebView player to glitch on slower devices.
+                chats.slice(Math.max(0, chats.length - 60)).map((c) => (
                   <View key={c.id} style={styles.chatBubble}>
                     {c.viewerName ? (
                       <Text style={styles.chatBubbleSender}>{c.viewerName}</Text>
