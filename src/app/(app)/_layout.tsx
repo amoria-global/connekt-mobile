@@ -40,6 +40,7 @@ export default function AppLayout() {
         <Stack.Screen name="package/new" options={{ title: 'New package', presentation: 'modal' }} />
         <Stack.Screen name="streams" options={{ title: 'Live Streams' }} />
         <Stack.Screen name="stream/[id]" options={{ title: 'Stream' }} />
+        <Stack.Screen name="stream/control/[id]" options={{ title: 'Go Live' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="find-my-photos" options={{ title: 'Find My Photos' }} />
         <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />

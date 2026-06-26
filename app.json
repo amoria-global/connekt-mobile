@@ -16,7 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.connekt-mobile",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Connekyt uses your camera to record video messages and to broadcast your event live.",
+        "NSMicrophoneUsageDescription": "Connekyt uses your microphone to record video messages and live audio."
       }
     },
     "android": {
@@ -25,7 +27,8 @@
         "backgroundColor": "#FFFFFF"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.connekyt.app"
+      "package": "com.connekyt.app",
+      "permissions": ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
     },
     "web": {
       "output": "static",
@@ -44,6 +47,14 @@
       ],
       "expo-secure-store",
       "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Connekyt accesses your photos so you can share them.",
+          "cameraPermission": "Connekyt uses your camera to record video messages and to broadcast your event live.",
+          "microphonePermission": "Connekyt uses your microphone to record video messages and live audio."
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "expo-build-properties",

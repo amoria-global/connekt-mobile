@@ -57,6 +57,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { HlsPlayer } from '@/features/streams/HlsPlayer';
 import {
   ActivityIndicator,
@@ -83,6 +85,7 @@ import {
   requestStreamAccess,
   sendPublicStreamChat,
   sendPublicStreamReaction,
+  sendPublicVideoChat,
   switchAnonymousDevice,
   validateStreamToken,
   type PublicStreamChat,
@@ -150,6 +153,84 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
         <Text style={splashStyles.tapHint}>Tap anywhere to continue</Text>
       </View>
     </Animated.View>
+  );
+}
+
+// ─── Chat message rows ───────────────────────────────────────────────────
+// Web parity (knockout chat panel): each row shows who sent it. The
+// current viewer's own messages are right-aligned and labelled "You"
+// (the "who sent vs who received" distinction the web makes with
+// `sender === "You"`); everyone else's are left-aligned with avatar +
+// name + time. VIDEO-typed rows ("video wishes") render an inline
+// player labelled "Video message".
+
+function ChatVideoBubble({ uri }: { uri: string }) {
+  const player = useVideoPlayer({ uri }, (p) => {
+    p.loop = false;
+    p.muted = false;
+  });
+  return (
+    <View style={styles.chatVideoWrap}>
+      <VideoView
+        player={player}
+        style={styles.chatVideo}
+        contentFit="contain"
+        nativeControls
+      />
+      <View style={styles.chatVideoTag}>
+        <Ionicons name="videocam" size={11} color={colors.primary} />
+        <Text style={styles.chatVideoTagText}>Video message</Text>
+      </View>
+    </View>
+  );
+}
+
+function ChatMessageRow({ chat, isOwn }: { chat: PublicStreamChat; isOwn: boolean }) {
+  const name = isOwn ? 'You' : chat.viewerName || 'Guest';
+  const initial = (chat.viewerName || 'G').trim().charAt(0).toUpperCase();
+  const hasVideo = !!chat.videoUrl;
+
+  if (isOwn) {
+    return (
+      <View style={styles.rowOwn}>
+        <View style={[styles.bubble, styles.bubbleOwn]}>
+          <View style={styles.bubbleHeadRow}>
+            <Text style={[styles.bubbleSender, styles.bubbleSenderOwn]}>You</Text>
+            {chat.time ? <Text style={styles.bubbleTimeOwn}>{chat.time}</Text> : null}
+          </View>
+          {hasVideo ? (
+            <ChatVideoBubble uri={chat.videoUrl!} />
+          ) : (
+            <Text style={[styles.bubbleText, styles.bubbleTextOwn]}>{chat.message}</Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.rowOther}>
+      {chat.avatar ? (
+        <Image source={{ uri: chat.avatar }} style={styles.avatar} contentFit="cover" />
+      ) : (
+        <View style={styles.avatarFallback}>
+          <Text style={styles.avatarInitial}>{initial}</Text>
+        </View>
+      )}
+      <View style={[styles.bubble, styles.bubbleOther]}>
+        <View style={styles.bubbleHeadRow}>
+          <Text style={styles.bubbleSender} numberOfLines={1}>
+            {name}
+          </Text>
+          {chat.time ? <Text style={styles.bubbleTime}>{chat.time}</Text> : null}
+        </View>
+        {hasVideo ? (
+          <ChatVideoBubble uri={chat.videoUrl!} />
+        ) : (
+          <Text style={styles.bubbleText}>{chat.message}</Text>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -231,10 +312,16 @@ export default function PublicLiveStreamScreen() {
   const [chats, setChats] = useState<PublicStreamChat[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [chatSending, setChatSending] = useState(false);
+  const [videoSending, setVideoSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [floatingEmoji, setFloatingEmoji] = useState<
     { id: string; emoji: string; anim: Animated.Value }[]
   >([]);
+  // Backend doesn't echo the anonymous viewerId per chat row, so "is this
+  // mine?" is resolved two ways: by matching the viewer's display name,
+  // and by remembering the exact text/caption we just sent (covers the
+  // window before our name is known and survives the poll refresh).
+  const sentTextsRef = useRef<Set<string>>(new Set());
 
   // ── Gift modal (sponsor) ─────────────────────────────────────────────────
   const [giftOpen, setGiftOpen] = useState(false);
@@ -643,6 +730,7 @@ export default function PublicLiveStreamScreen() {
     try {
       const fingerprint = await getDeviceId();
       await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+      sentTextsRef.current.add(msg); // mark as mine for the next poll
       setChatDraft('');
     } catch (e) {
       setChatError(isApiError(e) ? e.message : 'Could not send.');
@@ -659,6 +747,64 @@ export default function PublicLiveStreamScreen() {
       await sendPublicStreamReaction(id, { viewerId, deviceFingerprint: fingerprint, emoji });
     } catch {
       /* local burst already played */
+    }
+  };
+
+  // Record (or pick) a ≤60s clip and post it as a video message — the
+  // mobile equivalent of the web's "Send 1-min video message" button.
+  const onSendVideoWish = async () => {
+    if (!viewerId) {
+      setChatError('Verify your access to send a video message.');
+      setInfoModalOpen(true);
+      return;
+    }
+    setChatError(null);
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      let result: ImagePicker.ImagePickerResult;
+      if (perm.granted) {
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['videos'],
+          videoMaxDuration: 60,
+          quality: 0.7,
+        });
+        // User cancelled the camera — offer the library as a fallback so
+        // they can still send a clip they already recorded.
+        if (result.canceled) {
+          result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['videos'],
+            videoMaxDuration: 60,
+            quality: 0.7,
+          });
+        }
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['videos'],
+          videoMaxDuration: 60,
+          quality: 0.7,
+        });
+      }
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+
+      setVideoSending(true);
+      const fingerprint = await getDeviceId();
+      await sendPublicVideoChat(id, {
+        viewerId,
+        deviceFingerprint: fingerprint,
+        video: {
+          uri: asset.uri,
+          name: asset.fileName ?? `wish-${Date.now()}.mp4`,
+          mimeType: asset.mimeType ?? 'video/mp4',
+        },
+        content: chatDraft.trim() || undefined,
+      });
+      sentTextsRef.current.add(chatDraft.trim() || '[Video Message]');
+      setChatDraft('');
+    } catch (e) {
+      setChatError(isApiError(e) ? e.message : 'Could not send video message.');
+    } finally {
+      setVideoSending(false);
     }
   };
 
@@ -743,24 +889,7 @@ export default function PublicLiveStreamScreen() {
 
         {/* Player or placeholder, driven off eventStatus */}
         {manifestUrl ? (
-          <>
-            <HlsPlayer url={manifestUrl} style={styles.playerWrap} />
-            {/*
-             * Diagnostic strip. The two error messages we see in the
-             * black box ("Stream has not started yet." / "An unknown
-             * error occurred") both come from Cloudflare's iframe
-             * itself — not from any mobile code. Showing the actual
-             * URL here lets us paste it in a fresh browser tab and
-             * confirm whether Cloudflare plays it directly (i.e.
-             * problem is the live input, not the app) or refuses
-             * (problem is the URL we built). Tappable: copies to
-             * clipboard via expo-web-browser when you long-press
-             * the host on a real device.
-             */}
-            <Text style={styles.debugUrl} numberOfLines={2} selectable>
-              {manifestUrl}
-            </Text>
-          </>
+          <HlsPlayer url={manifestUrl} style={styles.playerWrap} />
         ) : (
           <View style={styles.placeholder}>
             <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
@@ -860,7 +989,7 @@ export default function PublicLiveStreamScreen() {
               {viewerId ? (
                 <Pressable style={styles.giftPill} onPress={() => setGiftOpen(true)}>
                   <Ionicons name="gift-outline" size={14} color="#fff" />
-                  <Text style={styles.giftPillText}>Sponsor</Text>
+                  <Text style={styles.giftPillText}>Gift</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -869,14 +998,13 @@ export default function PublicLiveStreamScreen() {
               {chats.length === 0 ? (
                 <Text style={styles.chatEmpty}>No messages yet — say hi 👋</Text>
               ) : (
-                chats.map((c) => (
-                  <View key={c.id} style={styles.chatBubble}>
-                    {c.viewerName ? (
-                      <Text style={styles.chatBubbleSender}>{c.viewerName}</Text>
-                    ) : null}
-                    <Text style={styles.chatBubbleText}>{c.message}</Text>
-                  </View>
-                ))
+                chats.map((c) => {
+                  const ownName = viewerName?.trim().toLowerCase();
+                  const isOwn =
+                    sentTextsRef.current.has(c.message) ||
+                    (!!ownName && (c.viewerName || '').trim().toLowerCase() === ownName);
+                  return <ChatMessageRow key={c.id} chat={c} isOwn={isOwn} />;
+                })
               )}
             </View>
 
@@ -894,6 +1022,19 @@ export default function PublicLiveStreamScreen() {
             </View>
 
             <View style={styles.composer}>
+              {/* Send a 1-min video message (web parity). */}
+              <Pressable
+                style={[styles.videoBtn, videoSending && { opacity: 0.5 }]}
+                onPress={onSendVideoWish}
+                disabled={videoSending || chatSending}
+                hitSlop={6}
+              >
+                {videoSending ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : (
+                  <Ionicons name="videocam-outline" size={20} color={colors.primary} />
+                )}
+              </Pressable>
               <TextInput
                 value={chatDraft}
                 onChangeText={setChatDraft}
@@ -1029,7 +1170,7 @@ export default function PublicLiveStreamScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setGiftOpen(false)}>
           <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Sponsor this stream</Text>
+              <Text style={styles.modalTitle}>Send a gift</Text>
               <Text style={styles.modalHint}>
                 Send a gift to the creator. Mobile Money settles instantly; Card goes through
                 XentriPay.
@@ -1211,13 +1352,6 @@ const styles = StyleSheet.create({
   },
 
   playerWrap: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: '#000' },
-  debugUrl: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 4,
-    paddingHorizontal: 6,
-    fontFamily: 'monospace',
-  },
   player: { width: '100%', height: '100%' },
 
   tokenCard: {
@@ -1270,17 +1404,47 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
   },
   giftPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  chatList: { gap: 6, maxHeight: 280 },
+  chatList: { gap: 8, maxHeight: 320 },
   chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
-  chatBubble: {
-    backgroundColor: colors.surfaceMuted,
+
+  // Sender differentiation: mine right-aligned, others left with avatar.
+  rowOther: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: '88%' },
+  rowOwn: { flexDirection: 'row', justifyContent: 'flex-end' },
+  avatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.surfaceMuted },
+  avatarFallback: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  bubble: {
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     gap: 2,
   },
-  chatBubbleSender: { fontSize: 11, fontWeight: '700', color: colors.primary },
-  chatBubbleText: { fontSize: fontSize.sm, color: colors.text },
+  bubbleOther: { backgroundColor: colors.surfaceMuted, borderTopLeftRadius: 4 },
+  bubbleOwn: {
+    backgroundColor: colors.primary,
+    borderTopRightRadius: 4,
+    maxWidth: '88%',
+  },
+  bubbleHeadRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  bubbleSender: { fontSize: 11, fontWeight: '700', color: colors.primary, flexShrink: 1 },
+  bubbleSenderOwn: { color: 'rgba(255,255,255,0.92)' },
+  bubbleTime: { fontSize: 10, color: colors.textMuted },
+  bubbleTimeOwn: { fontSize: 10, color: 'rgba(255,255,255,0.7)' },
+  bubbleText: { fontSize: fontSize.sm, color: colors.text },
+  bubbleTextOwn: { color: '#fff' },
+
+  chatVideoWrap: { marginTop: 4, gap: 4 },
+  chatVideo: { width: 220, height: 124, borderRadius: 8, backgroundColor: '#000' },
+  chatVideoTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  chatVideoTagText: { fontSize: 11, color: colors.primary, fontStyle: 'italic', fontWeight: '600' },
+
   reactionsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   reactionBtn: {
     backgroundColor: colors.surfaceMuted,
@@ -1294,6 +1458,16 @@ const styles = StyleSheet.create({
   },
   reactionEmoji: { fontSize: 18 },
   composer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  videoBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   composerInput: {
     flex: 1,
     backgroundColor: colors.surfaceMuted,
