@@ -23,6 +23,8 @@ export type FoundPhoto = {
   url?: string;
   isPurchased: boolean;
   albumId?: string;
+  /** 'paid' | 'free' — free albums route through the OTP/email flow. */
+  albumType?: string;
   eventId?: string;
   eventTitle?: string;
   photographerName?: string;
@@ -40,6 +42,7 @@ function mapFoundPhoto(r: Raw): FoundPhoto {
     url: str(r.url),
     isPurchased: r.isPurchased === true,
     albumId: str(r.albumId) ?? str((r.album as Raw)?.id),
+    albumType: str(r.albumType),
     eventId: str(r.eventId),
     eventTitle: str(r.eventTitle),
     photographerName: str(r.photographerName),
@@ -51,12 +54,23 @@ function mapFoundPhoto(r: Raw): FoundPhoto {
   };
 }
 
-export async function faceSearch(selfie: PickedImage, code?: string): Promise<FoundPhoto[]> {
+export async function faceSearch(
+  selfie: PickedImage,
+  code?: string,
+  // Web parity: re-running a search after a purchase passes the buyer
+  // context so already-bought photos come back flagged isPurchased.
+  purchase?: { buyerId?: string | null; refid?: string | null },
+): Promise<FoundPhoto[]> {
   const form = new FormData();
   form.append('selfie', { uri: selfie.uri, name: selfie.name, type: selfie.type } as unknown as Blob);
   if (code && code.trim()) form.append('code', code.trim());
 
-  const res = await api.post<ApiEnvelope<Raw[]>>('/public/face-search', form);
+  const qs = new URLSearchParams();
+  if (purchase?.buyerId) qs.set('buyerId', purchase.buyerId);
+  if (purchase?.refid) qs.set('refid', purchase.refid);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+
+  const res = await api.post<ApiEnvelope<Raw[]>>(`/public/face-search${suffix}`, form);
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map(mapFoundPhoto).filter((p) => p.id);
 }
@@ -382,8 +396,15 @@ export type UnlockResult = {
 
 export async function unlockAlbumPhotos(albumId: string, identifier: string): Promise<UnlockResult> {
   const isEmail = identifier.includes('@');
-  const body = isEmail ? { albumId, email: identifier } : { albumId, unlockCode: identifier };
-  const res = await api.post<ApiEnvelope<Raw>>('/public/unlock-photos', body);
+  // Web parity: POST /public/albums/{albumId}/unlock-photos with the album
+  // id in the PATH (not the body). The old /public/unlock-photos path 404s
+  // — that route doesn't exist on the backend, so "unlock by email / code"
+  // silently failed.
+  const body = isEmail ? { email: identifier } : { unlockCode: identifier };
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/albums/${encodeURIComponent(albumId)}/unlock-photos`,
+    body,
+  );
   const d = (res?.data ?? {}) as Raw;
   return {
     buyerId: str(d.buyerId),
