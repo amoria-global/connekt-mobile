@@ -339,9 +339,14 @@ export type PublicStreamChat = {
   id: string;
   viewerName?: string;
   senderName?: string;
+  /** Customer id for authenticated senders (null for anonymous viewers). */
+  senderId?: string;
+  avatar?: string;
   message: string;
   type?: string; // TEXT | REACTION | WISH | VIDEO
   videoUrl?: string;
+  /** Backend pre-formatted "h:mm a" clock string. */
+  time?: string;
   timestamp?: string;
 };
 
@@ -350,16 +355,27 @@ export type PublicStreamChatPage = {
   reactions: PublicStreamChat[];
 };
 
+// Backend StreamChatMessageDTO exposes `viewerUsername` + `viewerAvatar`
+// (NOT viewerName/senderName) and a pre-formatted `time`. The earlier
+// mapper read fields that never exist, so sender names + avatars never
+// rendered. Read the real DTO fields first, keep the old keys as fallback.
 function mapPublicChat(m: Raw): PublicStreamChat {
-  const sender = str(m.viewerName) ?? str(m.senderName) ?? str(m.userName) ??
+  const sender =
+    str(m.viewerUsername) ??
+    str(m.viewerName) ??
+    str(m.senderName) ??
+    str(m.userName) ??
     ([str(m.firstName), str(m.lastName)].filter(Boolean).join(' ') || str(m.name));
   return {
     id: String(m.id ?? ''),
     viewerName: sender,
     senderName: sender,
-    message: str(m.content) ?? str(m.message) ?? str(m.text) ?? '',
+    senderId: str(m.senderId),
+    avatar: str(m.viewerAvatar) ?? str(m.avatar),
+    message: str(m.message) ?? str(m.content) ?? str(m.text) ?? '',
     type: str(m.chatType) ?? str(m.type),
     videoUrl: str(m.videoUrl) ?? str(m.fileUrl),
+    time: str(m.time),
     timestamp: str(m.timestamp) ?? str(m.createdAt),
   };
 }
@@ -380,7 +396,15 @@ export async function getPublicStreamChats(
     ? (res as any).reactions
     : (Array.isArray(data?.reactions) ? data.reactions : []);
   return {
-    messages: messages.map(mapPublicChat).filter((m) => m.id && (m.message || m.videoUrl)),
+    // Defense in depth: the backend already splits reactions out and
+    // strips WISH rows, but filter by type here too so a REACTION/WISH
+    // can never render as a text bubble in the chat list.
+    messages: messages
+      .map(mapPublicChat)
+      .filter((m) => {
+        const t = (m.type || '').toUpperCase();
+        return m.id && (m.message || m.videoUrl) && t !== 'REACTION' && t !== 'WISH';
+      }),
     reactions: reactions.map(mapPublicChat).filter((m) => m.id),
   };
 }
@@ -422,6 +446,47 @@ export async function sendPublicStreamReaction(
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not send reaction.' };
   }
+}
+
+// ────── Public video message (1-min video wish in live chat) ─────────────
+//
+// Web parity: knockout's "Send 1-min video message" button posts a
+// recorded clip to POST /public/events/{id}/chats/video (multipart).
+// Backend (PublicRemoteController.sendPublicVideoChat) requires the same
+// paid-viewer identity as text chat: viewerId + deviceFingerprint, plus
+// the video file and an optional caption. The saved row comes back as a
+// VIDEO-typed chat with a `videoUrl`, which every viewer's poll renders
+// as an inline player.
+
+export async function sendPublicVideoChat(
+  eventId: string,
+  payload: {
+    viewerId: string;
+    deviceFingerprint: string;
+    video: { uri: string; name?: string; mimeType?: string };
+    content?: string;
+  },
+): Promise<PublicStreamChat | null> {
+  const form = new FormData();
+  // React Native's FormData takes { uri, name, type } file parts.
+  form.append('video', {
+    uri: payload.video.uri,
+    name: payload.video.name ?? `wish-${Date.now()}.mp4`,
+    type: payload.video.mimeType ?? 'video/mp4',
+  } as unknown as Blob);
+  form.append('viewerId', payload.viewerId);
+  form.append('deviceFingerprint', payload.deviceFingerprint);
+  if (payload.content?.trim()) form.append('content', payload.content.trim());
+
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/events/${encodeURIComponent(eventId)}/chats/video`,
+    form,
+    { skipAuth: true },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not send video message.' };
+  }
+  return res?.data ? mapPublicChat(res.data) : null;
 }
 
 // ────── Public gift / sponsor flow ───────────────────────────────────────
