@@ -134,6 +134,11 @@ export function PersistentBottomBar() {
     { label: 'Transactions', icon: 'list-outline', href: '/transactions' as Href },
     { label: 'Preferences', icon: 'settings-outline', href: '/preferences' as Href },
     { label: 'Verification', icon: 'shield-checkmark-outline', href: '/kyc' as Href },
+    { label: 'Help center', icon: 'help-circle-outline', href: '/help-center' as Href },
+    { label: 'Contact us', icon: 'mail-outline', href: '/contact_us' as Href },
+    { label: 'Send feedback', icon: 'chatbox-ellipses-outline', href: '/feedback' as Href },
+    { label: 'Privacy policy', icon: 'lock-closed-outline', href: '/privacy-policy' as Href },
+    { label: 'Terms & conditions', icon: 'document-text-outline', href: '/terms-of-service' as Href },
     {
       label: 'Sign out',
       icon: 'log-out-outline',

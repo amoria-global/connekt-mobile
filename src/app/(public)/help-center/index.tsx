@@ -112,6 +112,28 @@ export default function HelpCenterScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Still need help? — contact / feedback (web parity). */}
+        <View style={styles.helpFooter}>
+          <Text style={styles.helpFooterTitle}>Still need help?</Text>
+          <Text style={styles.helpFooterText}>
+            Can&apos;t find what you&apos;re looking for? Reach our team or send feedback.
+          </Text>
+          <View style={styles.helpFooterRow}>
+            <TouchableOpacity
+              style={[styles.helpFooterBtn, styles.helpFooterBtnPrimary]}
+              onPress={() => router.push('/contact_us' as unknown as any)}
+            >
+              <Text style={styles.helpFooterBtnPrimaryText}>Contact us</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.helpFooterBtn}
+              onPress={() => router.push('/feedback' as unknown as any)}
+            >
+              <Text style={styles.helpFooterBtnText}>Send feedback</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -192,6 +214,30 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.md,
   },
+  helpFooter: {
+    margin: spacing.md,
+    marginTop: spacing.sm,
+    padding: spacing.xl,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+  },
+  helpFooterTitle: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text },
+  helpFooterText: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
+  helpFooterRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+  helpFooterBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  helpFooterBtnText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
+  helpFooterBtnPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
+  helpFooterBtnPrimaryText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textOnPrimary },
   card: {
     backgroundColor: colors.card,
     borderRadius: 16,
