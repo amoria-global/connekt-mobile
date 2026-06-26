@@ -6,6 +6,7 @@
  */
 import { api } from '@/api/client';
 import type { PickedImage } from '@/services/imagePicker';
+import { appendFile } from '@/utils/upload';
 import type { ApiError, ApiEnvelope } from '@/types';
 import type {
   CreateEventInput,
@@ -327,7 +328,7 @@ export async function updateEvent(id: string, input: CreateEventInput): Promise<
 /** Uploads the event cover image (same as web: POST .../{id}/photo, field "file"). */
 export async function uploadEventPhoto(eventId: string, image: PickedImage): Promise<void> {
   const form = new FormData();
-  form.append('file', { uri: image.uri, name: image.name, type: image.type } as unknown as Blob);
+  await appendFile(form, 'file', image);
   await api.post(`/customer/events/${encodeURIComponent(eventId)}/photo`, form);
 }
 

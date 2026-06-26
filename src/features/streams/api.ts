@@ -3,6 +3,7 @@
  */
 import { api } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
+import { appendFile } from '@/utils/upload';
 
 export type Stream = {
   id: ID;
@@ -468,12 +469,12 @@ export async function sendPublicVideoChat(
   },
 ): Promise<PublicStreamChat | null> {
   const form = new FormData();
-  // React Native's FormData takes { uri, name, type } file parts.
-  form.append('video', {
+  // Cross-platform file part (real Blob on web, RN object on native).
+  await appendFile(form, 'video', {
     uri: payload.video.uri,
     name: payload.video.name ?? `wish-${Date.now()}.mp4`,
     type: payload.video.mimeType ?? 'video/mp4',
-  } as unknown as Blob);
+  });
   form.append('viewerId', payload.viewerId);
   form.append('deviceFingerprint', payload.deviceFingerprint);
   if (payload.content?.trim()) form.append('content', payload.content.trim());
