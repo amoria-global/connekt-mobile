@@ -31,6 +31,12 @@ export default function PublicLayout() {
         <Stack.Screen name="help-center/payment" options={{ title: 'Payment Help' }} />
         <Stack.Screen name="help-center/security" options={{ title: 'Security Help' }} />
         <Stack.Screen name="help-center/technical-support" options={{ title: 'Technical Support' }} />
+        <Stack.Screen name="contact_us" options={{ title: 'Contact us' }} />
+        <Stack.Screen name="feedback" options={{ title: 'Send feedback' }} />
+        <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
+        <Stack.Screen name="terms-of-service" options={{ title: 'Terms & Conditions' }} />
+        <Stack.Screen name="about" options={{ title: 'About' }} />
+        <Stack.Screen name="trust-safety" options={{ title: 'Trust & Safety' }} />
         <Stack.Screen name="browse-photos-recover" options={{ title: 'Recover Photos' }} />
         <Stack.Screen name="browse-photos-success" options={{ title: 'Purchase Status' }} />
         <Stack.Screen name="browse-photos-album" options={{ title: 'Album' }} />
