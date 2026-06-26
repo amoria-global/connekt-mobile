@@ -6,6 +6,7 @@
 import { api } from '@/api/client';
 import type { ApiError } from '@/types';
 import type { PickedImage } from '@/services/imagePicker';
+import { appendFile } from '@/utils/upload';
 
 export type ProfileUpdate = {
   firstName?: string;
@@ -32,11 +33,7 @@ export async function updateProfile(input: ProfileUpdate): Promise<void> {
 /** Uploads a new avatar; returns the new full URL when the backend provides it. */
 export async function updateProfilePicture(image: PickedImage): Promise<string | undefined> {
   const form = new FormData();
-  form.append('profilePicture', {
-    uri: image.uri,
-    name: image.name,
-    type: image.type,
-  } as unknown as Blob);
+  await appendFile(form, 'profilePicture', image);
 
   const res = await api.post<{ action?: number; message?: string; data?: Record<string, unknown> }>(
     '/customer/profile/profile-picture',
@@ -53,11 +50,7 @@ export async function updateProfilePicture(image: PickedImage): Promise<string |
 /** Uploads a new cover photo; returns the new full URL when provided. */
 export async function updateCoverPicture(image: PickedImage): Promise<string | undefined> {
   const form = new FormData();
-  form.append('coverPicture', {
-    uri: image.uri,
-    name: image.name,
-    type: image.type,
-  } as unknown as Blob);
+  await appendFile(form, 'coverPicture', image);
 
   const res = await api.post<{ action?: number; message?: string; data?: Record<string, unknown> }>(
     '/customer/profile/cover-picture',

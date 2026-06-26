@@ -8,6 +8,7 @@ import { env } from '@/config/env';
 import type { ApiEnvelope, ID } from '@/types';
 import type { PickedImage } from '@/services/imagePicker';
 import { storage } from '@/services/storage';
+import { appendFile } from '@/utils/upload';
 
 // ─── Shared helpers ────────────────────────────────────────────────────────
 
@@ -62,7 +63,10 @@ export async function faceSearch(
   purchase?: { buyerId?: string | null; refid?: string | null },
 ): Promise<FoundPhoto[]> {
   const form = new FormData();
-  form.append('selfie', { uri: selfie.uri, name: selfie.name, type: selfie.type } as unknown as Blob);
+  // Cross-platform: on web this must be a real Blob, not the RN
+  // { uri, name, type } object (which serialises to "[object Object]" and
+  // makes the backend report "Required part 'selfie' is missing").
+  await appendFile(form, 'selfie', selfie);
   if (code && code.trim()) form.append('code', code.trim());
 
   const qs = new URLSearchParams();

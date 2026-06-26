@@ -4,6 +4,7 @@
  */
 import { api } from '@/api/client';
 import type { ApiError, ApiEnvelope } from '@/types';
+import { appendFile } from '@/utils/upload';
 
 export type KycState = {
   status: string; // PENDING | APPROVED | REJECTED | NONE
@@ -37,18 +38,14 @@ export type SubmitKycInput = {
   selfie: KycImage;
 };
 
-function appendImage(form: FormData, field: string, img: KycImage) {
-  // React Native FormData file shape.
-  form.append(field, { uri: img.uri, name: img.name, type: img.type } as unknown as Blob);
-}
-
 export async function submitKyc(input: SubmitKycInput): Promise<void> {
   const form = new FormData();
   form.append('idType', input.idType);
   form.append('idNumber', input.idNumber);
-  appendImage(form, 'idFront', input.idFront);
-  if (input.idBack) appendImage(form, 'idBack', input.idBack);
-  appendImage(form, 'selfie', input.selfie);
+  // Cross-platform file parts (real Blob on web, RN object on native).
+  await appendFile(form, 'idFront', input.idFront);
+  if (input.idBack) await appendFile(form, 'idBack', input.idBack);
+  await appendFile(form, 'selfie', input.selfie);
 
   const res = await api.post<ApiEnvelope<Raw>>('/customer/kyc/submit', form);
   if (res.action !== 1) {

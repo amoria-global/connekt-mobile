@@ -9,6 +9,7 @@
 import { api } from '@/api/client';
 import type { PickedImage } from '@/services/imagePicker';
 import type { ApiError, ApiEnvelope, ID } from '@/types';
+import { appendFile } from '@/utils/upload';
 
 export type GalleryItem = {
   id: ID;
@@ -103,9 +104,6 @@ export type CreateAlbumInput = {
   images: PickedImage[];
 };
 
-const asBlob = (img: PickedImage) =>
-  ({ uri: img.uri, name: img.name, type: img.type }) as unknown as Blob;
-
 /** Creates a paid content album (web parity: POST /photographer/albums/content). */
 export async function createContentAlbum(input: CreateAlbumInput): Promise<void> {
   const form = new FormData();
@@ -114,8 +112,9 @@ export async function createContentAlbum(input: CreateAlbumInput): Promise<void>
   form.append('category', input.category);
   form.append('pricePerImage', String(input.pricePerImage));
   form.append('currencyId', input.currencyId);
-  if (input.cover) form.append('coverImage', asBlob(input.cover));
-  for (const img of input.images) form.append('images', asBlob(img));
+  // Cross-platform file parts (real Blob on web, RN object on native).
+  if (input.cover) await appendFile(form, 'coverImage', input.cover);
+  for (const img of input.images) await appendFile(form, 'images', img);
 
   const res = await api.post<ApiEnvelope<Raw>>('/photographer/albums/content', form);
   if (res?.action !== 1) {
@@ -127,7 +126,7 @@ export async function createContentAlbum(input: CreateAlbumInput): Promise<void>
 export async function addAlbumImages(albumId: string, images: PickedImage[]): Promise<void> {
   for (const img of images) {
     const form = new FormData();
-    form.append('file', asBlob(img));
+    await appendFile(form, 'file', img);
     await api.post(`/photographer/albums/${encodeURIComponent(albumId)}/images`, form);
   }
 }
