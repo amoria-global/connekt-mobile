@@ -3,11 +3,11 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { StarInput } from '@/components/ui/Stars';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { useRole } from '@/features/auth/role';
 import {
   acceptEventBooking,
@@ -24,8 +24,9 @@ import {
 import { submitReview } from '@/features/reviews/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
+import type { EventItem } from '@/features/events/types';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 
@@ -247,194 +248,180 @@ export default function EventDetailScreen() {
     );
   }
 
+  const ev = data;
+  const s = (ev?.status ?? '').toUpperCase();
+  const booking = (ev?.bookingStatus ?? '').toUpperCase();
+  const streamStatus = (ev?.streamStatus ?? '').toLowerCase();
+  const hero = heroStatus(s);
+
+  // Photographer action gating (web parity).
+  const isPhotog = isPhotographer && !ownsEvents;
+  const isPending = booking === 'PENDING';
+  const isAccepted = booking === 'ACCEPTED' || (!booking && isPhotog);
+  const isEventDone = s === 'COMPLETED' || s === 'CANCELLED' || s === 'AWAITING_REVIEW';
+  const isStreamLive = streamStatus === 'live' || streamStatus === 'connected';
+  const canGoLive = isAccepted && !isEventDone && streamStatus !== 'ended' && !isStreamLive;
+  const canMarkComplete = isAccepted && !isEventDone;
+  const canCreateAlbum = s === 'COMPLETED' || booking === 'ACCEPTED';
+  const money = fmtMoney(ev?.price, ev?.currency);
+
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        {data?.coverImage ? (
-          <Image source={{ uri: data.coverImage }} style={styles.cover} contentFit="cover" transition={250} />
-        ) : null}
+        {/* Title */}
+        <Text style={styles.eyebrow}>EVENT DETAILS</Text>
+        <Text style={styles.title}>{ev?.title}</Text>
 
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>{data?.title}</Text>
-          <StatusPill status={data?.status} />
+        {/* Hero image with status pills */}
+        <View style={styles.hero}>
+          {ev?.coverImage ? (
+            <Image source={{ uri: ev.coverImage }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={250} />
+          ) : (
+            <View style={[StyleSheet.absoluteFillObject, styles.heroFallback]}>
+              <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.5)" />
+            </View>
+          )}
+          <View style={styles.heroPills}>
+            {ev?.status ? (
+              <View style={[styles.heroPill, { backgroundColor: hero.bg }]}>
+                <Text style={[styles.heroPillText, { color: hero.fg }]}>{hero.label}</Text>
+              </View>
+            ) : null}
+            {ev?.hasLiveStream ? (
+              <View style={[styles.heroPill, styles.heroLive]}>
+                <Ionicons name="radio" size={12} color="#fff" />
+                <Text style={[styles.heroPillText, { color: '#fff' }]}>LIVE STREAM</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
-        <View style={styles.infoCard}>
-          {data?.eventDate ? <Row icon="calendar-outline" text={formatDate(data.eventDate)} /> : null}
-          {data?.startTime ? (
-            <Row icon="time-outline" text={data.endTime ? `${data.startTime} – ${data.endTime}` : data.startTime} />
+        {ev?.description ? <Text style={styles.desc}>{ev.description}</Text> : null}
+
+        {/* Detail grid */}
+        <View style={styles.grid}>
+          {ev?.eventDate ? <DetailCard icon="calendar" label="DATE" value={fmtShortDate(ev.eventDate)} /> : null}
+          {ev?.startTime ? (
+            <DetailCard
+              icon="time"
+              label="TIME"
+              value={[fmtTime(ev.startTime), fmtTime(ev.endTime)].filter(Boolean).join(' - ')}
+            />
           ) : null}
-          {data?.location ? <Row icon="location-outline" text={data.location} /> : null}
-          {data?.photographerName ? <Row icon="camera-outline" text={data.photographerName} /> : null}
-          {data?.category ? <Row icon="pricetag-outline" text={data.category} /> : null}
+          {ev?.location ? <DetailCard icon="location" label="LOCATION" value={ev.location} /> : null}
+          {ev?.clientName ? <DetailCard icon="person" label="CLIENT" value={ev.clientName} /> : null}
+          {ev?.photographerName && !ev?.clientName ? (
+            <DetailCard icon="camera" label="PHOTOGRAPHER" value={ev.photographerName} />
+          ) : null}
+          {ev?.packageName ? <DetailCard icon="cube" label="PACKAGE" value={ev.packageName} /> : null}
+          {ev?.category ? <DetailCard icon="pricetag" label="EVENT TYPE" value={ev.category} /> : null}
+          {ev?.maxGuests != null ? (
+            <DetailCard icon="people" label="GUESTS" value={`${ev.guestCount ?? 0} / ${ev.maxGuests}`} />
+          ) : null}
+          {money ? <DetailCard icon="wallet" label="AMOUNT" value={money} /> : null}
         </View>
 
-        {data?.description ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About this event</Text>
-            <Text style={styles.body}>{data.description}</Text>
+        {/* Primary actions — photographer */}
+        {isPhotog && isPending ? (
+          <View style={styles.btnRow}>
+            <PrimaryBtn icon="checkmark-circle" label="Accept" variant="success" full onPress={onAcceptBooking} loading={busy === 'accept'} />
+            <PrimaryBtn icon="close-circle" label="Decline" variant="danger" full onPress={() => setDeclineOpen(true)} loading={busy === 'decline'} />
+          </View>
+        ) : null}
+        {isPhotog && !isPending ? (
+          <View style={styles.btnRow}>
+            {canCreateAlbum ? (
+              <PrimaryBtn icon="add-circle" label="Create Album" variant="primary" onPress={() => router.push(`/album/new?eventId=${id}`)} />
+            ) : null}
+            {canGoLive ? (
+              <PrimaryBtn icon="radio" label="Live Stream" variant="accent" onPress={openStreamControl} />
+            ) : null}
+            <PrimaryBtn icon="share-social" label="Share" variant="outline" onPress={onShare} />
+            {canMarkComplete ? (
+              <PrimaryBtn icon="checkmark-done" label="Mark Complete" variant="success" onPress={onPhotographerMarkCompleted} loading={busy === 'photog-complete'} />
+            ) : null}
           </View>
         ) : null}
 
-        {/*
-         * Photographer Manage — visible to a photographer working this
-         * event so they can mark the shoot complete. The full
-         * publish/edit/delete panel below is owner-only.
-         *
-         * Gating (web parity, see knockout/app/pages/photographer/events.tsx):
-         *   Go live    — booking ACCEPTED, event not COMPLETED/CANCELLED,
-         *                stream not already ended or live.
-         *   Mark done  — booking ACCEPTED, event not already
-         *                COMPLETED/CANCELLED/AWAITING_REVIEW (so the
-         *                button isn't a no-op after the client confirmed
-         *                or the photographer already submitted).
-         * Without these gates we showed both pills for already-completed
-         * events and the photographer could trigger a 400 from the
-         * backend by tapping "Go live" on an ended stream.
-         */}
-        {(() => {
-          if (!isPhotographer || ownsEvents) return null;
-          const eventStatus = (data?.status ?? '').toUpperCase();
-          const streamStatus = (data?.streamStatus ?? '').toLowerCase();
-          const bookingStatus = (data?.bookingStatus ?? '').toUpperCase();
-          const isPending = bookingStatus === 'PENDING';
-          const isAccepted = bookingStatus === 'ACCEPTED' || !bookingStatus;
-          const isEventDone =
-            eventStatus === 'COMPLETED' ||
-            eventStatus === 'CANCELLED' ||
-            eventStatus === 'AWAITING_REVIEW';
-          const isStreamLive = streamStatus === 'live' || streamStatus === 'connected';
-          const canGoLive =
-            isAccepted && !isEventDone && streamStatus !== 'ended' && !isStreamLive;
-          const canMarkComplete = isAccepted && !isEventDone;
-          // Hide the whole section if there is nothing actionable for
-          // this photographer right now (e.g. cancelled event, or already
-          // completed and awaiting client confirmation).
-          if (!isPending && !canGoLive && !canMarkComplete) return null;
-          return (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Photographer actions</Text>
-              {isPending ? (
-                <View style={styles.actionGrid}>
-                  <ActionPill
-                    icon="checkmark-circle-outline"
-                    label="Accept booking"
-                    onPress={onAcceptBooking}
-                    loading={busy === 'accept'}
-                  />
-                  <ActionPill
-                    icon="close-circle-outline"
-                    label="Decline"
-                    danger
-                    onPress={() => setDeclineOpen(true)}
-                    loading={busy === 'decline'}
-                  />
-                </View>
-              ) : null}
-              {canGoLive || canMarkComplete ? (
-                <View style={styles.actionGrid}>
-                  {canGoLive ? (
-                    <ActionPill
-                      icon="videocam-outline"
-                      label="Go live"
-                      onPress={openStreamControl}
-                    />
-                  ) : null}
-                  {canMarkComplete ? (
-                    <ActionPill
-                      icon="checkmark-done-outline"
-                      label="Mark completed"
-                      onPress={onPhotographerMarkCompleted}
-                      loading={busy === 'photog-complete'}
-                    />
-                  ) : null}
-                </View>
-              ) : null}
+        {/* Booking progress */}
+        {(isPhotog || ownsEvents) && !ev?.status?.toUpperCase().includes('CANCEL') ? (
+          <InfoCard icon="git-commit-outline" title="Booking Progress">
+            <ProgressStepper currentIndex={bookingStepIndex(ev)} />
+          </InfoCard>
+        ) : null}
+
+        {/* Photographer + booking details */}
+        {ev?.photographerName ? (
+          <InfoCard icon="camera-outline" title="Photographer">
+            <View style={styles.personRow}>
+              <View style={styles.personAvatar}>
+                <Text style={styles.personInitial}>{ev.photographerName.charAt(0).toUpperCase()}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.personName}>{ev.photographerName}</Text>
+                {booking ? <Chip label={booking} tone={booking === 'ACCEPTED' ? 'success' : booking === 'PENDING' ? 'warning' : 'muted'} /> : null}
+              </View>
             </View>
-          );
-        })()}
+          </InfoCard>
+        ) : null}
+
+        {(ev?.packageName || money) ? (
+          <InfoCard icon="cube-outline" title="Booking Details">
+            {ev?.packageName ? <KeyValue label="Package" value={ev.packageName} /> : null}
+            {money ? <KeyValue label="Price" value={money} accent /> : null}
+          </InfoCard>
+        ) : null}
+
+        {/* Completion status */}
+        {ev?.completionStatus ? (
+          <InfoCard icon="checkmark-circle-outline" title="Completion Status">
+            <Chip
+              label={ev.completionStatus.replace(/_/g, ' ')}
+              tone={ev.completionStatus.toUpperCase() === 'COMPLETED' ? 'success' : 'muted'}
+            />
+          </InfoCard>
+        ) : null}
+
+        {/* Event information */}
+        {ev?.eventVisibility ? (
+          <InfoCard icon="information-circle-outline" title="Event Information">
+            <Text style={styles.infoLabel}>VISIBILITY</Text>
+            <Text style={styles.infoValue}>
+              {ev.eventVisibility.charAt(0).toUpperCase() + ev.eventVisibility.slice(1).toLowerCase()}
+            </Text>
+          </InfoCard>
+        ) : null}
 
         {/* Manage (owner only) */}
         {ownsEvents ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Manage</Text>
-
-            <Button
-              title={data?.published ? 'Unpublish' : 'Publish'}
-              onPress={() => run('publish', () => (data?.published ? unpublishEvent(id) : publishEvent(id)))}
-              loading={busy === 'publish'}
-            />
-
-            <View style={styles.actionGrid}>
-              <ActionPill icon="create-outline" label="Edit" onPress={() => router.push(`/event/new?editId=${id}`)} />
-              <ActionPill icon="share-social-outline" label="Share" onPress={onShare} />
-              {(() => {
-                // Owner-side Go-live gating mirrors the photographer
-                // section above so a completed/cancelled event doesn't
-                // expose a button that 400s on the backend.
-                const eventStatus = (data?.status ?? '').toUpperCase();
-                const streamStatus = (data?.streamStatus ?? '').toLowerCase();
-                const isStreamLive = streamStatus === 'live' || streamStatus === 'connected';
-                const canGoLive =
-                  eventStatus !== 'COMPLETED' &&
-                  eventStatus !== 'CANCELLED' &&
-                  eventStatus !== 'AWAITING_REVIEW' &&
-                  streamStatus !== 'ended' &&
-                  !isStreamLive;
-                if (!canGoLive) return null;
-                return (
-                  <ActionPill
-                    icon="videocam-outline"
-                    label="Go live"
-                    onPress={openStreamControl}
-                  />
-                );
-              })()}
-              {/*
-               * Pause / Resume — web parity. When the event status is
-               * already PAUSED, surface Resume; otherwise show Pause. The
-               * pauseEvent / resumeEvent helpers route role-aware so the
-               * Coordinator-owned events hit /coordinator/events/{id}/...
-               */}
-              {data?.status === 'PAUSED' ? (
-                <ActionPill
-                  icon="play-circle-outline"
-                  label="Resume"
-                  onPress={onResume}
-                  loading={busy === 'resume'}
-                />
-              ) : data?.streamStatus === 'ended' ? (
-                /*
-                 * Stream has reached the permanent "ended" state — the
-                 * backend rejects start with BusinessRuleException.
-                 * Surface a Reset action instead so the photographer can
-                 * cycle a fresh Cloudflare live input if they truly need
-                 * to re-stream this event.
-                 */
-                <ActionPill
-                  icon="refresh-circle-outline"
-                  label="Reset stream"
-                  onPress={openStreamControl}
-                />
-              ) : (
-                <ActionPill
-                  icon="pause-circle-outline"
-                  label="Pause"
-                  onPress={onPause}
-                  loading={busy === 'pause'}
-                />
-              )}
-              <ActionPill
-                icon="checkmark-done-outline"
-                label="Confirm done"
-                onPress={() => setCompletionOpen(true)}
+          <InfoCard icon="settings-outline" title="Manage">
+            <View style={styles.btnRow}>
+              <PrimaryBtn
+                icon={ev?.published ? 'eye-off-outline' : 'megaphone-outline'}
+                label={ev?.published ? 'Unpublish' : 'Publish'}
+                variant="primary"
+                onPress={() => run('publish', () => (ev?.published ? unpublishEvent(id) : publishEvent(id)))}
+                loading={busy === 'publish'}
               />
-              {data?.photographerName ? (
-                <ActionPill icon="star-outline" label="Rate" onPress={() => setReviewOpen(true)} />
+              <PrimaryBtn icon="create-outline" label="Edit" variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
+              <PrimaryBtn icon="share-social-outline" label="Share" variant="outline" onPress={onShare} />
+              {s !== 'COMPLETED' && s !== 'CANCELLED' && s !== 'AWAITING_REVIEW' && streamStatus !== 'ended' && !isStreamLive ? (
+                <PrimaryBtn icon="radio" label="Go Live" variant="accent" onPress={openStreamControl} />
               ) : null}
-              <ActionPill icon="trash-outline" label="Delete" danger onPress={onDelete} loading={busy === 'delete'} />
+              {s === 'PAUSED' ? (
+                <PrimaryBtn icon="play-circle-outline" label="Resume" variant="outline" onPress={onResume} loading={busy === 'resume'} />
+              ) : ev?.streamStatus === 'ended' ? (
+                <PrimaryBtn icon="refresh-circle-outline" label="Reset Stream" variant="outline" onPress={openStreamControl} />
+              ) : (
+                <PrimaryBtn icon="pause-circle-outline" label="Pause" variant="outline" onPress={onPause} loading={busy === 'pause'} />
+              )}
+              <PrimaryBtn icon="checkmark-done" label="Confirm Done" variant="success" onPress={() => setCompletionOpen(true)} />
+              {ev?.photographerName ? (
+                <PrimaryBtn icon="star-outline" label="Rate" variant="outline" onPress={() => setReviewOpen(true)} />
+              ) : null}
+              <PrimaryBtn icon="trash-outline" label="Delete" variant="danger" onPress={onDelete} loading={busy === 'delete'} />
             </View>
-          </View>
+          </InfoCard>
         ) : null}
       </ScrollView>
 
@@ -515,54 +502,276 @@ export default function EventDetailScreen() {
   );
 }
 
-function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+// ─── Presentational helpers ──────────────────────────────────────────────
+
+const BOOKING_STEPS = ['Requested', 'Accepted', 'Deposit Paid', 'Event Day', 'Album Delivered', 'Photobook', 'Completed'];
+
+function bookingStepIndex(ev?: EventItem | null): number {
+  const s = (ev?.status ?? '').toUpperCase();
+  const b = (ev?.bookingStatus ?? '').toUpperCase();
+  if (s === 'COMPLETED') return 6;
+  if (s === 'AWAITING_REVIEW') return 4;
+  if (s === 'ONGOING' || s === 'IN_PROGRESS') return 3;
+  if (b === 'ACCEPTED' || s === 'UPCOMING' || s === 'PUBLISHED' || s === 'PAUSED') return 1;
+  return 0;
+}
+
+function heroStatus(s: string): { label: string; bg: string; fg: string } {
+  switch (s) {
+    case 'ONGOING':
+    case 'IN_PROGRESS':
+      return { label: 'ONGOING', bg: '#DBEAFE', fg: '#1D4ED8' };
+    case 'COMPLETED':
+    case 'DONE':
+      return { label: 'COMPLETED', bg: '#D1FAE5', fg: '#047857' };
+    case 'AWAITING_REVIEW':
+      return { label: 'AWAITING REVIEW', bg: '#FEF3C7', fg: '#92400E' };
+    case 'CANCELLED':
+    case 'CANCELED':
+      return { label: 'CANCELLED', bg: '#FEE2E2', fg: '#B91C1C' };
+    case 'PAUSED':
+      return { label: 'PAUSED', bg: '#E5E7EB', fg: '#374151' };
+    case 'PENDING':
+    case 'PROPOSED':
+      return { label: 'PENDING', bg: '#FEF3C7', fg: '#92400E' };
+    default:
+      return { label: 'UPCOMING', bg: '#FACC15', fg: '#1A2E05' };
+  }
+}
+
+function fmtTime(t?: string): string {
+  if (!t) return '';
+  const hm = /^(\d{1,2}):(\d{2})/.exec(t);
+  let h: number;
+  let m: number;
+  if (hm) {
+    h = Number(hm[1]);
+    m = Number(hm[2]);
+  } else {
+    const d = new Date(t);
+    if (Number.isNaN(d.getTime())) return '';
+    h = d.getHours();
+    m = d.getMinutes();
+  }
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function fmtShortDate(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return formatDate(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function fmtMoney(amount?: number, currency?: string): string {
+  if (amount == null || Number.isNaN(amount)) return '';
+  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency ? `${currency} ` : '';
+  return `${sym}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   return (
-    <View style={styles.row}>
-      <Ionicons name={icon} size={18} color={colors.primary} />
-      <Text style={styles.rowText}>{text}</Text>
+    <View style={styles.detailCard}>
+      <View style={styles.detailIcon}>
+        <Ionicons name={icon} size={18} color={colors.primary} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.detailLabel}>{label}</Text>
+        <Text style={styles.detailValue} numberOfLines={2}>
+          {value}
+        </Text>
+      </View>
     </View>
   );
 }
 
-function ActionPill({
+type BtnVariant = 'primary' | 'accent' | 'success' | 'outline' | 'danger';
+const BTN_STYLES: Record<BtnVariant, { bg: string; fg: string; border?: string }> = {
+  primary: { bg: colors.primary, fg: '#fff' },
+  accent: { bg: colors.accent, fg: '#fff' },
+  success: { bg: '#10B981', fg: '#fff' },
+  danger: { bg: '#EF4444', fg: '#fff' },
+  outline: { bg: colors.surface, fg: colors.text, border: colors.border },
+};
+
+function PrimaryBtn({
   icon,
   label,
+  variant,
   onPress,
-  danger,
   loading,
+  full,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  variant: BtnVariant;
   onPress: () => void;
-  danger?: boolean;
   loading?: boolean;
+  full?: boolean;
 }) {
+  const v = BTN_STYLES[variant];
   return (
     <Pressable
-      style={({ pressed }) => [styles.pill, danger && styles.pillDanger, pressed && styles.pillPressed]}
+      style={({ pressed }) => [
+        styles.btn,
+        { backgroundColor: v.bg, borderColor: v.border ?? v.bg },
+        full && { flexBasis: '100%' },
+        pressed && { opacity: 0.85 },
+      ]}
       onPress={onPress}
       disabled={loading}
     >
       {loading ? (
-        <ActivityIndicator color={danger ? colors.error : colors.primary} />
+        <ActivityIndicator color={v.fg} />
       ) : (
         <>
-          <Ionicons name={icon} size={20} color={danger ? colors.error : colors.primary} />
-          <Text style={[styles.pillLabel, danger && styles.pillLabelDanger]}>{label}</Text>
+          <Ionicons name={icon} size={16} color={v.fg} />
+          <Text style={[styles.btnText, { color: v.fg }]}>{label}</Text>
         </>
       )}
     </Pressable>
   );
 }
 
+function InfoCard({ icon, title, children }: { icon: keyof typeof Ionicons.glyphMap; title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHead}>
+        <Ionicons name={icon} size={18} color={colors.primary} />
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function KeyValue({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <View style={styles.kv}>
+      <Text style={styles.kvLabel}>{label}</Text>
+      <Text style={[styles.kvValue, accent && { color: colors.primary }]}>{value}</Text>
+    </View>
+  );
+}
+
+function Chip({ label, tone }: { label: string; tone: 'success' | 'warning' | 'muted' }) {
+  const map = {
+    success: { bg: '#D1FAE5', fg: '#047857' },
+    warning: { bg: '#FEF3C7', fg: '#92400E' },
+    muted: { bg: colors.surfaceMuted, fg: colors.textSoft },
+  } as const;
+  const c = map[tone];
+  return (
+    <View style={[styles.chip, { backgroundColor: c.bg }]}>
+      <View style={[styles.chipDot, { backgroundColor: c.fg }]} />
+      <Text style={[styles.chipText, { color: c.fg }]}>{label}</Text>
+    </View>
+  );
+}
+
+function ProgressStepper({ currentIndex }: { currentIndex: number }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stepper}>
+      {BOOKING_STEPS.map((label, i) => {
+        const done = i <= currentIndex;
+        const current = i === currentIndex;
+        return (
+          <View key={label} style={styles.step}>
+            <View style={styles.stepTop}>
+              <View
+                style={[
+                  styles.stepCircle,
+                  done && styles.stepCircleDone,
+                  current && styles.stepCircleCurrent,
+                ]}
+              >
+                {done ? (
+                  <Ionicons name="checkmark" size={14} color="#fff" />
+                ) : (
+                  <Text style={styles.stepNum}>{i + 1}</Text>
+                )}
+              </View>
+              {i < BOOKING_STEPS.length - 1 ? (
+                <View style={[styles.stepLine, i < currentIndex && styles.stepLineDone]} />
+              ) : null}
+            </View>
+            <Text style={[styles.stepLabel, done && styles.stepLabelDone]} numberOfLines={2}>
+              {label}
+            </Text>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { padding: spacing.xl, gap: spacing.xl },
-  cover: { width: '100%', height: 180, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted },
-  headerRow: { gap: spacing.sm },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  infoCard: {
+  scroll: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
+
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
+  title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, letterSpacing: -0.5, marginTop: 2 },
+
+  hero: {
+    height: 210,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
+    backgroundColor: '#0B1B34',
+  },
+  heroFallback: { alignItems: 'center', justifyContent: 'center' },
+  heroPills: { position: 'absolute', top: spacing.md, left: spacing.md, flexDirection: 'row', gap: 8 },
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+  },
+  heroLive: { backgroundColor: '#8B5CF6' },
+  heroPillText: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.4 },
+
+  desc: { fontFamily: fonts.regular, fontSize: 15, color: colors.textSoft, lineHeight: 22 },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  detailCard: {
+    width: '47%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceMuted,
+  },
+  detailIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(8,58,133,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailLabel: { fontFamily: fonts.bold, fontSize: 10, color: colors.accent, letterSpacing: 0.6 },
+  detailValue: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginTop: 1 },
+
+  btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  btn: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    height: 48,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+  },
+  btnText: { fontFamily: fonts.bold, fontSize: 14 },
+
+  card: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -570,31 +779,55 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  rowText: { flex: 1, fontSize: fontSize.md, color: colors.textSoft },
-  section: { gap: spacing.md },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  body: { fontSize: fontSize.md, color: colors.textSoft, lineHeight: 24 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.text },
 
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  pill: {
-    width: '47%',
-    flexGrow: 1,
-    flexDirection: 'row',
+  personRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  personAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    height: 52,
-    borderRadius: radii.md,
-    borderWidth: 1,
+  },
+  personInitial: { fontFamily: fonts.bold, fontSize: 18, color: '#fff' },
+  personName: { fontFamily: fonts.bold, fontSize: 16, color: colors.text, marginBottom: 4 },
+
+  kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  kvLabel: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
+  kvValue: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+
+  chip: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full },
+  chipDot: { width: 6, height: 6, borderRadius: 3 },
+  chipText: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.4 },
+
+  infoLabel: { fontFamily: fonts.bold, fontSize: 11, color: colors.accent, letterSpacing: 0.6 },
+  infoValue: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginTop: 2 },
+
+  // Stepper
+  stepper: { paddingVertical: spacing.xs },
+  step: { width: 92, alignItems: 'flex-start' },
+  stepTop: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch' },
+  stepCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pillDanger: { borderColor: colors.error },
-  pillPressed: { opacity: 0.6 },
-  pillLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.primary },
-  pillLabelDanger: { color: colors.error },
+  stepCircleDone: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  stepCircleCurrent: { borderColor: colors.primary },
+  stepNum: { fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted },
+  stepLine: { flex: 1, height: 2, backgroundColor: colors.border, marginHorizontal: 2 },
+  stepLineDone: { backgroundColor: '#10B981' },
+  stepLabel: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, marginTop: 6 },
+  stepLabelDone: { fontFamily: fonts.bold, color: colors.text },
 
+  // Modals
   backdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.surface,
@@ -603,18 +836,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.md,
   },
-  sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  sheetTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   sheetHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
   commentInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
-  streamLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textSoft, marginTop: spacing.sm, letterSpacing: 0.4 },
-  streamLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
-  streamUrlBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, padding: spacing.md, borderWidth: 1, borderColor: colors.borderSoft },
-  streamUrlText: { fontSize: fontSize.sm, color: colors.text, fontFamily: 'monospace' },
-  streamSteps: { backgroundColor: colors.infoBg, padding: spacing.sm, borderRadius: radii.md },
-  streamStepText: { color: colors.info, fontSize: 12 },
-  streamStepNum: { fontWeight: '800' },
-  copyChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.infoBg, borderRadius: radii.full },
-  copyChipText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
   starRow: { alignItems: 'center', paddingVertical: spacing.sm },
   requestChanges: { alignItems: 'center', paddingVertical: spacing.md },
   requestChangesText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.accent },

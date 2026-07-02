@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EmptyState } from './EmptyState';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { colors, fonts, fontSize, fontWeight, spacing } from '@/theme';
 
 type Props<T> = {
   data: T[] | null;
@@ -101,6 +101,6 @@ const styles = StyleSheet.create({
   listContent: { padding: spacing.xl, gap: spacing.md, flexGrow: 1 },
   header: { gap: 2, marginBottom: spacing.xs },
   headerExtra: { marginTop: spacing.md, marginBottom: spacing.xs },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  subtitle: { fontSize: fontSize.sm, color: colors.textMuted },
+  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
+  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
 });

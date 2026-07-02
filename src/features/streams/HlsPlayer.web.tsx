@@ -16,9 +16,81 @@
  * For non-Cloudflare URLs that are genuinely HLS we keep the hls.js
  * path (Chrome/Firefox/Edge can't decode HLS in a bare <video>).
  */
-import { useEffect, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Hls from 'hls.js';
+
+/**
+ * Branded control overlay for the live <video>. We hide the browser's
+ * default HTML5 controls (they show a bogus 0:00 scrubber on a live feed)
+ * and render our own: a LIVE badge, a tap-to-play affordance when paused,
+ * a mute toggle, and fullscreen.
+ */
+function PlayerControls({ videoRef }: { videoRef: React.RefObject<HTMLVideoElement | null> }) {
+  const [muted, setMuted] = useState(true);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const sync = () => {
+      setMuted(v.muted);
+      setPaused(v.paused);
+    };
+    v.addEventListener('play', sync);
+    v.addEventListener('pause', sync);
+    v.addEventListener('volumechange', sync);
+    sync();
+    return () => {
+      v.removeEventListener('play', sync);
+      v.removeEventListener('pause', sync);
+      v.removeEventListener('volumechange', sync);
+    };
+  }, [videoRef]);
+
+  const toggleMute = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setMuted(v.muted);
+  };
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {});
+    else v.pause();
+  };
+  const toggleFullscreen = () => {
+    const v = videoRef.current as (HTMLVideoElement & { requestFullscreen?: () => Promise<void> }) | null;
+    if (!v) return;
+    const el = (v.parentElement ?? v) as HTMLElement & { requestFullscreen?: () => Promise<void> };
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else (el.requestFullscreen ?? v.requestFullscreen)?.call(el);
+  };
+
+  return (
+    <>
+      <View style={styles.liveBadge}>
+        <View style={styles.liveDot} />
+        <Text style={styles.liveText}>LIVE</Text>
+      </View>
+      {paused ? (
+        <Pressable style={styles.centerPlay} onPress={togglePlay}>
+          <Ionicons name="play" size={30} color="#fff" />
+        </Pressable>
+      ) : null}
+      <View style={styles.controlsBar}>
+        <Pressable style={styles.ctrlBtn} onPress={toggleMute} hitSlop={6}>
+          <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#fff" />
+        </Pressable>
+        <Pressable style={styles.ctrlBtn} onPress={toggleFullscreen} hitSlop={6}>
+          <Ionicons name="expand" size={16} color="#fff" />
+        </Pressable>
+      </View>
+    </>
+  );
+}
 
 function toWhepUrl(url: string): string | null {
   if (!url) return null;
@@ -212,7 +284,8 @@ function WhepVideo({ whepUrl, style }: { whepUrl: string; style?: any }) {
   const VideoTag = 'video' as any;
   return (
     <View style={[styles.wrap, style]}>
-      <VideoTag ref={videoRef} style={styles.video as any} controls playsInline autoPlay muted />
+      <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
+      <PlayerControls videoRef={videoRef} />
     </View>
   );
 }
@@ -302,7 +375,8 @@ function HlsVideo({ url, style }: { url: string; style?: any }) {
   const VideoTag = 'video' as any;
   return (
     <View style={[styles.wrap, style]}>
-      <VideoTag ref={videoRef} style={styles.video as any} controls playsInline autoPlay muted />
+      <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
+      <PlayerControls videoRef={videoRef} />
     </View>
   );
 }
@@ -313,6 +387,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#000',
+    position: 'relative',
   },
   video: {
     width: '100%',
@@ -320,4 +395,51 @@ const styles = StyleSheet.create({
     objectFit: 'contain',
     border: 0,
   } as any,
+
+  liveBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  liveText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+
+  centerPlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 64,
+    height: 64,
+    marginLeft: -32,
+    marginTop: -32,
+    borderRadius: 32,
+    backgroundColor: 'rgba(8,58,133,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+
+  controlsBar: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ctrlBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

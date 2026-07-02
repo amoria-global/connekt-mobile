@@ -22,6 +22,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -34,6 +35,7 @@ import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { CameraPublisher, type PublishStatus } from '@/features/streams/CameraPublisher';
 import { HlsPlayer } from '@/features/streams/HlsPlayer';
+import { getPublicStreamChats, type PublicStreamChat } from '@/features/streams/api';
 import {
   getPhotographerStreamConfig,
   pausePhotographerStream,
@@ -96,6 +98,68 @@ export default function StreamControlScreen() {
   const whipUrl = creds.whipUrl;
   const whepUrl = creds.whepUrl;
   const inviteToken = creds.inviteToken;
+
+  // expo-video / hls.js can't play a WHEP (WebRTC) URL — the OBS preview
+  // needs the HLS manifest. Cloudflare's WHEP and HLS URLs share the same
+  // customer hash + live-input id; only the path differs. Deriving it here
+  // is what makes the OBS feed actually show in the preview (matching the
+  // public viewer screen).
+  const previewHls = whepUrl?.includes('/webRTC/play')
+    ? whepUrl.replace('/webRTC/play', '/manifest/video.m3u8')
+    : whepUrl?.endsWith('.m3u8')
+      ? whepUrl
+      : undefined;
+
+  // ── Live chat + reactions (read-only) so the broadcaster sees viewer
+  // activity right on the preview, like the web StreamPreview. ──
+  const [chats, setChats] = useState<PublicStreamChat[]>([]);
+  const [floating, setFloating] = useState<
+    { id: string; emoji: string; anim: Animated.Value; offset: number }[]
+  >([]);
+  const chatScrollRef = useRef<ScrollView>(null);
+
+  const burst = useCallback((emoji: string) => {
+    const anim = new Animated.Value(0);
+    const itemId = Math.random().toString(36).slice(2);
+    const offset = 8 + Math.random() * 42;
+    setFloating((prev) => [...prev, { id: itemId, emoji, anim, offset }]);
+    Animated.timing(anim, { toValue: 1, duration: 2200, useNativeDriver: true }).start(() => {
+      setFloating((prev) => prev.filter((x) => x.id !== itemId));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isEnded) return;
+    let cancelled = false;
+    let first = true;
+    const seen = new Set<string>();
+    const tick = async () => {
+      try {
+        const page = await getPublicStreamChats(id);
+        if (cancelled) return;
+        setChats(page.messages);
+        for (const r of page.reactions) {
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          if (!first) burst(r.message);
+        }
+        first = false;
+      } catch {
+        /* keep polling */
+      }
+    };
+    tick();
+    const h = setInterval(tick, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(h);
+    };
+  }, [id, isEnded, burst]);
+
+  useEffect(() => {
+    const t = setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 60);
+    return () => clearTimeout(t);
+  }, [chats.length]);
 
   // ── Boot: start the live input, then poll config every 5s ───────────────
   useEffect(() => {
@@ -263,29 +327,57 @@ export default function StreamControlScreen() {
               style={{ marginTop: spacing.md }}
             />
           </View>
-        ) : mode === 'browser' ? (
-          // Live local camera preview + publish.
-          whipUrl ? (
-            <CameraPublisher
-              whipUrl={whipUrl}
-              publish={publishing}
-              onStatusChange={setPublishStatus}
-              style={styles.preview}
-            />
-          ) : (
-            <View style={[styles.preview, styles.previewPlaceholder]}>
-              <ActivityIndicator color="#fff" />
-            </View>
-          )
-        ) : isLive && whepUrl ? (
-          // OBS mode + live → show what viewers see, over WHEP.
-          <HlsPlayer url={whepUrl} style={styles.preview} />
         ) : (
-          <View style={[styles.preview, styles.previewPlaceholder]}>
-            <Ionicons name="desktop-outline" size={40} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.previewPlaceholderText}>
-              {whipUrl ? 'Waiting for OBS to connect…' : 'Preparing stream…'}
-            </Text>
+          <View style={styles.previewWrap}>
+            {mode === 'browser' ? (
+              // Live local camera preview + publish.
+              whipUrl ? (
+                <CameraPublisher
+                  whipUrl={whipUrl}
+                  publish={publishing}
+                  onStatusChange={setPublishStatus}
+                  style={styles.preview}
+                />
+              ) : (
+                <View style={[styles.preview, styles.previewPlaceholder]}>
+                  <ActivityIndicator color="#fff" />
+                </View>
+              )
+            ) : isLive && previewHls ? (
+              // OBS mode + live → show what viewers see, via the HLS manifest
+              // derived from the WHEP URL (expo-video has no WebRTC codec).
+              <HlsPlayer url={previewHls} style={styles.preview} />
+            ) : (
+              <View style={[styles.preview, styles.previewPlaceholder]}>
+                <Ionicons name="desktop-outline" size={40} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.previewPlaceholderText}>
+                  {whipUrl ? 'Waiting for OBS to connect…' : 'Preparing stream…'}
+                </Text>
+              </View>
+            )}
+
+            {/* Floating reaction bursts from viewers, rising over the preview. */}
+            {floating.length ? (
+              <View pointerEvents="none" style={styles.floatLayer}>
+                {floating.map((fx) => (
+                  <Animated.Text
+                    key={fx.id}
+                    style={[
+                      styles.floatEmoji,
+                      {
+                        left: fx.offset,
+                        opacity: fx.anim.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }),
+                        transform: [
+                          { translateY: fx.anim.interpolate({ inputRange: [0, 1], outputRange: [0, -160] }) },
+                        ],
+                      },
+                    ]}
+                  >
+                    {fx.emoji}
+                  </Animated.Text>
+                ))}
+              </View>
+            ) : null}
           </View>
         )}
 
@@ -296,6 +388,29 @@ export default function StreamControlScreen() {
             <Stat label="Upload" value={config.uploadSpeed || 'N/A'} icon="arrow-up-circle" />
             <Stat label="Viewers" value={String(config.viewerCount)} icon="eye" />
             <Stat label="Peak" value={String(config.peakViewers)} icon="trending-up" />
+          </View>
+        ) : null}
+
+        {/* Live chat (read-only view of viewer activity) */}
+        {!isEnded ? (
+          <View style={styles.card}>
+            <View style={styles.chatHead}>
+              <Ionicons name="chatbubbles-outline" size={16} color={colors.primary} />
+              <Text style={styles.cardTitle}>Live chat</Text>
+              <Text style={styles.chatCount}>{chats.length}</Text>
+            </View>
+            <ScrollView ref={chatScrollRef} style={styles.chatList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {chats.length === 0 ? (
+                <Text style={styles.chatEmpty}>No messages yet — viewer comments appear here live.</Text>
+              ) : (
+                chats.map((c) => (
+                  <View key={c.id} style={styles.chatRow}>
+                    <Text style={styles.chatName}>{c.viewerName || 'Guest'}</Text>
+                    <Text style={styles.chatMsg}>{c.videoUrl ? '🎬 Video message' : c.message}</Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
           </View>
         ) : null}
 
@@ -572,9 +687,30 @@ const styles = StyleSheet.create({
   },
   watchingText: { fontSize: 12, fontWeight: '700', color: colors.primary },
 
+  previewWrap: { position: 'relative' },
   preview: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: '#000' },
   previewPlaceholder: { alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   previewPlaceholderText: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.sm, textAlign: 'center' },
+  floatLayer: { position: 'absolute', left: 0, bottom: 8, top: 0, width: 90 },
+  floatEmoji: { position: 'absolute', bottom: 0, fontSize: 26 },
+
+  chatHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chatCount: {
+    marginLeft: 'auto',
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.primary,
+    backgroundColor: colors.infoBg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    overflow: 'hidden',
+  },
+  chatList: { maxHeight: 160 },
+  chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
+  chatRow: { flexDirection: 'row', gap: 6, paddingVertical: 3, flexWrap: 'wrap' },
+  chatName: { fontSize: fontSize.sm, fontWeight: '800', color: colors.primary },
+  chatMsg: { fontSize: fontSize.sm, color: colors.text, flexShrink: 1 },
 
   statsRow: { flexDirection: 'row', gap: 6 },
   stat: {

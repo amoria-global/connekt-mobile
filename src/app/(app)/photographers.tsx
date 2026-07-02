@@ -14,7 +14,7 @@ import { BookingBottomSheet } from '@/features/booking/BookingBottomSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const ITEMS_PER_PAGE = 4;
 let hasAutoShownWizard = false;
@@ -404,19 +404,23 @@ const styles = StyleSheet.create({
   },
   eyebrowText: {
     color: 'white',
+    fontFamily: fonts.bold,
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   heroTitle: {
     color: 'white',
-    fontSize: 22,
+    fontFamily: fonts.bold,
+    fontSize: 24,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.8)',
+    fontFamily: fonts.regular,
     fontSize: 12,
     textAlign: 'center',
     marginBottom: 16,
@@ -485,10 +489,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   resultsText: {
+    fontFamily: fonts.regular,
     fontSize: 13,
     color: colors.textMuted,
   },
   resultsCount: {
+    fontFamily: fonts.bold,
     fontWeight: '700',
     color: '#083A85',
   },
@@ -573,7 +579,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: radii.lg,
   },
-  invitePillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  invitePillText: { color: '#fff', fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalSheet: {
@@ -583,6 +589,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.sm,
   },
-  modalTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
-  modalHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
+  modalTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
+  modalHint: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
 });

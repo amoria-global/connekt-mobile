@@ -68,7 +68,7 @@ import { listStreams } from '@/features/streams/api';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 // ────── Greetings (web parity: pages/client/home.tsx:64-114) ──────────────
@@ -1032,12 +1032,13 @@ const styles = StyleSheet.create({
   },
   heroEyebrow: {
     color: colors.accent,
+    fontFamily: fonts.bold,
     fontSize: 10,
     fontWeight: fontWeight.extrabold,
     letterSpacing: 1.4,
   },
-  heroTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.text, lineHeight: 28 },
-  heroSub: { fontSize: fontSize.sm, color: colors.textSoft },
+  heroTitle: { fontFamily: fonts.bold, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.text, lineHeight: 28 },
+  heroSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textSoft },
   heroStatsCard: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -1051,12 +1052,13 @@ const styles = StyleSheet.create({
   heroStatCell: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
   heroStatLabel: {
     color: colors.textMuted,
+    fontFamily: fonts.bold,
     fontSize: 10,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  heroStatValue: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, marginTop: 3 },
+  heroStatValue: { fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.extrabold, marginTop: 3 },
 
   // Period tabs
   periodTabs: {
@@ -1094,9 +1096,9 @@ const styles = StyleSheet.create({
   kpiIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   kpiTrend: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   kpiTrendText: { fontSize: 10, fontWeight: fontWeight.bold },
-  kpiTitle: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, marginTop: 6 },
-  kpiValue: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
-  kpiTimeframe: { fontSize: 10, color: colors.textMuted },
+  kpiTitle: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, marginTop: 6 },
+  kpiValue: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
+  kpiTimeframe: { fontFamily: fonts.regular, fontSize: 10, color: colors.textMuted },
 
   // Pending payments alert
   alert: {
@@ -1107,8 +1109,8 @@ const styles = StyleSheet.create({
   },
   alertHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   alertIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  alertTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  alertSub: { fontSize: fontSize.xs, marginTop: 2 },
+  alertTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  alertSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, marginTop: 2 },
   alertLink: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   alertScroll: { gap: spacing.sm, paddingTop: 4 },
   payCard: {
@@ -1202,9 +1204,9 @@ const styles = StyleSheet.create({
   balanceLink: { color: colors.accentLight, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   // Sections
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  seeAll: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  seeAll: { color: colors.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 
   // Quick actions
   actionsPanel: {
@@ -1237,6 +1239,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileLabel: {
+    fontFamily: fonts.bold,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     color: colors.textOnPrimary,
@@ -1324,6 +1327,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   previewBody: { flex: 1, gap: 2 },
-  previewTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  previewSub: { fontSize: fontSize.sm, color: colors.textMuted },
+  previewTitle: { fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+  previewSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
 });

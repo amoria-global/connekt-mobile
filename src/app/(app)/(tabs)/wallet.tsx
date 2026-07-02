@@ -1,3 +1,11 @@
+/**
+ * Wallet tab — balance, earnings breakdown, and payouts.
+ *
+ * Mobile port of the salo-run wallet pages (client / coordinator /
+ * photographer). Coordinators & photographers can withdraw; clients see a
+ * read-only balance. Brand design: LIBRARY-style eyebrow header, gradient
+ * balance hero, pot stat cards, and quick links — all Pragati Narrow.
+ */
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -9,21 +17,39 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Button } from '@/components/ui/Button';
+import { useRouter, type Href } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, radii, spacing } from '@/theme';
 import { formatMoney } from '@/utils/format';
+
+type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
 export default function WalletScreen() {
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
-  const { isPhotographer } = useRole();
+  const { isPhotographer, isCoordinator, isClient } = useRole();
+  const canWithdraw = isPhotographer || isCoordinator;
   const { data, loading, error, refresh } = useAsync(useCallback(() => getWallet(), []));
+
+  const subtitle = isCoordinator
+    ? 'Your event payments, stream revenue, and balance.'
+    : isPhotographer
+      ? 'Your earnings, bonuses and payouts.'
+      : 'Your balance, payments and receipts.';
+
+  const links: Link[] = [
+    { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
+    { label: 'Wallet movements', icon: 'list-outline', href: '/wallet/movements' as Href },
+    { label: 'Payments', icon: 'card-outline', href: '/payments' as Href },
+    ...(isPhotographer
+      ? [{ label: 'Payroll report', icon: 'bar-chart-outline' as const, href: '/payroll' as Href }]
+      : []),
+  ];
 
   return (
     <Screen padded={false} edges={['bottom']}>
@@ -49,64 +75,70 @@ export default function WalletScreen() {
           }
         >
           <View style={styles.headerBlock}>
-            <Text style={styles.screenTitle}>Wallet</Text>
-            <Text style={styles.screenSubtitle}>Balance, earnings and payouts</Text>
+            <Text style={styles.eyebrow}>WALLET</Text>
+            <Text style={styles.title}>Wallet</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
 
-          <View style={styles.balanceCard}>
-            <Text style={styles.balanceLabel}>Total balance</Text>
-            <Text style={styles.balanceValue}>
-              {formatMoney(data?.total, data?.currency)}
-            </Text>
-          </View>
-
-          {isPhotographer ? (
-            <Button title="Withdraw funds" onPress={() => router.push('/withdraw')} />
-          ) : null}
-
-          <View style={styles.menuCard}>
-            <Pressable style={styles.menuRow} onPress={() => router.push('/transactions')}>
-              <Ionicons name="swap-horizontal-outline" size={20} color={colors.primary} />
-              <Text style={styles.menuLabel}>Transactions</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
-            <Pressable
-              style={[styles.menuRow, styles.menuBorderTop]}
-              onPress={() => router.push('/wallet/movements')}
-            >
-              <Ionicons name="list-outline" size={20} color={colors.primary} />
-              <Text style={styles.menuLabel}>Wallet movements</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
-            <Pressable style={[styles.menuRow, styles.menuBorderTop]} onPress={() => router.push('/payments')}>
-              <Ionicons name="card-outline" size={20} color={colors.primary} />
-              <Text style={styles.menuLabel}>Payments</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
-            {isPhotographer ? (
-              <Pressable style={[styles.menuRow, styles.menuBorderTop]} onPress={() => router.push('/payroll')}>
-                <Ionicons name="bar-chart-outline" size={20} color={colors.primary} />
-                <Text style={styles.menuLabel}>Payroll report</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          {/* Balance hero */}
+          <LinearGradient
+            colors={[colors.primary, '#0a4da3', colors.accent]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.balanceCard}
+          >
+            <Text style={styles.balanceLabel}>{isClient ? 'WALLET BALANCE' : 'AVAILABLE BALANCE'}</Text>
+            <Text style={styles.balanceValue}>{formatMoney(data?.total, data?.currency)}</Text>
+            {canWithdraw ? (
+              <Pressable
+                style={({ pressed }) => [styles.withdrawBtn, pressed && { opacity: 0.9 }]}
+                onPress={() => router.push('/withdraw' as Href)}
+              >
+                <Ionicons name="cash-outline" size={16} color={colors.primary} />
+                <Text style={styles.withdrawText}>Withdraw funds</Text>
               </Pressable>
             ) : null}
-          </View>
+          </LinearGradient>
 
+          {/* Pots as stat cards */}
           {data?.pots.length ? (
-            <View style={styles.breakdown}>
+            <>
               <Text style={styles.sectionTitle}>Breakdown</Text>
-              {data.pots.map((pot) => (
-                <View key={pot.key} style={styles.potRow}>
-                  <Text style={styles.potLabel}>{pot.label}</Text>
-                  <Text style={styles.potAmount}>{formatMoney(pot.amount, data.currency)}</Text>
-                </View>
-              ))}
-            </View>
+              <View style={styles.potGrid}>
+                {data.pots.map((pot, i) => {
+                  const accent = POT_ACCENTS[i % POT_ACCENTS.length];
+                  return (
+                    <View key={pot.key} style={styles.potCard}>
+                      <View style={[styles.potAccent, { backgroundColor: accent }]} />
+                      <Text style={styles.potLabel}>{pot.label}</Text>
+                      <Text style={styles.potAmount}>{formatMoney(pot.amount, data.currency)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
           ) : (
             <Text style={styles.emptyHint}>
               No earnings yet. Booking income, tips, and donations will show here.
             </Text>
           )}
+
+          {/* Quick links */}
+          <View style={styles.menuCard}>
+            {links.map((l, i) => (
+              <Pressable
+                key={l.label}
+                style={[styles.menuRow, i > 0 && styles.menuBorderTop]}
+                onPress={() => router.push(l.href)}
+              >
+                <View style={styles.menuIcon}>
+                  <Ionicons name={l.icon} size={18} color={colors.primary} />
+                </View>
+                <Text style={styles.menuLabel}>{l.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </Pressable>
+            ))}
+          </View>
         </ScrollView>
       )}
       <TopBar />
@@ -114,13 +146,52 @@ export default function WalletScreen() {
   );
 }
 
+const POT_ACCENTS = ['#083A85', '#F59E0B', '#10B981', '#8B5CF6', '#3B82F6'];
+
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120, gap: spacing.xl },
+  errorText: { fontFamily: fonts.regular, color: colors.textMuted, fontSize: 14, textAlign: 'center' },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.lg },
+
   headerBlock: { gap: 2 },
-  screenTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  screenSubtitle: { fontSize: fontSize.sm, color: colors.textMuted },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
+  title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, letterSpacing: -0.5 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
+
+  balanceCard: { borderRadius: radii.xl, padding: spacing.xl, gap: 6 },
+  balanceLabel: { fontFamily: fonts.bold, color: 'rgba(255,255,255,0.8)', fontSize: 11, letterSpacing: 1 },
+  balanceValue: { fontFamily: fonts.bold, color: '#fff', fontSize: 34, letterSpacing: -0.5 },
+  withdrawBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 7,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    height: 40,
+    borderRadius: radii.md,
+    marginTop: spacing.sm,
+  },
+  withdrawText: { fontFamily: fonts.bold, fontSize: 14, color: colors.primary },
+
+  sectionTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.text },
+  potGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  potCard: {
+    width: '47%',
+    flexGrow: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.md,
+    paddingTop: 16,
+    overflow: 'hidden',
+    gap: 2,
+  },
+  potAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
+  potLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
+  potAmount: { fontFamily: fonts.bold, fontSize: 20, color: colors.text },
+
   menuCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
@@ -130,39 +201,15 @@ const styles = StyleSheet.create({
   },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
   menuBorderTop: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderSoft },
-  menuLabel: { flex: 1, fontSize: fontSize.md, color: colors.text, fontWeight: fontWeight.semibold },
-  balanceCard: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.xl,
-    padding: spacing.xl,
-    gap: spacing.xs,
+  menuIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: colors.infoBg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  balanceLabel: { color: '#C7D2FE', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  balanceValue: { color: colors.textOnPrimary, fontSize: fontSize['3xl'], fontWeight: fontWeight.extrabold },
-  breakdown: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-  },
-  sectionTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.textMuted,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xs,
-    textTransform: 'uppercase',
-  },
-  potRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSoft,
-  },
-  potLabel: { fontSize: fontSize.md, color: colors.textSoft },
-  potAmount: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  emptyHint: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  menuLabel: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+
+  emptyHint: { fontFamily: fonts.regular, color: colors.textMuted, fontSize: 14, textAlign: 'center' },
 });

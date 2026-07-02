@@ -81,6 +81,19 @@ function mapEvent(r: RawEvent): EventItem {
   const categoryName = str(cat.name) ?? str(r.category) ?? str(r.eventType);
   const categoryId = str(cat.id);
 
+  // The booking's client — the photographer's events feed shows this
+  // person (+ avatar) on each card, not the photographer. Fall through the
+  // shapes the backend can return: flat clientName / nested creator / the
+  // organizer string as a last resort.
+  const client = (r.client ?? r.creator ?? r.customer ?? {}) as RawEvent;
+  const clientName =
+    str(r.clientName) ??
+    ([str(client.firstName), str(client.lastName)].filter(Boolean).join(' ') || undefined) ??
+    str(client.name) ??
+    str(r.organizerName);
+  const clientAvatar =
+    str(r.clientImage) ?? str(r.clientAvatar) ?? str(client.profilePicture) ?? str(client.avatar);
+
   // Event tags arrive as a comma-separated CSV string; the form holds
   // an array, so split here once.
   const tagsCsv = str(r.eventTags);
@@ -95,6 +108,10 @@ function mapEvent(r: RawEvent): EventItem {
     category: categoryName,
     categoryId,
     photographerName,
+    clientName,
+    clientAvatar,
+    packageName: str(r.packageName),
+    hasLiveStream: r.hasLiveStream === true,
     // Backend returns the event hero as `eventPhoto` on every events
     // endpoint (/customer/events, /coordinator/events, /public/events).
     // The legacy `coverImage` / `thumbnail` / `coverPhoto` fallbacks
@@ -110,12 +127,14 @@ function mapEvent(r: RawEvent): EventItem {
     createdAt: str(r.createdAt) ?? str(r.bookingDate) ?? str(r.requestedAt) ?? str(r.updatedAt),
 
     // Edit-form fields (web parity)
-    price: num(r.price) ?? num(r.streamFee),
-    currency: str(r.priceCurrency) ?? str(r.streamFeeCurrencyAbbreviation),
+    price: num(r.price) ?? num(r.streamFee) ?? num(r.packagePrice),
+    currency: str(r.priceCurrency) ?? str(r.streamFeeCurrencyAbbreviation) ?? str(r.packageCurrencyAbbreviation),
     maxGuests: num(r.maxGuests),
+    guestCount: num(r.guestCount) ?? num(r.confirmedGuests),
     organizer: str(r.eventOrganizer) ?? str(r.organizer),
     tags,
     eventVisibility: str(r.eventVisibility),
+    completionStatus: str(r.completionStatus),
     notes: str(r.notes),
   };
 }

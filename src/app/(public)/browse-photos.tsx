@@ -14,7 +14,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -22,19 +21,14 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
 import {
   fetchBrowsePhotos,
   getPhotoDownloadUrl,
-  getPublicPaymentStatus,
-  initiateMultiAlbumPurchase,
-  recordAlbumPurchase,
   type BrowseRow,
   type MultiAlbumPurchaseItem,
 } from '@/features/photos/api';
+import { PhotoCheckoutSheet } from '@/features/photos/PhotoCheckoutSheet';
 import { spacing } from '@/theme';
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function sym(code?: string | null) {
   return code === 'USD' ? '$' : code === 'EUR' ? '€' : code === 'GBP' ? '£' : `${code ?? ''} `;
@@ -55,9 +49,6 @@ export default function BrowsePhotosScreen() {
 
   // Checkout + purchase state.
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [purchased, setPurchased] = useState<BrowseRow[] | null>(null);
   const [purchaseRefid, setPurchaseRefid] = useState<string | null>(null);
   const [unlockCode, setUnlockCode] = useState<string | null>(null);
@@ -113,48 +104,19 @@ export default function BrowsePhotosScreen() {
   const startCheckout = (row?: BrowseRow) => {
     if (row && !inCart(row.imageId)) setCart((prev) => ({ ...prev, [row.imageId]: row }));
     setPreviewing(null);
-    setError(null);
     setCheckoutOpen(true);
   };
 
-  const onPay = async () => {
-    if (!EMAIL_RE.test(email.trim())) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const snapshot = [...cartItems];
-      const { refid, paymentUrl } = await initiateMultiAlbumPurchase({
-        items: multiAlbumItems,
-        viewerEmail: email.trim().toLowerCase(),
-      });
-      if (!refid) throw new Error('Could not start the payment.');
-      if (paymentUrl) await WebBrowser.openBrowserAsync(paymentUrl).catch(() => {});
-
-      // Poll the public payment status until settled.
-      let status: 'success' | 'pending' | 'failed' = 'pending';
-      for (let i = 0; i < 30 && status === 'pending'; i++) {
-        await new Promise((r) => setTimeout(r, 4000));
-        status = await getPublicPaymentStatus(refid).catch(() => 'pending' as const);
-      }
-      if (status !== 'success') {
-        setError(`Payment ${status}. If you were charged, recover it from the recover page.`);
-        return;
-      }
-
-      const rec = await recordAlbumPurchase(refid).catch(() => ({ unlockCode: undefined }));
-      setPurchased(snapshot);
-      setPurchaseRefid(refid);
-      setUnlockCode(rec.unlockCode ?? null);
-      setCheckoutOpen(false);
-      setCart({});
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not complete the purchase.');
-    } finally {
-      setBusy(false);
-    }
+  // The checkout sheet drives the whole payment (email → method → gateway
+  // → poll → record) and hands us back the refid + unlock code. We snapshot
+  // the cart here so the download grid shows exactly what was paid for, then
+  // clear it.
+  const onPaymentSuccess = (refid: string, code: string | null) => {
+    setPurchased([...cartItems]);
+    setPurchaseRefid(refid);
+    setUnlockCode(code);
+    setCheckoutOpen(false);
+    setCart({});
   };
 
   const downloadPhoto = (row: BrowseRow) => {
@@ -287,35 +249,18 @@ export default function BrowsePhotosScreen() {
         </View>
       </Modal>
 
-      {/* Checkout (email → pay) */}
-      <Modal visible={checkoutOpen} transparent animationType="slide" onRequestClose={() => setCheckoutOpen(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => !busy && setCheckoutOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Checkout</Text>
-            <Text style={styles.sheetHint}>
-              We&apos;ll email your receipt + an unlock code so you can re-download anytime.
-            </Text>
-            <Text style={styles.sheetSummary}>
-              {cartItems.length} photo{cartItems.length === 1 ? '' : 's'} · {sym(cartItems[0]?.buyerCurrency)}
-              {cartTotal.toFixed(2)}
-            </Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              style={styles.sheetInput}
-              editable={!busy}
-            />
-            {error ? <Text style={styles.sheetError}>{error}</Text> : null}
-            <Pressable style={[styles.payBtn, busy && { opacity: 0.6 }]} onPress={onPay} disabled={busy}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.payBtnText}>Continue to payment</Text>}
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* Checkout — full web-parity payment sheet (method tiles, geo
+          blocking lines, phone/card, validity-gated pay). */}
+      <PhotoCheckoutSheet
+        visible={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        items={multiAlbumItems}
+        photoCount={cartItems.length}
+        photographerCount={multiAlbumItems.length}
+        currencySym={sym(cartItems[0]?.buyerCurrency)}
+        total={cartTotal}
+        onSuccess={onPaymentSuccess}
+      />
 
       {/* Purchase success → downloads */}
       <Modal visible={!!purchased} transparent animationType="slide" onRequestClose={() => setPurchased(null)}>
@@ -401,18 +346,7 @@ const styles = StyleSheet.create({
   lbBtnPrimary: { backgroundColor: '#F20C8F' },
   lbBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#0B2A57', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.xl, gap: 10 },
-  sheetTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
   sheetHint: { color: 'rgba(255,255,255,0.65)', fontSize: 13, lineHeight: 19 },
-  sheetSummary: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  sheetInput: {
-    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    color: '#fff', fontSize: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-  },
-  sheetError: { color: '#FCA5A5', fontSize: 13 },
-  payBtn: { backgroundColor: '#F20C8F', borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
-  payBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 
   successContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', paddingHorizontal: spacing.lg },
   successCard: { backgroundColor: '#0B2A57', borderRadius: 20, padding: spacing.xl, maxHeight: '80%' },

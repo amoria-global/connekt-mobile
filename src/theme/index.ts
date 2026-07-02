@@ -84,5 +84,17 @@ export const fontWeight = {
   extrabold: '800',
 } as const;
 
-export const theme = { colors, gradients, spacing, radii, fontSize, fontWeight };
+/**
+ * Pragati Narrow family names, as loaded by `useFonts` in the root layout
+ * (@expo-google-fonts/pragati-narrow). Use these for `fontFamily` so the
+ * mobile app matches the web brand type (knockout globals.css uses
+ * 'Pragati Narrow' for the whole UI). Only 400 + 700 are bundled, so pair
+ * `fonts.bold` with headings/labels and `fonts.regular` with body copy.
+ */
+export const fonts = {
+  regular: 'PragatiNarrow_400Regular',
+  bold: 'PragatiNarrow_700Bold',
+} as const;
+
+export const theme = { colors, gradients, spacing, radii, fontSize, fontWeight, fonts };
 export type Theme = typeof theme;

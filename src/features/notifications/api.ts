@@ -11,6 +11,10 @@ export type AppNotification = {
   read: boolean;
   createdAt?: string;
   type?: string;
+  /** Id of the entity this notification is about (event, payment, album…). */
+  referenceId?: string;
+  /** Backend-provided web link (fallback context). */
+  link?: string;
 };
 
 type Raw = Record<string, unknown>;
@@ -37,6 +41,8 @@ function mapNotification(r: Raw): AppNotification {
     read: !!r.readAt || r.read === true || r.isRead === true,
     createdAt: str(r.createdAt) ?? str(r.timestamp),
     type: str(r.type),
+    referenceId: str(r.referenceId),
+    link: str(r.link),
   };
 }
 
@@ -61,4 +67,22 @@ export async function markRead(role: NotificationsRole | boolean, id: string): P
 
 export async function markAllRead(role: NotificationsRole | boolean): Promise<void> {
   await api.post(`${base(role)}/mark-all-read`);
+}
+
+/**
+ * Register this device's Expo push token with the backend so it can push
+ * event notifications to the system tray.
+ *
+ * Backend: NotificationController#registerPushToken stores { token, platform }
+ * against the signed-in user; ExpoPushService then fires an Expo push
+ * (https://exp.host/--/api/v2/push/send) from NotificationService whenever a
+ * notification is created (booking / event / album / payment). Best-effort —
+ * a failure here never blocks the app.
+ */
+export async function registerPushToken(token: string, platform: string): Promise<void> {
+  try {
+    await api.post('/customer/notifications/push-token', { token, platform });
+  } catch {
+    /* non-fatal */
+  }
 }

@@ -1,13 +1,40 @@
-import { Stack, useSegments } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack, useRouter, useSegments, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { PersistentBottomBar } from '@/components/PersistentBottomBar';
+import {
+  addNotificationResponseListener,
+  registerForPushNotifications,
+} from '@/features/notifications/push';
+import { notificationTarget } from '@/features/notifications/routing';
 import { colors } from '@/theme';
 
 export default function AppLayout() {
   const segments = useSegments() as string[];
+  const router = useRouter();
   // Tab screens are light → dark status icons; blue-header detail screens → light.
   const inTabs = segments.includes('(tabs)');
+
+  // Signed-in: register for push notifications and route taps. The (app)
+  // group only mounts once authenticated, so this runs at the right time.
+  // Push is native-only — skip on web (expo-notifications has no web push
+  // and only logs "not supported" warnings there).
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    registerForPushNotifications();
+    const unsubscribe = addNotificationResponseListener((data) => {
+      // Deep-link to the exact entity the notification is about.
+      router.push(
+        notificationTarget({
+          type: typeof data.type === 'string' ? data.type : undefined,
+          referenceId: typeof data.referenceId === 'string' ? data.referenceId : undefined,
+          eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+        }),
+      );
+    });
+    return unsubscribe;
+  }, [router]);
 
   return (
     <View style={{ flex: 1 }}>

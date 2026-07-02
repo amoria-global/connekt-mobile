@@ -7,6 +7,15 @@
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d81fbfa6-f576-4450-97c6-c443332179be",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "splash": {
       "image": "./assets/images/logo.png",
       "resizeMode": "contain",
@@ -14,7 +23,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.connekt-mobile",
+      "bundleIdentifier": "com.connekyt.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Connekyt uses your camera to record video messages and to broadcast your event live.",
@@ -28,7 +37,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.connekyt.app",
-      "permissions": ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
+      "versionCode": 1,
+      "permissions": ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "POST_NOTIFICATIONS"]
     },
     "web": {
       "output": "static",
@@ -47,6 +57,12 @@
       ],
       "expo-secure-store",
       "expo-video",
+      [
+        "expo-notifications",
+        {
+          "color": "#083A85"
+        }
+      ],
       [
         "expo-image-picker",
         {

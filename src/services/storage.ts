@@ -34,4 +34,6 @@ export const StorageKeys = {
   refreshToken: 'auth.refreshToken',
   session: 'auth.session',
   onboardingSeen: 'onboarding.seen',
+  /** Persisted once the user accepts the Terms & Conditions on first install. */
+  termsAccepted: 'terms.accepted',
 } as const;
