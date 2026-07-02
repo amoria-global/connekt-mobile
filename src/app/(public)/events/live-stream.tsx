@@ -63,14 +63,18 @@ import { HlsPlayer } from '@/features/streams/HlsPlayer';
 import {
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -99,7 +103,8 @@ import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const REACTION_EMOJIS = ['🔥', '❤️', '👏', '😍', '🎉', '😮'];
 const COVER_FALLBACK =
@@ -185,51 +190,246 @@ function ChatVideoBubble({ uri }: { uri: string }) {
   );
 }
 
-function ChatMessageRow({ chat, isOwn }: { chat: PublicStreamChat; isOwn: boolean }) {
+// ─── TikTok-style live-chat overlay ──────────────────────────────────────
+// The chat is no longer a boxed card below the player — it's a transparent
+// layer that sits OVER the video, anchored to the right, with messages
+// rising upward as new ones arrive. Each message carries its own translucent
+// pill so it stays legible over any video without a solid panel background.
+
+type FloatEmoji = { id: string; emoji: string; anim: Animated.Value; offset: number };
+
+function OverlayChatRow({ chat, isOwn }: { chat: PublicStreamChat; isOwn: boolean }) {
+  // Mount animation — the row fades in and slides up a few px into place, so
+  // the stack visibly "moves upward" as newer messages push in below.
+  const enter = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(enter, { toValue: 1, duration: 280, useNativeDriver: true }).start();
+  }, [enter]);
+
   const name = isOwn ? 'You' : chat.viewerName || 'Guest';
   const initial = (chat.viewerName || 'G').trim().charAt(0).toUpperCase();
   const hasVideo = !!chat.videoUrl;
 
-  if (isOwn) {
-    return (
-      <View style={styles.rowOwn}>
-        <View style={[styles.bubble, styles.bubbleOwn]}>
-          <View style={styles.bubbleHeadRow}>
-            <Text style={[styles.bubbleSender, styles.bubbleSenderOwn]}>You</Text>
-            {chat.time ? <Text style={styles.bubbleTimeOwn}>{chat.time}</Text> : null}
-          </View>
-          {hasVideo ? (
-            <ChatVideoBubble uri={chat.videoUrl!} />
-          ) : (
-            <Text style={[styles.bubbleText, styles.bubbleTextOwn]}>{chat.message}</Text>
-          )}
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.rowOther}>
-      {chat.avatar ? (
-        <Image source={{ uri: chat.avatar }} style={styles.avatar} contentFit="cover" />
-      ) : (
-        <View style={styles.avatarFallback}>
-          <Text style={styles.avatarInitial}>{initial}</Text>
-        </View>
-      )}
-      <View style={[styles.bubble, styles.bubbleOther]}>
-        <View style={styles.bubbleHeadRow}>
-          <Text style={styles.bubbleSender} numberOfLines={1}>
+    <Animated.View
+      style={[
+        chatFx.row,
+        {
+          opacity: enter,
+          transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+        },
+      ]}
+    >
+      <View style={chatFx.pill}>
+        <View style={chatFx.pillHead}>
+          {chat.avatar ? (
+            <Image source={{ uri: chat.avatar }} style={chatFx.avatar} contentFit="cover" />
+          ) : (
+            <View style={[chatFx.avatar, chatFx.avatarFallback]}>
+              <Text style={chatFx.avatarInitial}>{initial}</Text>
+            </View>
+          )}
+          <Text style={[chatFx.pillName, isOwn && chatFx.pillNameOwn]} numberOfLines={1}>
             {name}
           </Text>
-          {chat.time ? <Text style={styles.bubbleTime}>{chat.time}</Text> : null}
         </View>
         {hasVideo ? (
           <ChatVideoBubble uri={chat.videoUrl!} />
         ) : (
-          <Text style={styles.bubbleText}>{chat.message}</Text>
+          <Text style={chatFx.pillText}>{chat.message}</Text>
         )}
       </View>
+    </Animated.View>
+  );
+}
+
+type LiveChatPanelProps = {
+  chats: PublicStreamChat[];
+  isOwn: (c: PublicStreamChat) => boolean;
+  floating: FloatEmoji[];
+  emojis: string[];
+  onReact: (emoji: string) => void;
+  draft: string;
+  setDraft: (v: string) => void;
+  onSend: () => void;
+  sending: boolean;
+  onVideo: () => void;
+  videoSending: boolean;
+  canChat: boolean;
+  /** Placeholder shown in the composer when the viewer can't chat yet. */
+  joinHint?: string;
+  error: string | null;
+  minimized: boolean;
+  onToggleMinimize: () => void;
+  fullscreen: boolean;
+  onToggleFullscreen: () => void;
+  onGift: () => void;
+  showGift: boolean;
+  maxListHeight: number;
+  insetTop?: number;
+  insetBottom?: number;
+};
+
+function LiveChatPanel({
+  chats,
+  isOwn,
+  floating,
+  emojis,
+  onReact,
+  draft,
+  setDraft,
+  onSend,
+  sending,
+  onVideo,
+  videoSending,
+  canChat,
+  joinHint,
+  error,
+  minimized,
+  onToggleMinimize,
+  fullscreen,
+  onToggleFullscreen,
+  onGift,
+  showGift,
+  maxListHeight,
+  insetTop = 0,
+  insetBottom = 0,
+}: LiveChatPanelProps) {
+  const listRef = useRef<ScrollView>(null);
+  // Keep the newest message in view — the list is bottom-anchored so this is
+  // what produces the upward-scrolling feed.
+  useEffect(() => {
+    const t = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
+    return () => clearTimeout(t);
+  }, [chats.length]);
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[
+        chatFx.panel,
+        { paddingTop: (fullscreen ? insetTop : 0) + 10, paddingBottom: (fullscreen ? insetBottom : 0) + 8 },
+      ]}
+    >
+      {/* Reaction bursts — anchored bottom-right, rising STRAIGHT up (no arc). */}
+      <View pointerEvents="none" style={chatFx.floatLayer}>
+        {floating.map((fx) => (
+          <Animated.Text
+            key={fx.id}
+            style={[
+              chatFx.floatEmoji,
+              {
+                left: fx.offset,
+                opacity: fx.anim.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }),
+                transform: [
+                  {
+                    translateY: fx.anim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, fullscreen ? -460 : -260],
+                    }),
+                  },
+                  {
+                    scale: fx.anim.interpolate({
+                      inputRange: [0, 0.2, 1],
+                      outputRange: [0.6, 1.15, 0.9],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {fx.emoji}
+          </Animated.Text>
+        ))}
+      </View>
+
+      {/* Control bar: gift / minimize / fullscreen toggles. The "LIVE CHAT"
+          label only shows in fullscreen — inline, the top of the video already
+          carries the host + LIVE NOW details, so we leave that spot free. */}
+      <View style={chatFx.controls} pointerEvents="box-none">
+        {fullscreen ? (
+          <View style={chatFx.controlsLeft}>
+            <View style={chatFx.liveDot} />
+            <Text style={chatFx.controlsTitle}>LIVE CHAT</Text>
+          </View>
+        ) : (
+          <View />
+        )}
+        <View style={chatFx.controlsRight}>
+          {showGift ? (
+            <Pressable style={chatFx.ctrlBtn} onPress={onGift} hitSlop={6}>
+              <Ionicons name="gift-outline" size={16} color="#fff" />
+            </Pressable>
+          ) : null}
+          <Pressable style={chatFx.ctrlBtn} onPress={onToggleMinimize} hitSlop={6}>
+            <Ionicons name={minimized ? 'chevron-up' : 'chevron-down'} size={18} color="#fff" />
+          </Pressable>
+          <Pressable style={chatFx.ctrlBtn} onPress={onToggleFullscreen} hitSlop={6}>
+            <Ionicons name={fullscreen ? 'contract' : 'expand'} size={15} color="#fff" />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Messages + reactions + composer. Collapsed to just the control bar
+          when minimized. */}
+      {minimized ? null : (
+        <View style={chatFx.bottom}>
+          <ScrollView
+            ref={listRef}
+            style={[chatFx.list, { maxHeight: maxListHeight }]}
+            contentContainerStyle={chatFx.listContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {chats.length === 0 ? (
+              <Text style={chatFx.empty}>No messages yet — say hi 👋</Text>
+            ) : (
+              chats.map((c) => <OverlayChatRow key={c.id} chat={c} isOwn={isOwn(c)} />)
+            )}
+          </ScrollView>
+
+          <View style={chatFx.reactions} pointerEvents="box-none">
+            {emojis.map((emoji) => (
+              <Pressable key={emoji} style={chatFx.reactionBtn} onPress={() => onReact(emoji)} hitSlop={6}>
+                <Text style={chatFx.reactionEmoji}>{emoji}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={chatFx.composer}>
+            <Pressable
+              style={[chatFx.iconBtn, videoSending && { opacity: 0.5 }]}
+              onPress={onVideo}
+              disabled={videoSending || sending}
+              hitSlop={6}
+            >
+              {videoSending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Ionicons name="videocam-outline" size={18} color="#fff" />
+              )}
+            </Pressable>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={canChat ? 'Say something…' : joinHint ?? 'Verify access to chat'}
+              placeholderTextColor="rgba(255,255,255,0.6)"
+              editable={!sending}
+              style={chatFx.input}
+              returnKeyType="send"
+              onSubmitEditing={onSend}
+            />
+            <Pressable
+              style={[chatFx.sendBtn, (sending || !draft.trim()) && { opacity: 0.5 }]}
+              onPress={onSend}
+              disabled={sending || !draft.trim()}
+            >
+              {sending ? <ActivityIndicator color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
+            </Pressable>
+          </View>
+          {error ? <Text style={chatFx.error}>{error}</Text> : null}
+        </View>
+      )}
     </View>
   );
 }
@@ -258,6 +458,11 @@ export default function PublicLiveStreamScreen() {
     fromPayment?: string;
   }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  // Live player is a tall, near-full-screen stage (like a TikTok video) with
+  // the details + chat overlaid on top, so the stream owns the page.
+  const stageHeight = Math.round(windowHeight * 0.8);
 
   // ── Event load ───────────────────────────────────────────────────────────
   const event = useAsync(useCallback(() => getPublicEventDetailed(id), [id]));
@@ -301,6 +506,24 @@ export default function PublicLiveStreamScreen() {
   const [infoBusy, setInfoBusy] = useState(false);
   const [infoError, setInfoError] = useState<string | null>(null);
 
+  // Prefill name/email from a previously-saved viewer profile so a
+  // returning free viewer doesn't retype them.
+  useEffect(() => {
+    storage
+      .get('viewerProfile')
+      .then((raw) => {
+        if (!raw) return;
+        try {
+          const p = JSON.parse(raw) as { name?: string; email?: string };
+          if (p.name) setInfoName((n) => n || p.name!);
+          if (p.email) setInfoEmail((e) => e || p.email!);
+        } catch {
+          /* ignore malformed profile */
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // ── Device-conflict modal ────────────────────────────────────────────────
   const [conflictOpen, setConflictOpen] = useState(false);
   const [conflictBusy, setConflictBusy] = useState(false);
@@ -314,9 +537,11 @@ export default function PublicLiveStreamScreen() {
   const [chatSending, setChatSending] = useState(false);
   const [videoSending, setVideoSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
-  const [floatingEmoji, setFloatingEmoji] = useState<
-    { id: string; emoji: string; anim: Animated.Value }[]
-  >([]);
+  const [floatingEmoji, setFloatingEmoji] = useState<FloatEmoji[]>([]);
+  // TikTok-style overlay controls: collapse the feed to just its header, or
+  // blow the player + chat up to a full-screen immersive view.
+  const [chatMinimized, setChatMinimized] = useState(false);
+  const [chatFullscreen, setChatFullscreen] = useState(false);
   // Backend doesn't echo the anonymous viewerId per chat row, so "is this
   // mine?" is resolved two ways: by matching the viewer's display name,
   // and by remembering the exact text/caption we just sent (covers the
@@ -605,11 +830,28 @@ export default function PublicLiveStreamScreen() {
   const burstFloating = (emoji: string) => {
     const anim = new Animated.Value(0);
     const itemId = Math.random().toString(36).slice(2);
-    setFloatingEmoji((prev) => [...prev, { id: itemId, emoji, anim }]);
+    // Small horizontal offset from the right edge so overlapping bursts don't
+    // perfectly stack — but the motion itself stays a straight vertical rise.
+    const offset = 8 + Math.random() * 34;
+    setFloatingEmoji((prev) => [...prev, { id: itemId, emoji, anim, offset }]);
     Animated.timing(anim, { toValue: 1, duration: 2200, useNativeDriver: true }).start(() => {
       setFloatingEmoji((prev) => prev.filter((x) => x.id !== itemId));
     });
   };
+
+  // "Is this message mine?" — the backend doesn't echo the anonymous viewerId
+  // per row, so we match on our display name and on the exact text we just
+  // sent (covers the window before our name is known).
+  const isOwnChat = useCallback(
+    (c: PublicStreamChat) => {
+      const ownName = viewerName?.trim().toLowerCase();
+      return (
+        sentTextsRef.current.has(c.message) ||
+        (!!ownName && (c.viewerName || '').trim().toLowerCase() === ownName)
+      );
+    },
+    [viewerName],
+  );
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -674,10 +916,14 @@ export default function PublicLiveStreamScreen() {
 
   const onSubmitViewerInfo = async () => {
     if (!infoName.trim() || !infoEmail.includes('@')) {
-      setInfoError('Enter the name and email you used at checkout.');
+      setInfoError(
+        status.isPaid ? 'Enter the name and email you used at checkout.' : 'Enter your name and email to join.',
+      );
       return;
     }
-    if (!infoPhone.trim() || infoPhone.replace(/[^0-9]/g, '').length < 9) {
+    // Phone is only required for PAID events (matched to the purchase).
+    // Free events just need name + email to register a viewer.
+    if (status.isPaid && (!infoPhone.trim() || infoPhone.replace(/[^0-9]/g, '').length < 9)) {
       setInfoError('Enter the phone number you used at checkout.');
       return;
     }
@@ -688,14 +934,28 @@ export default function PublicLiveStreamScreen() {
       const reg = await registerAnonymousViewer(id, {
         name: infoName.trim(),
         email: infoEmail.trim(),
-        phone: infoPhone.trim(),
+        // Free events don't collect a phone. The backend now allows an empty
+        // phone, but until it's redeployed the register endpoint still
+        // @NotBlank-rejects it — so send a harmless placeholder (it's only
+        // stored; lookup/dedup is by email). Works against both versions.
+        phone: status.isPaid ? infoPhone.trim() : '0000000000',
         deviceId: fingerprint,
       });
-      if (reg.needsPayment) {
+      // Only PAID events gate on a real purchase. On a free event we
+      // register the person outright so they can comment immediately.
+      if (reg.needsPayment && status.isPaid) {
         setInfoError("We couldn't find a paid record for this email — buy access to start.");
         return;
       }
+      if (!reg.viewerId) {
+        setInfoError('Could not register you right now. Please try again.');
+        return;
+      }
       await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
+      // Remember the viewer so we can prefill the form next time.
+      await storage
+        .set('viewerProfile', JSON.stringify({ name: infoName.trim(), email: infoEmail.trim() }))
+        .catch(() => {});
       setViewerId(reg.viewerId);
       setViewerName(infoName.trim());
       if (reg.hlsManifestUrl) {
@@ -711,7 +971,9 @@ export default function PublicLiveStreamScreen() {
       }
       setInfoModalOpen(false);
     } catch (e) {
-      setInfoError(isApiError(e) ? e.message : 'Could not verify your access.');
+      setInfoError(
+        isApiError(e) ? e.message : status.isPaid ? 'Could not verify your access.' : 'Could not join the chat.',
+      );
     } finally {
       setInfoBusy(false);
     }
@@ -721,7 +983,7 @@ export default function PublicLiveStreamScreen() {
     const msg = chatDraft.trim();
     if (!msg) return;
     if (!viewerId) {
-      setChatError('Verify your access to chat.');
+      setChatError(status.isPaid ? 'Verify your access to chat.' : 'Add your name and email to comment.');
       setInfoModalOpen(true);
       return;
     }
@@ -754,7 +1016,11 @@ export default function PublicLiveStreamScreen() {
   // mobile equivalent of the web's "Send 1-min video message" button.
   const onSendVideoWish = async () => {
     if (!viewerId) {
-      setChatError('Verify your access to send a video message.');
+      setChatError(
+        status.isPaid
+          ? 'Verify your access to send a video message.'
+          : 'Add your name and email to send a video message.',
+      );
       setInfoModalOpen(true);
       return;
     }
@@ -870,91 +1136,179 @@ export default function PublicLiveStreamScreen() {
 
   const eventTitle = event.data?.title ?? 'Live stream';
   const eventThumb = event.data?.eventPhoto || COVER_FALLBACK;
+  // The host is the event's ORGANIZER / creator (the person putting on the
+  // event) — not the photographer shooting it.
+  const hostName =
+    event.data?.eventOrganizer ||
+    [event.data?.creator?.firstName, event.data?.creator?.lastName].filter(Boolean).join(' ') ||
+    undefined;
+  const hostImage = event.data?.creator?.profilePicture;
 
   return (
     <Screen padded={false} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Title row + viewer count badge */}
-        <View style={styles.header}>
-          <Text style={styles.title} numberOfLines={2}>
+        {/* Details live INSIDE the video top overlay (below), so the stream
+            takes the whole stage like the web experience. Only a slim
+            non-live title shows here for context when the stream is off. */}
+        {!status.isLive ? (
+          <Text style={styles.offlineTitle} numberOfLines={2}>
             {eventTitle}
           </Text>
-          {viewerCount > 0 ? (
-            <View style={styles.viewerBadge}>
-              <Ionicons name="eye-outline" size={14} color="#fff" />
-              <Text style={styles.viewerBadgeText}>{viewerCount.toLocaleString()}</Text>
+        ) : null}
+
+        {/* Player stage — the live video (or status placeholder) with the
+            TikTok-style chat overlay layered on top when live. Live streams
+            get a tall portrait stage so the overlay has room; other states
+            keep the compact 16:9 card. */}
+        <View style={[styles.playerStage, status.isLive ? { height: stageHeight } : styles.playerStageRatio]}>
+          {manifestUrl ? (
+            chatFullscreen ? (
+              // The player has been handed to the full-screen modal — show a
+              // tap-to-return placeholder here so we never run two HLS
+              // sessions at once.
+              <Pressable style={styles.fsReturn} onPress={() => setChatFullscreen(false)}>
+                <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+                <View style={styles.placeholderScrim} />
+                <Ionicons name="scan-outline" size={30} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.placeholderText}>Playing in full screen — tap to return</Text>
+              </Pressable>
+            ) : (
+              <HlsPlayer url={manifestUrl} style={StyleSheet.absoluteFillObject} />
+            )
+          ) : (
+            <>
+              <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+              <View style={styles.placeholderScrim} />
+              <View style={styles.placeholderContent}>
+                {/*
+                 * Web parity (lines 7320-7400 of knockout/pages/events/
+                 * live-stream.tsx). 4 states for the access gate:
+                 *   1. accessLoading           → spinner + "Verifying Access..."
+                 *   2. hasPurchasedAccess      → hourglass + "Access Confirmed"
+                 *   3. paid + no access        → lock + "Paid Stream" + Purchase
+                 *   4. ended/cancelled/upcoming → status-appropriate copy
+                 */}
+                {status.isCancelled || status.isEnded ? (
+                  <>
+                    <Ionicons
+                      name={status.isCancelled ? 'close-circle' : 'archive'}
+                      size={42}
+                      color="rgba(255,255,255,0.85)"
+                    />
+                    <Text style={styles.placeholderHeadline}>
+                      {status.isCancelled ? 'Event cancelled' : 'Event ended'}
+                    </Text>
+                  </>
+                ) : accessLoading ? (
+                  <>
+                    <ActivityIndicator color="#10b981" size="large" />
+                    <Text style={styles.placeholderHeadline}>Verifying access…</Text>
+                    <Text style={styles.placeholderText}>
+                      Please wait while we confirm your access.
+                    </Text>
+                  </>
+                ) : status.isLive && accessGranted ? (
+                  <>
+                    <Ionicons name="hourglass" size={42} color="#10b981" />
+                    <Text style={styles.placeholderHeadline}>Access confirmed</Text>
+                    <Text style={styles.placeholderText}>Waiting for the stream to start…</Text>
+                  </>
+                ) : status.isLive && status.isPaid ? (
+                  // No-access viewers are bounced to /event/{id} by the
+                  // useEffect above where the same 3 CTAs (Buy / Verify /
+                  // Invite code) live. This branch only fires if the bounce
+                  // is in-flight — show a brief loader instead of letting
+                  // the user dwell on a half-state.
+                  <>
+                    <ActivityIndicator color="#fff" />
+                    <Text style={styles.placeholderHeadline}>Loading…</Text>
+                  </>
+                ) : status.isLive ? (
+                  <>
+                    <ActivityIndicator color="#fff" />
+                    <Text style={styles.placeholderHeadline}>Stream is starting…</Text>
+                    <Text style={styles.placeholderText}>Hang tight, the stream is loading.</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
+                    <Text style={styles.placeholderText}>
+                      Stream will appear here once it goes live.
+                    </Text>
+                  </>
+                )}
+              </View>
+            </>
+          )}
+
+          {/* Details overlaid on the video's top edge — host, LIVE NOW,
+              title, and the live viewer counter. */}
+          {status.isLive && !chatFullscreen ? (
+            <View pointerEvents="box-none" style={styles.topOverlay}>
+              <LinearGradient colors={['rgba(0,0,0,0.65)', 'transparent']} style={styles.topScrim} pointerEvents="none" />
+              <View style={styles.topRow}>
+                {hostImage ? (
+                  <Image source={{ uri: hostImage }} style={styles.topAvatar} contentFit="cover" />
+                ) : (
+                  <View style={[styles.topAvatar, styles.topAvatarFallback]}>
+                    <Text style={styles.topInitial}>
+                      {(hostName || eventTitle).charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={styles.liveRow}>
+                    <View style={styles.liveNowPill}>
+                      <View style={styles.liveNowDot} />
+                      <Text style={styles.liveNowText}>LIVE NOW</Text>
+                    </View>
+                    {viewerCount > 0 ? (
+                      <View style={styles.viewerPill}>
+                        <Ionicons name="eye" size={12} color="#fff" />
+                        <Text style={styles.viewerPillText}>{viewerCount.toLocaleString()}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.topTitle} numberOfLines={1}>
+                    {eventTitle}
+                  </Text>
+                  {hostName ? (
+                    <Text style={styles.topHostedBy} numberOfLines={1}>
+                      Hosted by <Text style={styles.topHostName}>{hostName}</Text>
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
             </View>
           ) : null}
-        </View>
 
-        {/* Player or placeholder, driven off eventStatus */}
-        {manifestUrl ? (
-          <HlsPlayer url={manifestUrl} style={styles.playerWrap} />
-        ) : (
-          <View style={styles.placeholder}>
-            <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
-            <View style={styles.placeholderScrim} />
-            <View style={styles.placeholderContent}>
-              {/*
-               * Web parity (lines 7320-7400 of knockout/pages/events/
-               * live-stream.tsx). 4 states for the access gate:
-               *   1. accessLoading           → spinner + "Verifying Access..."
-               *   2. hasPurchasedAccess      → hourglass + "Access Confirmed"
-               *   3. paid + no access        → lock + "Paid Stream" + Purchase
-               *   4. ended/cancelled/upcoming → status-appropriate copy
-               */}
-              {status.isCancelled || status.isEnded ? (
-                <>
-                  <Ionicons
-                    name={status.isCancelled ? 'close-circle' : 'archive'}
-                    size={42}
-                    color="rgba(255,255,255,0.85)"
-                  />
-                  <Text style={styles.placeholderHeadline}>
-                    {status.isCancelled ? 'Event cancelled' : 'Event ended'}
-                  </Text>
-                </>
-              ) : accessLoading ? (
-                <>
-                  <ActivityIndicator color="#10b981" size="large" />
-                  <Text style={styles.placeholderHeadline}>Verifying access…</Text>
-                  <Text style={styles.placeholderText}>
-                    Please wait while we confirm your access.
-                  </Text>
-                </>
-              ) : status.isLive && accessGranted ? (
-                <>
-                  <Ionicons name="hourglass" size={42} color="#10b981" />
-                  <Text style={styles.placeholderHeadline}>Access confirmed</Text>
-                  <Text style={styles.placeholderText}>Waiting for the stream to start…</Text>
-                </>
-              ) : status.isLive && status.isPaid ? (
-                // No-access viewers are bounced to /event/{id} by the
-                // useEffect above where the same 3 CTAs (Buy / Verify /
-                // Invite code) live. This branch only fires if the bounce
-                // is in-flight — show a brief loader instead of letting
-                // the user dwell on a half-state.
-                <>
-                  <ActivityIndicator color="#fff" />
-                  <Text style={styles.placeholderHeadline}>Loading…</Text>
-                </>
-              ) : status.isLive ? (
-                <>
-                  <ActivityIndicator color="#fff" />
-                  <Text style={styles.placeholderHeadline}>Stream is starting…</Text>
-                  <Text style={styles.placeholderText}>Hang tight, the stream is loading.</Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
-                  <Text style={styles.placeholderText}>
-                    Stream will appear here once it goes live.
-                  </Text>
-                </>
-              )}
-            </View>
-          </View>
-        )}
+          {/* TikTok-style transparent chat overlay (inline). */}
+          {status.isLive && !chatFullscreen ? (
+            <LiveChatPanel
+              chats={chats}
+              isOwn={isOwnChat}
+              floating={floatingEmoji}
+              emojis={REACTION_EMOJIS}
+              onReact={onSendReaction}
+              draft={chatDraft}
+              setDraft={setChatDraft}
+              onSend={onSendChat}
+              sending={chatSending}
+              onVideo={onSendVideoWish}
+              videoSending={videoSending}
+              canChat={!!viewerId}
+              joinHint={status.isPaid ? 'Verify access to chat' : 'Add your name to comment'}
+              error={chatError}
+              minimized={chatMinimized}
+              onToggleMinimize={() => setChatMinimized((m) => !m)}
+              fullscreen={false}
+              onToggleFullscreen={() => setChatFullscreen(true)}
+              onGift={() => setGiftOpen(true)}
+              showGift={!!viewerId}
+              maxListHeight={Math.round(stageHeight * 0.34)}
+            />
+          ) : null}
+        </View>
 
         {/* Invite-token card — shown when no paid access + free invite_token event */}
         {!manifestUrl && !status.isPaid && status.isLive ? (
@@ -977,88 +1331,10 @@ export default function PublicLiveStreamScreen() {
           </View>
         ) : null}
 
-        {/*
-         * Chat panel. Shown whenever the event is LIVE — chat works even
-         * before the local player has connected. Send is gated on viewerId;
-         * tapping the input opens the Verify modal for non-paid viewers.
-         */}
         {status.isLive ? (
-          <View style={styles.chatCard}>
-            <View style={styles.chatTitleRow}>
-              <Text style={styles.chatTitle}>Live chat</Text>
-              {viewerId ? (
-                <Pressable style={styles.giftPill} onPress={() => setGiftOpen(true)}>
-                  <Ionicons name="gift-outline" size={14} color="#fff" />
-                  <Text style={styles.giftPillText}>Gift</Text>
-                </Pressable>
-              ) : null}
-            </View>
-
-            <View style={styles.chatList}>
-              {chats.length === 0 ? (
-                <Text style={styles.chatEmpty}>No messages yet — say hi 👋</Text>
-              ) : (
-                chats.map((c) => {
-                  const ownName = viewerName?.trim().toLowerCase();
-                  const isOwn =
-                    sentTextsRef.current.has(c.message) ||
-                    (!!ownName && (c.viewerName || '').trim().toLowerCase() === ownName);
-                  return <ChatMessageRow key={c.id} chat={c} isOwn={isOwn} />;
-                })
-              )}
-            </View>
-
-            <View style={styles.reactionsRow}>
-              {REACTION_EMOJIS.map((emoji) => (
-                <Pressable
-                  key={emoji}
-                  style={styles.reactionBtn}
-                  onPress={() => onSendReaction(emoji)}
-                  hitSlop={6}
-                >
-                  <Text style={styles.reactionEmoji}>{emoji}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <View style={styles.composer}>
-              {/* Send a 1-min video message (web parity). */}
-              <Pressable
-                style={[styles.videoBtn, videoSending && { opacity: 0.5 }]}
-                onPress={onSendVideoWish}
-                disabled={videoSending || chatSending}
-                hitSlop={6}
-              >
-                {videoSending ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  <Ionicons name="videocam-outline" size={20} color={colors.primary} />
-                )}
-              </Pressable>
-              <TextInput
-                value={chatDraft}
-                onChangeText={setChatDraft}
-                placeholder={viewerId ? 'Say something…' : 'Verify access to chat'}
-                placeholderTextColor={colors.textMuted}
-                editable={!chatSending}
-                style={styles.composerInput}
-                returnKeyType="send"
-                onSubmitEditing={onSendChat}
-              />
-              <Pressable
-                style={[styles.sendBtn, (chatSending || !chatDraft.trim()) && { opacity: 0.5 }]}
-                onPress={onSendChat}
-                disabled={chatSending || !chatDraft.trim()}
-              >
-                {chatSending ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Ionicons name="send" size={18} color="#fff" />
-                )}
-              </Pressable>
-            </View>
-            {chatError ? <Text style={styles.chatErrorText}>{chatError}</Text> : null}
-          </View>
+          <Text style={styles.chatHint}>
+            Live chat is over the video — tap the expand icon for full screen.
+          </Text>
         ) : null}
 
         {tokenError ? (
@@ -1069,28 +1345,57 @@ export default function PublicLiveStreamScreen() {
         ) : null}
       </ScrollView>
 
-      {/* Floating reactions overlay */}
-      {floatingEmoji.length > 0 ? (
-        <View pointerEvents="none" style={styles.floatingLayer}>
-          {floatingEmoji.map((fx) => (
-            <Animated.Text
-              key={fx.id}
-              style={[
-                styles.floatingEmoji,
-                {
-                  opacity: fx.anim.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }),
-                  transform: [
-                    { translateY: fx.anim.interpolate({ inputRange: [0, 1], outputRange: [0, -260] }) },
-                  ],
-                  left: `${20 + Math.random() * 60}%`,
-                },
-              ]}
-            >
-              {fx.emoji}
-            </Animated.Text>
-          ))}
+      {/* Full-screen immersive view — the player fills the screen with the
+          same TikTok chat overlay + rising reactions on top. */}
+      <Modal
+        visible={chatFullscreen}
+        animationType="fade"
+        onRequestClose={() => setChatFullscreen(false)}
+        supportedOrientations={['portrait', 'landscape']}
+        statusBarTranslucent
+      >
+        <View style={styles.fsRoot}>
+          {manifestUrl ? (
+            <HlsPlayer url={manifestUrl} style={StyleSheet.absoluteFillObject} />
+          ) : (
+            <>
+              <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+              <View style={styles.placeholderScrim} />
+            </>
+          )}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="box-none"
+          >
+            <LiveChatPanel
+              chats={chats}
+              isOwn={isOwnChat}
+              floating={floatingEmoji}
+              emojis={REACTION_EMOJIS}
+              onReact={onSendReaction}
+              draft={chatDraft}
+              setDraft={setChatDraft}
+              onSend={onSendChat}
+              sending={chatSending}
+              onVideo={onSendVideoWish}
+              videoSending={videoSending}
+              canChat={!!viewerId}
+              joinHint={status.isPaid ? 'Verify access to chat' : 'Add your name to comment'}
+              error={chatError}
+              minimized={chatMinimized}
+              onToggleMinimize={() => setChatMinimized((m) => !m)}
+              fullscreen
+              onToggleFullscreen={() => setChatFullscreen(false)}
+              onGift={() => setGiftOpen(true)}
+              showGift={!!viewerId}
+              maxListHeight={Math.round(windowHeight * 0.4)}
+              insetTop={insets.top}
+              insetBottom={insets.bottom}
+            />
+          </KeyboardAvoidingView>
         </View>
-      ) : null}
+      </Modal>
 
       {/* Welcome splash */}
       {splashVisible ? (
@@ -1115,15 +1420,21 @@ export default function PublicLiveStreamScreen() {
         </Pressable>
       </Modal>
 
-      {/* Viewer-info modal (Verify your access) */}
+      {/*
+       * Viewer-info modal. For PAID events it's "Verify your access"
+       * (name + email + phone, matched to the purchase). For FREE events
+       * it's a lightweight "Join the chat" — name + email only, which
+       * registers the person as a viewer and grants commenting right away.
+       */}
       <Modal visible={infoModalOpen} transparent animationType="slide" onRequestClose={() => setInfoModalOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setInfoModalOpen(false)}>
           <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Verify your access</Text>
+              <Text style={styles.modalTitle}>{status.isPaid ? 'Verify your access' : 'Join the chat'}</Text>
               <Text style={styles.modalHint}>
-                Enter the name, email and phone you used when buying your ticket. We'll restore
-                access on this device.
+                {status.isPaid
+                  ? "Enter the name, email and phone you used when buying your ticket. We'll restore access on this device."
+                  : 'Enter your name and email to comment — no account needed. This event is free.'}
               </Text>
               <Input
                 label="Name"
@@ -1140,26 +1451,30 @@ export default function PublicLiveStreamScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
-              <Input
-                label="Phone"
-                value={infoPhone}
-                onChangeText={(t) => setInfoPhone(t.replace(/[^0-9+]/g, ''))}
-                placeholder="+2507…"
-                keyboardType="phone-pad"
-                autoCapitalize="none"
-              />
+              {status.isPaid ? (
+                <Input
+                  label="Phone"
+                  value={infoPhone}
+                  onChangeText={(t) => setInfoPhone(t.replace(/[^0-9+]/g, ''))}
+                  placeholder="+2507…"
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                />
+              ) : null}
               {infoError ? <Text style={styles.chatErrorText}>{infoError}</Text> : null}
               <Button
-                title={infoBusy ? 'Verifying…' : 'Verify access'}
+                title={infoBusy ? (status.isPaid ? 'Verifying…' : 'Joining…') : status.isPaid ? 'Verify access' : 'Join chat'}
                 onPress={onSubmitViewerInfo}
                 loading={infoBusy}
               />
-              <Pressable
-                onPress={() => router.replace(`/events/join?id=${id}` as unknown as Href)}
-                style={{ alignItems: 'center', marginTop: 8 }}
-              >
-                <Text style={styles.linkText}>Buy access instead</Text>
-              </Pressable>
+              {status.isPaid ? (
+                <Pressable
+                  onPress={() => router.replace(`/events/join?id=${id}` as unknown as Href)}
+                  style={{ alignItems: 'center', marginTop: 8 }}
+                >
+                  <Text style={styles.linkText}>Buy access instead</Text>
+                </Pressable>
+              ) : null}
             </ScrollView>
           </Pressable>
         </Pressable>
@@ -1312,6 +1627,57 @@ const styles = StyleSheet.create({
   },
   viewerBadgeText: { color: '#fff', fontSize: fontSize.xs, fontWeight: fontWeight.bold },
 
+  offlineTitle: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: colors.text, letterSpacing: -0.3 },
+
+  // Details overlaid on the top of the video stage
+  topOverlay: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: spacing.md, paddingHorizontal: spacing.md },
+  topScrim: { position: 'absolute', top: 0, left: 0, right: 0, height: 96 },
+  // paddingRight leaves room for the chat panel's minimize / fullscreen
+  // buttons which sit at the top-right of the same stage.
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: 92 },
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  topAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)' },
+  topAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
+  topInitial: { fontFamily: fonts.bold, fontSize: 16, color: '#fff' },
+  liveNowPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  liveNowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  liveNowText: { fontFamily: fonts.bold, fontSize: 10, color: '#fff', letterSpacing: 0.6 },
+  topTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: '#fff',
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+  topHostedBy: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 3,
+  },
+  topHostName: { fontFamily: fonts.bold, color: '#fff' },
+  viewerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+  },
+  viewerPillText: { fontFamily: fonts.bold, color: '#fff', fontSize: 12 },
+
   placeholder: {
     aspectRatio: 16 / 9,
     borderRadius: radii.lg,
@@ -1353,6 +1719,28 @@ const styles = StyleSheet.create({
 
   playerWrap: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: '#000' },
   player: { width: '100%', height: '100%' },
+
+  // Portrait "stage" that hosts the video + transparent chat overlay.
+  playerStage: {
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    position: 'relative',
+  },
+  playerStageRatio: { aspectRatio: 16 / 9 },
+  fsReturn: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  fsRoot: { flex: 1, backgroundColor: '#000' },
+  chatHint: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
 
   tokenCard: {
     padding: spacing.lg,
@@ -1536,6 +1924,142 @@ const styles = StyleSheet.create({
   payTabActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
   payTabText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: '700' },
   payTabTextActive: { color: colors.primary },
+});
+
+// ─── TikTok-style chat overlay styles ────────────────────────────────────
+// Everything here is drawn OVER the video: the panel itself is transparent,
+// legibility comes from per-element translucent-black pills + text shadows.
+const chatFx = StyleSheet.create({
+  panel: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+
+  // Reaction bursts rise straight up from the bottom-right corner.
+  floatLayer: { position: 'absolute', left: 0, bottom: 64, top: 0, width: 90 },
+  floatEmoji: { position: 'absolute', bottom: 0, fontSize: 28 },
+
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  controlsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+  },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#ef4444' },
+  controlsTitle: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 3,
+  },
+  controlsRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ctrlBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Bottom cluster: message feed + reactions + composer.
+  bottom: { gap: 6 },
+  list: { alignSelf: 'flex-start', width: '62%' },
+  listContent: { flexGrow: 1, justifyContent: 'flex-end', paddingVertical: 4, gap: 5 },
+
+  row: { alignSelf: 'flex-start', maxWidth: '100%' },
+  pill: {
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    borderRadius: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    gap: 2,
+  },
+  pillHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  avatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
+  avatarInitial: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  pillName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#7dd3fc',
+    flexShrink: 1,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 2,
+  },
+  pillNameOwn: { color: '#fbbf24' },
+  pillText: {
+    color: '#fff',
+    fontSize: 13,
+    lineHeight: 18,
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowRadius: 2,
+  },
+  empty: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    fontStyle: 'italic',
+    alignSelf: 'flex-start',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 2,
+  },
+
+  reactions: { flexDirection: 'row', gap: 6, alignSelf: 'flex-start' },
+  reactionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reactionEmoji: { fontSize: 17 },
+
+  composer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 7,
+    color: '#fff',
+    fontSize: 13.5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  sendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  error: {
+    color: '#fca5a5',
+    fontSize: 11.5,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 2,
+  },
 });
 
 const splashStyles = StyleSheet.create({

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 import type { Photographer } from './api';
 
 export function PhotographerCard({ photographer }: { photographer: Photographer }) {
@@ -220,11 +220,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   name: {
+    fontFamily: fonts.bold,
     fontSize: fontSize.md,
     fontWeight: '700',
     color: colors.text,
   },
   category: {
+    fontFamily: fonts.regular,
     fontSize: fontSize.xs,
     color: colors.textMuted,
   },
@@ -256,6 +258,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   priceValue: {
+    fontFamily: fonts.bold,
     fontSize: 11,
     fontWeight: '700',
     color: colors.text,

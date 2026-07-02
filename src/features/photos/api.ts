@@ -335,10 +335,30 @@ export async function initiateMultiAlbumPurchase(data: {
   items: MultiAlbumPurchaseItem[];
   buyerId?: string;
   viewerEmail?: string;
+  // Web parity: the same endpoint accepts a payment method so the buyer
+  // can pick mobile money (phone + operator) OR card. Card returns a
+  // paymentUrl to open; mobile money returns just a refid to poll. When
+  // omitted the backend falls back to its card/hosted-page default.
+  paymentMethod?: 'MOBILE_MONEY' | 'CARD';
+  phone?: string;
+  telecomProvider?: string; // 'MTN' | 'AIRTEL' | 'MPESA' | …
+  /** ISO-2 country — drives backend gateway routing (PawaPay vs XentriPay). */
+  country?: string;
+  /** Where the gateway sends the buyer back after a card payment. */
+  redirectUrl?: string;
 }): Promise<AlbumPurchaseResult> {
+  const body: Record<string, unknown> = { items: data.items };
+  if (data.buyerId) body.buyerId = data.buyerId;
+  if (data.viewerEmail) body.viewerEmail = data.viewerEmail;
+  if (data.paymentMethod) body.paymentMethod = data.paymentMethod;
+  if (data.phone) body.phone = data.phone;
+  if (data.telecomProvider) body.telecomProvider = data.telecomProvider;
+  if (data.country) body.country = data.country;
+  if (data.redirectUrl) body.redirectUrl = data.redirectUrl;
+
   const res = await api.post<ApiEnvelope<Raw>>(
     '/public/payments/xentripay/initiate-multi-album-purchase',
-    data,
+    body,
   );
   const d = (res?.data ?? res ?? {}) as Raw;
   const refid = str(d.refid) ?? str(d.reference) ?? str(d.transactionId) ?? str(d.refId) ?? '';

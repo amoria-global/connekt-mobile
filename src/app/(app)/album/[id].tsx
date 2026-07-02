@@ -32,8 +32,15 @@ import {
 import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, fontSize, radii, spacing } from '@/theme';
 import { formatMoney } from '@/utils/format';
+
+const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> = {
+  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
+  PENDING_APPROVAL: { label: 'Pending review', bg: '#FEF3C7', fg: '#92400E' },
+  APPROVED: { label: 'Approved · Live', bg: '#D1FAE5', fg: '#047857' },
+  REJECTED: { label: 'Needs changes', bg: '#FEE2E2', fg: '#B91C1C' },
+};
 
 export default function AlbumDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -190,6 +197,18 @@ export default function AlbumDetailScreen() {
 
   const locked = data?.locked && data.images.length === 0;
 
+  // Content vs normal (event/personal) — drives the badge + which
+  // lifecycle actions are offered.
+  const isContent = !!data?.isContent;
+  const approval = data?.approvalStatus;
+  const approvalMeta = approval ? APPROVAL_META[approval] : null;
+  const kindLabel = isContent
+    ? 'CONTENT ALBUM'
+    : data?.kind
+      ? `${data.kind.toUpperCase()} ALBUM`
+      : 'ALBUM';
+  const canSubmit = isContent && (approval === 'DRAFT' || approval === 'REJECTED');
+
   return (
     <Screen padded={false}>
       <FlatList
@@ -200,85 +219,64 @@ export default function AlbumDetailScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.header}>
+            {/* Kind badge (+ approval status for content albums) */}
+            <View style={styles.badgeRow}>
+              <View style={[styles.kindBadge, isContent ? styles.kindContent : styles.kindNormal]}>
+                <Ionicons name={isContent ? 'newspaper' : 'images'} size={11} color="#fff" />
+                <Text style={styles.kindText}>{kindLabel}</Text>
+              </View>
+              {approvalMeta ? (
+                <View style={[styles.approvalPill, { backgroundColor: approvalMeta.bg }]}>
+                  <Text style={[styles.approvalPillText, { color: approvalMeta.fg }]}>{approvalMeta.label}</Text>
+                </View>
+              ) : null}
+            </View>
+
             <Text style={styles.title}>{data?.name}</Text>
             <Text style={styles.meta}>
-              {data?.photoCount != null ? `${data.photoCount} photos` : ''}
+              {data?.photoCount != null ? `${data.photoCount} photo${data.photoCount === 1 ? '' : 's'}` : ''}
+              {data?.categoryLabel ? ` · ${data.categoryLabel}` : ''}
               {data?.photographer ? ` · ${data.photographer}` : ''}
             </Text>
 
-            {isPhotographer ? (
-              <>
-                <View style={styles.manageRow}>
-                  <Pressable style={styles.manageBtn} onPress={onAddPhotos} disabled={!!busy}>
-                    {busy === 'add' ? (
-                      <ActivityIndicator color={colors.primary} />
-                    ) : (
-                      <>
-                        <Ionicons name="add" size={18} color={colors.primary} />
-                        <Text style={styles.manageText}>Add photos</Text>
-                      </>
-                    )}
-                  </Pressable>
-                  <Pressable style={[styles.manageBtn, styles.manageDanger]} onPress={onDelete} disabled={!!busy}>
-                    {busy === 'delete' ? (
-                      <ActivityIndicator color={colors.error} />
-                    ) : (
-                      <>
-                        <Ionicons name="trash-outline" size={18} color={colors.error} />
-                        <Text style={[styles.manageText, styles.manageTextDanger]}>Delete</Text>
-                      </>
-                    )}
-                  </Pressable>
-                </View>
-
-                <View style={styles.manageRow}>
-                  <Pressable style={styles.manageBtn} onPress={onSendToClient} disabled={!!busy}>
-                    {busy === 'send' ? (
-                      <ActivityIndicator color={colors.primary} />
-                    ) : (
-                      <>
-                        <Ionicons name="paper-plane-outline" size={18} color={colors.primary} />
-                        <Text style={styles.manageText}>Send to client</Text>
-                      </>
-                    )}
-                  </Pressable>
-                  <Pressable style={styles.manageBtn} onPress={onPublishToFaceSearch} disabled={!!busy}>
-                    {busy === 'publish' ? (
-                      <ActivityIndicator color={colors.primary} />
-                    ) : (
-                      <>
-                        <Ionicons name="scan-outline" size={18} color={colors.primary} />
-                        <Text style={styles.manageText}>Publish to Face-AI</Text>
-                      </>
-                    )}
-                  </Pressable>
-                </View>
-
-                <Pressable style={styles.manageBtn} onPress={onSubmitForReview} disabled={!!busy}>
-                  {busy === 'submit' ? (
-                    <ActivityIndicator color={colors.primary} />
-                  ) : (
-                    <>
-                      <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
-                      <Text style={styles.manageText}>Submit album for review</Text>
-                    </>
-                  )}
-                </Pressable>
-              </>
+            {/* Content approval note */}
+            {isContent && approval ? (
+              <View style={styles.approvalCard}>
+                <Text style={styles.approvalCardText}>
+                  {approval === 'DRAFT'
+                    ? 'Draft — submit for review to publish this album to the public browse library.'
+                    : approval === 'PENDING_APPROVAL'
+                      ? 'Under review — our team will publish it to the catalog once approved.'
+                      : approval === 'APPROVED'
+                        ? 'Live on the public browse library.'
+                        : `Needs changes${data?.approvalComment ? `: ${data.approvalComment}` : '. Update it and resubmit.'}`}
+                </Text>
+              </View>
             ) : null}
 
-            {/*
-             * Face-scan index status — Photographer-only. AWS Rekognition
-             * indexes faces server-side when photos are uploaded. This
-             * card surfaces the indexed-face count + status so a
-             * photographer can verify their album is searchable from the
-             * public face-search endpoint that clients use to find
-             * themselves.
-             */}
+            {/* Photographer actions — gated by album kind */}
+            {isPhotographer ? (
+              <View style={styles.actions}>
+                <ActBtn icon="add" label="Add photos" variant="primary" onPress={onAddPhotos} loading={busy === 'add'} />
+                {isContent ? (
+                  canSubmit ? (
+                    <ActBtn icon="cloud-upload" label="Submit for review" variant="accent" onPress={onSubmitForReview} loading={busy === 'submit'} />
+                  ) : null
+                ) : (
+                  <>
+                    <ActBtn icon="paper-plane" label="Send to client" variant="primary" onPress={onSendToClient} loading={busy === 'send'} />
+                    <ActBtn icon="scan" label="Publish to Face-AI" variant="accent" onPress={onPublishToFaceSearch} loading={busy === 'publish'} />
+                  </>
+                )}
+                <ActBtn icon="trash" label="Delete" variant="danger" onPress={onDelete} loading={busy === 'delete'} />
+              </View>
+            ) : null}
+
+            {/* Face-scan index status — Photographer-only. */}
             {isPhotographer && faceStatus ? (
               <View style={styles.faceCard}>
                 <View style={styles.faceHead}>
-                  <Ionicons name="scan-outline" size={18} color={colors.primary} />
+                  <Ionicons name="scan-outline" size={16} color={colors.primary} />
                   <Text style={styles.faceTitle}>Face-scan index</Text>
                 </View>
                 {faceStatus.collection?.error ? (
@@ -291,10 +289,7 @@ export default function AlbumDetailScreen() {
                     {(faceStatus.collection?.faceCount ?? 0) === 1 ? '' : 's'} indexed across{' '}
                     {faceStatus.galleryImageCount} photo
                     {faceStatus.galleryImageCount === 1 ? '' : 's'}
-                    {faceStatus.collection?.status
-                      ? ` · status: ${faceStatus.collection.status}`
-                      : ''}
-                    .
+                    {faceStatus.collection?.status ? ` · status: ${faceStatus.collection.status}` : ''}.
                   </Text>
                 )}
               </View>
@@ -327,6 +322,45 @@ export default function AlbumDetailScreen() {
   );
 }
 
+type ActVariant = 'primary' | 'accent' | 'danger';
+const ACT_STYLES: Record<ActVariant, { bg: string; fg: string }> = {
+  primary: { bg: colors.primary, fg: '#fff' },
+  accent: { bg: colors.accent, fg: '#fff' },
+  danger: { bg: '#EF4444', fg: '#fff' },
+};
+
+function ActBtn({
+  icon,
+  label,
+  variant,
+  onPress,
+  loading,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  variant: ActVariant;
+  onPress: () => void;
+  loading?: boolean;
+}) {
+  const v = ACT_STYLES[variant];
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.actBtn, { backgroundColor: v.bg }, pressed && { opacity: 0.85 }]}
+      onPress={onPress}
+      disabled={loading}
+    >
+      {loading ? (
+        <ActivityIndicator color={v.fg} />
+      ) : (
+        <>
+          <Ionicons name={icon} size={15} color={v.fg} />
+          <Text style={[styles.actText, { color: v.fg }]}>{label}</Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
 function PhotoCell({ image, size }: { image: AlbumImage; size: number }) {
   const open = () => {
     if (image.url) WebBrowser.openBrowserAsync(image.url);
@@ -342,9 +376,40 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   list: { padding: spacing.lg, gap: spacing.sm },
-  header: { gap: 2, marginBottom: spacing.md },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  meta: { fontSize: fontSize.sm, color: colors.textMuted },
+  header: { gap: 4, marginBottom: spacing.md },
+
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  kindBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full },
+  kindNormal: { backgroundColor: colors.primary },
+  kindContent: { backgroundColor: '#7C3AED' },
+  kindText: { fontFamily: fonts.bold, fontSize: 10, color: '#fff', letterSpacing: 0.6 },
+  approvalPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.full },
+  approvalPillText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.3 },
+
+  title: { fontFamily: fonts.bold, fontSize: 26, color: colors.text, letterSpacing: -0.5 },
+  meta: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
+
+  approvalCard: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceMuted,
+  },
+  approvalCardText: { fontFamily: fonts.regular, fontSize: 13, color: colors.textSoft, lineHeight: 19 },
+
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  actBtn: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 46,
+    borderRadius: radii.md,
+  },
+  actText: { fontFamily: fonts.bold, fontSize: 14 },
+
   faceCard: {
     marginTop: spacing.md,
     padding: spacing.md,
@@ -355,24 +420,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   faceHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  faceTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.primary },
-  faceMsg: { fontSize: fontSize.xs, color: colors.textSoft, lineHeight: 18 },
-  manageRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  manageBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    height: 44,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  manageDanger: { borderColor: colors.error },
-  manageText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.primary },
-  manageTextDanger: { color: colors.error },
+  faceTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.primary },
+  faceMsg: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textSoft, lineHeight: 18 },
+
   lockedCard: {
     marginTop: spacing.lg,
     alignItems: 'center',
@@ -383,7 +433,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     padding: spacing.xl,
   },
-  lockedTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  lockedMsg: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.sm },
+  lockedTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text },
+  lockedMsg: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.sm },
   cell: { borderRadius: radii.sm, overflow: 'hidden', backgroundColor: colors.surfaceMuted, marginBottom: spacing.sm },
 });

@@ -7,6 +7,7 @@ export default function OnboardingLayout() {
       initialRouteName="splash"
       screenOptions={{ headerShown: false, animation: 'fade' }}
     >
+      <Stack.Screen name="terms" />
       <Stack.Screen name="splash" />
       <Stack.Screen name="welcome" />
     </Stack>

@@ -17,6 +17,14 @@ export type GalleryItem = {
   coverPhoto?: string;
   photoCount?: number;
   locked?: boolean;
+  /**
+   * True when this album is a content-library album (carries a
+   * `contentApprovalStatus`). The Albums tab hides these — they live in
+   * the Content tab instead.
+   */
+  isContent?: boolean;
+  /** Album kind label when the backend provides it (Event / Personal / Content). */
+  kind?: string;
 };
 
 export type AlbumImage = { id: ID; url?: string; caption?: string };
@@ -26,6 +34,11 @@ export type AlbumDetail = GalleryItem & {
   amountDue?: number;
   currency?: string;
   photographer?: string;
+  /** Content-album review state (only set for content albums). */
+  approvalStatus?: ContentApprovalStatus;
+  /** Reviewer's note when the content album was rejected / needs changes. */
+  approvalComment?: string;
+  categoryLabel?: string;
 };
 
 type Raw = Record<string, unknown>;
@@ -33,13 +46,26 @@ const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : undefined);
 
 function mapGallery(r: Raw): GalleryItem {
+  const isContent = !!str(r.contentApprovalStatus);
   return {
     id: String(r.id ?? ''),
     name: str(r.title) ?? str(r.name) ?? 'Album',
     coverPhoto: str(r.thumbnail) ?? str(r.coverPhoto) ?? str(r.coverImage),
     photoCount: num(r.photoCount) ?? num(r.photosCount),
     locked: r.isLocked === true || r.locked === true,
+    isContent,
+    kind: isContent ? 'Content' : str(r.albumType) ?? str(r.kind),
   };
+}
+
+/**
+ * Normal (event / personal) albums only — the Albums tab. Filters out
+ * content-library albums, which live in the Content tab. Web parity:
+ * salo-run's Albums view excludes content albums from the main list.
+ */
+export async function listAlbums(isPhotographer: boolean): Promise<GalleryItem[]> {
+  const all = await listGalleries(isPhotographer);
+  return all.filter((a) => !a.isContent);
 }
 
 export async function listGalleries(isPhotographer: boolean): Promise<GalleryItem[]> {
@@ -47,6 +73,36 @@ export async function listGalleries(isPhotographer: boolean): Promise<GalleryIte
   const res = await api.get<ApiEnvelope<Raw[]>>(path);
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map(mapGallery).filter((g) => g.id);
+}
+
+// --- Content albums (photographer stock library) -------------------------
+
+export type ContentApprovalStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
+
+export type ContentAlbumItem = GalleryItem & {
+  approvalStatus?: ContentApprovalStatus;
+  categoryLabel?: string;
+  approvalComment?: string;
+};
+
+/**
+ * Content/library albums the photographer has authored. Web parity
+ * (salo-run ContentAlbumsTab): there's no dedicated content GET endpoint
+ * yet, so we reuse `/photographer/albums` and keep only rows that carry a
+ * `contentApprovalStatus` — that flag is what marks an album as a
+ * content-library album rather than a client event album.
+ */
+export async function listContentAlbums(): Promise<ContentAlbumItem[]> {
+  const res = await api.get<ApiEnvelope<Raw[]>>('/photographer/albums');
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data
+    .map((r) => ({
+      ...mapGallery(r),
+      approvalStatus: str(r.contentApprovalStatus) as ContentApprovalStatus | undefined,
+      categoryLabel: str(r.contentCategoryLabel) ?? str(r.contentCategory),
+      approvalComment: str(r.contentApprovalComment),
+    }))
+    .filter((a) => a.id && a.approvalStatus);
 }
 
 export async function getAlbum(id: string, isPhotographer = false): Promise<AlbumDetail> {
@@ -62,6 +118,9 @@ export async function getAlbum(id: string, isPhotographer = false): Promise<Albu
     photographer: str(d.photographer),
     amountDue: num(payment.amountDue),
     currency: str(payment.currency) ?? str(d.currency),
+    approvalStatus: str(d.contentApprovalStatus) as ContentApprovalStatus | undefined,
+    approvalComment: str(d.contentApprovalComment),
+    categoryLabel: str(d.contentCategoryLabel) ?? str(d.contentCategory),
     images: rawImages
       .map((i) => ({ id: String(i.id ?? ''), url: str(i.fileUrl) ?? str(i.url), caption: str(i.caption) }))
       .filter((i) => i.id),
@@ -120,6 +179,109 @@ export async function createContentAlbum(input: CreateAlbumInput): Promise<void>
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not create the album.' } satisfies ApiError;
   }
+}
+
+// ────── Normal album creation (Event / Personal PAID / Personal FREE) ────
+//
+// Web parity (salo-run photographer create-album modal):
+//   Event album    → POST /photographer/albums          (+ eventId)
+//   Personal PAID  → POST /photographer/albums/paid      (pricePerImage, currencyId)
+//   Personal FREE  → POST /photographer/albums/free       (recipientEmail, …)
+//                    then POST /photographer/albums/{id}/send-free
+// In every case photos are uploaded afterwards via addAlbumImages().
+
+export type AlbumCreateResult = { id: string; accessCode?: string; inviteCode?: string };
+
+async function postAlbum(path: string, fields: Record<string, string | undefined>): Promise<AlbumCreateResult> {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) {
+    if (v != null && v !== '') form.append(k, v);
+  }
+  const res = await api.post<ApiEnvelope<Raw>>(path, form);
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not create the album.' } satisfies ApiError;
+  }
+  const d = (res?.data ?? {}) as Raw;
+  const id = str(d.id) ?? str(d.albumId) ?? '';
+  if (!id) throw { status: 400, message: 'Album created but no id was returned.' } satisfies ApiError;
+  return { id, accessCode: str(d.accessCode), inviteCode: str(d.inviteCode) };
+}
+
+export async function createEventAlbum(input: {
+  eventId: string;
+  title: string;
+  description?: string;
+  category?: string;
+  images: PickedImage[];
+}): Promise<AlbumCreateResult> {
+  const res = await postAlbum('/photographer/albums', {
+    title: input.title.trim(),
+    description: input.description,
+    category: input.category,
+    eventId: input.eventId,
+  });
+  await addAlbumImages(res.id, input.images);
+  return res;
+}
+
+export async function createPaidAlbum(input: {
+  title: string;
+  description?: string;
+  category?: string;
+  location?: string;
+  date?: string;
+  pricePerImage: string;
+  currencyId: string;
+  images: PickedImage[];
+}): Promise<AlbumCreateResult> {
+  const res = await postAlbum('/photographer/albums/paid', {
+    title: input.title.trim(),
+    description: input.description,
+    category: input.category,
+    location: input.location,
+    date: input.date,
+    pricePerImage: input.pricePerImage,
+    currencyId: input.currencyId,
+  });
+  await addAlbumImages(res.id, input.images);
+  return res;
+}
+
+export async function createFreeAlbum(input: {
+  title: string;
+  description?: string;
+  category?: string;
+  location?: string;
+  date?: string;
+  recipientEmail: string;
+  maxFreeDownloads?: string;
+  pricePerExtraImage?: string;
+  currencyId?: string;
+  images: PickedImage[];
+}): Promise<AlbumCreateResult> {
+  const fields: Record<string, string | undefined> = {
+    title: input.title.trim(),
+    description: input.description,
+    category: input.category,
+    location: input.location,
+    date: input.date,
+    recipientEmail: input.recipientEmail.trim(),
+    maxFreeDownloads: input.maxFreeDownloads,
+  };
+  // Currency only matters when there's actually a per-extra price to charge.
+  if (input.pricePerExtraImage) {
+    fields.pricePerExtraImage = input.pricePerExtraImage;
+    fields.currencyId = input.currencyId;
+  }
+  const res = await postAlbum('/photographer/albums/free', fields);
+  // Email the invite + access code to the recipient (best-effort).
+  try {
+    await api.post(`/photographer/albums/${encodeURIComponent(res.id)}/send-free`, {});
+  } catch {
+    /* the album still exists; the photographer can resend from detail */
+  }
+  await addAlbumImages(res.id, input.images);
+  return res;
 }
 
 /** Adds more photos to an existing album. */

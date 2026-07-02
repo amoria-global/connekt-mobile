@@ -1,16 +1,37 @@
+/**
+ * Photobooks — curated photo collections from events.
+ *
+ * Design matches the photographer "Events & albums" dashboard and the
+ * Albums tab: LIBRARY eyebrow header, Pragati Narrow type, and image-led
+ * cards with a status badge. A "+ New photobook" FAB authors a photobook
+ * (photographers / coordinators only).
+ */
 import { useCallback } from 'react';
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DataList } from '@/components/ui/DataList';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { useRole } from '@/features/auth/role';
-import { listPhotobooks } from '@/features/photobooks/api';
+import { listPhotobooks, type Photobook } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, radii, spacing } from '@/theme';
+
+const STATUS_TONE: Record<string, { bg: string; fg: string }> = {
+  PUBLISHED: { bg: '#D1FAE5', fg: '#047857' },
+  DRAFT: { bg: '#E5E7EB', fg: '#374151' },
+  PENDING: { bg: '#FEF3C7', fg: '#92400E' },
+  SENT: { bg: '#DBEAFE', fg: '#1D4ED8' },
+};
 
 export default function PhotobooksScreen() {
   const router = useRouter();
@@ -20,47 +41,75 @@ export default function PhotobooksScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Photobooks" subtitle="Curated photo collections from your events" />
-      <DataList
-        data={data}
-        loading={loading}
-        error={error}
-        onRefresh={refresh}
+      <FlatList<Photobook>
+        data={data ?? []}
         keyExtractor={(p) => p.id}
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            onPress={() => router.push(`/photobook/${item.id}` as Href)}
-          >
-            {item.coverImage ? (
-              <Image source={{ uri: item.coverImage }} style={styles.cover} contentFit="cover" />
-            ) : (
-              <View style={[styles.cover, styles.coverFallback]}>
-                <Ionicons name="book-outline" size={26} color={colors.textMuted} />
+        numColumns={2}
+        columnWrapperStyle={{ gap: spacing.md }}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
+        }
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.eyebrow}>LIBRARY</Text>
+            <Text style={styles.h1}>Photobooks</Text>
+            <Text style={styles.subtitle}>Curated photo collections from your events.</Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const tone = item.status ? STATUS_TONE[item.status.toUpperCase()] : undefined;
+          return (
+            <Pressable
+              style={styles.card}
+              onPress={() => router.push(`/photobook/${item.id}` as Href)}
+              android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
+            >
+              <View style={styles.cover}>
+                {item.coverImage ? (
+                  <Image source={{ uri: item.coverImage }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
+                ) : (
+                  <View style={[StyleSheet.absoluteFillObject, styles.coverFallback]}>
+                    <Ionicons name="book-outline" size={26} color={colors.textMuted} />
+                  </View>
+                )}
+                {tone ? (
+                  <View style={[styles.statusBadge, { backgroundColor: tone.bg }]}>
+                    <Text style={[styles.statusBadgeText, { color: tone.fg }]}>{item.status}</Text>
+                  </View>
+                ) : null}
               </View>
-            )}
-            <View style={styles.body}>
-              <Text style={styles.name} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.meta}>
-                {item.mediaCount != null ? `${item.mediaCount} photos` : 'Photobook'}
-                {item.photographerName ? ` · ${item.photographerName}` : ''}
-              </Text>
+              <View style={styles.cardBody}>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.cardMeta} numberOfLines={1}>
+                  {item.mediaCount != null ? `${item.mediaCount} photos` : 'Photobook'}
+                  {item.photographerName ? ` · ${item.photographerName}` : ''}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        }}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator style={{ marginTop: spacing.xl }} size="large" color={colors.primary} />
+          ) : error ? (
+            <View style={{ paddingTop: spacing.xl }}>
+              <EmptyState icon="cloud-offline-outline" title="Couldn't load photobooks" message="Pull to refresh and try again." />
             </View>
-            {item.status ? <StatusPill status={item.status} /> : null}
-          </Pressable>
-        )}
-        emptyIcon="book-outline"
-        emptyTitle="No photobooks yet"
-        emptyMessage="Photobooks curated from your event photos will appear here."
+          ) : (
+            <View style={{ paddingTop: spacing.xl }}>
+              <EmptyState
+                icon="book-outline"
+                title="No photobooks yet"
+                message="Photobooks curated from your event photos will appear here."
+              />
+            </View>
+          )
+        }
       />
 
-      {/*
-       * "+ New photobook" — Photographer / Coordinator only (web parity:
-       * the /customer/events/photobook authoring endpoint is gated on
-       * those roles). Clients consume photobooks; they don't author them.
-       */}
       {canCreate ? (
         <Pressable
           style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
@@ -76,22 +125,35 @@ export default function PhotobooksScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
+  list: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.md },
+
+  header: { paddingTop: spacing.md, marginBottom: spacing.xs },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
+  h1: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, letterSpacing: -0.5, marginTop: 2 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, marginTop: 2, lineHeight: 20 },
+
+  card: { flex: 1, marginBottom: spacing.md },
+  cover: {
+    width: '100%',
+    aspectRatio: 3 / 4,
     borderRadius: radii.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceMuted,
   },
-  pressed: { opacity: 0.85 },
-  cover: { width: 56, height: 56, borderRadius: radii.md, backgroundColor: colors.surfaceMuted },
   coverFallback: { alignItems: 'center', justifyContent: 'center' },
-  body: { flex: 1, gap: 2 },
-  name: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  meta: { fontSize: fontSize.sm, color: colors.textMuted },
+  statusBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  statusBadgeText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.3 },
+  cardBody: { paddingTop: 6 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  cardMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, marginTop: 1 },
+
   fab: {
     position: 'absolute',
     bottom: 100,

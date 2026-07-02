@@ -35,6 +35,17 @@ export type EventItem = {
   /** Category id when available (lets edit forms pre-select the row). */
   categoryId?: string;
   photographerName?: string;
+  /**
+   * The booking's client (who the photographer is shooting for). On the
+   * photographer feed the card shows this person + avatar, not the
+   * photographer. Web parity: photographer/events.tsx card footer.
+   */
+  clientName?: string;
+  clientAvatar?: string;
+  /** Booked package label (e.g. "Diamond", "Gold") — shown as a card badge. */
+  packageName?: string;
+  /** Whether this event carries a live stream (drives the Stream pill + CTA). */
+  hasLiveStream?: boolean;
   coverImage?: string;
   description?: string;
   startTime?: string;
@@ -67,9 +78,13 @@ export type EventItem = {
   price?: number;
   currency?: string;
   maxGuests?: number;
+  /** Current confirmed guest count (shown as "{guestCount} / {maxGuests}"). */
+  guestCount?: number;
   organizer?: string;
   tags?: string[];
   eventVisibility?: string;
+  /** Client completion state, e.g. NOT_COMPLETED / COMPLETED / REQUIRE_CHANGES. */
+  completionStatus?: string;
   notes?: string;
 };
 

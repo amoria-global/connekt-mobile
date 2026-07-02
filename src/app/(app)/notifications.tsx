@@ -1,29 +1,33 @@
 import { useCallback, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useRole } from '@/features/auth/role';
-import { listNotifications, markAllRead, markRead } from '@/features/notifications/api';
+import { listNotifications, markAllRead, markRead, type AppNotification } from '@/features/notifications/api';
+import { notificationTarget } from '@/features/notifications/routing';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
 
 export default function NotificationsScreen() {
+  const router = useRouter();
   const { role } = useRole();
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => listNotifications(role), [role]),
   );
   const [working, setWorking] = useState(false);
 
-  const onTap = async (id: string, alreadyRead: boolean) => {
-    if (alreadyRead) return;
-    try {
-      await markRead(role, id);
-      await refresh();
-    } catch {
-      // ignore
+  const onTap = (item: AppNotification) => {
+    // Open the exact entity this notification is about; mark read in the
+    // background (don't block navigation on it).
+    if (!item.read) {
+      markRead(role, item.id)
+        .then(() => refresh())
+        .catch(() => {});
     }
+    router.push(notificationTarget(item));
   };
 
   const onMarkAll = async () => {
@@ -58,7 +62,7 @@ export default function NotificationsScreen() {
         keyExtractor={(n) => n.id}
         renderItem={({ item }) => (
           <Pressable
-            onPress={() => onTap(item.id, item.read)}
+            onPress={() => onTap(item)}
             style={[styles.card, !item.read && styles.unread]}
           >
             <View style={styles.cardHeader}>
@@ -82,7 +86,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   markAll: { paddingHorizontal: spacing.xl },
-  markAllText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  markAllText: { color: colors.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
@@ -93,8 +97,8 @@ const styles = StyleSheet.create({
   },
   unread: { borderColor: colors.primary, backgroundColor: colors.infoBg },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  title: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  title: { flex: 1, fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
   dot: { width: 9, height: 9, borderRadius: radii.full, backgroundColor: colors.accent },
-  body: { fontSize: fontSize.sm, color: colors.textSoft },
-  time: { fontSize: fontSize.xs, color: colors.textMuted },
+  body: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textSoft },
+  time: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
 });

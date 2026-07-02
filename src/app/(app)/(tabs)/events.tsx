@@ -1,29 +1,27 @@
-import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Fab } from '@/components/ui/Fab';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
-import { EventsList } from '@/features/events/EventsList';
+import { PhotographerEventsDashboard } from '@/features/events/PhotographerEventsDashboard';
+import { OwnerEventsDashboard } from '@/features/events/OwnerEventsDashboard';
 
 export default function EventsScreen() {
-  const router = useRouter();
   const topBarHeight = useTopBarHeight();
-  const { isPhotographer, isCoordinator, isViewer, ownsEvents } = useRole();
+  const { isPhotographer, isCoordinator, isViewer } = useRole();
 
   if (isPhotographer) {
     /*
-     * Web parity: salo-run's photographer/events tab carries the union
-     * of bookings + assigned events in a single feed. Pending booking
-     * requests are surfaced INLINE on each event card (Accept / Decline
-     * pills below the meta strip) — there is no separate Bookings tab
-     * on the web, and the previous two-tab toggle here was redundant
-     * with the per-card CTAs.
+     * Photographer "Events & albums" dashboard — full parity with
+     * salo-run/app/pages/photographer/events.tsx: LIBRARY header, view
+     * toggle (Events/Albums/Photobooks/Content), Total/Upcoming/Ongoing/
+     * Completed stat strip, filter pills + search, and dark image-led
+     * cards with per-status CTAs (Accept/Deny, Live Stream, Create Album,
+     * Accepted chip, package badge) + the accept-booking sheet.
      */
     return (
       <Screen padded={false} edges={['bottom']}>
-        <EventsList variant="photographer" topInset={topBarHeight} />
+        <PhotographerEventsDashboard topInset={topBarHeight} />
         <TopBar />
       </Screen>
     );
@@ -44,16 +42,14 @@ export default function EventsScreen() {
     );
   }
 
-  // Client & Coordinator both own events.
+  // Client & Event Coordinator — the same full owner dashboard (stats,
+  // filters, search, image-led cards with Edit/Share + Manage). Its header
+  // carries its own "New event" button, so no Fab. Passing `coordinator`
+  // just switches the data source (listCoordinatorEvents vs listEvents) and
+  // the eyebrow label.
   return (
     <Screen padded={false} edges={['bottom']}>
-      <EventsList
-        coordinator={isCoordinator}
-        title="Events"
-        subtitle="Your bookings and sessions"
-        topInset={topBarHeight}
-      />
-      {ownsEvents ? <Fab icon="add" onPress={() => router.push('/event/new')} /> : null}
+      <OwnerEventsDashboard coordinator={isCoordinator} topInset={topBarHeight} />
       <TopBar />
     </Screen>
   );

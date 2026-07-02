@@ -1,5 +1,5 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 import type { Conversation } from './api';
 
 export function ConversationRow({ conversation }: { conversation: Conversation }) {
@@ -51,9 +51,9 @@ const styles = StyleSheet.create({
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   avatarText: { color: colors.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   body: { flex: 1, gap: 2 },
-  name: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  preview: { fontSize: fontSize.sm, color: colors.textMuted },
-  previewUnread: { color: colors.text, fontWeight: fontWeight.semibold },
+  name: { fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+  preview: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
+  previewUnread: { color: colors.text, fontFamily: fonts.bold, fontWeight: fontWeight.semibold },
   badge: {
     minWidth: 22,
     height: 22,

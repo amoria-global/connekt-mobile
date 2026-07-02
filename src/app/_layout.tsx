@@ -1,16 +1,18 @@
 import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, type Href } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   useFonts,
   PragatiNarrow_400Regular,
   PragatiNarrow_700Bold,
 } from '@expo-google-fonts/pragati-narrow';
+import { Asset } from 'expo-asset';
 import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
+import { UpdateBanner } from '@/features/updates/UpdateBanner';
 import { colors } from '@/theme';
 
 /**
@@ -29,14 +31,58 @@ import { colors } from '@/theme';
  * Style arrays merge right-to-left, so any inline `fontFamily:
  * 'PragatiNarrow_700Bold'` (e.g. the FindMyPhotos hero) still wins.
  */
-type ForwardRefRenderable = {
-  render: (props: { style?: unknown }, ref: unknown) => unknown;
-};
-
 function applyDefaultFont() {
-  // Safe NO-OP to prevent production crashes. 
-  // In React 19 / Release mode, patching internal `.render` on Text causes instant crashes.
-  // To apply global fonts safely, you should create a <CustomText> wrapper component instead.
+  // Web (react-native-web): inject a low-specificity CSS default so every
+  // Text / input that doesn't set its own fontFamily inherits Pragati
+  // Narrow. Components that DO set a family (e.g. PragatiNarrow_700Bold on
+  // headings) keep it — this only fills in the default. Patching RN's
+  // internal Text.render is avoided on purpose: it crashes under React 19
+  // in release. Native screens use the theme's `fonts` tokens directly.
+  if (Platform.OS !== 'web') return;
+  if (typeof document === 'undefined') return;
+  const id = 'app-default-font';
+  if (document.getElementById(id)) return;
+
+  // Why not a universal `* { font-family }` rule? react-native-web gives
+  // every <Text> a base `font: 14px System` class (specificity 0,1,0) that
+  // resolves to the system stack (-apple-system, "Segoe UI", Roboto, …) and
+  // outranks a `*` selector — so unstyled text stayed on the system font.
+  // Forcing it with `!important` instead would flatten our real bold and
+  // break the icon fonts (Ionicons et al.).
+  //
+  // The clean fix: build ONE real "Pragati Narrow" family (400 + 700) from
+  // the already-loaded font files, then REDEFINE the exact fallback family
+  // names in RNW's system stack to point at it. Unstyled text resolves to
+  // one of those names → renders Pragati, with fontWeight still selecting the
+  // true bold face. Our explicit `PragatiNarrow_*` families and the icon
+  // fonts are untouched (they're not in the hijack list), so bold and icons
+  // keep working — no `!important`, no specificity fight.
+  let regular: string | undefined;
+  let bold: string | undefined;
+  try {
+    regular = Asset.fromModule(PragatiNarrow_400Regular).uri;
+    bold = Asset.fromModule(PragatiNarrow_700Bold).uri;
+  } catch {
+    /* asset uris unavailable — skip; branded screens still render Pragati */
+  }
+  if (!regular || !bold) return;
+
+  const face = (family: string) =>
+    `@font-face{font-family:${family};font-style:normal;font-weight:400;src:url("${regular}") format("truetype");}` +
+    `@font-face{font-family:${family};font-style:normal;font-weight:700;src:url("${bold}") format("truetype");}`;
+
+  // The real family + the system-stack names browsers actually fall back to.
+  const families = ["'Pragati Narrow'", "'Segoe UI'", 'Roboto', 'Helvetica', 'Arial', 'BlinkMacSystemFont'];
+  const stack =
+    "'Pragati Narrow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+  const style = document.createElement('style');
+  style.id = id;
+  style.textContent =
+    families.map(face).join('') +
+    // Catch UA-styled elements (body, form controls) that don't use the RN stack.
+    `html,body,input,textarea,button,select{font-family:${stack};}`;
+  document.head.appendChild(style);
 }
 
 /**
@@ -46,6 +92,7 @@ function applyDefaultFont() {
 function useProtectedRoute() {
   const status = useAuth((s) => s.status);
   const seen = useOnboarding((s) => s.seen);
+  const termsAccepted = useOnboarding((s) => s.termsAccepted);
   const segments = useSegments();
   const router = useRouter();
 
@@ -59,6 +106,16 @@ function useProtectedRoute() {
     const inOnboarding = group === '(onboarding)';
     // Guest-browsable screens (explore events / find photos) need no login.
     const inPublic = group === '(public)';
+    const onTerms = (segments as string[]).includes('terms');
+
+    // First install: force the Terms & Conditions screen before anything
+    // else (persisted, so it only happens once). Wait until storage has
+    // been read (termsAccepted !== null).
+    if (termsAccepted === false) {
+      if (!onTerms) router.replace('/terms' as Href);
+      return;
+    }
+    if (termsAccepted === null) return;
 
     if (status === 'authenticated') {
       if (inAuthGroup || inOnboarding) router.replace('/');
@@ -71,7 +128,7 @@ function useProtectedRoute() {
     } else if (!inAuthGroup && !inPublic) {
       router.replace('/login');
     }
-  }, [status, seen, segments, router]);
+  }, [status, seen, termsAccepted, segments, router]);
 }
 
 export default function RootLayout() {
@@ -113,6 +170,8 @@ export default function RootLayout() {
             <Stack.Screen name="(app)" />
           </Stack>
         )}
+        {/* OTA update prompt — appears once a downloaded update is ready. */}
+        <UpdateBanner />
         <StatusBar style="dark" />
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text } from 'react-native';
 import { GoogleIcon } from '@/components/ui/GoogleIcon';
-import { env, googleConfigured } from '@/config/env';
+import { env } from '@/config/env';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { fetchGoogleProfile, googleLogin } from './api';
@@ -15,19 +15,35 @@ WebBrowser.maybeCompleteAuthSession();
 type Props = { customerType?: CustomerType; label?: string };
 
 /**
- * "Continue with Google". `googleConfigured` is a stable env constant, so
- * splitting on it keeps hook order consistent while avoiding a crash when no
- * Google client IDs are set (the OAuth hook requires at least one).
+ * Whether the client ID required by THIS platform is present.
+ * `expo-auth-session`'s Google provider throws (invariantClientId) if the
+ * platform's own client ID is missing — so a build that only sets the iOS /
+ * Android IDs still crashed on web where `webClientId` is mandatory. We gate
+ * on the platform-specific id, not "any id is set".
+ */
+const googleConfiguredForPlatform =
+  Platform.OS === 'web'
+    ? !!env.googleWebClientId
+    : Platform.OS === 'ios'
+      ? !!env.googleIosClientId || !!env.googleWebClientId
+      : Platform.OS === 'android'
+        ? !!env.googleAndroidClientId || !!env.googleWebClientId
+        : false;
+
+/**
+ * "Continue with Google". Splitting on the platform-aware config flag keeps
+ * hook order consistent while avoiding the `useAuthRequest` invariant crash
+ * when the platform's Google client ID isn't set.
  */
 export function GoogleButton({ customerType = 'Client', label = 'Continue with Google' }: Props) {
-  if (!googleConfigured) {
+  if (!googleConfiguredForPlatform) {
     return (
       <Shell
         label={label}
         onPress={() =>
           Alert.alert(
             'Google sign-in not configured',
-            'Add your Google OAuth client IDs (EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID / IOS / ANDROID) to enable this.',
+            `Add your ${Platform.OS} Google OAuth client ID (EXPO_PUBLIC_GOOGLE_${Platform.OS === 'web' ? 'WEB' : Platform.OS === 'ios' ? 'IOS' : 'ANDROID'}_CLIENT_ID) to enable this.`,
           )
         }
       />

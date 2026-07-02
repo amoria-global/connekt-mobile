@@ -1,23 +1,18 @@
 /**
- * Gallery / album index.
+ * Albums (Gallery) — the photographer's event & personal photo albums,
+ * OR (for clients/coordinators) the albums photographers have shared.
  *
- * Lists the signed-in user's albums via the role-aware
- * `listGalleries(isPhotographer)` helper:
- *   • Client / Coordinator → GET /customer/albums (their event galleries)
- *   • Photographer         → GET /photographer/albums (the albums they own)
+ * Content-library albums are intentionally excluded here — they live in
+ * the Content tab (`/content-albums`). We use `listAlbums`, which filters
+ * out any album carrying a `contentApprovalStatus`.
  *
- * A floating "+ New album" CTA only renders for Photographers — clients
- * consume galleries, they don't author them (web parity: only the
- * /photographer/albums/content endpoint accepts a create). The button
- * routes to the existing /album/new sheet which already wires the
- * multipart upload through `createContentAlbum`.
- *
- * Cells are responsive: useGridColumns picks 2 → 3 → 4 columns based on
- * viewport (small phones → tablets / web), so a hub of albums looks
- * right at every width.
+ * Design matches the photographer "Events & albums" dashboard: LIBRARY
+ * eyebrow header, Pragati Narrow type, and image-led cards with a clean
+ * white footer. A "+ New album" FAB creates a normal album (photographers
+ * only).
  */
 import { useCallback } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -32,124 +27,99 @@ import {
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
-import { listGalleries, type GalleryItem } from '@/features/gallery/api';
+import { listAlbums, type GalleryItem } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
-import { useGridColumns, useResponsive } from '@/hooks/useResponsive';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
-
-const COVER_FALLBACK =
-  'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=600&q=70';
+import { colors, fonts, radii, spacing } from '@/theme';
 
 export default function GalleryScreen() {
   const router = useRouter();
   const { isPhotographer } = useRole();
-  const { width } = useResponsive();
-  const columns = useGridColumns({ itemMinWidth: 160, min: 2, max: 4 });
-
   const { data, loading, error, refresh } = useAsync(
-    useCallback(() => listGalleries(isPhotographer), [isPhotographer]),
+    useCallback(() => listAlbums(isPhotographer), [isPhotographer]),
   );
-
-  // Cell size = (viewport − screen padding − gaps) / columns.
-  const padding = spacing.xl * 2;
-  const gaps = spacing.md * (columns - 1);
-  const cellSize = Math.floor((width - padding - gaps) / columns);
 
   return (
     <Screen padded={false}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Gallery</Text>
-        <Text style={styles.subtitle}>
-          {isPhotographer
-            ? 'Your albums and content collections.'
-            : "Albums shared by photographers you've worked with."}
-        </Text>
-      </View>
-
-      {loading && !data ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <FlatList<GalleryItem>
-          // FlatList's `numColumns` MUST stay constant per mount, so
-          // remount via `key` whenever the column count changes.
-          key={`gallery-${columns}`}
-          data={data ?? []}
-          keyExtractor={(g) => g.id}
-          numColumns={columns}
-          contentContainerStyle={styles.list}
-          columnWrapperStyle={columns > 1 ? styles.columnGap : undefined}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-          refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
-          }
-          renderItem={({ item }) => (
-            <Pressable
-              style={({ pressed }) => [
-                styles.card,
-                { width: cellSize },
-                pressed && styles.cardPressed,
-              ]}
-              onPress={() => router.push(`/album/${item.id}` as never)}
-            >
-              <Image
-                source={{ uri: item.coverPhoto || COVER_FALLBACK }}
-                style={[styles.cover, { width: cellSize, height: cellSize }]}
-                contentFit="cover"
-                transition={200}
-              />
+      <FlatList<GalleryItem>
+        data={data ?? []}
+        keyExtractor={(g) => g.id}
+        numColumns={2}
+        columnWrapperStyle={{ gap: spacing.md }}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
+        }
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.eyebrow}>LIBRARY</Text>
+            <Text style={styles.h1}>Albums</Text>
+            <Text style={styles.subtitle}>
+              {isPhotographer
+                ? 'Your event and personal photo albums.'
+                : "Albums shared by photographers you've worked with."}
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <Pressable
+            style={styles.card}
+            onPress={() => router.push(`/album/${item.id}` as Href)}
+            android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
+          >
+            <View style={styles.cover}>
+              {item.coverPhoto ? (
+                <Image source={{ uri: item.coverPhoto }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
+              ) : (
+                <View style={[StyleSheet.absoluteFillObject, styles.coverFallback]}>
+                  <Ionicons name="images-outline" size={26} color={colors.textMuted} />
+                </View>
+              )}
               {item.locked ? (
                 <View style={styles.lockBadge}>
-                  <Ionicons name="lock-closed" size={11} color="#fff" />
+                  <Ionicons name="lock-closed" size={10} color="#fff" />
                   <Text style={styles.lockText}>LOCKED</Text>
                 </View>
               ) : null}
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle} numberOfLines={2}>
-                  {item.name}
+            </View>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {item.name}
+              </Text>
+              {item.photoCount != null ? (
+                <Text style={styles.cardMeta}>
+                  {item.photoCount} photo{item.photoCount === 1 ? '' : 's'}
                 </Text>
-                {item.photoCount != null ? (
-                  <Text style={styles.cardMeta}>
-                    {item.photoCount} photo{item.photoCount === 1 ? '' : 's'}
-                  </Text>
-                ) : null}
-              </View>
-            </Pressable>
-          )}
-          ListEmptyComponent={
-            error ? (
-              <View style={styles.centered}>
-                <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-                <Text style={styles.muted}>{error}</Text>
-              </View>
-            ) : (
-              <View style={styles.centered}>
-                <EmptyState
-                  icon="images-outline"
-                  title={isPhotographer ? 'No albums yet' : 'No galleries yet'}
-                  message={
-                    isPhotographer
-                      ? 'Tap the + button to create your first content album.'
-                      : 'When a photographer shares an album with you, it lands here.'
-                  }
-                />
-              </View>
-            )
-          }
-        />
-      )}
+              ) : null}
+            </View>
+          </Pressable>
+        )}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator style={{ marginTop: spacing.xl }} size="large" color={colors.primary} />
+          ) : error ? (
+            <View style={{ paddingTop: spacing.xl }}>
+              <EmptyState icon="cloud-offline-outline" title="Couldn't load albums" message="Pull to refresh and try again." />
+            </View>
+          ) : (
+            <View style={{ paddingTop: spacing.xl }}>
+              <EmptyState
+                icon="images-outline"
+                title={isPhotographer ? 'No albums yet' : 'No galleries yet'}
+                message={
+                  isPhotographer
+                    ? 'Tap the + button to create your first album.'
+                    : 'When a photographer shares an album with you, it lands here.'
+                }
+              />
+            </View>
+          )
+        }
+      />
 
-      {/*
-       * "+ New album" — Photographer only (web parity: only
-       * /photographer/albums/content accepts a create). The button
-       * routes to the existing album/new sheet so we don't duplicate
-       * the form.
-       */}
       {isPhotographer ? (
         <Pressable
           style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          onPress={() => router.push('/album/new' as never)}
+          onPress={() => router.push('/album/new' as Href)}
           accessibilityRole="button"
           accessibilityLabel="New album"
         >
@@ -161,42 +131,38 @@ export default function GalleryScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, gap: 4 },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  subtitle: { fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.md },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.md },
 
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  header: { paddingTop: spacing.md, marginBottom: spacing.xs },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
+  h1: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, letterSpacing: -0.5, marginTop: 2 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, marginTop: 2, lineHeight: 20 },
 
-  list: { paddingHorizontal: spacing.xl, paddingBottom: 120 },
-  columnGap: { gap: spacing.md },
-
-  card: {
-    backgroundColor: colors.surface,
+  card: { flex: 1, marginBottom: spacing.md },
+  cover: {
+    width: '100%',
+    aspectRatio: 3 / 4,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
     overflow: 'hidden',
+    backgroundColor: colors.surfaceMuted,
   },
-  cardPressed: { opacity: 0.85 },
-  cover: { backgroundColor: colors.surfaceMuted },
-  cardBody: { padding: spacing.sm, gap: 2 },
-  cardTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
-  cardMeta: { fontSize: fontSize.xs, color: colors.textMuted },
-
+  coverFallback: { alignItems: 'center', justifyContent: 'center' },
   lockBadge: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
+    top: 8,
+    right: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radii.full,
   },
-  lockText: { color: '#fff', fontSize: 9, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
+  lockText: { color: '#fff', fontSize: 9, fontFamily: fonts.bold, letterSpacing: 0.5 },
+  cardBody: { paddingTop: 6 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  cardMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, marginTop: 1 },
 
   fab: {
     position: 'absolute',
