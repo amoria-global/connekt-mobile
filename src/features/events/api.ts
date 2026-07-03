@@ -139,18 +139,58 @@ function mapEvent(r: RawEvent): EventItem {
   };
 }
 
+/** Newest-created first — the order every dashboard list is shown in. */
+function sortByCreatedDesc(items: EventItem[]): EventItem[] {
+  return [...items].sort((a, b) => {
+    const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+    const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+    return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+  });
+}
+
+/**
+ * Walk EVERY page of a Spring-Page endpoint and return all rows. The mobile
+ * dashboards render a single scrollable list, so fetching only page 0 (backend
+ * default size 10) silently dropped every event past the tenth. We page through
+ * with a big page size and stop at `totalPages` (or a short page).
+ */
+async function fetchAllEventPages(
+  path: string,
+  extraQs: Record<string, string> = {},
+): Promise<RawEvent[]> {
+  const size = 100;
+  const all: RawEvent[] = [];
+  for (let page = 0; page < 50; page++) {
+    const qs = new URLSearchParams({ page: String(page), size: String(size), ...extraQs });
+    const res = await api.get<ApiEnvelope<unknown>>(`${path}?${qs.toString()}`);
+    const rows = unwrapList(res?.data);
+    all.push(...rows);
+    const totalPages = (res?.data as { totalPages?: unknown } | undefined)?.totalPages;
+    if (typeof totalPages === 'number') {
+      if (page + 1 >= totalPages) break;
+    } else if (rows.length < size) {
+      break;
+    }
+  }
+  return all;
+}
+
 export async function listEvents(): Promise<EventItem[]> {
-  // Backend wraps the list in a Spring Page object
-  // ({ content: [...], pageable: {...} }). `unwrapList` already handles
-  // both the page-envelope and a bare array shape — using it here fixes
-  // the empty-list bug where `Array.isArray(res.data)` was always false.
-  const res = await api.get<ApiEnvelope<unknown>>('/customer/events');
-  return unwrapList(res?.data).map(mapEvent).filter((e) => e.id);
+  // Backend wraps the list in a Spring Page object. Fetch every page and sort
+  // newest-created first (the customer endpoint defaults to eventDate order).
+  const rows = await fetchAllEventPages('/customer/events', {
+    sortColumn: 'createdAt',
+    sortDirection: 'desc',
+  });
+  return sortByCreatedDesc(rows.map(mapEvent).filter((e) => e.id));
 }
 
 export async function listCoordinatorEvents(): Promise<EventItem[]> {
-  const res = await api.get<ApiEnvelope<unknown>>('/coordinator/events');
-  return unwrapList(res?.data).map(mapEvent).filter((e) => e.id);
+  const rows = await fetchAllEventPages('/coordinator/events', {
+    sortColumn: 'createdAt',
+    sortDirection: 'desc',
+  });
+  return sortByCreatedDesc(rows.map(mapEvent).filter((e) => e.id));
 }
 
 /**
@@ -161,8 +201,11 @@ export async function listCoordinatorEvents(): Promise<EventItem[]> {
  * post-acceptance actions.
  */
 export async function listPhotographerEvents(): Promise<EventItem[]> {
+  // The photographer endpoint returns the full list (no pagination) but in
+  // booking/insertion order — sort newest-created first for parity with the
+  // other dashboards.
   const res = await api.get<ApiEnvelope<unknown>>('/photographer/events');
-  return unwrapList(res?.data).map(mapEvent).filter((e) => e.id);
+  return sortByCreatedDesc(unwrapList(res?.data).map(mapEvent).filter((e) => e.id));
 }
 
 export async function getEvent(id: string): Promise<EventItem> {

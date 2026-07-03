@@ -71,9 +71,28 @@ function mapPackage(r: Raw): PhotographerPackage {
 }
 
 export async function listPhotographers(): Promise<Photographer[]> {
-  const res = await api.get<ApiEnvelope<any>>('/public/photographers/list?size=50');
-  const data = Array.isArray(res?.data?.content) ? res.data.content : (Array.isArray(res?.data) ? res.data : []);
-  return data.map(mapPhotographer).filter((p: Photographer) => p.id);
+  // Walk every page — fetching only the first 50 hid the rest of the
+  // directory (the screen paginates over whatever this returns).
+  const size = 100;
+  const all: any[] = [];
+  for (let page = 0; page < 50; page++) {
+    const res = await api.get<ApiEnvelope<any>>(
+      `/public/photographers/list?page=${page}&size=${size}`,
+    );
+    const rows = Array.isArray(res?.data?.content)
+      ? res.data.content
+      : Array.isArray(res?.data)
+        ? res.data
+        : [];
+    all.push(...rows);
+    const totalPages = res?.data?.totalPages;
+    if (typeof totalPages === 'number') {
+      if (page + 1 >= totalPages) break;
+    } else if (rows.length < size) {
+      break;
+    }
+  }
+  return all.map(mapPhotographer).filter((p: Photographer) => p.id);
 }
 
 export async function getPhotographer(id: string): Promise<PhotographerDetail> {

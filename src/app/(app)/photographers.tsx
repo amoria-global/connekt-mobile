@@ -93,8 +93,10 @@ export default function PhotographersScreen() {
     );
   }, [data, query]);
 
-  // Reset page when filter changes
-  useMemo(() => {
+  // Reset to the first page whenever the filtered set changes. This is a real
+  // side effect, so it belongs in useEffect — doing it in useMemo set state
+  // during render and made the pager jump/stall.
+  useEffect(() => {
     setCurrentPage(1);
   }, [filtered]);
 
