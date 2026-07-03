@@ -26,7 +26,15 @@ import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const schema = z.object({
-  email: z.string().min(1, 'Email is required').email('Enter a valid email'),
+  // Accept an email OR a phone number — phone-only accounts (registered on
+  // mobile/TV) sign in with their number here. The backend resolves either.
+  email: z
+    .string()
+    .min(1, 'Enter your email or phone')
+    .refine(
+      (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim()) || /^[+\d][\d\s-]{5,}$/.test(v.trim()),
+      'Enter a valid email or phone number',
+    ),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -108,11 +116,10 @@ export default function LoginScreen() {
                 name="email"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
-                    label="Email"
-                    placeholder="you@example.com"
+                    label="Email or phone"
+                    placeholder="you@example.com or 0788…"
                     autoCapitalize="none"
-                    autoComplete="email"
-                    keyboardType="email-address"
+                    autoComplete="username"
                     value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}

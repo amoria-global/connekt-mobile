@@ -27,7 +27,9 @@ export type LoginCredentials = {
 };
 
 export type SignupPayload = {
-  email: string;
+  /** Optional — mobile/TV users may register with a phone number only, in
+   *  which case the OTP is delivered by SMS. */
+  email?: string;
   password: string;
   firstName: string;
   lastName: string;
