@@ -56,12 +56,27 @@ function toWhepUrl(url: string): string | null {
   return null;
 }
 
-export function HlsPlayer({ url, style }: { url: string; style?: any }) {
+export function HlsPlayer({
+  url,
+  style,
+  controls = true,
+}: {
+  url: string;
+  style?: any;
+  /** Show player controls. The native WHEP WebView has none regardless; this
+   *  toggles expo-video's nativeControls for the HLS path. */
+  controls?: boolean;
+  /** Web-only: lift the mute/fullscreen bar off the bottom edge (px). Accepted
+   *  here so the shared call site typechecks; native controls are OS-drawn. */
+  controlsBottomOffset?: number;
+  /** Web-only: toggle the in-video LIVE badge. No-op on native. */
+  showLiveBadge?: boolean;
+}) {
   const whepUrl = toWhepUrl(url);
   if (whepUrl) {
     return <CloudflareWhepPlayer whepUrl={whepUrl} style={style} />;
   }
-  return <NativeHlsPlayer url={url} style={style} />;
+  return <NativeHlsPlayer url={url} style={style} controls={controls} />;
 }
 
 /**
@@ -236,7 +251,7 @@ function CloudflareWhepPlayer({ whepUrl, style }: { whepUrl: string; style?: any
   );
 }
 
-function NativeHlsPlayer({ url, style }: { url: string; style?: any }) {
+function NativeHlsPlayer({ url, style, controls = true }: { url: string; style?: any; controls?: boolean }) {
   const player = useVideoPlayer({ uri: url }, (p) => {
     p.loop = false;
     p.muted = true;
@@ -299,16 +314,17 @@ function NativeHlsPlayer({ url, style }: { url: string; style?: any }) {
         allowsFullscreen
         allowsPictureInPicture
         contentFit="contain"
-        nativeControls
+        nativeControls={controls}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // No intrinsic aspect-ratio — the caller sizes the box (full-bleed stage or
+  // a 16:9 preview). A fixed aspectRatio here kept the video 16:9 even when
+  // absolute-filled, so the live stage never reached full screen height.
   wrap: {
-    aspectRatio: 16 / 9,
-    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#000',
   },
