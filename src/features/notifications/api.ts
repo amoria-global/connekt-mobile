@@ -23,7 +23,7 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
-export type NotificationsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer';
+export type NotificationsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer' | 'User';
 
 function base(role: NotificationsRole | boolean): string {
   // Backward-compat: legacy callers pass `role: NotificationsRole | boolean`.

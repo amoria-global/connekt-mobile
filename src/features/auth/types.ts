@@ -1,7 +1,13 @@
 import type { ID } from '@/types';
 
-/** Roles in the Connekyt platform. */
-export type CustomerType = 'Photographer' | 'Client' | 'Coordinator' | 'Viewer';
+/**
+ * Roles in the Connekyt platform.
+ *
+ * `User` is a mobile-app / smart-TV consumer role (buy streams & photos, book
+ * photographers, manage & pay pending payments). It is deliberately not offered
+ * on the web sign-up.
+ */
+export type CustomerType = 'Photographer' | 'Client' | 'Coordinator' | 'Viewer' | 'User';
 
 export type User = {
   customerId: ID;

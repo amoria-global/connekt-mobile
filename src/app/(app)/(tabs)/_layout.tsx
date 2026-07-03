@@ -209,7 +209,7 @@ export default function AppTabsLayout() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { role, isCoordinator, isPhotographer, isClient } = useRole();
+  const { role, isCoordinator, isPhotographer, isClient, isUser } = useRole();
   const logout = useAuth((s) => s.logout);
 
   // Role-aware overflow menu. Every entry below isn't already on the
@@ -217,10 +217,11 @@ export default function AppTabsLayout() {
   const moreItems: MoreItem[] = [
     { label: 'Profile', icon: 'person-outline', href: '/profile' as Href },
     { label: 'Notifications', icon: 'notifications-outline', href: '/notifications' as Href },
-    ...(isCoordinator || isClient
+    ...(isCoordinator || isClient || isUser
       ? [
           { label: 'Find photographers', icon: 'camera-outline' as const, href: '/photographers' as Href },
           { label: 'Find my photos', icon: 'scan-outline' as const, href: '/find-my-photos' as Href },
+          { label: 'Live streams', icon: 'videocam-outline' as const, href: '/streams' as Href },
         ]
       : []),
     ...(isCoordinator
@@ -233,8 +234,11 @@ export default function AppTabsLayout() {
           { label: 'Clients', icon: 'people-outline' as const, href: '/clients' as Href },
         ]
       : []),
-    ...(isClient || isCoordinator
-      ? [{ label: 'My bookings', icon: 'briefcase-outline' as const, href: '/bookings' as Href }]
+    ...(isClient || isCoordinator || isUser
+      ? [
+          { label: 'My bookings', icon: 'briefcase-outline' as const, href: '/bookings' as Href },
+          { label: 'Payments', icon: 'card-outline' as const, href: '/payments' as Href },
+        ]
       : []),
     { label: 'Gallery', icon: 'images-outline', href: '/gallery' as Href },
     { label: 'Donations', icon: 'heart-outline', href: '/donations' as Href },
