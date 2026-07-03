@@ -172,7 +172,7 @@ function pageContent(data: unknown): Raw[] {
   return Array.isArray(c) ? (c as Raw[]) : [];
 }
 
-export type PaymentsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer';
+export type PaymentsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer' | 'User';
 
 /**
  * Payment-history endpoint by role.

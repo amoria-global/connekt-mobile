@@ -38,6 +38,7 @@ import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
+import { UserHome } from '@/features/dashboard/UserHome';
 import {
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
@@ -167,7 +168,7 @@ export default function HomeScreen() {
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [payNowOpen, setPayNowOpen] = useState(false);
   const [payNowPayment, setPayNowPayment] = useState<PendingPayment | null>(null);
-  const { role, isClient, isCoordinator, isPhotographer, isViewer } = useRole();
+  const { role, isClient, isCoordinator, isPhotographer, isViewer, isUser } = useRole();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const name = user?.firstName || 'there';
@@ -377,6 +378,10 @@ export default function HomeScreen() {
   const hasFailedPayments = pending.some((p) => p.status === 'failed');
 
   // ── Render ────────────────────────────────────────────────────────────
+  // The `User` (mobile/TV consumer) role has its own action-first home rather
+  // than the business analytics dashboard.
+  if (isUser) return <UserHome />;
+
   return (
     <Screen padded={false} edges={['bottom']}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}>

@@ -10,6 +10,7 @@ type RoleOption = {
 };
 
 const ROLE_OPTIONS: RoleOption[] = [
+  { role: 'User', icon: 'sparkles-outline', description: 'Buy streams & photos, book photographers, pay securely' },
   { role: 'Client', icon: 'person-outline', description: 'Book photographers for your events' },
   { role: 'Photographer', icon: 'camera-outline', description: 'Offer your services and get booked' },
   { role: 'Coordinator', icon: 'people-outline', description: 'Manage events and hire photographers' },
