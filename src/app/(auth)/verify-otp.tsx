@@ -9,7 +9,14 @@ import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
 
 export default function VerifyOtpScreen() {
-  const { customerId, email } = useLocalSearchParams<{ customerId: string; email?: string }>();
+  const { customerId, email, phone } = useLocalSearchParams<{
+    customerId: string;
+    email?: string;
+    phone?: string;
+  }>();
+  // The OTP is emailed when an email was given, otherwise texted to the phone.
+  const channel = email || phone || 'you';
+  const channelKind = email ? 'email' : 'phone';
   const applySession = useAuth((s) => s.applySession);
 
   const [otp, setOtp] = useState('');
@@ -37,7 +44,7 @@ export default function VerifyOtpScreen() {
     setError(null);
     try {
       await resendOtp(customerId);
-      setInfo('A new code has been sent to your email.');
+      setInfo(`A new code has been sent to your ${channelKind}.`);
     } catch {
       setError('Could not resend the code. Please try again.');
     }
@@ -46,9 +53,9 @@ export default function VerifyOtpScreen() {
   return (
     <Screen>
       <View style={styles.container}>
-        <Text style={styles.title}>Verify your email</Text>
+        <Text style={styles.title}>Verify your account</Text>
         <Text style={styles.subtitle}>
-          We sent a code to {email ? <Text style={styles.email}>{email}</Text> : 'your email'}.
+          We sent a code to <Text style={styles.email}>{channel}</Text>.
           Enter it below to activate your account.
         </Text>
 

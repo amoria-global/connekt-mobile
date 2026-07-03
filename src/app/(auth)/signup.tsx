@@ -49,7 +49,14 @@ const schema = z
   .object({
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
-    email: z.string().min(1, 'Email is required').email('Enter a valid email'),
+    // Email is optional — a phone number alone is enough to register (the OTP
+    // is then sent by SMS). If provided, it must be a valid address.
+    email: z
+      .string()
+      .trim()
+      .email('Enter a valid email')
+      .optional()
+      .or(z.literal('')),
     phone: z.string().min(6, 'Enter a valid phone number'),
     password: z.string().min(8, 'Use at least 8 characters'),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
@@ -133,8 +140,14 @@ export default function SignupScreen() {
     try {
       const { confirmPassword: _cp, ...restValues } = values;
       void _cp;
-      const { customerId } = await signup({ ...restValues, customerType: role });
-      router.push({ pathname: '/verify-otp', params: { customerId, email: values.email } });
+      const trimmedEmail = values.email?.trim() || undefined;
+      const { customerId } = await signup({ ...restValues, email: trimmedEmail, customerType: role });
+      // Pass whichever channel the OTP was sent to so the verify screen can
+      // show "sent to your email" vs "sent to your phone".
+      router.push({
+        pathname: '/verify-otp',
+        params: { customerId, email: trimmedEmail ?? '', phone: values.phone },
+      });
     } catch (err) {
       setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
     }
@@ -199,7 +212,7 @@ export default function SignupScreen() {
             <Field
               control={control}
               name="email"
-              label="Email"
+              label="Email (optional)"
               error={errors.email?.message}
               keyboardType="email-address"
               autoCapitalize="none"
