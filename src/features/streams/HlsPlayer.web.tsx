@@ -27,7 +27,17 @@ import Hls from 'hls.js';
  * and render our own: a LIVE badge, a tap-to-play affordance when paused,
  * a mute toggle, and fullscreen.
  */
-function PlayerControls({ videoRef }: { videoRef: React.RefObject<HTMLVideoElement | null> }) {
+function PlayerControls({
+  videoRef,
+  bottomOffset = 10,
+  showLive = true,
+}: {
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  /** Distance of the mute/fullscreen bar from the bottom edge. Lifted in the
+   *  live viewer so it clears the chat composer. */
+  bottomOffset?: number;
+  showLive?: boolean;
+}) {
   const [muted, setMuted] = useState(true);
   const [paused, setPaused] = useState(false);
 
@@ -71,16 +81,18 @@ function PlayerControls({ videoRef }: { videoRef: React.RefObject<HTMLVideoEleme
 
   return (
     <>
-      <View style={styles.liveBadge}>
-        <View style={styles.liveDot} />
-        <Text style={styles.liveText}>LIVE</Text>
-      </View>
+      {showLive ? (
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>LIVE</Text>
+        </View>
+      ) : null}
       {paused ? (
         <Pressable style={styles.centerPlay} onPress={togglePlay}>
           <Ionicons name="play" size={30} color="#fff" />
         </Pressable>
       ) : null}
-      <View style={styles.controlsBar}>
+      <View style={[styles.controlsBar, { bottom: bottomOffset }]}>
         <Pressable style={styles.ctrlBtn} onPress={toggleMute} hitSlop={6}>
           <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#fff" />
         </Pressable>
@@ -106,10 +118,50 @@ function toWhepUrl(url: string): string | null {
   return null;
 }
 
-export function HlsPlayer({ url, style }: { url: string; style?: any }) {
+/** The HLS manifest sibling of a Cloudflare WHEP URL (same input, .m3u8). */
+function toHlsUrl(url: string): string {
+  if (url.includes('/webRTC/play')) return url.replace(/\/webRTC\/play.*$/i, '/manifest/video.m3u8');
+  return url;
+}
+
+/**
+ * Prefer low-latency WHEP (WebRTC), but fall back to HLS when WHEP can't
+ * establish. Cloudflare's WHEP `/webRTC/play` returns 409 Conflict when the
+ * session/encoder state isn't cleanly playable yet; without a fallback the
+ * client just retried forever and the viewer saw nothing. HLS is served for
+ * the same input, is far more tolerant, and never 409s — so after a few
+ * failed WHEP attempts we switch to it.
+ */
+export function HlsPlayer({
+  url,
+  style,
+  controls = true,
+  controlsBottomOffset,
+  showLiveBadge = true,
+}: {
+  url: string;
+  style?: any;
+  /** Render the branded in-video controls overlay. Set false when the screen
+   *  supplies its own controls (e.g. the full-bleed live viewer). */
+  controls?: boolean;
+  /** Lift the mute/fullscreen bar off the bottom edge (px). */
+  controlsBottomOffset?: number;
+  /** Show the in-video LIVE badge. Hidden where the screen already shows one. */
+  showLiveBadge?: boolean;
+}) {
   const whepUrl = toWhepUrl(url);
-  if (whepUrl) return <WhepVideo whepUrl={whepUrl} style={style} />;
-  return <HlsVideo url={url} style={style} />;
+  const [whepFailed, setWhepFailed] = useState(false);
+
+  // Reset the fallback if the URL changes (new stream / reset).
+  useEffect(() => {
+    setWhepFailed(false);
+  }, [url]);
+
+  const ctrl = { controls, controlsBottomOffset, showLiveBadge };
+  if (whepUrl && !whepFailed) {
+    return <WhepVideo whepUrl={whepUrl} style={style} {...ctrl} onFatal={() => setWhepFailed(true)} />;
+  }
+  return <HlsVideo url={whepUrl ? toHlsUrl(whepUrl) : url} style={style} {...ctrl} />;
 }
 
 /**
@@ -117,7 +169,21 @@ export function HlsPlayer({ url, style }: { url: string; style?: any }) {
  * connection per whepUrl; reconnect + stall watchdog self-heal an
  * encoder drop without a page reload.
  */
-function WhepVideo({ whepUrl, style }: { whepUrl: string; style?: any }) {
+function WhepVideo({
+  whepUrl,
+  style,
+  onFatal,
+  controls = true,
+  controlsBottomOffset,
+  showLiveBadge = true,
+}: {
+  whepUrl: string;
+  style?: any;
+  onFatal?: () => void;
+  controls?: boolean;
+  controlsBottomOffset?: number;
+  showLiveBadge?: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -128,11 +194,15 @@ function WhepVideo({ whepUrl, style }: { whepUrl: string; style?: any }) {
     let resourceUrl: string | null = null;
     let destroyed = false;
     let reconnectAttempts = 0;
+    let everConnected = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let statsTimer: ReturnType<typeof setInterval> | null = null;
     let lastBytes = 0;
     let lastAdvance = Date.now();
     const STALL_MS = 5000;
+    // Give up on WHEP after this many failed attempts WITHOUT ever connecting
+    // (e.g. Cloudflare returning 409) and let the parent fall back to HLS.
+    const MAX_INITIAL_ATTEMPTS = 3;
 
     const cleanup = () => {
       if (statsTimer) {
@@ -154,7 +224,20 @@ function WhepVideo({ whepUrl, style }: { whepUrl: string; style?: any }) {
     const scheduleReconnect = () => {
       if (destroyed) return;
       cleanup();
+      // Release the previous WHEP resource so a fresh POST doesn't collide
+      // (a lingering session is one cause of the 409 Conflict loop).
+      if (resourceUrl) {
+        fetch(resourceUrl, { method: 'DELETE' }).catch(() => {});
+        resourceUrl = null;
+      }
       reconnectAttempts++;
+      // Never managed to connect after several tries (WHEP 409 / offline
+      // input) → stop and let the parent switch to HLS.
+      if (!everConnected && reconnectAttempts >= MAX_INITIAL_ATTEMPTS) {
+        destroyed = true;
+        onFatal?.();
+        return;
+      }
       const delay = Math.min(1000 * Math.pow(2, Math.min(reconnectAttempts - 1, 3)), 5000);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       reconnectTimer = setTimeout(connect, delay);
@@ -217,6 +300,7 @@ function WhepVideo({ whepUrl, style }: { whepUrl: string; style?: any }) {
           const s = pc?.connectionState;
           if (s === 'failed' || s === 'disconnected') scheduleReconnect();
           if (s === 'connected') {
+            everConnected = true;
             reconnectAttempts = 0;
             startStallWatchdog();
           }
@@ -285,12 +369,26 @@ function WhepVideo({ whepUrl, style }: { whepUrl: string; style?: any }) {
   return (
     <View style={[styles.wrap, style]}>
       <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
-      <PlayerControls videoRef={videoRef} />
+      {controls ? (
+        <PlayerControls videoRef={videoRef} bottomOffset={controlsBottomOffset} showLive={showLiveBadge} />
+      ) : null}
     </View>
   );
 }
 
-function HlsVideo({ url, style }: { url: string; style?: any }) {
+function HlsVideo({
+  url,
+  style,
+  controls = true,
+  controlsBottomOffset,
+  showLiveBadge = true,
+}: {
+  url: string;
+  style?: any;
+  controls?: boolean;
+  controlsBottomOffset?: number;
+  showLiveBadge?: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
 
@@ -376,15 +474,19 @@ function HlsVideo({ url, style }: { url: string; style?: any }) {
   return (
     <View style={[styles.wrap, style]}>
       <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
-      <PlayerControls videoRef={videoRef} />
+      {controls ? (
+        <PlayerControls videoRef={videoRef} bottomOffset={controlsBottomOffset} showLive={showLiveBadge} />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // No intrinsic aspect-ratio: the wrap fills whatever box the caller sizes
+  // (full-bleed stage via absoluteFillObject, or a 16:9 preview via its own
+  // style). A hard-coded aspectRatio here pinned the video to 16:9 even when
+  // absolute-filled, leaving the live stage short and chat spilling below.
   wrap: {
-    aspectRatio: 16 / 9,
-    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#000',
     position: 'relative',

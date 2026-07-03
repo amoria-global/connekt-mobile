@@ -60,6 +60,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { HlsPlayer } from '@/features/streams/HlsPlayer';
+import { StreamAdOverlay } from '@/features/streams/StreamAdOverlay';
 import {
   ActivityIndicator,
   Animated,
@@ -308,7 +309,7 @@ function LiveChatPanel({
       pointerEvents="box-none"
       style={[
         chatFx.panel,
-        { paddingTop: (fullscreen ? insetTop : 0) + 10, paddingBottom: (fullscreen ? insetBottom : 0) + 8 },
+        { paddingTop: insetTop + 10, paddingBottom: insetBottom + 8 },
       ]}
     >
       {/* Reaction bursts — anchored bottom-right, rising STRAIGHT up (no arc). */}
@@ -460,9 +461,6 @@ export default function PublicLiveStreamScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  // Live player is a tall, near-full-screen stage (like a TikTok video) with
-  // the details + chat overlaid on top, so the stream owns the page.
-  const stageHeight = Math.round(windowHeight * 0.8);
 
   // ── Event load ───────────────────────────────────────────────────────────
   const event = useAsync(useCallback(() => getPublicEventDetailed(id), [id]));
@@ -1144,24 +1142,13 @@ export default function PublicLiveStreamScreen() {
     undefined;
   const hostImage = event.data?.creator?.profilePicture;
 
-  return (
-    <Screen padded={false} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Details live INSIDE the video top overlay (below), so the stream
-            takes the whole stage like the web experience. Only a slim
-            non-live title shows here for context when the stream is off. */}
-        {!status.isLive ? (
-          <Text style={styles.offlineTitle} numberOfLines={2}>
-            {eventTitle}
-          </Text>
-        ) : null}
-
-        {/* Player stage — the live video (or status placeholder) with the
-            TikTok-style chat overlay layered on top when live. Live streams
-            get a tall portrait stage so the overlay has room; other states
-            keep the compact 16:9 card. */}
-        <View style={[styles.playerStage, status.isLive ? { height: stageHeight } : styles.playerStageRatio]}>
-          {manifestUrl ? (
+  // When the event is live the video owns the ENTIRE screen (full-bleed,
+  // edge-to-edge) with every control, title, reaction and the chat feed
+  // layered on top — the TikTok/web experience. The boxed 16:9 card + the
+  // details/hint sections below are only used for non-live states.
+  const stageContent = (
+    <>
+      {manifestUrl ? (
             chatFullscreen ? (
               // The player has been handed to the full-screen modal — show a
               // tap-to-return placeholder here so we never run two HLS
@@ -1173,7 +1160,16 @@ export default function PublicLiveStreamScreen() {
                 <Text style={styles.placeholderText}>Playing in full screen — tap to return</Text>
               </Pressable>
             ) : (
-              <HlsPlayer url={manifestUrl} style={StyleSheet.absoluteFillObject} />
+              // Branded volume + fullscreen live above the chat composer (not
+              // at the very bottom, where they'd collide with the input + send
+              // button). The redundant in-video LIVE badge is hidden — the top
+              // overlay already carries the LIVE NOW pill.
+              <HlsPlayer
+                url={manifestUrl}
+                style={StyleSheet.absoluteFillObject}
+                controlsBottomOffset={insets.bottom + 72}
+                showLiveBadge={false}
+              />
             )
           ) : (
             <>
@@ -1244,8 +1240,12 @@ export default function PublicLiveStreamScreen() {
           {/* Details overlaid on the video's top edge — host, LIVE NOW,
               title, and the live viewer counter. */}
           {status.isLive && !chatFullscreen ? (
-            <View pointerEvents="box-none" style={styles.topOverlay}>
-              <LinearGradient colors={['rgba(0,0,0,0.65)', 'transparent']} style={styles.topScrim} pointerEvents="none" />
+            <View pointerEvents="box-none" style={[styles.topOverlay, { paddingTop: insets.top + spacing.md }]}>
+              <LinearGradient
+                colors={['rgba(0,0,0,0.65)', 'transparent']}
+                style={[styles.topScrim, { height: insets.top + 96 }]}
+                pointerEvents="none"
+              />
               <View style={styles.topRow}>
                 {hostImage ? (
                   <Image source={{ uri: hostImage }} style={styles.topAvatar} contentFit="cover" />
@@ -1305,45 +1305,79 @@ export default function PublicLiveStreamScreen() {
               onToggleFullscreen={() => setChatFullscreen(true)}
               onGift={() => setGiftOpen(true)}
               showGift={!!viewerId}
-              maxListHeight={Math.round(stageHeight * 0.34)}
+              maxListHeight={Math.round(windowHeight * 0.34)}
+              insetTop={insets.top}
+              insetBottom={insets.bottom}
             />
           ) : null}
+
+          {/* Sponsor ads — rendered OVER the video at their configured
+              placement (bars / rails / corners / L-shape). */}
+          <StreamAdOverlay
+            eventId={id}
+            viewerId={viewerId}
+            enabled={status.isLive && !!manifestUrl && !chatFullscreen}
+            insetTop={insets.top}
+            insetBottom={insets.bottom}
+          />
+    </>
+  );
+
+  return (
+    <Screen padded={false} edges={status.isLive ? [] : ['bottom']}>
+      {status.isLive ? (
+        // ── LIVE: full-bleed video with everything overlaid on top ──────────
+        <View style={styles.liveRoot}>
+          <View style={styles.stageFull}>{stageContent}</View>
+
+          {/* Invite-token entry — overlaid, centred, when a free invite_token
+              stream has no manifest yet. */}
+          {!manifestUrl && !status.isPaid ? (
+            <View style={[styles.tokenOverlay, { paddingTop: insets.top }]} pointerEvents="box-none">
+              <View style={styles.tokenCard}>
+                <Text style={styles.tokenLabel}>Have an invite token?</Text>
+                <Input
+                  value={tokenInput}
+                  onChangeText={setTokenInput}
+                  placeholder="Paste the token from your invitation"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Button title="Join stream" onPress={onJoinWithToken} loading={tokenBusy} />
+                <Pressable
+                  onPress={() => router.replace(`/event/${id}` as unknown as Href)}
+                  style={{ alignItems: 'center', marginTop: 4 }}
+                >
+                  <Text style={styles.linkText}>← Back to event details</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
+          {tokenError ? (
+            <View style={[styles.errorToast, { top: insets.top + 70 }]} pointerEvents="none">
+              <Ionicons name="alert-circle" size={18} color="#fff" />
+              <Text style={styles.errorToastText}>{tokenError}</Text>
+            </View>
+          ) : null}
         </View>
-
-        {/* Invite-token card — shown when no paid access + free invite_token event */}
-        {!manifestUrl && !status.isPaid && status.isLive ? (
-          <View style={styles.tokenCard}>
-            <Text style={styles.tokenLabel}>Have an invite token?</Text>
-            <Input
-              value={tokenInput}
-              onChangeText={setTokenInput}
-              placeholder="Paste the token from your invitation"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Button title="Join stream" onPress={onJoinWithToken} loading={tokenBusy} />
-            <Pressable
-              onPress={() => router.replace(`/event/${id}` as unknown as Href)}
-              style={{ alignItems: 'center', marginTop: 4 }}
-            >
-              <Text style={styles.linkText}>← Back to event details</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {status.isLive ? (
-          <Text style={styles.chatHint}>
-            Live chat is over the video — tap the expand icon for full screen.
+      ) : (
+        // ── NOT LIVE: boxed 16:9 card + details/status below ────────────────
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Text style={styles.offlineTitle} numberOfLines={2}>
+            {eventTitle}
           </Text>
-        ) : null}
 
-        {tokenError ? (
-          <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={20} color={colors.error} />
-            <Text style={styles.errorText}>{tokenError}</Text>
-          </View>
-        ) : null}
-      </ScrollView>
+          <View style={[styles.playerStage, styles.playerStageRatio]}>{stageContent}</View>
+
+          {tokenError ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={20} color={colors.error} />
+              <Text style={styles.errorText}>{tokenError}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+      )}
 
       {/* Full-screen immersive view — the player fills the screen with the
           same TikTok chat overlay + rising reactions on top. */}
@@ -1356,7 +1390,12 @@ export default function PublicLiveStreamScreen() {
       >
         <View style={styles.fsRoot}>
           {manifestUrl ? (
-            <HlsPlayer url={manifestUrl} style={StyleSheet.absoluteFillObject} />
+            <HlsPlayer
+              url={manifestUrl}
+              style={StyleSheet.absoluteFillObject}
+              controlsBottomOffset={insets.bottom + 72}
+              showLiveBadge={false}
+            />
           ) : (
             <>
               <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
@@ -1390,6 +1429,14 @@ export default function PublicLiveStreamScreen() {
               onGift={() => setGiftOpen(true)}
               showGift={!!viewerId}
               maxListHeight={Math.round(windowHeight * 0.4)}
+              insetTop={insets.top}
+              insetBottom={insets.bottom}
+            />
+            {/* Sponsor ads in the immersive view too. */}
+            <StreamAdOverlay
+              eventId={id}
+              viewerId={viewerId}
+              enabled={chatFullscreen && status.isLive && !!manifestUrl}
               insetTop={insets.top}
               insetBottom={insets.bottom}
             />
@@ -1728,6 +1775,30 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   playerStageRatio: { aspectRatio: 16 / 9 },
+
+  // Live full-bleed: the video fills the whole screen, everything overlays.
+  liveRoot: { flex: 1, backgroundColor: '#000' },
+  stageFull: { flex: 1, backgroundColor: '#000', position: 'relative', overflow: 'hidden' },
+  tokenOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  errorToast: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: 'rgba(185,28,28,0.92)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+  },
+  errorToastText: { flex: 1, color: '#fff', fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+
   fsReturn: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
