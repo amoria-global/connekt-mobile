@@ -15,7 +15,7 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
-import { getCustomerPendingPayments, type PendingPayment } from '@/features/analytics/api';
+import { getCustomerAnalytics, getCustomerPendingPayments, type PendingPayment } from '@/features/analytics/api';
 import { listEvents } from '@/features/events/api';
 import type { EventItem } from '@/features/events/types';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
@@ -46,14 +46,18 @@ export function UserHome() {
 
   const pending = useAsync(useCallback(() => getCustomerPendingPayments(), []));
   const events = useAsync(useCallback(() => listEvents(), []));
+  // Best-effort snapshot — the endpoint returns safe zero defaults, so a fresh
+  // User with no history simply shows zeros rather than an error.
+  const analytics = useAsync(useCallback(() => getCustomerAnalytics(), []));
 
   const [payNow, setPayNow] = useState<PendingPayment | null>(null);
   const [payOpen, setPayOpen] = useState(false);
 
-  const refreshing = pending.loading || events.loading;
+  const refreshing = pending.loading || events.loading || analytics.loading;
   const onRefresh = () => {
     pending.refresh();
     events.refresh();
+    analytics.refresh();
   };
 
   const pendingItems = pending.data ?? [];
@@ -62,6 +66,15 @@ export function UserHome() {
   // The backend row may carry a currency even though the typed shape omits it
   // (PayNowSheet reads it the same defensive way). Default to USD like the sheet.
   const currency = (pendingItems[0] as { currency?: string } | undefined)?.currency ?? 'USD';
+
+  const a = analytics.data;
+  const stats: { label: string; value: string }[] = a
+    ? [
+        { label: 'Spent', value: formatMoney(a.totalSpent, currency) },
+        { label: 'Bookings', value: String(a.totalBookings) },
+        { label: 'Photos', value: String(a.totalPhotos) },
+      ]
+    : [];
 
   return (
     <Screen padded={false} edges={['bottom']}>
@@ -75,6 +88,18 @@ export function UserHome() {
           <Text style={styles.heroName} numberOfLines={1}>{name}</Text>
           <Text style={styles.heroSub}>Book shoots, buy photos, and watch live — all in one place.</Text>
         </View>
+
+        {/* Snapshot */}
+        {stats.length > 0 ? (
+          <View style={styles.statsCard}>
+            {stats.map((s, i) => (
+              <View key={s.label} style={[styles.statCell, i > 0 && styles.statDivider]}>
+                <Text style={styles.statValue} numberOfLines={1}>{s.value}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {/* Quick actions */}
         <View style={styles.grid}>
@@ -191,6 +216,19 @@ const styles = StyleSheet.create({
   heroEyebrow: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1, color: colors.accent },
   heroName: { fontFamily: fonts.bold, fontSize: 26, color: colors.text, letterSpacing: -0.3 },
   heroSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
+
+  statsCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingVertical: spacing.md,
+  },
+  statCell: { flex: 1, alignItems: 'center', gap: 2 },
+  statDivider: { borderLeftWidth: 1, borderLeftColor: colors.borderSoft },
+  statValue: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text },
+  statLabel: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   card: {
