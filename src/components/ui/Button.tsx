@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
-type Variant = 'primary' | 'accent' | 'ghost' | 'outline';
+type Variant = 'primary' | 'accent' | 'ghost' | 'outline' | 'danger';
 
 type Props = Omit<PressableProps, 'children'> & {
   title: string;
@@ -66,4 +66,5 @@ const variantStyles = StyleSheet.create({
   accent: { backgroundColor: colors.accent },
   ghost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
   outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
+  danger: { backgroundColor: colors.error },
 });

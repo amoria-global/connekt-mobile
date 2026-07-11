@@ -105,6 +105,13 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={18} color={colors.error} />
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.deleteLink, pressed && { opacity: 0.6 }]}
+          onPress={() => router.push('/delete-account' as Href)}
+        >
+          <Text style={styles.deleteLinkText}>Delete account</Text>
+        </Pressable>
       </ScrollView>
       <TopBar />
     </Screen>
@@ -210,4 +217,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   logoutText: { fontFamily: fonts.bold, fontSize: 15, color: colors.error },
+
+  deleteLink: { alignItems: 'center', paddingVertical: spacing.md },
+  deleteLinkText: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.textMuted,
+    textDecorationLine: 'underline',
+  },
 });

@@ -8,6 +8,7 @@ import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { getKyc, submitKyc, type KycImage } from '@/features/kyc/api';
+import { ensureKycConsent } from '@/features/privacy/consent';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -44,6 +45,8 @@ export default function KycScreen() {
     if (!idNumber.trim()) return setFormError('Enter your ID number.');
     if (!idFront) return setFormError('Add a photo of the front of your ID.');
     if (!selfie) return setFormError('Add a selfie.');
+    // Sensitive-data gate: explicit consent before submitting identity documents.
+    if (!(await ensureKycConsent())) return;
     setSubmitting(true);
     try {
       await submitKyc({ idType, idNumber: idNumber.trim(), idFront, idBack: idBack ?? undefined, selfie });
