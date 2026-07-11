@@ -55,7 +55,7 @@ export default function TechSupportHelpScreen() {
           {openSection === 'contact' && (
             <View style={styles.accordionContent}>
               <Text style={styles.bodyText}>
-                If you still need help, please reach out to us at support@amoriaconnekyt.com or use the Contact Us page.
+                If you still need help, please reach out to us at support@connekyt.com or use the Contact Us page.
               </Text>
             </View>
           )}
