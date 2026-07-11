@@ -27,6 +27,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ensureFaceConsent } from '@/features/privacy/consent';
 import {
   faceSearch,
   getViewerId,
@@ -326,6 +327,8 @@ export function FindMyPhotos() {
   // ─── Face search ──────────────────────────────────────────────────────────
 
   const onPick = async (fn: () => Promise<PickedImage | null>, type: 'take' | 'upload') => {
+    // Sensitive-data gate: get consent before capturing a face for recognition.
+    if (!(await ensureFaceConsent())) return;
     const img = await fn();
     if (img) {
       setSelfie(img);
@@ -841,6 +844,7 @@ export function FindMyPhotos() {
   // ─── Album face scan (filter grid to matched photos) ─────────────────────
 
   const doAlbumScan = async (fn: () => Promise<PickedImage | null>) => {
+    if (!(await ensureFaceConsent())) return;
     const img = await fn();
     if (!img) return;
     setAlbumFaceScanning(true);

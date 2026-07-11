@@ -30,6 +30,18 @@ export async function updateProfile(input: ProfileUpdate): Promise<void> {
   }
 }
 
+/**
+ * Permanently deletes the signed-in user's account and personal data.
+ * Backend anonymizes all PII and disables login (DELETE /customer/profile).
+ * Callers should log the user out immediately after this resolves.
+ */
+export async function deleteAccount(): Promise<void> {
+  const res = await api.delete<{ action?: number; message?: string }>('/customer/profile');
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not delete your account.' } satisfies ApiError;
+  }
+}
+
 /** Uploads a new avatar; returns the new full URL when the backend provides it. */
 export async function updateProfilePicture(image: PickedImage): Promise<string | undefined> {
   const form = new FormData();
