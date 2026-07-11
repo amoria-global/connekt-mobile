@@ -15,7 +15,7 @@ import { colors, fontSize, radii, spacing } from '@/theme';
 
 const CHANNELS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string; href: string }[] = [
   { key: 'phone', icon: 'call-outline', label: 'Phone', value: '+250 788 437 347', href: 'tel:+250788437347' },
-  { key: 'email', icon: 'mail-outline', label: 'Email', value: 'info@amoriaconnekyt.com', href: 'mailto:info@amoriaconnekyt.com' },
+  { key: 'email', icon: 'mail-outline', label: 'Email', value: 'info@connekyt.com', href: 'mailto:info@connekyt.com' },
   { key: 'whatsapp', icon: 'logo-whatsapp', label: 'WhatsApp', value: '+250 788 437 347', href: 'https://wa.me/250788437347' },
   { key: 'office', icon: 'location-outline', label: 'Office', value: 'EVA PLAZA, KK 84B St, Kicukiro, Kigali', href: 'https://maps.google.com/?q=EVA+PLAZA+Kigali' },
 ];
