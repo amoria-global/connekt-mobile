@@ -404,6 +404,7 @@ export default function EventDetailScreen() {
                 loading={busy === 'publish'}
               />
               <PrimaryBtn icon="create-outline" label="Edit" variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
+              <PrimaryBtn icon="earth-outline" label="Geo pricing" variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
               <PrimaryBtn icon="share-social-outline" label="Share" variant="outline" onPress={onShare} />
               {s !== 'COMPLETED' && s !== 'CANCELLED' && s !== 'AWAITING_REVIEW' && streamStatus !== 'ended' && !isStreamLive ? (
                 <PrimaryBtn icon="radio" label="Go Live" variant="accent" onPress={openStreamControl} />

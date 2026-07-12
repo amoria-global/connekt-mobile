@@ -39,6 +39,7 @@ import {
   registerAnonymousViewer,
 } from '@/features/streams/api';
 import { detectPaymentCountry, getPaymentOptions, listCurrencies } from '@/features/reference/api';
+import { getEffectivePrice, type EffectivePrice } from '@/features/geopricing/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
@@ -85,6 +86,22 @@ export default function EventPaymentScreen() {
 
   // Currency id (needed by the public initiate endpoint)
   const [currencyId, setCurrencyId] = useState<string>('');
+
+  // Geo-priced effective amount for this viewer's location (resolved server-side).
+  const [effective, setEffective] = useState<EffectivePrice | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getEffectivePrice(String(id))
+      .then((e) => {
+        if (cancelled) return;
+        setEffective(e);
+        if (e.currencyId) setCurrencyId(e.currencyId);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<'idle' | 'awaiting' | 'success' | 'failed'>('idle');
@@ -148,17 +165,16 @@ export default function EventPaymentScreen() {
   }
 
   const data = event.data;
-  const baseFee = data.streamFee ?? 0;
+  // Prefer the geo-resolved price for this viewer; fall back to the event default.
+  const baseFee = effective?.price ?? data.streamFee ?? 0;
+  const feeCurrencyCode = effective?.currencyAbbreviation ?? data.streamFeeCurrencyAbbreviation;
+  const feeCurrencySymbol = effective?.currencySymbol ?? data.streamFeeCurrencySymbol;
   const groupDiscount = data.groupDiscountPercentage ?? 10;
   const totalFee =
     pkg === 'group'
       ? Math.round(baseFee * peopleNum * (1 - groupDiscount / 100))
       : baseFee;
-  const totalLabel = feeLabel(
-    totalFee,
-    data.streamFeeCurrencyAbbreviation,
-    data.streamFeeCurrencySymbol,
-  );
+  const totalLabel = feeLabel(totalFee, feeCurrencyCode, feeCurrencySymbol);
 
   const phoneOk = method === 'CARD' ? true : /^\d{9,12}$/.test(phone.trim());
   const formOk = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email) && phoneOk;

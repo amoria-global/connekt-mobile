@@ -60,6 +60,7 @@ export default function AppLayout() {
           }}
         />
         <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
+        <Stack.Screen name="event/geo-pricing" options={{ title: 'Geo pricing' }} />
         <Stack.Screen name="photographers" options={{ title: 'Photographers' }} />
         <Stack.Screen name="photographer/[id]" options={{ title: 'Photographer' }} />
         <Stack.Screen name="conversation/[id]" options={{ title: 'Chat' }} />
