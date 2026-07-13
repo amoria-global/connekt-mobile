@@ -77,6 +77,12 @@ export default function PackagesScreen() {
             </Text>
             <View style={styles.cardActions}>
               <Text style={styles.editHint}>Tap to edit</Text>
+              <Text
+                style={styles.geoLink}
+                onPress={() => router.push(`/event/geo-pricing?packageId=${item.id}` as never)}
+              >
+                Geo pricing
+              </Text>
               <Text style={styles.delete} onPress={() => onDelete(item)}>
                 Delete
               </Text>
@@ -110,5 +116,6 @@ const styles = StyleSheet.create({
   price: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
   desc: { fontSize: fontSize.sm, color: colors.textSoft },
   meta: { fontSize: fontSize.xs, color: colors.textMuted },
+  geoLink: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.primary },
   delete: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.error },
 });
