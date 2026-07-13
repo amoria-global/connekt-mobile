@@ -17,8 +17,11 @@ import { useAsync } from '@/hooks/useAsync';
 import { listCurrencies, type Currency } from '@/features/reference/api';
 import {
   deleteGeoPrice,
+  deletePackageGeoPrice,
   getGeoPricing,
+  getPackageGeoPricing,
   upsertGeoPrice,
+  upsertPackageGeoPrice,
   type GeoPriceRule,
   type GeoScope,
 } from '@/features/geopricing/api';
@@ -26,8 +29,16 @@ import { CONTINENTS, COUNTRIES, continentLabel, countryLabel } from '@/features/
 import { colors, fonts, fontSize, radii, spacing } from '@/theme';
 
 export default function GeoPricingScreen() {
-  const { eventId } = useLocalSearchParams<{ eventId: string }>();
-  const config = useAsync(useCallback(() => getGeoPricing(String(eventId)), [eventId]));
+  const { eventId, packageId } = useLocalSearchParams<{ eventId?: string; packageId?: string }>();
+  // One screen prices either an event's stream or a photographer package.
+  const isPackage = !!packageId;
+  const targetId = String(packageId ?? eventId);
+  const config = useAsync(
+    useCallback(
+      () => (isPackage ? getPackageGeoPricing(targetId) : getGeoPricing(targetId)),
+      [isPackage, targetId],
+    ),
+  );
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
 
   const [scope, setScope] = useState<GeoScope>('CONTINENT');
@@ -61,12 +72,13 @@ export default function GeoPricingScreen() {
     if (!price || Number.isNaN(p) || p < 0) return setError('Enter a valid price.');
     setSaving(true);
     try {
-      await upsertGeoPrice(String(eventId), {
+      const payload = {
         scopeType: scope,
         scopeValue,
         price: p,
         currencyId: effectiveCurrencyId || undefined,
-      });
+      };
+      await (isPackage ? upsertPackageGeoPrice(targetId, payload) : upsertGeoPrice(targetId, payload));
       reset();
       config.refresh();
     } catch (e) {
@@ -84,7 +96,7 @@ export default function GeoPricingScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteGeoPrice(String(eventId), rule.id);
+            await (isPackage ? deletePackageGeoPrice(targetId, rule.id) : deleteGeoPrice(targetId, rule.id));
             config.refresh();
           } catch {
             Alert.alert('Error', 'Could not remove the price.');

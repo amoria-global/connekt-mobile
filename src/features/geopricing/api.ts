@@ -125,3 +125,54 @@ export async function deleteGeoPrice(eventId: string, ruleId: string): Promise<v
   );
   if (res?.action !== 1) throw new Error(res?.message || 'Could not remove the price.');
 }
+
+// ── Photographer packages ───────────────────────────────────────────────────
+
+function parseConfig(d: Raw): GeoPricingConfig {
+  const rules = ((d.rules as Raw[]) ?? []).map(
+    (r): GeoPriceRule => ({
+      id: String(r.id),
+      scopeType: (str(r.scopeType) as GeoScope) ?? 'COUNTRY',
+      scopeValue: str(r.scopeValue) ?? '',
+      price: num(r.price) ?? 0,
+      currencyId: str(r.currencyId),
+      currencyAbbreviation: str(r.currencyAbbreviation),
+      currencySymbol: str(r.currencySymbol),
+    }),
+  );
+  return {
+    defaultPrice: num(d.defaultPrice),
+    defaultCurrencyId: str(d.defaultCurrencyId),
+    defaultCurrencyAbbreviation: str(d.defaultCurrencyAbbreviation),
+    rules,
+  };
+}
+
+export async function getPackageGeoPricing(packageId: string): Promise<GeoPricingConfig> {
+  const res = await api.get<ApiEnvelope<Raw>>(`/packages/${encodeURIComponent(packageId)}/geo-prices`);
+  return parseConfig((res?.data ?? {}) as Raw);
+}
+
+export async function upsertPackageGeoPrice(
+  packageId: string,
+  input: { scopeType: GeoScope; scopeValue: string; price: number; currencyId?: string },
+): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(`/packages/${encodeURIComponent(packageId)}/geo-prices`, input);
+  if (res?.action !== 1) throw new Error(res?.message || 'Could not save the price.');
+}
+
+export async function deletePackageGeoPrice(packageId: string, ruleId: string): Promise<void> {
+  const res = await api.delete<ApiEnvelope<Raw>>(
+    `/packages/${encodeURIComponent(packageId)}/geo-prices/${encodeURIComponent(ruleId)}`,
+  );
+  if (res?.action !== 1) throw new Error(res?.message || 'Could not remove the price.');
+}
+
+export async function getPackageEffectivePrice(packageId: string, country?: string): Promise<EffectivePrice> {
+  const qs = country ? `?country=${encodeURIComponent(country)}` : '';
+  const res = await api.get<ApiEnvelope<Raw>>(
+    `/public/packages/${encodeURIComponent(packageId)}/effective-price${qs}`,
+    { skipAuth: true },
+  );
+  return toEffective((res?.data ?? {}) as Raw, packageId);
+}
