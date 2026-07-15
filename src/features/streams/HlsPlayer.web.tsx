@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Hls from 'hls.js';
+import { StreamWatermark } from './StreamWatermark';
 
 /**
  * Branded control overlay for the live <video>. We hide the browser's
@@ -369,6 +370,7 @@ function WhepVideo({
   return (
     <View style={[styles.wrap, style]}>
       <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
+      <StreamWatermark position="top-left" />
       {controls ? (
         <PlayerControls videoRef={videoRef} bottomOffset={controlsBottomOffset} showLive={showLiveBadge} />
       ) : null}
@@ -474,6 +476,7 @@ function HlsVideo({
   return (
     <View style={[styles.wrap, style]}>
       <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
+      <StreamWatermark position="top-left" />
       {controls ? (
         <PlayerControls videoRef={videoRef} bottomOffset={controlsBottomOffset} showLive={showLiveBadge} />
       ) : null}
