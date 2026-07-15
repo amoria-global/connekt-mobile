@@ -41,19 +41,35 @@ import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 const BAR_CONTENT_HEIGHT = 60;
 
 type Tab = {
-  name: 'index' | 'events' | 'wallet' | 'inbox' | 'more';
+  key: string;
   label: string;
   href: Href;
   icon: keyof typeof Ionicons.glyphMap;
   iconFocused: keyof typeof Ionicons.glyphMap;
+  isMore?: boolean;
+  /** Route sub-segments that light this tab as active. */
+  match: string[];
 };
 
-const TABS: Tab[] = [
-  { name: 'index', label: 'Home', href: '/(tabs)' as Href, icon: 'home-outline', iconFocused: 'home' },
-  { name: 'events', label: 'Events', href: '/(tabs)/events' as Href, icon: 'calendar-outline', iconFocused: 'calendar' },
-  { name: 'wallet', label: 'Wallet', href: '/(tabs)/wallet' as Href, icon: 'wallet-outline', iconFocused: 'wallet' },
-  { name: 'inbox', label: 'Inbox', href: '/(tabs)/inbox' as Href, icon: 'chatbubbles-outline', iconFocused: 'chatbubbles' },
-  { name: 'more', label: 'More', href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal' },
+// Owner/creator roles (Client, Coordinator, Photographer) run a business:
+// Events they own, a Wallet with earnings, an Inbox.
+const OWNER_TABS: Tab[] = [
+  { key: 'home', label: 'Home', href: '/(tabs)' as Href, icon: 'home-outline', iconFocused: 'home', match: ['index', '(tabs)'] },
+  { key: 'events', label: 'Events', href: '/(tabs)/events' as Href, icon: 'calendar-outline', iconFocused: 'calendar', match: ['events', 'event', 'bookings'] },
+  { key: 'wallet', label: 'Wallet', href: '/(tabs)/wallet' as Href, icon: 'wallet-outline', iconFocused: 'wallet', match: ['wallet', 'transactions', 'withdraw', 'payroll'] },
+  { key: 'inbox', label: 'Inbox', href: '/(tabs)/inbox' as Href, icon: 'chatbubbles-outline', iconFocused: 'chatbubbles', match: ['inbox', 'conversation', 'notifications'] },
+  { key: 'more', label: 'More', href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal', isMore: true, match: [] },
+];
+
+// The consumer `User` role only consumes — it never creates events, has no
+// wallet (no earnings) and no inbox. Its bar is buy/watch/pay focused; the
+// rest (bookings, notifications, donations, etc.) lives in the More sheet.
+const USER_TABS: Tab[] = [
+  { key: 'home', label: 'Home', href: '/(tabs)' as Href, icon: 'home-outline', iconFocused: 'home', match: ['index', '(tabs)'] },
+  { key: 'streams', label: 'Streams', href: '/streams' as Href, icon: 'videocam-outline', iconFocused: 'videocam', match: ['streams', 'stream', 'event', 'events'] },
+  { key: 'photos', label: 'Photos', href: '/gallery' as Href, icon: 'images-outline', iconFocused: 'images', match: ['gallery', 'album', 'photobooks', 'find-my-photos'] },
+  { key: 'payments', label: 'Payments', href: '/payments' as Href, icon: 'card-outline', iconFocused: 'card', match: ['payments', 'payment', 'transactions'] },
+  { key: 'more', label: 'More', href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal', isMore: true, match: [] },
 ];
 
 type MoreItem = {
@@ -69,8 +85,10 @@ export function PersistentBottomBar() {
   const router = useRouter();
   const segments = useSegments() as string[];
   const [moreOpen, setMoreOpen] = useState(false);
-  const { isCoordinator, isPhotographer, isClient } = useRole();
+  const { isCoordinator, isPhotographer, isClient, isUser } = useRole();
   const logout = useAuth((s) => s.logout);
+
+  const tabs = isUser ? USER_TABS : OWNER_TABS;
 
   /**
    * Resolve which tab should glow as "active". The (tabs) folder maps
@@ -80,40 +98,40 @@ export function PersistentBottomBar() {
    * stack when we're on a detail screen so the user sees a hint of
    * "you came from Events" while drilled in.
    */
-  const activeName = useMemo<Tab['name']>(() => {
-    // Find the (tabs) segment then look at the next one to know which tab.
+  const activeKey = useMemo<string>(() => {
+    // Resolve the current route's leading sub-segment: the (tabs) inner
+    // route when on a tab, else the first segment after (app) for a
+    // pushed detail screen (event/[id], gallery, payments, …).
     const tabsIdx = segments.indexOf('(tabs)');
+    let sub: string | undefined;
     if (tabsIdx !== -1 && tabsIdx + 1 < segments.length) {
-      const inner = segments[tabsIdx + 1];
-      if (inner === 'events' || inner === 'wallet' || inner === 'inbox') return inner;
-      if (inner === 'profile') return 'more';
-      return 'index';
+      sub = segments[tabsIdx + 1];
+      if (sub === 'profile') return 'more';
+    } else {
+      const appIdx = segments.indexOf('(app)');
+      sub = appIdx !== -1 ? segments[appIdx + 1] : segments[0];
     }
-    // Detail routes — guess from the first segment after (app)
-    const appIdx = segments.indexOf('(app)');
-    const sub = appIdx !== -1 ? segments[appIdx + 1] : segments[0];
-    if (sub === 'event' || sub === 'bookings' || sub === 'streams' || sub === 'stream') return 'events';
-    if (
-      sub === 'wallet' ||
-      sub === 'transactions' ||
-      sub === 'payments' ||
-      sub === 'payment' ||
-      sub === 'donations' ||
-      sub === 'withdraw' ||
-      sub === 'payroll'
-    )
-      return 'wallet';
-    if (sub === 'conversation' || sub === 'notifications') return 'inbox';
-    return 'index';
-  }, [segments]);
+    if (sub) {
+      const hit = tabs.find((t) => !t.isMore && t.match.includes(sub as string));
+      if (hit) return hit.key;
+    }
+    return 'home';
+  }, [segments, tabs]);
 
   const moreItems: MoreItem[] = [
     { label: 'Profile', icon: 'person-outline', href: '/profile' as Href },
     { label: 'Notifications', icon: 'notifications-outline', href: '/notifications' as Href },
-    ...(isCoordinator || isClient
+    ...(isCoordinator || isClient || isUser
       ? [
           { label: 'Find photographers', icon: 'camera-outline' as const, href: '/photographers' as Href },
           { label: 'Find my photos', icon: 'scan-outline' as const, href: '/find-my-photos' as Href },
+        ]
+      : []),
+    // A User's bookings + live streams live in More (off the main bar).
+    ...(isUser
+      ? [
+          { label: 'My bookings', icon: 'briefcase-outline' as const, href: '/bookings' as Href },
+          { label: 'Live streams', icon: 'videocam-outline' as const, href: '/streams' as Href },
         ]
       : []),
     ...(isCoordinator
@@ -171,10 +189,10 @@ export function PersistentBottomBar() {
         )}
 
         <View style={styles.tabRow}>
-          {TABS.map((tab) => {
-            const isFocused = tab.name === activeName;
+          {tabs.map((tab) => {
+            const isFocused = tab.key === activeKey;
             const onPress = () => {
-              if (tab.name === 'more') {
+              if (tab.isMore) {
                 setMoreOpen(true);
                 return;
               }
@@ -182,7 +200,7 @@ export function PersistentBottomBar() {
             };
             return (
               <Pressable
-                key={tab.name}
+                key={tab.key}
                 accessibilityRole="button"
                 accessibilityLabel={tab.label}
                 accessibilityState={isFocused ? { selected: true } : {}}
