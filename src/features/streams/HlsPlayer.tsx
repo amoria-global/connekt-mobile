@@ -32,6 +32,7 @@ import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { WebView } from 'react-native-webview';
+import { StreamWatermark } from './StreamWatermark';
 
 /**
  * Normalize any Cloudflare playback URL to its WHEP endpoint
@@ -247,6 +248,7 @@ function CloudflareWhepPlayer({ whepUrl, style }: { whepUrl: string; style?: any
         // Surface negotiation/network failures during dev without crashing.
         onError={(e) => console.warn('[stream] webview', e.nativeEvent?.description)}
       />
+      <StreamWatermark position="top-left" />
     </View>
   );
 }
@@ -316,6 +318,7 @@ function NativeHlsPlayer({ url, style, controls = true }: { url: string; style?:
         contentFit="contain"
         nativeControls={controls}
       />
+      <StreamWatermark position="top-left" />
     </View>
   );
 }
