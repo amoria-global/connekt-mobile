@@ -1,16 +1,22 @@
 /**
  * Persistent brand watermark burned onto every live-stream video (mobile).
  *
- * Mirrors knockout's StreamWatermark: a low-opacity "AMORIA CONNEKYT" bug
- * (logo + wordmark) pinned to a corner of the player. It lives INSIDE the
- * HlsPlayer wrap, so every viewer sees it on every stream regardless of
- * role or access.
+ * Mirrors knockout's StreamWatermark with two layers so it's impossible to
+ * miss yet non-intrusive:
+ *   1. A faint, large diagonal "AMORIA CONNEKYT" across the whole frame.
+ *   2. A legible corner bug (logo + wordmark) on a translucent pill.
  *
+ * It lives INSIDE the HlsPlayer wrap (rendered after the video/VideoView) so
+ * every viewer sees it on every stream, regardless of role or access.
  * pointer-events: none → it never steals taps from the player/controls.
- * It renders as a sibling AFTER the video/WebView so it layers above it.
+ *
+ * NOTE: the native WebRTC path plays inside a WebView; there the watermark is
+ * injected into the WebView's own HTML (see HlsPlayer buildWhepHtml) because
+ * an RN sibling can render behind a WebView on Android. This component covers
+ * the native-HLS + web players.
  */
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { logoBase64 } from '@/utils/logoBase64';
 
 export function StreamWatermark({
@@ -18,39 +24,67 @@ export function StreamWatermark({
 }: {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 }) {
-  const pos: ViewStyle = {
-    ...(position.startsWith('top') ? { top: 10 } : { bottom: 10 }),
-    ...(position.endsWith('left') ? { left: 10 } : { right: 10 }),
-  };
+  const corner = {
+    ...(position.startsWith('top') ? { top: 12 } : { bottom: 12 }),
+    ...(position.endsWith('left') ? { left: 12 } : { right: 12 }),
+  } as const;
+
   return (
-    <View pointerEvents="none" style={[styles.wrap, pos] as StyleProp<ViewStyle>}>
-      <Image source={{ uri: logoBase64 }} style={styles.logo} contentFit="contain" />
-      <Text style={styles.text} numberOfLines={1}>
-        AMORIA CONNEKYT
-      </Text>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {/* Layer 1 — faint full-frame diagonal wordmark. */}
+      <View style={styles.centerWrap} pointerEvents="none">
+        <Text style={styles.diagonal} numberOfLines={1}>
+          AMORIA CONNEKYT
+        </Text>
+      </View>
+
+      {/* Layer 2 — legible corner bug. */}
+      <View style={[styles.bug, corner]} pointerEvents="none">
+        <Image source={{ uri: logoBase64 }} style={styles.logo} contentFit="contain" />
+        <Text style={styles.bugText} numberOfLines={1}>
+          AMORIA CONNEKYT
+        </Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
+  centerWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  diagonal: {
+    color: '#fff',
+    opacity: 0.14,
+    fontSize: 46,
+    fontWeight: '900',
+    letterSpacing: 3,
+    transform: [{ rotate: '-22deg' }],
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 12,
+  },
+  bug: {
     position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    // Low opacity so it reads as a watermark, not UI chrome.
-    opacity: 0.55,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.34)',
+    opacity: 0.92,
     zIndex: 40,
   },
-  logo: {
-    width: 22,
-    height: 22,
-  },
-  text: {
+  logo: { width: 20, height: 20 },
+  bugText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     textShadowColor: 'rgba(0,0,0,0.85)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
