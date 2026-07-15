@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack, useRouter, useSegments, type Href } from 'expo-router';
+import { Stack, useRootNavigationState, useRouter, useSegments, type Href } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Platform, View } from 'react-native';
@@ -95,8 +95,15 @@ function useProtectedRoute() {
   const termsAccepted = useOnboarding((s) => s.termsAccepted);
   const segments = useSegments();
   const router = useRouter();
+  // undefined until the root <Stack> is actually mounted. The layout renders a
+  // plain splash <View> (no navigator) while auth/fonts load, so without this
+  // guard a redirect that fires the moment auth status resolves — but before
+  // fonts finish, common on web — throws "Attempted to navigate before mounting
+  // the Root Layout component."
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
+    if (!navigationState?.key) return;
     if (status === 'idle' || status === 'loading') return;
     // Wait for the onboarding flag before routing an unauthenticated user.
     if (status === 'unauthenticated' && seen === null) return;
@@ -128,7 +135,7 @@ function useProtectedRoute() {
     } else if (!inAuthGroup && !inPublic) {
       router.replace('/login');
     }
-  }, [status, seen, termsAccepted, segments, router]);
+  }, [navigationState?.key, status, seen, termsAccepted, segments, router]);
 }
 
 export default function RootLayout() {
