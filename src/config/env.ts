@@ -22,6 +22,13 @@ export const env = {
     extra.apiBaseUrl ??
     'https://backend.connekyt.com/api/remote',
 
+  /**
+   * Public web app (knockout landing) base URL. Registration now happens in
+   * the browser — the app opens `${webBaseUrl}/user/auth/signup` and the web
+   * bounces back into the app via the `connekt://` deep link on success.
+   */
+  webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL ?? 'https://connekyt.com',
+
   /** Network request timeout in milliseconds. */
   requestTimeoutMs: 20_000,
 
