@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { isNeedsVerification, isNeedsTotp, isNeedsPasswordChange } from '@/features/auth/api';
+import { openWebSignup } from '@/features/auth/webSignup';
 import { GoogleButton } from '@/features/auth/GoogleButton';
 import { RoleModal } from '@/features/auth/RoleModal';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
@@ -42,14 +44,34 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginScreen() {
   const login = useAuth((s) => s.login);
+  const applySession = useAuth((s) => s.applySession);
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
 
-  const onPickRole = (role: CustomerType) => {
+  // Registration now happens in the browser: pick a role, hand off to the web
+  // sign-up, and (on success) come back into the app already authenticated.
+  const onPickRole = async (role: CustomerType) => {
     setRoleModalVisible(false);
-    router.push({ pathname: '/signup', params: { role } });
+    setServerError(null);
+    try {
+      const result = await openWebSignup(role);
+      if (result.status === 'success') {
+        // Session persisted; flipping auth state routes into the app.
+        applySession(result.session);
+      } else if (result.status === 'registered') {
+        Alert.alert(
+          'Account created',
+          'Your account is ready. Please sign in to continue.',
+        );
+      }
+      // 'cancelled' → user backed out; stay on the login screen silently.
+    } catch (err) {
+      setServerError(
+        isApiError(err) ? err.message : 'We could not open registration. Please try again.',
+      );
+    }
   };
 
   const {

@@ -25,6 +25,7 @@ function normalizeRole(raw?: string): CustomerType | undefined {
   if (r === 'photographer') return 'Photographer';
   if (r === 'client') return 'Client';
   if (r === 'viewer') return 'Viewer';
+  if (r === 'user') return 'User';
   if (r === 'coordinator' || r === 'event-coordinator') return 'Coordinator';
   return 'Client'; // unknown → safe default
 }
@@ -284,6 +285,38 @@ export async function googleLogin(
 }
 
 export const CUSTOMER_TYPES: CustomerType[] = ['Client', 'Photographer', 'Coordinator'];
+
+/**
+ * Establish + persist a session from tokens handed back by the web signup
+ * flow (browser-based registration). The web app redirects to the
+ * `connekt://auth-callback` deep link carrying the freshly minted token so
+ * the app can log the new user straight in without a second login.
+ */
+export async function establishSession(params: {
+  token: string;
+  refreshToken?: string;
+  customerId?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  customerType?: string;
+}): Promise<AuthSession> {
+  const session: AuthSession = {
+    token: params.token,
+    refreshToken: params.refreshToken,
+    user: {
+      customerId: params.customerId ?? '',
+      email: params.email ?? '',
+      firstName: params.firstName,
+      lastName: params.lastName,
+      phone: params.phone,
+      customerType: normalizeRole(params.customerType),
+    },
+  };
+  await persistSession(session);
+  return session;
+}
 
 export async function logout(): Promise<void> {
   try {
