@@ -98,10 +98,24 @@ function buildWhepHtml(whepUrl: string): string {
   #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
        color:#9aa3b2;font-family:-apple-system,system-ui,'Segoe UI',sans-serif;
        font-size:14px;text-align:center;padding:16px;pointer-events:none;}
+  /* Brand watermark — burned into the player so every viewer sees it. */
+  #wm-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+       overflow:hidden;pointer-events:none;}
+  #wm-center span{transform:rotate(-22deg);color:#fff;opacity:0.14;font-weight:900;
+       letter-spacing:3px;font-size:9vw;white-space:nowrap;text-transform:uppercase;
+       text-shadow:0 2px 14px rgba(0,0,0,.45);
+       font-family:-apple-system,system-ui,'Segoe UI',sans-serif;}
+  #wm-bug{position:absolute;top:12px;left:12px;display:flex;align-items:center;
+       padding:5px 10px;border-radius:999px;background:rgba(0,0,0,.34);color:#fff;
+       font-weight:800;letter-spacing:1.1px;font-size:12px;text-transform:uppercase;
+       pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.85);
+       font-family:-apple-system,system-ui,'Segoe UI',sans-serif;}
 </style>
 </head>
 <body>
 <video id="v" playsinline autoplay muted></video>
+<div id="wm-center"><span>Amoria Connekyt</span></div>
+<div id="wm-bug">Amoria Connekyt</div>
 <div id="msg">Connecting…</div>
 <script>
 (function(){
@@ -248,7 +262,8 @@ function CloudflareWhepPlayer({ whepUrl, style }: { whepUrl: string; style?: any
         // Surface negotiation/network failures during dev without crashing.
         onError={(e) => console.warn('[stream] webview', e.nativeEvent?.description)}
       />
-      <StreamWatermark position="top-left" />
+      {/* Watermark is injected into the WebView's HTML (buildWhepHtml) — an RN
+          overlay here can render behind the WebView on Android. */}
     </View>
   );
 }
