@@ -21,9 +21,7 @@ import { Screen } from '@/components/ui/Screen';
 import { isNeedsVerification, isNeedsTotp, isNeedsPasswordChange } from '@/features/auth/api';
 import { openWebSignup } from '@/features/auth/webSignup';
 import { GoogleButton } from '@/features/auth/GoogleButton';
-import { RoleModal } from '@/features/auth/RoleModal';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
-import type { CustomerType } from '@/features/auth/types';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
@@ -47,16 +45,16 @@ export default function LoginScreen() {
   const applySession = useAuth((s) => s.applySession);
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
 
-  // Registration now happens in the browser: pick a role, hand off to the web
-  // sign-up, and (on success) come back into the app already authenticated.
-  const onPickRole = async (role: CustomerType) => {
-    setRoleModalVisible(false);
+  // Registration happens entirely in the browser. Tapping Register hands off to
+  // the web sign-up, where the account-type picker lives (single source of truth
+  // — no duplicate role modal in the app). On success we come back already
+  // authenticated.
+  const onRegister = async () => {
     setServerError(null);
     try {
-      const result = await openWebSignup(role);
+      const result = await openWebSignup();
       if (result.status === 'success') {
         // Session persisted; flipping auth state routes into the app.
         applySession(result.session);
@@ -182,7 +180,7 @@ export default function LoginScreen() {
 
               <Pressable
                 style={styles.registerLine}
-                onPress={() => setRoleModalVisible(true)}
+                onPress={onRegister}
                 hitSlop={8}
               >
                 <Text style={styles.registerText}>
@@ -219,11 +217,6 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <RoleModal
-        visible={roleModalVisible}
-        onClose={() => setRoleModalVisible(false)}
-        onSelect={onPickRole}
-      />
       <FindPhotosBottomSheet
         visible={findPhotosModalVisible}
         onClose={() => setFindPhotosModalVisible(false)}

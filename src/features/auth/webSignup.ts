@@ -36,12 +36,14 @@ function str(v: string | string[] | undefined | null): string | undefined {
   return v ?? undefined;
 }
 
-export async function openWebSignup(role: CustomerType): Promise<WebSignupResult> {
+export async function openWebSignup(role?: CustomerType): Promise<WebSignupResult> {
   // connekt://auth-callback in a standalone build; exp://…/--/auth-callback in dev.
   const returnUrl = Linking.createURL('auth-callback');
 
   const url = new URL(`${env.webBaseUrl}/user/auth/signup`);
-  url.searchParams.set('userType', role);
+  // Omitting userType lets the web app show its own account-type picker — the
+  // single source of truth for roles, so the app carries no duplicate modal.
+  if (role) url.searchParams.set('userType', role);
   url.searchParams.set('source', 'app');
   url.searchParams.set('redirect', returnUrl);
 
