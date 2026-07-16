@@ -50,6 +50,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import type { PublicEvent } from '@/features/events/types';
 import {
   checkAnonymousAccessStatus,
@@ -169,6 +170,11 @@ function buildCta(
         disabled: false,
         href: `/events/live-stream?id=${e.id}${viewerId ? `&viewerId=${viewerId}` : ''}` as unknown as Href,
       };
+    // No purchase path on Android, and no link out to one either. The
+    // "Already paid? Verify access" and group-code cards below stay visible,
+    // so anyone who already holds access can still get in.
+    if (!digitalPurchasesEnabled)
+      return { label: 'Ticketed event', sub: price, icon: 'ticket', tone: 'live', disabled: true };
     return {
       label: 'Buy access',
       sub: price,
@@ -183,6 +189,8 @@ function buildCta(
       return { label: 'Get notified', icon: 'notifications', tone: 'reserve', disabled: false };
     if (hasPurchasedAccess)
       return { label: 'Access reserved', icon: 'checkmark-circle', tone: 'owned', disabled: true };
+    if (!digitalPurchasesEnabled)
+      return { label: 'Ticketed event', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
     return {
       label: 'Reserve your spot',
       sub: price,

@@ -36,4 +36,10 @@ export const StorageKeys = {
   onboardingSeen: 'onboarding.seen',
   /** Persisted once the user accepts the Terms & Conditions on first install. */
   termsAccepted: 'terms.accepted',
+  /**
+   * Anonymous live-chat participants this device has hidden. Anonymous viewers
+   * have no account to block server-side, so the block is device-local —
+   * keyed by "<eventId>:<viewerName>". Reports still go to the server.
+   */
+  hiddenChatters: 'moderation.hiddenChatters',
 } as const;

@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import {
   getPublicPaymentStatus,
   initiateAnonymousStreamingPayment,
@@ -218,6 +219,20 @@ export default function EventPaymentScreen() {
       if (!reg.needsPayment) {
         await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
         router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href);
+        return;
+      }
+
+      // Nothing routes here on Android, but a paid stream must never reach a
+      // non-Play payment page from inside the app. Checked after the free
+      // bypass above so free events still register and play.
+      if (!digitalPurchasesEnabled) {
+        setBusy(false);
+        setStatus('idle');
+        setStatusNote('');
+        Alert.alert(
+          'Not available',
+          'This event needs access that cannot be purchased in the app. If you already have access, use your invite code.',
+        );
         return;
       }
 

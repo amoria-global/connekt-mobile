@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { getPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -70,7 +71,7 @@ export default function PhotobookDetailScreen() {
             </View>
             {data?.photographerName ? <Text style={styles.meta}>By {data.photographerName}</Text> : null}
             {data?.description ? <Text style={styles.desc}>{data.description}</Text> : null}
-            {data?.paymentRequired && data?.extraPhotosAmount ? (
+            {data?.paymentRequired && data?.extraPhotosAmount && digitalPurchasesEnabled ? (
               <Pressable
                 style={({ pressed }) => [styles.payBanner, pressed && { opacity: 0.85 }]}
                 onPress={() => {

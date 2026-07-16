@@ -1,30 +1,63 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { useRouter, Stack } from 'expo-router';
-import { Alert, Modal, Pressable, StyleSheet, View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet from '@gorhom/bottom-sheet';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { inviteCoordinatorPhotographer, listPhotographers } from '@/features/photographers/api';
 import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { useRole } from '@/features/auth/role';
-import { BookingBottomSheet } from '@/features/booking/BookingBottomSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const ITEMS_PER_PAGE = 4;
-let hasAutoShownWizard = false;
+
+const ALL_CATEGORIES = 'All Categories';
+const ALL_LOCATIONS = 'All Locations';
+const ALL_PRICES = 'All Prices';
+const ALL_RATINGS = 'All Ratings';
+
+const PRICE_BUCKETS = [
+  { label: 'Under $100', min: 0, max: 100 },
+  { label: '$100 – $250', min: 100, max: 250 },
+  { label: '$250 – $500', min: 250, max: 500 },
+  { label: '$500+', min: 500, max: Infinity },
+] as const;
+
+const RATING_OPTIONS = [
+  { label: ALL_RATINGS, min: 0 },
+  { label: '4.5+', min: 4.5 },
+  { label: '4.0+', min: 4 },
+  { label: '3.0+', min: 3 },
+] as const;
+
+type SortKey = 'rating' | 'price' | 'name';
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'rating', label: 'Rating' },
+  { key: 'price', label: 'Price' },
+  { key: 'name', label: 'Name' },
+];
+
+type SheetKey = 'category' | 'location' | 'price' | 'rating' | 'sort';
 
 // Filter button component
-function FilterButton({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+function FilterButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <Pressable style={styles.filterButton}>
+    <Pressable style={styles.filterButton} onPress={onPress} accessibilityRole="button">
       <Ionicons name={icon} size={14} color={colors.textMuted} />
-      <Text style={styles.filterButtonText}>{label}</Text>
+      <Text style={styles.filterButtonText} numberOfLines={1}>{label}</Text>
       <Ionicons name="chevron-down" size={12} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
     </Pressable>
   );
@@ -35,7 +68,13 @@ export default function PhotographersScreen() {
   const [query, setQuery] = useState('');
   const [showBanner, setShowBanner] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const bottomSheetRef = useRef<BottomSheet>(null);
+
+  const [category, setCategory] = useState(ALL_CATEGORIES);
+  const [location, setLocation] = useState(ALL_LOCATIONS);
+  const [price, setPrice] = useState<string>(ALL_PRICES);
+  const [rating, setRating] = useState<string>(ALL_RATINGS);
+  const [sort, setSort] = useState<SortKey>('rating');
+  const [sheet, setSheet] = useState<SheetKey | null>(null);
 
   // Coordinator invite-by-email state — gated to Coordinator role.
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -70,28 +109,109 @@ export default function PhotographersScreen() {
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotographers(), []));
   const router = useRouter();
 
-  // Show bottom sheet automatically after 5 seconds, just like the web wizard
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    (data ?? []).forEach((p) => { if (p.category) set.add(p.category); });
+    return [ALL_CATEGORIES, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [data]);
+
+  const locationOptions = useMemo(() => {
+    const set = new Set<string>();
+    (data ?? []).forEach((p) => { if (p.location) set.add(p.location); });
+    return [ALL_LOCATIONS, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [data]);
+
+  // Only offer buckets that actually contain someone, so the sheet never
+  // shows a range that can only ever return zero results.
+  const priceOptions = useMemo(() => {
+    const prices = (data ?? [])
+      .map((p) => p.startingPrice)
+      .filter((n): n is number => typeof n === 'number');
+    return [
+      ALL_PRICES,
+      ...PRICE_BUCKETS.filter((b) => prices.some((v) => v >= b.min && v < b.max)).map((b) => b.label),
+    ];
+  }, [data]);
+
+  const ratingOptions = useMemo(() => RATING_OPTIONS.map((o) => o.label), []);
+
+  // Options that vanish when the data changes must not leave a stale
+  // selection filtering everything out.
   useEffect(() => {
-    if (!hasAutoShownWizard) {
-      const timer = setTimeout(() => {
-        bottomSheetRef.current?.expand();
-        hasAutoShownWizard = true;
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+    if (!categoryOptions.includes(category)) setCategory(ALL_CATEGORIES);
+    if (!locationOptions.includes(location)) setLocation(ALL_LOCATIONS);
+    if (!priceOptions.includes(price)) setPrice(ALL_PRICES);
+  }, [categoryOptions, locationOptions, priceOptions, category, location, price]);
 
   const filtered = useMemo(() => {
     if (!data) return data;
     const q = query.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.category ?? '').toLowerCase().includes(q) ||
-        (p.location ?? '').toLowerCase().includes(q),
-    );
-  }, [data, query]);
+    const bucket = PRICE_BUCKETS.find((b) => b.label === price);
+    const minRating = RATING_OPTIONS.find((o) => o.label === rating)?.min ?? 0;
+
+    const rows = data.filter((p) => {
+      if (q) {
+        const hit =
+          p.name.toLowerCase().includes(q) ||
+          (p.category ?? '').toLowerCase().includes(q) ||
+          (p.location ?? '').toLowerCase().includes(q);
+        if (!hit) return false;
+      }
+      if (category !== ALL_CATEGORIES && p.category !== category) return false;
+      if (location !== ALL_LOCATIONS && p.location !== location) return false;
+      if (bucket) {
+        if (typeof p.startingPrice !== 'number') return false;
+        if (p.startingPrice < bucket.min || p.startingPrice >= bucket.max) return false;
+      }
+      if (minRating > 0 && (p.rating ?? 0) < minRating) return false;
+      return true;
+    });
+
+    return rows.sort((a, b) => {
+      if (sort === 'name') return a.name.localeCompare(b.name);
+      if (sort === 'price') {
+        // Unpriced profiles sort last rather than reading as free.
+        return (a.startingPrice ?? Infinity) - (b.startingPrice ?? Infinity);
+      }
+      return (b.rating ?? 0) - (a.rating ?? 0);
+    });
+  }, [data, query, category, location, price, rating, sort]);
+
+  // The search box narrows the list exactly like the filters do, so it counts
+  // as active and gets cleared too — otherwise "Clear filters" leaves a
+  // no-match query in place and appears to do nothing.
+  const activeFilterCount =
+    (query.trim() ? 1 : 0) +
+    (category !== ALL_CATEGORIES ? 1 : 0) +
+    (location !== ALL_LOCATIONS ? 1 : 0) +
+    (price !== ALL_PRICES ? 1 : 0) +
+    (rating !== ALL_RATINGS ? 1 : 0);
+
+  const clearFilters = () => {
+    setQuery('');
+    setCategory(ALL_CATEGORIES);
+    setLocation(ALL_LOCATIONS);
+    setPrice(ALL_PRICES);
+    setRating(ALL_RATINGS);
+  };
+
+  const sheetConfig: Record<SheetKey, { title: string; options: string[]; selected: string; select: (v: string) => void }> = {
+    category: { title: 'Category', options: categoryOptions, selected: category, select: setCategory },
+    location: { title: 'Location', options: locationOptions, selected: location, select: setLocation },
+    price: { title: 'Starting price', options: priceOptions, selected: price, select: setPrice },
+    rating: { title: 'Rating', options: ratingOptions, selected: rating, select: setRating },
+    sort: {
+      title: 'Sort by',
+      options: SORT_OPTIONS.map((o) => o.label),
+      selected: SORT_OPTIONS.find((o) => o.key === sort)!.label,
+      select: (v) => {
+        const next = SORT_OPTIONS.find((o) => o.label === v);
+        if (next) setSort(next.key);
+      },
+    },
+  };
+  const activeSheet = sheet ? sheetConfig[sheet] : null;
+  const sortLabel = SORT_OPTIONS.find((o) => o.key === sort)!.label;
 
   // Reset to the first page whenever the filtered set changes. This is a real
   // side effect, so it belongs in useEffect — doing it in useMemo set state
@@ -101,12 +221,17 @@ export default function PhotographersScreen() {
   }, [filtered]);
 
   const totalPages = filtered ? Math.ceil(filtered.length / ITEMS_PER_PAGE) : 0;
-  
+
+  // The reset above only lands after paint, so narrowing the filters while on a
+  // deep page would render one frame of "no photographers found". Clamp here so
+  // that frame never shows.
+  const safePage = Math.min(currentPage, Math.max(1, totalPages));
+
   const paginatedData = useMemo(() => {
     if (!filtered) return [];
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
     return filtered.slice(start, start + ITEMS_PER_PAGE);
-  }, [filtered, currentPage]);
+  }, [filtered, safePage]);
 
   const handlePhotographerPress = (id: string) => {
     router.push(`/photographer/${id}`);
@@ -160,25 +285,29 @@ export default function PhotographersScreen() {
         
         <View style={styles.filtersGrid}>
           <View style={styles.filtersRow}>
-            <FilterButton icon="camera-outline" label="All Categories" />
-            <FilterButton icon="location-outline" label="All Locations" />
+            <FilterButton icon="camera-outline" label={category} onPress={() => setSheet('category')} />
+            <FilterButton icon="location-outline" label={location} onPress={() => setSheet('location')} />
           </View>
           <View style={styles.filtersRow}>
-            <FilterButton icon="cash-outline" label="All Prices" />
-            <FilterButton icon="star-outline" label="All Ratings" />
-          </View>
-          <View style={styles.filtersRow}>
-            <FilterButton icon="calendar-outline" label="dd/mm/yyyy" />
-            <View style={{ flex: 1 }} />
+            <FilterButton icon="cash-outline" label={price} onPress={() => setSheet('price')} />
+            <FilterButton icon="star-outline" label={rating} onPress={() => setSheet('rating')} />
           </View>
         </View>
       </View>
 
       {/* Results Strip */}
       <View style={styles.resultsStrip}>
-        <Text style={styles.resultsText}>
-          <Text style={styles.resultsCount}>{filtered?.length ?? 0}</Text> photographers found
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+          <Text style={styles.resultsText}>
+            <Text style={styles.resultsCount}>{filtered?.length ?? 0}</Text> photographers found
+          </Text>
+          {activeFilterCount > 0 ? (
+            <Pressable style={styles.clearPill} onPress={clearFilters} accessibilityRole="button">
+              <Ionicons name="close-circle" size={12} color={colors.primary} />
+              <Text style={styles.clearPillText}>Clear filters</Text>
+            </Pressable>
+          ) : null}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {/*
            * Coordinator-only invite pill. Web parity: salo-run
@@ -192,10 +321,10 @@ export default function PhotographersScreen() {
               <Text style={styles.invitePillText}>Invite</Text>
             </Pressable>
           ) : null}
-          <Pressable style={styles.sortButton}>
+          <Pressable style={styles.sortButton} onPress={() => setSheet('sort')} accessibilityRole="button">
             <Ionicons name="swap-vertical" size={14} color={colors.text} />
-            <Text style={styles.sortText}>Sort: <Text style={styles.sortValue}>Newest</Text></Text>
-            <Ionicons name="chevron-up" size={14} color={colors.textMuted} />
+            <Text style={styles.sortText}>Sort: <Text style={styles.sortValue}>{sortLabel}</Text></Text>
+            <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
           </Pressable>
         </View>
       </View>
@@ -207,22 +336,22 @@ export default function PhotographersScreen() {
     return (
       <View style={styles.paginationContainer}>
         <Pressable 
-          style={[styles.pagerBtn, currentPage === 1 && styles.pagerBtnDisabled]}
+          style={[styles.pagerBtn, safePage === 1 && styles.pagerBtnDisabled]}
           onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
+          disabled={safePage === 1}
         >
-          <Ionicons name="chevron-back" size={12} color={currentPage === 1 ? colors.textMuted : colors.text} />
-          <Text style={[styles.pagerText, currentPage === 1 && styles.pagerTextDisabled]}>Prev</Text>
+          <Ionicons name="chevron-back" size={12} color={safePage === 1 ? colors.textMuted : colors.text} />
+          <Text style={[styles.pagerText, safePage === 1 && styles.pagerTextDisabled]}>Prev</Text>
         </Pressable>
         
         <View style={styles.pageNumbers}>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
             <Pressable
               key={page}
-              style={[styles.pageNumberBtn, currentPage === page && styles.pageNumberBtnActive]}
+              style={[styles.pageNumberBtn, safePage === page && styles.pageNumberBtnActive]}
               onPress={() => setCurrentPage(page)}
             >
-              <Text style={[styles.pageNumberText, currentPage === page && styles.pageNumberTextActive]}>
+              <Text style={[styles.pageNumberText, safePage === page && styles.pageNumberTextActive]}>
                 {page}
               </Text>
             </Pressable>
@@ -230,12 +359,12 @@ export default function PhotographersScreen() {
         </View>
 
         <Pressable 
-          style={[styles.pagerBtn, currentPage === totalPages && styles.pagerBtnDisabled]}
+          style={[styles.pagerBtn, safePage === totalPages && styles.pagerBtnDisabled]}
           onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages}
+          disabled={safePage === totalPages}
         >
-          <Text style={[styles.pagerText, currentPage === totalPages && styles.pagerTextDisabled]}>Next</Text>
-          <Ionicons name="chevron-forward" size={12} color={currentPage === totalPages ? colors.textMuted : colors.text} />
+          <Text style={[styles.pagerText, safePage === totalPages && styles.pagerTextDisabled]}>Next</Text>
+          <Ionicons name="chevron-forward" size={12} color={safePage === totalPages ? colors.textMuted : colors.text} />
         </Pressable>
       </View>
     );
@@ -291,11 +420,6 @@ export default function PhotographersScreen() {
           />
         )}
       </Screen>
-      <BookingBottomSheet
-        ref={bottomSheetRef}
-        photographerId={undefined}
-      />
-
       <Modal
         visible={inviteOpen}
         transparent
@@ -329,6 +453,39 @@ export default function PhotographersScreen() {
               onPress={submitInvite}
               loading={inviteSubmitting}
             />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={activeSheet !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheet(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setSheet(null)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>{activeSheet?.title}</Text>
+            <ScrollView style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
+              {activeSheet?.options.map((option) => {
+                const active = option === activeSheet.selected;
+                return (
+                  <Pressable
+                    key={option}
+                    onPress={() => {
+                      activeSheet.select(option);
+                      setSheet(null);
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    style={[styles.chip, active && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{option}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Button title="Close" variant="ghost" onPress={() => setSheet(null)} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -481,7 +638,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: colors.text,
+    flexShrink: 1,
   },
+  clearPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.infoBg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  clearPillText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  chipScroll: { maxHeight: 240 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingBottom: spacing.sm },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: fontWeight.semibold },
+  chipTextActive: { color: colors.textOnPrimary },
   resultsStrip: {
     flexDirection: 'row',
     alignItems: 'center',

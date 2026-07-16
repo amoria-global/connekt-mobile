@@ -63,6 +63,7 @@ import { HlsPlayer } from '@/features/streams/HlsPlayer';
 import { StreamAdOverlay } from '@/features/streams/StreamAdOverlay';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   KeyboardAvoidingView,
   Modal,
@@ -100,7 +101,11 @@ import {
   getPublicPaymentStatus,
   pollPublicPaymentStatus,
 } from '@/features/payments/anonymous';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { useAsync } from '@/hooks/useAsync';
+import { ReportSheet } from '@/features/moderation/ReportSheet';
+import { reportContent, reportPublicChatMessage } from '@/features/moderation/api';
+import { useModeration } from '@/features/moderation/useModeration';
 import { isApiError } from '@/store/auth';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
@@ -199,7 +204,16 @@ function ChatVideoBubble({ uri }: { uri: string }) {
 
 type FloatEmoji = { id: string; emoji: string; anim: Animated.Value; offset: number };
 
-function OverlayChatRow({ chat, isOwn }: { chat: PublicStreamChat; isOwn: boolean }) {
+function OverlayChatRow({
+  chat,
+  isOwn,
+  onLongPress,
+}: {
+  chat: PublicStreamChat;
+  isOwn: boolean;
+  /** Opens the report/hide menu. Omitted for the viewer's own messages. */
+  onLongPress?: (chat: PublicStreamChat) => void;
+}) {
   // Mount animation — the row fades in and slides up a few px into place, so
   // the stack visibly "moves upward" as newer messages push in below.
   const enter = useRef(new Animated.Value(0)).current;
@@ -221,7 +235,15 @@ function OverlayChatRow({ chat, isOwn }: { chat: PublicStreamChat; isOwn: boolea
         },
       ]}
     >
-      <View style={chatFx.pill}>
+      <Pressable
+        style={chatFx.pill}
+        onLongPress={onLongPress ? () => onLongPress(chat) : undefined}
+        delayLongPress={300}
+        accessibilityRole={onLongPress ? 'button' : undefined}
+        accessibilityHint={
+          onLongPress ? 'Long press to report this message or hide this person' : undefined
+        }
+      >
         <View style={chatFx.pillHead}>
           {chat.avatar ? (
             <Image source={{ uri: chat.avatar }} style={chatFx.avatar} contentFit="cover" />
@@ -239,7 +261,7 @@ function OverlayChatRow({ chat, isOwn }: { chat: PublicStreamChat; isOwn: boolea
         ) : (
           <Text style={chatFx.pillText}>{chat.message}</Text>
         )}
-      </View>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -247,6 +269,8 @@ function OverlayChatRow({ chat, isOwn }: { chat: PublicStreamChat; isOwn: boolea
 type LiveChatPanelProps = {
   chats: PublicStreamChat[];
   isOwn: (c: PublicStreamChat) => boolean;
+  /** Long-press a message someone else sent → report / hide menu. */
+  onLongPressChat: (chat: PublicStreamChat) => void;
   floating: FloatEmoji[];
   emojis: string[];
   onReact: (emoji: string) => void;
@@ -274,6 +298,7 @@ type LiveChatPanelProps = {
 function LiveChatPanel({
   chats,
   isOwn,
+  onLongPressChat,
   floating,
   emojis,
   onReact,
@@ -385,7 +410,14 @@ function LiveChatPanel({
             {chats.length === 0 ? (
               <Text style={chatFx.empty}>No messages yet — say hi 👋</Text>
             ) : (
-              chats.map((c) => <OverlayChatRow key={c.id} chat={c} isOwn={isOwn(c)} />)
+              chats.map((c) => (
+                <OverlayChatRow
+                  key={c.id}
+                  chat={c}
+                  isOwn={isOwn(c)}
+                  onLongPress={isOwn(c) ? undefined : onLongPressChat}
+                />
+              ))
             )}
           </ScrollView>
 
@@ -851,6 +883,86 @@ export default function PublicLiveStreamScreen() {
     [viewerName],
   );
 
+  // ── Moderation ───────────────────────────────────────────────────────────
+  //
+  // Live chat is the one surface anonymous viewers can post to, so it needs
+  // both a report path and a block path (Play UGC policy). Signed-in senders
+  // are blocked account-wide server-side; anonymous senders have no account,
+  // so they're hidden on this device by display name.
+
+  const hiddenChatters = useModeration((s) => s.hiddenChatters);
+  const blockedIds = useModeration((s) => s.blockedIds);
+  const hideChatter = useModeration((s) => s.hideChatter);
+  const blockAccount = useModeration((s) => s.block);
+  const loadModeration = useModeration((s) => s.load);
+
+  useEffect(() => {
+    loadModeration();
+  }, [loadModeration]);
+
+  const [reportChat, setReportChat] = useState<PublicStreamChat | null>(null);
+
+  /** Chats minus anyone this viewer hid or blocked. */
+  const visibleChats = useMemo(
+    () =>
+      chats.filter((c) => {
+        if (c.senderId && blockedIds.has(c.senderId)) return false;
+        if (c.viewerName && hiddenChatters.has(`${id}:${c.viewerName}`)) return false;
+        return true;
+      }),
+    [chats, blockedIds, hiddenChatters, id],
+  );
+
+  const onLongPressChat = useCallback(
+    (chat: PublicStreamChat) => {
+      const who = chat.viewerName || chat.senderName || 'this person';
+      // Signed-in senders get a real account block; anonymous ones can only be
+      // hidden locally, so the label says exactly what will happen.
+      const blockLabel = chat.senderId ? `Block ${who}` : `Hide ${who} on this device`;
+
+      Alert.alert(who, chat.message, [
+        { text: 'Report message', style: 'destructive', onPress: () => setReportChat(chat) },
+        {
+          text: blockLabel,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (chat.senderId) {
+                await blockAccount(chat.senderId);
+              } else if (chat.viewerName) {
+                await hideChatter(id, chat.viewerName);
+              }
+            } catch (e) {
+              Alert.alert(
+                'Could not block',
+                isApiError(e) ? e.message : 'Please try again.',
+              );
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    },
+    [blockAccount, hideChatter, id],
+  );
+
+  /**
+   * Anonymous viewers report through the public endpoint (they have no token);
+   * signed-in viewers use the authenticated one.
+   */
+  const submitChatReport = useCallback(
+    async (reason: string, description: string) => {
+      const chat = reportChat;
+      if (!chat) throw { status: 400, message: 'Nothing to report.' };
+      if (viewerId) {
+        const fingerprint = await getDeviceId();
+        return reportPublicChatMessage(id, chat.id, viewerId, fingerprint, reason, description);
+      }
+      return reportContent('STREAM_CHAT', chat.id, reason, description);
+    },
+    [reportChat, viewerId, id],
+  );
+
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const onJoinWithToken = async () => {
@@ -1074,6 +1186,7 @@ export default function PublicLiveStreamScreen() {
 
   const onSubmitGift = async () => {
     setGiftError(null);
+    if (!digitalPurchasesEnabled) return;
     if (!viewerId) {
       setGiftError('Verify your access first.');
       return;
@@ -1285,8 +1398,9 @@ export default function PublicLiveStreamScreen() {
           {/* TikTok-style transparent chat overlay (inline). */}
           {status.isLive && !chatFullscreen ? (
             <LiveChatPanel
-              chats={chats}
+              chats={visibleChats}
               isOwn={isOwnChat}
+              onLongPressChat={onLongPressChat}
               floating={floatingEmoji}
               emojis={REACTION_EMOJIS}
               onReact={onSendReaction}
@@ -1304,7 +1418,7 @@ export default function PublicLiveStreamScreen() {
               fullscreen={false}
               onToggleFullscreen={() => setChatFullscreen(true)}
               onGift={() => setGiftOpen(true)}
-              showGift={!!viewerId}
+              showGift={!!viewerId && digitalPurchasesEnabled}
               maxListHeight={Math.round(windowHeight * 0.34)}
               insetTop={insets.top}
               insetBottom={insets.bottom}
@@ -1408,8 +1522,9 @@ export default function PublicLiveStreamScreen() {
             pointerEvents="box-none"
           >
             <LiveChatPanel
-              chats={chats}
+              chats={visibleChats}
               isOwn={isOwnChat}
+              onLongPressChat={onLongPressChat}
               floating={floatingEmoji}
               emojis={REACTION_EMOJIS}
               onReact={onSendReaction}
@@ -1427,7 +1542,7 @@ export default function PublicLiveStreamScreen() {
               fullscreen
               onToggleFullscreen={() => setChatFullscreen(false)}
               onGift={() => setGiftOpen(true)}
-              showGift={!!viewerId}
+              showGift={!!viewerId && digitalPurchasesEnabled}
               maxListHeight={Math.round(windowHeight * 0.4)}
               insetTop={insets.top}
               insetBottom={insets.bottom}
@@ -1514,7 +1629,7 @@ export default function PublicLiveStreamScreen() {
                 onPress={onSubmitViewerInfo}
                 loading={infoBusy}
               />
-              {status.isPaid ? (
+              {status.isPaid && digitalPurchasesEnabled ? (
                 <Pressable
                   onPress={() => router.replace(`/events/join?id=${id}` as unknown as Href)}
                   style={{ alignItems: 'center', marginTop: 8 }}
@@ -1652,6 +1767,15 @@ export default function PublicLiveStreamScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Report a live-chat message (long-press a message to open). */}
+      <ReportSheet
+        visible={!!reportChat}
+        onClose={() => setReportChat(null)}
+        targetType="STREAM_CHAT"
+        subject={reportChat?.viewerName || reportChat?.senderName || undefined}
+        submit={submitChatReport}
+      />
     </Screen>
   );
 }

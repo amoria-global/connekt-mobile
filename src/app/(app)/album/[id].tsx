@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import {
   addAlbumImages,
   deleteAlbum,
@@ -29,6 +30,8 @@ import {
   type AlbumFaceStatus,
   type AlbumImage,
 } from '@/features/gallery/api';
+import { reportContent } from '@/features/moderation/api';
+import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
@@ -53,6 +56,7 @@ export default function AlbumDetailScreen() {
   const [unlocking, setUnlocking] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [faceStatus, setFaceStatus] = useState<AlbumFaceStatus | null>(null);
+  const [reportImageId, setReportImageId] = useState<string | null>(null);
 
   // Pull the face-index status alongside the album so the photographer
   // can verify their photos are searchable. Best-effort: a failure here
@@ -158,11 +162,27 @@ export default function AlbumDetailScreen() {
       "Our team will publish this album to the catalog once it's approved.",
     );
 
+  // Photographers own the photos in their own albums, so reporting is only
+  // offered on the client side of this screen.
+  const onLongPressPhoto = (imageId: string) => {
+    if (isPhotographer) return;
+    Alert.alert('Photo actions', undefined, [
+      { text: 'Report photo', style: 'destructive', onPress: () => setReportImageId(imageId) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const submitPhotoReport = async (reason: string, description: string) => {
+    if (!reportImageId) throw { status: 400, message: 'Nothing to report.' };
+    return reportContent('PHOTO', reportImageId, reason, description);
+  };
+
   const gap = spacing.sm;
   const cols = 3;
   const cell = (width - spacing.lg * 2 - gap * (cols - 1)) / cols;
 
   const onUnlock = async () => {
+    if (!digitalPurchasesEnabled) return;
     setUnlocking(true);
     try {
       await unlockAlbum(id);
@@ -298,25 +318,48 @@ export default function AlbumDetailScreen() {
             {locked ? (
               <View style={styles.lockedCard}>
                 <Ionicons name="lock-closed" size={28} color={colors.primary} />
-                <Text style={styles.lockedTitle}>This album is locked</Text>
-                <Text style={styles.lockedMsg}>
-                  Unlock to view and download all {data?.photoCount ?? ''} photos.
-                </Text>
-                <Button
-                  title={data?.amountDue ? `Unlock for ${formatMoney(data.amountDue, data.currency)}` : 'Unlock album'}
-                  onPress={onUnlock}
-                  loading={unlocking}
-                />
+                <Text style={styles.lockedTitle}>This album is archived</Text>
+                {digitalPurchasesEnabled ? (
+                  <>
+                    <Text style={styles.lockedMsg}>
+                      Unlock to view and download all {data?.photoCount ?? ''} photos.
+                    </Text>
+                    <Button
+                      title={data?.amountDue ? `Unlock for ${formatMoney(data.amountDue, data.currency)}` : 'Unlock album'}
+                      onPress={onUnlock}
+                      loading={unlocking}
+                    />
+                  </>
+                ) : (
+                  // Restoring an archived album is a paid digital service, so
+                  // there's no in-app path to it on Android and no link out to
+                  // one either.
+                  <Text style={styles.lockedMsg}>
+                    Its {data?.photoCount ?? ''} photos are in cold storage and aren&apos;t
+                    available here. Contact support to restore this album.
+                  </Text>
+                )}
               </View>
             ) : null}
           </View>
         }
-        renderItem={({ item }) => <PhotoCell image={item} size={cell} />}
+        renderItem={({ item }) => (
+          <PhotoCell image={item} size={cell} onLongPress={() => onLongPressPhoto(item.id)} />
+        )}
         ListEmptyComponent={
           locked ? null : (
             <EmptyState icon="images-outline" title="No photos" message="This album has no photos yet." />
           )
         }
+      />
+
+      {/* Report a photo (long-press a tile to open). */}
+      <ReportSheet
+        visible={!!reportImageId}
+        onClose={() => setReportImageId(null)}
+        targetType="PHOTO"
+        subject={data?.photographer ?? data?.name}
+        submit={submitPhotoReport}
       />
     </Screen>
   );
@@ -361,12 +404,20 @@ function ActBtn({
   );
 }
 
-function PhotoCell({ image, size }: { image: AlbumImage; size: number }) {
+function PhotoCell({
+  image,
+  size,
+  onLongPress,
+}: {
+  image: AlbumImage;
+  size: number;
+  onLongPress?: () => void;
+}) {
   const open = () => {
     if (image.url) WebBrowser.openBrowserAsync(image.url);
   };
   return (
-    <Pressable onPress={open} style={[styles.cell, { width: size, height: size }]}>
+    <Pressable onPress={open} onLongPress={onLongPress} style={[styles.cell, { width: size, height: size }]}>
       <Image source={{ uri: image.url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
     </Pressable>
   );
