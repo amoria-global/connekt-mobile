@@ -26,6 +26,8 @@ import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import { getCustomerAnalytics, getCustomerPendingPayments, type PendingPayment } from '@/features/analytics/api';
 import { getCompletedStreams, getPurchasedAlbums } from '@/features/library/api';
+import { listEvents } from '@/features/events/api';
+import { listDonations } from '@/features/donations/api';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { formatMoney } from '@/utils/format';
 import { colors, fonts, fontSize, radii, spacing } from '@/theme';
@@ -56,17 +58,40 @@ export function UserHome() {
   const pending = useAsync(useCallback(() => getCustomerPendingPayments(), []));
   const albums = useAsync(useCallback(() => getPurchasedAlbums(), []));
   const streams = useAsync(useCallback(() => getCompletedStreams(), []));
+  const events = useAsync(useCallback(() => listEvents(), []));
+  const donations = useAsync(useCallback(() => listDonations(), []));
 
   const [payNow, setPayNow] = useState<PendingPayment | null>(null);
   const [payOpen, setPayOpen] = useState(false);
 
-  const refreshing = analytics.loading || pending.loading || albums.loading || streams.loading;
+  const refreshing =
+    analytics.loading || pending.loading || albums.loading || streams.loading || events.loading || donations.loading;
   const onRefresh = () => {
     analytics.refresh();
     pending.refresh();
     albums.refresh();
     streams.refresh();
+    events.refresh();
+    donations.refresh();
   };
+
+  // Categorize the User's events (their booked/paid events) for the dashboard.
+  const today = new Date().toISOString().slice(0, 10);
+  const allEvents = events.data ?? [];
+  const liveEvents = useMemo(
+    () => allEvents.filter((e) => (e.status ?? '').toUpperCase() === 'ONGOING'),
+    [allEvents],
+  );
+  const upcomingEvents = useMemo(
+    () =>
+      allEvents.filter((e) => {
+        const s = (e.status ?? '').toUpperCase();
+        if (s === 'ONGOING' || s === 'COMPLETED' || s === 'CANCELLED') return false;
+        return !e.eventDate || e.eventDate >= today;
+      }),
+    [allEvents, today],
+  );
+  const donationList = donations.data ?? [];
 
   const pendingItems = pending.data ?? [];
   const totalPending = pendingItems.reduce((s, p) => s + (p.amount - p.paidAmount), 0);
@@ -133,7 +158,56 @@ export function UserHome() {
           ))}
         </View>
 
-        {/* Recent watches (streams purchased) */}
+        {/* Live now — events streaming right now that the User can join */}
+        {liveEvents.length > 0 ? (
+          <>
+            <Section title="Live now" />
+            {liveEvents.slice(0, 4).map((e) => (
+              <View key={e.id} style={styles.liveRow}>
+                <View style={styles.liveDot} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.liveTitle} numberOfLines={1}>{e.title || 'Live event'}</Text>
+                  <Text style={styles.liveSub} numberOfLines={1}>
+                    {[e.photographerName, 'Live now'].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                <Pressable style={styles.joinBtn} onPress={() => router.push(`/event/${e.id}` as never)}>
+                  <Ionicons name="play" size={12} color="#fff" />
+                  <Text style={styles.joinBtnText}>Join</Text>
+                </Pressable>
+              </View>
+            ))}
+          </>
+        ) : null}
+
+        {/* Upcoming events */}
+        <Section
+          title="Upcoming events"
+          actionLabel={upcomingEvents.length > 0 ? 'All' : undefined}
+          onAction={() => router.push('/bookings' as never)}
+        />
+        {events.loading ? (
+          <Loader />
+        ) : upcomingEvents.length === 0 ? (
+          <EmptyCard icon="calendar-outline" text="No upcoming events — book a photographer or buy stream access." />
+        ) : (
+          upcomingEvents.slice(0, 4).map((e) => (
+            <Pressable key={e.id} style={styles.listRow} onPress={() => router.push(`/event/${e.id}` as never)}>
+              <View style={styles.listIcon}>
+                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.listTitle} numberOfLines={1}>{e.title || 'Event'}</Text>
+                <Text style={styles.listSub} numberOfLines={1}>
+                  {[e.photographerName, e.eventDate].filter(Boolean).join(' · ') || 'Upcoming'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
+          ))
+        )}
+
+        {/* Recent watches (past streams the User paid for) */}
         <Section
           title="Recent watches"
           actionLabel={watches.length > 0 ? 'All streams' : undefined}
@@ -277,6 +351,28 @@ export function UserHome() {
           </>
         )}
 
+        {/* Donations */}
+        {donationList.length > 0 ? (
+          <>
+            <Section title="Your donations" actionLabel="Donate" onAction={() => router.push('/donations' as never)} />
+            {donationList.slice(0, 4).map((d) => (
+              <View key={d.id} style={styles.listRow}>
+                <View style={[styles.listIcon, styles.donateIcon]}>
+                  <Ionicons name="heart" size={16} color={colors.accent} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.listTitle} numberOfLines={1}>
+                    {d.amount != null ? formatMoney(d.amount, d.currency ?? currency) : 'Donation'}
+                  </Text>
+                  <Text style={styles.listSub} numberOfLines={1}>
+                    {d.message || (d.createdAt ? d.createdAt.slice(0, 10) : 'Thank you for giving')}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </>
+        ) : null}
+
         {/* Settings & Help */}
         <View style={styles.manageRow}>
           <Pressable style={({ pressed }) => [styles.manageTile, pressed && styles.pressed]} onPress={() => router.push('/preferences' as never)}>
@@ -397,6 +493,22 @@ const styles = StyleSheet.create({
   },
   mediaTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.text },
   mediaSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
+
+  // Live-now rows (join a stream)
+  liveRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft,
+    padding: spacing.md,
+  },
+  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444' },
+  liveTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.text },
+  liveSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: '#EF4444' },
+  joinBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#EF4444', paddingHorizontal: spacing.lg, paddingVertical: 9, borderRadius: radii.full,
+  },
+  joinBtnText: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: '#fff' },
+  donateIcon: { backgroundColor: '#FCE7F3' },
 
   // Compact list rows (archives)
   listRow: {
