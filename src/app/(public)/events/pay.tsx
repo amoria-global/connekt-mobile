@@ -42,7 +42,7 @@ import { detectPaymentCountry, getPaymentOptions, listCurrencies } from '@/featu
 import { getEffectivePrice, type EffectivePrice } from '@/features/geopricing/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
-import { isApiError } from '@/store/auth';
+import { isApiError, useAuth } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
@@ -72,10 +72,16 @@ export default function EventPaymentScreen() {
   const event = useAsync(useCallback(() => getPublicEventDetailed(id), [id]));
   const peopleNum = Math.max(1, parseInt(people || '1', 10) || 1);
 
-  // Viewer identity
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  // Viewer identity. A logged-in user buys with their session data — no need
+  // to re-enter name/email; a guest gives name + email only (phone is asked
+  // for later, and only when paying by Mobile Money).
+  const authUser = useAuth((s) => s.user);
+  const loggedIn = !!authUser;
+  const [name, setName] = useState(
+    authUser ? [authUser.firstName, authUser.lastName].filter(Boolean).join(' ') : '',
+  );
+  const [email, setEmail] = useState(authUser?.email ?? '');
+  const [phone, setPhone] = useState(authUser?.phone ?? '');
 
   // Payment options
   const [country, setCountry] = useState<string>('RW');
@@ -181,7 +187,12 @@ export default function EventPaymentScreen() {
 
   const onPay = async () => {
     if (!formOk) {
-      Alert.alert('Check your info', 'Name, email and phone are required.');
+      Alert.alert(
+        'Check your info',
+        method === 'MOBILE_MONEY'
+          ? 'Enter your name, email and a Mobile Money phone number.'
+          : 'Enter your name and email.',
+      );
       return;
     }
     if (!currencyId) {
@@ -292,25 +303,26 @@ export default function EventPaymentScreen() {
         </View>
 
         <Text style={styles.h2}>Your details</Text>
-        <Input
-          placeholder="Full name"
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-        />
-        <Input
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <Input
-          placeholder="Phone (e.g. 250788000000)"
-          value={phone}
-          onChangeText={(t) => setPhone(t.replace(/[^0-9]/g, ''))}
-          keyboardType="phone-pad"
-        />
+        {loggedIn ? (
+          <View style={styles.signedInCard}>
+            <Ionicons name="person-circle" size={22} color={colors.primary} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.signedInName} numberOfLines={1}>{name || 'Your account'}</Text>
+              {email ? <Text style={styles.signedInEmail} numberOfLines={1}>{email}</Text> : null}
+            </View>
+          </View>
+        ) : (
+          <>
+            <Input placeholder="Full name" value={name} onChangeText={setName} autoCapitalize="words" />
+            <Input
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </>
+        )}
 
         <Text style={styles.h2}>Pay with</Text>
         <View style={styles.methods}>
@@ -345,6 +357,14 @@ export default function EventPaymentScreen() {
                 </Text>
               </Pressable>
             ))}
+            {/* Mobile Money needs the number the prompt is sent to — the only
+                place a phone is asked, never as an identity requirement. */}
+            <Input
+              placeholder="Mobile Money phone (e.g. 250788000000)"
+              value={phone}
+              onChangeText={(t) => setPhone(t.replace(/[^0-9]/g, ''))}
+              keyboardType="phone-pad"
+            />
           </View>
         ) : null}
 
@@ -435,6 +455,16 @@ const styles = StyleSheet.create({
   },
 
   h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  signedInCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.infoBg,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+  },
+  signedInName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  signedInEmail: { fontSize: fontSize.xs, color: colors.textMuted },
 
   methods: { flexDirection: 'row', gap: spacing.md },
   method: {
