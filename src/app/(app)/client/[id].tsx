@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { getClient, listFavoriteClientIds, toggleFavoriteClient } from '@/features/clients/api';
+import { reportContent } from '@/features/moderation/api';
+import { ReportSheet } from '@/features/moderation/ReportSheet';
+import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
@@ -26,6 +30,58 @@ export default function ClientDetailScreen() {
       active = false;
     };
   }, [id]);
+
+  const [reportOpen, setReportOpen] = useState(false);
+  const blocked = useModeration((s) => s.blockedIds.has(id));
+  const block = useModeration((s) => s.block);
+  const unblock = useModeration((s) => s.unblock);
+  const loadModeration = useModeration((s) => s.load);
+
+  useEffect(() => {
+    loadModeration();
+  }, [loadModeration]);
+
+  const onBlock = () => {
+    Alert.alert(
+      `Block ${data?.name ?? 'this user'}?`,
+      "They won't be able to message you, and you won't see their content.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await block(id);
+            } catch (e) {
+              Alert.alert('Could not block', isApiError(e) ? e.message : 'Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const onUnblock = async () => {
+    try {
+      await unblock(id);
+    } catch (e) {
+      Alert.alert('Could not unblock', isApiError(e) ? e.message : 'Please try again.');
+    }
+  };
+
+  const onMoreActions = () => {
+    Alert.alert(data?.name ?? 'Client actions', undefined, [
+      { text: 'Report user', style: 'destructive', onPress: () => setReportOpen(true) },
+      blocked
+        ? { text: 'Unblock user', onPress: () => void onUnblock() }
+        : { text: 'Block user', style: 'destructive' as const, onPress: onBlock },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const submitUserReport = (reason: string, description: string) =>
+    reportContent('USER', id, reason, description);
 
   const onToggleFavorite = async () => {
     setFavBusy(true);
@@ -80,20 +136,33 @@ export default function ClientDetailScreen() {
           {data?.phone ? <Text style={styles.meta}>{data.phone}</Text> : null}
           {data?.location ? <Text style={styles.meta}>{data.location}</Text> : null}
 
-          <Pressable
-            style={[styles.favBtn, favorite && styles.favBtnActive]}
-            onPress={onToggleFavorite}
-            disabled={favBusy}
-          >
-            <Ionicons
-              name={favorite ? 'star' : 'star-outline'}
-              size={18}
-              color={favorite ? '#B45309' : colors.primary}
-            />
-            <Text style={[styles.favText, favorite && styles.favTextActive]}>
-              {favorite ? 'Favorite' : 'Add to favorites'}
-            </Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              style={[styles.favBtn, favorite && styles.favBtnActive]}
+              onPress={onToggleFavorite}
+              disabled={favBusy}
+            >
+              <Ionicons
+                name={favorite ? 'star' : 'star-outline'}
+                size={18}
+                color={favorite ? '#B45309' : colors.primary}
+              />
+              <Text style={[styles.favText, favorite && styles.favTextActive]}>
+                {favorite ? 'Favorite' : 'Add to favorites'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.moreBtn}
+              onPress={onMoreActions}
+              accessibilityRole="button"
+              accessibilityLabel="Report or block this user"
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.primary} />
+            </Pressable>
+          </View>
+
+          {blocked ? <Text style={styles.blockedNote}>You blocked this user.</Text> : null}
         </View>
 
         <View style={styles.stats}>
@@ -125,6 +194,14 @@ export default function ClientDetailScreen() {
           <Text style={styles.muted}>No events with this client yet.</Text>
         )}
       </ScrollView>
+
+      <ReportSheet
+        visible={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="USER"
+        subject={data?.name}
+        submit={submitUserReport}
+      />
     </Screen>
   );
 }
@@ -148,6 +225,23 @@ const styles = StyleSheet.create({
   initials: { color: colors.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
   name: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.text, marginTop: spacing.sm },
   meta: { fontSize: fontSize.sm, color: colors.textMuted },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  moreBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    width: 38,
+    height: 38,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  blockedNote: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
   favBtn: {
     flexDirection: 'row',
     alignItems: 'center',

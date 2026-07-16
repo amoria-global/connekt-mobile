@@ -37,11 +37,6 @@ export default function PublicLayout() {
         <Stack.Screen name="terms-of-service" options={{ title: 'Terms & Conditions' }} />
         <Stack.Screen name="about" options={{ title: 'About' }} />
         <Stack.Screen name="trust-safety" options={{ title: 'Trust & Safety' }} />
-        <Stack.Screen name="browse-photos-recover" options={{ title: 'Recover Photos' }} />
-        <Stack.Screen name="browse-photos-success" options={{ title: 'Purchase Status' }} />
-        <Stack.Screen name="browse-photos-album" options={{ title: 'Album' }} />
-        <Stack.Screen name="photographer-guide" options={{ title: 'Photographer Guide' }} />
-        <Stack.Screen name="schedule-deposit" options={{ title: 'Deposit Payment' }} />
       </Stack>
       <StatusBar style="light" />
     </>

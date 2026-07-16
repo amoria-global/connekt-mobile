@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ensureFaceConsent } from '@/features/privacy/consent';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import {
   faceSearch,
   getViewerId,
@@ -49,6 +50,8 @@ import {
   type FreeAlbumPhoto,
   type MultiAlbumPurchaseItem,
 } from '@/features/photos/api';
+import { reportContent } from '@/features/moderation/api';
+import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { colors, spacing, radii } from '@/theme';
@@ -89,6 +92,7 @@ function PhotoCell({
   owned,
   watermarkText,
   onPress,
+  onLongPress,
 }: {
   uri?: string;
   size: number;
@@ -100,6 +104,7 @@ function PhotoCell({
   owned?: boolean;
   watermarkText?: string;
   onPress: () => void;
+  onLongPress?: () => void;
 }) {
   return (
     <Pressable
@@ -110,6 +115,7 @@ function PhotoCell({
         owned && styles.cellOwned,
       ]}
       onPress={onPress}
+      onLongPress={onLongPress}
     >
       <Image
         source={{ uri }}
@@ -287,6 +293,9 @@ export function FindMyPhotos() {
   const [freeAlbumCurrencyAbbr, setFreeAlbumCurrencyAbbr] = useState('');
   const freeCapWarnShownRef = useRef(false);
   const freeExtrasInFlightRef = useRef<{ overflowIds: string[]; allSelectedIds: string[] } | null>(null);
+
+  // --- Report a photo ---
+  const [reportPhoto, setReportPhoto] = useState<{ id: string; subject?: string } | null>(null);
 
   // --- Paid album face filter ---
   const [albumFilteredIds, setAlbumFilteredIds] = useState<Set<string> | null>(null);
@@ -513,6 +522,32 @@ export function FindMyPhotos() {
       try {
         await downloadFreeSelected();
         setFreeStatusMsg('Done! Your photos are ready.');
+      } catch {
+        setFreeStatusMsg('Some photos could not be downloaded. Please try again.');
+      } finally {
+        setFreeDownloading(false);
+      }
+      return;
+    }
+
+    // The extras aren't for sale on Android, so take everything inside the free
+    // quota and say what was left out. Refusing the whole selection would strip
+    // the user of photos they're entitled to.
+    if (!digitalPurchasesEnabled) {
+      const cap = info.cap as number;
+      const allowed = [...info.owned, ...info.newPicks.slice(0, cap)];
+      if (!allowed.length) {
+        setFreeStatusMsg(`You've already used your ${cap} free download(s) from this album.`);
+        return;
+      }
+      setFreeDownloading(true);
+      setFreeStatusMsg(`Downloading ${allowed.length} photo${allowed.length !== 1 ? 's' : ''}…`);
+      try {
+        await downloadFreeSelected(allowed);
+        setFreeStatusMsg(
+          `Done! ${allowed.length} photo${allowed.length !== 1 ? 's' : ''} ready. ` +
+            `${info.overflow} more exceed${info.overflow === 1 ? 's' : ''} your free quota of ${cap}.`,
+        );
       } catch {
         setFreeStatusMsg('Some photos could not be downloaded. Please try again.');
       } finally {
@@ -874,6 +909,24 @@ export function FindMyPhotos() {
     );
   };
 
+  // ─── Report a photo ───────────────────────────────────────────────────────
+
+  const onLongPressPhoto = (photoId: string, subject?: string) => {
+    Alert.alert('Photo actions', undefined, [
+      {
+        text: 'Report photo',
+        style: 'destructive',
+        onPress: () => setReportPhoto({ id: photoId, subject }),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const submitPhotoReport = async (reason: string, description: string) => {
+    if (!reportPhoto) throw { status: 400, message: 'Nothing to report.' };
+    return reportContent('PHOTO', reportPhoto.id, reason, description);
+  };
+
   // ─── Album photo press ────────────────────────────────────────────────────
 
   const handleAlbumPhotoPress = (photo: AlbumPhotoItem) => {
@@ -1137,7 +1190,9 @@ export function FindMyPhotos() {
               ? `${displayedPhotos.length} of ${photos.length} photo${photos.length !== 1 ? 's' : ''} matched`
               : `${photos.length} photo${photos.length !== 1 ? 's' : ''}`}
           </Text>
-          <Text style={styles.albumHint}>Tap photos to select · Tap a purchased photo to download</Text>
+          <Text style={styles.albumHint}>
+            Tap photos to select · Tap a purchased photo to download · Long-press to report
+          </Text>
 
           <View style={styles.albumActionRow}>
             <Pressable
@@ -1201,6 +1256,7 @@ export function FindMyPhotos() {
               currency={item.currencyAbbreviation}
               selected={selectedAlbumIds.has(item.id)}
               onPress={() => handleAlbumPhotoPress(item)}
+              onLongPress={() => onLongPressPhoto(item.id, albumPhotographerName || albumTitle)}
             />
           )}
         />
@@ -1219,7 +1275,7 @@ export function FindMyPhotos() {
                   <Text style={styles.actionBarBtnText}>Download {selectedPurchased.length}</Text>
                 </Pressable>
               )}
-              {selectedUnpurchased.length > 0 && (
+              {selectedUnpurchased.length > 0 && digitalPurchasesEnabled && (
                 <Pressable
                   style={[styles.actionBarBtn, { backgroundColor: '#F20C8F' }]}
                   onPress={handleAlbumBulkBuy}
@@ -1352,7 +1408,10 @@ export function FindMyPhotos() {
     const info = getCappedSelectionInfo();
     const totalSelected = info.total;
     const extrasTotal = info.overflow > 0 ? Math.round(freeAlbumPricePerExtra * info.overflow) : 0;
-    const showPurchase = info.overflow > 0 && freeAlbumPricePerExtra > 0;
+    const showPurchase = info.overflow > 0 && freeAlbumPricePerExtra > 0 && digitalPurchasesEnabled;
+    // Android caps the download at the free quota, so the count on the button
+    // has to be what will actually arrive — not what's selected.
+    const downloadableNow = digitalPurchasesEnabled ? totalSelected : totalSelected - info.overflow;
 
     return (
       <View style={{ flex: 1 }}>
@@ -1381,6 +1440,7 @@ export function FindMyPhotos() {
           )}
 
           <Text style={styles.albumCount}>{freePhotos.length} photo{freePhotos.length !== 1 ? 's' : ''}</Text>
+          <Text style={styles.albumHint}>Tap photos to select · Long-press to report</Text>
 
           {!isCapped && freePhotos.length > 1 && selectedFreeIds.size < freePhotos.length && (
             <Pressable
@@ -1432,6 +1492,7 @@ export function FindMyPhotos() {
                 selected={selected && !owned}
                 watermarkText={isCapped && !owned ? `PREVIEW · ${freePhotographer || 'PHOTOGRAPHER'}` : undefined}
                 onPress={() => toggleFreePhoto(item.id)}
+                onLongPress={() => onLongPressPhoto(item.id, freePhotographer || freeTitle)}
               />
             );
           }}
@@ -1456,7 +1517,7 @@ export function FindMyPhotos() {
               <Text style={styles.actionBarBtnText}>
                 {showPurchase
                   ? `Purchase (${freeAlbumCurrencyAbbr || ''} ${extrasTotal} for ${info.overflow} extra)`
-                  : `Download ${totalSelected}`}
+                  : `Download ${downloadableNow}`}
               </Text>
             </Pressable>
             <Pressable onPress={() => setSelectedFreeIds(new Set())}>
@@ -1501,7 +1562,9 @@ export function FindMyPhotos() {
       <View style={{ flex: 1 }}>
         <View style={styles.albumHeader}>
           <Text style={styles.albumTitle}>{results.length} Match{results.length !== 1 ? 'es' : ''} Found</Text>
-          <Text style={styles.albumHint}>Tap photos to select · Purchased photos can be downloaded</Text>
+          <Text style={styles.albumHint}>
+            Tap photos to select · Purchased photos can be downloaded · Long-press to report
+          </Text>
         </View>
 
         {purchaseNotice ? (
@@ -1536,6 +1599,7 @@ export function FindMyPhotos() {
               eventTitle={item.eventTitle}
               selected={selectedResultIds.has(item.id as string)}
               onPress={() => handleResultPhotoPress(item)}
+              onLongPress={() => onLongPressPhoto(item.id as string, item.photographerName || item.eventTitle)}
             />
           )}
         />
@@ -1554,7 +1618,7 @@ export function FindMyPhotos() {
                   <Text style={styles.actionBarBtnText}>Download {selectedPurchased.length}</Text>
                 </Pressable>
               )}
-              {selectedUnpurchased.length > 0 && (
+              {selectedUnpurchased.length > 0 && digitalPurchasesEnabled && (
                 <Pressable
                   style={[styles.actionBarBtn, { backgroundColor: '#F20C8F' }]}
                   onPress={handleResultBulkBuy}
@@ -1743,6 +1807,15 @@ export function FindMyPhotos() {
           </View>
         </View>
       </Modal>
+
+      {/* Report a photo (long-press a tile to open). */}
+      <ReportSheet
+        visible={!!reportPhoto}
+        onClose={() => setReportPhoto(null)}
+        targetType="PHOTO"
+        subject={reportPhoto?.subject}
+        submit={submitPhotoReport}
+      />
     </View>
   );
 }

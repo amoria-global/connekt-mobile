@@ -38,6 +38,9 @@ export default function ProfileScreen() {
     { icon: 'options-outline', label: 'Notification settings', href: '/preferences' as Href },
     { icon: 'notifications-outline', label: 'Notifications', href: '/notifications' as Href },
     { icon: 'lock-closed-outline', label: 'Two-factor authentication', href: '/two-factor' as Href },
+    { icon: 'ban-outline', label: 'Blocked accounts', href: '/blocked-accounts' as Href },
+    { icon: 'document-text-outline', label: 'Privacy policy', href: '/privacy-policy' as Href },
+    { icon: 'reader-outline', label: 'Terms of service', href: '/terms-of-service' as Href },
   ];
 
   return (

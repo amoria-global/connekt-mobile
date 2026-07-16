@@ -503,7 +503,7 @@ If you engage photographers through external channels after connecting on Amoria
 7. Reporting Concerns and Issues
 If you encounter inappropriate, suspicious links, or experience issues with third-party services, please report them to us immediately:
 
-Report through our in-app reporting feature or email support@amoriaconnect.com with details about the concerning link or service, description of the issue (suspected phishing, malware, inappropriate content, security concern), location where you encountered the link (which page, user profile, message), and any relevant screenshots or evidence.
+Report through our in-app reporting feature or email support@connekyt.com with details about the concerning link or service, description of the issue (suspected phishing, malware, inappropriate content, security concern), location where you encountered the link (which page, user profile, message), and any relevant screenshots or evidence.
 
 We take reports seriously and will investigate promptly, remove links that violate our policies or pose security risks, warn users about problematic external services, and potentially suspend accounts of users deliberately sharing malicious links. Your vigilance helps protect the entire community from security threats and fraudulent services.
 
@@ -694,7 +694,7 @@ You also have the right to have incomplete personal data completed. For example,
 
 For most data, you don't need to contact us. You can update your information directly through your account settings. The platform provides user-friendly interfaces for editing your profile details (name, email, phone, biography), portfolio content (images, videos, descriptions), service offerings and specialties, preferences and settings, and payment information. Changes take effect immediately, ensuring your profile is always current.
 
-For data you cannot edit directly (such as KYC verification documents where changes require re-verification, historical transaction records where accuracy affects financial reporting, or system-generated data like timestamps or automated classifications), you can request correction by contacting support@amoriaconnect.com. Include what data you believe is inaccurate, what the correct information should be, and any supporting evidence (especially for identity or financial data). We'll review your request, verify the correct information if necessary, update our records accordingly, and notify you when corrections are complete.
+For data you cannot edit directly (such as KYC verification documents where changes require re-verification, historical transaction records where accuracy affects financial reporting, or system-generated data like timestamps or automated classifications), you can request correction by contacting support@connekyt.com. Include what data you believe is inaccurate, what the correct information should be, and any supporting evidence (especially for identity or financial data). We'll review your request, verify the correct information if necessary, update our records accordingly, and notify you when corrections are complete.
 
 If we've disclosed the inaccurate data to third parties, we'll inform them of the rectification where possible and appropriate, ensuring that corrected information propagates through the ecosystem.
 
@@ -755,7 +755,7 @@ We commit to ensuring that significant decisions (like account suspensions, paym
 
 You have the right to obtain human intervention in automated decisions, express your point of view and provide context the automated system didn't consider, and receive an explanation of the decision including the logic involved, the significance and consequences of the processing, what factors influenced the decision, and how you can challenge it if you believe it's incorrect.
 
-If an automated system makes an adverse decision affecting you, contact support@amoriaconnect.com immediately. Explain the situation, provide relevant context, and request human review. We'll have a qualified person review the decision with fresh eyes, consider your explanation and any additional information, and make a final determination that may overturn or modify the automated decision.
+If an automated system makes an adverse decision affecting you, contact support@connekyt.com immediately. Explain the situation, provide relevant context, and request human review. We'll have a qualified person review the decision with fresh eyes, consider your explanation and any additional information, and make a final determination that may overturn or modify the automated decision.
 
 9. Data Protection and Security
 Beyond specific rights to control your data, you have a fundamental right to security: the assurance that your personal information is protected against unauthorized access, unlawful processing, and accidental loss or destruction.
@@ -912,7 +912,7 @@ We are a Rwandan-registered company operating under Rwanda's Data Protection and
 General Inquiries
 For general questions about our platform, services, or business:
 • Email: info@amoriaglobal.com
-• Website: www.amoriaconnect.com
+• Website: www.connekyt.com
 • Use this contact for: Platform features and functionality questions, business partnership inquiries, media and press inquiries, general information requests, account setup assistance, and non-urgent questions about our services.
 • Expected response time: Within 48-72 hours for general inquiries, prioritized based on urgency and complexity.
 
@@ -932,7 +932,7 @@ For legal correspondence, compliance questions, and formal legal requests:
 
 Customer Support
 For technical assistance, account issues, and general support:
-• Email: support@amoriaconnect.com
+• Email: support@connekyt.com
 • Use this contact for: Technical issues and platform bugs, account access problems (login issues, password resets), booking and payment support, profile and portfolio management help, communication and messaging issues, dispute resolution assistance, report violations of terms of service or community guidelines, and general troubleshooting and assistance.
 • Expected response time: Within 24-48 hours for most support requests. Urgent issues affecting account access or payment processing are prioritized and typically addressed within 24 hours. Complex technical issues may require additional time for investigation and resolution.
 • Support hours: Our support team operates during business hours (Kigali time zone, UTC+2) with extended hours for urgent matters.
@@ -1010,9 +1010,9 @@ For additional information about privacy, data protection, and your rights:
 • Rwanda's National Cyber Security Authority (NCSA): www.ncsa.gov.rw - For information about Rwanda's Data Protection and Privacy Law, filing complaints, and understanding your rights
 • European Data Protection Board (EDPB): edpb.europa.eu - For GDPR-related information and guidance (for EU users)
 • Data Protection Authorities: Each country has its own data protection authority that can provide guidance and handle complaints
-• Our Privacy Policy: Comprehensive information about our data practices is available on our website at www.amoriaconnect.com/privacy-policy
-• Our Terms of Service: Available at www.amoriaconnect.com/terms-of-service
-• Help Center: www.amoriaconnect.com/help for FAQs and self-service resources
+• Our Privacy Policy: Comprehensive information about our data practices is available on our website at www.connekyt.com/user/privacy-policy
+• Our Terms of Service: Available at www.connekyt.com/user/terms-of-service
+• Help Center: www.connekyt.com/user/help-center for FAQs and self-service resources
 
 Languages and Accessibility
 

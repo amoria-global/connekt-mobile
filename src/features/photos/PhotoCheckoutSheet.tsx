@@ -46,6 +46,7 @@ import {
   type PaymentOperator,
 } from '@/features/reference/api';
 import { getGeoPaymentStatus, type GeoPaymentStatus } from '@/features/payments/geo';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { isPlausibleMobile, phoneHintForCountry, formatPhoneE164 } from '@/features/payments/formatPhone';
 import {
   getPublicPaymentStatus,
@@ -166,7 +167,10 @@ export function PhotoCheckoutSheet({
   const phoneOk = isCard ? true : isPlausibleMobile(phone, country);
   const methodOk =
     !!selectedTile && !geo.blocked && (isCard ? !geo.disableCards : !geo.disableMobileMoney);
-  const canPay = emailOk && methodOk && phoneOk && items.length > 0 && !busy;
+  // Callers don't open this sheet on Android, but the pay path is disabled here
+  // too so no future caller can reintroduce an in-app digital purchase there.
+  const canPay =
+    digitalPurchasesEnabled && emailOk && methodOk && phoneOk && items.length > 0 && !busy;
 
   const onPay = async () => {
     if (!canPay || !selectedTile) return;
@@ -383,7 +387,7 @@ export function PhotoCheckoutSheet({
                 {error ? <Text style={styles.formError}>{error}</Text> : null}
 
                 {/* Pay button — the valid blocking line */}
-                {!geo.blocked ? (
+                {!geo.blocked && digitalPurchasesEnabled ? (
                   <Pressable
                     style={[styles.payBtn, !canPay && styles.payBtnDisabled]}
                     onPress={onPay}

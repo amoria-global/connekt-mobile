@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   type ListRenderItem,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -10,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EmptyState } from './EmptyState';
-import { colors, fonts, fontSize, fontWeight, spacing } from '@/theme';
+import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 type Props<T> = {
   data: T[] | null;
@@ -59,6 +60,16 @@ export function DataList<T>({
       <View style={[styles.centered, { paddingTop: topInset }]}>
         <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
         <Text style={styles.errorText}>{error}</Text>
+        {/* This branch renders no list, so there is nothing to pull — without an
+            explicit control the user's only way out is to leave the screen. */}
+        <Pressable
+          style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.75 }]}
+          onPress={onRefresh}
+          accessibilityRole="button"
+        >
+          <Ionicons name="refresh" size={16} color={colors.textOnPrimary} />
+          <Text style={styles.retryText}>Try again</Text>
+        </Pressable>
       </View>
     );
   }
@@ -98,6 +109,17 @@ export function DataList<T>({
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.lg,
+    backgroundColor: colors.primary,
+  },
+  retryText: { color: colors.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   listContent: { padding: spacing.xl, gap: spacing.md, flexGrow: 1 },
   header: { gap: 2, marginBottom: spacing.xs },
   headerExtra: { marginTop: spacing.md, marginBottom: spacing.xs },

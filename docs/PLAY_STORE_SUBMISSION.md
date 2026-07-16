@@ -25,8 +25,9 @@
 - **Live streaming**: broadcast from device camera/mic over WebRTC (`CameraPublisher.tsx`, WebView) and playback via HLS/`expo-video`/`hls.js`.
 - **Facial recognition**: selfie captured/uploaded, matched server-side to find a user's event photos (`features/photos/FindMyPhotos.tsx` → `faceSearch`).
 - **KYC**: government ID (front/back) + selfie + ID number uploaded (`features/kyc/api.ts`).
-- **Payments**: booking photographers, buying event photos, buying live-stream access, donations — all via **external redirect** (`WebBrowser.openBrowserAsync`) to XentriPay / Mobile Money / card. **No Google Play Billing, no `react-native-iap`.**
-- **UGC**: live chat, reactions, user profiles, user-uploaded photos, live video.
+- **Payments**: booking photographers, buying event photos, buying live-stream access, **live-stream gifts/tips**, donations — all via **external redirect** (`WebBrowser.openBrowserAsync`) to XentriPay / Mobile Money / card. **No Google Play Billing, no `react-native-iap`.**
+- **UGC**: live chat, reactions, user profiles, user-uploaded photos, live video — with in-app **report/block** across chat, DMs, photos, and profiles (§14a).
+- **Account deletion**: in-app self-serve delete (`src/app/(app)/delete-account.tsx`) → anonymise-and-disable on the backend.
 - **First-party sponsor ads** overlaid on streams (`StreamAdOverlay.tsx`) — served from own backend, **no third-party ad SDK, no advertising ID.**
 - **Push notifications** (`expo-notifications`, Expo push token).
 - **OTA updates** (`expo-updates`).
@@ -47,7 +48,9 @@
 | **Support email** | `support@connekyt.com` | ✅ | Used in help-center screens. |
 | **Website** | `https://www.connekyt.com` | ⚠ | **[NEEDS INPUT]** confirm the marketing site is live. |
 | **Phone** | +250 788 437 347 | ⚠ | Optional; already used in-app. |
-| **Privacy Policy URL** | e.g. `https://connekyt.com/privacy` | ✅ | **[NEEDS INPUT]** In-app policy exists (`src/content/privacyPolicy.ts`) but Play requires a **public hosted URL**. |
+| **Privacy Policy URL** | `https://connekyt.com/user/privacy-policy` | ✅ **SATISFIED** | Live, returns HTTP 200. Hosted by the `knockout` Next.js app (`app/user/privacy-policy/page.tsx`). Paste this exact URL into Play Console. In-app copy: `src/content/privacyPolicy.ts`. |
+| **Terms of Service URL** | `https://connekyt.com/user/terms-of-service` | ⚠ | Live (200). Optional for Play, required for UGC policy hygiene (§12). |
+| **Help centre URL** | `https://connekyt.com/user/help-center` | ⚠ | Live (200). Useful as the listing support link. |
 
 ---
 
@@ -89,7 +92,7 @@ Most core features (dashboards, bookings, payments, KYC, find-my-photos) are **b
 ## 5. Data Safety Form (complete declaration)
 
 **Transport encryption:** ✅ Yes — all API traffic is HTTPS to `backend.connekyt.com`.
-**Data deletion:** ⚠ You currently offer deletion only via support email. Play requires you to either provide **in-app deletion** and/or a **deletion request URL**. See §14 blocker. Answer "Yes, users can request deletion" **only after** you add a deletion path/URL.
+**Data deletion:** ✅ **In-app deletion exists** — `src/app/(app)/delete-account.tsx` (type `DELETE` to confirm), reachable from the Profile tab (`src/app/(app)/(tabs)/profile.tsx`), calling `DELETE /customer/profile` → backend `CustomerProfileController.java:170`, which **anonymises and disables** the account (personal data scrubbed; financial records retained as legally required — document this retention basis in the policy). Answer "Yes, users can request deletion." ⚠ Still outstanding: a **public web deletion-request URL** usable without installing the app — see §14 #2.
 
 ### 5a. Data collected
 
@@ -169,9 +172,10 @@ Result: **no special access declarations** are required from Google.
 - **Photographer bookings** → a **real-world service** → *exempt* (external payment allowed). ✅
 - **Donations** → typically exempt if not for digital content. ✅
 - **Event photos (download) and paid live-stream access** → **digital content** → Google will most likely require **Play Billing**. 🔴
+- **Live-stream gifts / tips** (`src/app/(public)/events/live-stream.tsx` → `initiatePublicGift`) → paid virtual items consumed in-app → **Play Billing territory**. 🔴
 
 **Fixes (pick one before Production):**
-1. **Integrate Google Play Billing** for photo/stream purchases on Android (keep XentriPay for the web/other platforms). Cleanest for approval.
+1. **Integrate Google Play Billing** for photo/stream/gift purchases on Android (keep XentriPay for the web/other platforms). Cleanest for approval.
 2. **Reposition** photos/streams as part of the real-world photography **service** and keep external payment — *higher rejection risk*; Google often rejects this for downloadable media.
 3. **Gate digital purchases off the Android build** (view-only on Android, purchase elsewhere) — degrades UX.
 
@@ -205,7 +209,7 @@ Result: **no special access declarations** are required from Google.
 | **Users can share content / UGC** | **Yes** | photos, live video, chat |
 | Shares user's physical location | No | no location collection |
 | **Digital purchases** | **Yes** | in-app purchases exist |
-| User-generated content present | Yes | requires moderation + reporting (you have stream reporting) |
+| User-generated content present | Yes | requires moderation + reporting — **report/block now shipped** across chat, DMs, photos, and profiles (§14 #3) |
 
 Expected result: **Teen / PEGI 12** style rating driven by online interaction + UGC. Complete honestly; misrating is a policy violation.
 
@@ -232,7 +236,7 @@ Expected result: **Teen / PEGI 12** style rating driven by online interaction + 
 | Dating | ❌ No | not dating |
 | Social | ⚠ Has social features (declare interaction/UGC in rating) | no separate "social app" toggle; handled via content rating + Data Safety |
 | **AI-generated content** | ❌ No (no *generative* AI) | face **recognition** ≠ generative AI content; no user-facing generated media |
-| **User-generated content** | ✅ **Yes** | must have TOS, moderation, and in-app **report/block** for user content |
+| **User-generated content** | ✅ **Yes** | needs TOS, moderation, and in-app **report/block** — all present: TOS at `https://connekyt.com/user/terms-of-service`, report/block per §14a |
 | VPN | ❌ No | no VPNService |
 | Accessibility (AccessibilityService) | ❌ No | none |
 | Device permissions (camera/mic/notifications) | ✅ declared in §6 | in-context rationale present |
@@ -241,8 +245,8 @@ Expected result: **Teen / PEGI 12** style rating driven by online interaction + 
 
 ## 13. Privacy Policy — required contents checklist
 
-Your hosted policy **must** cover (based on the repo):
-- [ ] Identity of controller (Amoria / Connekyt) + `privacy@connekyt.com`.
+Your hosted policy is live at **`https://connekyt.com/user/privacy-policy`**. It **must** cover (based on the repo):
+- [ ] Identity of controller (Amoria / Connekyt) + `privacy@amoriaglobal.com`.
 - [ ] Data collected: name, email, **phone**, photos, **selfie/facial data**, **KYC ID images + ID number**, live video/audio, chat messages, purchase history, push token, app-usage.
 - [ ] **Facial recognition** explanation: what the selfie is used for, that matching is server-side, retention, and how to delete it.
 - [ ] **KYC** identity data: purpose (verification), retention, who reviews it.
@@ -257,22 +261,55 @@ Your hosted policy **must** cover (based on the repo):
 - [ ] User rights (access, correction, deletion, objection) — you reference Rwandan data-protection law in `knockout`.
 - [ ] Contact + effective date.
 
+**Domain consistency — ✅ resolved.** Every `amoriaconnect.com` reference has been replaced with `connekyt.com` across both repos (mobile `src/content/privacyPolicy.ts` + `termsOfService.ts`; knockout `app/pages/{privacy-policy,terms-of-service,trust-safety}.tsx`). Support is now `support@connekyt.com`. The `@amoriaglobal.com` addresses (`privacy@`, `legal@`, `info@`) are **intentional and unchanged** — they are the corporate-entity contacts, not a leftover. Don't "fix" them.
+
 ---
 
 ## 14. Policy risks found in the repo (ranked)
 
 | # | Risk | Severity | Fix |
 |---|---|---|---|
-| 1 | **Digital goods (photos, stream access) sold via external payment, no Play Billing** | 🔴 High | Use Play Billing for digital purchases on Android, or reposition/remove (see §8) before Production. |
-| 2 | **No in-app account deletion** (Play mandatory for account-based apps) | 🔴 High | Add an in-app "Delete my account" flow **and** a public deletion-request URL; then declare it in Data Safety. |
-| 3 | **UGC without visible moderation/report-block on all content** | 🟠 Med | Ensure users can report/block photos, chat, streams, and profiles; publish content policy. You already have stream reporting — extend to chat/photos. |
+| 1 | **Digital goods (photos, stream access, gifts) sold via external payment, no Play Billing** | 🔴 High | **UNCHANGED — still the #1 blocker.** Use Play Billing for digital purchases on Android, or reposition/remove (see §8) before Production. |
+| 2 | ~~No in-app account deletion~~ → **DONE**; only the public deletion-request URL is missing | 🟢 Low | ✅ In-app "Delete account" shipped (`src/app/(app)/delete-account.tsx`, type-`DELETE`-to-confirm, from Profile) → `DELETE /customer/profile` → `CustomerProfileController.java:170` (anonymise + disable; financial records retained on a documented legal basis). **Remaining:** publish a web deletion-**request** URL that works without installing the app, and link it in Play Console. |
+| 3 | ~~UGC without report/block~~ → **BUILT** | 🟢 Low | ✅ Report **and** block shipped end-to-end — see §14a. Remaining: keep the published content policy current. |
 | 4 | **Facial recognition / biometric data** | 🟠 Med | Explicit consent screen before selfie capture + Privacy Policy disclosure + retention/deletion. |
 | 5 | **KYC government-ID upload** | 🟠 Med | Consent + secure handling disclosure; restrict access; deletion on request. |
 | 6 | Google Sign-In tied to old package/SHA-1 | 🟠 Med | New Android OAuth client for `com.amoria.connekyt.app` + Play app-signing SHA-1. |
 | 7 | Camera/mic runtime rationale | 🟢 Low | Already prompt in context; keep. |
 | 8 | Metadata accuracy | 🟢 Low | Description must match real features (no "AI" hype beyond face search). |
 | 9 | Ads disclosure | 🟢 Low | Declare "contains ads" (§4). |
-| 10 | Privacy Policy URL must be public | 🟢 Low | Host it (§1). |
+| 10 | ~~Privacy Policy URL must be public~~ → **DONE** | 🟢 Low | ✅ Live at `https://connekyt.com/user/privacy-policy` (§1). |
+| 11 | STOMP topic `/topic/messages/{userId}` has no subscription authorization | 🟠 Med | **NOT FIXED — follow-up.** See §14b. |
+
+---
+
+## 14a. UGC moderation — what now exists
+
+Report/block is **built and wired**, on both sides:
+
+| Layer | What shipped |
+|---|---|
+| **DB** | New `content_reports` + `blocked_users` tables — migration `V281__create_moderation_tables.sql`. |
+| **Backend API** | `ModerationService` + `ModerationController` at `/api/remote/customer/moderation`: `POST /reports`, `POST /blocks`, `DELETE /blocks/{id}`, `GET /blocks`. |
+| **Anonymous reporting** | `POST /api/remote/public/events/{eventId}/chats/{chatId}/report` — validated by `viewerId` + `deviceFingerprint` (no account needed). |
+| **Block enforcement** | Blocking is **account-wide**, not cosmetic: `ChatService` rejects sends between blocked pairs (403), hides blocked conversations, returns blocked threads as empty, and excludes blocked senders from the unread count. `ChatController` now derives the sender from the **auth principal** instead of a client-supplied `senderId` — that was a block-bypass hole and is closed. |
+| **Mobile** | `src/features/moderation/{api.ts,ReportSheet.tsx,useModeration.ts}`. Reporting wired into live-stream chat (long-press), direct messages (per-message + per-user), photos (FindMyPhotos, browse-photos lightbox, album grid), and client profiles. Blocking on chat/DM/profile. New **"Blocked accounts"** screen — `src/app/(app)/blocked-accounts.tsx`, linked from Profile → Settings. |
+| **Photographer profiles** | Pre-existing reporting, unchanged. |
+
+**Deliberate design decisions to state if Google asks:**
+- **Anonymous stream chatters have no account**, so "block" for them is a **device-local hide** (persisted on-device) rather than a server-side block. Their **reports still reach the server** and are actionable by moderators.
+- **Reporting requires an account except for live chat.** Signed-out users elsewhere get a "Sign in to report" prompt.
+
+> ⚠ **Verification caveat:** the new backend moderation code compiles and the mobile code passes `npx tsc --noEmit`, but **Flyway migration `V281` and the new JPQL queries have not been run against a live database** (no DB/Docker in this session). **Verify both on a real Postgres before release.**
+
+---
+
+## 14b. Known issue — WebSocket subscription authorization (NOT fixed)
+
+The STOMP topic `/topic/messages/{userId}` (`WebSocketConfig`; `SecurityConfiguration` permits `/ws/**`) has **no subscription authorization**. A blocked user could still subscribe to a blocker's outbound DM topic and receive messages, bypassing the block at the transport layer.
+
+- **Scope:** **web only** — the mobile app does not subscribe to this topic.
+- **Status:** 🟠 **open follow-up security item.** Not a Play submission blocker, but fix it before the block feature is advertised as complete.
 
 ---
 
@@ -307,19 +344,21 @@ Your hosted policy **must** cover (based on the repo):
 
 ## 18. Compliance / Readiness Score
 
-**Play Store Readiness: 62 / 100**
+**Play Store Readiness: 75 / 100** (was 62)
 
 Breakdown:
 - Build & signing (AAB, Play App Signing, package id): **+18/20** ✅
 - Permissions hygiene (no dangerous/background perms): **+15/15** ✅
-- Data Safety completeness (declarable, honest): **+10/15** (needs deletion path + policy URL)
-- Store listing assets (icon/feature graphic done; screenshots missing): **+7/12**
-- **Monetization / Play Billing for digital goods**: **+3/20** 🔴 (main gap)
-- Account deletion requirement: **+0/8** 🔴 (missing)
+- Data Safety completeness (declarable, honest): **+15/15** ✅ (deletion path shipped, policy URL live)
+- Store listing assets (feature graphic done; 512×512 icon + screenshots missing): **+7/12** ⚠
+- **Monetization / Play Billing for digital goods**: **+3/20** 🔴 (**unchanged — the #1 blocker**)
+- Account deletion requirement: **+7/8** ✅ (in-app flow done; public deletion-**request** URL still missing)
 - Auth/OAuth reconfig for new package: **+5/5** (fixable) ✅
-- Privacy/UGC/biometric disclosures: **+4/5** ⚠
+- Privacy/UGC/biometric disclosures: **+5/5** ✅ (report/block shipped — §14a)
 
-The score is gated primarily by **Play Billing for digital goods (§8)** and **account deletion (§14 #2)**. Resolve those two and the score rises to ~90+.
+The score is now gated almost entirely by **Play Billing for digital goods (§8)**. Resolve that one item and the score rises to ~92.
+
+**Still open (all minor except §8):** Play Billing (§8) 🔴 · phone screenshots · 512×512 icon · App Access demo credentials · new Google OAuth client for the new package · public web deletion-request URL.
 
 ---
 
@@ -334,16 +373,17 @@ The score is gated primarily by **Play Billing for digital goods (§8)** and **a
 | Feature graphic 1024×500 | ✅ Required — done |
 | 2–8 phone screenshots | ✅ Required — **[NEEDS INPUT]** capture |
 | Tablet/large-screen screenshots | ⚠ Recommended (TV target) |
-| **Public Privacy Policy URL** | ✅ Required — **[NEEDS INPUT]** host it |
+| **Public Privacy Policy URL** | ✅ Required — **DONE**: `https://connekyt.com/user/privacy-policy` (200) |
 | **App Access demo credentials** | ✅ Required — **[NEEDS INPUT]** provide |
 | Ads declaration ("contains ads") | ✅ Required — Yes |
 | Data Safety form | ✅ Required — per §5 |
 | Content rating questionnaire | ✅ Required — per §10 |
 | Target audience 18+ | ✅ Required — per §11 |
-| **In-app account deletion + URL** | ✅ Required — **❌ MISSING, build it** |
-| **Play Billing for digital photos/streams** | ✅ Required for Production — **❌ resolve** |
+| **In-app account deletion** | ✅ Required — **DONE** (`delete-account.tsx` → `DELETE /customer/profile`) |
+| **Public web deletion-request URL** | ✅ Required — **❌ still to publish** (must work without installing the app) |
+| **Play Billing for digital photos/streams/gifts** | ✅ Required for Production — **❌ resolve (#1 blocker)** |
 | New Google OAuth client (new package + SHA-1) | ✅ Required for Google login — **❌ create** |
-| UGC report/block on chat & photos | ⚠ Recommended — extend existing stream reporting |
+| UGC report/block on chat, DMs, photos & profiles | ✅ Required — **DONE** (§14a; migration V281 still needs a live-DB run) |
 | Government/Health/Medical/Financial/News/Dating/VPN/AI-gen declarations | ✅ Required — all "No" per §12 |
 | Play Integrity API | ⚠ Recommended |
 
@@ -351,12 +391,12 @@ The score is gated primarily by **Play Billing for digital goods (§8)** and **a
 
 ## 20. Declarations that could get the app REJECTED — and the fix
 
-1. **Digital goods via non-Play payment (§8).** *Fix:* Play Billing for photo/stream purchases on Android before Production, or remove those purchases from the Android build.
-2. **No account deletion (§14 #2).** *Fix:* add in-app "Delete account" + a public deletion request URL; then set Data Safety "deletion = Yes."
+1. **Digital goods via non-Play payment (§8).** 🔴 **Still live — the #1 rejection risk.** *Fix:* Play Billing for photo/stream/gift purchases on Android before Production, or remove those purchases from the Android build.
+2. ~~No account deletion~~ → **RESOLVED.** In-app "Delete account" is shipped (§14 #2) and Data Safety can now say "deletion = Yes." *Remaining:* publish the public deletion-**request** URL for users who haven't installed the app.
 3. **Data Safety mismatch.** *Fix:* declare Photos (incl. selfie/KYC), Video, Audio, Phone, Messages, Purchase history, Device ID exactly as §5. Under-declaring biometric/ID data is a common rejection.
-4. **No public Privacy Policy URL, or one that omits facial-recognition/KYC.** *Fix:* host a policy covering §13.
+4. ~~No public Privacy Policy URL~~ → **RESOLVED.** Live at `https://connekyt.com/user/privacy-policy` (200). *Remaining:* confirm its text covers every §13 item, especially facial recognition and KYC.
 5. **Reviewer can't log in (App Access).** *Fix:* provide working demo credentials + steps.
 6. **Google Sign-In broken on new package.** *Fix:* new OAuth Android client with the new package + Play app-signing SHA-1.
-7. **UGC without report/block.** *Fix:* ensure reporting/blocking on chat, photos, profiles, streams.
+7. ~~UGC without report/block~~ → **RESOLVED.** Reporting and account-wide blocking now ship on chat, DMs, photos, and profiles; photographer-profile reporting was already present (§14a). *Caveats to carry:* anonymous stream-chatter blocking is device-local by design, migration V281 needs a live-DB run, and the `/topic/messages/{userId}` subscription-auth gap (§14b, web-only) is still open.
 
-> **[NEEDS INPUT] summary:** public website URL, hosted Privacy Policy URL, App Access demo credentials, phone screenshots, and a decision on Play Billing for digital photos/streams.
+> **[NEEDS INPUT] summary:** public website URL, App Access demo credentials, phone screenshots, 512×512 icon, new Google OAuth client for `com.amoria.connekyt.app`, a public web deletion-request URL, and a decision on Play Billing for digital photos/streams/gifts.

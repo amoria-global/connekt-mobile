@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -14,12 +15,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { listMessages, sendMessage, type Message } from '@/features/inbox/api';
+import { reportContent } from '@/features/moderation/api';
+import { ReportSheet } from '@/features/moderation/ReportSheet';
+import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
-import { useAuth } from '@/store/auth';
+import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, radii, spacing } from '@/theme';
 
 export default function ConversationScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // The inbox routes by partner customer id, so `id` is both the thread key
+  // and the person a report or block points at.
+  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const router = useRouter();
   const myId = useAuth((s) => s.user?.customerId);
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => listMessages(id), [id]),
@@ -27,6 +34,67 @@ export default function ConversationScreen() {
 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+
+  const blockAccount = useModeration((s) => s.block);
+  const loadModeration = useModeration((s) => s.load);
+  const [reportUserOpen, setReportUserOpen] = useState(false);
+  const [reportMessage, setReportMessage] = useState<Message | null>(null);
+
+  useEffect(() => {
+    loadModeration();
+  }, [loadModeration]);
+
+  const partnerLabel = name || 'this user';
+
+  const onBlock = useCallback(() => {
+    Alert.alert(
+      `Block ${partnerLabel}?`,
+      'They will no longer be able to message you, and this conversation disappears from your inbox.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockAccount(id);
+              router.back();
+            } catch (e) {
+              Alert.alert('Could not block', isApiError(e) ? e.message : 'Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, [blockAccount, id, partnerLabel, router]);
+
+  const onHeaderMenu = useCallback(() => {
+    Alert.alert(partnerLabel, undefined, [
+      { text: 'Report user', style: 'destructive', onPress: () => setReportUserOpen(true) },
+      { text: 'Block user', style: 'destructive', onPress: onBlock },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [onBlock, partnerLabel]);
+
+  const onLongPressMessage = useCallback((message: Message) => {
+    Alert.alert('Message', message.text, [
+      { text: 'Report message', style: 'destructive', onPress: () => setReportMessage(message) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, []);
+
+  const submitUserReport = useCallback(
+    (reason: string, description: string) => reportContent('USER', id, reason, description),
+    [id],
+  );
+
+  const submitMessageReport = useCallback(
+    async (reason: string, description: string) => {
+      if (!reportMessage) throw { status: 400, message: 'Nothing to report.' };
+      return reportContent('DIRECT_MESSAGE', reportMessage.id, reason, description);
+    },
+    [reportMessage],
+  );
 
   const onSend = async () => {
     const text = draft.trim();
@@ -36,8 +104,14 @@ export default function ConversationScreen() {
       await sendMessage(id, text);
       setDraft('');
       await refresh();
-    } catch {
-      // keep the draft so the user can retry
+    } catch (e) {
+      // The draft survives so the user can retry, but they need to know why it
+      // didn't send — a block (403) and the content filter (400) both land here
+      // and are otherwise indistinguishable from a dead Send button.
+      Alert.alert(
+        'Message not sent',
+        isApiError(e) ? e.message : 'Please check your connection and try again.',
+      );
     } finally {
       setSending(false);
     }
@@ -45,6 +119,21 @@ export default function ConversationScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <Stack.Screen
+        options={{
+          title: name || 'Chat',
+          headerRight: () => (
+            <Pressable
+              onPress={onHeaderMenu}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Conversation options"
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.textOnPrimary} />
+            </Pressable>
+          ),
+        }}
+      />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -62,7 +151,16 @@ export default function ConversationScreen() {
           <FlatList
             data={data ?? []}
             keyExtractor={(m) => m.id}
-            renderItem={({ item }) => <Bubble message={item} mine={!!myId && item.senderId === myId} />}
+            renderItem={({ item }) => {
+              const mine = !!myId && item.senderId === myId;
+              return (
+                <Bubble
+                  message={item}
+                  mine={mine}
+                  onLongPress={mine ? undefined : () => onLongPressMessage(item)}
+                />
+              );
+            }}
             contentContainerStyle={styles.list}
             ListEmptyComponent={<Text style={styles.empty}>No messages yet. Say hello 👋</Text>}
           />
@@ -86,15 +184,44 @@ export default function ConversationScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <ReportSheet
+        visible={reportUserOpen}
+        onClose={() => setReportUserOpen(false)}
+        targetType="USER"
+        subject={name || undefined}
+        submit={submitUserReport}
+      />
+
+      {/* Report one message (long-press a message from the other person). */}
+      <ReportSheet
+        visible={!!reportMessage}
+        onClose={() => setReportMessage(null)}
+        targetType="DIRECT_MESSAGE"
+        subject={name || undefined}
+        submit={submitMessageReport}
+      />
     </SafeAreaView>
   );
 }
 
-function Bubble({ message, mine }: { message: Message; mine: boolean }) {
+function Bubble({
+  message,
+  mine,
+  onLongPress,
+}: {
+  message: Message;
+  mine: boolean;
+  onLongPress?: () => void;
+}) {
   return (
-    <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+    <Pressable
+      onLongPress={onLongPress}
+      disabled={!onLongPress}
+      style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}
+    >
       <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{message.text}</Text>
-    </View>
+    </Pressable>
   );
 }
 

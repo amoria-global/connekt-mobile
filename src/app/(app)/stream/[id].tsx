@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { getStream, joinStream, listStreamChats, sendInAppStreamChat, tipStream, type StreamChat } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
@@ -137,6 +138,7 @@ export default function StreamDetailScreen() {
   };
 
   const onTip = async (amount: number) => {
+    if (!digitalPurchasesEnabled) return;
     setTipping(amount);
     try {
       await tipStream(id, amount);
@@ -209,25 +211,27 @@ export default function StreamDetailScreen() {
           </View>
         ) : null}
 
-        <View style={styles.tipSection}>
-          <Text style={styles.tipTitle}>Send a tip</Text>
-          <View style={styles.tipRow}>
-            {TIP_AMOUNTS.map((a) => (
-              <Pressable
-                key={a}
-                style={({ pressed }) => [styles.tipChip, pressed && styles.pressed]}
-                onPress={() => onTip(a)}
-                disabled={tipping != null}
-              >
-                {tipping === a ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  <Text style={styles.tipText}>{a.toLocaleString()}</Text>
-                )}
-              </Pressable>
-            ))}
+        {digitalPurchasesEnabled ? (
+          <View style={styles.tipSection}>
+            <Text style={styles.tipTitle}>Send a tip</Text>
+            <View style={styles.tipRow}>
+              {TIP_AMOUNTS.map((a) => (
+                <Pressable
+                  key={a}
+                  style={({ pressed }) => [styles.tipChip, pressed && styles.pressed]}
+                  onPress={() => onTip(a)}
+                  disabled={tipping != null}
+                >
+                  {tipping === a ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <Text style={styles.tipText}>{a.toLocaleString()}</Text>
+                  )}
+                </Pressable>
+              ))}
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {playUrl ? (
           <View style={styles.chatSection}>

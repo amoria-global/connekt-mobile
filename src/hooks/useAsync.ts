@@ -27,7 +27,7 @@ export function useAsync<T>(fn: () => Promise<T>): AsyncState<T> {
     try {
       setData(await fnRef.current());
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Something went wrong. Pull to retry.');
+      setError(isApiError(e) ? e.message : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

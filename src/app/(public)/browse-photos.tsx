@@ -28,6 +28,9 @@ import {
   type MultiAlbumPurchaseItem,
 } from '@/features/photos/api';
 import { PhotoCheckoutSheet } from '@/features/photos/PhotoCheckoutSheet';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { reportContent } from '@/features/moderation/api';
+import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { spacing } from '@/theme';
 
 function sym(code?: string | null) {
@@ -38,6 +41,7 @@ export default function BrowsePhotosScreen() {
   const [items, setItems] = useState<BrowseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState<BrowseRow | null>(null);
+  const [reporting, setReporting] = useState<BrowseRow | null>(null);
 
   // Cart keyed by imageId.
   const [cart, setCart] = useState<Record<string, BrowseRow>>({});
@@ -119,6 +123,18 @@ export default function BrowsePhotosScreen() {
     setCart({});
   };
 
+  // The report sheet is itself a Modal, so the lightbox has to close first —
+  // stacked Modals don't render reliably on iOS.
+  const openReport = (row: BrowseRow) => {
+    setPreviewing(null);
+    setReporting(row);
+  };
+
+  const submitPhotoReport = async (reason: string, description: string) => {
+    if (!reporting) throw { status: 400, message: 'Nothing to report.' };
+    return reportContent('PHOTO', reporting.imageId, reason, description);
+  };
+
   const downloadPhoto = (row: BrowseRow) => {
     if (!purchaseRefid) return;
     const url = getPhotoDownloadUrl(row.galleryId, row.imageId, { refid: purchaseRefid });
@@ -134,13 +150,15 @@ export default function BrowsePhotosScreen() {
       >
         <Image source={{ uri: item.fileUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
         <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={styles.gradient} />
-        <Pressable
-          style={[styles.cartToggle, selected && styles.cartToggleOn]}
-          onPress={() => toggleCart(item)}
-          hitSlop={8}
-        >
-          <Ionicons name={selected ? 'checkmark' : 'add'} size={16} color="#fff" />
-        </Pressable>
+        {digitalPurchasesEnabled ? (
+          <Pressable
+            style={[styles.cartToggle, selected && styles.cartToggleOn]}
+            onPress={() => toggleCart(item)}
+            hitSlop={8}
+          >
+            <Ionicons name={selected ? 'checkmark' : 'add'} size={16} color="#fff" />
+          </Pressable>
+        ) : null}
         <View style={styles.cardFooter}>
           <Text style={styles.cardTitle} numberOfLines={1}>{item.photographerName}</Text>
           <Text style={styles.cardPrice}>{sym(item.buyerCurrency)}{item.buyerPrice}</Text>
@@ -183,7 +201,7 @@ export default function BrowsePhotosScreen() {
       )}
 
       {/* Cart checkout bar */}
-      {cartItems.length > 0 ? (
+      {cartItems.length > 0 && digitalPurchasesEnabled ? (
         <View style={[styles.cartBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <View style={{ flex: 1 }}>
             <Text style={styles.cartBarCount}>
@@ -205,6 +223,15 @@ export default function BrowsePhotosScreen() {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPreviewing(null)} />
           <View style={[styles.lightboxContent, { marginTop: insets.top, marginBottom: insets.bottom }]}>
             <View style={styles.lightboxHeader}>
+              <Pressable
+                onPress={() => previewing && openReport(previewing)}
+                style={styles.closeButton}
+                accessibilityRole="button"
+                accessibilityLabel="Report photo"
+                hitSlop={8}
+              >
+                <Ionicons name="flag-outline" size={22} color="#FFF" />
+              </Pressable>
               <Pressable onPress={() => setPreviewing(null)} style={styles.closeButton}>
                 <Ionicons name="close" size={28} color="#FFF" />
               </Pressable>
@@ -225,24 +252,28 @@ export default function BrowsePhotosScreen() {
               <View style={styles.lightboxFooter}>
                 <Text style={styles.lightboxTitle} numberOfLines={2}>{previewing.title || 'Untitled'}</Text>
                 <Text style={styles.lightboxPhotographer}>By {previewing.photographerName}</Text>
-                <View style={styles.lightboxActions}>
-                  <Pressable
-                    style={[styles.lbBtn, styles.lbBtnGhost]}
-                    onPress={() => previewing && toggleCart(previewing)}
-                  >
-                    <Ionicons
-                      name={inCart(previewing.imageId) ? 'checkmark-circle' : 'add-circle-outline'}
-                      size={18}
-                      color="#fff"
-                    />
-                    <Text style={styles.lbBtnText}>{inCart(previewing.imageId) ? 'In cart' : 'Add to cart'}</Text>
-                  </Pressable>
-                  <Pressable style={[styles.lbBtn, styles.lbBtnPrimary]} onPress={() => startCheckout(previewing)}>
-                    <Text style={styles.lbBtnText}>
-                      Buy · {sym(previewing.buyerCurrency)}{previewing.buyerPrice}
-                    </Text>
-                  </Pressable>
-                </View>
+                {/* Without a checkout path the cart is a dead end, so the whole
+                    buying funnel goes away rather than just the Buy button. */}
+                {digitalPurchasesEnabled ? (
+                  <View style={styles.lightboxActions}>
+                    <Pressable
+                      style={[styles.lbBtn, styles.lbBtnGhost]}
+                      onPress={() => previewing && toggleCart(previewing)}
+                    >
+                      <Ionicons
+                        name={inCart(previewing.imageId) ? 'checkmark-circle' : 'add-circle-outline'}
+                        size={18}
+                        color="#fff"
+                      />
+                      <Text style={styles.lbBtnText}>{inCart(previewing.imageId) ? 'In cart' : 'Add to cart'}</Text>
+                    </Pressable>
+                    <Pressable style={[styles.lbBtn, styles.lbBtnPrimary]} onPress={() => startCheckout(previewing)}>
+                      <Text style={styles.lbBtnText}>
+                        Buy · {sym(previewing.buyerCurrency)}{previewing.buyerPrice}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
               </View>
             )}
           </View>
@@ -295,6 +326,15 @@ export default function BrowsePhotosScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Report a photo (flag button in the lightbox). */}
+      <ReportSheet
+        visible={!!reporting}
+        onClose={() => setReporting(null)}
+        targetType="PHOTO"
+        subject={reporting?.title || reporting?.photographerName}
+        submit={submitPhotoReport}
+      />
     </View>
   );
 }
@@ -331,7 +371,7 @@ const styles = StyleSheet.create({
 
   lightboxContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' },
   lightboxContent: { flex: 1 },
-  lightboxHeader: { flexDirection: 'row', justifyContent: 'flex-end', padding: spacing.md, zIndex: 10 },
+  lightboxHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: spacing.md, zIndex: 10 },
   closeButton: { padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
   lightboxImageContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   lightboxImage: { width: '100%', height: '100%' },

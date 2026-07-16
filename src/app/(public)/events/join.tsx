@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { redeemGroupCode } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
@@ -168,6 +169,7 @@ export default function JoinPackageScreen() {
   const totalLabel = feeLabel(total, data.streamFeeCurrencyAbbreviation, data.streamFeeCurrencySymbol);
 
   const onProceed = () => {
+    if (!digitalPurchasesEnabled) return;
     const params = new URLSearchParams({
       id,
       package: pkg,
@@ -230,6 +232,19 @@ export default function JoinPackageScreen() {
           </View>
         </View>
 
+        {/* Package selection through to the pay button is the purchase funnel;
+            on Android it's absent and only the invite-code path below remains. */}
+        {!digitalPurchasesEnabled ? (
+          <View style={styles.totalCard}>
+            <Text style={styles.totalLabel}>Ticketed event</Text>
+            <Text style={styles.peopleHint}>
+              If you already have access, use your invite code below.
+            </Text>
+          </View>
+        ) : null}
+
+        {digitalPurchasesEnabled ? (
+        <>
         <Text style={styles.h2}>Choose your package</Text>
 
         {/* Individual */}
@@ -305,6 +320,8 @@ export default function JoinPackageScreen() {
         </View>
 
         <Button title="Continue to payment" onPress={onProceed} />
+        </>
+        ) : null}
 
         {/* Group invite code redeem section
             Web parity: join-package.tsx invite code input at the bottom.

@@ -364,6 +364,6 @@ Amoria Connekyt is owned and operated by Amoria Global Tech Ltd., registered in 
 • General: info@amoriaglobal.com
 • Legal: legal@amoriaglobal.com
 • Privacy: privacy@amoriaglobal.com
-• Support: support@amoriaconnect.com`
+• Support: support@connekyt.com`
     }
 ];

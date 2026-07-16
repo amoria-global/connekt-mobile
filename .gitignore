@@ -33,6 +33,12 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Play publishing credential — eas.json points `submit.production.android
+# .serviceAccountKeyPath` here, so this file gets created locally at some
+# point. It must never be committed.
+google-play-service-account.json
+*-service-account.json
+
 # typescript
 *.tsbuildinfo
 
@@ -41,3 +47,7 @@ example
 # generated native folders
 /ios
 /android
+
+# Local build artifacts downloaded from EAS (AAB/APK) — never commit binaries
+build-artifacts/
+.expo-export-check/
