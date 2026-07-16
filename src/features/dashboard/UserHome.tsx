@@ -43,7 +43,8 @@ type Action = {
 // The four things a User can do — each maps to an existing screen.
 const ACTIONS: Action[] = [
   { label: 'Book a photographer', sub: 'Find & hire talent', icon: 'camera', color: '#083A85', href: '/photographers' as Href },
-  { label: 'Live streams', sub: 'Watch & buy access', icon: 'videocam', color: '#F20C8F', href: '/streams' as Href },
+  // Browse public events and buy stream access — the "view events to purchase" path.
+  { label: 'Explore events', sub: 'Watch & buy access', icon: 'videocam', color: '#F20C8F', href: '/explore-events' as Href },
   { label: 'Find my photos', sub: 'Buy your event photos', icon: 'images', color: '#0EA5E9', href: '/find-my-photos' as Href },
   { label: 'Payments', sub: 'Pay & track', icon: 'card', color: '#10B981', href: '/payments' as Href },
 ];
