@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
+import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
 import { useRole } from '@/features/auth/role';
 import { listAlbums, type GalleryItem } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -50,15 +51,15 @@ export default function GalleryScreen() {
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
         }
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={styles.eyebrow}>LIBRARY</Text>
-            <Text style={styles.h1}>Albums</Text>
-            <Text style={styles.subtitle}>
-              {isPhotographer
+          <UserHeaderBand
+            eyebrow="LIBRARY"
+            title="Albums"
+            subtitle={
+              isPhotographer
                 ? 'Your event and personal photo albums.'
-                : "Albums shared by photographers you've worked with."}
-            </Text>
-          </View>
+                : "Albums shared by photographers you've worked with."
+            }
+          />
         }
         renderItem={({ item }) => (
           <Pressable
