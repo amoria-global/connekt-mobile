@@ -33,6 +33,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
+import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { useRole } from '@/features/auth/role';
 import { acceptBooking, listBookings, rejectBooking, type Booking } from '@/features/bookings/api';
@@ -96,14 +97,15 @@ export default function BookingsScreen() {
 
   return (
     <Screen padded={false}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Bookings</Text>
-        <Text style={styles.subtitle}>
-          {isPhotographer
+      <UserHeaderBand
+        title="Bookings"
+        subtitle={
+          isPhotographer
             ? 'Booking requests from clients waiting for your reply.'
-            : "Your booking requests to photographers and their status."}
-        </Text>
-      </View>
+            : 'Your booking requests to photographers and their status.'
+        }
+      />
+
 
       {loading && !data ? (
         <View style={styles.centered}>
