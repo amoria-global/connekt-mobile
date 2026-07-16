@@ -16,6 +16,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -89,23 +90,31 @@ export function UserHome() {
         contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* Greeting */}
-        <View style={styles.hero}>
+        {/* Gradient hero with embedded snapshot cards — mirrors the salo-run
+            User dashboard hero (navy → pink, translucent white stat cards). */}
+        <LinearGradient
+          colors={['#083A85', '#0a4da3', '#F20C8F']}
+          locations={[0, 0.55, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
           <Text style={styles.heroEyebrow}>WELCOME BACK</Text>
           <Text style={styles.heroName} numberOfLines={1}>{name}</Text>
           <Text style={styles.heroSub}>Your photos, streams, and payments — all in one place.</Text>
-        </View>
 
-        {/* Snapshot */}
-        <View style={styles.statsCard}>
-          {stats.map((s, i) => (
-            <View key={s.label} style={[styles.statCell, i > 0 && styles.statDivider]}>
-              <Ionicons name={s.icon} size={16} color={colors.accent} />
-              <Text style={styles.statValue} numberOfLines={1}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
+          <View style={styles.heroStatsRow}>
+            {stats.map((s) => (
+              <View key={s.label} style={styles.heroStatCard}>
+                <View style={styles.heroStatTop}>
+                  <Ionicons name={s.icon} size={13} color="rgba(255,255,255,0.75)" />
+                  <Text style={styles.heroStatLabel} numberOfLines={1}>{s.label}</Text>
+                </View>
+                <Text style={styles.heroStatValue} numberOfLines={1}>{s.value}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
 
         {/* Quick actions */}
         <View style={styles.grid}>
@@ -329,23 +338,26 @@ function EmptyCard({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
 const styles = StyleSheet.create({
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: 140, gap: spacing.lg },
 
-  hero: { gap: 4 },
-  heroEyebrow: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1, color: colors.accent },
-  heroName: { fontFamily: fonts.bold, fontSize: 26, color: colors.text, letterSpacing: -0.3 },
-  heroSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
+  // Gradient hero (salo-run parity)
+  hero: { borderRadius: radii.xl, padding: spacing.xl, gap: 4 },
+  heroEyebrow: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.4, color: 'rgba(255,255,255,0.72)' },
+  heroName: { fontFamily: fonts.bold, fontSize: 26, color: '#fff', letterSpacing: -0.3 },
+  heroSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: 'rgba(255,255,255,0.82)' },
 
-  statsCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+  heroStatsRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  heroStatCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingVertical: spacing.md,
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: 3,
   },
-  statCell: { flex: 1, alignItems: 'center', gap: 3 },
-  statDivider: { borderLeftWidth: 1, borderLeftColor: colors.borderSoft },
-  statValue: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text },
-  statLabel: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
+  heroStatTop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  heroStatLabel: { fontFamily: fonts.bold, fontSize: 10.5, color: 'rgba(255,255,255,0.75)' },
+  heroStatValue: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: '#fff' },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   card: {
