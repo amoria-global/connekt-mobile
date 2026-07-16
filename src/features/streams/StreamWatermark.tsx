@@ -30,7 +30,7 @@ export function StreamWatermark({
   } as const;
 
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.top]}>
       {/* Layer 1 — faint full-frame diagonal wordmark. */}
       <View style={styles.centerWrap} pointerEvents="none">
         <Text style={styles.diagonal} numberOfLines={1}>
@@ -38,7 +38,7 @@ export function StreamWatermark({
         </Text>
       </View>
 
-      {/* Layer 2 — legible corner bug. */}
+      {/* Layer 2 — corner bug, burned-in (no pill) so it reads as part of the video. */}
       <View style={[styles.bug, corner]} pointerEvents="none">
         <Image source={{ uri: logoBase64 }} style={styles.logo} contentFit="contain" />
         <Text style={styles.bugText} numberOfLines={1}>
@@ -50,6 +50,8 @@ export function StreamWatermark({
 }
 
 const styles = StyleSheet.create({
+  // Always on top of the player surface.
+  top: { zIndex: 999, elevation: 999 },
   centerWrap: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
@@ -58,26 +60,22 @@ const styles = StyleSheet.create({
   },
   diagonal: {
     color: '#fff',
-    opacity: 0.14,
+    opacity: 0.08,
     fontSize: 46,
     fontWeight: '900',
     letterSpacing: 3,
     transform: [{ rotate: '-22deg' }],
-    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 12,
   },
+  // Burned-in corner bug — no pill background, so it reads as part of the video.
   bug: {
     position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.34)',
-    opacity: 0.92,
-    zIndex: 40,
+    opacity: 0.5,
   },
   logo: { width: 20, height: 20 },
   bugText: {
@@ -85,9 +83,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.1,
-    textShadowColor: 'rgba(0,0,0,0.85)',
+    textShadowColor: 'rgba(0,0,0,0.95)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowRadius: 5,
   },
 });
 
