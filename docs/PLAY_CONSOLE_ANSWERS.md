@@ -19,7 +19,10 @@ items that cannot be answered from the repo.
 | Password | `Connekyt#Play2026rev` |
 | Any other info | See notes below |
 
-Seeded by `backend/src/main/resources/db/migration/V282__seed_play_review_account.sql`.
+Seeded by `backend/src/main/resources/db/migration/V285__seed_play_review_account.sql`
+(renumbered from V282 to clear a collision with the TV-pairing migrations that
+landed on `main`). Validated by running the full Flyway chain to v285 against a
+throwaway Postgres 18 database.
 **The migration must be deployed to the production backend before you submit** —
 `backend.connekyt.com` is what the Android build talks to (`eas.json` →
 `EXPO_PUBLIC_API_BASE_URL`).

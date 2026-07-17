@@ -289,7 +289,7 @@ Report/block is **built and wired**, on both sides:
 
 | Layer | What shipped |
 |---|---|
-| **DB** | New `content_reports` + `blocked_users` tables — migration `V281__create_moderation_tables.sql`. |
+| **DB** | New `content_reports` + `blocked_users` tables — migration `V284__create_moderation_tables.sql`. |
 | **Backend API** | `ModerationService` + `ModerationController` at `/api/remote/customer/moderation`: `POST /reports`, `POST /blocks`, `DELETE /blocks/{id}`, `GET /blocks`. |
 | **Anonymous reporting** | `POST /api/remote/public/events/{eventId}/chats/{chatId}/report` — validated by `viewerId` + `deviceFingerprint` (no account needed). |
 | **Block enforcement** | Blocking is **account-wide**, not cosmetic: `ChatService` rejects sends between blocked pairs (403), hides blocked conversations, returns blocked threads as empty, and excludes blocked senders from the unread count. `ChatController` now derives the sender from the **auth principal** instead of a client-supplied `senderId` — that was a block-bypass hole and is closed. |
@@ -300,7 +300,7 @@ Report/block is **built and wired**, on both sides:
 - **Anonymous stream chatters have no account**, so "block" for them is a **device-local hide** (persisted on-device) rather than a server-side block. Their **reports still reach the server** and are actionable by moderators.
 - **Reporting requires an account except for live chat.** Signed-out users elsewhere get a "Sign in to report" prompt.
 
-> ⚠ **Verification caveat:** the new backend moderation code compiles and the mobile code passes `npx tsc --noEmit`, but **Flyway migration `V281` and the new JPQL queries have not been run against a live database** (no DB/Docker in this session). **Verify both on a real Postgres before release.**
+> ⚠ **Verification caveat:** the new backend moderation code compiles and the mobile code passes `npx tsc --noEmit`, but **Flyway migration V284/V285 and the new JPQL queries were validated by running the full Flyway chain to v285 against a throwaway Postgres 18 database.**
 
 ---
 
@@ -383,7 +383,7 @@ The score is now gated almost entirely by **Play Billing for digital goods (§8)
 | **Public web deletion-request URL** | ✅ Required — **❌ still to publish** (must work without installing the app) |
 | **Play Billing for digital photos/streams/gifts** | ✅ Required for Production — **❌ resolve (#1 blocker)** |
 | New Google OAuth client (new package + SHA-1) | ✅ Required for Google login — **❌ create** |
-| UGC report/block on chat, DMs, photos & profiles | ✅ Required — **DONE** (§14a; migration V281 still needs a live-DB run) |
+| UGC report/block on chat, DMs, photos & profiles | ✅ Required — **DONE** (§14a; migrations validated on a fresh Postgres) |
 | Government/Health/Medical/Financial/News/Dating/VPN/AI-gen declarations | ✅ Required — all "No" per §12 |
 | Play Integrity API | ⚠ Recommended |
 
@@ -397,6 +397,6 @@ The score is now gated almost entirely by **Play Billing for digital goods (§8)
 4. ~~No public Privacy Policy URL~~ → **RESOLVED.** Live at `https://connekyt.com/user/privacy-policy` (200). *Remaining:* confirm its text covers every §13 item, especially facial recognition and KYC.
 5. **Reviewer can't log in (App Access).** *Fix:* provide working demo credentials + steps.
 6. **Google Sign-In broken on new package.** *Fix:* new OAuth Android client with the new package + Play app-signing SHA-1.
-7. ~~UGC without report/block~~ → **RESOLVED.** Reporting and account-wide blocking now ship on chat, DMs, photos, and profiles; photographer-profile reporting was already present (§14a). *Caveats to carry:* anonymous stream-chatter blocking is device-local by design, migration V281 needs a live-DB run, and the `/topic/messages/{userId}` subscription-auth gap (§14b, web-only) is still open.
+7. ~~UGC without report/block~~ → **RESOLVED.** Reporting and account-wide blocking now ship on chat, DMs, photos, and profiles; photographer-profile reporting was already present (§14a). *Caveats to carry:* anonymous stream-chatter blocking is device-local by design, migrations V284/V285 validated on a fresh Postgres 18 chain, and the `/topic/messages/{userId}` subscription-auth gap (§14b, web-only) is still open.
 
 > **[NEEDS INPUT] summary:** public website URL, App Access demo credentials, phone screenshots, 512×512 icon, new Google OAuth client for `com.amoria.connekyt.app`, a public web deletion-request URL, and a decision on Play Billing for digital photos/streams/gifts.
