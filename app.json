@@ -71,6 +71,12 @@
           "microphonePermission": "Connekyt uses your microphone to record video messages and live audio."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Connekyt uses your camera to scan the QR code shown on your TV so it can sign you in."
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "expo-build-properties",
