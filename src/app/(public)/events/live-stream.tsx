@@ -43,9 +43,9 @@
  *      to /public/anonymous-viewer/{id}/gift then opens gateway URL.
  *
  *   5. DEVICE-CONFLICT MODAL
- *      Surfaced when access-status returns DEVICE_MISMATCH. Confirm
- *      → switchAnonymousDevice (sends newDeviceFingerprint per backend
- *      DTO), then re-check access.
+ *      Surfaced when access-status returns DEVICE_MISMATCH. Forced
+ *      switching isn't supported - Retry calls retryAnonymousDeviceAccess,
+ *      which only succeeds once the other device has gone idle 60s+.
  *
  *   6. VIEWER-INFO MODAL
  *      The web's "Verify your access" form: name + email + phone +
@@ -88,10 +88,10 @@ import {
   initiatePublicGift,
   registerAnonymousViewer,
   requestStreamAccess,
+  retryAnonymousDeviceAccess,
   sendPublicStreamChat,
   sendPublicStreamReaction,
   sendPublicVideoChat,
-  switchAnonymousDevice,
   validateStreamToken,
   type PublicStreamChat,
 } from '@/features/streams/api';
@@ -619,20 +619,15 @@ export default function PublicLiveStreamScreen() {
             if (res.hlsManifestUrl) setManifestUrl(res.hlsManifestUrl);
           } else if (res.reason === 'DEVICE_MISMATCH') {
             /*
-             * Backend's access-status returns DEVICE_MISMATCH on ANY
-             * fingerprint mismatch for a paid viewer, regardless of
-             * whether the old device is actively watching. That's too
-             * strict for "anyone with the same link can watch" — we
-             * silently call switch-device which DOES check the old
-             * session's heartbeat. If switch succeeds, the viewer's
-             * fingerprint is rewritten to this device and we re-check.
-             * Only when switch returns "other device active" do we
-             * open the explicit conflict modal so the user can confirm
-             * taking ownership over.
+             * DEVICE_MISMATCH means this viewer's paid access is bound to a
+             * different device. Forced switching isn't supported anymore -
+             * quietly try the one legitimate path (device-check, which
+             * only succeeds if that other device has gone idle 60s+) before
+             * bothering the user with the conflict modal at all.
              */
-            const swap = await switchAnonymousDevice(id, vId, fingerprint);
+            const retry = await retryAnonymousDeviceAccess(id, vId, fingerprint);
             if (cancelled) return;
-            if (swap.ok) {
+            if (retry.ok) {
               const reverify = await checkAnonymousAccessStatus(id, vId, fingerprint);
               if (cancelled) return;
               if (reverify.active) {
@@ -643,10 +638,8 @@ export default function PublicLiveStreamScreen() {
                 setConflictOpen(true);
               }
             } else {
-              // Old session active OR backend rejected — user must
-              // confirm explicitly via the modal (which calls switch
-              // again under the hood; backend will release the old
-              // session if it has timed out since this attempt).
+              // Other device is still actively watching - show the
+              // conflict modal explaining that, with a Retry action.
               setConflictOpen(true);
             }
           } else if (fromPayment === '1') {
@@ -886,15 +879,16 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
-  const onConfirmSwitchDevice = async () => {
+  const onRetryDeviceAccess = async () => {
     if (!viewerId) return;
     setConflictBusy(true);
     try {
       const fingerprint = await getDeviceId();
-      const swap = await switchAnonymousDevice(id, viewerId, fingerprint);
-      if (!swap.ok) {
-        setTokenError(swap.message ?? 'Could not switch device.');
-        setConflictOpen(false);
+      const retry = await retryAnonymousDeviceAccess(id, viewerId, fingerprint);
+      if (!retry.ok) {
+        // Still active elsewhere - keep the modal open with its accurate
+        // "already watching on another device" copy; no separate banner
+        // needed since that's exactly what the modal already says.
         return;
       }
       const res = await checkAnonymousAccessStatus(id, viewerId, fingerprint);
@@ -903,10 +897,12 @@ export default function PublicLiveStreamScreen() {
         setAccessGranted(true);
         setConflictOpen(false);
       } else {
-        setTokenError('Switched, but the stream isn’t live yet — try again in a moment.');
+        setTokenError('Access confirmed, but the stream isn’t live yet — try again in a moment.');
+        setConflictOpen(false);
       }
     } catch (e) {
-      setTokenError(isApiError(e) ? e.message : 'Could not switch device.');
+      setTokenError(isApiError(e) ? e.message : 'Could not confirm access.');
+      setConflictOpen(false);
     } finally {
       setConflictBusy(false);
     }
@@ -1455,12 +1451,12 @@ export default function PublicLiveStreamScreen() {
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>You're watching on another device</Text>
             <Text style={styles.modalHint}>
-              Only one device can watch on the same paid ticket. Switch ownership to this device —
-              the old session will be ended.
+              Only one device can watch on the same paid ticket at a time. It'll free up
+              automatically once the other device stops watching — tap retry to check.
             </Text>
             <Button
-              title={conflictBusy ? 'Switching…' : 'Switch to this device'}
-              onPress={onConfirmSwitchDevice}
+              title={conflictBusy ? 'Checking…' : 'Retry'}
+              onPress={onRetryDeviceAccess}
               loading={conflictBusy}
             />
           </Pressable>
