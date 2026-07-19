@@ -33,14 +33,16 @@ export type AlbumDetail = GalleryItem & {
   images: AlbumImage[];
   amountDue?: number;
   currency?: string;
-  /**
-   * Best-effort fields for the ARCHIVE web-checkout handoff. The customer
-   * album endpoint doesn't reliably return these today — they're mapped
-   * when present so the unlock flow can mint a handoff token; when absent
-   * the screen falls back to the web dashboard.
-   */
+  /** Event this album belongs to — names the archive handoff to mint. */
   eventId?: string;
   currencyId?: string;
+  /**
+   * Configured price to restore this album, set only while it's locked.
+   * Distinct from `amountDue`, which is the event's booking balance — showing
+   * that as the restore price was quoting people their whole photography fee.
+   */
+  archiveFee?: number;
+  archiveCurrency?: string;
   photographer?: string;
   /** Content-album review state (only set for content albums). */
   approvalStatus?: ContentApprovalStatus;
@@ -128,6 +130,8 @@ export async function getAlbum(id: string, isPhotographer = false): Promise<Albu
     currency: str(payment.currency) ?? str(d.currency),
     eventId: str(d.eventId) ?? str(payment.eventId),
     currencyId: str(payment.currencyId) ?? str(d.currencyId),
+    archiveFee: num(d.archiveFee),
+    archiveCurrency: str(d.archiveCurrency),
     approvalStatus: str(d.contentApprovalStatus) as ContentApprovalStatus | undefined,
     approvalComment: str(d.contentApprovalComment),
     categoryLabel: str(d.contentCategoryLabel) ?? str(d.contentCategory),

@@ -187,21 +187,15 @@ export default function AlbumDetailScreen() {
   // Gated: on Android this button never renders (see lockedCard below).
   const onUnlock = async () => {
     if (!digitalPurchasesEnabled) return;
+    if (!data?.eventId) {
+      Alert.alert('Unavailable', 'This album cannot be restored right now.');
+      return;
+    }
     setUnlocking(true);
     try {
-      if (data?.eventId && data?.currencyId && data?.amountDue) {
-        const url = await mintHandoffUrl('ARCHIVE', {
-          eventId: data.eventId,
-          amount: data.amountDue,
-          currencyId: data.currencyId,
-        });
-        await openWebCheckout(url);
-      } else {
-        // FALLBACK: the customer album payload doesn't include the
-        // eventId/currencyId the ARCHIVE handoff needs — send the user to
-        // the web dashboard's album page to complete the unlock there.
-        await openWebCheckout('https://dashboard.connekyt.com');
-      }
+      // Only the event is named — the server prices the restore itself.
+      const url = await mintHandoffUrl('ARCHIVE', { eventId: data.eventId });
+      await openWebCheckout(url);
     } catch (err) {
       Alert.alert('Unlock failed', isApiError(err) ? err.message : 'Please try again.');
     } finally {
@@ -342,8 +336,10 @@ export default function AlbumDetailScreen() {
                     </Text>
                     <Button
                       title={
-                        data?.amountDue
-                          ? `Unlock for ${formatMoney(data.amountDue, data.currency)} on connekyt.com`
+                        // archiveFee is the configured restore price. amountDue is
+                        // the event's booking balance and must not be shown here.
+                        data?.archiveFee
+                          ? `Unlock for ${formatMoney(data.archiveFee, data.archiveCurrency)} on connekyt.com`
                           : 'Unlock on connekyt.com'
                       }
                       onPress={onUnlock}
