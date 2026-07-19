@@ -1,12 +1,14 @@
 /**
- * Public event-stream payment.
+ * Public event-stream registration (formerly the in-app payment screen).
  *
- * Mirrors the web `pages/events/join-event.tsx` payment section:
- *   1. Collect viewer name/email/phone (anonymous viewer)
- *   2. Pick MTN Mobile Money, Airtel Money, or Card
- *   3. Initiate XentriPay (public anonymous-viewer endpoint)
- *   4. Open the gateway in a browser (card) and poll status by refid
- *   5. On SUCCESS → confirm-payment + push to live-stream
+ * The app no longer collects payment details. This screen remains because
+ * it's deep-linkable and it handles the FREE-event bypass:
+ *   1. Collect viewer name/email (anonymous viewer)
+ *   2. registerAnonymousViewer — free events (!needsPayment) go straight
+ *      to the live stream, exactly as before
+ *   3. Paid events show the fee and a single (policy-gated) "Buy access on
+ *      connekyt.com" button that opens the web checkout. On Android
+ *      nothing purchasable is shown (digitalPurchasesEnabled gate).
  *
  * The flow uses zero auth: the backend identifies the viewer by an
  * opaque per-install `deviceId` (SecureStore). This matches the web's
@@ -14,12 +16,10 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,16 +30,8 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import {
-  getPublicPaymentStatus,
-  initiateAnonymousStreamingPayment,
-  pollPublicPaymentStatus,
-} from '@/features/payments/anonymous';
-import {
-  confirmAnonymousPayment,
-  registerAnonymousViewer,
-} from '@/features/streams/api';
-import { detectPaymentCountry, getPaymentOptions, listCurrencies } from '@/features/reference/api';
+import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
+import { registerAnonymousViewer } from '@/features/streams/api';
 import { getEffectivePrice, type EffectivePrice } from '@/features/geopricing/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
@@ -47,62 +39,34 @@ import { isApiError, useAuth } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
-type Method = 'MOBILE_MONEY' | 'CARD';
-
-type IoniconName = keyof typeof Ionicons.glyphMap;
-type ProviderOpt = { id: string; label: string; icon: IoniconName };
-
-const PROVIDERS_FALLBACK: ProviderOpt[] = [
-  { id: 'MTN', label: 'MTN Mobile Money', icon: 'phone-portrait-outline' },
-  { id: 'AIRTEL', label: 'Airtel Money', icon: 'phone-portrait-outline' },
-];
-
 function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
   return `${fee.toLocaleString()} ${symbol || code || 'RWF'}`;
 }
 
 export default function EventPaymentScreen() {
-  const { id, package: pkg, people } = useLocalSearchParams<{
-    id: string;
-    package?: string;
-    people?: string;
-  }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
   const event = useAsync(useCallback(() => getPublicEventDetailed(id), [id]));
-  const peopleNum = Math.max(1, parseInt(people || '1', 10) || 1);
 
-  // Viewer identity. A logged-in user buys with their session data — no need
-  // to re-enter name/email; a guest gives name + email only (phone is asked
-  // for later, and only when paying by Mobile Money).
+  // Viewer identity. A logged-in user registers with their session data — no
+  // need to re-enter name/email; a guest gives name + email only.
   const authUser = useAuth((s) => s.user);
   const loggedIn = !!authUser;
   const [name, setName] = useState(
     authUser ? [authUser.firstName, authUser.lastName].filter(Boolean).join(' ') : '',
   );
   const [email, setEmail] = useState(authUser?.email ?? '');
-  const [phone, setPhone] = useState(authUser?.phone ?? '');
 
-  // Payment options
-  const [country, setCountry] = useState<string>('RW');
-  const [providers, setProviders] = useState<ProviderOpt[]>(PROVIDERS_FALLBACK);
-  const [supportsCard, setSupportsCard] = useState(true);
-  const [method, setMethod] = useState<Method>('MOBILE_MONEY');
-  const [providerId, setProviderId] = useState<string>('MTN');
-
-  // Currency id (needed by the public initiate endpoint)
-  const [currencyId, setCurrencyId] = useState<string>('');
-
-  // Geo-priced effective amount for this viewer's location (resolved server-side).
+  // Geo-priced effective amount for this viewer's location (display only —
+  // the web checkout re-resolves and charges the server-fixed amount).
   const [effective, setEffective] = useState<EffectivePrice | null>(null);
   useEffect(() => {
     let cancelled = false;
     getEffectivePrice(String(id))
       .then((e) => {
-        if (cancelled) return;
-        setEffective(e);
-        if (e.currencyId) setCurrencyId(e.currencyId);
+        if (!cancelled) setEffective(e);
       })
       .catch(() => {});
     return () => {
@@ -111,45 +75,10 @@ export default function EventPaymentScreen() {
   }, [id]);
 
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'awaiting' | 'success' | 'failed'>('idle');
-  const [statusNote, setStatusNote] = useState<string>('');
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const c = (await detectPaymentCountry().catch(() => undefined)) || 'RW';
-      if (cancelled) return;
-      setCountry(c);
-      const opts = await getPaymentOptions(c).catch(() => null);
-      if (cancelled || !opts) return;
-      setSupportsCard(opts.supportsCard);
-      if (opts.operators.length > 0) {
-        setProviders(
-          opts.operators.map((o) => ({
-            id: o.id,
-            label: o.name,
-            icon: 'phone-portrait-outline' as const,
-          })),
-        );
-        setProviderId(opts.operators[0].id);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // When event loads, resolve currencyId from its currency code.
-  useEffect(() => {
-    if (!event.data || currencyId) return;
-    listCurrencies()
-      .then((all) => {
-        const wanted = (event.data!.streamFeeCurrencyAbbreviation ?? 'RWF').toUpperCase();
-        const match = all.find((c) => c.code.toUpperCase() === wanted);
-        if (match) setCurrencyId(match.id);
-      })
-      .catch(() => {});
-  }, [event.data, currencyId]);
+  const [error, setError] = useState<string | null>(null);
+  // Set once registration confirms the event actually needs payment; the
+  // screen then shows the fee + web-checkout handoff instead of a form.
+  const [needsPayment, setNeedsPayment] = useState(false);
 
   if (event.loading && !event.data) {
     return (
@@ -176,132 +105,52 @@ export default function EventPaymentScreen() {
   const baseFee = effective?.price ?? data.streamFee ?? 0;
   const feeCurrencyCode = effective?.currencyAbbreviation ?? data.streamFeeCurrencyAbbreviation;
   const feeCurrencySymbol = effective?.currencySymbol ?? data.streamFeeCurrencySymbol;
-  const groupDiscount = data.groupDiscountPercentage ?? 10;
-  const totalFee =
-    pkg === 'group'
-      ? Math.round(baseFee * peopleNum * (1 - groupDiscount / 100))
-      : baseFee;
-  const totalLabel = feeLabel(totalFee, feeCurrencyCode, feeCurrencySymbol);
+  const totalLabel = feeLabel(baseFee, feeCurrencyCode, feeCurrencySymbol);
 
-  const phoneOk = method === 'CARD' ? true : /^\d{9,12}$/.test(phone.trim());
-  const formOk = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email) && phoneOk;
+  const formOk = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
 
-  const onPay = async () => {
+  const onRegister = async () => {
     if (!formOk) {
-      Alert.alert(
-        'Check your info',
-        method === 'MOBILE_MONEY'
-          ? 'Enter your name, email and a Mobile Money phone number.'
-          : 'Enter your name and email.',
-      );
-      return;
-    }
-    if (!currencyId) {
-      Alert.alert('Could not start payment', 'Currency information is still loading.');
+      Alert.alert('Check your info', 'Enter your name and email.');
       return;
     }
     setBusy(true);
-    setStatus('awaiting');
-    setStatusNote('Setting up your viewer access…');
+    setError(null);
     try {
       const deviceId = await getDeviceId();
       const reg = await registerAnonymousViewer(id, {
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim() || undefined,
+        // No phone is collected anymore (it was only ever needed for Mobile
+        // Money). The register DTO still @NotBlank-requires one on older
+        // backends, so send the same harmless placeholder live-stream uses.
+        phone: '0000000000',
         deviceId,
       });
       if (!reg.viewerId) throw { status: 0, message: 'Could not register your viewer access.' };
 
-      // Free stream: skip payment and go straight to the live screen.
-      // Persist the viewerId so the event detail's CTA shows "Start
-      // watching" instead of "Watch live" on a later visit.
+      // Free stream (or already-paid record): skip payment and go straight to
+      // the live screen. Persist the viewerId so the event detail's CTA shows
+      // "Start watching" instead of "Watch live" on a later visit.
       if (!reg.needsPayment) {
         await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
         router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href);
         return;
       }
 
-      // Nothing routes here on Android, but a paid stream must never reach a
-      // non-Play payment page from inside the app. Checked after the free
-      // bypass above so free events still register and play.
-      if (!digitalPurchasesEnabled) {
-        setBusy(false);
-        setStatus('idle');
-        setStatusNote('');
-        Alert.alert(
-          'Not available',
-          'This event needs access that cannot be purchased in the app. If you already have access, use your invite code.',
-        );
-        return;
-      }
-
-      setStatusNote(method === 'CARD' ? 'Opening payment page…' : 'Sending payment prompt to your phone…');
-      const initiate = await initiateAnonymousStreamingPayment({
-        eventId: id,
-        viewerId: reg.viewerId,
-        amount: totalFee,
-        currencyId,
-        viewerCount: peopleNum,
-        phone: phone.trim() || undefined,
-        telecomProvider: method === 'MOBILE_MONEY' ? providerId : undefined,
-        paymentMethod: method,
-        country,
-      });
-      if (!initiate.refid) {
-        throw { status: 0, message: initiate.message || 'Could not start the payment.' };
-      }
-
-      if (initiate.paymentUrl) {
-        await WebBrowser.openBrowserAsync(initiate.paymentUrl);
-      }
-
-      setStatusNote('Confirming with the payment gateway…');
-      const grace = method === 'CARD' ? 25_000 : 0;
-      const settled = await pollPublicPaymentStatus(initiate.refid, {
-        graceMs: grace,
-        maxAttempts: 60,
-        intervalMs: 2500,
-      });
-
-      if (settled === 'success') {
-        await confirmAnonymousPayment(id, { viewerId: reg.viewerId, refid: initiate.refid }).catch(
-          () => {},
-        );
-        await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
-        setStatus('success');
-        setStatusNote('Payment received. Taking you to the live stream…');
-        setTimeout(
-          () => router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}&fromPayment=1` as unknown as Href),
-          1200,
-        );
-        return;
-      }
-      if (settled === 'failed') {
-        setStatus('failed');
-        setStatusNote('Your bank or wallet declined the payment. You can try again.');
-      } else {
-        // pending — last hopeful check then bow out
-        const last = await getPublicPaymentStatus(initiate.refid).catch(() => 'pending' as const);
-        if (last === 'success') {
-          await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
-          setStatus('success');
-          setStatusNote('Payment received. Taking you to the live stream…');
-          setTimeout(
-            () => router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}&fromPayment=1` as unknown as Href),
-            1200,
-          );
-          return;
-        }
-        setStatus('failed');
-        setStatusNote('Payment is still pending. You can retry in a minute.');
-      }
+      // Paid stream — the app never collects the payment. Show the fee +
+      // (gated) web-checkout handoff below.
+      setNeedsPayment(true);
     } catch (e) {
-      setStatus('failed');
-      setStatusNote(isApiError(e) ? e.message : 'Something went wrong. Please try again.');
+      setError(isApiError(e) ? e.message : 'Something went wrong. Please try again.');
     } finally {
       setBusy(false);
     }
+  };
+
+  const onBuyOnWeb = () => {
+    if (!digitalPurchasesEnabled) return;
+    void openWebCheckout(streamAccessUrl(id));
   };
 
   return (
@@ -311,147 +160,85 @@ export default function EventPaymentScreen() {
           <Text style={styles.summaryEvent} numberOfLines={1}>
             {data.title}
           </Text>
-          <Text style={styles.summarySub}>
-            {pkg === 'group' ? `${peopleNum} viewers · 10% off` : 'Individual viewer'}
-          </Text>
+          <Text style={styles.summarySub}>Stream access</Text>
           <Text style={styles.summaryAmount}>{totalLabel}</Text>
         </View>
 
-        <Text style={styles.h2}>Your details</Text>
-        {loggedIn ? (
-          <View style={styles.signedInCard}>
-            <Ionicons name="person-circle" size={22} color={colors.primary} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.signedInName} numberOfLines={1}>{name || 'Your account'}</Text>
-              {email ? <Text style={styles.signedInEmail} numberOfLines={1}>{email}</Text> : null}
-            </View>
-          </View>
-        ) : (
+        {!needsPayment ? (
           <>
-            <Input placeholder="Full name" value={name} onChangeText={setName} autoCapitalize="words" />
-            <Input
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-          </>
-        )}
-
-        <Text style={styles.h2}>Pay with</Text>
-        <View style={styles.methods}>
-          <MethodTile
-            active={method === 'MOBILE_MONEY'}
-            label="Mobile Money"
-            icon="phone-portrait"
-            onPress={() => setMethod('MOBILE_MONEY')}
-          />
-          <MethodTile
-            active={method === 'CARD'}
-            disabled={!supportsCard}
-            label="Card"
-            icon="card-outline"
-            onPress={() => setMethod('CARD')}
-          />
-        </View>
-
-        {method === 'MOBILE_MONEY' ? (
-          <View style={styles.providers}>
-            {providers.map((p) => (
-              <Pressable
-                key={p.id}
-                style={[styles.provider, providerId === p.id && styles.providerActive]}
-                onPress={() => setProviderId(p.id)}
-              >
-                <Ionicons name={p.icon} size={18} color={providerId === p.id ? colors.primary : colors.textMuted} />
-                <Text
-                  style={[styles.providerLabel, providerId === p.id && styles.providerLabelActive]}
-                >
-                  {p.label}
-                </Text>
-              </Pressable>
-            ))}
-            {/* Mobile Money needs the number the prompt is sent to — the only
-                place a phone is asked, never as an identity requirement. */}
-            <Input
-              placeholder="Mobile Money phone (e.g. 250788000000)"
-              value={phone}
-              onChangeText={(t) => setPhone(t.replace(/[^0-9]/g, ''))}
-              keyboardType="phone-pad"
-            />
-          </View>
-        ) : null}
-
-        {status !== 'idle' ? (
-          <View
-            style={[
-              styles.statusBox,
-              status === 'success' && styles.statusOk,
-              status === 'failed' && styles.statusErr,
-            ]}
-          >
-            {status === 'awaiting' ? (
-              <ActivityIndicator color={colors.primary} />
+            <Text style={styles.h2}>Your details</Text>
+            {loggedIn ? (
+              <View style={styles.signedInCard}>
+                <Ionicons name="person-circle" size={22} color={colors.primary} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.signedInName} numberOfLines={1}>{name || 'Your account'}</Text>
+                  {email ? <Text style={styles.signedInEmail} numberOfLines={1}>{email}</Text> : null}
+                </View>
+              </View>
             ) : (
-              <Ionicons
-                name={status === 'success' ? 'checkmark-circle' : 'alert-circle'}
-                size={24}
-                color={status === 'success' ? colors.success : colors.error}
-              />
+              <>
+                <Input placeholder="Full name" value={name} onChangeText={setName} autoCapitalize="words" />
+                <Input
+                  placeholder="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+              </>
             )}
-            <Text style={styles.statusText}>{statusNote}</Text>
-          </View>
-        ) : null}
 
-        <Button
-          title={
-            status === 'awaiting'
-              ? 'Processing…'
-              : status === 'failed'
-              ? 'Try again'
-              : `Pay ${totalLabel}`
-          }
-          onPress={onPay}
-          loading={busy}
-          disabled={!formOk || busy}
-        />
-        <Text style={styles.note}>
-          Payments are processed by XentriPay. We never see your full card details.
-        </Text>
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={20} color={colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <Button
+              title={busy ? 'Checking…' : 'Continue'}
+              onPress={onRegister}
+              loading={busy}
+              disabled={!formOk || busy}
+            />
+            <Text style={styles.note}>
+              {digitalPurchasesEnabled
+                ? 'Free events start playing right away. Ticketed events are purchased on connekyt.com.'
+                : 'Free events start playing right away.'}
+            </Text>
+          </>
+        ) : digitalPurchasesEnabled ? (
+          <>
+            <View style={styles.feeCard}>
+              <Text style={styles.feeLabel}>Access fee</Text>
+              <Text style={styles.feeValue}>{totalLabel}</Text>
+            </View>
+            <Button title="Buy access on connekyt.com" onPress={onBuyOnWeb} />
+            <Text style={styles.note}>
+              Payment is completed securely on connekyt.com. Once you&apos;ve paid, come
+              back and verify your access from the event page.
+            </Text>
+          </>
+        ) : (
+          // Nothing routes here on Android, but a paid stream must never
+          // surface a purchase path from inside the app there.
+          <View style={styles.errorBox}>
+            <Ionicons name="information-circle" size={20} color={colors.textMuted} />
+            <Text style={styles.mutedInline}>
+              This event needs access that cannot be purchased in the app. If you
+              already have access, use your invite code on the event page.
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </Screen>
-  );
-}
-
-function MethodTile({
-  active,
-  disabled,
-  label,
-  icon,
-  onPress,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  label: string;
-  icon: IoniconName;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={[styles.method, active && styles.methodActive, disabled && styles.methodDisabled]}
-      onPress={onPress}
-      disabled={disabled}
-    >
-      <Ionicons name={icon} size={24} color={active ? colors.primary : colors.textMuted} />
-      <Text style={[styles.methodLabel, active && styles.methodLabelActive]}>{label}</Text>
-    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  mutedInline: { flex: 1, color: colors.textMuted, fontSize: fontSize.sm },
   scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 120 },
 
   summary: {
@@ -481,50 +268,28 @@ const styles = StyleSheet.create({
   signedInName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
   signedInEmail: { fontSize: fontSize.xs, color: colors.textMuted },
 
-  methods: { flexDirection: 'row', gap: spacing.md },
-  method: {
-    flex: 1,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  methodActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  methodDisabled: { opacity: 0.5 },
-  methodLabel: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  methodLabelActive: { color: colors.primary },
-
-  providers: { gap: spacing.sm },
-  provider: {
+  feeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    justifyContent: 'space-between',
+    padding: spacing.lg,
     backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
+    borderRadius: radii.lg,
+    borderWidth: 1,
     borderColor: colors.borderSoft,
   },
-  providerActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  providerLabel: { color: colors.textSoft, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  providerLabelActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  feeLabel: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  feeValue: { color: colors.primary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
 
-  statusBox: {
+  errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.lg,
-    backgroundColor: colors.infoBg,
+    backgroundColor: colors.errorBg,
     borderRadius: radii.lg,
   },
-  statusOk: { backgroundColor: colors.successBg },
-  statusErr: { backgroundColor: colors.errorBg },
-  statusText: { flex: 1, color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  errorText: { flex: 1, color: colors.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 
   note: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.xs },
 });

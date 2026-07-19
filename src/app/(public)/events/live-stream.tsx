@@ -39,8 +39,9 @@
  *      floating emoji on screen. Other viewers' reactions also burst.
  *
  *   4. GIFT MODAL (sponsor)
- *      Web parity: 5 preset amount chips + custom + MoMo / Card. Posts
- *      to /public/anonymous-viewer/{id}/gift then opens gateway URL.
+ *      The app no longer collects gift payments. The modal is a handoff:
+ *      a single (policy-gated) button that opens the web live page where
+ *      the gift/tip UI lives (see @/features/payments/webCheckout).
  *
  *   5. DEVICE-CONFLICT MODAL
  *      Surfaced when access-status returns DEVICE_MISMATCH. Forced
@@ -77,7 +78,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -86,7 +86,6 @@ import {
   checkAnonymousAccessStatus,
   getPublicStreamChats,
   getPublicViewerCount,
-  initiatePublicGift,
   registerAnonymousViewer,
   requestStreamAccess,
   retryAnonymousDeviceAccess,
@@ -96,12 +95,8 @@ import {
   validateStreamToken,
   type PublicStreamChat,
 } from '@/features/streams/api';
-import { listCurrencies, type Currency } from '@/features/reference/api';
-import {
-  getPublicPaymentStatus,
-  pollPublicPaymentStatus,
-} from '@/features/payments/anonymous';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { liveGiftUrl, openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import { useAsync } from '@/hooks/useAsync';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { reportContent, reportPublicChatMessage } from '@/features/moderation/api';
@@ -579,26 +574,9 @@ export default function PublicLiveStreamScreen() {
   const sentTextsRef = useRef<Set<string>>(new Set());
 
   // ── Gift modal (sponsor) ─────────────────────────────────────────────────
+  // No amount/method/phone collection anymore — gifts are sent from the web
+  // page, so the modal only needs an open/closed flag.
   const [giftOpen, setGiftOpen] = useState(false);
-  const [giftAmount, setGiftAmount] = useState('1000');
-  const [giftMessage, setGiftMessage] = useState('');
-  const [giftPhone, setGiftPhone] = useState('');
-  const [giftMethod, setGiftMethod] = useState<'MOMO' | 'CARD'>('MOMO');
-  const [giftTelecom, setGiftTelecom] = useState<'MTN' | 'AIRTEL'>('MTN');
-  const [giftBusy, setGiftBusy] = useState(false);
-  const [giftError, setGiftError] = useState<string | null>(null);
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [giftCurrencyId, setGiftCurrencyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    listCurrencies()
-      .then((list) => {
-        setCurrencies(list);
-        const rwf = list.find((c) => c.code.toUpperCase() === 'RWF');
-        setGiftCurrencyId(rwf?.id ?? list[0]?.id ?? null);
-      })
-      .catch(() => {});
-  }, []);
 
   // ── Access detection (web parity: lines 595-755) ─────────────────────────
   //
@@ -1180,63 +1158,13 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
-  const onSubmitGift = async () => {
-    setGiftError(null);
+  // Gifts are sent from the web page — the app never collects the payment.
+  // Only reachable through the gift button, which is itself gated on
+  // digitalPurchasesEnabled (showGift), but keep the guard here too.
+  const onSendGiftOnWeb = async () => {
     if (!digitalPurchasesEnabled) return;
-    if (!viewerId) {
-      setGiftError('Verify your access first.');
-      return;
-    }
-    if (!giftCurrencyId) {
-      setGiftError('Currencies are still loading — try again in a moment.');
-      return;
-    }
-    const amount = parseInt(giftAmount, 10);
-    if (Number.isNaN(amount) || amount <= 0) {
-      setGiftError('Enter a valid amount.');
-      return;
-    }
-    if (giftMethod === 'MOMO' && (!giftPhone.trim() || giftPhone.length < 9)) {
-      setGiftError('Enter the mobile-money phone number.');
-      return;
-    }
-    setGiftBusy(true);
-    try {
-      const fingerprint = await getDeviceId();
-      const init = await initiatePublicGift(id, {
-        viewerId,
-        deviceFingerprint: fingerprint,
-        amount,
-        currencyId: giftCurrencyId,
-        paymentMethod: giftMethod,
-        phone: giftMethod === 'MOMO' ? giftPhone.trim() : undefined,
-        telecomProvider: giftMethod === 'MOMO' ? giftTelecom : undefined,
-        redirectUrl: giftMethod === 'CARD' ? 'https://connekyt.com/payment-callback' : undefined,
-        giftMessage,
-      });
-      if (init.paymentUrl) {
-        await WebBrowser.openBrowserAsync(init.paymentUrl).catch(() => {});
-      }
-      if (init.refid) {
-        const settled = await pollPublicPaymentStatus(init.refid, {
-          maxAttempts: 30,
-          intervalMs: 4000,
-          graceMs: 8000,
-        });
-        if (settled === 'success') {
-          setGiftOpen(false);
-          setGiftAmount('1000');
-          setGiftMessage('');
-        } else {
-          const last = await getPublicPaymentStatus(init.refid).catch(() => 'pending' as const);
-          setGiftError(`Payment ${last}. Please try again.`);
-        }
-      }
-    } catch (e) {
-      setGiftError(isApiError(e) ? e.message : 'Could not start the gift.');
-    } finally {
-      setGiftBusy(false);
-    }
+    setGiftOpen(false);
+    await openWebCheckout(liveGiftUrl(id, viewerId));
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -1627,7 +1555,7 @@ export default function PublicLiveStreamScreen() {
               />
               {status.isPaid && digitalPurchasesEnabled ? (
                 <Pressable
-                  onPress={() => router.replace(`/events/join?id=${id}` as unknown as Href)}
+                  onPress={() => void openWebCheckout(streamAccessUrl(id))}
                   style={{ alignItems: 'center', marginTop: 8 }}
                 >
                   <Text style={styles.linkText}>Buy access instead</Text>
@@ -1638,128 +1566,18 @@ export default function PublicLiveStreamScreen() {
         </Pressable>
       </Modal>
 
-      {/* Gift modal (sponsor) */}
+      {/* Gift modal (sponsor) — handoff only, no in-app payment collection.
+          The gift button that opens this is gated on digitalPurchasesEnabled
+          (showGift), so this modal never appears on Android. */}
       <Modal visible={giftOpen} transparent animationType="slide" onRequestClose={() => setGiftOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setGiftOpen(false)}>
           <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Send a gift</Text>
-              <Text style={styles.modalHint}>
-                Send a gift to the creator. Mobile Money settles instantly; Card goes through
-                XentriPay.
-              </Text>
-
-              <Text style={styles.giftLabel}>Amount</Text>
-              <View style={styles.amountChipRow}>
-                {[500, 1000, 2000, 5000, 10000].map((preset) => {
-                  const active = String(preset) === giftAmount;
-                  return (
-                    <Pressable
-                      key={preset}
-                      style={[styles.amountChip, active && styles.amountChipActive]}
-                      onPress={() => setGiftAmount(String(preset))}
-                    >
-                      <Text style={[styles.amountChipText, active && styles.amountChipTextActive]}>
-                        {preset.toLocaleString()}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Input
-                value={giftAmount}
-                onChangeText={(t) => setGiftAmount(t.replace(/[^0-9]/g, ''))}
-                placeholder="Custom amount"
-                keyboardType="number-pad"
-              />
-
-              <Text style={styles.giftLabel}>Payment method</Text>
-              <View style={styles.payTabs}>
-                <Pressable
-                  style={[styles.payTab, giftMethod === 'MOMO' && styles.payTabActive]}
-                  onPress={() => setGiftMethod('MOMO')}
-                >
-                  <Ionicons
-                    name="phone-portrait-outline"
-                    size={16}
-                    color={giftMethod === 'MOMO' ? colors.primary : colors.textMuted}
-                  />
-                  <Text style={[styles.payTabText, giftMethod === 'MOMO' && styles.payTabTextActive]}>
-                    Mobile Money
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.payTab, giftMethod === 'CARD' && styles.payTabActive]}
-                  onPress={() => setGiftMethod('CARD')}
-                >
-                  <Ionicons
-                    name="card-outline"
-                    size={16}
-                    color={giftMethod === 'CARD' ? colors.primary : colors.textMuted}
-                  />
-                  <Text style={[styles.payTabText, giftMethod === 'CARD' && styles.payTabTextActive]}>
-                    Card
-                  </Text>
-                </Pressable>
-              </View>
-
-              {giftMethod === 'MOMO' ? (
-                <>
-                  <View style={styles.payTabs}>
-                    <Pressable
-                      style={[styles.payTab, giftTelecom === 'MTN' && styles.payTabActive]}
-                      onPress={() => setGiftTelecom('MTN')}
-                    >
-                      <Text style={[styles.payTabText, giftTelecom === 'MTN' && styles.payTabTextActive]}>
-                        MTN
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.payTab, giftTelecom === 'AIRTEL' && styles.payTabActive]}
-                      onPress={() => setGiftTelecom('AIRTEL')}
-                    >
-                      <Text style={[styles.payTabText, giftTelecom === 'AIRTEL' && styles.payTabTextActive]}>
-                        Airtel
-                      </Text>
-                    </Pressable>
-                  </View>
-                  <Input
-                    label="Phone"
-                    value={giftPhone}
-                    onChangeText={(t) => setGiftPhone(t.replace(/[^0-9+]/g, ''))}
-                    placeholder="+2507…"
-                    keyboardType="phone-pad"
-                    autoCapitalize="none"
-                  />
-                </>
-              ) : null}
-
-              <Input
-                label="Message (optional)"
-                value={giftMessage}
-                onChangeText={setGiftMessage}
-                placeholder="Say something nice"
-                multiline
-                style={{
-                  height: 80,
-                  paddingTop: spacing.md,
-                  textAlignVertical: 'top',
-                  marginTop: spacing.sm,
-                }}
-              />
-
-              {giftError ? <Text style={styles.chatErrorText}>{giftError}</Text> : null}
-
-              <Button
-                title={
-                  giftBusy
-                    ? 'Processing…'
-                    : `Send ${giftAmount} ${currencies.find((c) => c.id === giftCurrencyId)?.code ?? 'RWF'}`
-                }
-                onPress={onSubmitGift}
-                loading={giftBusy}
-              />
-            </ScrollView>
+            <Text style={styles.modalTitle}>Send a gift</Text>
+            <Text style={styles.modalHint}>
+              Gifts are sent from the web page. You&apos;ll be taken to this event&apos;s
+              live page on connekyt.com to pick an amount and complete the gift.
+            </Text>
+            <Button title="Send a gift on connekyt.com" onPress={() => void onSendGiftOnWeb()} />
           </Pressable>
         </Pressable>
       </Modal>

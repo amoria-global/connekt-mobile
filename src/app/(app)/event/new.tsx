@@ -23,7 +23,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { TimeField } from '@/components/ui/TimeField';
 import { createEvent, getEvent, listEventCategories, updateEvent, uploadEventPhoto } from '@/features/events/api';
-import { usePayment } from '@/features/payments/usePayment';
+import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import {
   getPhotographer,
   listPhotographers,
@@ -83,7 +83,6 @@ export default function NewEventScreen() {
   const amount = params.amount ? Number(params.amount) : undefined;
   const isBooking = !!params.photographerId;
   const isEditing = !!params.editId;
-  const { pay, paying } = usePayment();
 
   const [serverError, setServerError] = useState<string | null>(null);
   const [cover, setCover] = useState<PickedImage | null>(null);
@@ -295,17 +294,22 @@ export default function NewEventScreen() {
         // non-fatal
       }
 
+      // Booking payment is completed on the web — the app collects nothing.
+      // Bookings are a real-world service (Play-exempt), so this redirect is
+      // offered on every platform. Best-effort: if the declaration isn't ready
+      // yet, the user can still pay from the event's Payments later.
       if (amount && amount > 0) {
-        const status = await pay({
-          amount,
-          currency: params.currency,
-          eventId: event.id,
-          photographerId,
-          packageId,
-        });
-        if (status === 'success') Alert.alert('Payment complete', 'Your booking is confirmed.');
-        else if (status === 'pending') Alert.alert('Payment pending', 'We will confirm your booking once payment clears.');
-        else if (status === 'failed') Alert.alert('Payment not completed', 'You can pay again from the event later.');
+        try {
+          const url = await mintHandoffUrl('BOOKING_DECLARATION', { eventId: event.id });
+          router.replace(`/event/${event.id}`);
+          await openWebCheckout(url);
+          return;
+        } catch {
+          Alert.alert(
+            'Booking created',
+            'Your booking is reserved. Complete the payment from the event page when you’re ready.',
+          );
+        }
       }
 
       router.replace(`/event/${event.id}`);
@@ -314,7 +318,7 @@ export default function NewEventScreen() {
     }
   };
 
-  const busy = isSubmitting || paying;
+  const busy = isSubmitting;
   const cats = categories.data ?? [];
 
   return (

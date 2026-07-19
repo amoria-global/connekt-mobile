@@ -1,21 +1,47 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { useRole } from '@/features/auth/role';
 import { getPayment } from '@/features/payments/api';
+import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 export default function PaymentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { role } = useRole();
-  const { data, loading, error } = useAsync(
+  const { data, loading, error, refresh } = useAsync(
     useCallback(() => getPayment(id, role), [id, role]),
   );
+  const [opening, setOpening] = useState(false);
+
+  // Unsettled declarations can be completed on the connekyt.com checkout —
+  // the app never collects payment details itself.
+  const payable = /pending|partial/i.test(data?.status ?? '');
+
+  const onCompleteOnWeb = async () => {
+    if (!id || opening) return;
+    setOpening(true);
+    try {
+      const url = await mintHandoffUrl('BOOKING_DECLARATION', { declarationId: id });
+      await openWebCheckout(url);
+      // Re-fetch after the browser closes so a settled payment shows as paid.
+      await refresh();
+    } catch (e) {
+      Alert.alert(
+        'Could not open checkout',
+        isApiError(e) ? e.message : 'Something went wrong. Please try again.',
+      );
+    } finally {
+      setOpening(false);
+    }
+  };
 
   if (loading && !data) {
     return (
@@ -59,6 +85,20 @@ export default function PaymentDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Note</Text>
             <Text style={styles.body}>{data.description}</Text>
+          </View>
+        ) : null}
+
+        {payable ? (
+          <View style={styles.section}>
+            <Button
+              title="Complete payment on connekyt.com"
+              onPress={onCompleteOnWeb}
+              loading={opening}
+              disabled={opening}
+            />
+            <Text style={styles.webNote}>
+              You&apos;ll finish this payment on the connekyt.com secure checkout.
+            </Text>
           </View>
         ) : null}
       </ScrollView>
@@ -114,4 +154,5 @@ const styles = StyleSheet.create({
   section: { gap: spacing.sm },
   sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
   body: { fontSize: fontSize.md, color: colors.textSoft, lineHeight: 24 },
+  webNote: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.xs },
 });

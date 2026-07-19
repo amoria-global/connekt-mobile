@@ -51,6 +51,7 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import type { PublicEvent } from '@/features/events/types';
 import {
   checkAnonymousAccessStatus,
@@ -124,6 +125,11 @@ type Cta = {
   icon: keyof typeof Ionicons.glyphMap;
   tone: CtaTone;
   href?: Href;
+  /**
+   * Purchase CTAs no longer route to an in-app payment funnel — they open
+   * the web checkout instead. Only ever set when digitalPurchasesEnabled.
+   */
+  action?: 'webCheckout';
   disabled: boolean;
 };
 
@@ -181,7 +187,7 @@ function buildCta(
       icon: 'ticket',
       tone: 'live',
       disabled: false,
-      href: `/events/join?id=${e.id}` as unknown as Href,
+      action: 'webCheckout',
     };
   }
   if (isUpcoming) {
@@ -197,7 +203,7 @@ function buildCta(
       icon: 'ticket',
       tone: 'reserve',
       disabled: false,
-      href: `/events/join?id=${e.id}` as unknown as Href,
+      action: 'webCheckout',
     };
   }
   return null;
@@ -731,7 +737,19 @@ export default function PublicEventDetailScreen() {
 
           {/* Primary CTA */}
           {cta ? (
-            <CtaButton cta={cta} onPress={() => cta.href && router.push(cta.href)} />
+            <CtaButton
+              cta={cta}
+              onPress={() => {
+                // Purchase CTAs hand off to the web checkout (only reachable
+                // when digitalPurchasesEnabled — see buildCta). Everything
+                // else keeps its in-app route.
+                if (cta.action === 'webCheckout') {
+                  void openWebCheckout(streamAccessUrl(id));
+                } else if (cta.href) {
+                  router.push(cta.href);
+                }
+              }}
+            />
           ) : null}
 
           {/* Verify access + group code redeem — web parity:
