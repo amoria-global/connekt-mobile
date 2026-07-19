@@ -56,8 +56,8 @@ import {
   checkAnonymousAccessStatus,
   redeemGroupCode,
   registerAnonymousViewer,
+  retryAnonymousDeviceAccess,
   sendEventWish,
-  switchAnonymousDevice,
 } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
@@ -383,11 +383,10 @@ export default function PublicEventDetailScreen() {
       if (accessRes.active) {
         granted = true;
       } else if (accessRes.reason === 'DEVICE_MISMATCH') {
-        // Try the silent device switch: backend already releases the
-        // old session if it's inactive (>60s) and rewrites the
-        // fingerprint to this device. If the old device is actively
-        // watching we get a switch failure and ask the user to act.
-        const swap = await switchAnonymousDevice(id, reg.viewerId, fingerprint);
+        // Try the silent device-check: it only succeeds once the old
+        // device has gone quiet for 60s+ (no forced switching while it's
+        // still active - see retryAnonymousDeviceAccess).
+        const swap = await retryAnonymousDeviceAccess(id, reg.viewerId, fingerprint);
         if (swap.ok) {
           accessRes = await checkAnonymousAccessStatus(id, reg.viewerId, fingerprint);
           if (accessRes.active) granted = true;

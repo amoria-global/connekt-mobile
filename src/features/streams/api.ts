@@ -553,21 +553,45 @@ export async function initiatePublicGift(
 // ────── Device-switch confirmation (single-device enforcement) ──────────
 //
 // The DEVICE_MISMATCH reason from access-status means the paid viewer
-// is currently watching from another device. The user explicitly
-// confirms via switch-device, which deactivates the old session and
-// anchors the viewer to this device's fingerprint.
+// is currently watching from another device. Forced switching isn't
+// supported - the backend rejects switch-device unconditionally now,
+// regardless of whether the old device is still active (a purchase is
+// locked to whichever device is actively watching, no on-demand override).
+// The only legitimate way to take over is retryAnonymousDeviceAccess
+// below, which succeeds ONLY once the old device has gone quiet for 60s+.
 
+/** @deprecated Backend now rejects this unconditionally - see
+ *  retryAnonymousDeviceAccess for the supported "take over once idle" path.
+ *  Kept only so any remaining caller gets a clear message instead of a
+ *  broken request shape. */
 export async function switchAnonymousDevice(
   eventId: string,
   viewerId: string,
   fingerprint: string,
 ): Promise<{ ok: boolean; message?: string }> {
-  // Backend expects `newDeviceFingerprint`, not `deviceFingerprint`.
-  // Mismatch produced "viewerId and newDeviceFingerprint are required"
-  // in the red banner on the viewer screen.
   const res = await api.post<ApiEnvelope<Raw>>(
     `/public/anonymous-viewer/${encodeURIComponent(eventId)}/switch-device`,
     { viewerId, newDeviceFingerprint: fingerprint },
+    { skipAuth: true },
+  );
+  return { ok: res?.action === 1, message: str(res?.message) };
+}
+
+/**
+ * Attempts to take over this viewer's session for the current device -
+ * succeeds only if the previously-bound device has missed heartbeats for
+ * 60s+ (gone idle/closed the app); hard-rejects with a clear message if the
+ * other device is still actively watching. This is the real "retry" action
+ * for a DEVICE_MISMATCH conflict now that forced switching is gone.
+ */
+export async function retryAnonymousDeviceAccess(
+  eventId: string,
+  viewerId: string,
+  deviceFingerprint: string,
+): Promise<{ ok: boolean; message?: string }> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/device-check`,
+    { viewerId, deviceFingerprint },
     { skipAuth: true },
   );
   return { ok: res?.action === 1, message: str(res?.message) };

@@ -29,6 +29,7 @@ export default function ProfileScreen() {
 
   const account: MenuItem[] = [
     { icon: 'create-outline', label: 'Edit profile', href: '/edit-profile' as Href },
+    { icon: 'tv-outline', label: 'Connect to TV', href: '/tv-devices' as Href },
     { icon: 'shield-checkmark-outline', label: 'Identity verification', href: '/kyc' as Href },
     { icon: 'bar-chart-outline', label: 'Analytics', href: '/analytics' as Href },
     ...(isOwner ? [{ icon: 'people-circle-outline' as const, label: 'Team', href: '/team' as Href }] : []),
