@@ -65,19 +65,20 @@ export function donationUrl(eventId?: string): string {
 // ────── Token handoff (JWT-gated flows) ───────────────────────────────────
 
 /**
- * Mint a handoff token and return the web receiver URL for it. The server
- * derives the amount (declaration balance) — we only say which payment.
+ * Mint a handoff token and return the web receiver URL for it.
+ *
+ * We never send an amount. The server derives it — the declaration's
+ * outstanding balance for a booking, the archive.unlock.fee setting for an
+ * archive — so a tampered client can't name its own price.
  */
 export async function mintHandoffUrl(
   type: HandoffType,
-  params: { declarationId?: string; eventId?: string; amount?: number; currencyId?: string },
+  params: { declarationId?: string; eventId?: string },
 ): Promise<string> {
   const res = await api.post<ApiEnvelope<{ token: string }>>('/payments/handoff', {
     type,
     declarationId: params.declarationId,
     eventId: params.eventId,
-    amount: params.amount != null ? String(params.amount) : undefined,
-    currencyId: params.currencyId,
   });
   if (res?.action !== 1 || !res.data?.token) {
     throw { status: 400, message: res?.message || 'Could not prepare the payment.' };
