@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import {
   addAlbumImages,
   deleteAlbum,
@@ -26,7 +27,6 @@ import {
   publishAlbumToFaceSearch,
   sendAlbumToClient,
   submitContentAlbum,
-  unlockAlbum,
   type AlbumFaceStatus,
   type AlbumImage,
 } from '@/features/gallery/api';
@@ -181,12 +181,27 @@ export default function AlbumDetailScreen() {
   const cols = 3;
   const cell = (width - spacing.lg * 2 - gap * (cols - 1)) / cols;
 
+  // Archive restore is PAID — the app never collects the payment (the old
+  // unlockAlbum(id) POST unlocked with no payment at all). We mint an
+  // ARCHIVE handoff token and complete the payment on connekyt.com.
+  // Gated: on Android this button never renders (see lockedCard below).
   const onUnlock = async () => {
     if (!digitalPurchasesEnabled) return;
     setUnlocking(true);
     try {
-      await unlockAlbum(id);
-      await refresh();
+      if (data?.eventId && data?.currencyId && data?.amountDue) {
+        const url = await mintHandoffUrl('ARCHIVE', {
+          eventId: data.eventId,
+          amount: data.amountDue,
+          currencyId: data.currencyId,
+        });
+        await openWebCheckout(url);
+      } else {
+        // FALLBACK: the customer album payload doesn't include the
+        // eventId/currencyId the ARCHIVE handoff needs — send the user to
+        // the web dashboard's album page to complete the unlock there.
+        await openWebCheckout('https://dashboard.connekyt.com');
+      }
     } catch (err) {
       Alert.alert('Unlock failed', isApiError(err) ? err.message : 'Please try again.');
     } finally {
@@ -323,9 +338,14 @@ export default function AlbumDetailScreen() {
                   <>
                     <Text style={styles.lockedMsg}>
                       Unlock to view and download all {data?.photoCount ?? ''} photos.
+                      Payment is completed on connekyt.com.
                     </Text>
                     <Button
-                      title={data?.amountDue ? `Unlock for ${formatMoney(data.amountDue, data.currency)}` : 'Unlock album'}
+                      title={
+                        data?.amountDue
+                          ? `Unlock for ${formatMoney(data.amountDue, data.currency)} on connekyt.com`
+                          : 'Unlock on connekyt.com'
+                      }
                       onPress={onUnlock}
                       loading={unlocking}
                     />

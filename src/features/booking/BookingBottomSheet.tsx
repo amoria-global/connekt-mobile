@@ -5,23 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as WebBrowser from 'expo-web-browser';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { Input } from '@/components/ui/Input';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { bookingsApi } from '@/api/endpoints/bookings';
 import { useAuth, isApiError } from '@/store/auth';
 import { logoBase64 } from '@/utils/logoBase64';
-import {
-  initiateBookingPayment,
-  pollBookingPaymentStatus,
-} from '@/features/payments/api';
-import {
-  detectPaymentCountry,
-  getPaymentOptions,
-  listCurrencies,
-  type PaymentOperator,
-} from '@/features/reference/api';
+import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
 
 export type BookingBottomSheetProps = {
   photographerId?: string;
@@ -74,53 +64,18 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
     const [bookingSuccess, setBookingSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // ── Direct booking payment (step 4) ──────────────────────────────────
-    // After the booking is created the backend returns a payment declaration;
-    // we immediately collect the first milestone here so the client/coordinator
-    // pays for the selected package without leaving the sheet.
-    const [payMethod, setPayMethod] = useState<'MOBILE_MONEY' | 'CARD'>('MOBILE_MONEY');
-    const [operators, setOperators] = useState<PaymentOperator[]>([
-      { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
-      { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' },
-    ]);
-    const [operatorId, setOperatorId] = useState('MTN');
-    const [payPhone, setPayPhone] = useState('');
-    const [payCountry, setPayCountry] = useState('RW');
-    const [supportsCard, setSupportsCard] = useState(true);
-    const [payCurrencyId, setPayCurrencyId] = useState('');
-    const [payNote, setPayNote] = useState('');
+    // ── Web payment handoff (step 4) ─────────────────────────────────────
+    // The app no longer collects payment details (phone / telecom / card
+    // pickers). After the booking is created we keep the declaration (or
+    // event) id and offer a single "Complete payment on connekyt.com"
+    // button that opens the web checkout.
+    const [payHandoff, setPayHandoff] = useState<{ declarationId?: string; eventId?: string } | null>(null);
+    const [openingCheckout, setOpeningCheckout] = useState(false);
 
     useEffect(() => {
       if (selectedPackage?.currency) {
         setDisplayCurrency(selectedPackage.currency as any);
       }
-    }, [selectedPackage?.currency]);
-
-    // Load the country's payment operators + currency id (defaults survive
-    // if the lookups fail — the form still works with MTN / Airtel).
-    useEffect(() => {
-      let cancelled = false;
-      (async () => {
-        const c = (await detectPaymentCountry().catch(() => undefined)) || 'RW';
-        if (cancelled) return;
-        setPayCountry(c);
-        const opts = await getPaymentOptions(c).catch(() => null);
-        if (!cancelled && opts) {
-          setSupportsCard(opts.supportsCard);
-          if (opts.operators.length > 0) {
-            setOperators(opts.operators);
-            setOperatorId(opts.operators[0].id);
-          }
-        }
-        const currencies = await listCurrencies().catch(() => []);
-        if (cancelled) return;
-        const wanted = (selectedPackage?.currency || 'RWF').toUpperCase();
-        const match = currencies.find((cc) => cc.code.toUpperCase() === wanted);
-        if (match) setPayCurrencyId(match.id);
-      })();
-      return () => {
-        cancelled = true;
-      };
     }, [selectedPackage?.currency]);
 
     const toggleTag = (tag: string) => {
@@ -206,13 +161,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
         Alert.alert('Missing details', 'Please complete every step before confirming.');
         return;
       }
-      // Mobile-money needs a phone before we can prompt it.
-      if (payMethod === 'MOBILE_MONEY' && !/^\d{9,12}$/.test(payPhone.trim())) {
-        Alert.alert('Phone required', 'Enter the mobile-money number to receive the payment prompt.');
-        return;
-      }
       setIsSubmitting(true);
-      setPayNote('');
       try {
         // Backend parses LocalDate ("YYYY-MM-DD") and LocalTime ("HH:mm:ss").
         const pad = (n: number) => String(n).padStart(2, '0');
@@ -237,63 +186,19 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           eventTags: selectedTags.length ? selectedTags.join(',') : undefined,
         });
 
+        // 2) Keep whatever id the web checkout can resolve the payment from.
+        //    Payment itself is completed on connekyt.com — the app never
+        //    collects phone numbers, telecom choices or card details.
         const declarationId = bookingRes?.data?.declarationId;
-        if (!declarationId) {
-          // Booking was recorded but no declaration came back — don't fake a
-          // paid state. Tell the user it's pending the photographer.
-          Alert.alert(
-            'Booking sent',
-            'Your request was sent to the photographer. You can pay from Payments once they accept.',
-          );
-          setBookingSuccess(true);
-          return;
-        }
-
-        // 2) Initiate the direct payment for that declaration.
-        setPayNote(
-          payMethod === 'CARD' ? 'Opening secure payment page…' : 'Sending a payment prompt to your phone…',
+        const createdEventId = (bookingRes?.data?.event as { id?: string } | undefined)?.id;
+        setPayHandoff(
+          declarationId
+            ? { declarationId }
+            : createdEventId
+              ? { eventId: createdEventId }
+              : null,
         );
-        const pay = await initiateBookingPayment({
-          declarationId,
-          paymentMethod: payMethod,
-          phone: payMethod === 'MOBILE_MONEY' ? payPhone.trim() : undefined,
-          telecomProvider: payMethod === 'MOBILE_MONEY' ? operatorId : undefined,
-          currencyId: bookingRes?.data?.currencyId || payCurrencyId || undefined,
-          escrowPercentage: escrow,
-          country: payCountry,
-          redirectUrl: payMethod === 'CARD' ? 'https://connekyt.com/payment-callback' : undefined,
-        });
-
-        if (!pay.refId) {
-          Alert.alert('Payment failed', 'Could not start the payment. Please try again from Payments.');
-          return;
-        }
-        if (pay.redirectUrl) {
-          await WebBrowser.openBrowserAsync(pay.redirectUrl).catch(() => {});
-        }
-
-        // 3) Poll until the gateway settles.
-        setPayNote('Confirming your payment…');
-        const settled = await pollBookingPaymentStatus(pay.refId, {
-          graceMs: payMethod === 'CARD' ? 25_000 : 0,
-          maxAttempts: 60,
-          intervalMs: 2500,
-        });
-
-        if (settled === 'success') {
-          setBookingSuccess(true);
-        } else if (settled === 'failed') {
-          Alert.alert(
-            'Payment not completed',
-            'The payment did not go through. If you were charged you will be refunded. You can retry from Payments.',
-          );
-        } else {
-          Alert.alert(
-            'Payment pending',
-            "Your booking is created. We'll confirm the payment shortly — track it under Payments.",
-          );
-          setBookingSuccess(true);
-        }
+        setBookingSuccess(true);
       } catch (error: any) {
         // Surface the real failure instead of faking success — a booking that
         // didn't persist must not look confirmed to the client.
@@ -305,7 +210,24 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
         Alert.alert('Booking failed', message);
       } finally {
         setIsSubmitting(false);
-        setPayNote('');
+      }
+    };
+
+    // Mint the BOOKING_DECLARATION handoff for the booking we just created
+    // and open the connekyt.com checkout in the in-app browser.
+    const handleCompletePaymentOnWeb = async () => {
+      if (!payHandoff || openingCheckout) return;
+      setOpeningCheckout(true);
+      try {
+        const url = await mintHandoffUrl('BOOKING_DECLARATION', payHandoff);
+        await openWebCheckout(url);
+      } catch (error) {
+        Alert.alert(
+          'Could not open checkout',
+          isApiError(error) ? error.message : 'Something went wrong. Please try again from Payments.',
+        );
+      } finally {
+        setOpeningCheckout(false);
       }
     };
 
@@ -897,8 +819,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
                     <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
                     <Text style={styles.successTitle}>Booking Confirmed!</Text>
-                    <Text style={styles.successTitle}>
-                      Your booking request has been securely processed.
+                    <Text style={styles.successSubtitle}>
+                      Your booking is reserved. Payment is completed securely on connekyt.com.
                     </Text>
                   </View>
 
@@ -919,10 +841,33 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     </View>
                     <View style={{ height: 1, backgroundColor: '#e5e7eb', marginVertical: 12 }} />
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>Total Paid:</Text>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>Total Amount:</Text>
                       <Text style={{ color: colors.primary, fontSize: 20, fontWeight: '800' }}>{selectedPackage?.price} {selectedPackage?.currency}</Text>
                     </View>
                   </View>
+
+                  {payHandoff ? (
+                    <>
+                      <Pressable
+                        style={[styles.continueButton, { marginBottom: 12 }, openingCheckout && { opacity: 0.7 }]}
+                        onPress={handleCompletePaymentOnWeb}
+                        disabled={openingCheckout}
+                      >
+                        <Text style={styles.continueButtonText}>
+                          {openingCheckout ? 'Opening…' : 'Complete payment on connekyt.com'}
+                        </Text>
+                      </Pressable>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginBottom: 16, lineHeight: 18 }}>
+                        Your booking is reserved. To secure it, finish the payment on the connekyt.com
+                        secure checkout — you can also do this later from Payments.
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginBottom: 16, lineHeight: 18 }}>
+                      Your request was sent to the photographer. Once they accept, you can complete
+                      the payment on connekyt.com from the Payments screen.
+                    </Text>
+                  )}
 
                   <Pressable style={[styles.continueButton, { backgroundColor: '#f3f4f6', marginBottom: 12 }]} onPress={handleDownloadProof}>
                     <Ionicons name="download-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
@@ -932,6 +877,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   <Pressable style={styles.continueButton} onPress={() => {
                     if (ref && typeof ref !== 'function' && 'current' in ref) ref.current?.close();
                     setBookingSuccess(false);
+                    setPayHandoff(null);
                     setCurrentStep(1);
                   }}>
                     <Text style={styles.continueButtonText}>Done</Text>
@@ -1084,66 +1030,13 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     );
                   })()}
 
-                  {/* Payment method — the deposit is charged right after the
-                      booking is created, so we collect it here. */}
-                  <View style={{ marginBottom: 20, zIndex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 10 }}>
-                      Payment method
+                  {/* No payment collection in-app — after the booking is
+                      created the payment is completed on connekyt.com. */}
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#eff6ff', padding: 12, borderRadius: radii.md, marginBottom: 20, zIndex: 1 }}>
+                    <Ionicons name="globe-outline" size={16} color={colors.primary} />
+                    <Text style={{ flex: 1, color: colors.primary, fontSize: 12, lineHeight: 18 }}>
+                      After you confirm, you&apos;ll complete the payment securely on connekyt.com.
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
-                      <Pressable
-                        onPress={() => setPayMethod('MOBILE_MONEY')}
-                        style={[styles.payTile, payMethod === 'MOBILE_MONEY' && styles.payTileActive]}
-                      >
-                        <Ionicons name="phone-portrait" size={20} color={payMethod === 'MOBILE_MONEY' ? colors.primary : colors.textMuted} />
-                        <Text style={[styles.payTileText, payMethod === 'MOBILE_MONEY' && { color: colors.primary }]}>Mobile Money</Text>
-                      </Pressable>
-                      <Pressable
-                        disabled={!supportsCard}
-                        onPress={() => setPayMethod('CARD')}
-                        style={[styles.payTile, payMethod === 'CARD' && styles.payTileActive, !supportsCard && { opacity: 0.4 }]}
-                      >
-                        <Ionicons name="card-outline" size={20} color={payMethod === 'CARD' ? colors.primary : colors.textMuted} />
-                        <Text style={[styles.payTileText, payMethod === 'CARD' && { color: colors.primary }]}>Card</Text>
-                      </Pressable>
-                    </View>
-
-                    {payMethod === 'MOBILE_MONEY' ? (
-                      <>
-                        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.md }}>
-                          {operators.map((o) => {
-                            const active = o.id === operatorId;
-                            return (
-                              <Pressable
-                                key={o.id}
-                                onPress={() => setOperatorId(o.id)}
-                                style={[styles.opChip, active && styles.opChipActive]}
-                              >
-                                <Text style={[styles.opChipText, active && { color: colors.primary, fontWeight: '700' }]}>{o.name}</Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                        <BottomSheetTextInput
-                          style={styles.bottomSheetInput}
-                          placeholder="Mobile money number (e.g. 788000000)"
-                          placeholderTextColor={colors.textMuted}
-                          keyboardType="phone-pad"
-                          value={payPhone}
-                          onChangeText={(t) => setPayPhone(t.replace(/[^0-9]/g, ''))}
-                        />
-                      </>
-                    ) : (
-                      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#eff6ff', padding: 12, borderRadius: radii.md }}>
-                        <Ionicons name="information-circle" size={16} color={colors.primary} />
-                        <Text style={{ flex: 1, color: colors.primary, fontSize: 12, lineHeight: 18 }}>
-                          Your card details are entered on the secure payment gateway page.
-                        </Text>
-                      </View>
-                    )}
-                    {payNote ? (
-                      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 10, textAlign: 'center' }}>{payNote}</Text>
-                    ) : null}
                   </View>
 
                   <View style={{ backgroundColor: '#f0fdf4', padding: 12, borderRadius: radii.md, marginBottom: 20 }}>
@@ -1162,7 +1055,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       onPress={handleConfirmBooking}
                       disabled={isSubmitting}
                     >
-                      <Text style={styles.continueButtonText}>{isSubmitting ? 'Processing…' : 'Confirm & Pay'}</Text>
+                      <Text style={styles.continueButtonText}>{isSubmitting ? 'Processing…' : 'Confirm booking'}</Text>
                     </Pressable>
                   </View>
                 </>
@@ -1178,30 +1071,6 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 export const BookingBottomSheet = forwardRef(BookingBottomSheetComponent);
 
 const styles = StyleSheet.create({
-  // Payment-method tiles + operator chips (step 4)
-  payTile: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
-  },
-  payTileActive: { borderColor: colors.primary, backgroundColor: '#eff6ff' },
-  payTileText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
-  opChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radii.full,
-    borderWidth: 1.5,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
-  },
-  opChipActive: { borderColor: colors.primary, backgroundColor: '#eff6ff' },
-  opChipText: { color: colors.textSoft, fontSize: 12, fontWeight: '600' },
-
   bottomSheetInput: {
     height: 52,
     borderWidth: 1,

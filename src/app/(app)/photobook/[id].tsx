@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -15,6 +16,8 @@ import {
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { isApiError } from '@/store/auth';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { getPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -26,6 +29,34 @@ export default function PhotobookDetailScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { data, loading, error } = useAsync(useCallback(() => getPhotobook(id), [id]));
+  const [payBusy, setPayBusy] = useState(false);
+
+  // Extras are paid on connekyt.com: mint a short-lived BOOKING_DECLARATION
+  // handoff token for this declaration and open the web receiver. The server
+  // derives the amount — nothing is collected in the app. Only reachable
+  // behind the digitalPurchasesEnabled gate below.
+  const onPayExtras = async () => {
+    if (!digitalPurchasesEnabled || payBusy) return;
+    const declarationId = data?.paymentDeclarationId;
+    if (!declarationId) {
+      // No declaration to hand off — fall back to the payments list, which
+      // is a read-only overview (not a payment collector).
+      router.push('/payments' as never);
+      return;
+    }
+    setPayBusy(true);
+    try {
+      const url = await mintHandoffUrl('BOOKING_DECLARATION', { declarationId });
+      await openWebCheckout(url);
+    } catch (e) {
+      Alert.alert(
+        'Could not open payment',
+        isApiError(e) ? e.message : 'Please try again.',
+      );
+    } finally {
+      setPayBusy(false);
+    }
+  };
 
   const gap = spacing.sm;
   const cols = 3;
@@ -74,23 +105,18 @@ export default function PhotobookDetailScreen() {
             {data?.paymentRequired && data?.extraPhotosAmount && digitalPurchasesEnabled ? (
               <Pressable
                 style={({ pressed }) => [styles.payBanner, pressed && { opacity: 0.85 }]}
-                onPress={() => {
-                  // Web parity: tapping the banner opens the payment
-                  // declaration so the customer can unlock extras.
-                  // Without this the banner was decorative and the
-                  // customer had no way to actually pay.
-                  if (data?.paymentDeclarationId) {
-                    router.push(`/payment/${data.paymentDeclarationId}` as never);
-                  } else {
-                    router.push('/payments' as never);
-                  }
-                }}
+                onPress={() => void onPayExtras()}
+                disabled={payBusy}
               >
-                <Ionicons name="card-outline" size={18} color={colors.primary} />
+                {payBusy ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons name="card-outline" size={18} color={colors.primary} />
+                )}
                 <Text style={styles.payText}>
-                  {data.extraPhotosCount ?? 0} extra photos · {formatMoney(data.extraPhotosAmount)}
+                  {data.extraPhotosCount ?? 0} extra photos · {formatMoney(data.extraPhotosAmount)} · pay on connekyt.com
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                <Ionicons name="open-outline" size={16} color={colors.primary} />
               </Pressable>
             ) : null}
           </View>

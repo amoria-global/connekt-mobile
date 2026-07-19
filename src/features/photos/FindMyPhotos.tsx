@@ -30,6 +30,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ensureFaceConsent } from '@/features/privacy/consent';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import {
+  albumPurchaseUrl,
+  browsePhotosUrl,
+  openWebCheckout,
+} from '@/features/payments/webCheckout';
+import {
   faceSearch,
   getViewerId,
   stampPreviewUrl,
@@ -39,16 +44,10 @@ import {
   verifyFreeAlbumAccess,
   getFreeAlbum,
   logFreeAlbumDownload,
-  identifyAlbumBuyer,
-  initiateAlbumPurchase,
-  initiateMultiAlbumPurchase,
-  recordAlbumPurchase,
-  getPublicPaymentStatus,
   getPhotoDownloadUrl,
   type FoundPhoto,
   type AlbumPhotoItem,
   type FreeAlbumPhoto,
-  type MultiAlbumPurchaseItem,
 } from '@/features/photos/api';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
@@ -291,8 +290,6 @@ export function FindMyPhotos() {
   const [freeAlbumPricePerExtra, setFreeAlbumPricePerExtra] = useState(0);
   const [freeAlbumCurrencyId, setFreeAlbumCurrencyId] = useState('');
   const [freeAlbumCurrencyAbbr, setFreeAlbumCurrencyAbbr] = useState('');
-  const freeCapWarnShownRef = useRef(false);
-  const freeExtrasInFlightRef = useRef<{ overflowIds: string[]; allSelectedIds: string[] } | null>(null);
 
   // --- Report a photo ---
   const [reportPhoto, setReportPhoto] = useState<{ id: string; subject?: string } | null>(null);
@@ -301,19 +298,13 @@ export function FindMyPhotos() {
   const [albumFilteredIds, setAlbumFilteredIds] = useState<Set<string> | null>(null);
   const [albumFaceScanning, setAlbumFaceScanning] = useState(false);
 
-  // --- Buyer details + purchase ---
+  // --- Purchase state ---
+  // buyerId + purchaseRefid come back from the unlock-code flow and are used
+  // to authorize downloads of already-purchased photos. New purchases happen
+  // on connekyt.com (web checkout handoff) — the app collects nothing.
   const [buyerId, setBuyerId] = useState<string | null>(null);
   const [purchaseRefid, setPurchaseRefid] = useState<string | null>(null);
-  const [buyerDetailsOpen, setBuyerDetailsOpen] = useState(false);
-  const [buyerName, setBuyerName] = useState('');
-  const [buyerEmail, setBuyerEmail] = useState('');
-  const [buyerPhone, setBuyerPhone] = useState('');
-  const [buyerDetailsLoading, setBuyerDetailsLoading] = useState(false);
-  const [buyerDetailsError, setBuyerDetailsError] = useState<string | null>(null);
-  const pendingPhotosRef = useRef<(AlbumPhotoItem | FoundPhoto)[]>([]);
-  const pendingAlbumIdRef = useRef('');
   const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null);
-  const [pollingRefid, setPollingRefid] = useState<string | null>(null);
 
   // --- Unlock ---
   const [unlockOpen, setUnlockOpen] = useState(false);
@@ -449,8 +440,6 @@ export function FindMyPhotos() {
       if (data.pricePerExtraImage != null) setFreeAlbumPricePerExtra(data.pricePerExtraImage ?? 0);
       if (data.currencyId) setFreeAlbumCurrencyId(data.currencyId);
       if (data.currencyAbbreviation) setFreeAlbumCurrencyAbbr(data.currencyAbbreviation);
-      freeCapWarnShownRef.current = false;
-      freeExtrasInFlightRef.current = null;
       setFreeFlow('verified');
     } catch (err) {
       const msg = isApiError(err) ? err.message : String(err);
@@ -557,276 +546,74 @@ export function FindMyPhotos() {
     }
 
     // Overflow but no price — polite block
-    if (!(price > 0) || !freeAlbumCurrencyId) {
+    if (!(price > 0)) {
       setFreeStatusMsg(`You can download at most ${info.cap} new photo(s) for free from this album.`);
       return;
     }
 
-    // First time crossing the cap — confirm before charging
+    // Extras are purchased on connekyt.com — the app never collects the
+    // payment. Offer to download the free allowance now and hand the extras
+    // over to the web page (this branch is only reachable when
+    // digitalPurchasesEnabled — the Android path returned above).
+    const capNum = Number.isFinite(info.cap) ? (info.cap as number) : info.newPicks.length;
+    const allowed = [...info.owned, ...info.newPicks.slice(0, capNum)];
     const extrasTotal = Math.round(price * info.overflow);
-    if (!freeCapWarnShownRef.current) {
-      freeCapWarnShownRef.current = true;
-      Alert.alert(
-        'Extra Photos',
-        `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nCost: ${freeAlbumCurrencyAbbr || ''} ${extrasTotal} for ${info.overflow} extra.`,
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => { freeCapWarnShownRef.current = false; } },
-          { text: 'Continue to Payment', onPress: () => void handleFreeDownload() },
-        ]
-      );
-      return;
-    }
-
-    // Proceed with overflow payment
-    setFreeDownloading(true);
-    setFreeStatusMsg('Identifying you for payment…');
-    try {
-      const ident = await identifyAlbumBuyer(freeAlbumId, {
-        name: freeEmail,
-        email: freeEmail,
-        phone: '',
-      });
-      if (!ident.buyerId) throw new Error('Could not identify you. Please retry.');
-      setBuyerId(ident.buyerId);
-
-      const overflowIds = info.newPicks.slice(Number.isFinite(info.cap) ? info.cap as number : info.newPicks.length);
-      const amount = Math.round(price * overflowIds.length);
-      const allSelectedIds = Array.from(selectedFreeIds);
-      freeExtrasInFlightRef.current = { overflowIds, allSelectedIds };
-
-      setFreeStatusMsg(`Opening payment for ${overflowIds.length} extra photo${overflowIds.length !== 1 ? 's' : ''}…`);
-      const result = await initiateAlbumPurchase({
-        albumId: freeAlbumId,
-        photoIds: overflowIds,
-        buyerId: ident.buyerId,
-        amount,
-        currencyId: freeAlbumCurrencyId,
-      });
-
-      if (!result.paymentUrl) {
-        setFreeStatusMsg('Could not get payment link. Please try again.');
-        freeExtrasInFlightRef.current = null;
-        return;
-      }
-
-      await WebBrowser.openBrowserAsync(result.paymentUrl);
-
-      if (result.refid) {
-        setPollingRefid(result.refid);
-        setFreeStatusMsg('Checking payment status…');
-        const delays = [0, 2000, 3000, 5000, 5000, 5000, 10000, 10000, 15000];
-        let status: 'success' | 'pending' | 'failed' = 'pending';
-        for (const delay of delays) {
-          if (delay) await new Promise((r) => setTimeout(r, delay));
-          try {
-            status = await getPublicPaymentStatus(result.refid);
-            if (status !== 'pending') break;
-          } catch { /* keep polling */ }
-        }
-        setPollingRefid(null);
-
-        if (status === 'failed') {
-          setFreeStatusMsg('Payment failed or was cancelled.');
-          freeExtrasInFlightRef.current = null;
-          return;
-        }
-        if (status === 'pending') {
-          setFreeStatusMsg("Payment pending — you'll receive an email when confirmed.");
-          freeExtrasInFlightRef.current = null;
-          return;
-        }
-
-        setFreeStatusMsg('Payment confirmed! Recording purchase…');
-        try {
-          await recordAlbumPurchase(result.refid, ident.buyerId);
-          setPurchaseRefid(result.refid);
-          const allIds = freeExtrasInFlightRef.current?.allSelectedIds ?? [];
-          freeExtrasInFlightRef.current = null;
-          setFreeStatusMsg(`Downloading ${allIds.length} photo${allIds.length !== 1 ? 's' : ''}…`);
-          await downloadFreeSelected(allIds);
-          setFreeStatusMsg('Done! All your photos are ready.');
-          setSelectedFreeIds(new Set());
-        } catch {
-          setFreeStatusMsg('Purchase recorded but download failed. Please try again.');
-        }
-      }
-    } catch (err) {
-      setFreeStatusMsg(isApiError(err) ? err.message : 'Payment could not be started.');
-      freeExtrasInFlightRef.current = null;
-    } finally {
-      setFreeDownloading(false);
-    }
+    const buyOnWeb = () =>
+      void openWebCheckout(albumPurchaseUrl(code.trim(), freeEmail.trim() || undefined));
+    Alert.alert(
+      'Extra Photos',
+      `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${freeAlbumCurrencyAbbr || ''} ${extrasTotal} and are purchased on connekyt.com.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        ...(allowed.length
+          ? [
+              {
+                text: `Download ${allowed.length} free`,
+                onPress: () => {
+                  void (async () => {
+                    setFreeDownloading(true);
+                    setFreeStatusMsg(`Downloading ${allowed.length} photo${allowed.length !== 1 ? 's' : ''}…`);
+                    try {
+                      await downloadFreeSelected(allowed);
+                      setFreeStatusMsg(
+                        `Done! Buy the ${info.overflow} extra photo${info.overflow === 1 ? '' : 's'} on connekyt.com.`,
+                      );
+                    } catch {
+                      setFreeStatusMsg('Some photos could not be downloaded. Please try again.');
+                    } finally {
+                      setFreeDownloading(false);
+                    }
+                  })();
+                },
+              },
+            ]
+          : []),
+        { text: 'Buy extras on connekyt.com', onPress: buyOnWeb },
+      ],
+    );
   };
 
   // ─── Purchase flow (paid albums + face-results) ────────────────────────────
-
-  const openPurchaseFor = (photos: (AlbumPhotoItem | FoundPhoto)[], forAlbumId: string) => {
+  //
+  // Purchases are completed on connekyt.com — the app never collects buyer
+  // details or payment methods. The Buy buttons that call this are gated on
+  // digitalPurchasesEnabled (and the guard is repeated here). Once paid on
+  // the web, the buyer returns and uses "Already paid? Unlock" (email or
+  // unlock code) to download.
+  const openPurchaseFor = (photos: (AlbumPhotoItem | FoundPhoto)[], _forAlbumId: string) => {
+    if (!digitalPurchasesEnabled) return;
     const payable = photos.filter((p) => !p.isPurchased && (p.price ?? 0) > 0);
     if (!payable.length) {
       setPurchaseNotice('You already own all selected photos.');
       return;
     }
-    pendingPhotosRef.current = payable;
-    pendingAlbumIdRef.current = forAlbumId;
-    setBuyerDetailsError(null);
-    setBuyerDetailsOpen(true);
-  };
-
-  const handleBuyerDetailsSubmit = async () => {
-    const name = buyerName.trim();
-    const email = buyerEmail.trim();
-    const phone = buyerPhone.trim();
-    if (!name) { setBuyerDetailsError('Please enter your name.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setBuyerDetailsError('Please enter a valid email.'); return; }
-    if (!phone || phone.length < 9) { setBuyerDetailsError('Please enter a valid phone number.'); return; }
-
-    const photos = pendingPhotosRef.current;
-    const aId = pendingAlbumIdRef.current;
-    if (!aId) { setBuyerDetailsError('Missing album info. Please try again.'); return; }
-
-    setBuyerDetailsLoading(true);
-    setBuyerDetailsError(null);
-    try {
-      const res = await identifyAlbumBuyer(aId, { name, email, phone });
-      setBuyerId(res.buyerId);
-      // Mark any previously-purchased photos
-      if (res.purchasedPhotoIds.length) {
-        const owned = new Set(res.purchasedPhotoIds);
-        setAlbumPhotos((prev) => prev?.map((p) => owned.has(p.id) ? { ...p, isPurchased: true } : p) ?? prev);
-        setFaceResults((prev) => prev?.map((p) => owned.has(p.id) ? { ...p, isPurchased: true } : p) ?? prev);
-      }
-      setBuyerDetailsOpen(false);
-      // Now initiate payment
-      await proceedToPayment(photos, aId, res.buyerId);
-    } catch (err) {
-      setBuyerDetailsError(isApiError(err) ? err.message : 'Could not verify details. Try again.');
-    } finally {
-      setBuyerDetailsLoading(false);
-    }
-  };
-
-  const proceedToPayment = async (
-    photos: (AlbumPhotoItem | FoundPhoto)[],
-    aId: string,
-    bId: string
-  ) => {
-    const payable = photos.filter((p) => !p.isPurchased && (p.price ?? 0) > 0);
-    if (!payable.length) return;
-
-    // Group payable photos by albumId. A face-scan can match photos across
-    // multiple paid albums (different photographers) — each album becomes
-    // its own AlbumPurchase row server-side so revenue routes to the right
-    // photographer at that gallery's price.
-    const groups = new Map<string, MultiAlbumPurchaseItem>();
-    const photoAlbumMap: Record<string, string> = {};
-    for (const p of payable) {
-      const pAlbumId = (p as AlbumPhotoItem).albumId ?? aId;
-      const pCurId = (p as AlbumPhotoItem).currencyId ?? albumCurrencyId;
-      if (!pCurId) continue;
-      const slot = groups.get(pAlbumId) ?? { albumId: pAlbumId, photoIds: [], amount: 0, currencyId: pCurId };
-      slot.photoIds.push(p.id as string);
-      slot.amount += p.price ?? 0;
-      groups.set(pAlbumId, slot);
-      photoAlbumMap[p.id as string] = pAlbumId;
-    }
-    const items = Array.from(groups.values());
-    if (!items.length) {
-      setPurchaseNotice('Currency info missing. Please try again.');
-      return;
-    }
-
-    try {
-      setPurchaseNotice('Opening payment…');
-      const result = items.length > 1
-        ? await initiateMultiAlbumPurchase({ items, buyerId: bId })
-        : await initiateAlbumPurchase({
-            albumId: items[0].albumId,
-            photoIds: items[0].photoIds,
-            buyerId: bId,
-            amount: items[0].amount,
-            currencyId: items[0].currencyId,
-          });
-
-      if (!result.paymentUrl) {
-        setPurchaseNotice('Could not get payment link. Please try again.');
-        return;
-      }
-
-      await WebBrowser.openBrowserAsync(result.paymentUrl);
-
-      // After browser closes, poll for payment status
-      if (result.refid) {
-        setPollingRefid(result.refid);
-        await pollAndFinalize(result.refid, bId, payable, aId, photoAlbumMap);
-      }
-    } catch (err) {
-      setPurchaseNotice(isApiError(err) ? err.message : 'Payment could not be started.');
-    }
-  };
-
-  const pollAndFinalize = async (
-    refid: string,
-    bId: string,
-    photos: (AlbumPhotoItem | FoundPhoto)[],
-    aId: string,
-    photoAlbumMap?: Record<string, string>
-  ) => {
-    setPurchaseNotice('Checking payment status…');
-    // Poll up to ~60 seconds
-    const delays = [0, 2000, 3000, 5000, 5000, 5000, 10000, 10000, 15000, 15000];
-    let status: 'success' | 'pending' | 'failed' = 'pending';
-
-    for (const delay of delays) {
-      if (delay) await new Promise((r) => setTimeout(r, delay));
-      try {
-        status = await getPublicPaymentStatus(refid);
-        if (status === 'success') break;
-        if (status === 'failed') break;
-      } catch { /* keep polling */ }
-    }
-
-    if (status === 'failed') {
-      setPurchaseNotice('Payment failed or was cancelled.');
-      setPollingRefid(null);
-      return;
-    }
-    if (status === 'pending') {
-      setPurchaseNotice("Payment pending — you'll receive an email when confirmed.");
-      setPollingRefid(null);
-      return;
-    }
-
-    // Payment succeeded
-    setPurchaseNotice('Payment confirmed! Recording purchase…');
-    try {
-      const rec = await recordAlbumPurchase(refid, bId);
-      setPurchaseRefid(refid);
-
-      // Mark photos as purchased
-      const boughtIds = new Set(photos.map((p) => p.id as string));
-      setAlbumPhotos((prev) => prev?.map((p) => boughtIds.has(p.id) ? { ...p, isPurchased: true } : p) ?? prev);
-      setFaceResults((prev) => prev?.map((p) => boughtIds.has(p.id) ? { ...p, isPurchased: true } : p) ?? prev);
-      setSelectedAlbumIds(new Set());
-      setSelectedResultIds(new Set());
-
-      // Auto-download
-      setPurchaseNotice('Downloading your photos…');
-      for (const photo of photos) {
-        const pid = photo.id as string;
-        const photoAlbumId = photoAlbumMap?.[pid] ?? aId;
-        const downloadUrl = getPhotoDownloadUrl(photoAlbumId, pid, { refid, buyerId: bId });
-        await downloadAndShare(downloadUrl, `photo-${pid}.jpg`);
-      }
-
-      const msg = rec.unlockCode
-        ? `Done! Save your unlock code: ${rec.unlockCode}`
-        : 'Done! Your photos are downloading.';
-      setPurchaseNotice(msg);
-    } catch {
-      setPurchaseNotice('Purchase recorded but download failed. Use your email to re-download.');
-    } finally {
-      setPollingRefid(null);
-    }
+    // The web find-my-photos page is keyed by the album's invite/access code
+    // — the code the user typed to open this gallery. Face-search results can
+    // span albums the user has no code for; those land on the public
+    // marketplace instead.
+    const accessCode = code.trim();
+    setPurchaseNotice('Complete your purchase on connekyt.com, then come back and tap "Already paid? Unlock".');
+    void openWebCheckout(accessCode ? albumPurchaseUrl(accessCode) : browsePhotosUrl());
   };
 
   const handleDownloadPurchased = async (photo: AlbumPhotoItem | FoundPhoto) => {
@@ -1230,13 +1017,6 @@ export function FindMyPhotos() {
           </View>
         ) : null}
 
-        {pollingRefid ? (
-          <View style={styles.noticeBanner}>
-            <ActivityIndicator size="small" color="#F20C8F" style={{ marginRight: 8 }} />
-            <Text style={styles.noticeText}>Confirming payment…</Text>
-          </View>
-        ) : null}
-
         {/* Grid */}
         <FlatList
           data={displayedPhotos}
@@ -1573,13 +1353,6 @@ export function FindMyPhotos() {
           </View>
         ) : null}
 
-        {pollingRefid ? (
-          <View style={styles.noticeBanner}>
-            <ActivityIndicator size="small" color="#F20C8F" style={{ marginRight: 8 }} />
-            <Text style={styles.noticeText}>Confirming payment…</Text>
-          </View>
-        ) : null}
-
         <FlatList
           data={results}
           keyExtractor={(p) => p.id as string}
@@ -1710,65 +1483,6 @@ export function FindMyPhotos() {
           {showConnect && renderConnect()}
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* ── Buyer Details Modal ── */}
-      <Modal visible={buyerDetailsOpen} transparent animationType="slide">
-        <Pressable style={styles.modalOverlay} onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={{ width: '100%', marginTop: 'auto' }}
-          >
-            <View style={[styles.modalContent, { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderRadius: 0 }]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Your Details</Text>
-                <Pressable onPress={() => setBuyerDetailsOpen(false)}>
-                  <Ionicons name="close" size={24} color={colors.text} />
-                </Pressable>
-              </View>
-              <Text style={styles.modalSub}>
-                We need your details to link this purchase to you, so you can re-download photos anytime.
-              </Text>
-              <TextInput
-                placeholder="Full name"
-                value={buyerName}
-                onChangeText={setBuyerName}
-                style={styles.modalInput}
-                placeholderTextColor="#94A3B8"
-              />
-              <TextInput
-                placeholder="Email address"
-                value={buyerEmail}
-                onChangeText={setBuyerEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                style={styles.modalInput}
-                placeholderTextColor="#94A3B8"
-              />
-              <TextInput
-                placeholder="Phone number"
-                value={buyerPhone}
-                onChangeText={setBuyerPhone}
-                keyboardType="phone-pad"
-                style={styles.modalInput}
-                placeholderTextColor="#94A3B8"
-              />
-              {buyerDetailsError ? <Text style={styles.errorText}>{buyerDetailsError}</Text> : null}
-              <Button
-                title="Continue to Payment"
-                onPress={handleBuyerDetailsSubmit}
-                loading={buyerDetailsLoading}
-                style={{ marginTop: spacing.md }}
-              />
-              <Button
-                title="Cancel"
-                variant="ghost"
-                onPress={() => setBuyerDetailsOpen(false)}
-                style={{ marginTop: spacing.xs }}
-              />
-            </View>
-          </KeyboardAvoidingView>
-        </Pressable>
-      </Modal>
 
       {/* ── Unlock Modal ── */}
       <Modal visible={unlockOpen} transparent animationType="slide">

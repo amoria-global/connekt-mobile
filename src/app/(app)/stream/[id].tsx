@@ -7,18 +7,16 @@ import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { getStream, joinStream, listStreamChats, sendInAppStreamChat, tipStream, type StreamChat } from '@/features/streams/api';
+import { liveGiftUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { getStream, joinStream, listStreamChats, sendInAppStreamChat, type StreamChat } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
-
-const TIP_AMOUNTS = [500, 1000, 2000, 5000];
 
 export default function StreamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isCoordinator } = useRole();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getStream(id), [id]));
-  const [tipping, setTipping] = useState<number | null>(null);
   const [playUrl, setPlayUrl] = useState<string | null>(null);
   const [chats, setChats] = useState<StreamChat[]>([]);
   const [chatDraft, setChatDraft] = useState('');
@@ -137,17 +135,11 @@ export default function StreamDetailScreen() {
     }
   };
 
-  const onTip = async (amount: number) => {
+  // Gifts are completed on the web — the app collects no payment. Gated to
+  // iOS/web; on Android the button never renders.
+  const onGift = () => {
     if (!digitalPurchasesEnabled) return;
-    setTipping(amount);
-    try {
-      await tipStream(id, amount);
-      Alert.alert('Thank you!', 'Your tip has been sent.');
-    } catch {
-      Alert.alert('Tip failed', 'Please try again.');
-    } finally {
-      setTipping(null);
-    }
+    void openWebCheckout(liveGiftUrl(data?.eventId ?? id));
   };
 
   if (loading && !data) {
@@ -213,23 +205,8 @@ export default function StreamDetailScreen() {
 
         {digitalPurchasesEnabled ? (
           <View style={styles.tipSection}>
-            <Text style={styles.tipTitle}>Send a tip</Text>
-            <View style={styles.tipRow}>
-              {TIP_AMOUNTS.map((a) => (
-                <Pressable
-                  key={a}
-                  style={({ pressed }) => [styles.tipChip, pressed && styles.pressed]}
-                  onPress={() => onTip(a)}
-                  disabled={tipping != null}
-                >
-                  {tipping === a ? (
-                    <ActivityIndicator color={colors.primary} />
-                  ) : (
-                    <Text style={styles.tipText}>{a.toLocaleString()}</Text>
-                  )}
-                </Pressable>
-              ))}
-            </View>
+            <Text style={styles.tipTitle}>Support this creator</Text>
+            <Button title="Send a gift on connekyt.com" onPress={onGift} />
           </View>
         ) : null}
 

@@ -3,10 +3,10 @@
  *
  * Web parity: knockout/app/pages/events/join-package.tsx
  *
- * Matches the web flow 1:1:
- *   1. Pick Individual or Group (with a viewer count stepper).
- *   2. Total card (shows 10% group discount preview — backend reconfirms).
- *   3. On Continue → /events/pay?id=…&package=…&people=…
+ * Purchases now happen on the web: instead of the old in-app package
+ * selection + payment funnel, the screen shows the per-person fee and a
+ * single (policy-gated) "Buy access on connekyt.com" button that opens
+ * the web join-package page. On Android nothing purchasable is shown.
  *
  * NEW (web parity additions):
  *   • "Have a group invite code?" redeem section below the package picker.
@@ -30,7 +30,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Button } from '@/components/ui/Button';
@@ -38,6 +37,7 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import { redeemGroupCode } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
@@ -47,8 +47,6 @@ import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const COVER_FALLBACK =
   'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80';
-
-type Pkg = 'individual' | 'group';
 
 type SavedGroupCode = {
   code: string;
@@ -75,11 +73,9 @@ export default function JoinPackageScreen() {
     useCallback(() => getPublicEventDetailed(id), [id]),
   );
 
-  const [pkg, setPkg] = useState<Pkg>('individual');
-  const [people, setPeople] = useState('2');
-
-  // Group code that was generated after a previous payment (auto-show when
-  // returning from /events/pay with codeReady=1).
+  // Group code that was generated after a previous (pre-web-checkout)
+  // payment — still surfaced from storage so paid group owners keep their
+  // code. codeReady=1 is legacy deep-link support.
   const [savedCode, setSavedCode] = useState<SavedGroupCode | null>(null);
   useEffect(() => {
     storage
@@ -159,23 +155,18 @@ export default function JoinPackageScreen() {
     );
   }
 
-  const peopleNum = Math.max(2, parseInt(people || '2', 10) || 2);
   const perPerson = data.streamFee ?? 0;
-  const groupDiscount = data.groupDiscountPercentage ?? 10;
-  const total =
-    pkg === 'group'
-      ? Math.round(perPerson * peopleNum * (1 - groupDiscount / 100))
-      : perPerson;
-  const totalLabel = feeLabel(total, data.streamFeeCurrencyAbbreviation, data.streamFeeCurrencySymbol);
+  const perPersonLabel = feeLabel(
+    perPerson,
+    data.streamFeeCurrencyAbbreviation,
+    data.streamFeeCurrencySymbol,
+  );
 
-  const onProceed = () => {
+  // Purchase happens on connekyt.com — never in the app, and never at all
+  // on Android (policy gate below).
+  const onBuyOnWeb = () => {
     if (!digitalPurchasesEnabled) return;
-    const params = new URLSearchParams({
-      id,
-      package: pkg,
-      people: pkg === 'group' ? String(peopleNum) : '1',
-    });
-    router.push(`/events/pay?${params.toString()}` as unknown as Href);
+    void openWebCheckout(streamAccessUrl(id));
   };
 
   return (
@@ -232,8 +223,8 @@ export default function JoinPackageScreen() {
           </View>
         </View>
 
-        {/* Package selection through to the pay button is the purchase funnel;
-            on Android it's absent and only the invite-code path below remains. */}
+        {/* The purchase funnel lives on connekyt.com now. On Android it's
+            absent entirely and only the invite-code path below remains. */}
         {!digitalPurchasesEnabled ? (
           <View style={styles.totalCard}>
             <Text style={styles.totalLabel}>Ticketed event</Text>
@@ -244,83 +235,19 @@ export default function JoinPackageScreen() {
         ) : null}
 
         {digitalPurchasesEnabled ? (
-        <>
-        <Text style={styles.h2}>Choose your package</Text>
-
-        {/* Individual */}
-        <Pressable
-          style={[styles.opt, pkg === 'individual' && styles.optActive]}
-          onPress={() => setPkg('individual')}
-        >
-          <View style={[styles.radio, pkg === 'individual' && styles.radioActive]}>
-            {pkg === 'individual' ? <View style={styles.radioInner} /> : null}
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.optTitle}>Individual</Text>
-            <Text style={styles.optHint}>Single viewer access for one device.</Text>
-          </View>
-          <Ionicons name="person" size={22} color={colors.primary} />
-        </Pressable>
-
-        {/* Group */}
-        <Pressable
-          style={[styles.opt, pkg === 'group' && styles.optActive]}
-          onPress={() => setPkg('group')}
-        >
-          <View style={[styles.radio, pkg === 'group' && styles.radioActive]}>
-            {pkg === 'group' ? <View style={styles.radioInner} /> : null}
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.optTitle}>
-              Group
-              {groupDiscount > 0 ? ` · save ${groupDiscount}%` : ''}
-            </Text>
-            <Text style={styles.optHint}>
-              Get a shareable code for friends or family. Pay once, everyone joins.
-            </Text>
-          </View>
-          <Ionicons name="people" size={22} color={colors.accent} />
-        </Pressable>
-
-        {pkg === 'group' ? (
-          <View style={styles.peopleCard}>
-            <Text style={styles.peopleLabel}>How many viewers?</Text>
-            <View style={styles.peopleRow}>
-              <Pressable
-                style={styles.stepBtn}
-                onPress={() => setPeople(String(Math.max(2, peopleNum - 1)))}
-                disabled={peopleNum <= 2}
-              >
-                <Ionicons name="remove" size={22} color={colors.primary} />
-              </Pressable>
-              <TextInput
-                value={people}
-                onChangeText={(t) => setPeople(t.replace(/[^0-9]/g, ''))}
-                style={styles.peopleInput}
-                keyboardType="number-pad"
-                maxLength={3}
-              />
-              <Pressable
-                style={styles.stepBtn}
-                onPress={() => setPeople(String(peopleNum + 1))}
-              >
-                <Ionicons name="add" size={22} color={colors.primary} />
-              </Pressable>
+          <>
+            {/* Fee card */}
+            <View style={styles.totalCard}>
+              <Text style={styles.totalLabel}>Stream access</Text>
+              <Text style={styles.totalValue}>{perPersonLabel} / person</Text>
             </View>
+
+            <Button title="Buy access on connekyt.com" onPress={onBuyOnWeb} />
             <Text style={styles.peopleHint}>
-              Minimum 2 viewers.{groupDiscount > 0 ? ` ${groupDiscount}% off the per-person price applies automatically.` : ''}
+              Package selection (individual or group) and payment are completed
+              securely on connekyt.com.
             </Text>
-          </View>
-        ) : null}
-
-        {/* Total card */}
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Total to pay</Text>
-          <Text style={styles.totalValue}>{totalLabel}</Text>
-        </View>
-
-        <Button title="Continue to payment" onPress={onProceed} />
-        </>
+          </>
         ) : null}
 
         {/* Group invite code redeem section
