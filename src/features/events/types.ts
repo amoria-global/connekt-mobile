@@ -85,6 +85,8 @@ export type EventItem = {
   eventVisibility?: string;
   /** Client completion state, e.g. NOT_COMPLETED / COMPLETED / REQUIRE_CHANGES. */
   completionStatus?: string;
+  /** True once the photographer has delivered the album. Gates completion. */
+  albumDelivered?: boolean;
   notes?: string;
 };
 
@@ -126,6 +128,8 @@ export type PublicEvent = {
   /** UPCOMING | ONGOING | COMPLETED | AWAITING_REVIEW | … */
   eventStatus?: string;
   completionStatus?: string;
+  /** True once the photographer has delivered the album. Gates completion. */
+  albumDelivered?: boolean;
   bookingStatus?: string;
   maxGuests?: number;
   creator?: PublicEventCreator;
