@@ -138,6 +138,7 @@ function mapEvent(r: RawEvent): EventItem {
     tags,
     eventVisibility: str(r.eventVisibility),
     completionStatus: str(r.completionStatus),
+    albumDelivered: r.albumDelivered === true,
     notes: str(r.notes),
   };
 }

@@ -21,6 +21,8 @@ import {
   resumeEvent,
   unpublishEvent,
 } from '@/features/events/api';
+import { SatisfactionSurveySheet } from '@/features/events/SatisfactionSurveySheet';
+import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/events/survey';
 import { submitReview } from '@/features/reviews/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
@@ -38,6 +40,7 @@ export default function EventDetailScreen() {
 
   const [busy, setBusy] = useState<string | null>(null);
   const [completionOpen, setCompletionOpen] = useState(false);
+  const [surveyOpen, setSurveyOpen] = useState(false);
   const [comment, setComment] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -312,16 +315,73 @@ export default function EventDetailScreen() {
     router.push(`/album/new?eventId=${id}`);
   };
 
+  /**
+   * "Request changes" goes straight through; confirming completion does not.
+   * The survey is what releases the photographer's survey-held fee, and
+   * confirm-completion on its own never does — so completing without one left
+   * the photographer permanently short. The survey answers also decide whether
+   * this ends as COMPLETED or goes back as REQUIRE_CHANGES.
+   */
   const submitCompletion = async (status: 'COMPLETED' | 'REQUIRE_CHANGES') => {
+    if (status === 'COMPLETED') {
+      setCompletionOpen(false);
+      setSurveyOpen(true);
+      return;
+    }
     setBusy('completion');
     try {
       await confirmCompletion(id, status, comment.trim() || undefined, isCoordinator);
       setCompletionOpen(false);
       setComment('');
       await refresh();
+      Alert.alert('Changes requested', 'The photographer has been notified.');
+    } catch (e) {
+      Alert.alert('Could not submit', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const submitSurvey = async (answers: SatisfactionSurvey) => {
+    setBusy('completion');
+    try {
+      let disputeFlagged = false;
+      try {
+        ({ disputeFlagged } = await submitSatisfactionSurvey(id, answers));
+      } catch (e) {
+        // The survey is one-per-event server-side. If it already landed (a
+        // previous attempt whose follow-up call failed), don't dead-end the
+        // client behind the duplicate guard — carry on and finish the
+        // confirmation that's still outstanding.
+        const msg = isApiError(e) ? e.message : '';
+        if (!/already submitted/i.test(msg)) throw e;
+      }
+
+      // Submitting the survey is the point of no return — it's what released
+      // the photographer's held fee. Close up here so a failure in the call
+      // below can never look like the feedback itself failed.
+      setSurveyOpen(false);
+      setComment('');
+
+      const status = disputeFlagged ? 'REQUIRE_CHANGES' : 'COMPLETED';
+      try {
+        await confirmCompletion(
+          id,
+          status,
+          answers.issuesDescription || comment.trim() || undefined,
+          isCoordinator,
+        );
+      } catch {
+        // Recoverable: the survey is persisted and the funds released. The
+        // status catches up on a later confirm, so don't alarm the client.
+      }
+
+      await refresh();
       Alert.alert(
-        status === 'COMPLETED' ? 'Marked as completed' : 'Changes requested',
-        status === 'COMPLETED' ? 'Thanks for confirming.' : 'The photographer has been notified.',
+        disputeFlagged ? 'Thanks — we’ll look into it' : 'All done',
+        disputeFlagged
+          ? 'We’ve passed your feedback on and asked the photographer to follow up.'
+          : 'Thanks for confirming. The photographer has been paid.',
       );
     } catch (e) {
       Alert.alert('Could not submit', isApiError(e) ? e.message : 'Please try again.');
@@ -382,6 +442,10 @@ export default function EventDetailScreen() {
     booking !== 'ACCEPTED' &&
     (completion === '' || completion === 'NOT_COMPLETED');
   const canPause = booking === 'ACCEPTED' && s !== 'COMPLETED' && s !== 'PAUSED';
+  // The server rejects confirmation until the album is delivered, and web only
+  // offers the button then. Until it is, say what's being waited on.
+  const awaitingConfirmation = completion === 'PENDING_CUSTOMER_CONFIRMATION';
+  const canConfirmDone = awaitingConfirmation && ev?.albumDelivered === true;
   const money = fmtMoney(ev?.price, ev?.currency);
 
   return (
@@ -535,7 +599,26 @@ export default function EventDetailScreen() {
               ) : canPause ? (
                 <PrimaryBtn icon="pause-circle-outline" label="Pause" variant="outline" onPress={onPause} loading={busy === 'pause'} />
               ) : null}
-              <PrimaryBtn icon="checkmark-done" label="Confirm Done" variant="success" onPress={() => setCompletionOpen(true)} />
+              {canConfirmDone ? (
+                <PrimaryBtn
+                  icon="checkmark-done"
+                  label="Confirm Done"
+                  variant="success"
+                  onPress={() => setCompletionOpen(true)}
+                />
+              ) : awaitingConfirmation ? (
+                <PrimaryBtn
+                  icon="hourglass-outline"
+                  label="Awaiting album"
+                  variant="outline"
+                  onPress={() =>
+                    Alert.alert(
+                      'Waiting for album delivery',
+                      'Once the photographer delivers your album you can confirm the event and release their final payment.',
+                    )
+                  }
+                />
+              ) : null}
               {ev?.photographerName ? (
                 <PrimaryBtn icon="star-outline" label="Rate" variant="outline" onPress={() => setReviewOpen(true)} />
               ) : null}
@@ -573,8 +656,9 @@ export default function EventDetailScreen() {
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.sheetTitle}>Confirm completion</Text>
             <Text style={styles.sheetHint}>
-              Mark this event as completed, or request changes if something needs fixing. Funds in escrow are released
-              on completion.
+              Confirm the event went ahead, or request changes if something needs fixing. Confirming
+              asks you a few quick questions, and that is what releases the photographer&apos;s final
+              payment.
             </Text>
             <Input
               placeholder="Add a comment (optional)"
@@ -583,7 +667,7 @@ export default function EventDetailScreen() {
               multiline
               style={styles.commentInput}
             />
-            <Button title="Mark as completed" onPress={() => submitCompletion('COMPLETED')} loading={busy === 'completion'} />
+            <Button title="Continue to questions" onPress={() => submitCompletion('COMPLETED')} loading={busy === 'completion'} />
             <Pressable
               style={styles.requestChanges}
               onPress={() => submitCompletion('REQUIRE_CHANGES')}
@@ -594,6 +678,14 @@ export default function EventDetailScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Satisfaction survey — releases the photographer's survey-held fee */}
+      <SatisfactionSurveySheet
+        visible={surveyOpen}
+        onClose={() => setSurveyOpen(false)}
+        onSubmit={submitSurvey}
+        submitting={busy === 'completion'}
+      />
 
       {/* Decline-booking reason sheet — Photographer side */}
       <Modal
