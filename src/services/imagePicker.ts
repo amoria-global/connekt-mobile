@@ -7,9 +7,34 @@ import * as ImagePicker from 'expo-image-picker';
 
 export type PickedImage = { uri: string; name: string; type: string };
 
+/**
+ * Uploads are rejected outright by the API unless the declared type is JPEG or
+ * PNG, and an iPhone library pick reports `image/heic` — so a HEIC cover was
+ * refused while the app reported nothing. `asset.mimeType` describes the
+ * *source* photo, but every pick here goes through `quality`, which makes the
+ * picker re-encode; the file it actually wrote is what the extension on
+ * `asset.uri` says. Trust that, and fall back to JPEG (what the re-encode
+ * produces) rather than a source type the server will not take.
+ */
+function mimeFor(uri: string, fallback?: string): string {
+  const ext = uri.split('?')[0].split('.').pop()?.toLowerCase();
+  if (ext === 'png') return 'image/png';
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  // Only keep the reported type when the API will accept it.
+  if (fallback === 'image/png' || fallback === 'image/jpeg' || fallback === 'image/jpg') {
+    return fallback;
+  }
+  return 'image/jpeg';
+}
+
 function toPicked(asset: ImagePicker.ImagePickerAsset): PickedImage {
-  const name = asset.fileName || asset.uri.split('/').pop() || 'photo.jpg';
-  return { uri: asset.uri, name, type: asset.mimeType || 'image/jpeg' };
+  const type = mimeFor(asset.uri, asset.mimeType ?? undefined);
+  const ext = type === 'image/png' ? 'png' : 'jpg';
+  // Keep the filename's extension consistent with the type we declare — the
+  // server builds the stored filename from it, and a .heic name would be
+  // served to browsers that cannot render it.
+  const base = (asset.fileName || asset.uri.split('/').pop() || 'photo').replace(/\.[^./]+$/, '');
+  return { uri: asset.uri, name: `${base}.${ext}`, type };
 }
 
 /**

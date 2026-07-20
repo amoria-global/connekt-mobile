@@ -71,6 +71,71 @@ export default function EventDetailScreen() {
     }
   };
 
+  /**
+   * Publishing is what puts an event on connekyt.com, and the server rejects
+   * an incomplete one. Web checks the same three things before calling, so
+   * mobile does too — otherwise the owner just gets a raw error and no idea
+   * which piece is missing.
+   */
+  const onPublish = () => {
+    const booking = (ev?.bookingStatus ?? '').toUpperCase();
+    if (!ev?.coverImage) {
+      Alert.alert(
+        'Add a cover photo first',
+        'An event needs a cover photo before it can go live on connekyt.com. Edit the event to add one.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Edit event', onPress: () => router.push(`/event/new?editId=${id}`) },
+        ],
+      );
+      return;
+    }
+    if (!ev?.photographerName) {
+      Alert.alert(
+        'Assign a photographer first',
+        'Events are published once a photographer is attached, so guests know who is covering it.',
+      );
+      return;
+    }
+    if (booking && booking !== 'ACCEPTED' && booking !== 'UNASSIGNED') {
+      Alert.alert(
+        'Waiting on the photographer',
+        'This booking has not been accepted yet. Once the photographer accepts, you can publish the event.',
+      );
+      return;
+    }
+    Alert.alert(
+      'Publish this event?',
+      'It becomes visible to everyone on connekyt.com, and guests can find and join it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Publish', onPress: () => run('publish', () => publishEvent(id, isCoordinator)) },
+      ],
+    );
+  };
+
+  const onUnpublish = () => {
+    if (s === 'ONGOING' || isStreamLive) {
+      Alert.alert(
+        'The event is live',
+        'Ask the photographer to end the stream before taking this event off connekyt.com.',
+      );
+      return;
+    }
+    Alert.alert(
+      'Unpublish this event?',
+      'It will no longer appear on connekyt.com. You can publish it again at any time.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unpublish',
+          style: 'destructive',
+          onPress: () => run('publish', () => unpublishEvent(id, isCoordinator)),
+        },
+      ],
+    );
+  };
+
   const onShare = async () => {
     try {
       await Share.share({
@@ -91,7 +156,12 @@ export default function EventDetailScreen() {
         onPress: async () => {
           setBusy('delete');
           try {
-            await deleteEvent(id);
+            // Web takes a published event offline before deleting so it can't
+            // linger on the public site.
+            if (ev?.published) {
+              await unpublishEvent(id, isCoordinator).catch(() => {});
+            }
+            await deleteEvent(id, isCoordinator);
             router.back();
           } catch (e) {
             Alert.alert('Could not delete', isApiError(e) ? e.message : 'Please try again.');
@@ -144,6 +214,15 @@ export default function EventDetailScreen() {
    * changes (the photographer reshoots / re-edits).
    */
   const onPhotographerMarkCompleted = () => {
+    // Non-streaming shoots never reach ONGOING, so gate on "has it started"
+    // rather than on an active stream.
+    if (s === 'UPCOMING' || s === 'PENDING' || s === 'PROPOSED') {
+      Alert.alert(
+        "The event hasn't started yet",
+        'You can mark a shoot complete once the event day has begun. Come back after it starts.',
+      );
+      return;
+    }
     Alert.prompt
       ? Alert.prompt(
           'Mark as completed',
@@ -209,10 +288,34 @@ export default function EventDetailScreen() {
     router.push(`/stream/control/${id}` as never);
   };
 
+  /**
+   * Streaming and albums both hang off the public event page, so the backend
+   * only accepts them once the event is published. The photographer can't
+   * publish it themselves — that's the event creator's call — so say so.
+   */
+  const requirePublished = (action: string): boolean => {
+    if (ev?.published) return true;
+    Alert.alert(
+      'Event not published yet',
+      `${action} is only available for published events. Ask the event creator to publish "${ev?.title ?? 'this event'}" first.`,
+    );
+    return false;
+  };
+
+  const onPhotographerGoLive = () => {
+    if (!requirePublished('Live streaming')) return;
+    openStreamControl();
+  };
+
+  const onPhotographerCreateAlbum = () => {
+    if (!requirePublished('Album creation')) return;
+    router.push(`/album/new?eventId=${id}`);
+  };
+
   const submitCompletion = async (status: 'COMPLETED' | 'REQUIRE_CHANGES') => {
     setBusy('completion');
     try {
-      await confirmCompletion(id, status, comment.trim() || undefined);
+      await confirmCompletion(id, status, comment.trim() || undefined, isCoordinator);
       setCompletionOpen(false);
       setComment('');
       await refresh();
@@ -252,17 +355,33 @@ export default function EventDetailScreen() {
   const s = (ev?.status ?? '').toUpperCase();
   const booking = (ev?.bookingStatus ?? '').toUpperCase();
   const streamStatus = (ev?.streamStatus ?? '').toLowerCase();
-  const hero = heroStatus(s);
+  const hero = heroStatus(s, ev?.published);
 
   // Photographer action gating (web parity).
   const isPhotog = isPhotographer && !ownsEvents;
   const isPending = booking === 'PENDING';
+  // A photographer can be attached to an event without a Booking row —
+  // /photographer/events merges booked events with ones assigned directly
+  // (findByPhotographerIdOrderByEventDateDesc), and those report a null
+  // bookingStatus. Treating that as "not accepted" would strip Go Live and
+  // Mark Complete from photographers who are legitimately on the job, so the
+  // empty case stays permissive for them.
   const isAccepted = booking === 'ACCEPTED' || (!booking && isPhotog);
   const isEventDone = s === 'COMPLETED' || s === 'CANCELLED' || s === 'AWAITING_REVIEW';
   const isStreamLive = streamStatus === 'live' || streamStatus === 'connected';
   const canGoLive = isAccepted && !isEventDone && streamStatus !== 'ended' && !isStreamLive;
   const canMarkComplete = isAccepted && !isEventDone;
   const canCreateAlbum = s === 'COMPLETED' || booking === 'ACCEPTED';
+
+  // Owner action gating (web parity). The server refuses these anyway; hiding
+  // them keeps mobile from offering buttons that can only ever error.
+  const completion = (ev?.completionStatus ?? '').toUpperCase();
+  const canDelete =
+    s !== 'COMPLETED' &&
+    s !== 'PAUSED' &&
+    booking !== 'ACCEPTED' &&
+    (completion === '' || completion === 'NOT_COMPLETED');
+  const canPause = booking === 'ACCEPTED' && s !== 'COMPLETED' && s !== 'PAUSED';
   const money = fmtMoney(ev?.price, ev?.currency);
 
   return (
@@ -331,10 +450,10 @@ export default function EventDetailScreen() {
         {isPhotog && !isPending ? (
           <View style={styles.btnRow}>
             {canCreateAlbum ? (
-              <PrimaryBtn icon="add-circle" label="Create Album" variant="primary" onPress={() => router.push(`/album/new?eventId=${id}`)} />
+              <PrimaryBtn icon="add-circle" label="Create Album" variant="primary" onPress={onPhotographerCreateAlbum} />
             ) : null}
             {canGoLive ? (
-              <PrimaryBtn icon="radio" label="Live Stream" variant="accent" onPress={openStreamControl} />
+              <PrimaryBtn icon="radio" label="Live Stream" variant="accent" onPress={onPhotographerGoLive} />
             ) : null}
             <PrimaryBtn icon="share-social" label="Share" variant="outline" onPress={onShare} />
             {canMarkComplete ? (
@@ -399,8 +518,8 @@ export default function EventDetailScreen() {
               <PrimaryBtn
                 icon={ev?.published ? 'eye-off-outline' : 'megaphone-outline'}
                 label={ev?.published ? 'Unpublish' : 'Publish'}
-                variant="primary"
-                onPress={() => run('publish', () => (ev?.published ? unpublishEvent(id) : publishEvent(id)))}
+                variant={ev?.published ? 'outline' : 'primary'}
+                onPress={ev?.published ? onUnpublish : onPublish}
                 loading={busy === 'publish'}
               />
               <PrimaryBtn icon="create-outline" label="Edit" variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
@@ -413,14 +532,16 @@ export default function EventDetailScreen() {
                 <PrimaryBtn icon="play-circle-outline" label="Resume" variant="outline" onPress={onResume} loading={busy === 'resume'} />
               ) : ev?.streamStatus === 'ended' ? (
                 <PrimaryBtn icon="refresh-circle-outline" label="Reset Stream" variant="outline" onPress={openStreamControl} />
-              ) : (
+              ) : canPause ? (
                 <PrimaryBtn icon="pause-circle-outline" label="Pause" variant="outline" onPress={onPause} loading={busy === 'pause'} />
-              )}
+              ) : null}
               <PrimaryBtn icon="checkmark-done" label="Confirm Done" variant="success" onPress={() => setCompletionOpen(true)} />
               {ev?.photographerName ? (
                 <PrimaryBtn icon="star-outline" label="Rate" variant="outline" onPress={() => setReviewOpen(true)} />
               ) : null}
-              <PrimaryBtn icon="trash-outline" label="Delete" variant="danger" onPress={onDelete} loading={busy === 'delete'} />
+              {canDelete ? (
+                <PrimaryBtn icon="trash-outline" label="Delete" variant="danger" onPress={onDelete} loading={busy === 'delete'} />
+              ) : null}
             </View>
           </InfoCard>
         ) : null}
@@ -517,7 +638,12 @@ function bookingStepIndex(ev?: EventItem | null): number {
   return 0;
 }
 
-function heroStatus(s: string): { label: string; bg: string; fg: string } {
+/**
+ * `published` is a separate flag from the lifecycle status, and the list card
+ * already surfaced it — the detail screen didn't, so the same event read
+ * "PUBLISHED" in the list and "UPCOMING" on its own page.
+ */
+function heroStatus(s: string, published?: boolean): { label: string; bg: string; fg: string } {
   switch (s) {
     case 'ONGOING':
     case 'IN_PROGRESS':
@@ -536,7 +662,9 @@ function heroStatus(s: string): { label: string; bg: string; fg: string } {
     case 'PROPOSED':
       return { label: 'PENDING', bg: '#FEF3C7', fg: '#92400E' };
     default:
-      return { label: 'UPCOMING', bg: '#FACC15', fg: '#1A2E05' };
+      return published
+        ? { label: 'PUBLISHED', bg: '#CCFBF1', fg: '#0F766E' }
+        : { label: 'NOT PUBLISHED', bg: '#FEF3C7', fg: '#92400E' };
   }
 }
 

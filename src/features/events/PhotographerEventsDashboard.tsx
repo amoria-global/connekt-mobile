@@ -35,7 +35,9 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fonts, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
@@ -135,6 +137,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   const [filter, setFilter] = useState<EventFilter>('all');
   const [search, setSearch] = useState('');
   const [acceptTarget, setAcceptTarget] = useState<EventItem | null>(null);
+  const [declineTarget, setDeclineTarget] = useState<EventItem | null>(null);
+  const [declineReason, setDeclineReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const events = data ?? [];
@@ -177,25 +181,42 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
     }
   };
 
-  const onDecline = (e: EventItem) => {
-    Alert.alert('Decline booking?', `This will notify ${e.clientName || 'the client'}.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Decline',
-        style: 'destructive',
-        onPress: async () => {
-          setBusyId(e.id);
-          try {
-            await declineEventBooking(e.id, 'Not available');
-            refresh();
-          } catch {
-            Alert.alert('Could not decline', 'Please try again.');
-          } finally {
-            setBusyId(null);
-          }
-        },
-      },
-    ]);
+  const onDeclineConfirmed = async (e: EventItem) => {
+    setBusyId(e.id);
+    try {
+      await declineEventBooking(e.id, declineReason);
+      setDeclineTarget(null);
+      setDeclineReason('');
+      refresh();
+    } catch {
+      Alert.alert('Could not decline', 'Please try again.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /**
+   * Streaming and albums both hang off the public event page, so the backend
+   * only accepts them once the event is published. The photographer can't
+   * publish it themselves — that's the event creator's call — so say so.
+   */
+  const requirePublished = (e: EventItem, action: string): boolean => {
+    if (e.published) return true;
+    Alert.alert(
+      'Event not published yet',
+      `${action} is only available for published events. Ask the event creator to publish "${e.title}" first.`,
+    );
+    return false;
+  };
+
+  const onLiveStream = (e: EventItem) => {
+    if (!requirePublished(e, 'Live streaming')) return;
+    router.push(`/stream/control/${e.id}` as Href);
+  };
+
+  const onCreateAlbum = (e: EventItem) => {
+    if (!requirePublished(e, 'Album creation')) return;
+    router.push(`/album/new?eventId=${e.id}` as Href);
   };
 
   const header = (
@@ -319,9 +340,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             busy={busyId === item.id}
             onOpen={() => router.push(`/event/${item.id}` as Href)}
             onAccept={() => setAcceptTarget(item)}
-            onDecline={() => onDecline(item)}
-            onLiveStream={() => router.push(`/stream/control/${item.id}` as Href)}
-            onCreateAlbum={() => router.push(`/album/new?eventId=${item.id}` as Href)}
+            onDecline={() => setDeclineTarget(item)}
+            onLiveStream={() => onLiveStream(item)}
+            onCreateAlbum={() => onCreateAlbum(item)}
           />
         )}
         ListEmptyComponent={
@@ -352,6 +373,18 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         busy={busyId === acceptTarget?.id}
         onCancel={() => setAcceptTarget(null)}
         onConfirm={() => acceptTarget && onAcceptConfirmed(acceptTarget)}
+      />
+
+      <DeclineBookingSheet
+        event={declineTarget}
+        reason={declineReason}
+        onChangeReason={setDeclineReason}
+        busy={busyId === declineTarget?.id}
+        onCancel={() => {
+          setDeclineTarget(null);
+          setDeclineReason('');
+        }}
+        onConfirm={() => declineTarget && onDeclineConfirmed(declineTarget)}
       />
     </>
   );
@@ -581,6 +614,46 @@ function AcceptBookingSheet({
               )}
             </Pressable>
           </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Decline-booking reason sheet ────────────────────────────────────────
+
+function DeclineBookingSheet({
+  event,
+  reason,
+  onChangeReason,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  event: EventItem | null;
+  reason: string;
+  onChangeReason: (v: string) => void;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
+      <Pressable style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
+        <Pressable style={styles.declineSheet} onPress={(e) => e.stopPropagation()}>
+          <Text style={styles.declineTitle}>Decline booking</Text>
+          <Text style={styles.declineHint}>
+            Share a short reason so {event?.clientName || 'the client'} knows why you&apos;re not taking
+            this on.
+          </Text>
+          <Input
+            placeholder="e.g. Schedule conflict, location too far, etc."
+            value={reason}
+            onChangeText={onChangeReason}
+            multiline
+            style={styles.declineInput}
+          />
+          <Button title="Submit decline" onPress={onConfirm} loading={busy} />
         </Pressable>
       </Pressable>
     </Modal>
@@ -858,4 +931,16 @@ const styles = StyleSheet.create({
   sheetCancelText: { fontFamily: fonts.bold, fontSize: 15, color: colors.textSoft },
   sheetConfirm: { backgroundColor: '#10B981' },
   sheetConfirmText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
+
+  // Decline sheet
+  declineSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  declineTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.text },
+  declineHint: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, lineHeight: 20 },
+  declineInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
 });
