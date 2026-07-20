@@ -288,10 +288,22 @@ export default function NewEventScreen() {
       // --- Create / book path -------------------------------------------
       const event = await createEvent(input);
 
+      // The event exists at this point, so a failed cover isn't fatal — but it
+      // must be said out loud. An event without a cover cannot be published,
+      // and an unpublished event never appears on connekyt.com, so silently
+      // ignoring this left people with an event that was invisible for reasons
+      // they had no way to discover.
+      let coverFailed: string | null = null;
       try {
         await uploadEventPhoto(event.id, cover!);
-      } catch {
-        // non-fatal
+      } catch (e) {
+        coverFailed = isApiError(e) ? e.message : 'The cover photo could not be uploaded.';
+      }
+      if (coverFailed) {
+        Alert.alert(
+          'Cover photo not uploaded',
+          `${coverFailed}\n\nYour event was created, but it needs a cover photo before it can be published. Open the event and edit it to add one.`,
+        );
       }
 
       // Booking payment is completed on the web — the app collects nothing.

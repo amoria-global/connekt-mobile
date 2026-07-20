@@ -62,7 +62,9 @@ function heroStatus(e: EventItem): { label: string; bg: string; fg: string } {
   if (s === 'CANCELLED' || s === 'CANCELED') return { label: 'CANCELLED', bg: '#FEE2E2', fg: '#B91C1C' };
   if (s === 'PAUSED') return { label: 'PAUSED', bg: '#E5E7EB', fg: '#374151' };
   if (e.published) return { label: 'PUBLISHED', bg: '#CCFBF1', fg: '#0F766E' };
-  return { label: 'UPCOMING', bg: '#FACC15', fg: '#1A2E05' };
+  // An unpublished event is invisible on connekyt.com. Saying "UPCOMING" read
+  // as though everything was fine, so owners never knew there was a step left.
+  return { label: 'NOT PUBLISHED', bg: '#FEF3C7', fg: '#92400E' };
 }
 
 function fmtShortDate(iso?: string): string {

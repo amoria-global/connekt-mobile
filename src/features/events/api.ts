@@ -121,7 +121,10 @@ function mapEvent(r: RawEvent): EventItem {
     description: str(r.description),
     startTime: str(r.startTime),
     endTime: str(r.endTime),
-    published: bool(r.published) || bool(r.isPublished) || bool(r.status),
+    // Strictly the publication flag. This used to fall back to `status`, so an
+    // ONGOING/LIVE event reported itself as published — the detail screen then
+    // offered "Unpublish" and gave the owner no way to publish at all.
+    published: bool(r.published) || bool(r.isPublished),
     bookingStatus: str(r.bookingStatus),
     streamStatus: str(r.streamStatus),
     createdAt: str(r.createdAt) ?? str(r.bookingDate) ?? str(r.requestedAt) ?? str(r.updatedAt),
@@ -387,11 +390,27 @@ export async function updateEvent(id: string, input: CreateEventInput): Promise<
   return mapEvent((d.event ?? d) as RawEvent);
 }
 
-/** Uploads the event cover image (same as web: POST .../{id}/photo, field "file"). */
+/**
+ * Uploads the event cover image (same as web: POST .../{id}/photo, field "file").
+ *
+ * The endpoint answers 200 with `action: 0` when it refuses the file, so the
+ * envelope has to be checked — not doing so meant a rejected cover looked like
+ * success, and the event stayed unpublishable (and therefore invisible on the
+ * public site) with nothing shown to the user.
+ */
 export async function uploadEventPhoto(eventId: string, image: PickedImage): Promise<void> {
   const form = new FormData();
   await appendFile(form, 'file', image);
-  await api.post(`/customer/events/${encodeURIComponent(eventId)}/photo`, form);
+  const res = await api.post<ApiEnvelope<unknown>>(
+    `/customer/events/${encodeURIComponent(eventId)}/photo`,
+    form,
+  );
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'The cover photo could not be uploaded.',
+    } satisfies ApiError;
+  }
 }
 
 async function action(path: string, fallback: string): Promise<void> {
@@ -402,13 +421,15 @@ async function action(path: string, fallback: string): Promise<void> {
 }
 
 /** Publishes an event (makes it public/live). */
-export function publishEvent(id: string): Promise<void> {
-  return action(`/customer/events/${encodeURIComponent(id)}/publish`, 'Could not publish the event.');
+export function publishEvent(id: string, asCoordinator = false): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  return action(`${base}/${encodeURIComponent(id)}/publish`, 'Could not publish the event.');
 }
 
 /** Takes a published event back offline. */
-export function unpublishEvent(id: string): Promise<void> {
-  return action(`/customer/events/${encodeURIComponent(id)}/unpublish`, 'Could not unpublish the event.');
+export function unpublishEvent(id: string, asCoordinator = false): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  return action(`${base}/${encodeURIComponent(id)}/unpublish`, 'Could not unpublish the event.');
 }
 
 /**
@@ -457,8 +478,9 @@ export async function declineEventBooking(eventId: string, reason?: string): Pro
 }
 
 /** Deletes an event. */
-export async function deleteEvent(id: string): Promise<void> {
-  const res = await api.delete<ApiEnvelope<unknown>>(`/customer/events/${encodeURIComponent(id)}`);
+export async function deleteEvent(id: string, asCoordinator = false): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  const res = await api.delete<ApiEnvelope<unknown>>(`${base}/${encodeURIComponent(id)}`);
   if (res.action !== 1) {
     throw { status: 400, message: res.message || 'Could not delete the event.' } satisfies ApiError;
   }
@@ -469,9 +491,11 @@ export async function confirmCompletion(
   id: string,
   status: 'COMPLETED' | 'REQUIRE_CHANGES',
   comment?: string,
+  asCoordinator = false,
 ): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
   const res = await api.post<ApiEnvelope<unknown>>(
-    `/customer/events/${encodeURIComponent(id)}/confirm-completion`,
+    `${base}/${encodeURIComponent(id)}/confirm-completion`,
     { status, comment: comment || null },
   );
   if (res.action !== 1) {
