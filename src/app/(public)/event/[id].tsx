@@ -179,7 +179,7 @@ function buildCta(
     // "Already paid? Verify access" and group-code cards below stay visible,
     // so anyone who already holds access can still get in.
     if (!digitalPurchasesEnabled)
-      return { label: 'Ticketed event', sub: price, icon: 'ticket', tone: 'live', disabled: true };
+      return { label: 'Ticket required — verify below if you have one', sub: price, icon: 'ticket', tone: 'live', disabled: true };
     return {
       label: 'Buy access',
       sub: price,
@@ -195,7 +195,7 @@ function buildCta(
     if (hasPurchasedAccess)
       return { label: 'Access reserved', icon: 'checkmark-circle', tone: 'owned', disabled: true };
     if (!digitalPurchasesEnabled)
-      return { label: 'Ticketed event', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
+      return { label: 'Ticket required — verify below if you have one', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
     return {
       label: 'Reserve your spot',
       sub: price,
@@ -343,20 +343,11 @@ export default function PublicEventDetailScreen() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [verifyName, setVerifyName] = useState('');
   const [verifyEmail, setVerifyEmail] = useState('');
-  // Phone is required by the backend's AnonymousViewerRequest DTO
-  // (@NotBlank). Sending an empty string surfaced as
-  // "phone: Phone is required" red-bar in the modal — added a real
-  // input so the viewer can give the number used at checkout.
-  const [verifyPhone, setVerifyPhone] = useState('');
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const onVerifyAccess = async () => {
     if (!verifyName.trim() || !verifyEmail.includes('@')) {
       setVerifyError('Enter the name and email you used at checkout.');
-      return;
-    }
-    if (!verifyPhone.trim() || verifyPhone.replace(/[^0-9]/g, '').length < 9) {
-      setVerifyError('Enter the phone number you used at checkout.');
       return;
     }
     setVerifyBusy(true);
@@ -366,7 +357,9 @@ export default function PublicEventDetailScreen() {
       const reg = await registerAnonymousViewer(id, {
         name: verifyName.trim(),
         email: verifyEmail.trim(),
-        phone: verifyPhone.trim(),
+        // The backend DTO still @NotBlank-requires a phone; we no longer ask
+        // for it (name + email identify the ticket), so send a placeholder.
+        phone: '0000000000',
         deviceId: fingerprint,
       });
       if (reg.needsPayment) {
@@ -890,14 +883,6 @@ export default function PublicEventDetailScreen() {
               placeholder="you@example.com"
               autoCapitalize="none"
               keyboardType="email-address"
-            />
-            <Input
-              label="Phone"
-              value={verifyPhone}
-              onChangeText={(t) => setVerifyPhone(t.replace(/[^0-9+]/g, ''))}
-              placeholder="+2507…"
-              keyboardType="phone-pad"
-              autoCapitalize="none"
             />
             {verifyError ? <Text style={styles.wishMsg}>{verifyError}</Text> : null}
             <Button

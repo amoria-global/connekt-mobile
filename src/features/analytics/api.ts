@@ -301,6 +301,8 @@ export type PendingPayment = {
   paidAmount: number;
   dueDate?: string;
   status: 'pending' | 'failed' | 'partially_paid';
+  /** BOOKING, STREAMING, TIP, … — gates whether it's payable in-app on Android. */
+  paymentType?: string;
 };
 
 function mapPendingPayment(r: Raw): PendingPayment {
@@ -320,6 +322,7 @@ function mapPendingPayment(r: Raw): PendingPayment {
     paidAmount: num(r.paidAmountInUsd) ?? num(r.paidAmount) ?? 0,
     dueDate: str(r.dueDate),
     status,
+    paymentType: str(r.paymentType),
   };
 }
 

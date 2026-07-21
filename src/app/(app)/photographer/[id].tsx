@@ -16,6 +16,7 @@ import {
 } from '@/features/photographers/api';
 import { listPhotographerReviews } from '@/features/reviews/api';
 import { useRole } from '@/features/auth/role';
+import { useModeration } from '@/features/moderation/useModeration';
 import { BookingBottomSheet } from '@/features/booking/BookingBottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -48,6 +49,10 @@ export default function PhotographerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isCoordinator } = useRole();
+  const isBlocked = useModeration((st) => st.blockedIds.has(id));
+  const block = useModeration((st) => st.block);
+  const unblock = useModeration((st) => st.unblock);
+  const loadModeration = useModeration((st) => st.load);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
 
@@ -67,6 +72,11 @@ export default function PhotographerProfileScreen() {
   const [rebookLocation, setRebookLocation] = useState('');
   const [rebookNotes, setRebookNotes] = useState('');
   const [rebookSubmitting, setRebookSubmitting] = useState(false);
+
+  // Hydrate the block list so the menu shows Block vs Unblock correctly.
+  useEffect(() => {
+    loadModeration();
+  }, [loadModeration]);
 
   // Hydrate bookmark state on mount. Best-effort: a failure here just
   // leaves the button in the not-bookmarked default; we don't tank the
@@ -154,17 +164,38 @@ export default function PhotographerProfileScreen() {
     }
   };
 
-  // Long-press → action menu
-  const onLongPressHeader = () => {
+  const onBlock = () => {
     Alert.alert(
-      'Photographer actions',
-      undefined,
+      `Block ${data?.name ?? 'this photographer'}?`,
+      "They won't be able to message you, and you won't see their content.",
       [
-        { text: 'Rebook', onPress: () => setRebookOpen(true) },
-        { text: 'Report', style: 'destructive', onPress: () => setReportOpen(true) },
         { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await block(id);
+            } catch (e) {
+              Alert.alert('Could not block', isApiError(e) ? e.message : 'Please try again.');
+            }
+          },
+        },
       ],
     );
+  };
+
+  // Long-press → action menu. Report AND block, matching every other
+  // user-profile surface (Play requires both for user-to-user content).
+  const onLongPressHeader = () => {
+    Alert.alert('Photographer actions', undefined, [
+      { text: 'Rebook', onPress: () => setRebookOpen(true) },
+      { text: 'Report', style: 'destructive', onPress: () => setReportOpen(true) },
+      isBlocked
+        ? { text: 'Unblock', onPress: () => void unblock(id) }
+        : { text: 'Block', style: 'destructive' as const, onPress: onBlock },
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
   };
   const insets = useSafeAreaInsets();
   
