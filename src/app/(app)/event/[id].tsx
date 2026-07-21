@@ -93,7 +93,9 @@ export default function EventDetailScreen() {
       );
       return;
     }
-    if (!ev?.photographerName) {
+    // Private events are self-streamed and have no photographer, so only public
+    // events need one before publishing.
+    if (!isPrivate && !ev?.photographerName) {
       Alert.alert(
         'Assign a photographer first',
         'Events are published once a photographer is attached, so guests know who is covering it.',
@@ -429,7 +431,12 @@ export default function EventDetailScreen() {
   const isAccepted = booking === 'ACCEPTED' || (!booking && isPhotog);
   const isEventDone = s === 'COMPLETED' || s === 'CANCELLED' || s === 'AWAITING_REVIEW';
   const isStreamLive = streamStatus === 'live' || streamStatus === 'connected';
+  // Private events are self-streamed by the owner; public events are streamed
+  // by the photographer. So the owner's "Go Live" only exists on private events.
+  const isPrivate = (ev?.eventVisibility ?? '').toUpperCase() === 'PRIVATE';
   const canGoLive = isAccepted && !isEventDone && streamStatus !== 'ended' && !isStreamLive;
+  const ownerCanGoLive =
+    isPrivate && !isEventDone && streamStatus !== 'ended' && !isStreamLive;
   const canMarkComplete = isAccepted && !isEventDone;
   const canCreateAlbum = s === 'COMPLETED' || booking === 'ACCEPTED';
 
@@ -589,7 +596,7 @@ export default function EventDetailScreen() {
               <PrimaryBtn icon="create-outline" label="Edit" variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
               <PrimaryBtn icon="earth-outline" label="Geo pricing" variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
               <PrimaryBtn icon="share-social-outline" label="Share" variant="outline" onPress={onShare} />
-              {s !== 'COMPLETED' && s !== 'CANCELLED' && s !== 'AWAITING_REVIEW' && streamStatus !== 'ended' && !isStreamLive ? (
+              {ownerCanGoLive ? (
                 <PrimaryBtn icon="radio" label="Go Live" variant="accent" onPress={openStreamControl} />
               ) : null}
               {s === 'PAUSED' ? (
