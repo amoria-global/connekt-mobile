@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { canPayDeclarationHere } from '@/features/payments/policy';
 import { type PendingPayment } from '@/features/analytics/api';
 import { isApiError } from '@/store/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,7 +42,7 @@ export function PayNowSheet({
   const [busy, setBusy] = useState(false);
 
   const onContinue = async () => {
-    if (!payment || busy) return;
+    if (!payment || busy || !canPayDeclarationHere(payment.paymentType)) return;
     setBusy(true);
     try {
       const url = await mintHandoffUrl('BOOKING_DECLARATION', { declarationId: payment.id });
@@ -96,15 +97,23 @@ export function PayNowSheet({
               </Text>
             </View>
 
-            <Button
-              title="Complete payment on connekyt.com"
-              onPress={onContinue}
-              loading={busy}
-              disabled={busy}
-            />
-            <Text style={styles.note}>
-              Payments are processed on the connekyt.com secure checkout.
-            </Text>
+            {canPayDeclarationHere(payment.paymentType) ? (
+              <>
+                <Button
+                  title="Complete payment on connekyt.com"
+                  onPress={onContinue}
+                  loading={busy}
+                  disabled={busy}
+                />
+                <Text style={styles.note}>
+                  Payments are processed on the connekyt.com secure checkout.
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.note}>
+                This charge isn&apos;t settled from here.
+              </Text>
+            )}
           </ScrollView>
         </View>
       </View>

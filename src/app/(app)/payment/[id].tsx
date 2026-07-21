@@ -8,6 +8,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { useRole } from '@/features/auth/role';
 import { getPayment } from '@/features/payments/api';
 import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { canPayDeclarationHere } from '@/features/payments/policy';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -21,9 +22,13 @@ export default function PaymentDetailScreen() {
   );
   const [opening, setOpening] = useState(false);
 
-  // Unsettled declarations can be completed on the connekyt.com checkout —
-  // the app never collects payment details itself.
-  const payable = /pending|partial/i.test(data?.status ?? '');
+  // Unsettled declarations can be completed on the connekyt.com checkout — the
+  // app never collects payment details itself. But a DIGITAL declaration (a
+  // stream ticket, tip, archive/photo purchase) must not be payable here on
+  // Android: that would be an in-app digital purchase completed off Play
+  // billing. Only real-world obligations (a booking) stay payable on Android.
+  const payable =
+    /pending|partial/i.test(data?.status ?? '') && canPayDeclarationHere(data?.paymentType);
 
   const onCompleteOnWeb = async () => {
     if (!id || opening) return;

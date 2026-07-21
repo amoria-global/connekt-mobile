@@ -34,3 +34,31 @@
 import { Platform } from 'react-native';
 
 export const digitalPurchasesEnabled = Platform.OS !== 'android';
+
+/**
+ * Payment-declaration types that pay for DIGITAL goods (stream access, tips,
+ * gifts, archive/photo/album/photobook purchases). Only BOOKING (a real-world
+ * photography service) is exempt. The generic "pay a pending declaration"
+ * screens list every type, so they must not offer to complete a digital one on
+ * Android — that would route an in-app digital purchase through the web
+ * checkout, sidestepping Play billing. Mirrors the server-side guard in
+ * PaymentHandoffController.
+ */
+const DIGITAL_DECLARATION_TYPES = new Set([
+  'STREAMING',
+  'TIP',
+  'GIFT',
+  'ARCHIVE',
+  'ALBUM_SALE',
+  'FACE_RECOGNITION',
+  'PHOTOBOOK_EXTRAS',
+]);
+
+export function isDigitalDeclaration(paymentType?: string | null): boolean {
+  return !!paymentType && DIGITAL_DECLARATION_TYPES.has(paymentType.toUpperCase());
+}
+
+/** Whether this declaration may be paid from the generic pending-payment UI. */
+export function canPayDeclarationHere(paymentType?: string | null): boolean {
+  return !isDigitalDeclaration(paymentType) || digitalPurchasesEnabled;
+}
