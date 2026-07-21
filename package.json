@@ -1,7 +1,7 @@
 {
   "name": "connekt-mobile",
   "main": "expo-router/entry",
-  "version": "2.1.4",
+  "version": "2.1.6",
   "dependencies": {
     "@expo-google-fonts/pragati-narrow": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",

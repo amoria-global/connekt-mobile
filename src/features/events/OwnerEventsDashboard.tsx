@@ -37,9 +37,8 @@ import { useAsync } from '@/hooks/useAsync';
 import { colors, fonts, radii, spacing } from '@/theme';
 import { listCoordinatorEvents, listEvents } from './api';
 import type { EventItem } from './types';
+import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
-const COVER_FALLBACK =
-  'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=70';
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 
 type Filter = 'all' | 'upcoming' | 'published' | 'past';
@@ -263,7 +262,7 @@ function OwnerEventCard({
   const pill = heroStatus(event);
   return (
     <Pressable style={styles.card} onPress={onOpen} android_ripple={{ color: 'rgba(255,255,255,0.06)' }}>
-      <Image source={{ uri: event.coverImage || COVER_FALLBACK }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
+      <Image source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
       <LinearGradient
         colors={['rgba(4,10,26,0.55)', 'rgba(4,10,26,0.12)', 'rgba(4,10,26,0.9)']}
         locations={[0, 0.4, 1]}

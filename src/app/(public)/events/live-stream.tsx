@@ -106,10 +106,9 @@ import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
 
 const REACTION_EMOJIS = ['🔥', '❤️', '👏', '😍', '🎉', '😮'];
-const COVER_FALLBACK =
-  'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80';
 
 // ─── Welcome splash ────────────────────────────────────────────────────────
 // Web parity: showWelcomeSplash auto-dismisses after 2.6s once the stream
@@ -1170,7 +1169,7 @@ export default function PublicLiveStreamScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   const eventTitle = event.data?.title ?? 'Live stream';
-  const eventThumb = event.data?.eventPhoto || COVER_FALLBACK;
+  const eventThumbSource = event.data?.eventPhoto ? { uri: event.data.eventPhoto } : EVENT_COVER_PLACEHOLDER;
   // The host is the event's ORGANIZER / creator (the person putting on the
   // event) — not the photographer shooting it.
   const hostName =
@@ -1191,7 +1190,7 @@ export default function PublicLiveStreamScreen() {
               // tap-to-return placeholder here so we never run two HLS
               // sessions at once.
               <Pressable style={styles.fsReturn} onPress={() => setChatFullscreen(false)}>
-                <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+                <Image source={eventThumbSource} style={StyleSheet.absoluteFillObject} contentFit="cover" />
                 <View style={styles.placeholderScrim} />
                 <Ionicons name="scan-outline" size={30} color="rgba(255,255,255,0.9)" />
                 <Text style={styles.placeholderText}>Playing in full screen — tap to return</Text>
@@ -1210,7 +1209,7 @@ export default function PublicLiveStreamScreen() {
             )
           ) : (
             <>
-              <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+              <Image source={eventThumbSource} style={StyleSheet.absoluteFillObject} contentFit="cover" />
               <View style={styles.placeholderScrim} />
               <View style={styles.placeholderContent}>
                 {/*
@@ -1436,7 +1435,7 @@ export default function PublicLiveStreamScreen() {
             />
           ) : (
             <>
-              <Image source={{ uri: eventThumb }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+              <Image source={eventThumbSource} style={StyleSheet.absoluteFillObject} contentFit="cover" />
               <View style={styles.placeholderScrim} />
             </>
           )}

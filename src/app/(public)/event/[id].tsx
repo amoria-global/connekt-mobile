@@ -66,6 +66,7 @@ import { isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
+import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -90,8 +91,6 @@ function eventStartMs(date?: string, time?: string): number | null {
 
 
 
-const COVER_FALLBACK =
-  'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 const SAVED_KEY = 'connekyt:savedEvents';
@@ -522,7 +521,7 @@ export default function PublicEventDetailScreen() {
         {/* ── Hero: cover + glass buttons ─────────────────────────── */}
         <View style={styles.heroWrap}>
           <Image
-            source={{ uri: data.eventPhoto || COVER_FALLBACK }}
+            source={data.eventPhoto ? { uri: data.eventPhoto } : EVENT_COVER_PLACEHOLDER}
             style={styles.cover}
             contentFit="cover"
             transition={250}

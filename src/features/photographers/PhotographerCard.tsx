@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
 import type { Photographer } from './api';
+import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 
 export function PhotographerCard({ photographer }: { photographer: Photographer }) {
   const initials = (photographer.name?.[0] ?? '?').toUpperCase();
@@ -9,9 +10,9 @@ export function PhotographerCard({ photographer }: { photographer: Photographer 
   const reviewsCount = photographer.reviewCount ?? 0;
   
   // Use a fallback cover image if none is provided
-  const coverSource = photographer.coverImage 
-    ? { uri: photographer.coverImage } 
-    : { uri: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1000&auto=format&fit=crop' };
+  const coverSource = photographer.coverImage
+    ? { uri: photographer.coverImage }
+    : PHOTOGRAPHER_COVER_PLACEHOLDER;
 
   return (
     <View style={styles.card}>

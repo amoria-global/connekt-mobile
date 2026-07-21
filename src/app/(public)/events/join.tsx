@@ -44,9 +44,8 @@ import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
-const COVER_FALLBACK =
-  'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&q=80';
 
 type SavedGroupCode = {
   code: string;
@@ -206,7 +205,7 @@ export default function JoinPackageScreen() {
         {/* Event preview card */}
         <View style={styles.previewCard}>
           <Image
-            source={{ uri: data.eventPhoto || COVER_FALLBACK }}
+            source={data.eventPhoto ? { uri: data.eventPhoto } : EVENT_COVER_PLACEHOLDER}
             style={styles.previewCover}
             contentFit="cover"
           />

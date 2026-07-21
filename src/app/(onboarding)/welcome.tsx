@@ -47,7 +47,9 @@ const SLIDES: Slide[] = [
   },
   {
     key: 'live',
-    photo: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1000&q=80',
+    // Bundled asset — no external hotlink (an Unsplash URL here left the intro
+    // dependent on a third-party host and blank offline).
+    subject: require('../../../assets/images/photographer2.png'),
     gradient: ['#5B1A8A', '#062B63'],
     title: 'Go live,\ntogether',
     body: 'Stream your events live so guests anywhere can join the celebration with reactions, wishes, and gifts.',

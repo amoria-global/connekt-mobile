@@ -8,9 +8,8 @@ import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { acceptEventBooking, declineEventBooking } from './api';
 import type { EventItem } from './types';
+import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
-const COVER_FALLBACK =
-  'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&q=70';
 
 /**
  * Event list card. Renders the cover photo above the meta strip so the
@@ -63,7 +62,7 @@ export function EventCard({
   return (
     <View style={styles.card}>
       <Image
-        source={{ uri: event.coverImage || COVER_FALLBACK }}
+        source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER}
         style={styles.cover}
         contentFit="cover"
         transition={200}
