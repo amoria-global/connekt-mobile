@@ -13,6 +13,13 @@ export type CreateEventInput = {
   endTime?: string; // HH:mm (defaults to startTime)
   location?: string;
   price?: number;
+  /**
+   * Live-stream access fee (what viewers pay to watch). Distinct from `price`
+   * (a booking budget): the whole streaming system — paywall, pay flow, and the
+   * "Stream entry" label — keys off streamFee, so a fee sent only as `price`
+   * shows "Free" and never charges anyone.
+   */
+  streamFee?: number;
   currency?: string;
   maxGuests?: number;
   eventVisibility?: string;
