@@ -1,17 +1,44 @@
-import { Input } from './Input';
+import { createElement } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import type { TimeFieldProps } from './TimeField';
 
-/** Web fallback: a typed HH:mm field (the native picker isn't used on web). */
-export function TimeField({ label, value, onChange, error, placeholder = 'HH:mm' }: TimeFieldProps) {
+/**
+ * Web: a real browser time picker (`<input type="time">`), not a typed box.
+ * Its native value format is already HH:mm, so no parsing is needed.
+ */
+export function TimeField({ label, value, onChange, error }: TimeFieldProps) {
   return (
-    <Input
-      label={label}
-      value={value}
-      onChangeText={onChange}
-      placeholder={placeholder}
-      autoCapitalize="none"
-      keyboardType="numbers-and-punctuation"
-      error={error}
-    />
+    <View style={styles.wrap}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {createElement('input', {
+        type: 'time',
+        value: value || '',
+        onChange: (e: { target: { value: string } }) => onChange(e.target.value),
+        style: { ...inputStyle, borderColor: error ? colors.error : colors.border },
+      })}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+    </View>
   );
 }
+
+const inputStyle = {
+  height: 52,
+  width: '100%',
+  boxSizing: 'border-box' as const,
+  borderWidth: 1,
+  borderStyle: 'solid' as const,
+  borderRadius: radii.md,
+  paddingLeft: spacing.lg,
+  paddingRight: spacing.lg,
+  backgroundColor: colors.surface,
+  color: colors.text,
+  fontSize: fontSize.md,
+  outline: 'none',
+};
+
+const styles = StyleSheet.create({
+  wrap: { gap: spacing.xs },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
+  error: { fontSize: fontSize.xs, color: colors.error },
+});

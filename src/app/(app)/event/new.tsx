@@ -238,6 +238,13 @@ export default function NewEventScreen() {
     }
 
     const priceNum = values.price ? Number(values.price.replace(/[^\d]/g, '')) : 0;
+    // A private event is self-streamed and paid — it must charge at least the
+    // minimum. Public events may be free, but a non-zero fee still can't be
+    // below the minimum.
+    if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
+      setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} RWF.`);
+      return;
+    }
     if (priceNum > 0 && priceNum < MIN_RWF) {
       setServerError(`Live stream access fee must be at least ${MIN_RWF} RWF.`);
       return;
@@ -446,6 +453,41 @@ export default function NewEventScreen() {
               </View>
             </View>
 
+            {/* Visibility drives the whole model, so it's always visible. */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Who covers this event?</Text>
+              <Segmented
+                value={visibility}
+                onChange={(v) => setVisibility(v)}
+                options={[
+                  { label: 'A photographer', value: 'PUBLIC' },
+                  { label: 'I stream it myself', value: 'PRIVATE' },
+                ]}
+              />
+              <Text style={styles.visibilityHint}>
+                {visibility === 'PRIVATE'
+                  ? 'You go live yourself — no photographer, no booking. Viewers pay to watch, so it needs a fee of at least 100 RWF.'
+                  : 'A photographer covers your event and streams it. Published events appear on connekyt.com.'}
+              </Text>
+            </View>
+
+            {visibility === 'PRIVATE' ? (
+              <Controller
+                control={control}
+                name="price"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Live stream fee (RWF)"
+                    placeholder="Minimum 100"
+                    keyboardType="number-pad"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                  />
+                )}
+              />
+            ) : null}
+
             {/* More options */}
             <Pressable style={styles.moreToggle} onPress={() => setShowMore((v) => !v)}>
               <Text style={styles.moreToggleText}>More options (optional)</Text>
@@ -474,26 +516,16 @@ export default function NewEventScreen() {
                   </View>
                 </View>
 
-                {/* Visibility */}
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Visibility</Text>
-                  <Segmented
-                    value={visibility}
-                    onChange={(v) => setVisibility(v)}
-                    options={[
-                      { label: 'Public', value: 'PUBLIC' },
-                      { label: 'Private', value: 'PRIVATE' },
-                    ]}
-                  />
-                </View>
-
-                {/* Price + max guests */}
+                {/* Price + max guests. The private stream fee is entered above,
+                    so this fee field is only for public events. */}
                 <View style={styles.row}>
-                  <View style={styles.rowItem}>
-                    <Controller control={control} name="price" render={({ field: { onChange, onBlur, value } }) => (
-                      <Input label="Live stream fee (RWF)" placeholder="0" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
-                    )} />
-                  </View>
+                  {visibility === 'PUBLIC' ? (
+                    <View style={styles.rowItem}>
+                      <Controller control={control} name="price" render={({ field: { onChange, onBlur, value } }) => (
+                        <Input label="Live stream fee (RWF)" placeholder="0" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
+                      )} />
+                    </View>
+                  ) : null}
                   <View style={styles.rowItem}>
                     <Controller control={control} name="maxGuests" render={({ field: { onChange, onBlur, value } }) => (
                       <Input label="Max guests" placeholder="0" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
@@ -529,8 +561,9 @@ export default function NewEventScreen() {
                   <Input label="Organizer" placeholder="Organizer name" value={value} onChangeText={onChange} onBlur={onBlur} />
                 )} />
 
-                {/* Assign photographer (only when not arriving via a booking link) */}
-                {!isBooking ? (
+                {/* Assign photographer — public events only; a private event is
+                    self-streamed and never takes a photographer. */}
+                {!isBooking && visibility === 'PUBLIC' ? (
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Photographer (optional)</Text>
                     {selPhotog ? (
@@ -690,6 +723,7 @@ const styles = StyleSheet.create({
 
   fieldGroup: { gap: spacing.xs },
   fieldLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
+  visibilityHint: { fontSize: fontSize.xs, color: colors.textMuted, lineHeight: 18, marginTop: 2 },
   hint: { fontSize: fontSize.xs, color: colors.textMuted },
   errText: { fontSize: fontSize.xs, color: colors.error },
   alignStart: { alignSelf: 'flex-start' },
