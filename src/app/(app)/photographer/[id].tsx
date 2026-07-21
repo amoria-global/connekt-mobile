@@ -23,73 +23,9 @@ import { isApiError } from '@/store/auth';
 import { Stars } from '@/components/ui/Stars';
 import { useAsync } from '@/hooks/useAsync';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 
 let hasAutoShownWizard = false;
-
-function CalendarPreview() {
-  const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-  // June 2026 starts on Monday. 30 days.
-  const days = Array.from({ length: 30 }, (_, i) => i + 1);
-  const offset = 1; 
-  
-  return (
-    <View style={styles.calendarContainer}>
-      <View style={styles.calendarHeaderCenter}>
-        <View style={styles.calendarArrowBtn}>
-          <Feather name="chevron-left" size={16} color={colors.primary} />
-        </View>
-        <Text style={styles.monthTextCenter}>June 2026</Text>
-        <View style={styles.calendarArrowBtn}>
-          <Feather name="chevron-right" size={16} color={colors.primary} />
-        </View>
-      </View>
-
-      <View style={styles.calendarGrid}>
-        {daysOfWeek.map((d, i) => (
-          <View key={`dow-${i}`} style={styles.calendarCell}>
-            <Text style={styles.dayOfWeek}>{d}</Text>
-          </View>
-        ))}
-        {Array.from({ length: offset }).map((_, i) => (
-          <View key={`empty-${i}`} style={styles.calendarCell} />
-        ))}
-        {days.map(d => {
-          // Mock past/unavailable days vs available days
-          const isPast = d < 13;
-          const isToday = d === 13; // Highlight today's date instead of making it selectable
-          return (
-            <View 
-              key={d} 
-              style={styles.calendarCell}
-            >
-              <View style={[
-                styles.daySquare, 
-                isPast ? styles.daySquarePast : styles.daySquareAvailable,
-                isToday && styles.daySquareSelected
-              ]}>
-                <Text style={[
-                  styles.dayText, 
-                  isPast ? styles.dayTextPast : styles.dayTextAvailable
-                ]}>{d}</Text>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.legendRow}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-          <Text style={styles.legendText}>Available</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-          <Text style={styles.legendText}>Booked</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
 
 function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyphMap; onPress?: () => void; style?: any }) {
   return (
@@ -279,9 +215,9 @@ export default function PhotographerProfileScreen() {
   }
 
   const initials = (data?.name?.[0] ?? '?').toUpperCase();
-  const coverSource = data?.coverImage 
-    ? { uri: data.coverImage } 
-    : { uri: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1000&auto=format&fit=crop' };
+  const coverSource = data?.coverImage
+    ? { uri: data.coverImage }
+    : PHOTOGRAPHER_COVER_PLACEHOLDER;
 
   return (
     <View style={styles.container}>
@@ -401,10 +337,22 @@ export default function PhotographerProfileScreen() {
                   </View>
                 </View>
 
-                {/* Availability Preview */}
+                {/* Availability — confirmed against the real calendar at booking
+                    time (the backend rejects a taken date), so we don't show a
+                    fabricated month here. */}
                 <View style={styles.card}>
                   <Text style={styles.cardHeaderEyebrow}>AVAILABILITY</Text>
-                  <CalendarPreview />
+                  <Text style={styles.availabilityBody}>
+                    Pick your event date in the booking form — we check this photographer is
+                    free for that day before you pay anything.
+                  </Text>
+                  <Pressable
+                    style={styles.availabilityBtn}
+                    onPress={() => bottomSheetRef.current?.expand()}
+                  >
+                    <Feather name="calendar" size={16} color={colors.primary} />
+                    <Text style={styles.availabilityBtnText}>Check a date &amp; book</Text>
+                  </Pressable>
                 </View>
               </>
             )}
@@ -812,6 +760,24 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: spacing.md,
   },
+  availabilityBody: {
+    fontSize: fontSize.sm,
+    color: colors.textSoft,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  availabilityBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  availabilityBtnText: { color: colors.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.sm },
   bookButton: {
     backgroundColor: '#083A85',
     flexDirection: 'row',

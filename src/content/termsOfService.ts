@@ -9,7 +9,9 @@ export const TERMS_SECTIONS: LegalSection[] = [
     {
       id: 'terms-of-use',
       title: 'Terms and Conditions',
-      content: `These Terms and Conditions represent the legally binding agreement governing your access to and use of the Amoria Connekyt platform, including our website, mobile applications, event management tools, and streaming services.
+      content: `Last Updated: 01 February 2026
+
+These Terms and Conditions represent the legally binding agreement governing your access to and use of the Amoria Connekyt platform, including our website, mobile applications, event management tools, and streaming services.
 
 By creating an account, providing or booking creative services, or interacting with any feature of Amoria Connekyt, you agree to these Terms in full.
 
@@ -210,7 +212,7 @@ Cookie retention periods vary by type. Essential cookies typically expire when y
       content: `This Client Payment Agreement outlines the terms governing financial transactions when you book creative services through Amoria Connekyt.
 
 1. Payment Authorization
-By booking a service, you authorize Amoria Connekyt to charge the agreed amount using your selected payment method. You confirm that you are the authorized user of the payment method and that all payment information provided is accurate and complete.
+By booking a service, you authorize the charge for the agreed amount to be processed through our payment partner, XentriPay. Payments are completed on our website (connekyt.com) via XentriPay's secure checkout; the Amoria Connekyt app itself does not collect or store your payment details. You confirm that you are the authorized user of the payment method and that all payment information you provide to our payment partner is accurate and complete.
 
 2. Hold & Release System
 Upon booking confirmation, your payment is held securely by Amoria Connekyt. Funds are released to the creator only after:
@@ -221,7 +223,7 @@ Upon booking confirmation, your payment is held securely by Amoria Connekyt. Fun
 This system protects you from paying for services not delivered and gives you recourse if services don't meet agreed specifications.
 
 3. Accepted Payment Methods
-We accept various payment methods including mobile money (MTN, Airtel), bank transfers, credit/debit cards (Visa, Mastercard), and other payment methods available through our payment partners.
+Payments are completed on our website (connekyt.com) through our secure payment partner, XentriPay, not within the app. XentriPay supports various payment methods including mobile money (MTN, Airtel), bank transfers, credit/debit cards (Visa, Mastercard), and other methods it makes available. The app itself does not collect your card or mobile-money details.
 
 4. Taxes and Additional Charges
 Prices displayed on the platform may or may not include applicable taxes depending on your jurisdiction. You are responsible for any taxes applicable to your purchase. Additional charges such as international transaction fees, currency conversion fees, or bank charges are your responsibility.
@@ -330,7 +332,13 @@ We actively moderate content on our platform to prevent illegal content, harmful
 We may update our platform, features, and policies from time to time. Material changes to these Terms will be communicated through email notifications, platform announcements, and updated effective dates on policy documents. Continued use after updates constitutes acceptance of revised terms.
 
 5. Regulatory Compliance
-Amoria Connekyt complies with applicable laws and regulations in all jurisdictions where we operate, including Rwanda's Data Protection and Privacy Law No. 058/2021, GDPR for EU users, consumer protection laws, employment and labor regulations, and tax and financial reporting requirements.`
+Amoria Connekyt complies with applicable laws and regulations in all jurisdictions where we operate, including Rwanda's Data Protection and Privacy Law No. 058/2021, GDPR for EU users, consumer protection laws, employment and labor regulations, and tax and financial reporting requirements.
+
+6. User Live Streaming and Broadcasts
+Amoria Connekyt lets users broadcast their own live video, including self-streamed private events. If you broadcast a live stream, you are solely responsible for your broadcast content and must comply with our community standards and applicable law. You may not stream illegal, harmful, infringing, or otherwise prohibited content. Amoria Connekyt is not liable for user-generated live streams, and we may pause, terminate, or remove any stream that violates these Terms or our community guidelines, and may suspend accounts of repeat or serious violators.
+
+7. Reporting and Blocking
+Amoria Connekyt provides in-app tools that let users report content and other users, and block or hide other users. We review reported content and take appropriate action, which may include removing content, issuing warnings, suspending accounts, or permanent bans depending on the severity of the violation.`
     },
     {
       id: 'legal-terms',

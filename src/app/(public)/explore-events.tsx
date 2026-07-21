@@ -65,9 +65,8 @@ import {
 import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
-const COVER_FALLBACK =
-  'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&q=70';
 
 const PAGE_SIZE = 12;
 const SAVED_KEY = 'connekyt:savedEvents';
@@ -322,7 +321,7 @@ export default function ExploreEventsScreen() {
                 <View style={styles.storyRing}>
                   <View style={styles.storyAvatar}>
                     <Image
-                      source={{ uri: e.eventPhoto || COVER_FALLBACK }}
+                      source={e.eventPhoto ? { uri: e.eventPhoto } : EVENT_COVER_PLACEHOLDER}
                       style={styles.storyImg}
                       contentFit="cover"
                     />
@@ -565,7 +564,7 @@ function PosterCard({
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
       <View style={styles.cardMedia}>
         <Image
-          source={{ uri: event.eventPhoto || COVER_FALLBACK }}
+          source={event.eventPhoto ? { uri: event.eventPhoto } : EVENT_COVER_PLACEHOLDER}
           style={styles.cardArt}
           contentFit="cover"
           transition={250}
