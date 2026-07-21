@@ -268,6 +268,9 @@ export default function NewEventScreen() {
       location: location || undefined,
       organizer: values.organizer?.trim() || undefined,
       price: amount ?? (priceNum || undefined),
+      // The "Live stream fee" field IS the stream fee (viewer paywall). Booking
+      // events (amount param) carry no stream fee of their own.
+      streamFee: priceNum || undefined,
       currency: params.currency,
       maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
       eventVisibility: visibility,

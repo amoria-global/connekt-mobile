@@ -51,6 +51,10 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
     eventTags: input.tags && input.tags.length ? input.tags.join(',') : input.category,
     price: input.price ?? 0,
     priceCurrency: input.currency || 'RWF',
+    // The live-stream fee drives the viewer paywall and the "Stream entry"
+    // label; send it as streamFee, not just price. Currency defaults to RWF
+    // server-side when none is given.
+    streamFee: input.streamFee ?? 0,
     maxGuests: input.maxGuests ?? 0,
     notes: '',
   };
