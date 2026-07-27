@@ -34,6 +34,14 @@ export default function TvDevicesScreen() {
       <ScreenHeader title="Manage TVs" subtitle="TVs connected to your Connekyt account" />
       <View style={styles.action}>
         <Button title="Connect a new TV" onPress={() => router.push('/connect-to-tv' as Href)} />
+        <Pressable style={styles.payOnTv} onPress={() => router.push('/pay-on-tv' as Href)}>
+          <Ionicons name="card-outline" size={20} color={colors.primary} />
+          <View style={styles.payOnTvText}>
+            <Text style={styles.payOnTvTitle}>Pay for a stream on a TV</Text>
+            <Text style={styles.payOnTvSub}>Scan the payment QR your TV shows and pay from here.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
       </View>
       <DataList
         data={data}
@@ -63,7 +71,20 @@ export default function TvDevicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  action: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  action: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, gap: spacing.md },
+  payOnTv: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    padding: spacing.lg,
+  },
+  payOnTvText: { flex: 1 },
+  payOnTvTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
+  payOnTvSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
