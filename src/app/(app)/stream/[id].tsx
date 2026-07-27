@@ -9,6 +9,7 @@ import { useRole } from '@/features/auth/role';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { liveGiftUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import { getStream, joinStream, listStreamChats, sendInAppStreamChat, type StreamChat } from '@/features/streams/api';
+import { formatGiftUsd, parseGiftMeta } from '@/features/streams/gifting/GiftOverlay';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
@@ -214,12 +215,29 @@ export default function StreamDetailScreen() {
           <View style={styles.chatSection}>
             <Text style={styles.tipTitle}>Live chat</Text>
             {chats.length ? (
-              chats.map((c) => (
-                <View key={c.id} style={styles.chatRow}>
-                  {c.sender ? <Text style={styles.chatSender}>{c.sender}</Text> : null}
-                  <Text style={styles.chatMsg}>{c.message}</Text>
-                </View>
-              ))
+              chats.map((c) => {
+                // GIFT rows render as pink-tinted gift lines: emoji +
+                // "sent a {name} · $X". giftMeta is parsed defensively;
+                // fall back to the row's human text when it's unusable.
+                const isGift = (c.chatType ?? '').toUpperCase() === 'GIFT';
+                const gift = isGift ? parseGiftMeta(c.giftMeta) : null;
+                return (
+                  <View key={c.id} style={[styles.chatRow, isGift && styles.chatRowGift]}>
+                    {c.sender ? (
+                      <Text style={[styles.chatSender, isGift && styles.chatSenderGift]}>{c.sender}</Text>
+                    ) : null}
+                    {isGift ? (
+                      <Text style={styles.chatMsgGift}>
+                        {gift
+                          ? `${gift.emoji} sent a ${gift.name} · ${formatGiftUsd(gift.amountUsd)}`
+                          : `🎁 ${c.message}`}
+                      </Text>
+                    ) : (
+                      <Text style={styles.chatMsg}>{c.message}</Text>
+                    )}
+                  </View>
+                );
+              })
             ) : (
               <Text style={styles.chatEmpty}>No messages yet.</Text>
             )}
@@ -316,6 +334,14 @@ const styles = StyleSheet.create({
   chatSender: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
   chatMsg: { fontSize: fontSize.sm, color: colors.text },
   chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted },
+  // GIFT rows: pink-tinted card + accent copy, mirroring the live screens'
+  // gift language (emoji + "sent a {name} · $X").
+  chatRowGift: {
+    backgroundColor: 'rgba(242,12,143,0.06)',
+    borderColor: 'rgba(242,12,143,0.35)',
+  },
+  chatSenderGift: { color: colors.accent },
+  chatMsgGift: { fontSize: fontSize.sm, color: colors.accent, fontWeight: fontWeight.bold },
   waitingCard: {
     padding: spacing.lg,
     backgroundColor: colors.surface,

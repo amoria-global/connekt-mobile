@@ -19,7 +19,16 @@ export type StreamDetail = Stream & {
   eventId?: string;
 };
 
-export type StreamChat = { id: string; sender?: string; message: string; createdAt?: string };
+export type StreamChat = {
+  id: string;
+  sender?: string;
+  message: string;
+  createdAt?: string;
+  /** Backend row type (TEXT | GIFT | …) — GIFT rows carry `giftMeta`. */
+  chatType?: string;
+  /** JSON string with gift details when chatType === 'GIFT'. Parse defensively. */
+  giftMeta?: string;
+};
 
 type Raw = Record<string, unknown>;
 
@@ -31,6 +40,22 @@ function num(v: unknown): number | undefined {
 }
 function bool(v: unknown): boolean {
   return v === true || v === 'true' || v === 'LIVE' || v === 'live';
+}
+/**
+ * `giftMeta` is documented as a JSON STRING on GIFT chat rows — but if a
+ * backend path ever inlines the object instead, re-stringify it so callers
+ * keep a single parse path (see parseGiftMeta in features/streams/gifting).
+ */
+function giftMetaStr(v: unknown): string | undefined {
+  if (typeof v === 'string' && v.length > 0) return v;
+  if (v && typeof v === 'object') {
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 function mapStream(r: Raw): Stream {
@@ -108,15 +133,20 @@ export async function listStreamChats(eventId: string): Promise<StreamChat[]> {
       const sender =
         str(m.senderName) ??
         str(m.userName) ??
+        str(m.viewerUsername) ??
         ([str(m.firstName), str(m.lastName)].filter(Boolean).join(' ') || str(m.name));
       return {
         id: String(m.id ?? ''),
         sender: sender || undefined,
         message: str(m.message) ?? str(m.content) ?? str(m.text) ?? '',
         createdAt: str(m.createdAt) ?? str(m.timestamp),
+        chatType: str(m.chatType) ?? str(m.type),
+        giftMeta: giftMetaStr(m.giftMeta),
       };
     })
-    .filter((c) => c.id && c.message);
+    // GIFT rows must reach callers even if the human text is missing —
+    // the styled gift line can be rebuilt from giftMeta alone.
+    .filter((c) => c.id && (c.message || ((c.chatType || '').toUpperCase() === 'GIFT' && c.giftMeta)));
 }
 
 /**
@@ -344,7 +374,15 @@ export type PublicStreamChat = {
   senderId?: string;
   avatar?: string;
   message: string;
-  type?: string; // TEXT | REACTION | WISH | VIDEO
+  type?: string; // TEXT | REACTION | WISH | VIDEO | GIFT
+  /** Raw backend chatType passthrough (same value that feeds `type`). */
+  chatType?: string;
+  /**
+   * GIFT rows only: JSON string
+   * {"code","name","emoji","amountUsd","bigAnimation","senderName","declarationId","message"?}.
+   * Parse defensively — see parseGiftMeta in features/streams/gifting.
+   */
+  giftMeta?: string;
   videoUrl?: string;
   /** Backend pre-formatted "h:mm a" clock string. */
   time?: string;
@@ -375,6 +413,8 @@ function mapPublicChat(m: Raw): PublicStreamChat {
     avatar: str(m.viewerAvatar) ?? str(m.avatar),
     message: str(m.message) ?? str(m.content) ?? str(m.text) ?? '',
     type: str(m.chatType) ?? str(m.type),
+    chatType: str(m.chatType) ?? str(m.type),
+    giftMeta: giftMetaStr(m.giftMeta),
     videoUrl: str(m.videoUrl) ?? str(m.fileUrl),
     time: str(m.time),
     timestamp: str(m.timestamp) ?? str(m.createdAt),
@@ -399,12 +439,17 @@ export async function getPublicStreamChats(
   return {
     // Defense in depth: the backend already splits reactions out and
     // strips WISH rows, but filter by type here too so a REACTION/WISH
-    // can never render as a text bubble in the chat list.
+    // can never render as a text bubble in the chat list. GIFT rows DO
+    // belong in the list (styled gift lines + overlay animations) and
+    // must survive even if the human text is empty — the line can be
+    // rebuilt from giftMeta alone.
     messages: messages
       .map(mapPublicChat)
       .filter((m) => {
         const t = (m.type || '').toUpperCase();
-        return m.id && (m.message || m.videoUrl) && t !== 'REACTION' && t !== 'WISH';
+        if (!m.id || t === 'REACTION' || t === 'WISH') return false;
+        if (t === 'GIFT') return !!(m.message || m.giftMeta);
+        return !!(m.message || m.videoUrl);
       }),
     reactions: reactions.map(mapPublicChat).filter((m) => m.id),
   };
@@ -490,13 +535,76 @@ export async function sendPublicVideoChat(
   return res?.data ? mapPublicChat(res.data) : null;
 }
 
+// ────── Gift catalog (TikTok-style live gifting) ─────────────────────────
+//
+// GET /public/gift-catalog (no auth) → envelope
+//   { action:1, data:{ baseCurrency:'USD',
+//       gifts:[{code,name,emoji,amountUsd,tier,bigAnimation,sortOrder}],
+//       exchangeRates:{ ABBR:{symbol,rateToUsd} } } }
+// Every gift carries an exact USD amount; the tray shows prices as "$X"
+// and the server derives the charged amount from `code` at initiation.
+
+export type GiftCatalogItem = {
+  code: string;
+  name: string;
+  emoji: string;
+  amountUsd: number;
+  tier: 'POPULAR' | 'PREMIUM';
+  /** Big gifts trigger the full-stage takeover animation. */
+  bigAnimation: boolean;
+  sortOrder: number;
+};
+
+export type GiftExchangeRate = { symbol?: string; rateToUsd?: number };
+
+export type GiftCatalog = {
+  baseCurrency: string;
+  gifts: GiftCatalogItem[];
+  exchangeRates: Record<string, GiftExchangeRate>;
+};
+
+export async function getGiftCatalog(): Promise<GiftCatalog> {
+  const res = await api.get<ApiEnvelope<Raw>>('/public/gift-catalog', { skipAuth: true });
+  const d = (res?.data ?? {}) as Raw;
+  const rawGifts: Raw[] = Array.isArray(d.gifts) ? (d.gifts as Raw[]) : [];
+  const gifts = rawGifts
+    .map((g): GiftCatalogItem => ({
+      code: str(g.code) ?? '',
+      name: str(g.name) ?? str(g.code) ?? 'Gift',
+      emoji: str(g.emoji) ?? '🎁',
+      amountUsd: num(g.amountUsd) ?? 0,
+      tier: str(g.tier)?.toUpperCase() === 'PREMIUM' ? 'PREMIUM' : 'POPULAR',
+      bigAnimation: g.bigAnimation === true,
+      sortOrder: num(g.sortOrder) ?? 0,
+    }))
+    .filter((g) => g.code && g.amountUsd > 0)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const ratesRaw = (d.exchangeRates ?? {}) as Raw;
+  const exchangeRates: Record<string, GiftExchangeRate> = {};
+  for (const [abbr, v] of Object.entries(ratesRaw)) {
+    const r = (v ?? {}) as Raw;
+    exchangeRates[abbr] = { symbol: str(r.symbol), rateToUsd: num(r.rateToUsd) };
+  }
+
+  return { baseCurrency: str(d.baseCurrency) ?? 'USD', gifts, exchangeRates };
+}
+
 // ────── Public gift / sponsor flow ───────────────────────────────────────
 //
 // Web parity: AnonymousViewerController.@PostMapping("/{id}/gift") —
 // the same endpoint the web uses for anonymous viewers. Triggers
 // XentriPay (MoMo or Card) and returns a paymentUrl. Backend body:
 //   { viewerId, deviceFingerprint, amount, currencyId, paymentMethod,
-//     phone?, telecomProvider?, donationAmount?, redirectUrl?, message? }
+//     phone?, telecomProvider?, donationAmount?, redirectUrl?, message?,
+//     giftCode? }
+//
+// `giftCode` (optional) names a catalog gift — when present the SERVER
+// derives the exact amount from the catalog and the client `amount` is
+// ignored, so a tampered client can't underpay for a Lion. Mobile does
+// NOT collect payment in-app though: the live screens hand off to the
+// web page (liveGiftUrl in features/payments/webCheckout), so this
+// function currently has no callers — it's kept in web-contract parity.
 
 export type GiftInitiation = {
   refid?: string;
@@ -516,6 +624,8 @@ export async function initiatePublicGift(
     telecomProvider?: 'MTN' | 'AIRTEL';
     redirectUrl?: string;
     giftMessage?: string;
+    /** Catalog gift code — server derives the exact amount; `amount` is ignored when present. */
+    giftCode?: string;
   },
 ): Promise<GiftInitiation> {
   const body: Record<string, unknown> = {
@@ -525,6 +635,7 @@ export async function initiatePublicGift(
     currencyId: payload.currencyId,
     paymentMethod: payload.paymentMethod,
   };
+  if (payload.giftCode) body.giftCode = payload.giftCode;
   if (payload.paymentMethod === 'MOMO') {
     body.phone = payload.phone ?? '';
     body.telecomProvider = payload.telecomProvider ?? 'MTN';

@@ -38,10 +38,15 @@
  *      via sendPublicStreamReaction (rate-limited 30/min) and bursts
  *      floating emoji on screen. Other viewers' reactions also burst.
  *
- *   4. GIFT MODAL (sponsor)
- *      The app no longer collects gift payments. The modal is a handoff:
- *      a single (policy-gated) button that opens the web live page where
- *      the gift/tip UI lives (see @/features/payments/webCheckout).
+ *   4. GIFTING (TikTok-style)
+ *      The GiftTray bottom sheet (features/streams/gifting) lists the
+ *      backend gift catalog with exact prices; picking a gift hands off
+ *      to the web live page with that gift preselected
+ *      (liveGiftUrl(id, viewerId, code)) — the app never collects the
+ *      payment. The tray button is policy-gated (digitalPurchasesEnabled:
+ *      absent on Android), but INCOMING gift animations (GiftOverlay
+ *      banners / floaters / big-gift takeover, fed by GIFT chat rows)
+ *      render on every platform — displaying a gift is not a purchase.
  *
  *   5. DEVICE-CONFLICT MODAL
  *      Surfaced when access-status returns DEVICE_MISMATCH. Forced
@@ -93,8 +98,16 @@ import {
   sendPublicStreamReaction,
   sendPublicVideoChat,
   validateStreamToken,
+  type GiftCatalogItem,
   type PublicStreamChat,
 } from '@/features/streams/api';
+import {
+  GiftOverlay,
+  formatGiftUsd,
+  parseGiftMeta,
+  type GiftEvent,
+} from '@/features/streams/gifting/GiftOverlay';
+import { GiftTray } from '@/features/streams/gifting/GiftTray';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { liveGiftUrl, openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import { useAsync } from '@/hooks/useAsync';
@@ -218,6 +231,11 @@ function OverlayChatRow({
   const name = isOwn ? 'You' : chat.viewerName || 'Guest';
   const initial = (chat.viewerName || 'G').trim().charAt(0).toUpperCase();
   const hasVideo = !!chat.videoUrl;
+  // GIFT rows render as a pink-tinted gift line: emoji + "sent a {name} · $X".
+  // giftMeta is a JSON string parsed defensively — fall back to the row's
+  // human-readable message when it's missing or malformed.
+  const isGift = (chat.chatType ?? chat.type ?? '').toUpperCase() === 'GIFT';
+  const gift = isGift ? parseGiftMeta(chat.giftMeta) : null;
 
   return (
     <Animated.View
@@ -230,7 +248,7 @@ function OverlayChatRow({
       ]}
     >
       <Pressable
-        style={chatFx.pill}
+        style={[chatFx.pill, isGift && chatFx.giftPill]}
         onLongPress={onLongPress ? () => onLongPress(chat) : undefined}
         delayLongPress={300}
         accessibilityRole={onLongPress ? 'button' : undefined}
@@ -252,6 +270,18 @@ function OverlayChatRow({
         </View>
         {hasVideo ? (
           <ChatVideoBubble uri={chat.videoUrl!} />
+        ) : isGift ? (
+          <View style={chatFx.giftLine}>
+            <Text style={chatFx.giftEmoji}>{gift?.emoji ?? '🎁'}</Text>
+            {gift ? (
+              <Text style={chatFx.giftText}>
+                sent a {gift.name}
+                <Text style={chatFx.giftAmount}> · {formatGiftUsd(gift.amountUsd)}</Text>
+              </Text>
+            ) : (
+              <Text style={chatFx.giftText}>{chat.message}</Text>
+            )}
+          </View>
         ) : (
           <Text style={chatFx.pillText}>{chat.message}</Text>
         )}
@@ -572,10 +602,13 @@ export default function PublicLiveStreamScreen() {
   // window before our name is known and survives the poll refresh).
   const sentTextsRef = useRef<Set<string>>(new Set());
 
-  // ── Gift modal (sponsor) ─────────────────────────────────────────────────
-  // No amount/method/phone collection anymore — gifts are sent from the web
-  // page, so the modal only needs an open/closed flag.
+  // ── Gifting ──────────────────────────────────────────────────────────────
+  // The GiftTray never collects payment (open/closed flag only — the send
+  // hands off to the web checkout). Incoming GIFT chat rows feed
+  // `giftEvents`, an append-only, id-deduped list consumed by GiftOverlay
+  // for banners / floaters / big-gift takeovers on EVERY platform.
   const [giftOpen, setGiftOpen] = useState(false);
+  const [giftEvents, setGiftEvents] = useState<GiftEvent[]>([]);
 
   // ── Access detection (web parity: lines 595-755) ─────────────────────────
   //
@@ -804,6 +837,7 @@ export default function PublicLiveStreamScreen() {
     let cancelled = false;
     let isFirst = true;
     const seenReactions = new Set<string>();
+    const seenGifts = new Set<string>();
     const tick = async () => {
       try {
         const page = await getPublicStreamChats(id);
@@ -813,6 +847,24 @@ export default function PublicLiveStreamScreen() {
           if (seenReactions.has(r.id)) continue;
           seenReactions.add(r.id);
           if (!isFirst) burstFloating(r.message);
+        }
+        // GIFT rows → overlay animations. Deduped by row id; the first
+        // batch is history (gifts sent before this viewer arrived) so it
+        // is absorbed without animating. The rows stay in page.messages
+        // too, where the chat list renders them as styled gift lines.
+        for (const m of page.messages) {
+          if ((m.chatType ?? m.type ?? '').toUpperCase() !== 'GIFT') continue;
+          if (seenGifts.has(m.id)) continue;
+          seenGifts.add(m.id);
+          if (isFirst) continue;
+          const meta = parseGiftMeta(m.giftMeta);
+          if (!meta) continue;
+          const ev: GiftEvent = {
+            ...meta,
+            id: m.id,
+            senderName: meta.senderName ?? m.viewerName ?? 'Someone',
+          };
+          setGiftEvents((prev) => [...prev.slice(-49), ev]);
         }
         isFirst = false;
       } catch {
@@ -1157,13 +1209,15 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
-  // Gifts are sent from the web page — the app never collects the payment.
-  // Only reachable through the gift button, which is itself gated on
-  // digitalPurchasesEnabled (showGift), but keep the guard here too.
-  const onSendGiftOnWeb = async () => {
+  // Gifts are PAID on the web — picking a tile in the GiftTray hands off to
+  // the web live page with that gift preselected (&gift={CODE}); the app
+  // never collects the payment. Only reachable through the gift button,
+  // which is itself gated on digitalPurchasesEnabled (showGift), but keep
+  // the guard here too.
+  const onSendGift = async (gift: GiftCatalogItem) => {
     if (!digitalPurchasesEnabled) return;
     setGiftOpen(false);
-    await openWebCheckout(liveGiftUrl(id, viewerId));
+    await openWebCheckout(liveGiftUrl(id, viewerId, gift.code));
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -1348,6 +1402,18 @@ export default function PublicLiveStreamScreen() {
             />
           ) : null}
 
+          {/* Incoming gift animations — banners top-left, emoji risers,
+              big-gift takeover. Renders on ALL platforms (Android included):
+              displaying a gift is not a purchase, so it is not policy-gated. */}
+          {status.isLive && !chatFullscreen ? (
+            <GiftOverlay
+              events={giftEvents}
+              bannerTop={insets.top + 108}
+              floaterBottom={130}
+              riseDistance={Math.round(windowHeight * 0.42)}
+            />
+          ) : null}
+
           {/* Sponsor ads — rendered OVER the video at their configured
               placement (bars / rails / corners / L-shape). */}
           <StreamAdOverlay
@@ -1470,6 +1536,16 @@ export default function PublicLiveStreamScreen() {
               insetTop={insets.top}
               insetBottom={insets.bottom}
             />
+            {/* Incoming gift animations in the immersive view too. This
+                fresh GiftOverlay instance absorbs the existing giftEvents
+                history on mount, so entering fullscreen never replays old
+                banners — only gifts arriving from now on animate. */}
+            <GiftOverlay
+              events={giftEvents}
+              bannerTop={insets.top + 64}
+              floaterBottom={150}
+              riseDistance={Math.round(windowHeight * 0.5)}
+            />
             {/* Sponsor ads in the immersive view too. */}
             <StreamAdOverlay
               eventId={id}
@@ -1565,21 +1641,13 @@ export default function PublicLiveStreamScreen() {
         </Pressable>
       </Modal>
 
-      {/* Gift modal (sponsor) — handoff only, no in-app payment collection.
-          The gift button that opens this is gated on digitalPurchasesEnabled
-          (showGift), so this modal never appears on Android. */}
-      <Modal visible={giftOpen} transparent animationType="slide" onRequestClose={() => setGiftOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setGiftOpen(false)}>
-          <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Send a gift</Text>
-            <Text style={styles.modalHint}>
-              Gifts are sent from the web page. You&apos;ll be taken to this event&apos;s
-              live page on connekyt.com to pick an amount and complete the gift.
-            </Text>
-            <Button title="Send a gift on connekyt.com" onPress={() => void onSendGiftOnWeb()} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* Gift tray — catalog-driven picker; picking a gift hands off to the
+          web checkout with that gift preselected. No in-app payment
+          collection. The gift button that opens this is gated on
+          digitalPurchasesEnabled (showGift), so the tray never appears on
+          Android — incoming gift ANIMATIONS still render there via
+          GiftOverlay (display is not a purchase). */}
+      <GiftTray visible={giftOpen} onClose={() => setGiftOpen(false)} onSendGift={onSendGift} />
 
       {/* Report a live-chat message (long-press a message to open). */}
       <ReportSheet
@@ -2022,6 +2090,26 @@ const chatFx = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 2,
   },
+
+  // GIFT rows: pink-tinted pill + gold amount, matching the GiftOverlay
+  // banner language so gifts read as one system across chat and overlay.
+  giftPill: {
+    backgroundColor: 'rgba(242,12,143,0.30)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,12,143,0.55)',
+  },
+  giftLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  giftEmoji: { fontSize: 16, lineHeight: 18 },
+  giftText: {
+    color: '#fff',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+    flexShrink: 1,
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowRadius: 2,
+  },
+  giftAmount: { color: '#ffd166', fontWeight: '800' },
 
   reactions: { flexDirection: 'row', gap: 6, alignSelf: 'flex-start' },
   reactionBtn: {
