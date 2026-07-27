@@ -37,6 +37,12 @@ import { CameraPublisher, type PublishStatus } from '@/features/streams/CameraPu
 import { HlsPlayer } from '@/features/streams/HlsPlayer';
 import { getPublicStreamChats, type PublicStreamChat } from '@/features/streams/api';
 import {
+  GiftOverlay,
+  formatGiftUsd,
+  parseGiftMeta,
+  type GiftEvent,
+} from '@/features/streams/gifting/GiftOverlay';
+import {
   getPhotographerStreamConfig,
   pausePhotographerStream,
   resetPhotographerStream,
@@ -116,6 +122,11 @@ export default function StreamControlScreen() {
   const [floating, setFloating] = useState<
     { id: string; emoji: string; anim: Animated.Value; offset: number }[]
   >([]);
+  // Incoming gifts this session: GiftOverlay banners over the preview +
+  // a running "🎁 $sum · count" chip. The first poll batch is history
+  // from before this screen opened, so it's absorbed silently.
+  const [giftEvents, setGiftEvents] = useState<GiftEvent[]>([]);
+  const [giftStats, setGiftStats] = useState({ count: 0, usd: 0 });
   const chatScrollRef = useRef<ScrollView>(null);
 
   const burst = useCallback((emoji: string) => {
@@ -133,6 +144,7 @@ export default function StreamControlScreen() {
     let cancelled = false;
     let first = true;
     const seen = new Set<string>();
+    const seenGifts = new Set<string>();
     const tick = async () => {
       try {
         const page = await getPublicStreamChats(id);
@@ -142,6 +154,24 @@ export default function StreamControlScreen() {
           if (seen.has(r.id)) continue;
           seen.add(r.id);
           if (!first) burst(r.message);
+        }
+        // GIFT rows → banner animations over the preview + session stats.
+        // Deduped by row id; the first batch (pre-existing history) is
+        // absorbed without animating or counting.
+        for (const m of page.messages) {
+          if ((m.chatType ?? m.type ?? '').toUpperCase() !== 'GIFT') continue;
+          if (seenGifts.has(m.id)) continue;
+          seenGifts.add(m.id);
+          if (first) continue;
+          const meta = parseGiftMeta(m.giftMeta);
+          if (!meta) continue;
+          const ev: GiftEvent = {
+            ...meta,
+            id: m.id,
+            senderName: meta.senderName ?? m.viewerName ?? 'Someone',
+          };
+          setGiftEvents((prev) => [...prev.slice(-49), ev]);
+          setGiftStats((s) => ({ count: s.count + 1, usd: s.usd + ev.amountUsd }));
         }
         first = false;
       } catch {
@@ -378,6 +408,17 @@ export default function StreamControlScreen() {
                 ))}
               </View>
             ) : null}
+
+            {/* Incoming gift banners / risers / takeovers, over the preview —
+                the broadcaster sees gifts land in real time. Clipped to the
+                preview's rounded corners. Sized down for the 16:9 card. */}
+            <GiftOverlay
+              events={giftEvents}
+              bannerTop={spacing.sm}
+              floaterBottom={8}
+              riseDistance={140}
+              style={styles.giftOverlayClip}
+            />
           </View>
         )}
 
@@ -398,17 +439,42 @@ export default function StreamControlScreen() {
               <Ionicons name="chatbubbles-outline" size={16} color={colors.primary} />
               <Text style={styles.cardTitle}>Live chat</Text>
               <Text style={styles.chatCount}>{chats.length}</Text>
+              {/* Gifts received THIS session (first poll batch excluded). */}
+              {giftStats.count > 0 ? (
+                <View
+                  style={styles.giftChip}
+                  accessibilityLabel={`${giftStats.count} gifts received this session, ${formatGiftUsd(giftStats.usd)} total`}
+                >
+                  <Text style={styles.giftChipText}>
+                    🎁 {formatGiftUsd(giftStats.usd)} · {giftStats.count}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <ScrollView ref={chatScrollRef} style={styles.chatList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
               {chats.length === 0 ? (
                 <Text style={styles.chatEmpty}>No messages yet — viewer comments appear here live.</Text>
               ) : (
-                chats.map((c) => (
-                  <View key={c.id} style={styles.chatRow}>
-                    <Text style={styles.chatName}>{c.viewerName || 'Guest'}</Text>
-                    <Text style={styles.chatMsg}>{c.videoUrl ? '🎬 Video message' : c.message}</Text>
-                  </View>
-                ))
+                chats.map((c) => {
+                  const isGift = (c.chatType ?? c.type ?? '').toUpperCase() === 'GIFT';
+                  const gift = isGift ? parseGiftMeta(c.giftMeta) : null;
+                  return (
+                    <View key={c.id} style={styles.chatRow}>
+                      <Text style={[styles.chatName, isGift && styles.chatNameGift]}>
+                        {c.viewerName || 'Guest'}
+                      </Text>
+                      {isGift ? (
+                        <Text style={styles.chatGift}>
+                          {gift
+                            ? `${gift.emoji} sent a ${gift.name} · ${formatGiftUsd(gift.amountUsd)}`
+                            : `🎁 ${c.message}`}
+                        </Text>
+                      ) : (
+                        <Text style={styles.chatMsg}>{c.videoUrl ? '🎬 Video message' : c.message}</Text>
+                      )}
+                    </View>
+                  );
+                })
               )}
             </ScrollView>
           </View>
@@ -693,6 +759,8 @@ const styles = StyleSheet.create({
   previewPlaceholderText: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.sm, textAlign: 'center' },
   floatLayer: { position: 'absolute', left: 0, bottom: 8, top: 0, width: 90 },
   floatEmoji: { position: 'absolute', bottom: 0, fontSize: 26 },
+  // Clip gift banners/takeovers to the preview's rounded 16:9 card.
+  giftOverlayClip: { borderRadius: radii.lg, overflow: 'hidden' },
 
   chatHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   chatCount: {
@@ -710,7 +778,19 @@ const styles = StyleSheet.create({
   chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
   chatRow: { flexDirection: 'row', gap: 6, paddingVertical: 3, flexWrap: 'wrap' },
   chatName: { fontSize: fontSize.sm, fontWeight: '800', color: colors.primary },
+  chatNameGift: { color: colors.accent },
   chatMsg: { fontSize: fontSize.sm, color: colors.text, flexShrink: 1 },
+  chatGift: { fontSize: fontSize.sm, color: colors.accent, fontWeight: '800', flexShrink: 1 },
+  giftChip: {
+    marginLeft: 6,
+    backgroundColor: 'rgba(242,12,143,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,12,143,0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  giftChipText: { fontSize: 12, fontWeight: '800', color: colors.accent },
 
   statsRow: { flexDirection: 'row', gap: 6 },
   stat: {

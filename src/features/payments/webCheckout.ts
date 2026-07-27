@@ -47,10 +47,15 @@ export function payToWatchUrl(eventId: string, device: string): string {
   return `/pay-to-watch?eventId=${encodeURIComponent(eventId)}&device=${encodeURIComponent(device)}`;
 }
 
-/** Live page with the gift/tip UI (needs the viewer's existing access). */
-export function liveGiftUrl(eventId: string, viewerId?: string): string {
+/**
+ * Live page with the gift/tip UI (needs the viewer's existing access).
+ * `giftCode` (optional) preselects a catalog gift on the web page
+ * (`&gift={CODE}`) so the mobile GiftTray choice carries across the handoff.
+ */
+export function liveGiftUrl(eventId: string, viewerId?: string, giftCode?: string): string {
   const viewer = viewerId ? `&viewerId=${encodeURIComponent(viewerId)}` : '';
-  return `/user/events/live-stream?eventId=${encodeURIComponent(eventId)}${viewer}`;
+  const gift = giftCode ? `&gift=${encodeURIComponent(giftCode)}` : '';
+  return `/user/events/live-stream?eventId=${encodeURIComponent(eventId)}${viewer}${gift}`;
 }
 
 /** Album purchase by invite code (Find My Photos). */
