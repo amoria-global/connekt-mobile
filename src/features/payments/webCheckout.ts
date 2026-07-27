@@ -36,6 +36,17 @@ export function streamAccessUrl(eventId: string): string {
   return `/user/events/join-package?id=${encodeURIComponent(eventId)}`;
 }
 
+/**
+ * Pay-to-watch receiver for the Smart-TV flow. The TV shows a QR encoding this
+ * exact page; a phone can instead reach it in-app (see pay-on-tv). `device` is
+ * the TV's persisted anonymous-viewer id — access binds to whichever device
+ * the QR names, so it MUST be the TV's id, never this phone's. The web page
+ * collects identity + runs the payment, then the TV unlocks itself by polling.
+ */
+export function payToWatchUrl(eventId: string, device: string): string {
+  return `/pay-to-watch?eventId=${encodeURIComponent(eventId)}&device=${encodeURIComponent(device)}`;
+}
+
 /** Live page with the gift/tip UI (needs the viewer's existing access). */
 export function liveGiftUrl(eventId: string, viewerId?: string): string {
   const viewer = viewerId ? `&viewerId=${encodeURIComponent(viewerId)}` : '';
