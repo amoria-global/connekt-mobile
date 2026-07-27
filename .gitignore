@@ -51,3 +51,6 @@ example
 # Local build artifacts downloaded from EAS (AAB/APK) — never commit binaries
 build-artifacts/
 .expo-export-check/
+
+# greenfield UI design previews (Phase 1 sandbox — see CLAUDE.md)
+/src/_design-sandbox/
