@@ -113,6 +113,7 @@ export default function AppLayout() {
         <Stack.Screen name="two-factor" options={{ title: 'Two-factor' }} />
         <Stack.Screen name="tv-devices" options={{ title: 'Manage TVs' }} />
         <Stack.Screen name="connect-to-tv" options={{ title: 'Connect to TV', presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="pay-on-tv" options={{ title: 'Pay on TV', presentation: 'fullScreenModal' }} />
         <Stack.Screen name="kyc" options={{ title: 'Verification' }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
         <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
