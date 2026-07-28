@@ -27,7 +27,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getGiftCatalog, type GiftCatalogItem } from '@/features/streams/api';
+import { getGiftCatalog, type GiftCatalogItem, type GiftExchangeRate } from '@/features/streams/api';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 import { formatGiftUsd } from './GiftOverlay';
@@ -52,8 +52,24 @@ export function GiftTray({
   const [sendingCode, setSendingCode] = useState<string | null>(null);
 
   const [gifts, setGifts] = useState<GiftCatalogItem[] | null>(null);
+  const [rates, setRates] = useState<Record<string, GiftExchangeRate>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Display currency switcher — parity with the web gift modal's
+  // PaymentCurrencyPreview pill. Display-only: gifts are always charged
+  // as their exact USD catalog price, the web checkout confirms it.
+  const [viewCode, setViewCode] = useState('USD');
+  const VIEW_CODES = ['USD', 'RWF', 'EUR', 'KES', 'UGX', 'TZS'];
+  const localHint = useCallback(
+    (usd: number): string | null => {
+      if (viewCode === 'USD') return null;
+      const r = rates[viewCode];
+      if (!r?.rateToUsd || r.rateToUsd <= 0) return null;
+      return `≈ ${r.symbol || viewCode} ${Math.round(usd * r.rateToUsd).toLocaleString()}`;
+    },
+    [viewCode, rates],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,6 +77,7 @@ export function GiftTray({
     try {
       const catalog = await getGiftCatalog();
       setGifts(catalog.gifts);
+      setRates(catalog.exchangeRates);
     } catch (e) {
       setError(isApiError(e) ? e.message : 'Could not load gifts. Check your connection.');
     } finally {
@@ -112,6 +129,28 @@ export function GiftTray({
         <View style={s.sheetHead}>
           <Text style={s.sheetTitle}>Send a gift</Text>
           <Text style={s.sheetHint}>Paid securely on connekyt.com</Text>
+        </View>
+
+        {/* "View in" currency pills — display-only conversion, mirrors the
+            web gift modal's currency switcher. Only currencies with a
+            usable rate are offered (USD always). */}
+        <View style={s.viewRow}>
+          <Text style={s.viewLabel}>View in</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.viewPills}>
+            {VIEW_CODES.filter((c) => c === 'USD' || (rates[c]?.rateToUsd ?? 0) > 0).map((c) => (
+              <Pressable
+                key={c}
+                accessibilityRole="button"
+                accessibilityState={{ selected: viewCode === c }}
+                accessibilityLabel={`View prices in ${c}`}
+                onPress={() => setViewCode(c)}
+                style={[s.viewPill, viewCode === c && s.viewPillOn]}
+                hitSlop={6}
+              >
+                <Text style={[s.viewPillText, viewCode === c && s.viewPillTextOn]}>{c}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
         </View>
 
         <View style={s.tabs}>
@@ -192,7 +231,14 @@ export function GiftTray({
                       )}
                     </View>
                   ) : (
-                    <Text style={s.tilePrice}>{formatGiftUsd(g.amountUsd)}</Text>
+                    <>
+                      <Text style={s.tilePrice}>{formatGiftUsd(g.amountUsd)}</Text>
+                      {localHint(g.amountUsd) && (
+                        <Text style={s.tileLocal} numberOfLines={1}>
+                          {localHint(g.amountUsd)}
+                        </Text>
+                      )}
+                    </>
                   )}
                 </Pressable>
               );
@@ -234,6 +280,36 @@ const s = StyleSheet.create({
   sheetTitle: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.extrabold },
   sheetHint: { color: 'rgba(255,255,255,0.55)', fontSize: fontSize.xs },
 
+  viewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  viewLabel: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  viewPills: { flexDirection: 'row', gap: spacing.xs },
+  viewPill: {
+    paddingVertical: 4,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  viewPillOn: {
+    backgroundColor: 'rgba(242,12,143,0.16)',
+    borderColor: 'rgba(242,12,143,0.55)',
+  },
+  viewPillText: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: fontWeight.bold },
+  viewPillTextOn: { color: colors.textOnPrimary },
+
   tabs: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   tab: { paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.lg, borderRadius: radii.full },
   tabOn: {
@@ -265,6 +341,7 @@ const s = StyleSheet.create({
   tileEmoji: { fontSize: 30, lineHeight: 34 },
   tileName: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: fontWeight.semibold },
   tilePrice: { color: '#ffd166', fontSize: fontSize.xs, fontWeight: fontWeight.extrabold },
+  tileLocal: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: fontWeight.semibold },
   tileSend: {
     backgroundColor: colors.accent,
     borderRadius: radii.full,
