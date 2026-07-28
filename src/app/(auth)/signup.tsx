@@ -4,7 +4,9 @@
  *   • Logo (44×44) + gradient title + "Create your account to get started"
  *   • First + Last name (side by side)
  *   • Email
- *   • Phone with +250 prefix
+ *   • International phone input (emoji flag + dial code, auto country
+ *     detection via @/lib/phoneKit) — submits full international digits
+ *     ("250788123456") so non-Rwandan signups register correctly
  *   • Password with show/hide + 4-segment strength meter + criteria checklist
  *   • Confirm password with live match indicator
  *   • Terms-of-Service / Privacy-Policy disclaimer
@@ -38,6 +40,7 @@ import {
 import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { Screen } from '@/components/ui/Screen';
 import { CUSTOMER_TYPES, signup } from '@/features/auth/api';
 import { GoogleButton } from '@/features/auth/GoogleButton';
@@ -57,7 +60,9 @@ const schema = z
       .email('Enter a valid email')
       .optional()
       .or(z.literal('')),
-    phone: z.string().min(6, 'Enter a valid phone number'),
+    // Phone lives OUTSIDE the schema: PhoneInput manages a PhoneValue in
+    // local state (typed country-aware validation) and its digits are
+    // injected at submit — see onSubmit.
     password: z.string().min(8, 'Use at least 8 characters'),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
   })
@@ -111,6 +116,8 @@ export default function SignupScreen() {
     : 'Client';
   const [role] = useState<CustomerType>(initialRole);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const {
     control,
@@ -123,7 +130,6 @@ export default function SignupScreen() {
       firstName: '',
       lastName: '',
       email: '',
-      phone: '',
       password: '',
       confirmPassword: '',
     },
@@ -137,16 +143,30 @@ export default function SignupScreen() {
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
+    // Phone is validated by the country-aware kit, not the zod schema.
+    if (!phoneValue?.isValid) {
+      setPhoneError('Enter a valid phone number');
+      return;
+    }
     try {
       const { confirmPassword: _cp, ...restValues } = values;
       void _cp;
       const trimmedEmail = values.email?.trim() || undefined;
-      const { customerId } = await signup({ ...restValues, email: trimmedEmail, customerType: role });
+      // Wire format: full international digits, no '+' ("250788123456").
+      // The old form sent bare national digits, which the backend assumed
+      // were Rwandan — this fixes signups from every other country.
+      const phoneDigits = phoneValue.digits;
+      const { customerId } = await signup({
+        ...restValues,
+        phone: phoneDigits,
+        email: trimmedEmail,
+        customerType: role,
+      });
       // Pass whichever channel the OTP was sent to so the verify screen can
       // show "sent to your email" vs "sent to your phone".
       router.push({
         pathname: '/verify-otp',
-        params: { customerId, email: trimmedEmail ?? '', phone: values.phone },
+        params: { customerId, email: trimmedEmail ?? '', phone: phoneDigits },
       });
     } catch (err) {
       setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
@@ -219,19 +239,14 @@ export default function SignupScreen() {
               placeholder="you@example.com"
             />
 
-            <Field
-              control={control}
-              name="phone"
+            <PhoneInput
               label="Phone"
-              error={errors.phone?.message}
-              keyboardType="phone-pad"
-              placeholder="786875878"
-              leftElement={
-                <View style={styles.phonePrefix}>
-                  <Text style={styles.phoneFlag}>🇷🇼</Text>
-                  <Text style={styles.phonePrefixText}>+250</Text>
-                </View>
-              }
+              defaultIso2="RW"
+              onChange={(v) => {
+                setPhoneValue(v);
+                if (v.isValid) setPhoneError(null);
+              }}
+              error={phoneError ?? undefined}
             />
 
             <View>
@@ -284,7 +299,12 @@ export default function SignupScreen() {
 
             <Button
               title="Create account"
-              onPress={handleSubmit(onSubmit)}
+              onPress={() => {
+                // Surface the phone error alongside the schema errors even
+                // when other fields fail RHF validation.
+                setPhoneError(phoneValue?.isValid ? null : 'Enter a valid phone number');
+                void handleSubmit(onSubmit)();
+              }}
               loading={isSubmitting}
               disabled={!checks.strongEnough || !passwordsMatch}
             />
@@ -322,7 +342,6 @@ type FieldProps = {
   keyboardType?: 'email-address' | 'phone-pad';
   secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'sentences';
-  leftElement?: React.ReactNode;
   placeholder?: string;
 };
 
@@ -334,7 +353,6 @@ function Field({
   keyboardType,
   secureTextEntry,
   autoCapitalize,
-  leftElement,
   placeholder,
 }: FieldProps) {
   return (
@@ -351,7 +369,6 @@ function Field({
           keyboardType={keyboardType}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
-          leftElement={leftElement}
           placeholder={placeholder}
         />
       )}
@@ -513,19 +530,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-
-  phonePrefix: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.sm,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-    marginRight: spacing.xs,
-    justifyContent: 'center',
-    height: '100%',
-  },
-  phoneFlag: { fontSize: 16 },
-  phonePrefixText: { fontSize: fontSize.md, color: colors.textSoft, fontWeight: fontWeight.semibold },
 });

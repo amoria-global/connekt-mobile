@@ -85,6 +85,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import {
@@ -556,7 +557,7 @@ export default function PublicLiveStreamScreen() {
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoName, setInfoName] = useState('');
   const [infoEmail, setInfoEmail] = useState('');
-  const [infoPhone, setInfoPhone] = useState('');
+  const [infoPhone, setInfoPhone] = useState<PhoneValue | null>(null);
   const [infoBusy, setInfoBusy] = useState(false);
   const [infoError, setInfoError] = useState<string | null>(null);
 
@@ -1058,7 +1059,7 @@ export default function PublicLiveStreamScreen() {
     }
     // Phone is only required for PAID events (matched to the purchase).
     // Free events just need name + email to register a viewer.
-    if (status.isPaid && (!infoPhone.trim() || infoPhone.replace(/[^0-9]/g, '').length < 9)) {
+    if (status.isPaid && !infoPhone?.isValid) {
       setInfoError('Enter the phone number you used at checkout.');
       return;
     }
@@ -1073,7 +1074,9 @@ export default function PublicLiveStreamScreen() {
         // phone, but until it's redeployed the register endpoint still
         // @NotBlank-rejects it — so send a harmless placeholder (it's only
         // stored; lookup/dedup is by email). Works against both versions.
-        phone: status.isPaid ? infoPhone.trim() : '0000000000',
+        // Paid events submit the wire format: full international digits,
+        // no '+' ("250788123456").
+        phone: status.isPaid ? (infoPhone?.digits ?? '') : '0000000000',
         deviceId: fingerprint,
       });
       // Only PAID events gate on a real purchase. On a free event we
@@ -1613,13 +1616,13 @@ export default function PublicLiveStreamScreen() {
                 keyboardType="email-address"
               />
               {status.isPaid ? (
-                <Input
+                // NOTE: light variant on purpose — this modal renders on the
+                // light bottom sheet (styles.modalSheet uses colors.surface),
+                // so the dark PhoneInput variant would be illegible here.
+                <PhoneInput
                   label="Phone"
-                  value={infoPhone}
-                  onChangeText={(t) => setInfoPhone(t.replace(/[^0-9+]/g, ''))}
-                  placeholder="+2507…"
-                  keyboardType="phone-pad"
-                  autoCapitalize="none"
+                  defaultIso2="RW"
+                  onChange={setInfoPhone}
                 />
               ) : null}
               {infoError ? <Text style={styles.chatErrorText}>{infoError}</Text> : null}

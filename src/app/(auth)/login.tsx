@@ -22,6 +22,7 @@ import { isNeedsVerification, isNeedsTotp, isNeedsPasswordChange } from '@/featu
 import { openWebSignup } from '@/features/auth/webSignup';
 import { GoogleButton } from '@/features/auth/GoogleButton';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
+import { parsePhone } from '@/lib/phoneKit';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
@@ -84,8 +85,18 @@ export default function LoginScreen() {
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
+    // Phone-like identifiers ("0788…", "+254 712…") are normalized to full
+    // international digits ("250788123456") so phone logins match the stored
+    // wire format for every country, not just Rwanda. Emails pass through
+    // untouched.
+    const raw = values.email.trim();
+    let identifier = raw;
+    if (/^[+0-9][0-9\s-]{5,}$/.test(raw)) {
+      const parsed = parsePhone(raw, 'RW');
+      if (parsed.country && parsed.nsn) identifier = `${parsed.country.dial}${parsed.nsn}`;
+    }
     try {
-      await login(values);
+      await login({ email: identifier, password: values.password });
     } catch (err) {
       if (isNeedsPasswordChange(err)) {
         router.push({ pathname: '/change-password', params: { email: err.email } });

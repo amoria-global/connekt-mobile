@@ -14,11 +14,27 @@ import {
 } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { Screen } from '@/components/ui/Screen';
+import { onlyDigits, parsePhone, type ParsedPhone } from '@/lib/phoneKit';
 import { updateCoverPicture, updateProfile, updateProfilePicture } from '@/features/profile/api';
 import { pickFromLibrary } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+
+/**
+ * Seed the phone editor from whatever format the account has stored:
+ * "+250788123456", "0788123456", or the wire format "250788123456"
+ * (full international digits, no '+' — what the app submits now).
+ */
+function seedPhone(raw: string): ParsedPhone {
+  const parsed = parsePhone(raw, 'RW');
+  if (parsed.isValid || !raw.trim() || raw.trim().startsWith('+')) return parsed;
+  // No '+' and not a valid RW national number — it is most likely already
+  // dial-prefixed digits, so retry as international.
+  const intl = parsePhone(`+${onlyDigits(raw)}`, 'RW');
+  return intl.isValid ? intl : parsed;
+}
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -27,7 +43,8 @@ export default function EditProfileScreen() {
 
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
-  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [phoneSeed] = useState(() => seedPhone(user?.phone ?? ''));
+  const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
   const [avatar, setAvatar] = useState(user?.profilePicture);
   const [cover, setCover] = useState(user?.coverPicture);
   const [uploading, setUploading] = useState(false);
@@ -77,10 +94,16 @@ export default function EditProfileScreen() {
       setError('First and last name are required.');
       return;
     }
+    if (phoneValue && phoneValue.nsn && !phoneValue.isValid) {
+      setError('Enter a valid phone number.');
+      return;
+    }
+    // Wire format: full international digits, no '+' ("250788123456").
+    const phoneDigits = phoneValue?.digits ?? '';
     setSaving(true);
     try {
-      await updateProfile({ firstName, lastName, phone });
-      updateUser({ firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim() });
+      await updateProfile({ firstName, lastName, phone: phoneDigits });
+      updateUser({ firstName: firstName.trim(), lastName: lastName.trim(), phone: phoneDigits });
       router.back();
     } catch (err) {
       setError(isApiError(err) ? err.message : 'Could not save your changes.');
@@ -131,7 +154,12 @@ export default function EditProfileScreen() {
           <View style={styles.form}>
             <Input label="First name" value={firstName} onChangeText={setFirstName} />
             <Input label="Last name" value={lastName} onChangeText={setLastName} />
-            <Input label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+            <PhoneInput
+              label="Phone"
+              defaultIso2={phoneSeed.country?.iso2 ?? 'RW'}
+              initialNsn={phoneSeed.nsn}
+              onChange={setPhoneValue}
+            />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
