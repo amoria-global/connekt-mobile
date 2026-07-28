@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { submitContactMessage } from '@/features/support/api';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, radii, spacing } from '@/theme';
@@ -44,7 +45,9 @@ export function ContactForm({
 }: Props) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState<PhoneValue | null>(null);
+  // Remounts PhoneInput after a successful send (it owns its digits state).
+  const [phoneKey, setPhoneKey] = useState(0);
   const [subject, setSubject] = useState(defaultSubject);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -55,15 +58,20 @@ export function ContactForm({
     setError(null);
     if (!fullName.trim()) return setError('Please enter your full name.');
     if (!EMAIL_RE.test(email)) return setError('Please enter a valid email address.');
+    // Phone stays optional — but if digits were typed, they must be valid.
+    if (phone && phone.nsn && !phone.isValid) return setError('Please enter a valid phone number.');
     if (!subject.trim()) return setError('Please give your message a subject.');
     if (!message.trim()) return setError('Please tell us how we can help.');
     setBusy(true);
     try {
-      await submitContactMessage({ fullName, email, phone, subject, message });
+      // Wire format: full international digits ("250788123456"); '-' keeps
+      // the backend's blank-phone convention.
+      await submitContactMessage({ fullName, email, phone: phone?.digits || '-', subject, message });
       setSent(true);
       setFullName('');
       setEmail('');
-      setPhone('');
+      setPhone(null);
+      setPhoneKey((k) => k + 1);
       setSubject(defaultSubject);
       setMessage('');
     } catch (e) {
@@ -126,12 +134,11 @@ export function ContactForm({
               keyboardType="email-address"
               autoCapitalize="none"
             />
-            <Input
+            <PhoneInput
+              key={phoneKey}
               label="Phone (optional)"
-              value={phone}
-              onChangeText={(t) => setPhone(t.replace(/[^0-9+]/g, ''))}
-              placeholder="+2507…"
-              keyboardType="phone-pad"
+              defaultIso2="RW"
+              onChange={setPhone}
             />
             {!lockSubject ? (
               <Input label="Subject" value={subject} onChangeText={setSubject} placeholder="What is this about?" />
