@@ -61,12 +61,15 @@ export function GiftTray({
   // as their exact USD catalog price, the web checkout confirms it.
   const [viewCode, setViewCode] = useState('USD');
   const VIEW_CODES = ['USD', 'RWF', 'EUR', 'KES', 'UGX', 'TZS'];
-  const localHint = useCallback(
+  // Converted amount in the chosen view currency. When active it becomes
+  // the PRIMARY tile price (USD drops to the secondary line) — switching
+  // currency must visibly convert the cards, not just annotate them.
+  const localPrice = useCallback(
     (usd: number): string | null => {
       if (viewCode === 'USD') return null;
       const r = rates[viewCode];
       if (!r?.rateToUsd || r.rateToUsd <= 0) return null;
-      return `≈ ${r.symbol || viewCode} ${Math.round(usd * r.rateToUsd).toLocaleString()}`;
+      return `${r.symbol || viewCode} ${Math.round(usd * r.rateToUsd).toLocaleString()}`;
     },
     [viewCode, rates],
   );
@@ -232,10 +235,12 @@ export function GiftTray({
                     </View>
                   ) : (
                     <>
-                      <Text style={s.tilePrice}>{formatGiftUsd(g.amountUsd)}</Text>
-                      {localHint(g.amountUsd) && (
+                      <Text style={s.tilePrice}>
+                        {localPrice(g.amountUsd) ?? formatGiftUsd(g.amountUsd)}
+                      </Text>
+                      {localPrice(g.amountUsd) && (
                         <Text style={s.tileLocal} numberOfLines={1}>
-                          {localHint(g.amountUsd)}
+                          {formatGiftUsd(g.amountUsd)} USD
                         </Text>
                       )}
                     </>
