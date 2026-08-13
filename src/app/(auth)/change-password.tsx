@@ -10,8 +10,11 @@ import { colors, fontSize, fontWeight, spacing } from '@/theme';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string }>();
+  const params = useLocalSearchParams<{ email?: string; token?: string }>();
+  // Email is display-only. The backend identifies the account from `token`
+  // (minted by the login that demanded this change), never from the body.
   const email = params.email ?? '';
+  const token = params.token ?? '';
   
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -35,15 +38,14 @@ export default function ChangePasswordScreen() {
       return;
     }
 
+    if (!token) {
+      setError('This session has expired. Please sign in again.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await setNewPassword({
-        email: email.trim(),
-        code: '', // Ignored by backend for forced password change
-        password,
-        newPassword: password,
-        confirmPassword,
-      });
+      await setNewPassword({ password, confirmPassword, token });
       setSuccess(true);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');

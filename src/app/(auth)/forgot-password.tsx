@@ -54,12 +54,16 @@ export default function ForgotPasswordScreen() {
             <Ionicons name="mail-outline" size={32} color={colors.primary} />
           </View>
           <Text style={styles.title}>Check your email</Text>
+          {/* Link-only: /auth/forgot-password mails a tokenised reset URL
+              (AuthController — `frontUrl + "/user/auth/resetpswd?token=" + token`).
+              No code is issued anywhere in that flow, so the app must not ask
+              for one — tapping the link opens the reset page directly. */}
           <Text style={styles.subtitle}>
             We sent a password reset link to{'\n'}
-            <Text style={styles.email}>{email.trim()}</Text>. You can click the link in the email, or enter the code here to reset your password.
+            <Text style={styles.email}>{email.trim()}</Text>. Open the email and tap
+            the link to choose a new password.
           </Text>
-          <Button title="Enter reset code" onPress={() => router.push({ pathname: '/reset-password', params: { email: email.trim() } })} style={{ width: '100%' }} />
-          <Button title="Back to sign in" variant="outline" onPress={() => router.replace('/login')} style={{ width: '100%', marginTop: spacing.sm }} />
+          <Button title="Back to sign in" onPress={() => router.replace('/login')} style={{ width: '100%' }} />
           <Pressable onPress={onResend} style={styles.back}>
             <Text style={styles.backText}>
               {resent ? 'Reset link resent ✓' : "Didn't get it? Resend link"}

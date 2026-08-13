@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -19,23 +18,21 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { isNeedsVerification, isNeedsTotp, isNeedsPasswordChange } from '@/features/auth/api';
-import { openWebSignup } from '@/features/auth/webSignup';
 import { GoogleButton } from '@/features/auth/GoogleButton';
+import { RoleSelectSheet, type SignupRole } from '@/features/auth/components/RoleSelectSheet';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
-import { parsePhone } from '@/lib/phoneKit';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
 
 const schema = z.object({
-  // Accept an email OR a phone number — phone-only accounts (registered on
-  // mobile/TV) sign in with their number here. The backend resolves either.
+  // Email only. The backend still has a phone fallback for accounts registered
+  // without an email (AuthController.login), but sign-in is deliberately
+  // presented as email-only here.
   email: z
     .string()
-    .min(1, 'Enter your email or phone')
-    .refine(
-      (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim()) || /^[+\d][\d\s-]{5,}$/.test(v.trim()),
-      'Enter a valid email or phone number',
-    ),
+    .trim()
+    .min(1, 'Enter your email')
+    .email('Enter a valid email'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -43,35 +40,56 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginScreen() {
   const login = useAuth((s) => s.login);
-  const applySession = useAuth((s) => s.applySession);
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
+  const [roleSheetVisible, setRoleSheetVisible] = useState(false);
 
-  // Registration happens entirely in the browser. Tapping Register hands off to
-  // the web sign-up, where the account-type picker lives (single source of truth
-  // — no duplicate role modal in the app). On success we come back already
-  // authenticated.
+  // The sheet is shared by two entry points (Register, and Continue with
+  // Google), so it hands its answer back as a promise instead of hard-wiring
+  // one follow-up action. Resolves with `null` when dismissed.
+  const roleResolverRef = useRef<((role: SignupRole | null) => void) | null>(null);
+
+  const askForRole = () =>
+    new Promise<SignupRole | null>((resolve) => {
+      // A second open while one is pending would strand the first caller.
+      roleResolverRef.current?.(null);
+      roleResolverRef.current = resolve;
+      setRoleSheetVisible(true);
+    });
+
+  const settleRole = (role: SignupRole | null) => {
+    setRoleSheetVisible(false);
+    const resolve = roleResolverRef.current;
+    roleResolverRef.current = null;
+    resolve?.(role);
+  };
+
+  // Registration always starts by asking WHICH account type. We used to skip
+  // this and let the web sign-up ask, but that picker was unreliable inside the
+  // in-app browser and the web falls back to a default role when nothing is
+  // chosen — so people were registered as the wrong type.
+  //
+  // Every role now goes straight to the app's own sign-up form with the chosen
+  // role attached — no browser hand-off for registration at all.
   const onRegister = async () => {
     setServerError(null);
-    try {
-      const result = await openWebSignup();
-      if (result.status === 'success') {
-        // Session persisted; flipping auth state routes into the app.
-        applySession(result.session);
-      } else if (result.status === 'registered') {
-        Alert.alert(
-          'Account created',
-          'Your account is ready. Please sign in to continue.',
-        );
-      }
-      // 'cancelled' → user backed out; stay on the login screen silently.
-    } catch (err) {
-      setServerError(
-        isApiError(err) ? err.message : 'We could not open registration. Please try again.',
-      );
-    }
+    const role = await askForRole();
+    if (!role) return; // dismissed
+    router.push({ pathname: '/signup', params: { role } });
   };
+
+  // `?pickRole=1` — the sign-up form's "Registering as …" chip sends people
+  // back here to change their account type, so restart the flow on arrival and
+  // clear the flag so a later remount doesn't pop the sheet again.
+  const { pickRole } = useLocalSearchParams<{ pickRole?: string }>();
+  useEffect(() => {
+    if (pickRole !== '1') return;
+    router.setParams({ pickRole: undefined });
+    void onRegister();
+    // onRegister is stable in behaviour; re-running on identity would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickRole]);
 
   const {
     control,
@@ -85,21 +103,16 @@ export default function LoginScreen() {
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
-    // Phone-like identifiers ("0788…", "+254 712…") are normalized to full
-    // international digits ("250788123456") so phone logins match the stored
-    // wire format for every country, not just Rwanda. Emails pass through
-    // untouched.
-    const raw = values.email.trim();
-    let identifier = raw;
-    if (/^[+0-9][0-9\s-]{5,}$/.test(raw)) {
-      const parsed = parsePhone(raw, 'RW');
-      if (parsed.country && parsed.nsn) identifier = `${parsed.country.dial}${parsed.nsn}`;
-    }
     try {
-      await login({ email: identifier, password: values.password });
+      await login({ email: values.email.trim(), password: values.password });
     } catch (err) {
       if (isNeedsPasswordChange(err)) {
-        router.push({ pathname: '/change-password', params: { email: err.email } });
+        // The token authorizes the /auth/set-new-password call — without it the
+        // backend has no way to tell which account is being changed.
+        router.push({
+          pathname: '/change-password',
+          params: { email: err.email, token: err.token ?? '' },
+        });
         return;
       }
       if (isNeedsTotp(err)) {
@@ -147,10 +160,11 @@ export default function LoginScreen() {
                 name="email"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
-                    label="Email or phone"
-                    placeholder="you@example.com or 0788…"
+                    label="Email"
+                    placeholder="you@example.com"
+                    keyboardType="email-address"
                     autoCapitalize="none"
-                    autoComplete="username"
+                    autoComplete="email"
                     value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}
@@ -191,7 +205,7 @@ export default function LoginScreen() {
 
               <Pressable
                 style={styles.registerLine}
-                onPress={onRegister}
+                onPress={() => void onRegister()}
                 hitSlop={8}
               >
                 <Text style={styles.registerText}>
@@ -205,7 +219,12 @@ export default function LoginScreen() {
                 <View style={styles.line} />
               </View>
 
-              <GoogleButton label="Continue with Google" />
+              {/* Sign-in first: an existing account goes straight in with its
+                  own role and never sees the sheet. Google is login-OR-register
+                  on the backend though, so if the email is new the button asks
+                  for a role before creating anything — rather than silently
+                  making them a Client. */}
+              <GoogleButton label="Continue with Google" askRoleForNewAccount={askForRole} />
             </View>
 
             <View style={styles.guestRow}>
@@ -227,6 +246,12 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <RoleSelectSheet
+        visible={roleSheetVisible}
+        onClose={() => settleRole(null)}
+        onSelect={settleRole}
+      />
 
       <FindPhotosBottomSheet
         visible={findPhotosModalVisible}

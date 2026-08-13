@@ -73,6 +73,14 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
+/** Display names for the roles the sign-up sheet can send here. */
+const ROLE_LABELS: Partial<Record<CustomerType, string>> = {
+  User: 'User',
+  Client: 'Client',
+  Coordinator: 'Event Coordinator',
+  Photographer: 'Photographer',
+};
+
 // ────── Password strength rules (web parity: login.tsx:1156-1175) ──────
 
 type Checks = {
@@ -115,6 +123,9 @@ export default function SignupScreen() {
     ? (params.role as CustomerType)
     : 'Client';
   const [role] = useState<CustomerType>(initialRole);
+  // The role sheet on the login screen is the only way in, so the pill just
+  // reports what was chosen and offers a way back to change it.
+  const roleLabel = ROLE_LABELS[role] ?? role;
   const [serverError, setServerError] = useState<string | null>(null);
   const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -173,11 +184,6 @@ export default function SignupScreen() {
     }
   };
 
-  // Web parity: Google sign-up is hidden for Photographer accounts because
-  // photographers complete a 6-step onboarding wizard that the OAuth shortcut
-  // skips (login.tsx:1230 — `signupUserType !== 'Photographer'`).
-  const showGoogle = role !== 'Photographer';
-
   return (
     <Screen padded={false}>
       <KeyboardAvoidingView
@@ -202,8 +208,41 @@ export default function SignupScreen() {
             />
             <Text style={styles.title}>Create your account</Text>
             <Text style={styles.subtitle}>Create your account to get started</Text>
-            <View style={styles.rolePill}>
-              <Text style={styles.rolePillText}>{role}</Text>
+            <Pressable
+              style={({ pressed }) => [styles.rolePill, pressed && styles.rolePillPressed]}
+              // Back to login with the sheet re-armed, so "change" actually
+              // reopens the picker instead of dumping them on the form.
+              onPress={() => router.replace({ pathname: '/login', params: { pickRole: '1' } })}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Registering as ${roleLabel}. Tap to change your account type.`}
+            >
+              <Text style={styles.rolePillLabel}>Registering as</Text>
+              <Text style={styles.rolePillText}>{roleLabel}</Text>
+              <Ionicons name="swap-horizontal" size={12} color={colors.primary} />
+            </Pressable>
+          </View>
+
+          {/* Google shortcut.
+              It sits ABOVE the form because it REPLACES filling it in — one
+              tap registers the account outright, so burying it under the
+              password meter and terms made the shortcut useless.
+
+              Shown for every role, including Photographer. The web hides it
+              for photographers because OAuth skips their 6-step onboarding
+              wizard, but that wizard lives in knockout and the app no longer
+              hands off to it — so the gate cost photographers a shortcut and
+              bought nothing.
+
+              `customerType={role}` carries the role chosen in the sheet, so a
+              Google sign-up creates the same account type the manual form
+              would (backend AuthController.googleAuth honours it on create). */}
+          <View style={styles.shortcut}>
+            <GoogleButton label="Continue with Google" customerType={role} />
+            <View style={styles.divider}>
+              <View style={styles.line} />
+              <Text style={styles.dividerText}>or sign up with email</Text>
+              <View style={styles.line} />
             </View>
           </View>
 
@@ -315,16 +354,6 @@ export default function SignupScreen() {
               </Text>
             </Pressable>
 
-            {showGoogle ? (
-              <>
-                <View style={styles.divider}>
-                  <View style={styles.line} />
-                  <Text style={styles.dividerText}>or sign up with</Text>
-                  <View style={styles.line} />
-                </View>
-                <GoogleButton label="Continue with Google" customerType={role} />
-              </>
-            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -474,17 +503,27 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center' },
   rolePill: {
     marginTop: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: radii.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary,
     backgroundColor: colors.infoBg,
   },
+  rolePillPressed: { backgroundColor: colors.surfaceMuted },
+  rolePillLabel: { color: colors.textMuted, fontSize: 11 },
   rolePillText: {
     color: colors.primary,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
   },
+
+  // Google shortcut block above the form.
+  shortcut: { gap: spacing.xs, marginTop: spacing.xs },
 
   form: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },

@@ -53,7 +53,16 @@ export function isNeedsTotp(err: unknown): err is NeedsTotpError {
   );
 }
 
-export type NeedsPasswordChangeError = ApiError & { needsPasswordChange: true; email: string };
+/**
+ * `token` is the session minted by the very login that demanded the change.
+ * /auth/set-new-password now resolves the account from that token instead of
+ * a body field, so the change-password screen has to carry it through.
+ */
+export type NeedsPasswordChangeError = ApiError & {
+  needsPasswordChange: true;
+  email: string;
+  token?: string;
+};
 
 export function isNeedsPasswordChange(err: unknown): err is NeedsPasswordChangeError {
   return (
@@ -112,6 +121,9 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
       message: 'You must change your password to continue.',
       needsPasswordChange: true,
       email: credentials.email,
+      // Carried, not persisted: the account isn't usable until the password is
+      // changed, so this token exists only to authorize that one call.
+      token: res.token,
     } as NeedsPasswordChangeError;
   }
 
@@ -201,15 +213,28 @@ export async function forgotPassword(email: string): Promise<void> {
   }
 }
 
+/**
+ * Change the password of an already-identified caller (the forced-change flow
+ * after a `mustChangePassword` login).
+ *
+ * The body is exactly the backend's `SetNewPasswordDto`: `password` and
+ * `confirmPassword`. The ACCOUNT comes from the bearer token — the endpoint
+ * used to trust an `email` field in the body, which let anyone change anyone's
+ * password. There is also no `code` anywhere: forgotten passwords are reset
+ * through the emailed single-use link, not in the app.
+ *
+ * `token` is passed explicitly because this runs before a session is persisted
+ * — the user isn't logged in yet, so the client has nothing to attach.
+ */
 export async function setNewPassword(data: {
-  email: string;
-  code: string;
   password: string;
-  newPassword: string;
   confirmPassword: string;
+  token?: string;
 }): Promise<void> {
-  const res = await api.post<{ action: number; message?: string }>('/auth/set-new-password', data, {
+  const { token, ...body } = data;
+  const res = await api.post<{ action: number; message?: string }>('/auth/set-new-password', body, {
     skipAuth: true,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (res.action !== 1) {
     throw {
@@ -217,6 +242,26 @@ export async function setNewPassword(data: {
       message: res.message || 'Password reset failed. Please try again.',
     } satisfies ApiError;
   }
+}
+
+/**
+ * Whether a VERIFIED account already owns this email.
+ *
+ * Used to tell "sign in" from "register" on the Google button: `/auth/google`
+ * is login-or-register, and it only applies `customerType` when creating. So an
+ * existing user must never be asked for a role, and a new one always must be.
+ *
+ * Backend convention (AuthController.checkEmail): action 0 = taken,
+ * 1 = available. Unverified signups count as available — they're abandoned
+ * registrations the signup flow is allowed to resume.
+ */
+export async function emailTaken(email: string): Promise<boolean> {
+  const res = await api.post<{ action: number; message?: string }>(
+    '/auth/check-email',
+    { email },
+    { skipAuth: true },
+  );
+  return res.action === 0;
 }
 
 /** Google profile fetched from an OAuth access token. */
@@ -284,7 +329,19 @@ export async function googleLogin(
   return session;
 }
 
-export const CUSTOMER_TYPES: CustomerType[] = ['Client', 'Photographer', 'Coordinator'];
+/**
+ * Account types offered at sign-up, in the order the role sheet presents
+ * them. `User` is the mobile/TV consumer role — it is only reachable from
+ * the app (the web sign-up offers it too, but the app is where it matters),
+ * so it must be in this allowlist or a `?role=User` deep link silently
+ * degrades to the default.
+ */
+export const CUSTOMER_TYPES: CustomerType[] = [
+  'User',
+  'Photographer',
+  'Client',
+  'Coordinator',
+];
 
 /**
  * Establish + persist a session from tokens handed back by the web signup
