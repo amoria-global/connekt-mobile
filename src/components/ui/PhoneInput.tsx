@@ -33,7 +33,6 @@ import {
   FALLBACK_NSN_MAX,
   PHONE_COUNTRIES,
   type PhoneCountry,
-  formatInternational,
   formatNsn,
   matchDialCode,
   nsnMaxLen,
@@ -186,32 +185,88 @@ export function PhoneInput({
   const maxLen = nsnMaxLen(country);
   const complete = nsn.length >= maxLen;
 
-  const display = country
-    ? `+${country.dial}${nsn ? ' ' + formatNsn(country, nsn) : ' '}`
-    : nsn
-      ? `+${nsn}`
-      : '+';
+  /**
+   * Masked example ("XXX XXX XXX") for the placeholder and empty-state hint,
+   * grouped exactly the way this country formats a real number. A mask reads
+   * as "this many digits go here"; sample digits like "788 888 888" look like
+   * a value that's already been entered.
+   */
+  const exampleMask = useMemo(() => {
+    if (!country) return '';
+    const len = country.nsnLengths[0] ?? 8;
+    const groups = country.groups?.length ? country.groups : null;
+    if (!groups) return 'X'.repeat(len);
+    const out: string[] = [];
+    let i = 0;
+    for (const g of groups) {
+      if (i >= len) break;
+      out.push('X'.repeat(Math.min(g, len - i)));
+      i += g;
+    }
+    if (i < len) out.push('X'.repeat(len - i));
+    return out.join(' ');
+  }, [country]);
+
+  // The dial code is NOT part of the editable value — it already sits on the
+  // country button to the left. Keeping it here too showed "+250" twice and
+  // forced people to type around (or delete) it before entering their number.
+  // The field now holds the national number alone.
+  const display = formatNsn(country, nsn);
+
+  /**
+   * True when `s` could be this country's national number — used to decide
+   * whether a leading dial code in pasted input is a country code or just the
+   * first digits of the number. Exact length match only, so digit-by-digit
+   * typing is never mistaken for a pasted international number.
+   */
+  const looksLikeNsn = (c: PhoneCountry, s: string) =>
+    c.nsnLengths.length ? c.nsnLengths.includes(s.length) : s.length > 0 && s.length <= FALLBACK_NSN_MAX;
 
   const handleText = (t: string) => {
     const d = onlyDigits(t);
     if (!d) {
-      // Cleared below the dial code — collapse to '+' so typing (or pasting)
-      // a new code re-detects from scratch.
-      setCountry(null);
       setNsn('');
       return;
     }
-    // Longest-prefix re-detection; the current pick breaks ties (US/CA).
-    const m = matchDialCode(d, country?.iso2 ?? defaultIso2);
-    if (m) {
-      let rest = d.slice(m.dial.length);
-      if (m.trunkPrefix && rest.startsWith(m.trunkPrefix)) rest = rest.slice(m.trunkPrefix.length);
-      setCountry(m);
-      setNsn(rest.slice(0, nsnMaxLen(m) + 2));
-    } else {
-      setCountry(null);
-      setNsn(d.slice(0, FALLBACK_NSN_MAX + 4));
+
+    // An explicit '+' means the user typed/pasted a full international number:
+    // re-detect the country from it (longest-prefix; current pick breaks
+    // US/CA ties) rather than treating those digits as a local number.
+    if (t.trim().startsWith('+')) {
+      const m = matchDialCode(d, country?.iso2 ?? defaultIso2);
+      if (m) {
+        let rest = d.slice(m.dial.length);
+        if (m.trunkPrefix && rest.startsWith(m.trunkPrefix)) rest = rest.slice(m.trunkPrefix.length);
+        setCountry(m);
+        setNsn(rest.slice(0, nsnMaxLen(m) + 2));
+      } else {
+        setCountry(null);
+        setNsn(d.slice(0, FALLBACK_NSN_MAX + 4));
+      }
+      return;
     }
+
+    if (!country) {
+      setNsn(d.slice(0, FALLBACK_NSN_MAX + 4));
+      return;
+    }
+
+    let rest = d;
+    // Tolerate an international number entered without the '+' ("250788123456")
+    // by dropping the dial code — either because what remains is exactly a
+    // national length (pasted), or because keeping it would overflow the
+    // national number (someone typing the code in by hand). Anything shorter is
+    // left alone, so a local number that happens to begin with those digits
+    // still types through normally.
+    if (rest.startsWith(country.dial)) {
+      const stripped = rest.slice(country.dial.length);
+      if (looksLikeNsn(country, stripped) || rest.length > nsnMaxLen(country)) rest = stripped;
+    }
+    // Local form ("0788…") — the trunk prefix isn't part of the wire format.
+    if (country.trunkPrefix && rest.startsWith(country.trunkPrefix)) {
+      rest = rest.slice(country.trunkPrefix.length);
+    }
+    setNsn(rest.slice(0, nsnMaxLen(country) + 2));
   };
 
   const selectCountry = (c: PhoneCountry) => {
@@ -233,8 +288,8 @@ export function PhoneInput({
     hint = nsn ? 'Unknown country code' : '';
     tone = nsn ? 'err' : 'info';
   } else if (!nsn) {
-    const exampleLen = country.nsnLengths[0] ?? 8;
-    hint = `e.g. ${formatInternational(country, '7'.padEnd(exampleLen, '8'))}`;
+    // Full international form — the placeholder already shows the national one.
+    hint = `e.g. +${country.dial} ${exampleMask}`;
   } else if (isValid) {
     hint = `${country.name} · looks good`;
     tone = 'ok';
@@ -303,6 +358,7 @@ export function PhoneInput({
           autoComplete="tel"
           textContentType="telephoneNumber"
           accessibilityLabel={label ?? 'Phone number'}
+          placeholder={exampleMask || 'Phone number'}
           placeholderTextColor={ui.muted}
         />
         {nsn && isValid ? (

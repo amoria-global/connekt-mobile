@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRootNavigationState, useRouter, useSegments, type Href } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   useFonts,
@@ -88,6 +88,17 @@ function applyDefaultFont() {
 /**
  * Redirects between the (onboarding), (auth) and (app) groups based on auth
  * status and whether first-launch onboarding has been completed.
+ *
+ * Returns whether routing has SETTLED — i.e. the current group is already the
+ * one this user belongs in, so nothing is about to be redirected away.
+ *
+ * Why that matters: `/` resolves to `(app)/(tabs)/index`, the dashboard. The
+ * redirect below can only run once the navigator is mounted (it waits on
+ * `useRootNavigationState().key`), so on a cold start the dashboard renders —
+ * and fires its data hooks — for a frame before onboarding/login replaces it.
+ * The caller keeps the splash over the navigator until this flips true, which
+ * removes that flash. It also covers sign-out, where the same race would
+ * briefly re-expose the dashboard on the way to /login.
  */
 function useProtectedRoute() {
   const status = useAuth((s) => s.status);
@@ -101,6 +112,7 @@ function useProtectedRoute() {
   // fonts finish, common on web — throws "Attempted to navigate before mounting
   // the Root Layout component."
   const navigationState = useRootNavigationState();
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     if (!navigationState?.key) return;
@@ -115,27 +127,40 @@ function useProtectedRoute() {
     const inPublic = group === '(public)';
     const onTerms = (segments as string[]).includes('terms');
 
+    /** Send the user elsewhere and keep the splash up until they land. */
+    const go = (href: Href) => {
+      setSettled(false);
+      router.replace(href);
+    };
+
     // First install: force the Terms & Conditions screen before anything
     // else (persisted, so it only happens once). Wait until storage has
     // been read (termsAccepted !== null).
     if (termsAccepted === false) {
-      if (!onTerms) router.replace('/terms' as Href);
+      if (!onTerms) go('/terms' as Href);
+      else setSettled(true);
       return;
     }
     if (termsAccepted === null) return;
 
     if (status === 'authenticated') {
-      if (inAuthGroup || inOnboarding) router.replace('/');
+      if (inAuthGroup || inOnboarding) go('/' as Href);
+      else setSettled(true);
       return;
     }
 
     // Unauthenticated: show onboarding first, then auth — but allow (public).
     if (!seen) {
-      if (!inOnboarding && !inPublic) router.replace('/splash');
+      if (!inOnboarding && !inPublic) go('/splash' as Href);
+      else setSettled(true);
     } else if (!inAuthGroup && !inPublic) {
-      router.replace('/login');
+      go('/login' as Href);
+    } else {
+      setSettled(true);
     }
   }, [navigationState?.key, status, seen, termsAccepted, segments, router]);
+
+  return settled;
 }
 
 export default function RootLayout() {
@@ -160,22 +185,34 @@ export default function RootLayout() {
     applyDefaultFont();
   }, [fontsLoaded]);
 
-  useProtectedRoute();
+  const routeSettled = useProtectedRoute();
+  const booting = status === 'idle' || status === 'loading' || !fontsLoaded;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {status === 'idle' || status === 'loading' || !fontsLoaded ? (
+        {booting ? (
           <View style={styles.splash}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : (
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(public)" />
-            <Stack.Screen name="(app)" />
-          </Stack>
+          // The navigator has to be mounted for the route guard to redirect at
+          // all, so it can't be withheld — instead the splash stays layered on
+          // top until the guard confirms we're on the right screen. Without
+          // this the dashboard (which owns `/`) flashes on every cold start.
+          <View style={styles.flex}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(onboarding)" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(public)" />
+              <Stack.Screen name="(app)" />
+            </Stack>
+            {routeSettled ? null : (
+              <View style={[styles.splash, StyleSheet.absoluteFillObject]}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            )}
+          </View>
         )}
         {/* OTA update prompt — appears once a downloaded update is ready. */}
         <UpdateBanner />
@@ -186,6 +223,7 @@ export default function RootLayout() {
 }
 
 const styles = {
+  flex: { flex: 1 },
   splash: {
     flex: 1,
     alignItems: 'center',

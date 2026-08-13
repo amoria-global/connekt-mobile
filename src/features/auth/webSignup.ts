@@ -37,12 +37,31 @@ function str(v: string | string[] | undefined | null): string | undefined {
 }
 
 export async function openWebSignup(role?: CustomerType): Promise<WebSignupResult> {
+  return openWebAuth('signup', role);
+}
+
+/**
+ * Browser sign-IN. Used by the Google button in Expo Go, where native OAuth
+ * can't run: sending a returning user to the sign-up page would be wrong, so
+ * this opens the web login instead. No role is passed — signing in never
+ * creates an account, and the web's Google login handler honours the same
+ * `redirect` deep link.
+ */
+export async function openWebLogin(): Promise<WebSignupResult> {
+  return openWebAuth('login');
+}
+
+async function openWebAuth(
+  view: 'login' | 'signup',
+  role?: CustomerType,
+): Promise<WebSignupResult> {
   // connekt://auth-callback in a standalone build; exp://…/--/auth-callback in dev.
   const returnUrl = Linking.createURL('auth-callback');
 
-  const url = new URL(`${env.webBaseUrl}/user/auth/signup`);
-  // Omitting userType lets the web app show its own account-type picker — the
-  // single source of truth for roles, so the app carries no duplicate modal.
+  const url = new URL(`${env.webBaseUrl}/user/auth/${view}`);
+  // The role is always passed explicitly for sign-up — leaving it out made the
+  // web fall back to a default account type, which is how people ended up
+  // registered as the wrong role.
   if (role) url.searchParams.set('userType', role);
   url.searchParams.set('source', 'app');
   url.searchParams.set('redirect', returnUrl);
