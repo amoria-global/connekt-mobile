@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { setNewPassword } from '@/features/auth/api';
+import { PASSWORD_HINT, validatePassword } from '@/features/auth/passwordPolicy';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
 
@@ -26,8 +27,9 @@ export default function ChangePasswordScreen() {
       setError('All fields are required.');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    const policyError = validatePassword(password);
+    if (policyError) {
+      setError(policyError);
       return;
     }
     if (password !== confirmPassword) {
@@ -39,9 +41,7 @@ export default function ChangePasswordScreen() {
     try {
       await setNewPassword({
         email: email.trim(),
-        code: '', // Ignored by backend for forced password change
         password,
-        newPassword: password,
         confirmPassword,
       });
       setSuccess(true);
@@ -87,7 +87,7 @@ export default function ChangePasswordScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="At least 8 characters"
+            placeholder="Enter a new password"
           />
 
           <Input
@@ -98,6 +98,8 @@ export default function ChangePasswordScreen() {
             placeholder="Type it again"
             error={error ?? undefined}
           />
+
+          <Text style={styles.hint}>{PASSWORD_HINT}</Text>
 
           <Button title="Save and continue" onPress={onSubmit} loading={submitting} />
 
@@ -118,5 +120,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', gap: spacing.md },
   title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
   subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22, marginBottom: spacing.sm },
+  hint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
   successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl },
 });

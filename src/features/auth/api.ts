@@ -111,7 +111,12 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
       status: 403,
       message: 'You must change your password to continue.',
       needsPasswordChange: true,
-      email: credentials.email,
+      // The account's real email, NOT `credentials.email` - that field
+      // carries whatever identifier was typed, and login accepts a phone
+      // number (normalized to digits like "250788123456"). Feeding that to
+      // /auth/set-new-password made the backend's findByEmail lookup throw,
+      // so phone-login users with a forced password change hit a 500.
+      email: res.email ?? credentials.email,
     } as NeedsPasswordChangeError;
   }
 
@@ -201,11 +206,68 @@ export async function forgotPassword(email: string): Promise<void> {
   }
 }
 
+/**
+ * Checks a reset token from the emailed link before we ask for a new
+ * password, so an expired or malformed token fails immediately instead of
+ * after the user has filled in the form.
+ */
+export async function validateResetToken(token: string): Promise<void> {
+  const res = await api.get<{ action: number; message?: string }>(
+    `/auth/validate-token?token=${encodeURIComponent(token)}`,
+    { skipAuth: true },
+  );
+  if (res.action !== 1) {
+    throw {
+      status: 400,
+      message: res.message || 'This reset link is invalid or has expired.',
+    } satisfies ApiError;
+  }
+}
+
+/**
+ * Completes a self-service password reset using the single-use token from the
+ * reset email. This is the endpoint a user-initiated reset MUST use.
+ *
+ * The older /auth/set-new-password takes only an email and verifies no token
+ * whatsoever, so routing a reset through it would let anyone overwrite any
+ * account's password knowing nothing but the address. This one validates the
+ * token, checks expiry, enforces the server-side password policy, and burns
+ * the token on success. The backend reads these as query params, not a body.
+ */
+export async function resetPasswordWithToken(data: {
+  token: string;
+  password: string;
+  confirmPassword: string;
+}): Promise<void> {
+  const qs = new URLSearchParams({
+    token: data.token,
+    password: data.password,
+    confirmPassword: data.confirmPassword,
+  }).toString();
+
+  const res = await api.post<{ action: number; message?: string }>(
+    `/auth/reset-password?${qs}`,
+    undefined,
+    { skipAuth: true },
+  );
+  if (res.action !== 1) {
+    throw {
+      status: 400,
+      message: res.message || 'Password reset failed. Please try again.',
+    } satisfies ApiError;
+  }
+}
+
+/**
+ * Forced first-login password change ONLY - invited team members signing in
+ * with a temporary password (`mustChangePassword`).
+ *
+ * Self-service "forgot my password" resets must use
+ * {@link resetPasswordWithToken}; this endpoint verifies no token.
+ */
 export async function setNewPassword(data: {
   email: string;
-  code: string;
   password: string;
-  newPassword: string;
   confirmPassword: string;
 }): Promise<void> {
   const res = await api.post<{ action: number; message?: string }>('/auth/set-new-password', data, {
