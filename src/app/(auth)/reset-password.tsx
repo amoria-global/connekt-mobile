@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { setNewPassword } from '@/features/auth/api';
+import { storage, StorageKeys } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
 
@@ -38,9 +39,16 @@ export default function ResetPasswordScreen() {
 
     setSubmitting(true);
     try {
+      // The reset mail carries a link, not a short code, so people paste the
+      // whole URL into this field. Accept either.
+      const pasted = code.trim();
+      const match = pasted.match(/[?&](?:token|code)=([^&\s]+)/i);
+      const resetToken = match ? decodeURIComponent(match[1]) : pasted;
+      // Make sure no unrelated parked token rides along on a recovery.
+      await storage.remove(StorageKeys.authToken);
       await setNewPassword({
         email: email.trim(),
-        code: code.trim(),
+        code: resetToken,
         password,
         newPassword: password,
         confirmPassword,
