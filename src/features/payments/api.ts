@@ -23,8 +23,6 @@ export type InitiatedPayment = {
   redirectUrl?: string;
 };
 
-export type PaymentStatus = 'success' | 'pending' | 'failed';
-
 type Raw = Record<string, unknown>;
 
 function str(v: unknown): string | undefined {
@@ -140,14 +138,21 @@ export async function getPayment(id: string, role?: PaymentsRole): Promise<Payme
   };
 }
 
-export async function getPaymentStatus(refId: string): Promise<PaymentStatus> {
-  const res = await api.get<ApiEnvelope<Raw> & Raw>(
-    `/payments/xentripay/status/${encodeURIComponent(refId)}`,
-  );
-  const d = (res?.data ?? res ?? {}) as Raw;
-  const raw = (str(d.status) ?? str(d.paymentStatus) ?? '').toUpperCase();
-
-  if (/SUCCESS|COMPLETED|PAID|APPROVED/.test(raw)) return 'success';
-  if (/FAIL|CANCEL|DECLIN|ERROR/.test(raw)) return 'failed';
-  return 'pending';
-}
+// ⚠ DO NOT ADD A GATEWAY STATUS POLLER HERE. See docs/PAYMENTS.md.
+//
+// `getPaymentStatus` used to live at this spot, polling the AUTHENTICATED
+// endpoint `/payments/xentripay/status/{refId}`. It had no callers — it was a
+// straggler missed when the initiate-and-poll helpers above were removed — but
+// it was a live trap, because buyers of photos and stream access are ANONYMOUS.
+// The identical mistake on web (`XentriPayModal` polling the authenticated
+// route for `multi_album_purchase`) meant the request was refused client-side,
+// no call was ever made, the modal spun for five minutes and then told a buyer
+// whose money had already been taken that their payment had failed — offering
+// a Retry button that charges them again.
+//
+// This app does not collect payment details or watch payments settle. Money
+// flows through the connekyt.com web checkout (see ./webCheckout.ts), so the
+// web client owns polling and delivery. If you ever need a status read here,
+// use the PUBLIC endpoint `/public/payments/xentripay/status/{refid}` — a
+// status read is not privileged — and give it a terminal state, never an
+// unbounded spinner.

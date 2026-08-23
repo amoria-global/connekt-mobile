@@ -308,6 +308,28 @@ export async function identifyAlbumBuyer(
   };
 }
 
+// ─── ⚠ UNUSED payment surface — read docs/PAYMENTS.md before wiring any of
+//     this up ────────────────────────────────────────────────────────────────
+//
+// Everything from here to the unlock helpers below (initiateAlbumPurchase,
+// initiateMultiAlbumPurchase, recordAlbumPurchase, getPublicPaymentStatus) is
+// defined but NEVER CALLED. The app does not take payments natively: photo
+// checkout opens connekyt.com in the in-app browser via
+// `webCheckout.browsePhotosUrl` / `albumPurchaseUrl`, and the web client owns
+// initiation, polling, settlement and delivery.
+//
+// Wiring these up means re-implementing a payment flow that took seven
+// production defects to get right on web — including one where anonymous
+// buyers were told a successful payment had failed and offered a retry that
+// charges them again. If you genuinely need a native flow, read
+// docs/PAYMENTS.md first, keep every status read on the PUBLIC endpoints these
+// use, and give every failure path a terminal state.
+//
+// Note also that the in-app browser is a separate storage jar: anything the
+// web checkout writes to localStorage (buyerId, cart, unlock code) is NOT
+// visible to this app and disappears when the sheet closes. Delivery
+// therefore relies on the emailed unlock code, not on app-side state.
+
 export type AlbumPurchaseResult = {
   refid: string;
   paymentUrl?: string;
