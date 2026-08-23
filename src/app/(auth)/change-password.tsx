@@ -11,8 +11,11 @@ import { colors, fontSize, fontWeight, spacing } from '@/theme';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string }>();
+  const params = useLocalSearchParams<{ email?: string; token?: string }>();
   const email = params.email ?? '';
+  // The account is resolved from this session token, not from the email in
+  // the body - the backend treats that field as advisory only.
+  const authToken = params.token || undefined;
   
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -43,6 +46,7 @@ export default function ChangePasswordScreen() {
         email: email.trim(),
         password,
         confirmPassword,
+        authToken,
       });
       setSuccess(true);
     } catch (err) {
