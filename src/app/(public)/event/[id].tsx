@@ -93,7 +93,10 @@ function eventStartMs(date?: string, time?: string): number | null {
 
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
-const SAVED_KEY = 'connekyt:savedEvents';
+// Must match explore-events.tsx. No colon: SecureStore keys allow only
+// alphanumerics, '.', '-' and '_', so the old key rejected every read and
+// write and saved events never persisted on device.
+const SAVED_KEY = 'connekyt_savedEvents';
 
 function formatTime12h(t?: string): string {
   if (!t) return '';

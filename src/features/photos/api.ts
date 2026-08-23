@@ -438,6 +438,15 @@ export async function unlockAlbumPhotos(albumId: string, identifier: string): Pr
     `/public/albums/${encodeURIComponent(albumId)}/unlock-photos`,
     body,
   );
+  // A wrong code or an unknown email answers HTTP 200 with action:0. Reading
+  // straight through returned an empty unlock, so the sheet closed as though
+  // it had worked and the buyer saw nothing change and no error.
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'That code or email did not match this album.',
+    } satisfies ApiError;
+  }
   const d = (res?.data ?? {}) as Raw;
   return {
     buyerId: str(d.buyerId),

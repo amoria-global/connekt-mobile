@@ -19,7 +19,7 @@
  * Photographer / Viewer fall back to the original quick-action layout
  * because their dashboards live on different pages.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Image as RNImage } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -261,13 +261,33 @@ export default function HomeScreen() {
   const [customTo, setCustomTo] = useState('');
   const [loadingDash, setLoadingDash] = useState(false);
 
+  // The raw text inputs used to sit in loadDashboard's dep array, so typing
+  // "2026-08-01" fired a full seven-request dashboard reload on every single
+  // keystroke. Debounce so the reload happens once the date stops changing.
+  const [debouncedFrom, setDebouncedFrom] = useState('');
+  const [debouncedTo, setDebouncedTo] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebouncedFrom(customFrom);
+      setDebouncedTo(customTo);
+    }, 400);
+    return () => clearTimeout(id);
+  }, [customFrom, customTo]);
+
+  // Every load takes a ticket; only the newest one may write state. Without
+  // this a slow earlier response landed after a newer one and the dashboard
+  // showed figures for a period the user had already moved off.
+  const loadGeneration = useRef(0);
+
   const loadDashboard = useCallback(async () => {
     if (!showsDashboard) return;
+    const myGeneration = ++loadGeneration.current;
+    const isCurrent = () => myGeneration === loadGeneration.current;
     setLoadingDash(true);
     try {
       if (isClient) {
-        const from = period === 'custom' ? customFrom : undefined;
-        const to = period === 'custom' ? customTo : undefined;
+        const from = period === 'custom' ? debouncedFrom : undefined;
+        const to = period === 'custom' ? debouncedTo : undefined;
         const [a, t, p, recent, photogs, payments, perf] = await Promise.allSettled([
           getCustomerAnalytics(),
           getCustomerTrends(period, from, to),
@@ -277,6 +297,7 @@ export default function HomeScreen() {
           getCustomerRecentPayments(),
           getCustomerPerformance(period, from, to),
         ]);
+        if (!isCurrent()) return;
         if (a.status === 'fulfilled') setAnalyticsClient(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (p.status === 'fulfilled') setPending(p.value);
@@ -290,6 +311,7 @@ export default function HomeScreen() {
           getCoordinatorTrends(period),
           getCoordinatorPendingPayments(),
         ]);
+        if (!isCurrent()) return;
         if (a.status === 'fulfilled') setAnalyticsCoord(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (p.status === 'fulfilled') setPending(p.value);
@@ -298,13 +320,16 @@ export default function HomeScreen() {
           getPhotographerAnalytics(),
           getPhotographerTrends(period),
         ]);
+        if (!isCurrent()) return;
         if (a.status === 'fulfilled') setAnalyticsPhotog(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
       }
     } finally {
-      setLoadingDash(false);
+      // Only the newest load owns the spinner, or a superseded one turns it
+      // off while the current request is still in flight.
+      if (isCurrent()) setLoadingDash(false);
     }
-  }, [showsDashboard, isClient, isCoordinator, isPhotographer, period, customFrom, customTo]);
+  }, [showsDashboard, isClient, isCoordinator, isPhotographer, period, debouncedFrom, debouncedTo]);
 
   useEffect(() => {
     loadDashboard();

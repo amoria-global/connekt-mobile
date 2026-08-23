@@ -69,7 +69,12 @@ import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
 
 const PAGE_SIZE = 12;
-const SAVED_KEY = 'connekyt:savedEvents';
+// No colon: `storage` is expo-secure-store on device, whose keys may only
+// contain alphanumerics, '.', '-' and '_'. 'connekyt:savedEvents' made every
+// read and write reject, and both call sites swallow the error — so saved
+// events silently never persisted on iOS or Android. It worked on web
+// (localStorage accepts anything), which is why it looked correct in dev.
+const SAVED_KEY = 'connekyt_savedEvents';
 
 type DateRange = 'all' | 'today' | 'tomorrow' | 'this-week' | 'this-month' | 'next-month';
 
@@ -189,7 +194,14 @@ export default function ExploreEventsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Only the newest request may write results: switching tab or typing a
+  // search used to let a slow earlier response land last and repaint the list
+  // with the previous filter's events.
+  const fetchGeneration = useRef(0);
+
   const fetchEvents = useCallback(async () => {
+    const myGeneration = ++fetchGeneration.current;
+    const isCurrent = () => myGeneration === fetchGeneration.current;
     setLoading(true);
     setError(null);
     try {
@@ -204,6 +216,7 @@ export default function ExploreEventsScreen() {
         dateRange: dateRange !== 'all' ? dateRange : undefined,
         search: searchTerm || undefined,
       });
+      if (!isCurrent()) return;
       setData(res.content);
       setTotalPages(res.totalPages);
 
@@ -218,11 +231,20 @@ export default function ExploreEventsScreen() {
       }
       if (changed) setCategoryOptions(Array.from(seenCats.current).sort());
     } catch (e) {
+      if (!isCurrent()) return;
       setError(isApiError(e) ? e.message : 'Could not load events. Pull to retry.');
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [page, tab, category, location, dateRange, searchTerm]);
+
+  // Any change to the filters starts a new result set, so go back to its
+  // first page. Searching from page 3 used to keep page 3 against a result
+  // set that often had only one, leaving an empty list and — because the
+  // pager hides itself when there is nothing to page through — no way back.
+  useEffect(() => {
+    setPage(1);
+  }, [tab, category, location, dateRange, searchTerm]);
 
   useEffect(() => {
     fetchEvents();
