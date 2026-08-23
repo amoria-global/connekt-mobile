@@ -58,10 +58,16 @@ export function liveGiftUrl(eventId: string, viewerId?: string, giftCode?: strin
   return `/user/events/live-stream?eventId=${encodeURIComponent(eventId)}${viewer}${gift}`;
 }
 
-/** Album purchase by invite code (Find My Photos). */
-export function albumPurchaseUrl(code: string, email?: string): string {
-  const e = email ? `&email=${encodeURIComponent(email)}` : '';
-  return `/user/find-my-photos?code=${encodeURIComponent(code)}${e}`;
+/**
+ * Album purchase by invite code (Find My Photos).
+ *
+ * The code alone identifies the recipient: the backend resolves them from
+ * the album when no email is sent. It deliberately carries no email — one
+ * in the query string would land in browser history, in the Referer of
+ * every request the page makes, and in anything the link is pasted into.
+ */
+export function albumPurchaseUrl(code: string): string {
+  return `/user/find-my-photos?code=${encodeURIComponent(code)}`;
 }
 
 /** Public photo marketplace; a slug deep-links one gallery's checkout. */
