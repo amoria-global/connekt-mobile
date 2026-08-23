@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { setNewPassword } from '@/features/auth/api';
+import { storage, StorageKeys } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
 
@@ -37,13 +38,18 @@ export default function ChangePasswordScreen() {
 
     setSubmitting(true);
     try {
+      // No code: the proof for a forced first change is the session parked at
+      // login, which setNewPassword attaches. The backend resolves the account
+      // from it, so the email is advisory only.
       await setNewPassword({
         email: email.trim(),
-        code: '', // Ignored by backend for forced password change
         password,
         newPassword: password,
         confirmPassword,
       });
+      // Sign in fresh with the new password rather than keeping the token that
+      // was only ever meant to authorise this one change.
+      await storage.remove(StorageKeys.authToken);
       setSuccess(true);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');

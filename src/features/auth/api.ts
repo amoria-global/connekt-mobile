@@ -107,6 +107,12 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
   }
 
   if (res.mustChangePassword) {
+    // Park the token ONLY — never persistSession, which would treat someone
+    // still holding a temporary password as fully signed in. The forced-change
+    // screen needs this one credential to prove to /auth/set-new-password who
+    // it is; the backend resolves the account from it and will not accept an
+    // email in the body as identity.
+    if (res.token) await storage.set(StorageKeys.authToken, res.token);
     throw {
       status: 403,
       message: 'You must change your password to continue.',
@@ -202,14 +208,21 @@ export async function forgotPassword(email: string): Promise<void> {
 }
 
 export async function setNewPassword(data: {
-  email: string;
-  code: string;
+  /** Advisory. The backend resolves the account from `code` or the session. */
+  email?: string;
+  /** Reset token from the emailed link. Omit for the forced first change. */
+  code?: string;
   password: string;
-  newPassword: string;
+  newPassword?: string;
   confirmPassword: string;
 }): Promise<void> {
+  // Attach the parked token explicitly rather than dropping skipAuth: that
+  // keeps the client's 401 auto-refresh disabled. A forced-change user has no
+  // refresh token yet, and that path would sign them straight back out.
+  const token = await storage.get(StorageKeys.authToken);
   const res = await api.post<{ action: number; message?: string }>('/auth/set-new-password', data, {
     skipAuth: true,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (res.action !== 1) {
     throw {
