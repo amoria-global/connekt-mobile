@@ -99,7 +99,10 @@ export default function LoginScreen() {
       await login({ email: identifier, password: values.password });
     } catch (err) {
       if (isNeedsPasswordChange(err)) {
-        router.push({ pathname: '/change-password', params: { email: err.email } });
+        router.push({
+          pathname: '/change-password',
+          params: { email: err.email, token: err.token ?? '' },
+        });
         return;
       }
       if (isNeedsTotp(err)) {

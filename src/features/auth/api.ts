@@ -53,7 +53,17 @@ export function isNeedsTotp(err: unknown): err is NeedsTotpError {
   );
 }
 
-export type NeedsPasswordChangeError = ApiError & { needsPasswordChange: true; email: string };
+export type NeedsPasswordChangeError = ApiError & {
+  needsPasswordChange: true;
+  email: string;
+  /**
+   * The access token from the login that triggered the forced change. The
+   * session is deliberately not persisted yet (the user isn't through the
+   * gate), but /auth/set-new-password resolves the account from the caller's
+   * session on this branch, so the token has to travel with the error.
+   */
+  token?: string;
+};
 
 export function isNeedsPasswordChange(err: unknown): err is NeedsPasswordChangeError {
   return (
@@ -117,6 +127,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
       // /auth/set-new-password made the backend's findByEmail lookup throw,
       // so phone-login users with a forced password change hit a 500.
       email: res.email ?? credentials.email,
+      token: res.token,
     } as NeedsPasswordChangeError;
   }
 
@@ -259,20 +270,42 @@ export async function resetPasswordWithToken(data: {
 }
 
 /**
- * Forced first-login password change ONLY - invited team members signing in
- * with a temporary password (`mustChangePassword`).
+ * Forced first-login password change: an invited team member signing in with
+ * a temporary password (`mustChangePassword`).
  *
- * Self-service "forgot my password" resets must use
- * {@link resetPasswordWithToken}; this endpoint verifies no token.
+ * /auth/set-new-password never resolves the account from the request body -
+ * `email` is advisory and can only veto a mismatch. The account comes from
+ * proof: either a reset token sent as `code`, or the caller's own session,
+ * and the session branch is accepted only while isPasswordChanged is false.
+ * So this call must carry the access token from the login that triggered the
+ * change; without it the backend answers "Your session has expired".
+ *
+ * Self-service "forgot my password" uses {@link resetPasswordWithToken}.
  */
 export async function setNewPassword(data: {
-  email: string;
+  email?: string;
   password: string;
   confirmPassword: string;
+  /** Access token from the login that reported mustChangePassword. */
+  authToken?: string;
 }): Promise<void> {
-  const res = await api.post<{ action: number; message?: string }>('/auth/set-new-password', data, {
-    skipAuth: true,
-  });
+  const res = await api.post<{ action: number; message?: string }>(
+    '/auth/set-new-password',
+    {
+      email: data.email,
+      password: data.password,
+      // The backend cross-checks these two and refuses if they disagree, so a
+      // caller can never set one password while believing it set another.
+      newPassword: data.password,
+      confirmPassword: data.confirmPassword,
+    },
+    {
+      // Bypass the stored-token lookup - the session isn't persisted yet - and
+      // present the login token explicitly instead.
+      skipAuth: true,
+      headers: data.authToken ? { Authorization: `Bearer ${data.authToken}` } : undefined,
+    },
+  );
   if (res.action !== 1) {
     throw {
       status: 400,
