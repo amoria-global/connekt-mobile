@@ -27,8 +27,9 @@ export default function ChangePasswordScreen() {
       setError('All fields are required.');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    // Same rule the server enforces, and the same one signup already states.
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@!#$%^&*=+]).{8,}$/.test(password)) {
+      setError('Use at least 8 characters, including a letter, a number and one of @!#$%^&*=+');
       return;
     }
     if (password !== confirmPassword) {
@@ -93,7 +94,7 @@ export default function ChangePasswordScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="At least 8 characters"
+            placeholder="8+ chars, a letter, a number and a symbol"
           />
 
           <Input
