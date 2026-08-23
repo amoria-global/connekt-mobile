@@ -4,7 +4,7 @@
  * breakdown of the non-empty pots.
  */
 import { api } from '@/api/client';
-import type { ApiEnvelope } from '@/types';
+import type { ApiEnvelope, ApiError } from '@/types';
 
 export type WalletPot = { key: string; label: string; amount: number };
 
@@ -37,19 +37,37 @@ const POT_LABELS: Record<string, string> = {
 
 export async function getWallet(): Promise<Wallet> {
   const res = await api.get<ApiEnvelope<RawWallet>>('/wallet/me');
+  // A failed fetch answers HTTP 200 with action:0 and no data. Parsing it
+  // rendered a confident "0.00" balance, which on a money screen reads as
+  // "your money is gone" rather than "we could not load this".
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'Could not load your wallet. Pull to refresh.',
+    } satisfies ApiError;
+  }
   const d = (res?.data ?? {}) as RawWallet;
 
   const pots: WalletPot[] = Object.entries(POT_LABELS)
     .map(([key, label]) => ({ key, label, amount: num(d[key]) }))
     .filter((p) => p.amount !== 0);
 
-  // Backend keeps `balanceAvailable` as the user-spendable total. Fall
-  // back to summing the non-empty pots, then to `totalBalance` (legacy
-  // shape). Showing 0 is fine when nothing has happened yet.
+  // Backend keeps `balanceAvailable` as the user-spendable total.
+  //
+  // The fallback deliberately excludes `pendingAmount` and `heldForDelivery`:
+  // those are explicitly NOT spendable, and summing every pot advertised money
+  // the photographer cannot withdraw. `||` also treated a legitimate 0 as
+  // "missing" and fell through, so a genuinely empty wallet could display the
+  // pending pot as though it were available.
+  const spendable = pots.filter(
+    (p) => p.key !== 'pendingAmount' && p.key !== 'heldForDelivery',
+  );
   const total =
-    num(d.balanceAvailable) ||
-    num(d.totalBalance) ||
-    pots.reduce((sum, p) => sum + p.amount, 0);
+    typeof d.balanceAvailable === 'number' && !Number.isNaN(d.balanceAvailable)
+      ? d.balanceAvailable
+      : typeof d.totalBalance === 'number' && !Number.isNaN(d.totalBalance)
+        ? d.totalBalance
+        : spendable.reduce((sum, p) => sum + p.amount, 0);
 
   // Wallet endpoint never returns a top-level currency — every pot is
   // stored in USD by backend convention (see WalletService). Defaulting

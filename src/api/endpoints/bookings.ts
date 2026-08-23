@@ -1,5 +1,5 @@
 import { api } from '../client';
-import type { ApiEnvelope } from '@/types';
+import type { ApiEnvelope, ApiError } from '@/types';
 
 /**
  * Booking a photographer creates an Event + a PENDING Booking and a first
@@ -47,6 +47,18 @@ export const bookingsApi = {
    * ApiError carrying the backend message (e.g. date-unavailable, package
    * mismatch) so the caller can show it instead of silently succeeding.
    */
-  create: (payload: CreateBookingPayload) =>
-    api.post<ApiEnvelope<CreateBookingResult>>('/events/book', payload),
+  create: async (payload: CreateBookingPayload) => {
+    const res = await api.post<ApiEnvelope<CreateBookingResult>>('/events/book', payload);
+    // The backend answers HTTP 200 with action:0 for a refusal (date taken,
+    // package mismatch, validation). Without this the sheet read `data` off a
+    // failed response and showed "Booking Confirmed!" for a booking that was
+    // never created — the caller's own catch block could never fire.
+    if (res?.action !== 1) {
+      throw {
+        status: 400,
+        message: res?.message || 'We could not complete your booking. Please try again.',
+      } satisfies ApiError;
+    }
+    return res;
+  },
 };

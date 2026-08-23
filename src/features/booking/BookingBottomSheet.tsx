@@ -666,29 +666,41 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         </Text>
                       </View>
 
+                      {/* What this package ACTUALLY includes. These were
+                          Math.random() calls: the client picked a package
+                          believing it came with a duration and a photo count
+                          that were invented at render time and changed on
+                          every re-render. A stat with no value is omitted
+                          rather than guessed. */}
                       <View style={styles.packageStatsRow}>
-                        <View style={styles.packageStat}>
-                          <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-                          <Text style={styles.packageStatText}>{Math.floor(Math.random() * 5) + 2}h</Text>
-                        </View>
-                        <View style={styles.packageStat}>
-                          <Ionicons name="image-outline" size={14} color={colors.textMuted} />
-                          <Text style={styles.packageStatText}>{Math.floor(Math.random() * 200) + 50} photos</Text>
-                        </View>
-                        <View style={styles.packageStat}>
-                          <Ionicons name="videocam-outline" size={14} color={colors.textMuted} />
-                          <Text style={styles.packageStatText}>{Math.floor(Math.random() * 5) + 1} videos</Text>
-                        </View>
-                      </View>
-                      
-                      <View style={styles.packageFeaturesRow}>
-                        {['High Res Editing', 'Online Gallery', 'Print Rights'].map((feature, idx) => (
-                          <View key={idx} style={styles.packageFeature}>
-                            <Ionicons name="checkmark" size={14} color="#10b981" />
-                            <Text style={styles.packageFeatureText}>{feature}</Text>
+                        {typeof pkg.durationHours === 'number' && pkg.durationHours > 0 && (
+                          <View style={styles.packageStat}>
+                            <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+                            <Text style={styles.packageStatText}>{pkg.durationHours}h</Text>
                           </View>
-                        ))}
+                        )}
+                        {typeof pkg.includedPhotos === 'number' && pkg.includedPhotos > 0 && (
+                          <View style={styles.packageStat}>
+                            <Ionicons name="image-outline" size={14} color={colors.textMuted} />
+                            <Text style={styles.packageStatText}>{pkg.includedPhotos} photos</Text>
+                          </View>
+                        )}
+                        {typeof pkg.includedVideos === 'number' && pkg.includedVideos > 0 && (
+                          <View style={styles.packageStat}>
+                            <Ionicons name="videocam-outline" size={14} color={colors.textMuted} />
+                            <Text style={styles.packageStatText}>{pkg.includedVideos} videos</Text>
+                          </View>
+                        )}
                       </View>
+
+                      {pkg.hasLiveStream === true && (
+                        <View style={styles.packageFeaturesRow}>
+                          <View style={styles.packageFeature}>
+                            <Ionicons name="checkmark" size={14} color="#10b981" />
+                            <Text style={styles.packageFeatureText}>Live stream</Text>
+                          </View>
+                        </View>
+                      )}
                     </Pressable>
                   );
                 })})()}
@@ -891,24 +903,32 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     const basePrice = selectedPackage?.price || 0;
                     const baseCurrency = selectedPackage?.currency || 'RWF';
                     
-                    let rate = 1;
-                    if (baseCurrency === 'RWF') {
-                      if (displayCurrency === 'USD') rate = 1/1350;
-                      if (displayCurrency === 'EUR') rate = 1/1450;
-                      if (displayCurrency === 'KES') rate = 0.098;
-                      if (displayCurrency === 'UGX') rate = 2.85;
-                      if (displayCurrency === 'TZS') rate = 1.92;
-                    } else if (baseCurrency === 'USD') {
-                      if (displayCurrency === 'RWF') rate = 1350;
-                    }
-                    
+                    // Known pairs only. The previous version defaulted `rate`
+                    // to 1 and covered just RWF->x and USD->RWF, so a USD
+                    // package shown in EUR rendered "€150" for $150 — a
+                    // different amount of money wearing the wrong symbol.
+                    const RATES: Record<string, Record<string, number>> = {
+                      RWF: { USD: 1 / 1350, EUR: 1 / 1450, KES: 0.098, UGX: 2.85, TZS: 1.92 },
+                      USD: { RWF: 1350 },
+                    };
+                    const knownRate =
+                      baseCurrency === displayCurrency
+                        ? 1
+                        : RATES[baseCurrency]?.[displayCurrency];
+                    // No rate for this pair: show the true price in its own
+                    // currency rather than relabelling it 1:1.
+                    const shownCurrency = knownRate === undefined ? baseCurrency : displayCurrency;
+                    const rate = knownRate ?? 1;
+
                     const formatPrice = (amount: number) => {
                       const val = amount * rate;
-                      if (displayCurrency === 'RWF') return `${Math.round(val).toLocaleString()} RWF`;
-                      if (displayCurrency === 'KES') return `KSh ${Math.round(val).toLocaleString()}`;
-                      if (displayCurrency === 'UGX') return `USh ${Math.round(val).toLocaleString()}`;
-                      if (displayCurrency === 'TZS') return `TSh ${Math.round(val).toLocaleString()}`;
-                      return `${displayCurrency === 'USD' ? '$' : '€'}${val.toFixed(2)}`;
+                      if (shownCurrency === 'RWF') return `${Math.round(val).toLocaleString()} RWF`;
+                      if (shownCurrency === 'KES') return `KSh ${Math.round(val).toLocaleString()}`;
+                      if (shownCurrency === 'UGX') return `USh ${Math.round(val).toLocaleString()}`;
+                      if (shownCurrency === 'TZS') return `TSh ${Math.round(val).toLocaleString()}`;
+                      if (shownCurrency === 'USD') return `$${val.toFixed(2)}`;
+                      if (shownCurrency === 'EUR') return `€${val.toFixed(2)}`;
+                      return `${shownCurrency} ${val.toFixed(2)}`;
                     };
 
                     const totalDisplay = formatPrice(basePrice);

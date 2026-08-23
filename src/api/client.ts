@@ -59,11 +59,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
     // Access token likely expired → try a one-time refresh, then retry.
     if (res.status === 401 && !skipAuth && !_retried) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
+      const outcome = await refreshAccessToken();
+      if (outcome === 'refreshed') {
         return request<T>(path, { ...options, _retried: true });
       }
-      onAuthExpired?.();
+      // Only a real refusal ends the session. When the refresh simply could
+      // not be reached, fall through and let the original 401 surface as a
+      // retryable error instead of throwing the user out to the login screen.
+      if (outcome === 'rejected') onAuthExpired?.();
     }
 
     const isJson = res.headers.get('content-type')?.includes('application/json');
@@ -99,9 +102,23 @@ function isAbortError(err: unknown): boolean {
 
 // --- Token refresh (single-flight) ---------------------------------------
 
-let refreshPromise: Promise<boolean> | null = null;
+/**
+ * Three outcomes, not two.
+ *
+ * 'refreshed'   — we hold a new access token.
+ * 'rejected'    — the server actually said no (no stored token, an explicit
+ *                 refusal, 401/403). The session really is dead.
+ * 'unavailable' — we could not ask: network down, timeout, 5xx. This says
+ *                 NOTHING about the session's validity.
+ *
+ * Collapsing the last two into `false` is what signed people out the moment
+ * a lift or a tunnel interrupted one request mid-action.
+ */
+type RefreshOutcome = 'refreshed' | 'rejected' | 'unavailable';
 
-function refreshAccessToken(): Promise<boolean> {
+let refreshPromise: Promise<RefreshOutcome> | null = null;
+
+function refreshAccessToken(): Promise<RefreshOutcome> {
   if (!refreshPromise) {
     refreshPromise = doRefresh().finally(() => {
       refreshPromise = null;
@@ -110,30 +127,39 @@ function refreshAccessToken(): Promise<boolean> {
   return refreshPromise;
 }
 
-async function doRefresh(): Promise<boolean> {
-  const refreshToken = await storage.get(StorageKeys.refreshToken);
-  if (!refreshToken) return false;
+async function doRefresh(): Promise<RefreshOutcome> {
+  const refreshToken = await storage.get(StorageKeys.refreshToken).catch(() => null);
+  if (!refreshToken) return 'rejected';
+
+  // This was the only fetch in the file without a timeout, and it is
+  // single-flight: a hung refresh stalled every request queued behind it.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), env.requestTimeoutMs);
 
   try {
     const res = await fetch(`${env.apiBaseUrl}/auth/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ refreshToken }),
+      signal: controller.signal,
     });
-    if (!res.ok) return false;
+    // A refusal is 401/403 or a 200 envelope saying no. A 5xx is the server
+    // failing, not the session expiring.
+    if (res.status >= 500) return 'unavailable';
+    if (!res.ok) return 'rejected';
 
     const data = (await res.json()) as {
       action?: number;
       token?: string;
       refreshToken?: string;
     };
-    if (data.action !== 1 || !data.token) return false;
+    if (data.action !== 1 || !data.token) return 'rejected';
 
     await storage.set(StorageKeys.authToken, data.token);
     if (data.refreshToken) await storage.set(StorageKeys.refreshToken, data.refreshToken);
 
     // Keep the persisted session blob's token in sync.
-    const raw = await storage.get(StorageKeys.session);
+    const raw = await storage.get(StorageKeys.session).catch(() => null);
     if (raw) {
       try {
         const session = JSON.parse(raw);
@@ -144,9 +170,13 @@ async function doRefresh(): Promise<boolean> {
         // ignore malformed session blob
       }
     }
-    return true;
+    return 'refreshed';
   } catch {
-    return false;
+    // Aborts, DNS failures, offline: we never got an answer, so we must not
+    // conclude the session is dead.
+    return 'unavailable';
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

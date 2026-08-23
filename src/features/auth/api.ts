@@ -342,12 +342,22 @@ export async function logout(): Promise<void> {
 
 async function persistSession(session: AuthSession): Promise<void> {
   await storage.set(StorageKeys.authToken, session.token);
-  if (session.refreshToken) await storage.set(StorageKeys.refreshToken, session.refreshToken);
+  if (session.refreshToken) {
+    await storage.set(StorageKeys.refreshToken, session.refreshToken);
+  } else {
+    // Critical on an account switch: if the new session carries no refresh
+    // token, the PREVIOUS account's one used to survive here. The next 401
+    // would then refresh into that other identity and silently swap who is
+    // signed in. A session without a refresh token must leave none behind.
+    await storage.remove(StorageKeys.refreshToken);
+  }
   await storage.set(StorageKeys.session, JSON.stringify(session));
 }
 
 export async function loadSession(): Promise<AuthSession | null> {
-  const raw = await storage.get(StorageKeys.session);
+  // A rejected read (locked keychain, corrupted entry) must not propagate:
+  // bootstrap would be left hanging and the app would sit on the splash.
+  const raw = await storage.get(StorageKeys.session).catch(() => null);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as AuthSession;

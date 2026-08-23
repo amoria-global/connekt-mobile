@@ -3,7 +3,7 @@
  * A booking is a request from a client to a photographer for an event.
  */
 import { api } from '@/api/client';
-import type { ApiEnvelope, ID } from '@/types';
+import type { ApiEnvelope, ApiError, ID } from '@/types';
 
 export type Booking = {
   id: ID;
@@ -71,10 +71,28 @@ export async function listBookings(): Promise<Booking[]> {
     });
 }
 
+/**
+ * A refusal arrives as HTTP 200 with action:0 (already accepted, cancelled,
+ * no longer yours). Returning void on that told the photographer the job was
+ * confirmed when the backend had declined it.
+ */
+function assertOk(res: { action?: number; message?: string } | undefined, fallback: string): void {
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || fallback } satisfies ApiError;
+  }
+}
+
 export async function acceptBooking(id: string): Promise<void> {
-  await api.post(`/bookings/${encodeURIComponent(id)}/accept`);
+  const res = await api.post<{ action?: number; message?: string }>(
+    `/bookings/${encodeURIComponent(id)}/accept`,
+  );
+  assertOk(res, 'Could not accept this booking. Please refresh and try again.');
 }
 
 export async function rejectBooking(id: string, reason: string): Promise<void> {
-  await api.post(`/bookings/${encodeURIComponent(id)}/reject`, { reason });
+  const res = await api.post<{ action?: number; message?: string }>(
+    `/bookings/${encodeURIComponent(id)}/reject`,
+    { reason },
+  );
+  assertOk(res, 'Could not decline this booking. Please refresh and try again.');
 }
