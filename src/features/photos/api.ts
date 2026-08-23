@@ -5,7 +5,7 @@
  */
 import { api } from '@/api/client';
 import { env } from '@/config/env';
-import type { ApiEnvelope, ID } from '@/types';
+import type { ApiEnvelope, ApiError, ID } from '@/types';
 import type { PickedImage } from '@/services/imagePicker';
 import { storage } from '@/services/storage';
 import { appendFile } from '@/utils/upload';
@@ -140,6 +140,15 @@ export type AlbumData = {
 
 export async function getAlbumByCode(code: string): Promise<AlbumData> {
   const res = await api.get<ApiEnvelope<Raw>>(`/public/albums?code=${encodeURIComponent(code)}`);
+  // A wrong or expired code answers HTTP 200 with action:0. Falling through
+  // to the parser turned that into an album with zero photos, so the screen
+  // showed an empty gallery instead of "that code isn't right".
+  if (res?.action !== 1) {
+    throw {
+      status: 404,
+      message: res?.message || 'That code did not match an album. Check it and try again.',
+    } satisfies ApiError;
+  }
   // Backend wraps in { action:1, data: {...} }; api client puts that into res.data
   const d = (res?.data ?? res ?? {}) as Raw;
   const pricing = (d.pricing as Raw) || {};

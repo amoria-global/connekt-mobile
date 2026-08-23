@@ -303,7 +303,19 @@ export async function addAlbumImages(albumId: string, images: PickedImage[]): Pr
   for (const img of images) {
     const form = new FormData();
     await appendFile(form, 'file', img);
-    await api.post(`/photographer/albums/${encodeURIComponent(albumId)}/images`, form);
+    const res = await api.post<ApiEnvelope<Raw>>(
+      `/photographer/albums/${encodeURIComponent(albumId)}/images`,
+      form,
+    );
+    // Per-photo refusals (below the delivery minimum, unsupported file, album
+    // full) come back as HTTP 200 with action:0. Ignoring them meant an album
+    // was created, reported as a success, and contained nothing.
+    if (res?.action !== 1) {
+      throw {
+        status: 400,
+        message: res?.message || 'One of the photos could not be uploaded.',
+      } satisfies ApiError;
+    }
   }
 }
 
