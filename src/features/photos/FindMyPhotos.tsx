@@ -559,7 +559,7 @@ export function FindMyPhotos() {
     const allowed = [...info.owned, ...info.newPicks.slice(0, capNum)];
     const extrasTotal = Math.round(price * info.overflow);
     const buyOnWeb = () =>
-      void openWebCheckout(albumPurchaseUrl(code.trim(), freeEmail.trim() || undefined));
+      void openWebCheckout(albumPurchaseUrl(code.trim()));
     Alert.alert(
       'Extra Photos',
       `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${freeAlbumCurrencyAbbr || ''} ${extrasTotal} and are purchased on connekyt.com.`,
