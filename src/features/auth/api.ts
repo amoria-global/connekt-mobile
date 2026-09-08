@@ -333,7 +333,11 @@ export async function establishSession(params: {
 
 export async function logout(): Promise<void> {
   try {
-    await api.post('/auth/logout');
+    // Ends this phone's session only (CONN-AUTH-7). '/auth/logout' is "sign
+    // out everywhere" and used to run here, so logging out of the phone
+    // silently signed out the web dashboard and any paired TV hours later.
+    const refreshToken = await storage.get(StorageKeys.refreshToken).catch(() => null);
+    await api.post('/auth/logout-device', refreshToken ? { refreshToken } : undefined);
   } catch {
     // Even if the server call fails, clear local state.
   }
