@@ -7,9 +7,10 @@ import { Screen } from '@/components/ui/Screen';
 import { setNewPassword } from '@/features/auth/api';
 import { storage, StorageKeys } from '@/services/storage';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
 
 export default function ChangePasswordScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string }>();
   const email = params.email ?? '';
@@ -85,6 +86,10 @@ export default function ChangePasswordScreen() {
 
           <Input
             label="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
             value={email}
             editable={false}
           />
@@ -94,6 +99,9 @@ export default function ChangePasswordScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
             placeholder="8+ chars, a letter, a number and a symbol"
           />
 
@@ -102,6 +110,9 @@ export default function ChangePasswordScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
             placeholder="Type it again"
             error={error ?? undefined}
           />
@@ -120,10 +131,10 @@ export default function ChangePasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   container: { flex: 1, justifyContent: 'center', gap: spacing.md },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22, marginBottom: spacing.sm },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
+  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22, marginBottom: spacing.sm },
   successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl },
-});
+}));
