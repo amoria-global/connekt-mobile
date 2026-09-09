@@ -20,9 +20,11 @@ import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { deleteRole, listRoles, type TeamRole } from '@/features/teams/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function TeamRolesScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const [roles, setRoles] = useState<TeamRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,38 +141,38 @@ export default function TeamRolesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.xl, paddingBottom: 80, gap: spacing.md },
   newRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.lg,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: c.primary,
     borderStyle: 'dashed',
   },
   pressed: { opacity: 0.6 },
-  newRowText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  newRowText: { color: c.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
-  empty: { alignItems: 'center', gap: spacing.sm, padding: spacing.xl, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft },
-  emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  empty: { alignItems: 'center', gap: spacing.sm, padding: spacing.xl, backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft },
+  emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
 
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  roleName: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  roleSub: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 },
-  rolePerms: { color: colors.accent, fontSize: fontSize.xs, fontWeight: fontWeight.bold, marginTop: 4 },
+  roleName: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  roleSub: { color: c.textMuted, fontSize: fontSize.xs, marginTop: 2 },
+  rolePerms: { color: c.accent, fontSize: fontSize.xs, fontWeight: fontWeight.bold, marginTop: 4 },
   rowBtn: { padding: 8 },
-});
+}));

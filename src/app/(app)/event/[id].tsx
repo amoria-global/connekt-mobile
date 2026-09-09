@@ -26,13 +26,15 @@ import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/ev
 import { submitReview } from '@/features/reviews/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 
 export default function EventDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { ownsEvents, isPhotographer, isCoordinator } = useRole();
@@ -799,6 +801,8 @@ function fmtMoney(amount?: number, currency?: string): string {
 }
 
 function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.detailCard}>
       <View style={styles.detailIcon}>
@@ -838,6 +842,7 @@ function PrimaryBtn({
   loading?: boolean;
   full?: boolean;
 }) {
+  const styles = useStyles();
   const v = BTN_STYLES[variant];
   return (
     <Pressable
@@ -863,6 +868,8 @@ function PrimaryBtn({
 }
 
 function InfoCard({ icon, title, children }: { icon: keyof typeof Ionicons.glyphMap; title: string; children: React.ReactNode }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.card}>
       <View style={styles.cardHead}>
@@ -875,6 +882,8 @@ function InfoCard({ icon, title, children }: { icon: keyof typeof Ionicons.glyph
 }
 
 function KeyValue({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.kv}>
       <Text style={styles.kvLabel}>{label}</Text>
@@ -884,6 +893,8 @@ function KeyValue({ label, value, accent }: { label: string; value: string; acce
 }
 
 function Chip({ label, tone }: { label: string; tone: 'success' | 'warning' | 'muted' }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const map = {
     success: { bg: '#D1FAE5', fg: '#047857' },
     warning: { bg: '#FEF3C7', fg: '#92400E' },
@@ -899,6 +910,7 @@ function Chip({ label, tone }: { label: string; tone: 'success' | 'warning' | 'm
 }
 
 function ProgressStepper({ currentIndex }: { currentIndex: number }) {
+  const styles = useStyles();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stepper}>
       {BOOKING_STEPS.map((label, i) => {
@@ -934,13 +946,13 @@ function ProgressStepper({ currentIndex }: { currentIndex: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
 
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
-  title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, letterSpacing: -0.5, marginTop: 2 },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
+  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5, marginTop: 2 },
 
   hero: {
     height: 210,
@@ -961,7 +973,7 @@ const styles = StyleSheet.create({
   heroLive: { backgroundColor: '#8B5CF6' },
   heroPillText: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.4 },
 
-  desc: { fontFamily: fonts.regular, fontSize: 15, color: colors.textSoft, lineHeight: 22 },
+  desc: { fontFamily: fonts.regular, fontSize: 15, color: c.textSoft, lineHeight: 22 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   detailCard: {
@@ -972,7 +984,7 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: spacing.md,
     borderRadius: radii.lg,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
   detailIcon: {
     width: 38,
@@ -982,8 +994,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  detailLabel: { fontFamily: fonts.bold, fontSize: 10, color: colors.accent, letterSpacing: 0.6 },
-  detailValue: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginTop: 1 },
+  detailLabel: { fontFamily: fonts.bold, fontSize: 10, color: c.accent, letterSpacing: 0.6 },
+  detailValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 1 },
 
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   btn: {
@@ -1000,38 +1012,38 @@ const styles = StyleSheet.create({
   btnText: { fontFamily: fonts.bold, fontSize: 14 },
 
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.md,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.text },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 17, color: c.text },
 
   personRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   personAvatar: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   personInitial: { fontFamily: fonts.bold, fontSize: 18, color: '#fff' },
-  personName: { fontFamily: fonts.bold, fontSize: 16, color: colors.text, marginBottom: 4 },
+  personName: { fontFamily: fonts.bold, fontSize: 16, color: c.text, marginBottom: 4 },
 
   kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  kvLabel: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
-  kvValue: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  kvLabel: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
+  kvValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text },
 
   chip: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full },
   chipDot: { width: 6, height: 6, borderRadius: 3 },
   chipText: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.4 },
 
-  infoLabel: { fontFamily: fonts.bold, fontSize: 11, color: colors.accent, letterSpacing: 0.6 },
-  infoValue: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginTop: 2 },
+  infoLabel: { fontFamily: fonts.bold, fontSize: 11, color: c.accent, letterSpacing: 0.6 },
+  infoValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 2 },
 
   // Stepper
   stepper: { paddingVertical: spacing.xs },
@@ -1042,32 +1054,32 @@ const styles = StyleSheet.create({
     height: 30,
     borderRadius: 15,
     borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: c.border,
+    backgroundColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepCircleDone: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  stepCircleCurrent: { borderColor: colors.primary },
-  stepNum: { fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted },
-  stepLine: { flex: 1, height: 2, backgroundColor: colors.border, marginHorizontal: 2 },
+  stepCircleCurrent: { borderColor: c.primary },
+  stepNum: { fontFamily: fonts.bold, fontSize: 13, color: c.textMuted },
+  stepLine: { flex: 1, height: 2, backgroundColor: c.border, marginHorizontal: 2 },
   stepLineDone: { backgroundColor: '#10B981' },
-  stepLabel: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, marginTop: 6 },
-  stepLabelDone: { fontFamily: fonts.bold, color: colors.text },
+  stepLabel: { fontFamily: fonts.regular, fontSize: 11, color: c.textMuted, marginTop: 6 },
+  stepLabelDone: { fontFamily: fonts.bold, color: c.text },
 
   // Modals
   backdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii['2xl'],
     borderTopRightRadius: radii['2xl'],
     padding: spacing.xl,
     gap: spacing.md,
   },
-  sheetTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  sheetHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
+  sheetTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  sheetHint: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
   commentInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
   starRow: { alignItems: 'center', paddingVertical: spacing.sm },
   requestChanges: { alignItems: 'center', paddingVertical: spacing.md },
-  requestChangesText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.accent },
-});
+  requestChangesText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.accent },
+}));

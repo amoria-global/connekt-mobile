@@ -12,7 +12,7 @@ import { useRole } from '@/features/auth/role';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 const ITEMS_PER_PAGE = 4;
 
@@ -54,6 +54,8 @@ function FilterButton({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable style={styles.filterButton} onPress={onPress} accessibilityRole="button">
       <Ionicons name={icon} size={14} color={colors.textMuted} />
@@ -64,6 +66,8 @@ function FilterButton({
 }
 
 export default function PhotographersScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { isCoordinator } = useRole();
   const [query, setQuery] = useState('');
   const [showBanner, setShowBanner] = useState(true);
@@ -493,9 +497,9 @@ export default function PhotographersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   listContent: { 
     flexGrow: 1, 
     paddingBottom: 120,
@@ -590,11 +594,7 @@ const styles = StyleSheet.create({
     marginTop: -40, // Float over the blue background
     borderRadius: radii.xl,
     padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
+    ...e(3),
   },
   searchContainer: {
     position: 'relative',
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
     paddingLeft: 36,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.lg,
     height: 40,
     fontSize: 13,
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.lg,
     paddingHorizontal: 12,
     height: 36,
@@ -637,16 +637,16 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.text,
+    color: c.text,
     flexShrink: 1,
   },
   clearPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radii.full,
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 11,
     fontWeight: '700',
-    color: colors.primary,
+    color: c.primary,
   },
   chipScroll: { maxHeight: 240 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingBottom: spacing.sm },
@@ -663,13 +663,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: radii.lg,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: fontWeight.semibold },
-  chipTextActive: { color: colors.textOnPrimary },
+  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipText: { fontSize: fontSize.xs, color: c.textSoft, fontWeight: fontWeight.semibold },
+  chipTextActive: { color: c.textOnPrimary },
   resultsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
   resultsText: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   resultsCount: {
     fontFamily: fonts.bold,
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radii.lg,
@@ -701,11 +701,11 @@ const styles = StyleSheet.create({
   },
   sortText: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   sortValue: {
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.md,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -731,10 +731,10 @@ const styles = StyleSheet.create({
   pagerText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
   },
   pagerTextDisabled: {
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   pageNumbers: {
     flexDirection: 'row',
@@ -749,12 +749,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   pageNumberBtnActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
   pageNumberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
   },
   pageNumberTextActive: {
     color: 'white',
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.lg,
@@ -779,6 +779,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.sm,
   },
-  modalTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
-  modalHint: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
-});
+  modalTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: '700', color: c.text },
+  modalHint: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20, marginBottom: spacing.sm },
+}));

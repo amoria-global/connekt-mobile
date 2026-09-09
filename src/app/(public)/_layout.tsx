@@ -1,9 +1,10 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 /** Guest-accessible screens (no login required). */
 export default function PublicLayout() {
+  const { colors } = useTheme();
   return (
     <>
       <Stack
@@ -13,6 +14,7 @@ export default function PublicLayout() {
           headerTitleStyle: { color: colors.textOnPrimary, fontWeight: '700' },
           headerBackButtonDisplayMode: 'minimal',
           headerShadowVisible: false,
+          contentStyle: { backgroundColor: colors.background },
         }}
       >
         <Stack.Screen name="explore-events" options={{ title: 'Explore events' }} />

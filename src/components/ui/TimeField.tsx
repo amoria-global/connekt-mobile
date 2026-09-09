@@ -2,7 +2,7 @@ import { useState } from 'react';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export type TimeFieldProps = {
   label?: string;
@@ -27,6 +27,8 @@ function fromHM(s?: string): Date | null {
 const pretty = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
 export function TimeField({ label, value, onChange, error, placeholder = 'Select a time' }: TimeFieldProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const time = fromHM(value);
   const [show, setShow] = useState(false);
   const [temp, setTemp] = useState<Date>(time ?? new Date());
@@ -93,28 +95,28 @@ export function TimeField({ label, value, onChange, error, placeholder = 'Select
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { gap: spacing.xs },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
   field: {
     height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderRadius: radii.md,
     paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  fieldError: { borderColor: colors.error },
-  value: { fontSize: fontSize.md, color: colors.text },
-  placeholder: { color: colors.textMuted },
-  error: { fontSize: fontSize.xs, color: colors.error },
+  fieldError: { borderColor: c.error },
+  value: { fontSize: fontSize.md, color: c.text },
+  placeholder: { color: c.textMuted },
+  error: { fontSize: fontSize.xs, color: c.error },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii['2xl'],
     borderTopRightRadius: radii['2xl'],
     paddingBottom: spacing['2xl'],
@@ -126,9 +128,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSoft,
+    borderBottomColor: c.borderSoft,
   },
-  sheetTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  cancel: { fontSize: fontSize.md, color: colors.textMuted },
-  done: { fontSize: fontSize.md, color: colors.primary, fontWeight: fontWeight.bold },
-});
+  sheetTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  cancel: { fontSize: fontSize.md, color: c.textMuted },
+  done: { fontSize: fontSize.md, color: c.primary, fontWeight: fontWeight.bold },
+}));

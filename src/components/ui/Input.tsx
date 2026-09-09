@@ -8,7 +8,7 @@ import {
   type TextInputProps,
   View,
 } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 type Props = TextInputProps & {
   label?: string;
@@ -20,6 +20,8 @@ export const Input = forwardRef<TextInput, Props>(function Input(
   { label, error, leftElement, style, secureTextEntry, ...rest },
   ref,
 ) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const isPassword = secureTextEntry === true;
   const [hidden, setHidden] = useState(true);
 
@@ -33,6 +35,11 @@ export const Input = forwardRef<TextInput, Props>(function Input(
           placeholderTextColor={colors.textMuted}
           secureTextEntry={isPassword ? hidden : secureTextEntry}
           style={[styles.input, style]}
+          // React Native does NOT associate the sibling <Text> label with this
+          // field the way <label for> does on the web, so without an explicit
+          // name VoiceOver and TalkBack announce it as an unlabelled field.
+          // Declared BEFORE {...rest} so a screen can still override it.
+          accessibilityLabel={label}
           {...rest}
         />
         {isPassword ? (
@@ -56,29 +63,29 @@ export const Input = forwardRef<TextInput, Props>(function Input(
   );
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { gap: spacing.xs },
   label: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
-    color: colors.textSoft,
+    color: c.textSoft,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderRadius: radii.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
   },
   input: {
     flex: 1,
     height: 52,
     paddingHorizontal: spacing.lg,
     fontSize: fontSize.md,
-    color: colors.text,
+    color: c.text,
   },
   eye: { paddingHorizontal: spacing.md },
-  inputError: { borderColor: colors.error },
-  error: { fontSize: fontSize.xs, color: colors.error },
-});
+  inputError: { borderColor: c.error },
+  error: { fontSize: fontSize.xs, color: c.error },
+}));

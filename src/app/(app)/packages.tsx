@@ -7,10 +7,11 @@ import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { deletePackage, listPackages, type Package } from '@/features/packages/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 export default function PackagesScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPackages(), []));
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -98,24 +99,24 @@ export default function PackagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.xs,
   },
   dim: { opacity: 0.5 },
   pressed: { opacity: 0.7 },
   cardActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
-  editHint: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  editHint: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  name: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text, flex: 1 },
-  price: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
-  desc: { fontSize: fontSize.sm, color: colors.textSoft },
-  meta: { fontSize: fontSize.xs, color: colors.textMuted },
-  geoLink: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.primary },
-  delete: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.error },
-});
+  name: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text, flex: 1 },
+  price: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
+  desc: { fontSize: fontSize.sm, color: c.textSoft },
+  meta: { fontSize: fontSize.xs, color: c.textMuted },
+  geoLink: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.primary },
+  delete: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.error },
+}));

@@ -31,13 +31,14 @@ import { PhotoCheckoutSheet } from '@/features/photos/PhotoCheckoutSheet';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
-import { spacing } from '@/theme';
+import { spacing, makeStyles } from '@/theme';
 
 function sym(code?: string | null) {
   return code === 'USD' ? '$' : code === 'EUR' ? '€' : code === 'GBP' ? '£' : `${code ?? ''} `;
 }
 
 export default function BrowsePhotosScreen() {
+  const styles = useStyles();
   const [items, setItems] = useState<BrowseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState<BrowseRow | null>(null);
@@ -339,7 +340,7 @@ export default function BrowsePhotosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: { backgroundColor: '#052047' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   card: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.1)' },
@@ -395,4 +396,4 @@ const styles = StyleSheet.create({
   unlockCode: { color: '#FBBF24', fontSize: 14, fontWeight: '700', marginBottom: 8 },
   successThumb: { flex: 1, maxWidth: '32%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.1)' },
   successThumbOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
-});
+}));

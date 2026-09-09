@@ -11,7 +11,7 @@ import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { REPORT_REASONS, REPORT_TARGET_LABEL, type ReportTarget } from './api';
 
 type Props = {
@@ -29,6 +29,7 @@ function isApiError(e: unknown): e is { status?: number; message: string } {
 }
 
 export function ReportSheet({ visible, onClose, targetType, submit, subject }: Props) {
+  const styles = useStyles();
   const router = useRouter();
   const reasons = REPORT_REASONS[targetType];
   const [reason, setReason] = useState<string>(reasons[0]);
@@ -126,19 +127,19 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },
-  title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   hint: {
     fontSize: fontSize.sm,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 20,
     marginBottom: spacing.sm,
   },
@@ -147,12 +148,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: fontWeight.semibold },
-  chipTextActive: { color: colors.textOnPrimary },
+  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipText: { fontSize: fontSize.xs, color: c.textSoft, fontWeight: fontWeight.semibold },
+  chipTextActive: { color: c.textOnPrimary },
   input: { marginTop: spacing.sm, marginBottom: spacing.sm },
-});
+}));

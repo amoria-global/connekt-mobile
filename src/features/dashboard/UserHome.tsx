@@ -30,7 +30,7 @@ import { listEvents } from '@/features/events/api';
 import { listDonations } from '@/features/donations/api';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { formatMoney } from '@/utils/format';
-import { colors, fonts, fontSize, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 
 type Action = {
   label: string;
@@ -50,6 +50,8 @@ const ACTIONS: Action[] = [
 ];
 
 export function UserHome() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const user = useAuth((s) => s.user);
@@ -407,6 +409,7 @@ export function UserHome() {
 // ────── Small building blocks ────────────────────────────────────────────
 
 function Section({ title, actionLabel, onAction }: { title: string; actionLabel?: string; onAction?: () => void }) {
+  const styles = useStyles();
   return (
     <View style={styles.sectionHead}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -420,10 +423,13 @@ function Section({ title, actionLabel, onAction }: { title: string; actionLabel?
 }
 
 function Loader() {
+  const { colors } = useTheme();
   return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />;
 }
 
 function EmptyCard({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.emptyCard}>
       <Ionicons name={icon} size={20} color={colors.textMuted} />
@@ -432,7 +438,7 @@ function EmptyCard({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: 140, gap: spacing.lg },
 
   // Gradient hero (salo-run parity)
@@ -460,28 +466,28 @@ const styles = StyleSheet.create({
   card: {
     width: '47.5%',
     flexGrow: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: 8,
   },
   pressed: { opacity: 0.85 },
   cardIcon: { width: 42, height: 42, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center' },
-  cardLabel: { fontFamily: fonts.bold, fontSize: fontSize.md, color: colors.text },
-  cardSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
+  cardLabel: { fontFamily: fonts.bold, fontSize: fontSize.md, color: c.text },
+  cardSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
 
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text },
-  link: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.primary },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: c.text },
+  link: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.primary },
 
   // Horizontal media rails (watches + photos)
   hRow: { gap: spacing.md, paddingRight: spacing.xl },
   mediaCard: { width: 150, gap: 6 },
   mediaThumbWrap: { position: 'relative' },
-  mediaThumb: { width: 150, height: 96, borderRadius: radii.md, backgroundColor: colors.surfaceMuted },
-  mediaThumbFallback: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderSoft },
+  mediaThumb: { width: 150, height: 96, borderRadius: radii.md, backgroundColor: c.surfaceMuted },
+  mediaThumbFallback: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.borderSoft },
   durationPill: {
     position: 'absolute', right: 6, bottom: 6,
     backgroundColor: 'rgba(0,0,0,0.72)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.sm,
@@ -492,17 +498,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(8,58,133,0.85)', width: 22, height: 22, borderRadius: 11,
     alignItems: 'center', justifyContent: 'center',
   },
-  mediaTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.text },
-  mediaSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
+  mediaTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.text },
+  mediaSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
 
   // Live-now rows (join a stream)
   liveRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft,
+    backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft,
     padding: spacing.md,
   },
   liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444' },
-  liveTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.text },
+  liveTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.text },
   liveSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: '#EF4444' },
   joinBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -514,51 +520,51 @@ const styles = StyleSheet.create({
   // Compact list rows (archives)
   listRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft,
+    backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft,
     padding: spacing.md,
   },
-  listIcon: { width: 38, height: 38, borderRadius: radii.md, backgroundColor: colors.infoBg, alignItems: 'center', justifyContent: 'center' },
-  listTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.text },
-  listSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
+  listIcon: { width: 38, height: 38, borderRadius: radii.md, backgroundColor: c.infoBg, alignItems: 'center', justifyContent: 'center' },
+  listTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.text },
+  listSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
 
   // Empty states
   emptyCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft,
+    backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft,
     padding: spacing.lg,
   },
-  emptyText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
+  emptyText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
 
   settledCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.successBg, borderRadius: radii.lg, padding: spacing.lg,
+    backgroundColor: c.successBg, borderRadius: radii.lg, padding: spacing.lg,
   },
-  settledText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.text },
+  settledText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.text },
 
   pendingTotal: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.primary, borderRadius: radii.lg, padding: spacing.lg,
+    backgroundColor: c.primary, borderRadius: radii.lg, padding: spacing.lg,
   },
   pendingTotalLabel: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: 'rgba(255,255,255,0.85)' },
   pendingTotalValue: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: '#fff' },
 
   payRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft,
+    backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft,
     padding: spacing.md,
   },
-  payTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.text },
-  paySub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
-  payBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.lg, paddingVertical: 9, borderRadius: radii.full },
+  payTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.text },
+  paySub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
+  payBtn: { backgroundColor: c.primary, paddingHorizontal: spacing.lg, paddingVertical: 9, borderRadius: radii.full },
   payBtnText: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: '#fff' },
 
   // Settings + Help
   manageRow: { flexDirection: 'row', gap: spacing.md },
   manageTile: {
     flex: 1, gap: 4,
-    backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft,
+    backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft,
     padding: spacing.lg,
   },
-  manageLabel: { fontFamily: fonts.bold, fontSize: fontSize.md, color: colors.text, marginTop: 4 },
-  manageSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
-});
+  manageLabel: { fontFamily: fonts.bold, fontSize: fontSize.md, color: c.text, marginTop: 4 },
+  manageSub: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
+}));

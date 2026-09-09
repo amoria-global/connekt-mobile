@@ -18,9 +18,11 @@ import {
   setPreference,
 } from '@/features/preferences/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function PreferencesScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { isPhotographer, isCoordinator } = useRole();
   const base = preferencesBase({ isPhotographer, isCoordinator });
   const { data, loading, error } = useAsync(useCallback(() => getPreferences(base), [base]));
@@ -79,20 +81,20 @@ export default function PreferencesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.lg,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
-  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderSoft },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   rowBody: { flex: 1, gap: 2 },
-  rowLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  rowDesc: { fontSize: fontSize.xs, color: colors.textMuted },
-});
+  rowLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  rowDesc: { fontSize: fontSize.xs, color: c.textMuted },
+}));

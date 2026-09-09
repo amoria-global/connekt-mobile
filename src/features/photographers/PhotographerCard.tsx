@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import type { Photographer } from './api';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 
 export function PhotographerCard({ photographer }: { photographer: Photographer }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const initials = (photographer.name?.[0] ?? '?').toUpperCase();
   const ratingText = photographer.rating ? photographer.rating.toFixed(1) : 'New';
   const reviewsCount = photographer.reviewCount ?? 0;
@@ -101,13 +103,13 @@ export function PhotographerCard({ photographer }: { photographer: Photographer 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   card: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
     margin: spacing.xs, // small margin for grid gap
   },
@@ -115,7 +117,7 @@ const styles = StyleSheet.create({
     height: 140,
     width: '100%',
     position: 'relative',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
   coverImage: {
     width: '100%',
@@ -160,11 +162,11 @@ const styles = StyleSheet.create({
   textRating: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
   },
   textReviewsCount: {
     fontWeight: '400',
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   badgeBottomRight: {
     position: 'absolute',
@@ -176,11 +178,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    ...e(2),
   },
   avatarContainer: {
     position: 'absolute',
@@ -196,15 +194,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 24,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
   avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
   avatarText: {
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     fontSize: fontSize.md,
     fontWeight: 'bold',
   },
@@ -224,12 +222,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: fontSize.md,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
   },
   category: {
     fontFamily: fonts.regular,
     fontSize: fontSize.xs,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   metaRow: {
     flexDirection: 'column',
@@ -243,7 +241,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: fontSize.xs,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   priceRow: {
     flexDirection: 'row',
@@ -256,13 +254,13 @@ const styles = StyleSheet.create({
   },
   priceText: {
     fontSize: 10,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   priceValue: {
     fontFamily: fonts.bold,
     fontSize: 11,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
   },
   ctaButton: {
     flexDirection: 'row',
@@ -278,4 +276,4 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-});
+}));

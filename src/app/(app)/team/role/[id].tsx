@@ -35,9 +35,11 @@ import {
   type TeamRole,
 } from '@/features/teams/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function TeamRoleEditorScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const isNew = id === 'new';
@@ -275,48 +277,48 @@ export default function TeamRoleEditorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, paddingBottom: 80, gap: spacing.md },
   multilineInput: { height: 80, paddingTop: spacing.md, textAlignVertical: 'top' },
 
   statusBar: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  statusBarText: { color: colors.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  statusBarText: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   categoryCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   categoryHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
-  categoryTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  categoryCount: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
-  selectAllBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.full, backgroundColor: colors.infoBg },
-  selectAllText: { color: colors.primary, fontSize: 11, fontWeight: fontWeight.bold },
+  categoryTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  categoryCount: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
+  selectAllBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.full, backgroundColor: c.infoBg },
+  selectAllText: { color: c.primary, fontSize: 11, fontWeight: fontWeight.bold },
 
-  permList: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderSoft, paddingTop: spacing.md },
+  permList: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm, borderTopWidth: 1, borderTopColor: c.borderSoft, paddingTop: spacing.md },
   permRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: 6 },
   check: {
     width: 20,
     height: 20,
     borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
-  checkOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  permName: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.semibold },
-  permDescription: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  checkOn: { backgroundColor: c.primary, borderColor: c.primary },
+  permName: { fontSize: fontSize.sm, color: c.text, fontWeight: fontWeight.semibold },
+  permDescription: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
 
-  error: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

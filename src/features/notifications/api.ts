@@ -25,7 +25,13 @@ function str(v: unknown): string | undefined {
 
 export type NotificationsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer' | 'User';
 
-function base(role: NotificationsRole | boolean): string {
+/**
+ * `undefined` is accepted deliberately. Since useRole() stopped substituting
+ * 'Client' for a missing role, callers can legitimately hold no role. This
+ * picks an ENDPOINT, it does not assign an identity — an unknown role gets the
+ * generic customer feed, exactly as any non-Photographer/Coordinator already did.
+ */
+function base(role: NotificationsRole | boolean | undefined): string {
   // Backward-compat: legacy callers pass `role: NotificationsRole | boolean`.
   if (typeof role === 'boolean') return role ? '/photographer/notifications' : '/customer/notifications';
   if (role === 'Photographer') return '/photographer/notifications';
@@ -56,16 +62,16 @@ function pageContent(data: unknown): Raw[] {
   return Array.isArray(c) ? (c as Raw[]) : [];
 }
 
-export async function listNotifications(role: NotificationsRole | boolean): Promise<AppNotification[]> {
+export async function listNotifications(role: NotificationsRole | boolean | undefined): Promise<AppNotification[]> {
   const res = await api.get<ApiEnvelope<unknown>>(base(role));
   return pageContent(res?.data).map(mapNotification).filter((n) => n.id);
 }
 
-export async function markRead(role: NotificationsRole | boolean, id: string): Promise<void> {
+export async function markRead(role: NotificationsRole | boolean | undefined, id: string): Promise<void> {
   await api.post(`${base(role)}/${encodeURIComponent(id)}/mark-read`);
 }
 
-export async function markAllRead(role: NotificationsRole | boolean): Promise<void> {
+export async function markAllRead(role: NotificationsRole | boolean | undefined): Promise<void> {
   await api.post(`${base(role)}/mark-all-read`);
 }
 

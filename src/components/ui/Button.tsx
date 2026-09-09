@@ -7,7 +7,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 type Variant = 'primary' | 'accent' | 'ghost' | 'outline' | 'danger';
 
@@ -19,6 +19,9 @@ type Props = Omit<PressableProps, 'children'> & {
 };
 
 export function Button({ title, variant = 'primary', loading, disabled, style, textStyle, ...rest }: Props) {
+  const variantStyles = useVariantStyles();
+  const styles = useStyles();
+  const { colors } = useTheme();
   const isDisabled = disabled || loading;
   const isOutlined = variant === 'ghost' || variant === 'outline';
   return (
@@ -43,10 +46,10 @@ export function Button({ title, variant = 'primary', loading, disabled, style, t
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   base: {
     height: 52,
-    borderRadius: radii.md,
+    borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
@@ -54,17 +57,17 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   disabled: { opacity: 0.5 },
   label: {
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
   },
-  labelGhost: { color: colors.primary },
-});
+  labelGhost: { color: c.primary },
+}));
 
-const variantStyles = StyleSheet.create({
-  primary: { backgroundColor: colors.primary },
-  accent: { backgroundColor: colors.accent },
-  ghost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
-  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
-  danger: { backgroundColor: colors.error },
-});
+const useVariantStyles = makeStyles((c) => ({
+  primary: { backgroundColor: c.primary },
+  accent: { backgroundColor: c.accent },
+  ghost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: c.primary },
+  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: c.primary },
+  danger: { backgroundColor: c.error },
+}));

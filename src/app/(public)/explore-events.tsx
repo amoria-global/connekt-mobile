@@ -64,7 +64,7 @@ import {
 } from '@/features/events/types';
 import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
 
@@ -134,6 +134,8 @@ function tabFromStatusParam(s: string | undefined): PublicEventsTab {
 }
 
 export default function ExploreEventsScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const params = useLocalSearchParams<{
     status?: string;
@@ -578,6 +580,8 @@ function PosterCard({
   onPress: () => void;
   onToggleSave: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const date = dateParts(event.eventDate);
   const price = priceText(event);
   const org = organizerInfo(event);
@@ -685,6 +689,8 @@ function FilterChip({
   options: { value: string; label: string }[];
   onChange: (v: string) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
   const active = value !== 'all';
@@ -724,13 +730,13 @@ function FilterChip({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   // Containers
   listContent: { paddingBottom: 120, gap: spacing.md, flexGrow: 1 },
   cardWrap: { paddingHorizontal: spacing.xl },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyWrap: { paddingTop: spacing['2xl'], paddingHorizontal: spacing.xl, alignItems: 'center', gap: spacing.md },
-  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
 
   // Banner
   banner: {
@@ -739,16 +745,16 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-    backgroundColor: colors.primaryDark,
+    backgroundColor: c.primaryDark,
   },
-  bannerCta: { flex: 1, color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  bannerCta: { flex: 1, color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
 
   // Hero
   hero: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     gap: spacing.xs,
   },
   heroEyebrow: {
@@ -766,7 +772,7 @@ const styles = StyleSheet.create({
   },
   heroEyebrowText: { color: '#FFD28A', fontSize: 10, letterSpacing: 1.4, fontWeight: fontWeight.bold },
   heroTitle: {
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.extrabold,
     lineHeight: 32,
@@ -788,12 +794,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radii.full,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
   },
   trendsFlame: { fontSize: 14 },
-  trendsPillText: { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  trendsPillText: { color: c.primary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   trendsCount: {
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     minWidth: 18,
     paddingHorizontal: 6,
     height: 18,
@@ -802,7 +808,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   trendsCountText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold },
-  trendsAll: { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  trendsAll: { color: c.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
   trendsScroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
   story: { width: 84, alignItems: 'center', gap: 6 },
   storyRing: {
@@ -810,7 +816,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     padding: 3,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -818,7 +824,7 @@ const styles = StyleSheet.create({
     width: 66,
     height: 66,
     borderRadius: 33,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     padding: 2,
     overflow: 'hidden',
     alignItems: 'center',
@@ -829,7 +835,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.full,
@@ -837,7 +843,7 @@ const styles = StyleSheet.create({
   },
   storyLiveDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
   storyLiveText: { color: '#fff', fontSize: 9, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
-  storyTitle: { fontSize: 11, color: colors.textSoft, fontWeight: fontWeight.semibold, textAlign: 'center' },
+  storyTitle: { fontSize: 11, color: c.textSoft, fontWeight: fontWeight.semibold, textAlign: 'center' },
 
   // Tabs
   tabsRow: {
@@ -856,17 +862,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 6,
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
-  tabActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
-  tabLabel: { color: colors.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  tabLabelActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  tabActive: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.primary },
+  tabLabel: { color: c.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  tabLabelActive: { color: c.primary, fontWeight: fontWeight.bold },
   tabCount: {
     minWidth: 18,
     height: 18,
     paddingHorizontal: 5,
     borderRadius: 9,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -878,14 +884,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  searchInput: { flex: 1, color: colors.text, fontSize: fontSize.sm, padding: 0 },
+  searchInput: { flex: 1, color: c.text, fontSize: fontSize.sm, padding: 0 },
   filtersRow: { gap: spacing.sm, paddingVertical: spacing.xs },
 
   filterChipWrap: { position: 'relative' },
@@ -896,29 +902,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: radii.full,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  filterChipActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  filterChipText: { color: colors.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  filterChipTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  filterChipActive: { borderColor: c.primary, backgroundColor: c.infoBg },
+  filterChipText: { color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  filterChipTextActive: { color: c.primary, fontWeight: fontWeight.bold },
   filterMenu: {
     position: 'absolute',
     top: 38,
     left: 0,
     minWidth: 180,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingVertical: 4,
     zIndex: 10,
     elevation: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    ...e(2),
   },
   filterMenuItem: {
     flexDirection: 'row',
@@ -927,9 +930,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
-  filterMenuItemActive: { backgroundColor: colors.infoBg },
-  filterMenuText: { color: colors.text, fontSize: fontSize.sm },
-  filterMenuTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  filterMenuItemActive: { backgroundColor: c.infoBg },
+  filterMenuText: { color: c.text, fontSize: fontSize.sm },
+  filterMenuTextActive: { color: c.primary, fontWeight: fontWeight.bold },
 
   // Result strip
   resultStrip: {
@@ -941,19 +944,19 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     gap: 4,
   },
-  resultText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  resultFilters: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  resultText: { color: c.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  resultFilters: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   // Card
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   cardPressed: { opacity: 0.92 },
-  cardMedia: { width: '100%', height: 180, position: 'relative', backgroundColor: colors.surfaceMuted },
+  cardMedia: { width: '100%', height: 180, position: 'relative', backgroundColor: c.surfaceMuted },
   cardArt: { width: '100%', height: '100%' },
   cardScrim: {
     position: 'absolute',
@@ -975,7 +978,7 @@ const styles = StyleSheet.create({
   cardDateMo: {
     width: '100%',
     paddingVertical: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     color: '#fff',
     fontSize: 10,
     fontWeight: fontWeight.bold,
@@ -983,7 +986,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cardDateDay: {
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.lg,
     fontWeight: fontWeight.extrabold,
     paddingVertical: 2,
@@ -1006,8 +1009,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   statusText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
-  statusUpcoming: { backgroundColor: colors.primary },
-  statusLive: { backgroundColor: colors.accent },
+  statusUpcoming: { backgroundColor: c.primary },
+  statusLive: { backgroundColor: c.accent },
   statusEnded: { backgroundColor: '#6A6D76' },
   pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
   bookmark: {
@@ -1018,12 +1021,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookmarkSaved: { backgroundColor: colors.surface },
+  bookmarkSaved: { backgroundColor: c.surface },
 
   cardMeta: { padding: spacing.md, gap: 6 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardVenue: { flex: 1, color: colors.textMuted, fontSize: fontSize.xs },
-  cardTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, lineHeight: 22 },
+  cardVenue: { flex: 1, color: c.textMuted, fontSize: fontSize.xs },
+  cardTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, lineHeight: 22 },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1036,24 +1039,24 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   orgAvatarImg: { width: '100%', height: '100%' },
-  orgInitial: { color: colors.textSoft, fontSize: 11, fontWeight: fontWeight.bold },
-  orgName: { flex: 1, color: colors.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  orgInitial: { color: c.textSoft, fontSize: 11, fontWeight: fontWeight.bold },
+  orgName: { flex: 1, color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
   priceChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radii.full,
   },
-  priceText: { color: colors.primary, fontSize: fontSize.xs },
+  priceText: { color: c.primary, fontSize: fontSize.xs },
   priceNum: { fontWeight: fontWeight.bold },
 
   // Pagination
@@ -1072,11 +1075,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
+    borderColor: c.primary,
+    backgroundColor: c.surface,
   },
-  pagerBtnDisabled: { borderColor: colors.borderSoft, backgroundColor: colors.surfaceMuted },
-  pagerBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  pagerBtnTextDisabled: { color: colors.textMuted },
-  pagerInfo: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-});
+  pagerBtnDisabled: { borderColor: c.borderSoft, backgroundColor: c.surfaceMuted },
+  pagerBtnText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  pagerBtnTextDisabled: { color: c.textMuted },
+  pagerInfo: { color: c.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+}));

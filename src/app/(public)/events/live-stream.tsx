@@ -119,7 +119,7 @@ import { isApiError } from '@/store/auth';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
 
 const REACTION_EMOJIS = ['🔥', '❤️', '👏', '😍', '🎉', '😮'];
@@ -184,6 +184,8 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
 // player labelled "Video message".
 
 function ChatVideoBubble({ uri }: { uri: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const player = useVideoPlayer({ uri }, (p) => {
     p.loop = false;
     p.muted = false;
@@ -222,6 +224,7 @@ function OverlayChatRow({
   /** Opens the report/hide menu. Omitted for the viewer's own messages. */
   onLongPress?: (chat: PublicStreamChat) => void;
 }) {
+  const chatFx = useChatFx();
   // Mount animation — the row fades in and slides up a few px into place, so
   // the stack visibly "moves upward" as newer messages push in below.
   const enter = useRef(new Animated.Value(0)).current;
@@ -346,6 +349,7 @@ function LiveChatPanel({
   insetTop = 0,
   insetBottom = 0,
 }: LiveChatPanelProps) {
+  const chatFx = useChatFx();
   const listRef = useRef<ScrollView>(null);
   // Keep the newest message in view — the list is bottom-anchored so this is
   // what produces the upward-scrolling feed.
@@ -504,6 +508,8 @@ function LiveChatPanel({
 // ─── Main screen ───────────────────────────────────────────────────────────
 
 export default function PublicLiveStreamScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const {
     id,
     viewerId: urlViewerId,
@@ -1666,23 +1672,23 @@ export default function PublicLiveStreamScreen() {
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 140 },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  title: { flex: 1, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.text },
+  title: { flex: 1, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text },
   viewerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radii.full,
   },
   viewerBadgeText: { color: '#fff', fontSize: fontSize.xs, fontWeight: fontWeight.bold },
 
-  offlineTitle: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: colors.text, letterSpacing: -0.3 },
+  offlineTitle: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: c.text, letterSpacing: -0.3 },
 
   // Details overlaid on the top of the video stage
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: spacing.md, paddingHorizontal: spacing.md },
@@ -1692,7 +1698,7 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: 92 },
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   topAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)' },
-  topAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
+  topAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
   topInitial: { fontFamily: fonts.bold, fontSize: 16, color: '#fff' },
   liveNowPill: {
     alignSelf: 'flex-start',
@@ -1764,7 +1770,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: radii.full,
   },
-  placeholderCtaText: { color: colors.primary, fontWeight: '800', fontSize: fontSize.sm },
+  placeholderCtaText: { color: c.primary, fontWeight: '800', fontSize: fontSize.sm },
   placeholderLinkText: {
     color: 'rgba(255,255,255,0.92)',
     fontSize: fontSize.xs,
@@ -1816,23 +1822,23 @@ const styles = StyleSheet.create({
   fsRoot: { flex: 1, backgroundColor: '#000' },
   chatHint: {
     fontSize: fontSize.xs,
-    color: colors.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
   },
 
   tokenCard: {
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.md,
   },
-  tokenLabel: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  tokenLabel: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   linkText: {
     textAlign: 'center',
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
   },
@@ -1841,18 +1847,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.errorBg,
+    backgroundColor: c.errorBg,
     padding: spacing.lg,
     borderRadius: radii.lg,
   },
-  errorText: { flex: 1, color: colors.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  errorText: { flex: 1, color: c.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 
   chatCard: {
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.md,
   },
   chatTitleRow: {
@@ -1860,29 +1866,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  chatTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  chatTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   giftPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.full,
   },
   giftPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   chatList: { gap: 8, maxHeight: 320 },
-  chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
+  chatEmpty: { fontSize: fontSize.sm, color: c.textMuted, fontStyle: 'italic' },
 
   // Sender differentiation: mine right-aligned, others left with avatar.
   rowOther: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, maxWidth: '88%' },
   rowOwn: { flexDirection: 'row', justifyContent: 'flex-end' },
-  avatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.surfaceMuted },
+  avatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.surfaceMuted },
   avatarFallback: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1893,35 +1899,35 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 2,
   },
-  bubbleOther: { backgroundColor: colors.surfaceMuted, borderTopLeftRadius: 4 },
+  bubbleOther: { backgroundColor: c.surfaceMuted, borderTopLeftRadius: 4 },
   bubbleOwn: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderTopRightRadius: 4,
     maxWidth: '88%',
   },
   bubbleHeadRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  bubbleSender: { fontSize: 11, fontWeight: '700', color: colors.primary, flexShrink: 1 },
+  bubbleSender: { fontSize: 11, fontWeight: '700', color: c.primary, flexShrink: 1 },
   bubbleSenderOwn: { color: 'rgba(255,255,255,0.92)' },
-  bubbleTime: { fontSize: 10, color: colors.textMuted },
+  bubbleTime: { fontSize: 10, color: c.textMuted },
   bubbleTimeOwn: { fontSize: 10, color: 'rgba(255,255,255,0.7)' },
-  bubbleText: { fontSize: fontSize.sm, color: colors.text },
+  bubbleText: { fontSize: fontSize.sm, color: c.text },
   bubbleTextOwn: { color: '#fff' },
 
   chatVideoWrap: { marginTop: 4, gap: 4 },
   chatVideo: { width: 220, height: 124, borderRadius: 8, backgroundColor: '#000' },
   chatVideoTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  chatVideoTagText: { fontSize: 11, color: colors.primary, fontStyle: 'italic', fontWeight: '600' },
+  chatVideoTagText: { fontSize: 11, color: c.primary, fontStyle: 'italic', fontWeight: '600' },
 
   reactionsRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   reactionBtn: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.full,
     width: 38,
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   reactionEmoji: { fontSize: 18 },
   composer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -1929,49 +1935,49 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   composerInput: {
     flex: 1,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.full,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.sm,
   },
   sendBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chatErrorText: { color: colors.error, fontSize: 12 },
+  chatErrorText: { color: c.error, fontSize: 12 },
 
   floatingLayer: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end' },
   floatingEmoji: { position: 'absolute', bottom: 80, fontSize: 32 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },
-  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  modalHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  modalHint: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20, marginBottom: spacing.sm },
 
   giftLabel: {
     fontSize: fontSize.xs,
     fontWeight: '700',
-    color: colors.textSoft,
+    color: c.textSoft,
     marginTop: spacing.sm,
     letterSpacing: 0.4,
   },
@@ -1980,12 +1986,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  amountChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  amountChipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: '700' },
+  amountChipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  amountChipText: { fontSize: fontSize.xs, color: c.textSoft, fontWeight: '700' },
   amountChipTextActive: { color: '#fff' },
   payTabs: { flexDirection: 'row', gap: 6, marginVertical: 6 },
   payTab: {
@@ -1996,19 +2002,19 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     borderRadius: radii.md,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  payTabActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  payTabText: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: '700' },
-  payTabTextActive: { color: colors.primary },
-});
+  payTabActive: { borderColor: c.primary, backgroundColor: c.infoBg },
+  payTabText: { fontSize: fontSize.sm, color: c.textMuted, fontWeight: '700' },
+  payTabTextActive: { color: c.primary },
+}));
 
 // ─── TikTok-style chat overlay styles ────────────────────────────────────
 // Everything here is drawn OVER the video: the panel itself is transparent,
 // legibility comes from per-element translucent-black pills + text shadows.
-const chatFx = StyleSheet.create({
+const useChatFx = makeStyles((c) => ({
   panel: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
@@ -2067,7 +2073,7 @@ const chatFx = StyleSheet.create({
   },
   pillHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   avatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
-  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
   avatarInitial: { color: '#fff', fontSize: 10, fontWeight: '800' },
   pillName: {
     fontSize: 12,
@@ -2149,7 +2155,7 @@ const chatFx = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2159,7 +2165,7 @@ const chatFx = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 2,
   },
-});
+}));
 
 const splashStyles = StyleSheet.create({
   wrap: {

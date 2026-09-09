@@ -24,12 +24,14 @@ import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
 export default function WalletScreen() {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const { isPhotographer, isCoordinator, isClient } = useRole();
@@ -82,7 +84,7 @@ export default function WalletScreen() {
 
           {/* Balance hero */}
           <LinearGradient
-            colors={[colors.primary, '#0a4da3', colors.accent]}
+            colors={[...gradients.brand]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.balanceCard}
@@ -148,15 +150,15 @@ export default function WalletScreen() {
 
 const POT_ACCENTS = ['#083A85', '#F59E0B', '#10B981', '#8B5CF6', '#3B82F6'];
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  errorText: { fontFamily: fonts.regular, color: colors.textMuted, fontSize: 14, textAlign: 'center' },
+  errorText: { fontFamily: fonts.regular, color: c.textMuted, fontSize: 14, textAlign: 'center' },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.lg },
 
   headerBlock: { gap: 2 },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
-  title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, letterSpacing: -0.5 },
-  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
+  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
 
   balanceCard: { borderRadius: radii.xl, padding: spacing.xl, gap: 6 },
   balanceLabel: { fontFamily: fonts.bold, color: 'rgba(255,255,255,0.8)', fontSize: 11, letterSpacing: 1 },
@@ -172,44 +174,44 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     marginTop: spacing.sm,
   },
-  withdrawText: { fontFamily: fonts.bold, fontSize: 14, color: colors.primary },
+  withdrawText: { fontFamily: fonts.bold, fontSize: 14, color: c.primary },
 
-  sectionTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.text },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: 17, color: c.text },
   potGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   potCard: {
     width: '47%',
     flexGrow: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
     paddingTop: 16,
     overflow: 'hidden',
     gap: 2,
   },
   potAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  potLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
-  potAmount: { fontFamily: fonts.bold, fontSize: 20, color: colors.text },
+  potLabel: { fontFamily: fonts.regular, fontSize: 13, color: c.textMuted },
+  potAmount: { fontFamily: fonts.bold, fontSize: 20, color: c.text },
 
   menuCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.lg,
   },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
-  menuBorderTop: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderSoft },
+  menuBorderTop: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   menuIcon: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuLabel: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  menuLabel: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: c.text },
 
-  emptyHint: { fontFamily: fonts.regular, color: colors.textMuted, fontSize: 14, textAlign: 'center' },
-});
+  emptyHint: { fontFamily: fonts.regular, color: c.textMuted, fontSize: 14, textAlign: 'center' },
+}));

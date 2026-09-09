@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { deleteAccount } from '@/features/profile/api';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fonts, fontSize, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 
 const CONFIRM_WORD = 'DELETE';
 
@@ -24,6 +24,8 @@ const CONSEQUENCES = [
 ];
 
 export default function DeleteAccountScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const logout = useAuth((s) => s.logout);
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -95,30 +97,30 @@ export default function DeleteAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { gap: spacing.md, paddingVertical: spacing.lg },
   iconWrap: {
     alignSelf: 'center',
     width: 60,
     height: 60,
     borderRadius: radii.full,
-    backgroundColor: colors.errorBg,
+    backgroundColor: c.errorBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: colors.text, textAlign: 'center' },
-  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  title: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: c.text, textAlign: 'center' },
+  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.md,
   },
   bulletRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
-  bulletText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
-  note: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted, lineHeight: 18 },
-  confirmLabel: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm },
-  confirmWord: { fontFamily: fonts.bold, color: colors.error },
-});
+  bulletText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.text, lineHeight: 20 },
+  note: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted, lineHeight: 18 },
+  confirmLabel: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, marginTop: spacing.sm },
+  confirmWord: { fontFamily: fonts.bold, color: c.error },
+}));

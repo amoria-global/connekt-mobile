@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboarding } from '@/store/onboarding';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { spacing, radii, fonts, makeStyles } from '@/theme';
 
 const SECTIONS: { title: string; body: string }[] = [
   {
@@ -43,6 +43,7 @@ const SECTIONS: { title: string; body: string }[] = [
 ];
 
 export default function TermsScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const acceptTerms = useOnboarding((s) => s.acceptTerms);
@@ -87,37 +88,37 @@ export default function TermsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.xl },
+const useStyles = makeStyles((c) => ({
+  container: { flex: 1, backgroundColor: c.background, paddingHorizontal: spacing.xl },
   header: { gap: 4, marginBottom: spacing.md },
   badge: {
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
   },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
-  title: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, letterSpacing: -0.5 },
-  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
+  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
 
   scroll: { flex: 1 },
   scrollContent: { paddingVertical: spacing.md, gap: spacing.lg },
   section: { gap: 4 },
-  sectionTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
-  sectionBody: { fontFamily: fonts.regular, fontSize: 14, color: colors.textSoft, lineHeight: 21 },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: 15, color: c.text },
+  sectionBody: { fontFamily: fonts.regular, fontSize: 14, color: c.textSoft, lineHeight: 21 },
 
-  footer: { paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  footer: { paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: c.borderSoft },
   accept: {
     height: 54,
-    borderRadius: radii.lg,
-    backgroundColor: colors.accent,
+    borderRadius: radii.full,
+    backgroundColor: c.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   acceptText: { fontFamily: fonts.bold, fontSize: 16, color: '#fff' },
-});
+}));

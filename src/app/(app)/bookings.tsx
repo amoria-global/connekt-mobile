@@ -39,10 +39,12 @@ import { useRole } from '@/features/auth/role';
 import { acceptBooking, listBookings, rejectBooking, type Booking } from '@/features/bookings/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 export default function BookingsScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const { isPhotographer } = useRole();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listBookings(), []));
@@ -243,6 +245,8 @@ export default function BookingsScreen() {
 }
 
 function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <Ionicons name={icon} size={14} color={colors.textMuted} />
@@ -253,29 +257,29 @@ function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: strin
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, gap: 4 },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  subtitle: { fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.md },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
+  subtitle: { fontSize: fontSize.sm, color: c.textMuted, marginBottom: spacing.md },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
 
   list: { padding: spacing.xl, paddingBottom: 120, gap: spacing.md },
 
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: 4,
   },
   cardPressed: { opacity: 0.85 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginBottom: 4 },
-  eventTitle: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  eventTitle: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowText: { flex: 1, fontSize: fontSize.sm, color: colors.textSoft },
+  rowText: { flex: 1, fontSize: fontSize.sm, color: c.textSoft },
 
   actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   action: {
@@ -288,10 +292,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
   },
-  actionGhost: { borderColor: colors.error, backgroundColor: colors.errorBg },
-  actionPrimary: { borderColor: colors.primary, backgroundColor: colors.primary },
+  actionGhost: { borderColor: c.error, backgroundColor: c.errorBg },
+  actionPrimary: { borderColor: c.primary, backgroundColor: c.primary },
   actionText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  actionTextPrimary: { color: colors.textOnPrimary },
+  actionTextPrimary: { color: c.textOnPrimary },
 
   // Reject sheet
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,18,23,0.55)' },
@@ -300,7 +304,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
@@ -308,19 +312,19 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.sm,
   },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.sm },
-  sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
-  sheetSub: { fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.sm },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, marginBottom: spacing.sm },
+  sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  sheetSub: { fontSize: fontSize.sm, color: c.textMuted, marginBottom: spacing.sm },
   input: {
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: fontSize.md,
-    color: colors.text,
+    color: c.text,
     minHeight: 80,
     textAlignVertical: 'top',
     marginBottom: spacing.sm,
   },
-});
+}));
