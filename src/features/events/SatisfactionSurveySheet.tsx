@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import type { SatisfactionLevel, SatisfactionSurvey, ServiceDelivery } from './survey';
 
 type Props = {
@@ -55,6 +55,7 @@ function Question<T>({
   value: T | null;
   onChange: (v: T) => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.question}>
       <Text style={styles.questionLabel}>{label}</Text>
@@ -79,6 +80,7 @@ function Question<T>({
 }
 
 export function SatisfactionSurveySheet({ visible, onClose, onSubmit, submitting }: Props) {
+  const styles = useStyles();
   const [attendedEvent, setAttendedEvent] = useState<boolean | null>(null);
   const [serviceDelivery, setServiceDelivery] = useState<ServiceDelivery | null>(null);
   const [satisfactionLevel, setSatisfactionLevel] = useState<SatisfactionLevel | null>(null);
@@ -186,19 +188,19 @@ export function SatisfactionSurveySheet({ visible, onClose, onSubmit, submitting
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     maxHeight: '90%',
   },
-  title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   hint: {
     fontSize: fontSize.sm,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 20,
     marginTop: 4,
     marginBottom: spacing.md,
@@ -207,7 +209,7 @@ const styles = StyleSheet.create({
   questionLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
-    color: colors.textSoft,
+    color: c.textSoft,
     marginBottom: 6,
   },
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -215,14 +217,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  optionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  optionText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: fontWeight.semibold },
-  optionTextActive: { color: colors.textOnPrimary },
+  optionActive: { backgroundColor: c.primary, borderColor: c.primary },
+  optionText: { fontSize: fontSize.xs, color: c.textSoft, fontWeight: fontWeight.semibold },
+  optionTextActive: { color: c.textOnPrimary },
   notes: { marginTop: 4 },
   cancel: { alignItems: 'center', paddingVertical: spacing.md },
-  cancelText: { color: colors.textMuted, fontSize: fontSize.sm },
-});
+  cancelText: { color: c.textMuted, fontSize: fontSize.sm },
+}));

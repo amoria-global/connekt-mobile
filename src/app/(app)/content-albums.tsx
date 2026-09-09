@@ -32,7 +32,7 @@ import {
   type ContentApprovalStatus,
 } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type Filter = 'ALL' | ContentApprovalStatus;
 
@@ -52,6 +52,8 @@ const FILTERS: { key: Filter; label: string }[] = [
 ];
 
 export default function ContentAlbumsScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listContentAlbums(), []));
   const [filter, setFilter] = useState<Filter>('ALL');
@@ -147,6 +149,8 @@ export default function ContentAlbumsScreen() {
 }
 
 function ContentAlbumCard({ album, onOpen }: { album: ContentAlbumItem; onOpen: () => void }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const meta = album.approvalStatus ? STATUS_META[album.approvalStatus] : null;
   return (
     <Pressable style={styles.card} onPress={onOpen} android_ripple={{ color: 'rgba(0,0,0,0.05)' }}>
@@ -183,13 +187,13 @@ function ContentAlbumCard({ album, onOpen }: { album: ContentAlbumItem; onOpen: 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   content: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.md },
 
   header: { paddingTop: spacing.md, marginBottom: spacing.xs },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
-  h1: { fontFamily: fonts.bold, fontSize: 28, color: colors.text, letterSpacing: -0.5, marginTop: 2 },
-  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, marginTop: 2, lineHeight: 20 },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
+  h1: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5, marginTop: 2 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, marginTop: 2, lineHeight: 20 },
 
   newBtn: {
     flexDirection: 'row',
@@ -200,7 +204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: radii.md,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
   newBtnText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
 
@@ -212,10 +216,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
-  pillActive: { backgroundColor: colors.primary },
-  pillText: { fontFamily: fonts.bold, fontSize: 14, color: colors.textSoft },
+  pillActive: { backgroundColor: c.primary },
+  pillText: { fontFamily: fonts.bold, fontSize: 14, color: c.textSoft },
   pillTextActive: { color: '#fff' },
   badge: {
     minWidth: 22,
@@ -226,7 +230,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
-  badgeText: { fontFamily: fonts.bold, fontSize: 12, color: colors.primary },
+  badgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.primary },
   badgeTextActive: { color: '#fff' },
 
   card: { flex: 1, marginBottom: spacing.md },
@@ -235,7 +239,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: radii.lg,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
   coverFallback: { alignItems: 'center', justifyContent: 'center' },
   statusBadge: {
@@ -247,8 +251,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
   },
   statusBadgeText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.3 },
-  cardTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginTop: 6 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 6 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 1 },
-  cardCategory: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, flex: 1 },
-  cardCount: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted },
-});
+  cardCategory: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, flex: 1 },
+  cardCount: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
+}));

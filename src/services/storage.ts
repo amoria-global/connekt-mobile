@@ -42,4 +42,10 @@ export const StorageKeys = {
    * keyed by "<eventId>:<viewerName>". Reports still go to the server.
    */
   hiddenChatters: 'moderation.hiddenChatters',
+  /**
+   * Prefix for the name/email Apple delivers on the FIRST Sign in with Apple
+   * handshake only. Cached per Apple user id until the backend has the account,
+   * so a failed first POST does not lose the only copy. See features/auth/apple.ts.
+   */
+  appleFirstHandshake: 'auth.apple.firstHandshake',
 } as const;

@@ -3,39 +3,19 @@
  * Brand blue #083A85, accent pink #F20C8F, blue→pink gradients.
  */
 
-export const colors = {
-  // Brand
-  primary: '#083A85',
-  primaryDark: '#062d6b',
-  accent: '#F20C8F',
-  accentLight: '#ff4fae',
+import { lightPalette } from './palettes';
 
-  // Surfaces (light)
-  background: '#F4F6FB',
-  surface: '#FFFFFF',
-  card: '#FFFFFF',
-  surfaceMuted: '#E9EAEE',
-
-  // Text
-  text: '#0F1217',
-  textSoft: '#3A3D44',
-  textMuted: '#6A6D76',
-  textOnPrimary: '#FFFFFF',
-
-  // Lines
-  border: '#D4D6DC',
-  borderSoft: '#E6E7EC',
-
-  // Status
-  success: '#065F46',
-  successBg: '#ECFDF5',
-  warning: '#92400E',
-  warningBg: '#FFFBEB',
-  error: '#991B1B',
-  errorBg: '#FEF2F2',
-  info: '#1E40AF',
-  infoBg: '#EFF6FF',
-} as const;
+/**
+ * STATIC light palette. Unchanged in value from before dark mode existed, so
+ * every existing `import { colors } from '@/theme'` keeps behaving exactly as
+ * it did — including inside module-level `StyleSheet.create`.
+ *
+ * This export CANNOT follow the phone's colour scheme: it is a constant, and a
+ * stylesheet built from it is frozen at module load. For theme-aware colours,
+ * use `useTheme()` (values) or `makeStyles()` (stylesheets) instead. See
+ * src/theme/README.md for the migration recipe.
+ */
+export const colors = lightPalette;
 
 /** Blue→pink brand gradient stops (use with expo-linear-gradient when added). */
 export const gradients = {
@@ -98,3 +78,14 @@ export const fonts = {
 
 export const theme = { colors, gradients, spacing, radii, fontSize, fontWeight, fonts };
 export type Theme = typeof theme;
+
+// --- Dark mode ---------------------------------------------------------
+// Re-exported here so screens have one import site: `from '@/theme'`.
+export { lightPalette, darkPalette, palettes, gradientsFor } from './palettes';
+export type { Palette, ColorSchemeName, Gradients } from './palettes';
+export { makeElevation } from './elevation';
+export type { ElevationLevel, ElevationFn } from './elevation';
+export { ThemeProvider, useTheme } from './ThemeProvider';
+export type { ThemePreference } from './ThemeProvider';
+export { makeStyles } from './makeStyles';
+export { navigationThemeFor } from './navigationTheme';

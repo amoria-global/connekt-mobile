@@ -4,7 +4,7 @@ import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { listWalletMovements, type Movement } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 export default function TransactionsScreen() {
@@ -30,6 +30,8 @@ export default function TransactionsScreen() {
 }
 
 function Row({ movement }: { movement: Movement }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const inbound = movement.direction === 'in';
   return (
     <View style={styles.row}>
@@ -52,21 +54,21 @@ function Row({ movement }: { movement: Movement }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
   },
   icon: { width: 40, height: 40, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },
   sign: { fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   body: { flex: 1, gap: 2 },
-  title: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  date: { fontSize: fontSize.xs, color: colors.textMuted },
+  title: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  date: { fontSize: fontSize.xs, color: c.textMuted },
   amount: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
-});
+}));

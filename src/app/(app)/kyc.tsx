@@ -11,7 +11,7 @@ import { getKyc, submitKyc, type KycImage } from '@/features/kyc/api';
 import { ensureKycConsent } from '@/features/privacy/consent';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 async function pickImage(): Promise<KycImage | null> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -27,6 +27,8 @@ async function pickImage(): Promise<KycImage | null> {
 }
 
 export default function KycScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getKyc(), []));
 
   const [idType, setIdType] = useState('National ID');
@@ -113,6 +115,8 @@ function PhotoField({
   image: KycImage | null;
   onPick: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.photoField}>
       <Text style={styles.photoLabel}>{label}</Text>
@@ -130,33 +134,33 @@ function PhotoField({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: spacing.xl, gap: spacing.lg },
   statusCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  statusLabel: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.semibold },
-  reason: { fontSize: fontSize.sm, color: colors.error },
-  note: { fontSize: fontSize.md, color: colors.textSoft, textAlign: 'center', lineHeight: 22 },
+  statusLabel: { fontSize: fontSize.sm, color: c.textMuted, fontWeight: fontWeight.semibold },
+  reason: { fontSize: fontSize.sm, color: c.error },
+  note: { fontSize: fontSize.md, color: c.textSoft, textAlign: 'center', lineHeight: 22 },
   photoField: { gap: spacing.xs },
-  photoLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
+  photoLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
   photoBox: {
     height: 140,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderStyle: 'dashed',
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
   },
   photo: { width: '100%', height: '100%' },
   photoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
-  photoHint: { fontSize: fontSize.sm, color: colors.textMuted },
-  error: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  photoHint: { fontSize: fontSize.sm, color: c.textMuted },
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

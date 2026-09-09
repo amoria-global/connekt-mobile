@@ -4,12 +4,13 @@ import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-na
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
-import { setNewPassword } from '@/features/auth/api';
+import { exchangeRecoveryCode, setNewPassword } from '@/features/auth/api';
 import { storage, StorageKeys } from '@/services/storage';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
 
 export default function ResetPasswordScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string; code?: string }>();
   
@@ -44,7 +45,20 @@ export default function ResetPasswordScreen() {
       // whole URL into this field. Accept either.
       const pasted = code.trim();
       const match = pasted.match(/[?&](?:token|code)=([^&\s]+)/i);
-      const resetToken = match ? decodeURIComponent(match[1]) : pasted;
+      let resetToken = match ? decodeURIComponent(match[1]) : pasted;
+
+      /**
+       * A short numeric value is the SMS OTP, not a reset token. The two
+       * recovery channels hand back different things: email sends a LINK
+       * carrying a PasswordResetToken, SMS sends a numeric code. But
+       * /auth/set-new-password resolves `code` with findByToken(), so posting
+       * the OTP straight there fails with "This reset link is invalid or has
+       * expired" — the dead end phone-only users were hitting. Exchange it for
+       * the real token first so both channels converge here.
+       */
+      if (/^\d{4,8}$/.test(resetToken)) {
+        resetToken = await exchangeRecoveryCode(email.trim(), resetToken);
+      }
       // Make sure no unrelated parked token rides along on a recovery.
       await storage.remove(StorageKeys.authToken);
       await setNewPassword({
@@ -91,15 +105,20 @@ export default function ResetPasswordScreen() {
             onChangeText={setEmail}
             autoCapitalize="none"
             autoComplete="email"
+            textContentType="emailAddress"
             keyboardType="email-address"
             editable={!params.email}
           />
           
           <Input
-            label="Reset Code"
+            label="Reset code or link"
+            placeholder="Paste the link from your email, or the SMS code"
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
             value={code}
             onChangeText={setCode}
             autoCapitalize="none"
+            autoCorrect={false}
             editable={!params.code}
           />
 
@@ -108,6 +127,9 @@ export default function ResetPasswordScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            textContentType="newPassword"
+            autoComplete="new-password"
+            autoCapitalize="none"
           />
 
           <Input
@@ -115,6 +137,9 @@ export default function ResetPasswordScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
+            textContentType="newPassword"
+            autoComplete="new-password"
+            autoCapitalize="none"
             error={error ?? undefined}
           />
 
@@ -132,10 +157,10 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   container: { flex: 1, justifyContent: 'center', gap: spacing.md },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22, marginBottom: spacing.sm },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
+  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22, marginBottom: spacing.sm },
   successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl },
-});
+}));

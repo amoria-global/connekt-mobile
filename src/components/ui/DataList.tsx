@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EmptyState } from './EmptyState';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 type Props<T> = {
   data: T[] | null;
@@ -47,6 +47,8 @@ export function DataList<T>({
   headerExtra,
   topInset = 0,
 }: Props<T>): ReactElement {
+  const styles = useStyles();
+  const { colors } = useTheme();
   if (loading && !data) {
     return (
       <View style={[styles.centered, { paddingTop: topInset }]}>
@@ -106,9 +108,9 @@ export function DataList<T>({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   retryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -117,12 +119,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: radii.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
-  retryText: { color: colors.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  retryText: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   listContent: { padding: spacing.xl, gap: spacing.md, flexGrow: 1 },
   header: { gap: 2, marginBottom: spacing.xs },
   headerExtra: { marginTop: spacing.md, marginBottom: spacing.xs },
-  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
-});
+  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
+  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
+}));

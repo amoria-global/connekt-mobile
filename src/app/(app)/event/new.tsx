@@ -33,7 +33,7 @@ import {
 import { useAsync } from '@/hooks/useAsync';
 import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 /**
@@ -69,6 +69,8 @@ type FormValues = z.infer<typeof schema>;
 const MIN_RWF = 100;
 
 export default function NewEventScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const user = useAuth((s) => s.user);
   const params = useLocalSearchParams<{
@@ -714,67 +716,67 @@ export default function NewEventScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   scroll: { padding: spacing.xl, paddingBottom: spacing['3xl'], gap: spacing.xl },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  banner: { backgroundColor: colors.primary, borderRadius: radii.lg, padding: spacing.lg, gap: 2 },
-  bannerLabel: { color: colors.accentLight, fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase' },
-  bannerName: { color: colors.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
+  banner: { backgroundColor: c.primary, borderRadius: radii.lg, padding: spacing.lg, gap: 2 },
+  bannerLabel: { color: c.accentLight, fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase' },
+  bannerName: { color: c.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   bannerPrice: { color: '#C7D2FE', fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginTop: 2 },
   form: { gap: spacing.lg },
 
   fieldGroup: { gap: spacing.xs },
-  fieldLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
-  visibilityHint: { fontSize: fontSize.xs, color: colors.textMuted, lineHeight: 18, marginTop: 2 },
-  hint: { fontSize: fontSize.xs, color: colors.textMuted },
-  errText: { fontSize: fontSize.xs, color: colors.error },
+  fieldLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
+  visibilityHint: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 18, marginTop: 2 },
+  hint: { fontSize: fontSize.xs, color: c.textMuted },
+  errText: { fontSize: fontSize.xs, color: c.error },
   alignStart: { alignSelf: 'flex-start' },
 
-  cover: { height: 170, borderRadius: radii.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceMuted },
-  coverError: { borderColor: colors.error },
+  cover: { height: 170, borderRadius: radii.lg, overflow: 'hidden', borderWidth: 1, borderColor: c.border, backgroundColor: c.surfaceMuted },
+  coverError: { borderColor: c.error },
   coverImg: { width: '100%', height: '100%' },
   coverPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
-  coverHint: { fontSize: fontSize.sm, color: colors.textSoft, fontWeight: fontWeight.semibold },
-  coverEditBadge: { position: 'absolute', right: spacing.md, bottom: spacing.md, width: 32, height: 32, borderRadius: radii.full, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  coverHint: { fontSize: fontSize.sm, color: c.textSoft, fontWeight: fontWeight.semibold },
+  coverEditBadge: { position: 'absolute', right: spacing.md, bottom: spacing.md, width: 32, height: 32, borderRadius: radii.full, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
-  chipTextActive: { color: colors.textOnPrimary },
+  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
+  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
+  chipTextActive: { color: c.textOnPrimary },
 
   row: { flexDirection: 'row', gap: spacing.md },
   rowItem: { flex: 1 },
 
   moreToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.xs },
-  moreToggleText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
+  moreToggleText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
   moreSection: { gap: spacing.lg },
 
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   tagInput: { flex: 1 },
-  tagAdd: { width: 48, height: 48, borderRadius: radii.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  tagChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radii.full, backgroundColor: colors.surfaceMuted },
-  tagChipText: { fontSize: fontSize.sm, color: colors.textSoft, fontWeight: fontWeight.semibold },
+  tagAdd: { width: 48, height: 48, borderRadius: radii.md, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
+  tagChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radii.full, backgroundColor: c.surfaceMuted },
+  tagChipText: { fontSize: fontSize.sm, color: c.textSoft, fontWeight: fontWeight.semibold },
 
-  assignBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radii.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, backgroundColor: colors.surface },
-  assignBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.primary },
-  assignCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.borderSoft, borderRadius: radii.md, padding: spacing.lg, backgroundColor: colors.surface },
-  assignName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  assignSub: { fontSize: fontSize.sm, color: colors.textMuted },
+  assignBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: c.border, borderRadius: radii.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, backgroundColor: c.surface },
+  assignBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.primary },
+  assignCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: c.borderSoft, borderRadius: radii.md, padding: spacing.lg, backgroundColor: c.surface },
+  assignName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  assignSub: { fontSize: fontSize.sm, color: c.textMuted },
 
   multiline: { height: 100, paddingTop: spacing.md, textAlignVertical: 'top' },
-  serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
+  serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
   pickerBackdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
-  pickerSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radii['2xl'], borderTopRightRadius: radii['2xl'], maxHeight: '75%', paddingBottom: spacing.xl },
-  pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingVertical: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSoft },
-  pickerTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  pickerSheet: { backgroundColor: c.surface, borderTopLeftRadius: radii['2xl'], borderTopRightRadius: radii['2xl'], maxHeight: '75%', paddingBottom: spacing.xl },
+  pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingVertical: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSoft },
+  pickerTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   iconSpacer: { width: 22 },
   pickerLoader: { paddingVertical: spacing['2xl'] },
   pickerList: { paddingHorizontal: spacing.xl, paddingVertical: spacing.sm },
-  pickerEmpty: { textAlign: 'center', color: colors.textMuted, paddingVertical: spacing['2xl'] },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSoft },
-  pickerName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  pickerSub: { fontSize: fontSize.sm, color: colors.textMuted },
-});
+  pickerEmpty: { textAlign: 'center', color: c.textMuted, paddingVertical: spacing['2xl'] },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSoft },
+  pickerName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  pickerSub: { fontSize: fontSize.sm, color: c.textMuted },
+}));

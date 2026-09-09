@@ -2,7 +2,7 @@ import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme';
+import { colors, makeStyles, useTheme } from '@/theme';
 
 interface Props {
   visible: boolean;
@@ -12,6 +12,8 @@ interface Props {
 }
 
 export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Props) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
 
   return (
@@ -74,18 +76,14 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   bottomSheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 16,
     paddingBottom: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 20,
+    ...e(3),
   },
   sheetHandle: {
     width: 40,
@@ -132,4 +130,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     marginHorizontal: 24,
   },
-});
+}));

@@ -13,7 +13,8 @@ import { Asset } from 'expo-asset';
 import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdateBanner } from '@/features/updates/UpdateBanner';
-import { colors } from '@/theme';
+import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
+import { colors, useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
 
 /**
  * Default every `<Text>` and `<TextInput>` to Pragati Narrow so the
@@ -139,6 +140,7 @@ function useProtectedRoute() {
 }
 
 export default function RootLayout() {
+  const { colors } = useTheme();
   const status = useAuth((s) => s.status);
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
@@ -163,26 +165,59 @@ export default function RootLayout() {
   useProtectedRoute();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        {status === 'idle' || status === 'loading' || !fontsLoaded ? (
-          <View style={styles.splash}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : (
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(public)" />
-            <Stack.Screen name="(app)" />
-          </Stack>
-        )}
-        {/* OTA update prompt — appears once a downloaded update is ready. */}
-        <UpdateBanner />
-        <StatusBar style="dark" />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ThemeProvider>
+      <NavigationChrome>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          {status === 'idle' || status === 'loading' || !fontsLoaded ? (
+            <View style={styles.splash}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(onboarding)" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(public)" />
+              <Stack.Screen name="(app)" />
+            </Stack>
+          )}
+          {/* OTA update prompt — appears once a downloaded update is ready. */}
+          <UpdateBanner />
+          {/* Screens are theme-aware now, so the status bar follows suit:
+              light icons on dark surfaces, dark icons on light ones. */}
+          <ThemedStatusBar />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+      </NavigationChrome>
+    </ThemeProvider>
   );
+}
+
+/**
+ * Feeds our palette to React Navigation, whose own default theme paints a
+ * WHITE screen canvas. Without this, every screen that does not explicitly set
+ * its own background renders white in dark mode — which was the "only the
+ * login page follows the theme" bug, since login happened to paint its own.
+ *
+ * Must sit INSIDE our ThemeProvider (it consumes the scheme) and OUTSIDE the
+ * navigators, so all six `_layout.tsx` files inherit it.
+ */
+function NavigationChrome({ children }: { children: React.ReactNode }) {
+  const { scheme, colors: c } = useTheme();
+  return (
+    <NavigationThemeProvider value={navigationThemeFor(scheme, c)}>
+      {children}
+    </NavigationThemeProvider>
+  );
+}
+
+/**
+ * Split out so it can call `useTheme()` — RootLayout renders the provider, so
+ * it cannot consume the context itself.
+ */
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
 }
 
 const styles = {

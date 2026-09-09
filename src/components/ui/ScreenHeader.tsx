@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRole } from '@/features/auth/role';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles } from '@/theme';
 
 /**
  * Standard page header.
@@ -12,6 +12,7 @@ import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
  * gated on the role, so shared screens aren't restyled for anyone else.
  */
 export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  const styles = useStyles();
   const { isUser } = useRole();
 
   if (isUser) {
@@ -37,10 +38,10 @@ export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: st
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.md, gap: 2 },
-  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
+  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
+  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
 
   // Branded (User) variant
   brandWrap: {
@@ -53,4 +54,4 @@ const styles = StyleSheet.create({
   },
   brandTitle: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: '#fff', letterSpacing: -0.3 },
   brandSubtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: 'rgba(255,255,255,0.82)' },
-});
+}));

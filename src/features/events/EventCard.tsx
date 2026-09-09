@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { acceptEventBooking, declineEventBooking } from './api';
 import type { EventItem } from './types';
@@ -37,6 +37,8 @@ export function EventCard({
    */
   onChanged?: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const isPhotog = variant === 'photographer';
   const [busy, setBusy] = useState<'accept' | 'decline' | null>(null);
@@ -184,6 +186,8 @@ export function EventCard({
 }
 
 function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.row}>
       <Ionicons name={icon} size={14} color={colors.textMuted} />
@@ -194,15 +198,15 @@ function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: strin
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
-  cover: { width: '100%', height: 160, backgroundColor: colors.surfaceMuted },
+  cover: { width: '100%', height: 160, backgroundColor: c.surfaceMuted },
   scrim: {
     position: 'absolute',
     top: 0,
@@ -218,16 +222,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   body: { padding: spacing.lg, gap: spacing.xs },
-  title: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  title: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  rowText: { flex: 1, fontSize: fontSize.sm, color: colors.textSoft },
+  rowText: { flex: 1, fontSize: fontSize.sm, color: c.textSoft },
 
   ctaRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radii.md,
@@ -237,7 +241,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.success,
+    backgroundColor: c.success,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.md,
@@ -253,4 +257,4 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
   },
   pendingChipText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-});
+}));

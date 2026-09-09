@@ -26,7 +26,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, useTheme , makeStyles} from '@/theme';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -97,6 +97,7 @@ type BannerModel = {
 };
 
 function GiftBanner({ model }: { model: BannerModel }) {
+  const s = useS();
   const slide = useRef(new Animated.Value(-300)).current;
   const comboScale = useRef(new Animated.Value(1)).current;
 
@@ -181,6 +182,7 @@ function Floater({
 // ─── Big-gift takeover ────────────────────────────────────────────────────
 
 function Takeover({ gift, onDone }: { gift: GiftEvent; onDone: () => void }) {
+  const s = useS();
   const t = useRef(new Animated.Value(0)).current;
   // Same stable-ref guard as Floater — parent re-renders must not restart
   // (and thereby prolong) the takeover animation.
@@ -263,6 +265,8 @@ export function GiftOverlay({
   /** Extra style for the root layer (e.g. rounded clipping over a preview). */
   style?: StyleProp<ViewStyle>;
 }) {
+  const s = useS();
+  const { colors } = useTheme();
   const [banners, setBanners] = useState<BannerModel[]>([]);
   const [floaters, setFloaters] = useState<{ id: string; emoji: string }[]>([]);
   const [takeovers, setTakeovers] = useState<GiftEvent[]>([]);
@@ -362,7 +366,7 @@ export function GiftOverlay({
 
 // Overlay is intentionally dark-glass over video (like the live screens),
 // so these colors are fixed rather than theme-surface driven.
-const s = StyleSheet.create({
+const useS = makeStyles((c) => ({
   bannerStack: {
     position: 'absolute',
     left: spacing.md,
@@ -374,14 +378,14 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
     paddingVertical: spacing.xs,
     paddingLeft: spacing.xs,
     paddingRight: spacing.md,
-    shadowColor: colors.accent,
+    shadowColor: c.accent,
     shadowOpacity: 0.4,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -391,18 +395,18 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: radii.full,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.5)',
   },
-  bannerAvatarText: { color: colors.textOnPrimary, fontSize: 10, fontWeight: fontWeight.bold },
-  bannerName: { color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  bannerAvatarText: { color: c.textOnPrimary, fontSize: 10, fontWeight: fontWeight.bold },
+  bannerName: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   bannerSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11 },
   bannerEmoji: { fontSize: 24 },
   bannerCombo: {
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     fontSize: fontSize.lg,
     fontWeight: fontWeight.extrabold,
     fontStyle: 'italic',
@@ -423,7 +427,7 @@ const s = StyleSheet.create({
     width: 320,
     height: 320,
     borderRadius: 160,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
   },
   takeoverLabel: {
     position: 'absolute',
@@ -437,9 +441,9 @@ const s = StyleSheet.create({
     maxWidth: '86%',
   },
   takeoverLabelText: {
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     textAlign: 'center',
   },
-});
+}));

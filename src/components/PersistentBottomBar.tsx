@@ -36,7 +36,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRole } from '@/features/auth/role';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const BAR_CONTENT_HEIGHT = 60;
 
@@ -81,6 +81,8 @@ type MoreItem = {
 };
 
 export function PersistentBottomBar() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments() as string[];
@@ -240,6 +242,8 @@ function MoreSheet({
   onClose: () => void;
   items: MoreItem[];
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   return (
@@ -293,9 +297,9 @@ function MoreSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   tabBar: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     paddingTop: 6,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
@@ -321,12 +325,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconChipFocused: { backgroundColor: colors.accent },
+  iconChipFocused: { backgroundColor: c.accent },
   label: { fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.3 },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(15,18,23,0.55)' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
@@ -338,13 +342,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.border,
+    backgroundColor: c.border,
     marginBottom: spacing.sm,
   },
   sheetTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.extrabold,
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.sm,
   },
   sheetList: { paddingBottom: spacing.md, gap: 2 },
@@ -356,7 +360,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radii.md,
   },
-  rowPressed: { backgroundColor: colors.surfaceMuted },
+  rowPressed: { backgroundColor: c.surfaceMuted },
   rowIcon: {
     width: 36,
     height: 36,
@@ -365,4 +369,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowLabel: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-});
+}));

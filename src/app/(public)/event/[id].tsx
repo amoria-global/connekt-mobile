@@ -64,7 +64,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
@@ -241,6 +241,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function PublicEventDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -906,6 +908,8 @@ export default function PublicEventDetailScreen() {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <Ionicons name={icon} size={18} color={colors.primary} />
@@ -915,6 +919,9 @@ function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: strin
 }
 
 function CtaButton({ cta, onPress }: { cta: Cta; onPress: () => void }) {
+  const ctaToneStyles = useCtaToneStyles();
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable
       style={({ pressed }) => [
@@ -945,7 +952,7 @@ function CtaButton({ cta, onPress }: { cta: Cta; onPress: () => void }) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -953,12 +960,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.xl,
   },
-  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { paddingBottom: 120 },
 
   // ── Hero ──────────────────────────────────────────────────────────────────
   heroWrap: { width: '100%', height: 280, position: 'relative' },
-  cover: { width: '100%', height: '100%', backgroundColor: colors.surfaceMuted },
+  cover: { width: '100%', height: '100%', backgroundColor: c.surfaceMuted },
   coverScrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(7,8,13,0.42)',
@@ -1032,31 +1039,31 @@ const styles = StyleSheet.create({
 
   // ── Body ──────────────────────────────────────────────────────────────────
   body: { padding: spacing.xl, gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
 
   // Tags
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  tagText: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  tagText: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold },
 
   // Countdown
   countdownCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: c.primary,
     padding: spacing.lg,
     gap: spacing.sm,
   },
   countdownEyebrow: {
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
@@ -1066,29 +1073,29 @@ const styles = StyleSheet.create({
   countdownNum: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.extrabold,
-    color: colors.text,
+    color: c.text,
     fontVariant: ['tabular-nums'],
   },
-  countdownUnit: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  countdownUnit: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold },
 
   // Info card
   infoCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.md,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  rowText: { flex: 1, fontSize: fontSize.md, color: colors.textSoft },
+  rowText: { flex: 1, fontSize: fontSize.md, color: c.textSoft },
 
   // About section
   section: { gap: spacing.sm },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  bodyText: { fontSize: fontSize.md, color: colors.textSoft, lineHeight: 24 },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  bodyText: { fontSize: fontSize.md, color: c.textSoft, lineHeight: 24 },
   readMore: {
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
     marginTop: 2,
@@ -1100,17 +1107,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
   },
   hostAvatarWrap: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1118,29 +1125,29 @@ const styles = StyleSheet.create({
   hostAvatarOrganizer: { backgroundColor: '#083A85' },
   hostAvatar: { width: '100%', height: '100%' },
   hostInfo: { flex: 1, gap: 2 },
-  hostRole: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, letterSpacing: 0.4 },
-  hostName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  hostSub: { fontSize: 11, color: colors.textMuted },
+  hostRole: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold, letterSpacing: 0.4 },
+  hostName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  hostSub: { fontSize: 11, color: c.textMuted },
 
   // Fee card
   feeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.md,
   },
   feeLabel: {
-    color: colors.textMuted,
+    color: c.textMuted,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     letterSpacing: 0.5,
   },
   feeValue: {
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
     marginTop: 2,
@@ -1149,12 +1156,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: radii.full,
   },
-  feeBadgeText: { color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  feeBadgeText: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
 
   // CTA
   ctaBase: {
@@ -1167,11 +1174,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
   },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  ctaDisabled: { backgroundColor: colors.surfaceMuted },
+  ctaDisabled: { backgroundColor: c.surfaceMuted },
   ctaText: { alignItems: 'flex-start' },
-  ctaLabel: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  ctaLabel: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   ctaSub: { color: 'rgba(255,255,255,0.85)', fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginTop: 2 },
-  ctaLabelDisabled: { color: colors.textMuted },
+  ctaLabelDisabled: { color: c.textMuted },
 
   // Verify access
   verifyBtn: {
@@ -1183,17 +1190,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.infoBg,
+    borderColor: c.primary,
+    backgroundColor: c.infoBg,
   },
-  verifyBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  verifyBtnText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   // Group code redeem (web `.ve-hero-group`)
   groupCodeCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.sm,
   },
@@ -1202,21 +1209,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  groupCodeTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  groupCodeTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
   groupCodeRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   groupCodeInput: {
     flex: 1,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.sm,
   },
   groupCodeBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: 10,
@@ -1226,14 +1233,14 @@ const styles = StyleSheet.create({
     height: 42,
   },
   groupCodeBtnText: { color: '#fff', fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  groupCodeError: { color: colors.error, fontSize: 12 },
+  groupCodeError: { color: c.error, fontSize: 12 },
 
   // Send a wish (web `.ve-wishes`)
   wishCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.md,
   },
@@ -1242,31 +1249,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  wishTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  wishSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  wishTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  wishSub: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
   wishTextarea: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.sm,
     minHeight: 90,
     textAlignVertical: 'top',
   },
-  wishMsg: { color: colors.error, fontSize: 12, fontWeight: fontWeight.semibold },
+  wishMsg: { color: c.error, fontSize: 12, fontWeight: fontWeight.semibold },
   wishSuccessBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.successBg,
+    backgroundColor: c.successBg,
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  wishSuccessText: { color: colors.success, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, flex: 1 },
+  wishSuccessText: { color: c.success, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, flex: 1 },
 
   // Donation
   secondary: {
@@ -1276,40 +1283,40 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },
-  secondaryText: { color: colors.accent, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  secondaryText: { color: c.accent, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
   // Retry
   retryBtn: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderRadius: radii.md,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
-  retryText: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  retryText: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
   // Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },
-  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   modalHint: {
     fontSize: fontSize.sm,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 20,
     marginBottom: spacing.sm,
   },
-  cancelText: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 4 },
-});
+  cancelText: { color: c.textMuted, fontSize: fontSize.sm, marginTop: 4 },
+}));
 
-const ctaToneStyles = StyleSheet.create({
-  live: { backgroundColor: colors.accent },
-  reserve: { backgroundColor: colors.primary },
-  owned: { backgroundColor: colors.successBg },
-  ended: { backgroundColor: colors.surfaceMuted },
-  cancelled: { backgroundColor: colors.errorBg },
-});
+const useCtaToneStyles = makeStyles((c) => ({
+  live: { backgroundColor: c.accent },
+  reserve: { backgroundColor: c.primary },
+  owned: { backgroundColor: c.successBg },
+  ended: { backgroundColor: c.surfaceMuted },
+  cancelled: { backgroundColor: c.errorBg },
+}));

@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -19,22 +18,24 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { isNeedsVerification, isNeedsTotp, isNeedsPasswordChange } from '@/features/auth/api';
-import { openWebSignup } from '@/features/auth/webSignup';
 import { GoogleButton } from '@/features/auth/GoogleButton';
+import { AppleButton } from '@/features/auth/AppleButton';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import { parsePhone } from '@/lib/phoneKit';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const schema = z.object({
-  // Accept an email OR a phone number — phone-only accounts (registered on
-  // mobile/TV) sign in with their number here. The backend resolves either.
+  // Still accepts an email OR a phone number — phone-only accounts (registered
+  // on mobile/TV) sign in with their number here and the backend resolves
+  // either. Only the USER-FACING COPY is email-only, by product decision: the
+  // field is presented as an email field, and a phone quietly also works.
   email: z
     .string()
-    .min(1, 'Enter your email or phone')
+    .min(1, 'Email is required')
     .refine(
       (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim()) || /^[+\d][\d\s-]{5,}$/.test(v.trim()),
-      'Enter a valid email or phone number',
+      'Enter a valid email address',
     ),
   password: z.string().min(1, 'Password is required'),
 });
@@ -42,35 +43,26 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function LoginScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const login = useAuth((s) => s.login);
   const applySession = useAuth((s) => s.applySession);
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
 
-  // Registration happens entirely in the browser. Tapping Register hands off to
-  // the web sign-up, where the account-type picker lives (single source of truth
-  // — no duplicate role modal in the app). On success we come back already
-  // authenticated.
-  const onRegister = async () => {
+  /**
+   * Registration is IN-APP and starts with role selection.
+   *
+   * It previously handed off to the web sign-up in a browser, on the reasoning
+   * that the web owned the account-type picker. That left the app's own
+   * role-aware `signup.tsx` unreachable, and it meant a user left the app to
+   * create an account. Role selection now lives in `choose-role`, which is the
+   * single source of truth every registration method downstream consumes.
+   */
+  const onRegister = () => {
     setServerError(null);
-    try {
-      const result = await openWebSignup();
-      if (result.status === 'success') {
-        // Session persisted; flipping auth state routes into the app.
-        applySession(result.session);
-      } else if (result.status === 'registered') {
-        Alert.alert(
-          'Account created',
-          'Your account is ready. Please sign in to continue.',
-        );
-      }
-      // 'cancelled' → user backed out; stay on the login screen silently.
-    } catch (err) {
-      setServerError(
-        isApiError(err) ? err.message : 'We could not open registration. Please try again.',
-      );
-    }
+    router.push('/choose-role');
   };
 
   const {
@@ -147,10 +139,12 @@ export default function LoginScreen() {
                 name="email"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
-                    label="Email or phone"
-                    placeholder="you@example.com or 0788…"
+                    label="Your Email"
+                    placeholder="example@gmail.com"
                     autoCapitalize="none"
                     autoComplete="username"
+                    textContentType="username"
+                    keyboardType="email-address"
                     value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}
@@ -164,9 +158,11 @@ export default function LoginScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
                     label="Password"
-                    placeholder="••••••••"
+                    placeholder="Enter your Password"
                     secureTextEntry
                     autoCapitalize="none"
+                    autoComplete="current-password"
+                    textContentType="password"
                     value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}
@@ -182,12 +178,12 @@ export default function LoginScreen() {
                 }
                 hitSlop={8}
               >
-                <Text style={styles.forgotText}>Forgot password?</Text>
+                <Text style={styles.forgotText}>Forgot your password?</Text>
               </Pressable>
 
               {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
-              <Button title="Sign in" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+              <Button title="Log in" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
 
               <Pressable
                 style={styles.registerLine}
@@ -195,17 +191,49 @@ export default function LoginScreen() {
                 hitSlop={8}
               >
                 <Text style={styles.registerText}>
-                  Not a member? <Text style={styles.registerLink}>Register</Text>
+                  Not registered yet? <Text style={styles.registerLink}>Create an account</Text>
                 </Text>
               </Pressable>
 
               <View style={styles.divider}>
                 <View style={styles.line} />
-                <Text style={styles.dividerText}>or continue with</Text>
+                <Text style={styles.dividerText}>Or continue with</Text>
                 <View style={styles.line} />
               </View>
 
-              <GoogleButton label="Continue with Google" />
+              {/* SIGN-IN mode: no role is known here, so this must never create
+                  an account. An unrecognised Google profile is routed to role
+                  selection with its details carried over. */}
+              <GoogleButton
+                mode="login"
+                label="Continue with Google"
+                onNeedsRole={(profile) =>
+                  router.push({
+                    pathname: '/choose-role',
+                    params: {
+                      email: profile.email,
+                      firstName: profile.firstName,
+                      lastName: profile.lastName,
+                    },
+                  })
+                }
+              />
+              {/* Same rule as Google: sign-in never creates an account. The
+                  backend is asked not to register an unknown Apple ID and the
+                  verified profile is carried into role selection. */}
+              <AppleButton
+                mode="login"
+                onNeedsRole={(profile) =>
+                  router.push({
+                    pathname: '/choose-role',
+                    params: {
+                      email: profile.email,
+                      firstName: profile.firstName,
+                      lastName: profile.lastName,
+                    },
+                  })
+                }
+              />
             </View>
 
             <View style={styles.guestRow}>
@@ -237,7 +265,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   // `flexGrow: 1` + `justifyContent: 'space-between'` lets the form sit in
   // the natural flow on tall devices and pin the signup link to the bottom
@@ -256,18 +284,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
-    color: colors.primary,
+    color: c.primary,
   },
-  subtitle: { fontSize: fontSize.sm, color: colors.textMuted },
+  subtitle: { fontSize: fontSize.sm, color: c.textMuted },
 
   form: { gap: spacing.md },
   forgotWrap: { alignSelf: 'flex-end', marginTop: -spacing.xs, marginBottom: spacing.xs },
-  forgotText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
+  forgotText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
   registerLine: { alignSelf: 'center', paddingVertical: spacing.xs },
-  registerText: { color: colors.textMuted, fontSize: fontSize.sm },
-  registerLink: { color: colors.primary, fontWeight: fontWeight.bold },
+  registerText: { color: c.textMuted, fontSize: fontSize.sm },
+  registerLink: { color: c.primary, fontWeight: fontWeight.bold },
 
   divider: {
     flexDirection: 'row',
@@ -275,9 +303,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginVertical: spacing.xs,
   },
-  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.border },
   dividerText: {
-    color: colors.textMuted,
+    color: c.textMuted,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     letterSpacing: 0.8,
@@ -297,14 +325,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: spacing.sm,
     borderRadius: radii.full,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   guestPillPressed: { opacity: 0.6 },
   guestPillText: {
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
   },
-});
+}));
