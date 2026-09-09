@@ -1,8 +1,9 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles } from '@/theme';
 import type { Conversation } from './api';
 
 export function ConversationRow({ conversation }: { conversation: Conversation }) {
+  const styles = useStyles();
   const initials = (conversation.name?.[0] ?? '?').toUpperCase();
   const hasUnread = conversation.unreadCount > 0;
 
@@ -36,32 +37,32 @@ export function ConversationRow({ conversation }: { conversation: Conversation }
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  avatar: { width: 48, height: 48, borderRadius: radii.full, backgroundColor: colors.surfaceMuted },
-  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
-  avatarText: { color: colors.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+  avatar: { width: 48, height: 48, borderRadius: radii.full, backgroundColor: c.surfaceMuted },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
+  avatarText: { color: c.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   body: { flex: 1, gap: 2 },
-  name: { fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  preview: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
-  previewUnread: { color: colors.text, fontFamily: fonts.bold, fontWeight: fontWeight.semibold },
+  name: { fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  preview: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
+  previewUnread: { color: c.text, fontFamily: fonts.bold, fontWeight: fontWeight.semibold },
   badge: {
     minWidth: 22,
     height: 22,
     borderRadius: radii.full,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
   },
-  badgeText: { color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-});
+  badgeText: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+}));

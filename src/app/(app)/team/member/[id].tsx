@@ -31,9 +31,11 @@ import {
   type TeamRole,
 } from '@/features/teams/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function TeamMemberEditorScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
@@ -219,63 +221,63 @@ export default function TeamMemberEditorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, paddingBottom: 80, gap: spacing.md },
 
   profileCard: {
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   avatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitial: { color: colors.primary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
-  profileName: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  profileEmail: { color: colors.textSoft, fontSize: fontSize.sm, marginTop: 2 },
-  profileMeta: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 },
+  avatarInitial: { color: c.primary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
+  profileName: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  profileEmail: { color: c.textSoft, fontSize: fontSize.sm, marginTop: 2 },
+  profileMeta: { color: c.textMuted, fontSize: fontSize.xs, marginTop: 2 },
 
-  label: { fontSize: fontSize.sm, color: colors.textSoft, fontWeight: fontWeight.semibold, marginTop: spacing.sm },
+  label: { fontSize: fontSize.sm, color: c.textSoft, fontWeight: fontWeight.semibold, marginTop: spacing.sm },
 
   roleList: { gap: spacing.sm },
   roleCard: {
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  roleCardActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  roleCardActive: { borderColor: c.primary, backgroundColor: c.infoBg },
   radio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
-  radioActive: { borderColor: colors.primary },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  roleName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  roleDescription: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
-  rolePerms: { fontSize: fontSize.xs, color: colors.accent, fontWeight: fontWeight.bold, marginTop: 4 },
+  radioActive: { borderColor: c.primary },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.primary },
+  roleName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  roleDescription: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
+  rolePerms: { fontSize: fontSize.xs, color: c.accent, fontWeight: fontWeight.bold, marginTop: 4 },
 
-  error: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
   dangerRow: {
     flexDirection: 'row',
@@ -283,9 +285,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     padding: spacing.md,
-    backgroundColor: colors.errorBg,
+    backgroundColor: c.errorBg,
     borderRadius: radii.md,
     marginTop: spacing.sm,
   },
-  dangerText: { color: colors.error, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-});
+  dangerText: { color: c.error, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+}));

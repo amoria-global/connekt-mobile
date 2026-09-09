@@ -9,9 +9,11 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useRole } from '@/features/auth/role';
 import { listGalleries } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function GalleryScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const { isPhotographer } = useRole();
   const { data, loading, error, refresh } = useAsync(
@@ -74,35 +76,35 @@ export default function GalleryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   pressed: { opacity: 0.85 },
   photobookLink: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },
-  photobookText: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  cover: { width: 64, height: 64, borderRadius: radii.md, backgroundColor: colors.surfaceMuted },
+  photobookText: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  cover: { width: 64, height: 64, borderRadius: radii.md, backgroundColor: c.surfaceMuted },
   coverFallback: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },
-  name: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  meta: { fontSize: fontSize.sm, color: colors.textMuted },
-});
+  name: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  meta: { fontSize: fontSize.sm, color: c.textMuted },
+}));

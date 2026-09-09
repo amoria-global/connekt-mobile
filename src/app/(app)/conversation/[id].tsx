@@ -20,9 +20,11 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fontSize, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
 
 export default function ConversationScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   // The inbox routes by partner customer id, so `id` is both the thread key
   // and the person a report or block points at.
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
@@ -214,6 +216,7 @@ function Bubble({
   mine: boolean;
   onLongPress?: () => void;
 }) {
+  const styles = useStyles();
   return (
     <Pressable
       onLongPress={onLongPress}
@@ -225,18 +228,18 @@ function Bubble({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+const useStyles = makeStyles((c) => ({
+  safe: { flex: 1, backgroundColor: c.background },
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm },
+  muted: { color: c.textMuted, fontSize: fontSize.sm },
   list: { padding: spacing.lg, gap: spacing.sm, flexGrow: 1 },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing['2xl'] },
+  empty: { textAlign: 'center', color: c.textMuted, marginTop: spacing['2xl'] },
   bubble: { maxWidth: '78%', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radii.lg },
-  bubbleMine: { alignSelf: 'flex-end', backgroundColor: colors.primary, borderBottomRightRadius: 4 },
-  bubbleTheirs: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.borderSoft },
-  bubbleText: { fontSize: fontSize.md, color: colors.text },
-  bubbleTextMine: { color: colors.textOnPrimary },
+  bubbleMine: { alignSelf: 'flex-end', backgroundColor: c.primary, borderBottomRightRadius: 4 },
+  bubbleTheirs: { alignSelf: 'flex-start', backgroundColor: c.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.borderSoft },
+  bubbleText: { fontSize: fontSize.md, color: c.text },
+  bubbleTextMine: { color: c.textOnPrimary },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -244,28 +247,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    borderTopColor: c.borderSoft,
+    backgroundColor: c.surface,
   },
   input: {
     flex: 1,
     maxHeight: 120,
     minHeight: 44,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     fontSize: fontSize.md,
-    color: colors.text,
+    color: c.text,
   },
   sendBtn: {
     width: 44,
     height: 44,
     borderRadius: radii.full,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sendDisabled: { opacity: 0.5 },
-});
+}));

@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/Button';
 import { DataList } from '@/components/ui/DataList';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 import { acceptBooking, listBookings, rejectBooking, type Booking } from './api';
 
 type Props = { title?: string; subtitle?: string; topInset?: number };
 
 export function BookingsList({ title, subtitle, topInset }: Props) {
+  const styles = useStyles();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listBookings(), []));
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -99,19 +100,19 @@ export function BookingsList({ title, subtitle, topInset }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.sm,
   },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  title: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  meta: { fontSize: fontSize.sm, color: colors.textSoft },
-  price: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
+  title: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  meta: { fontSize: fontSize.sm, color: c.textSoft },
+  price: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
   actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   actionBtn: { flex: 1, height: 44 },
-});
+}));

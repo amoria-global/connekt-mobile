@@ -53,7 +53,7 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
-import { colors, spacing, radii } from '@/theme';
+import { colors, spacing, radii, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -105,6 +105,7 @@ function PhotoCell({
   onPress: () => void;
   onLongPress?: () => void;
 }) {
+  const styles = useStyles();
   return (
     <Pressable
       style={[
@@ -170,6 +171,7 @@ function OtpInput({ value, onChange, error }: {
   onChange: (v: string) => void;
   error?: boolean;
 }) {
+  const styles = useStyles();
   const refs = [
     useRef<TextInput>(null),
     useRef<TextInput>(null),
@@ -220,6 +222,8 @@ function OtpInput({ value, onChange, error }: {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function FindMyPhotos() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -1536,7 +1540,7 @@ export function FindMyPhotos() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   scroll: { padding: spacing.lg, gap: spacing.md },
 
   // Connect screen — gradient card now sits flush at the top (no extra
@@ -1880,11 +1884,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: spacing.xl,
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
+    ...e(3),
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1907,4 +1907,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   errorText: { color: '#EF4444', fontSize: 13, marginBottom: spacing.sm },
-});
+}));

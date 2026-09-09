@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { Input } from '@/components/ui/Input';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { bookingsApi } from '@/api/endpoints/bookings';
@@ -31,6 +31,8 @@ const STEPS = [
 const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, BookingBottomSheetProps> = (
   { photographerId, photographerName, photographerImage, packages = [], onClose }, ref
 ) => {
+  const { colors, elevation } = useTheme();
+  const styles = useStyles();
     const user = useAuth((s) => s.user);
     const snapPoints = useMemo(() => ['65%', '90%'], []);
     const [currentStep, setCurrentStep] = useState(1);
@@ -964,11 +966,11 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                           </View>
                           
                           {showCurrencyDropdown && (
-                            <View style={{ position: 'absolute', top: 35, right: 0, backgroundColor: 'white', borderRadius: radii.md, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 5, padding: 8, minWidth: 200 }}>
+                            <View style={[{ position: 'absolute', top: 35, right: 0, backgroundColor: colors.elevated, borderRadius: radii.md, padding: 8, minWidth: 200 }, elevation(3)]}>
                               {CURRENCIES.map(c => (
                                 <Pressable 
                                   key={c.code}
-                                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: displayCurrency === c.code ? '#f3f4f6' : 'transparent', borderRadius: radii.sm }}
+                                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: displayCurrency === c.code ? colors.surfaceMuted : 'transparent', borderRadius: radii.sm }}
                                   onPress={() => { setDisplayCurrency(c.code as any); setShowCurrencyDropdown(false); }}
                                 >
                                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -1090,27 +1092,27 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
 export const BookingBottomSheet = forwardRef(BookingBottomSheetComponent);
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   bottomSheetInput: {
     height: 52,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderRadius: radii.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     paddingHorizontal: spacing.lg,
     fontSize: fontSize.md,
-    color: colors.text,
+    color: c.text,
   },
   bottomSheetInputMultiline: {
     minHeight: 80,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderRadius: radii.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     paddingHorizontal: spacing.lg,
     paddingTop: 12,
     fontSize: fontSize.md,
-    color: colors.text,
+    color: c.text,
   },
   header: {
     flexDirection: 'row',
@@ -1118,7 +1120,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSoft,
+    borderBottomColor: c.borderSoft,
     position: 'relative',
   },
   headerTitleContainer: {
@@ -1129,7 +1131,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.primary,
+    color: c.primary,
     letterSpacing: 0.5,
   },
   closeButton: {
@@ -1155,7 +1157,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSoft,
+    borderBottomColor: c.borderSoft,
   },
   stepItem: {
     alignItems: 'center',
@@ -1174,8 +1176,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   stepCircleActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   stepNumber: {
     fontSize: 11,
@@ -1192,7 +1194,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   stepLabelActive: {
-    color: colors.primary,
+    color: c.primary,
   },
   stepLine: {
     position: 'absolute',
@@ -1204,7 +1206,7 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   stepLineActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
   content: {
     padding: spacing.xl,
@@ -1216,12 +1218,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.xs,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textMuted,
+    color: c.textMuted,
     marginBottom: spacing.xl,
   },
   serviceTypes: {
@@ -1232,13 +1234,13 @@ const styles = StyleSheet.create({
   serviceCard: {
     flex: 1,
     borderWidth: 2,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.lg,
     padding: spacing.md,
     backgroundColor: 'white',
   },
   serviceCardActive: {
-    borderColor: colors.primary,
+    borderColor: c.primary,
     backgroundColor: '#F0F5FF',
   },
   serviceIconContainer: {
@@ -1262,11 +1264,11 @@ const styles = StyleSheet.create({
   serviceTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
   },
   serviceDesc: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 16,
   },
   formGroup: {
@@ -1275,7 +1277,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.sm,
   },
   inputWithIcon: {
@@ -1299,14 +1301,14 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: '#F3F4F6',
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
   },
   currencyText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
   },
   budgetInput: {
     flex: 1,
@@ -1322,29 +1324,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   tagBadgeActive: {
     backgroundColor: '#F0F5FF',
-    borderColor: colors.primary,
+    borderColor: c.primary,
   },
   tagText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   tagTextActive: {
-    color: colors.primary,
+    color: c.primary,
   },
   footer: {
     marginTop: spacing.xl,
   },
   continueButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     paddingVertical: 16,
     borderRadius: radii.lg,
     alignItems: 'center',
-    shadowColor: colors.primary,
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1358,14 +1360,14 @@ const styles = StyleSheet.create({
   // Step 2 & Step 4 styles
   packageCard: {
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.xl,
     padding: spacing.xl,
     marginBottom: spacing.md,
     backgroundColor: '#F9FAFB',
   },
   packageCardActive: {
-    borderColor: colors.primary,
+    borderColor: c.primary,
     backgroundColor: '#EFF6FF',
   },
   packageCardHeader: {
@@ -1388,7 +1390,7 @@ const styles = StyleSheet.create({
   packagePrice: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.text,
+    color: c.text,
   },
   packageStatsRow: {
     flexDirection: 'row',
@@ -1403,7 +1405,7 @@ const styles = StyleSheet.create({
   },
   packageStatText: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: c.textMuted,
     fontWeight: '500',
   },
   packageFeaturesRow: {
@@ -1429,12 +1431,12 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: colors.text,
+    color: c.text,
     marginBottom: 4,
   },
   summaryDetail: {
     fontSize: 13,
-    color: colors.textMuted,
+    color: c.textMuted,
     marginBottom: spacing.md,
   },
   summaryDivider: {
@@ -1449,16 +1451,16 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   summaryValue: {
     fontSize: 14,
-    color: colors.text,
+    color: c.text,
     fontWeight: '500',
   },
   summaryValueBold: {
     fontSize: 15,
-    color: colors.primary,
+    color: c.primary,
     fontWeight: '800',
   },
   milestoneCard: {
@@ -1467,21 +1469,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.md,
     borderWidth: 2,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.lg,
     marginBottom: spacing.md,
   },
   milestoneCardActive: {
-    borderColor: colors.primary,
+    borderColor: c.primary,
     backgroundColor: '#F0F5FF',
   },
   milestoneText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
   },
   milestoneTextActive: {
-    color: colors.primary,
+    color: c.primary,
   },
   successContainer: {
     alignItems: 'center',
@@ -1492,17 +1494,17 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: colors.text,
+    color: c.text,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
   successSubtitle: {
     fontSize: 15,
-    color: colors.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
     lineHeight: 22,
   },
-});
+}));
 
 const extraStyles = StyleSheet.create({
   tagBadgeSelected: { backgroundColor: '#083A85', borderColor: '#083A85' },

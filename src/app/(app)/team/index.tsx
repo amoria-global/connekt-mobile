@@ -34,9 +34,11 @@ import {
   type TeamMember,
 } from '@/features/teams/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function TeamScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const [me, setMe] = useState<MePermissions | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -226,20 +228,20 @@ export default function TeamScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  titleMuted: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text, textAlign: 'center' },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  titleMuted: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, paddingBottom: 80, gap: spacing.lg },
 
   orgCard: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.xl,
     padding: spacing.lg,
     gap: 4,
   },
   orgLabel: { color: '#FFD28A', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 1.2 },
-  orgName: { color: colors.textOnPrimary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
+  orgName: { color: c.textOnPrimary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
   orgSub: { color: 'rgba(255,255,255,0.78)', fontSize: fontSize.xs, marginTop: 4 },
 
   quickRow: { flexDirection: 'row', gap: spacing.sm },
@@ -249,43 +251,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingVertical: spacing.md,
   },
-  quickBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  quickBtnText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   pressed: { opacity: 0.6 },
 
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
 
-  empty: { alignItems: 'center', gap: spacing.sm, padding: spacing.xl, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.borderSoft },
+  empty: { alignItems: 'center', gap: spacing.sm, padding: spacing.xl, backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft },
 
   memberCard: {
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitial: { color: colors.primary, fontSize: fontSize.lg, fontWeight: fontWeight.extrabold },
+  avatarInitial: { color: c.primary, fontSize: fontSize.lg, fontWeight: fontWeight.extrabold },
   memberHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  memberName: { flex: 1, color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  memberName: { flex: 1, color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   activeChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radii.full },
   activeChipText: { fontSize: 9, fontWeight: fontWeight.bold, letterSpacing: 0.6 },
-  memberSub: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 },
-  memberRole: { color: colors.accent, fontSize: fontSize.xs, fontWeight: fontWeight.bold, marginTop: 4 },
+  memberSub: { color: c.textMuted, fontSize: fontSize.xs, marginTop: 2 },
+  memberRole: { color: c.accent, fontSize: fontSize.xs, fontWeight: fontWeight.bold, marginTop: 4 },
   memberActions: { flexDirection: 'row', gap: spacing.lg, marginTop: 6 },
-  actionLink: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-});
+  actionLink: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+}));

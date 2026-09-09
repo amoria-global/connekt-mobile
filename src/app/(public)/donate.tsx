@@ -18,7 +18,7 @@ import { Screen } from '@/components/ui/Screen';
 import { getDonationTiers } from '@/features/donations/api';
 import { donationUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const FALLBACK_TIERS: { amount: number }[] = [
   { amount: 1000 },
@@ -28,6 +28,8 @@ const FALLBACK_TIERS: { amount: number }[] = [
 ];
 
 export default function PublicDonateScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { eventId } = useLocalSearchParams<{ eventId?: string }>();
 
   const tiers = useAsync(useCallback(() => getDonationTiers(), []));
@@ -87,20 +89,20 @@ export default function PublicDonateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 120 },
   hero: {
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.xs,
   },
-  heroTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
-  heroSub: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
+  heroTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  heroSub: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
 
-  h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
 
   tiers: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tier: {
@@ -109,20 +111,20 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
     alignItems: 'center',
   },
-  tierAmount: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
-  tierCurrency: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold, marginTop: 2 },
+  tierAmount: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  tierCurrency: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold, marginTop: 2 },
 
   webHint: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
     padding: spacing.md,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.md,
   },
-  webHintText: { flex: 1, color: colors.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
-});
+  webHintText: { flex: 1, color: c.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
+}));

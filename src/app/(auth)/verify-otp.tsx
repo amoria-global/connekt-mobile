@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { OtpInput } from '@/components/ui/OtpInput';
 import { Screen } from '@/components/ui/Screen';
 import { resendOtp, verifyOtp } from '@/features/auth/api';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
 
 export default function VerifyOtpScreen() {
+  const styles = useStyles();
   const { customerId, email, phone } = useLocalSearchParams<{
     customerId: string;
     email?: string;
@@ -59,13 +60,10 @@ export default function VerifyOtpScreen() {
           Enter it below to activate your account.
         </Text>
 
-        <Input
+        <OtpInput
           label="Verification code"
           value={otp}
-          onChangeText={setOtp}
-          keyboardType="number-pad"
-          placeholder="123456"
-          maxLength={6}
+          onChange={setOtp}
           error={error ?? undefined}
         />
 
@@ -83,13 +81,13 @@ export default function VerifyOtpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: { flex: 1, justifyContent: 'center', gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22 },
-  email: { color: colors.text, fontWeight: fontWeight.semibold },
-  info: { color: colors.success, fontSize: fontSize.sm },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
+  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22 },
+  email: { color: c.text, fontWeight: fontWeight.semibold },
+  info: { color: c.success, fontSize: fontSize.sm },
   resend: { alignItems: 'center', marginTop: spacing.sm },
-  resendText: { color: colors.textMuted, fontSize: fontSize.sm },
-  link: { color: colors.primary, fontWeight: fontWeight.bold },
-});
+  resendText: { color: c.textMuted, fontSize: fontSize.sm },
+  link: { color: c.primary, fontWeight: fontWeight.bold },
+}));

@@ -11,9 +11,11 @@ import { Screen } from '@/components/ui/Screen';
 import { useModeration } from '@/features/moderation/useModeration';
 import type { BlockedUser } from '@/features/moderation/api';
 import { isApiError } from '@/store/auth';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 export default function BlockedAccountsScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const blocked = useModeration((s) => s.blocked);
   const loading = useModeration((s) => s.loading);
   const refresh = useModeration((s) => s.refresh);
@@ -105,22 +107,22 @@ export default function BlockedAccountsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceMuted },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.surfaceMuted },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: colors.primary, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
-  name: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.md, color: colors.text },
+  avatarText: { color: c.primary, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
+  name: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.md, color: c.text },
   unblock: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  unblockText: { color: colors.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.xs },
-});
+  unblockText: { color: c.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.xs },
+}));

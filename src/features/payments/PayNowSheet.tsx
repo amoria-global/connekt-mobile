@@ -21,7 +21,7 @@ import { canPayDeclarationHere } from '@/features/payments/policy';
 import { type PendingPayment } from '@/features/analytics/api';
 import { isApiError } from '@/store/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 export function PayNowSheet({
@@ -35,6 +35,8 @@ export function PayNowSheet({
   onClose: () => void;
   onSuccess?: () => void;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const due = payment ? payment.amount - payment.paidAmount : 0;
   const currencyHint = (payment as { currency?: string } | null)?.currency ?? 'USD';
@@ -121,11 +123,11 @@ export function PayNowSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,18,23,0.55)' },
   sheetContainer: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
@@ -137,20 +139,20 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.border,
+    backgroundColor: c.border,
     marginBottom: spacing.sm,
   },
   headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  title: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
+  title: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
 
   body: { paddingBottom: spacing.lg, gap: spacing.md },
 
-  summary: { backgroundColor: colors.primary, borderRadius: radii.lg, padding: spacing.lg, gap: 2 },
-  summaryEvent: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  summary: { backgroundColor: c.primary, borderRadius: radii.lg, padding: spacing.lg, gap: 2 },
+  summaryEvent: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   summarySub: { color: 'rgba(255,255,255,0.78)', fontSize: fontSize.xs },
   summaryAmount: {
     marginTop: spacing.sm,
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
   },
@@ -160,10 +162,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm,
     padding: spacing.md,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.md,
   },
-  webHintText: { flex: 1, color: colors.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
+  webHintText: { flex: 1, color: c.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
 
-  note: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.xs },
-});
+  note: { textAlign: 'center', color: c.textMuted, fontSize: fontSize.xs },
+}));

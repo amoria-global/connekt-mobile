@@ -11,10 +11,12 @@ import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout
 import { canPayDeclarationHere } from '@/features/payments/policy';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 export default function PaymentDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { role } = useRole();
   const { data, loading, error, refresh } = useAsync(
@@ -112,6 +114,7 @@ export default function PaymentDetailScreen() {
 }
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -122,26 +125,26 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, gap: spacing.xl },
   amountCard: {
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.xl,
   },
-  amountLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.textSoft, textAlign: 'center' },
-  amount: { fontSize: fontSize['3xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
+  amountLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.textSoft, textAlign: 'center' },
+  amount: { fontSize: fontSize['3xl'], fontWeight: fontWeight.extrabold, color: c.primary },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.lg,
   },
   row: {
@@ -151,13 +154,13 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSoft,
+    borderBottomColor: c.borderSoft,
   },
-  rowLabel: { fontSize: fontSize.sm, color: colors.textMuted },
-  rowValue: { flex: 1, textAlign: 'right', fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.text },
+  rowLabel: { fontSize: fontSize.sm, color: c.textMuted },
+  rowValue: { flex: 1, textAlign: 'right', fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text },
   mono: { fontFamily: 'monospace' },
   section: { gap: spacing.sm },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  body: { fontSize: fontSize.md, color: colors.textSoft, lineHeight: 24 },
-  webNote: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.xs },
-});
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  body: { fontSize: fontSize.md, color: c.textSoft, lineHeight: 24 },
+  webNote: { textAlign: 'center', color: c.textMuted, fontSize: fontSize.xs },
+}));

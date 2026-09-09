@@ -26,9 +26,11 @@ import {
   type GeoScope,
 } from '@/features/geopricing/api';
 import { CONTINENTS, COUNTRIES, continentLabel, countryLabel } from '@/features/geopricing/regions';
-import { colors, fonts, fontSize, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 
 export default function GeoPricingScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { eventId, packageId } = useLocalSearchParams<{ eventId?: string; packageId?: string }>();
   // One screen prices either an event's stream or a photographer package.
   const isPackage = !!packageId;
@@ -227,56 +229,56 @@ function labelFor(r: GeoPriceRule): string {
   return r.scopeType === 'CONTINENT' ? continentLabel(r.scopeValue) : countryLabel(r.scopeValue);
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: 60 },
   introCard: {
     flexDirection: 'row',
     gap: spacing.md,
     alignItems: 'flex-start',
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.lg,
     padding: spacing.md,
   },
-  introText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
-  bold: { fontFamily: fonts.bold, color: colors.primary },
+  introText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.text, lineHeight: 20 },
+  bold: { fontFamily: fonts.bold, color: c.primary },
 
-  sectionTitle: { fontFamily: fonts.bold, fontSize: fontSize.md, color: colors.text, marginTop: spacing.sm },
-  muted: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: fontSize.md, color: c.text, marginTop: spacing.sm },
+  muted: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
 
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
     gap: spacing.md,
   },
   ruleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
-  ruleBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSoft },
+  ruleBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSoft },
   ruleBadge: {
-    width: 30, height: 30, borderRadius: 8, backgroundColor: colors.infoBg,
+    width: 30, height: 30, borderRadius: 8, backgroundColor: c.infoBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  ruleName: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.text },
-  ruleMeta: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
-  rulePrice: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.primary },
+  ruleName: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.text },
+  ruleMeta: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
+  rulePrice: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.primary },
   delBtn: { padding: 4 },
 
-  segment: { flexDirection: 'row', backgroundColor: colors.surfaceMuted, borderRadius: radii.full, padding: 3 },
+  segment: { flexDirection: 'row', backgroundColor: c.surfaceMuted, borderRadius: radii.full, padding: 3 },
   segBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: radii.full },
-  segBtnActive: { backgroundColor: colors.surface },
-  segText: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.textMuted },
-  segTextActive: { color: colors.primary },
+  segBtnActive: { backgroundColor: c.surface },
+  segText: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.textMuted },
+  segTextActive: { color: c.primary },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: radii.full,
-    borderWidth: 1, borderColor: colors.borderSoft, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: c.borderSoft, backgroundColor: c.surface,
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.text },
+  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipText: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.text },
   chipTextActive: { color: '#fff', fontFamily: fonts.bold },
 
-  fieldLabel: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.textMuted },
-  error: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.error },
-});
+  fieldLabel: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.textMuted },
+  error: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.error },
+}));

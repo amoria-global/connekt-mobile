@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
-import { colors, fontSize, spacing } from '@/theme';
+import { spacing, fontSize, makeStyles } from '@/theme';
 
 const tips = [
   { title: 'Book Early', desc: 'Reserve popular photographers 4-8 weeks in advance, especially for weddings and peak seasons.' },
@@ -13,6 +13,7 @@ const tips = [
 ];
 
 export default function BookingHelpScreen() {
+  const styles = useStyles();
   const [openSection, setOpenSection] = useState<string | null>('booking');
 
   const toggleSection = (id: string) => {
@@ -89,12 +90,12 @@ export default function BookingHelpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: {
     paddingBottom: spacing.xxxl,
   },
   header: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     padding: spacing.xl,
     paddingTop: spacing.xxxl,
     paddingBottom: spacing.xl,
@@ -102,12 +103,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.xxl,
     fontWeight: '800',
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     marginBottom: spacing.xs,
   },
   subtitle: {
     fontSize: fontSize.md,
-    color: colors.textOnPrimary + 'CC',
+    color: c.textOnPrimary + 'CC',
   },
   content: {
     padding: spacing.md,
@@ -116,21 +117,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: c.card,
     padding: spacing.lg,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginBottom: spacing.sm,
   },
   accordionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
   },
   accordionIcon: {
     fontSize: fontSize.xl,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   accordionContent: {
     paddingHorizontal: spacing.sm,
@@ -138,20 +139,20 @@ const styles = StyleSheet.create({
   },
   bodyText: {
     fontSize: fontSize.md,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 24,
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.md,
     marginTop: spacing.md,
   },
   card: {
-    backgroundColor: colors.primary + '0A',
-    borderColor: colors.primary + '26',
+    backgroundColor: c.primary + '0A',
+    borderColor: c.primary + '26',
     borderWidth: 1,
     borderRadius: 12,
     padding: spacing.md,
@@ -163,18 +164,18 @@ const styles = StyleSheet.create({
   },
   listItem: {
     fontSize: fontSize.md,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 24,
     marginBottom: spacing.sm,
   },
   bold: {
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
   },
   tipCard: {
-    backgroundColor: colors.card,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -182,12 +183,12 @@ const styles = StyleSheet.create({
   tipTitle: {
     fontSize: fontSize.md,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
     marginBottom: 4,
   },
   tipDesc: {
     fontSize: fontSize.sm,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 20,
   },
-});
+}));

@@ -33,7 +33,7 @@ import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { createPhotobook } from '@/features/photobooks/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const LAYOUTS: { value: string; label: string; description: string }[] = [
   { value: 'GRID', label: 'Grid', description: '3-column even grid, classic gallery look.' },
@@ -42,6 +42,8 @@ const LAYOUTS: { value: string; label: string; description: string }[] = [
 ];
 
 export default function NewPhotobookScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
 
   const [eventId, setEventId] = useState('');
@@ -183,45 +185,45 @@ export default function NewPhotobookScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   scroll: { padding: spacing.xl, gap: spacing.md, paddingBottom: 100 },
   multiline: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.textSoft, marginTop: spacing.sm },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.textSoft, marginTop: spacing.sm },
   option: {
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.md,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
   },
-  optionActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  optionActive: { borderColor: c.primary, backgroundColor: c.infoBg },
   radio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
-  radioActive: { borderColor: colors.primary },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  optionName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  optionDesc: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  radioActive: { borderColor: c.primary },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.primary },
+  optionName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  optionDesc: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
 
   hint: {
     flexDirection: 'row',
     gap: 6,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     padding: spacing.sm,
     borderRadius: radii.md,
     alignItems: 'flex-start',
   },
-  hintText: { flex: 1, color: colors.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  hintText: { flex: 1, color: c.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
 
-  error: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

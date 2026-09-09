@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 /**
  * Center slot: a rounded pill. Defaults to the Connekyt brand (logo + wordmark),
@@ -9,6 +9,7 @@ import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
  * without changing the top-bar layout.
  */
 export function BrandPill({ onPress, children }: { onPress?: () => void; children?: ReactNode }) {
+  const styles = useStyles();
   const content = children ?? (
     <>
       <Image
@@ -30,29 +31,25 @@ export function BrandPill({ onPress, children }: { onPress?: () => void; childre
   return <View style={styles.pill}>{content}</View>;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   pill: {
     flex: 1,
     height: 50,
     borderRadius: radii.full,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    ...e(2),
   },
   pressed: { opacity: 0.9 },
   mark: { width: 22, height: 22 },
   text: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.extrabold,
-    color: colors.primary,
+    color: c.primary,
     letterSpacing: 0.2,
   },
-});
+}));

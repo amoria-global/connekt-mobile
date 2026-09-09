@@ -47,7 +47,7 @@ import {
 import { useRole } from '@/features/auth/role';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
@@ -65,6 +65,8 @@ const PERIOD_LABEL: Record<AnalyticsPeriod, string> = {
 };
 
 export default function AnalyticsScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const { isClient, isCoordinator, isPhotographer } = useRole();
   const wallet = useAsync(useCallback(() => getWallet(), []));
@@ -395,6 +397,7 @@ function kpi(title: string, value: string, icon: KpiSpec['icon'], accent: string
 // ────── Components ─────────────────────────────────────────────────────────────
 
 function KpiCard({ title, value, icon, accent, trend, timeframe }: KpiSpec & { timeframe: string }) {
+  const styles = useStyles();
   const dir = trend?.direction ?? 'up';
   const trendColor = dir === 'up' ? '#10B981' : '#EF4444';
   return (
@@ -418,6 +421,7 @@ function KpiCard({ title, value, icon, accent, trend, timeframe }: KpiSpec & { t
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -427,10 +431,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function ListCard({ children }: { children: React.ReactNode }) {
+  const styles = useStyles();
   return <View style={styles.listCard}>{children}</View>;
 }
 
 function PerformanceMiniChart({ data }: { data: PerformancePoint[] }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const maxVal = Math.max(...data.flatMap((d) => [d.value1, d.value2]), 1);
   return (
     <View style={styles.perfCard}>
@@ -460,6 +467,7 @@ function PerformanceMiniChart({ data }: { data: PerformancePoint[] }) {
 }
 
 function ActivityRow({ activity }: { activity: { id: string; type: string; title: string; createdAt?: string } }) {
+  const styles = useStyles();
   const label = activity.type.charAt(0).toUpperCase() + activity.type.slice(1).toLowerCase();
   return (
     <View style={styles.listRow}>
@@ -487,6 +495,8 @@ function PhotographerRow({
 }: {
   name: string; sub?: string; avatar?: string; status?: string; onPress?: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const chip = status ? (STATUS_CHIP[status] ?? { bg: colors.surfaceMuted, text: colors.textMuted }) : null;
   return (
     <Pressable style={({ pressed }) => [styles.listRow, pressed && { opacity: 0.7 }]} onPress={onPress}>
@@ -516,6 +526,8 @@ function PaymentRow({
 }: {
   name: string; sub?: string; avatar?: string; amount: string; failed?: boolean; rightSub?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const amountColor = failed ? colors.error : colors.primary;
   const subColor = failed ? colors.error : colors.warning;
   return (
@@ -541,73 +553,69 @@ function PaymentRow({
 
 // ────── Styles ─────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   scroll: { padding: spacing.xl, paddingBottom: 40, gap: spacing.lg },
-  subtitle: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: -spacing.sm },
+  subtitle: { fontSize: fontSize.sm, color: c.textMuted, marginTop: -spacing.sm },
 
   periodTabs: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.full,
     padding: 3,
     gap: 2,
   },
   periodTab: { flex: 1, paddingVertical: 7, alignItems: 'center', borderRadius: radii.full },
   periodTabActive: {
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
+    backgroundColor: c.surface,
+    ...e(1),
   },
-  periodTabText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
-  periodTabTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  periodTabText: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold },
+  periodTabTextActive: { color: c.primary, fontWeight: fontWeight.bold },
 
   customDateRow: { flexDirection: 'row', gap: spacing.sm },
   customDateField: { flex: 1, gap: 4 },
-  customDateLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  customDateLabel: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold },
   customDateInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: fontSize.sm,
-    color: colors.text,
+    color: c.text,
   },
 
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   kpi: {
     width: '47.5%',
     flexGrow: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: 2,
   },
   kpiHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   kpiIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   kpiTrend: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   kpiTrendText: { fontSize: 10, fontWeight: fontWeight.bold },
-  kpiTitle: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, marginTop: 6 },
-  kpiValue: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
-  kpiTimeframe: { fontSize: 10, color: colors.textMuted },
+  kpiTitle: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold, marginTop: 6 },
+  kpiValue: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  kpiTimeframe: { fontSize: 10, color: c.textMuted },
 
   empty: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing['2xl'] },
-  emptyText: { color: colors.textMuted, fontSize: fontSize.sm },
+  emptyText: { color: c.textMuted, fontSize: fontSize.sm },
 
   section: { gap: spacing.sm },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
 
   perfCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -615,19 +623,19 @@ const styles = StyleSheet.create({
   perfCol: { flex: 1, alignItems: 'center', gap: 4 },
   perfBarGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   perfBar: { width: 8, borderRadius: 4 },
-  perfBar1: { backgroundColor: colors.primary },
-  perfBar2: { backgroundColor: colors.accent },
-  perfDayLabel: { fontSize: 9, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  perfBar1: { backgroundColor: c.primary },
+  perfBar2: { backgroundColor: c.accent },
+  perfDayLabel: { fontSize: 9, color: c.textMuted, fontWeight: fontWeight.semibold },
   perfLegend: { flexDirection: 'row', gap: spacing.md },
   perfLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   perfLegendDot: { width: 8, height: 8, borderRadius: 4 },
-  perfLegendText: { fontSize: fontSize.xs, color: colors.textMuted },
+  perfLegendText: { fontSize: fontSize.xs, color: c.textMuted },
 
   listCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   listRow: {
@@ -636,24 +644,24 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSoft,
+    borderBottomColor: c.borderSoft,
   },
-  activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, flexShrink: 0 },
+  activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent, flexShrink: 0 },
   rowAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   rowAvatarImg: { width: 36, height: 36 },
-  rowLabel: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, textTransform: 'uppercase' },
-  rowName: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
-  rowSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
-  rowMeta: { fontSize: 10, color: colors.textMuted },
+  rowLabel: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold, textTransform: 'uppercase' },
+  rowName: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
+  rowSub: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
+  rowMeta: { fontSize: 10, color: c.textMuted },
   rowAmount: { fontSize: fontSize.sm, fontWeight: fontWeight.extrabold },
   statusChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
   statusChipText: { fontSize: 10, fontWeight: fontWeight.bold },
-});
+}));
