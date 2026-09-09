@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRole } from '@/features/auth/role';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles } from '@/theme';
 
 /**
  * Page header band. For the consumer `User` role it renders a navy→pink
@@ -24,6 +24,7 @@ export function UserHeaderBand({
   subtitle?: string;
   children?: React.ReactNode;
 }) {
+  const styles = useStyles();
   const { isUser } = useRole();
 
   if (isUser) {
@@ -53,11 +54,11 @@ export function UserHeaderBand({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.md, gap: 2 },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1, color: colors.accent },
-  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1, color: c.accent },
+  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
+  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
 
   brandWrap: {
     paddingHorizontal: spacing.xl,
@@ -70,6 +71,6 @@ const styles = StyleSheet.create({
   brandEyebrow: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 1.4, color: 'rgba(255,255,255,0.72)' },
   brandTitle: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: '#fff', letterSpacing: -0.3 },
   brandSubtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: 'rgba(255,255,255,0.82)' },
-});
+}));
 
 export default UserHeaderBand;

@@ -72,6 +72,8 @@ function AdVideo({ uri, style }: { uri: string; style: StyleProp<ViewStyle> }) {
   const player = useVideoPlayer({ uri }, (p) => {
     p.loop = true;
     p.muted = true;
+    // Silent ad loop — must not interrupt whatever the viewer is listening to.
+    p.audioMixingMode = 'mixWithOthers';
     p.play();
   });
   return <VideoView player={player} style={style as any} contentFit="cover" nativeControls={false} />;

@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import type { DateFieldProps } from './DateField';
 
 function toYMD(d: Date): string {
@@ -15,6 +15,8 @@ function toYMD(d: Date): string {
  * react-native-web renders a raw DOM element when given a string tag.
  */
 export function DateField({ label, value, onChange, error, minimumDate }: DateFieldProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
@@ -45,8 +47,8 @@ const inputStyle = {
   outline: 'none',
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { gap: spacing.xs },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
-  error: { fontSize: fontSize.xs, color: colors.error },
-});
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
+  error: { fontSize: fontSize.xs, color: c.error },
+}));

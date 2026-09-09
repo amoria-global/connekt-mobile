@@ -8,9 +8,10 @@ import {
   registerForPushNotifications,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
-import { colors } from '@/theme';
+import { colors, useTheme } from '@/theme';
 
 export default function AppLayout() {
+  const { isDark, colors: c } = useTheme();
   const segments = useSegments() as string[];
   const router = useRouter();
   // Tab screens are light → dark status icons; blue-header detail screens → light.
@@ -41,9 +42,13 @@ export default function AppLayout() {
       <Stack
         screenOptions={{
           // Branded blue headers, matching the top/bottom chrome.
-          headerTintColor: colors.textOnPrimary, // white chevron / back
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleStyle: { color: colors.textOnPrimary, fontWeight: '700' },
+          // Branded blue headers. Uses the ACTIVE palette, not the static
+          // light one: dark mode brightens `primary`, which keeps the header
+          // distinct from the near-black canvas instead of merging into it.
+          headerTintColor: c.textOnPrimary, // white chevron / back
+          headerStyle: { backgroundColor: c.primary },
+          headerTitleStyle: { color: c.textOnPrimary, fontWeight: '700' },
+          contentStyle: { backgroundColor: c.background },
           headerBackButtonDisplayMode: 'minimal', // chevron only, no "‹ Home" text
           headerShadowVisible: false,
         }}
@@ -130,7 +135,7 @@ export default function AppLayout() {
        * paddingBottom 100+, so the bar doesn't cover anything important.
        */}
       <PersistentBottomBar />
-      <StatusBar style={inTabs ? 'dark' : 'light'} />
+      <StatusBar style={inTabs ? (isDark ? 'light' : 'dark') : 'light'} />
     </View>
   );
 }

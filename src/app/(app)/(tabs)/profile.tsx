@@ -11,11 +11,13 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { useAuth } from '@/store/auth';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type MenuItem = { icon: keyof typeof Ionicons.glyphMap; label: string; href: Href };
 
 export default function ProfileScreen() {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const user = useAuth((s) => s.user);
@@ -49,7 +51,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}>
         {/* Identity hero */}
         <LinearGradient
-          colors={[colors.primary, '#0a4da3', colors.accent]}
+          colors={[...gradients.brand]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
@@ -123,6 +125,8 @@ export default function ProfileScreen() {
 }
 
 function Row({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
@@ -140,6 +144,8 @@ function MenuRow({
   onPress,
   last,
 }: MenuItem & { onPress: () => void; last?: boolean }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable style={[styles.menuRow, !last && styles.menuBorder]} onPress={onPress}>
       <View style={styles.menuIcon}>
@@ -151,7 +157,7 @@ function MenuRow({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.md },
 
   hero: { borderRadius: radii.xl, padding: spacing.xl, alignItems: 'center', gap: 4 },
@@ -184,29 +190,29 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: '#fff' },
 
   infoCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.lg,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
-  rowIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.infoBg, alignItems: 'center', justifyContent: 'center' },
-  rowLabel: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
-  rowValue: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
+  rowIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: c.infoBg, alignItems: 'center', justifyContent: 'center' },
+  rowLabel: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
+  rowValue: { fontFamily: fonts.bold, fontSize: 14, color: c.text },
 
-  sectionTitle: { fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: spacing.sm, marginLeft: 2 },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.textMuted, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: spacing.sm, marginLeft: 2 },
   menuCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.lg,
   },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
-  menuBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSoft },
-  menuIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.infoBg, alignItems: 'center', justifyContent: 'center' },
-  menuLabel: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  menuBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSoft },
+  menuIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: c.infoBg, alignItems: 'center', justifyContent: 'center' },
+  menuLabel: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: c.text },
 
   logout: {
     flexDirection: 'row',
@@ -217,16 +223,16 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1.5,
     borderColor: '#FCA5A5',
-    backgroundColor: colors.errorBg,
+    backgroundColor: c.errorBg,
     marginTop: spacing.sm,
   },
-  logoutText: { fontFamily: fonts.bold, fontSize: 15, color: colors.error },
+  logoutText: { fontFamily: fonts.bold, fontSize: 15, color: c.error },
 
   deleteLink: { alignItems: 'center', paddingVertical: spacing.md },
   deleteLinkText: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.textMuted,
+    color: c.textMuted,
     textDecorationLine: 'underline',
   },
-});
+}));

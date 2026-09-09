@@ -34,7 +34,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { listCoordinatorEvents, listEvents } from './api';
 import type { EventItem } from './types';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
@@ -87,6 +87,8 @@ export function OwnerEventsDashboard({
   coordinator?: boolean;
   topInset?: number;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(
     coordinator ? listCoordinatorEvents : listEvents,
@@ -259,6 +261,7 @@ function OwnerEventCard({
   onEdit: () => void;
   onShare: () => void;
 }) {
+  const styles = useStyles();
   const pill = heroStatus(event);
   return (
     <Pressable style={styles.card} onPress={onOpen} android_ripple={{ color: 'rgba(255,255,255,0.06)' }}>
@@ -313,18 +316,18 @@ function OwnerEventCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.lg },
 
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
-  h1: { fontFamily: fonts.bold, fontSize: 30, color: colors.text, letterSpacing: -0.5 },
-  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, marginTop: 2 },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
+  h1: { fontFamily: fonts.bold, fontSize: 30, color: c.text, letterSpacing: -0.5 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, marginTop: 2 },
   newBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     paddingHorizontal: 14,
     height: 40,
     borderRadius: radii.md,
@@ -341,15 +344,15 @@ const styles = StyleSheet.create({
     padding: 14,
     paddingTop: 16,
     borderRadius: radii.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   statAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   statIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  statLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
-  statValue: { fontFamily: fonts.bold, fontSize: 24, color: colors.text, lineHeight: 26 },
+  statLabel: { fontFamily: fonts.regular, fontSize: 13, color: c.textMuted },
+  statValue: { fontFamily: fonts.bold, fontSize: 24, color: c.text, lineHeight: 26 },
 
   filterRow: { gap: 8, paddingBottom: spacing.md },
   filterPill: {
@@ -359,14 +362,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
-  filterPillActive: { backgroundColor: colors.primary },
-  filterText: { fontFamily: fonts.bold, fontSize: 14, color: colors.textSoft },
+  filterPillActive: { backgroundColor: c.primary },
+  filterText: { fontFamily: fonts.bold, fontSize: 14, color: c.textSoft },
   filterTextActive: { color: '#fff' },
   filterBadge: { minWidth: 22, paddingHorizontal: 6, paddingVertical: 1, borderRadius: radii.full, backgroundColor: 'rgba(8,58,133,0.10)', alignItems: 'center' },
   filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
-  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: colors.primary },
+  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.primary },
   filterBadgeTextActive: { color: '#fff' },
 
   search: {
@@ -376,11 +379,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 44,
     borderRadius: radii.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.text, padding: 0 },
+  searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: c.text, padding: 0 },
 
   card: { height: 260, borderRadius: radii.xl, overflow: 'hidden', backgroundColor: '#0B1B34', justifyContent: 'space-between' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: spacing.md },
@@ -396,9 +399,9 @@ const styles = StyleSheet.create({
 
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   actBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.md },
-  actEdit: { backgroundColor: colors.primary },
+  actEdit: { backgroundColor: c.primary },
   actShare: { backgroundColor: 'rgba(255,255,255,0.16)' },
   actText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
   manageHint: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 2 },
   manageHintText: { fontFamily: fonts.bold, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
-});
+}));

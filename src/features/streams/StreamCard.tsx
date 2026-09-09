@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import type { Stream } from './api';
 
 export function StreamCard({ stream }: { stream: Stream }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.card}>
       <View style={styles.thumbWrap}>
@@ -40,29 +42,29 @@ export function StreamCard({ stream }: { stream: Stream }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   thumbWrap: { position: 'relative' },
-  thumb: { width: '100%', height: 160, backgroundColor: colors.surfaceMuted },
+  thumb: { width: '100%', height: 160, backgroundColor: c.surfaceMuted },
   thumbFallback: { alignItems: 'center', justifyContent: 'center' },
   liveBadge: {
     position: 'absolute',
     top: spacing.sm,
     left: spacing.sm,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radii.sm,
   },
-  liveText: { color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.extrabold },
+  liveText: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.extrabold },
   body: { padding: spacing.lg, gap: 2 },
-  title: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  meta: { fontSize: fontSize.sm, color: colors.textMuted },
+  title: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  meta: { fontSize: fontSize.sm, color: c.textMuted },
   viewers: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-});
+}));

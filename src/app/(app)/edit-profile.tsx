@@ -20,7 +20,7 @@ import { onlyDigits, parsePhone, type ParsedPhone } from '@/lib/phoneKit';
 import { updateCoverPicture, updateProfile, updateProfilePicture } from '@/features/profile/api';
 import { pickFromLibrary } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 /**
  * Seed the phone editor from whatever format the account has stored:
@@ -37,6 +37,8 @@ function seedPhone(raw: string): ParsedPhone {
 }
 
 export default function EditProfileScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const user = useAuth((s) => s.user);
   const updateUser = useAuth((s) => s.updateUser);
@@ -171,13 +173,13 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   scroll: { padding: spacing.xl, gap: spacing.xl, alignItems: 'stretch' },
   coverWrap: { alignSelf: 'stretch' },
-  cover: { width: '100%', height: 130, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted },
-  coverFallback: { alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 1, borderColor: colors.borderSoft },
-  coverHint: { fontSize: fontSize.sm, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  cover: { width: '100%', height: 130, borderRadius: radii.lg, backgroundColor: c.surfaceMuted },
+  coverFallback: { alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 1, borderColor: c.borderSoft },
+  coverHint: { fontSize: fontSize.sm, color: c.textMuted, fontWeight: fontWeight.semibold },
   coverBadge: {
     position: 'absolute',
     right: spacing.md,
@@ -185,14 +187,14 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: radii.full,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarWrap: { alignSelf: 'center', marginTop: -spacing['3xl'] },
-  avatar: { width: 104, height: 104, borderRadius: radii.full, backgroundColor: colors.surfaceMuted, borderWidth: 3, borderColor: colors.background },
-  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
-  initials: { color: colors.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
+  avatar: { width: 104, height: 104, borderRadius: radii.full, backgroundColor: c.surfaceMuted, borderWidth: 3, borderColor: c.background },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
+  initials: { color: c.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
   editBadge: {
     position: 'absolute',
     right: -2,
@@ -200,12 +202,12 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: radii.full,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: colors.background,
+    borderColor: c.background,
   },
   form: { gap: spacing.lg },
-  error: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

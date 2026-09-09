@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radii } from '@/theme';
+import { radii, makeStyles, useTheme } from '@/theme';
 
 const TAB_BAR_HEIGHT = 64;
 const TAB_BAR_MARGIN = 20;
@@ -12,6 +12,8 @@ type Props = {
 };
 
 export function Fab({ icon = 'add', onPress }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBarBottom = insets.bottom > 0 ? insets.bottom : TAB_BAR_MARGIN;
   const bottom = tabBarBottom + TAB_BAR_HEIGHT + 12;
@@ -27,21 +29,17 @@ export function Fab({ icon = 'add', onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   fab: {
     position: 'absolute',
     right: 20,
     width: 56,
     height: 56,
     borderRadius: radii.full,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    ...e(4),
   },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
-});
+}));

@@ -1,6 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
-import { colors, fontSize, spacing } from '@/theme';
+import { spacing, fontSize, makeStyles } from '@/theme';
 
 const SECTIONS = [
   {
@@ -30,6 +30,7 @@ const SECTIONS = [
 ];
 
 export default function TrustSafetyScreen() {
+  const styles = useStyles();
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -49,7 +50,7 @@ export default function TrustSafetyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: {
     padding: spacing.xl,
     paddingBottom: spacing.xxxl,
@@ -61,13 +62,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.xxl,
     fontWeight: '800',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.xs,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: fontSize.md,
-    color: colors.primary,
+    color: c.primary,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -77,12 +78,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontSize.xl,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.md,
   },
   bodyText: {
     fontSize: fontSize.md,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 24,
   },
-});
+}));

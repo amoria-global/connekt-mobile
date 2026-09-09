@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { submitContactMessage } from '@/features/support/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
 
 const CHANNELS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string; href: string }[] = [
   { key: 'phone', icon: 'call-outline', label: 'Phone', value: '+250 788 437 347', href: 'tel:+250788437347' },
@@ -43,6 +43,8 @@ export function ContactForm({
   submitLabel = 'Send message',
   formTitle = 'Send us a message',
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState<PhoneValue | null>(null);
@@ -160,11 +162,11 @@ export function ContactForm({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { padding: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.lg },
   header: {
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     padding: spacing.xxl,
     borderRadius: 24,
   },
@@ -180,14 +182,14 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: fontSize.md, color: 'rgba(255,255,255,0.9)', textAlign: 'center', lineHeight: 24 },
 
   card: {
-    backgroundColor: colors.card,
+    backgroundColor: c.card,
     borderRadius: 20,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     gap: spacing.sm,
   },
-  cardTitle: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text, marginBottom: spacing.sm },
+  cardTitle: { fontSize: fontSize.lg, fontWeight: '800', color: c.text, marginBottom: spacing.sm },
 
   channels: { gap: spacing.md },
   channel: {
@@ -195,16 +197,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
   },
   channelIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -212,16 +214,16 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    color: colors.textMuted,
+    color: c.textMuted,
     fontWeight: '700',
     marginBottom: 2,
   },
-  channelValue: { fontSize: fontSize.sm, color: colors.text, fontWeight: '600' },
+  channelValue: { fontSize: fontSize.sm, color: c.text, fontWeight: '600' },
 
   messageInput: { height: 110, paddingTop: spacing.md, textAlignVertical: 'top' },
-  errorText: { color: colors.error, fontSize: fontSize.sm },
+  errorText: { color: c.error, fontSize: fontSize.sm },
 
   successBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
-  successText: { color: colors.text, fontSize: fontSize.md, textAlign: 'center', lineHeight: 22 },
-  sendAnother: { color: colors.primary, fontWeight: '700', fontSize: fontSize.sm, marginTop: spacing.sm },
-});
+  successText: { color: c.text, fontSize: fontSize.md, textAlign: 'center', lineHeight: 22 },
+  sendAnother: { color: c.primary, fontWeight: '700', fontSize: fontSize.sm, marginTop: spacing.sm },
+}));

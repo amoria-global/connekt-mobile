@@ -6,10 +6,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { spacing, radii, fonts, makeStyles } from '@/theme';
 import { useAppUpdates } from './useAppUpdates';
 
 export function UpdateBanner() {
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { updateReady, applyUpdate } = useAppUpdates();
 
@@ -28,23 +29,19 @@ export function UpdateBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.md, zIndex: 999 },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    ...e(4),
   },
   text: { flex: 1, fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
   btn: { backgroundColor: '#fff', paddingHorizontal: 14, height: 34, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center' },
-  btnText: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary },
-});
+  btnText: { fontFamily: fonts.bold, fontSize: 13, color: c.primary },
+}));

@@ -37,7 +37,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
@@ -45,6 +45,8 @@ function feeLabel(fee: number, code: string | null | undefined, symbol?: string 
 }
 
 export default function EventPaymentScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
@@ -235,61 +237,61 @@ export default function EventPaymentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  mutedInline: { flex: 1, color: colors.textMuted, fontSize: fontSize.sm },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  mutedInline: { flex: 1, color: c.textMuted, fontSize: fontSize.sm },
   scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 120 },
 
   summary: {
     padding: spacing.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.lg,
     gap: 2,
   },
-  summaryEvent: { color: colors.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+  summaryEvent: { color: c.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   summarySub: { color: 'rgba(255,255,255,0.78)', fontSize: fontSize.xs },
   summaryAmount: {
     marginTop: spacing.sm,
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.extrabold,
   },
 
-  h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   signedInCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.lg,
     padding: spacing.md,
   },
-  signedInName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  signedInEmail: { fontSize: fontSize.xs, color: colors.textMuted },
+  signedInName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  signedInEmail: { fontSize: fontSize.xs, color: c.textMuted },
 
   feeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  feeLabel: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  feeValue: { color: colors.primary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
+  feeLabel: { color: c.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  feeValue: { color: c.primary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
 
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.lg,
-    backgroundColor: colors.errorBg,
+    backgroundColor: c.errorBg,
     borderRadius: radii.lg,
   },
-  errorText: { flex: 1, color: colors.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  errorText: { flex: 1, color: c.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 
-  note: { textAlign: 'center', color: colors.textMuted, fontSize: fontSize.xs },
-});
+  note: { textAlign: 'center', color: c.textMuted, fontSize: fontSize.xs },
+}));

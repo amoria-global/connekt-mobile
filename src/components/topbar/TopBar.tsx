@@ -7,7 +7,7 @@ import { useRole } from '@/features/auth/role';
 import { listNotifications } from '@/features/notifications/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
-import { spacing } from '@/theme';
+import { spacing, makeStyles } from '@/theme';
 import { BrandPill } from './BrandPill';
 import { NotificationButton } from './NotificationButton';
 import { ProfileButton } from './ProfileButton';
@@ -28,6 +28,7 @@ export function useTopBarHeight() {
  * useTopBarHeight().
  */
 export function TopBar() {
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
@@ -49,7 +50,7 @@ export function TopBar() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: {
     position: 'absolute',
     top: 0,
@@ -71,4 +72,4 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-});
+}));
