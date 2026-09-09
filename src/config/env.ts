@@ -29,6 +29,17 @@ export const env = {
    */
   webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL ?? 'https://connekyt.com',
 
+  /**
+   * Authenticated dashboard (salo-run) base URL.
+   *
+   * Separate from webBaseUrl because they are different deployments: the
+   * landing is connekyt.com, the signed-in dashboard is a subdomain. Identity
+   * verification lives on the dashboard, and the app opens it in the in-app
+   * browser rather than reimplementing it (CONN-ONB-1).
+   */
+  dashboardBaseUrl:
+    process.env.EXPO_PUBLIC_DASHBOARD_BASE_URL ?? 'https://dashboard.connekyt.com',
+
   /** Network request timeout in milliseconds. */
   requestTimeoutMs: 20_000,
 
