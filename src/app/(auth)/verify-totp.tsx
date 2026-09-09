@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { OtpInput } from '@/components/ui/OtpInput';
 import { Screen } from '@/components/ui/Screen';
 import { verifyTotp } from '@/features/auth/api';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
 
 export default function VerifyTotpScreen() {
+  const styles = useStyles();
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
   const applySession = useAuth((s) => s.applySession);
 
@@ -38,13 +39,10 @@ export default function VerifyTotpScreen() {
           Open your authenticator app and enter the 6-digit code to sign in.
         </Text>
 
-        <Input
+        <OtpInput
           label="Verification code"
           value={otp}
-          onChangeText={setOtp}
-          keyboardType="number-pad"
-          placeholder="123456"
-          maxLength={6}
+          onChange={setOtp}
           error={error ?? undefined}
         />
 
@@ -60,10 +58,10 @@ export default function VerifyTotpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: { flex: 1, justifyContent: 'center', gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22 },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
+  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22 },
   infoBox: {
     backgroundColor: '#f0f5ff',
     borderColor: '#dbeafe',
@@ -73,4 +71,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   infoText: { color: '#1e40af', fontSize: fontSize.sm, lineHeight: 20 },
-});
+}));

@@ -4,8 +4,21 @@ import type { CustomerType } from './types';
 
 export type Role = CustomerType;
 
-export function useRole() {
-  const role = useAuth((s) => s.user?.customerType) ?? 'Client';
+export function useRole(): {
+  role: Role | undefined;
+  isClient: boolean;
+  isPhotographer: boolean;
+  isCoordinator: boolean;
+  isViewer: boolean;
+  isUser: boolean;
+  ownsEvents: boolean;
+} {
+  // ROLE INVARIANT: never substitute a role. This used to be `?? 'Client'`,
+  // which meant a session with no role silently gained Client's routing and
+  // capabilities (ownsEvents, isClient, ...). A missing role is now `undefined`
+  // and every derived flag is false, so the UI shows nothing rather than the
+  // wrong thing. Callers that need a role must handle its absence.
+  const role = useAuth((s) => s.user?.customerType);
   return {
     role,
     isClient: role === 'Client',

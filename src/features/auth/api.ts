@@ -5,6 +5,7 @@
 import { api } from '@/api/client';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
+import { forgetFirstHandshake, type AppleCredentialPayload } from './apple';
 import type {
   AuthSession,
   CustomerType,
@@ -27,7 +28,13 @@ function normalizeRole(raw?: string): CustomerType | undefined {
   if (r === 'viewer') return 'Viewer';
   if (r === 'user') return 'User';
   if (r === 'coordinator' || r === 'event-coordinator') return 'Coordinator';
-  return 'Client'; // unknown → safe default
+  // ROLE INVARIANT: never infer, replace or downgrade a role. This used to
+  // return 'Client' for anything unrecognised, so a backend role this client
+  // does not know about was silently recorded as Client in the session — a
+  // downgrade with no error anywhere. `undefined` is already part of this
+  // function's contract (a missing role returns it), so callers handle it, and
+  // an unknown role now surfaces as "no role" rather than as the wrong one.
+  return undefined;
 }
 
 /** Thrown by login() when the account exists but its email isn't verified yet. */
@@ -207,6 +214,37 @@ export async function forgotPassword(email: string): Promise<void> {
   }
 }
 
+/**
+ * Exchange an SMS recovery OTP for a real password-reset token.
+ *
+ * The two recovery channels hand back DIFFERENT things:
+ *   • email  -> a link containing a PasswordResetToken (a UUID)
+ *   • SMS    -> a short numeric OTP
+ *
+ * `/auth/set-new-password` only accepts the token — it resolves `code` with
+ * `passwordResetTokenRepository.findByToken(...)`. Posting a raw SMS OTP there
+ * returns "This reset link is invalid or has expired", which is exactly what
+ * phone-only users hit. This endpoint turns the OTP into the token the reset
+ * call needs, so both channels converge on one code path.
+ *
+ * Backend: POST /auth/forgot-password/verify-code -> { action, code }.
+ */
+export async function exchangeRecoveryCode(identifier: string, code: string): Promise<string> {
+  const qs = new URLSearchParams({ identifier, code }).toString();
+  const res = await api.post<{ action: number; message?: string; code?: string }>(
+    `/auth/forgot-password/verify-code?${qs}`,
+    undefined,
+    { skipAuth: true },
+  );
+  if (res.action !== 1 || !res.code) {
+    throw {
+      status: 400,
+      message: res.message || 'That code is invalid or has expired. Please request a new one.',
+    } satisfies ApiError;
+  }
+  return res.code;
+}
+
 export async function setNewPassword(data: {
   /** Advisory. The backend resolves the account from `code` or the session. */
   email?: string;
@@ -294,6 +332,111 @@ export async function googleLogin(
     user: { ...userFromResponse(res, profile.email), profilePicture: res.profilePicture ?? profile.picture },
   };
   await persistSession(session);
+  return session;
+}
+
+/**
+ * Does an account already exist for this email?
+ *
+ * Used by the LOGIN screen's Google button. `/auth/google` creates an account
+ * when none matches, so calling it without a chosen role would mint one with a
+ * guessed role. Checking first lets the caller route an unknown user to role
+ * selection instead of silently creating a Client.
+ *
+ * Backend contract: POST /auth/check-email -> action 0 = taken, 1 = free.
+ */
+export async function isEmailRegistered(email: string): Promise<boolean> {
+  const res = await api.post<{ action?: number }>(
+    '/auth/check-email',
+    { email },
+    { skipAuth: true },
+  );
+  return res.action === 0;
+}
+
+/**
+ * Roles a user can pick during mobile registration.
+ *
+ * The backend additionally accepts 'User' and 'Viewer' (see
+ * AuthService.VALID_CUSTOMER_TYPES). 'Viewer' is deliberately NOT offered here:
+ * it is excluded from `ownsEvents`, so a Viewer account renders the Events tab
+ * as a permanent empty state (this is why V285's Play-review seed uses 'User').
+ */
+/** Profile handed to role selection; '' where Apple shared nothing (mirrors GoogleProfile). */
+export type AppleProfile = { email: string; firstName: string; lastName: string };
+
+/** Thrown by appleLogin() in sign-in mode when this Apple ID has no account yet. */
+export type NeedsRoleError = ApiError & { needsRole: true; profile: AppleProfile };
+
+export function isNeedsRole(err: unknown): err is NeedsRoleError {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { needsRole?: unknown }).needsRole === true &&
+    typeof (err as { profile?: unknown }).profile === 'object'
+  );
+}
+
+/**
+ * Sign in / register via Apple. Unlike the Google path the credential goes in
+ * a JSON body, never query params: the identity token is a bearer credential
+ * and must not land in access logs. `/auth/apple` resolves against
+ * env.apiBaseUrl (…/api/remote), the backend's alias for the canonical
+ * /api/v1/auth/apple. The backend verifies the token against Apple's JWKS and
+ * returns the same flat session shape as /auth/login.
+ *
+ * `createIfMissing: false` is the sign-in screen's contract: no role is known
+ * there, so an unknown Apple ID must not be registered. The backend then
+ * answers `action 3` + `needsRole`, surfaced here as NeedsRoleError so the
+ * caller can route into role selection with the verified profile.
+ */
+export async function appleLogin(
+  credential: AppleCredentialPayload,
+  options: { createIfMissing: boolean },
+): Promise<AuthSession> {
+  const res = await api.post<LoginResponse & { needsRole?: boolean }>(
+    '/auth/apple',
+    { ...credential, createIfMissing: options.createIfMissing },
+    { skipAuth: true },
+  );
+
+  if (res.action === 3 && res.needsRole) {
+    // Keep the cached first-handshake profile: registration continues on the
+    // signup screen, where Apple will no longer return name/email.
+    throw {
+      status: 404,
+      message: res.message || 'Choose how you will use Connekyt to continue.',
+      needsRole: true,
+      profile: {
+        email: res.email ?? credential.email ?? '',
+        firstName: res.firstName ?? credential.firstName ?? '',
+        lastName: res.lastName ?? credential.lastName ?? '',
+      },
+    } as NeedsRoleError;
+  }
+  if (res.action === 2 && res.customerId) {
+    throw {
+      status: 403,
+      message: res.message || 'Two-factor authentication is required.',
+      needsTotp: true,
+      customerId: res.customerId,
+    } as NeedsTotpError;
+  }
+  if (res.action !== 1 || !res.token) {
+    throw {
+      status: 401,
+      message: res.message || 'Apple sign-in failed. Please try again.',
+    } satisfies ApiError;
+  }
+
+  const session: AuthSession = {
+    token: res.token,
+    refreshToken: res.refreshToken,
+    user: userFromResponse(res, credential.email ?? ''),
+  };
+  await persistSession(session);
+  // The backend now owns the profile; the on-device first-handshake copy can go.
+  await forgetFirstHandshake(credential.appleUserId);
   return session;
 }
 
