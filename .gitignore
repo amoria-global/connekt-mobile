@@ -56,3 +56,6 @@ build-artifacts/
 
 # greenfield UI design previews (Phase 1 sandbox — see CLAUDE.md)
 /src/_design-sandbox/
+
+# Scratch copy left by an app.json edit; never belongs in the repo
+app.json.backup
