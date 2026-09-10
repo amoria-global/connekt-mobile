@@ -329,7 +329,7 @@ function NativeHlsPlayer({ url, style, controls = true }: { url: string; style?:
       <VideoView
         player={player}
         style={styles.video}
-        allowsFullscreen
+        fullscreenOptions={{ enable: true }}
         allowsPictureInPicture
         contentFit="contain"
         nativeControls={controls}

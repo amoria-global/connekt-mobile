@@ -11,7 +11,7 @@
  * root container (login, for one) looked correct — which is exactly the
  * "only the login page follows the theme" symptom.
  *
- * Feeding this theme to `ThemeProvider` from `@react-navigation/native` fixes
+ * Feeding this theme to `ThemeProvider` from `expo-router/react-navigation` fixes
  * every navigator at once — all six `_layout.tsx` files — because expo-router
  * is built on React Navigation. It covers the screen canvas, the default
  * header, and the hairline borders between navigation chrome and content.
@@ -19,7 +19,7 @@
  * Per-navigator `screenOptions` still win where a screen wants branded chrome
  * (e.g. the blue detail headers in `(app)/_layout.tsx`).
  */
-import { DarkTheme, DefaultTheme, type Theme } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, type Theme } from 'expo-router/react-navigation';
 
 import type { ColorSchemeName, Palette } from './palettes';
 

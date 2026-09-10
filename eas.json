@@ -17,10 +17,9 @@
       "ios": {
         "simulator": false
       },
-      "env": {                                 
-        "EXPO_PUBLIC_API_BASE_URL":            
-          "https://backend.connekyt.com/api/remote",   
-         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID":"151339453973-onclu11vd2p1slg9bjj8g8rcc88h3vsr.apps.googleusercontent.com"                       
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://backend.connekyt.com/api/remote",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "151339453973-onclu11vd2p1slg9bjj8g8rcc88h3vsr.apps.googleusercontent.com"
       }
     },
     "preview-simulator": {

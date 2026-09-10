@@ -175,7 +175,7 @@ export default function StreamDetailScreen() {
               player={player}
               style={StyleSheet.absoluteFill}
               contentFit="contain"
-              allowsFullscreen
+              fullscreenOptions={{ enable: true }}
               nativeControls
             />
           ) : (

@@ -61,7 +61,7 @@ const useStyles = makeStyles((c) => ({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(8,58,133,0.12)',
   },
-  tint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,58,133,0.5)' },
+  tint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8,58,133,0.5)' },
   row: {
     position: 'absolute',
     left: 0,

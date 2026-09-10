@@ -124,7 +124,7 @@ export function PayNowSheet({
 }
 
 const useStyles = makeStyles((c) => ({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,18,23,0.55)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,18,23,0.55)' },
   sheetContainer: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: c.surface,

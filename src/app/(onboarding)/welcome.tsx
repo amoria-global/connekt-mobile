@@ -323,7 +323,7 @@ const ON_MEDIA_INK = '#083A85'; // brand navy, reads on the white CTA
 const useStyles = makeStyles((c, e) => ({
   container: { flex: 1, backgroundColor: SCRIM_NAVY },
   slide: { overflow: 'hidden' },
-  tint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,58,133,0.28)' },
+  tint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8,58,133,0.28)' },
 
   topBar: { position: 'absolute', top: 0, right: 0, left: 0, flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.lg },
   skipPill: {

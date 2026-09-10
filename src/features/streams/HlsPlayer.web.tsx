@@ -486,7 +486,7 @@ function HlsVideo({
 
 const styles = StyleSheet.create({
   // No intrinsic aspect-ratio: the wrap fills whatever box the caller sizes
-  // (full-bleed stage via absoluteFillObject, or a 16:9 preview via its own
+  // (full-bleed stage via absoluteFill, or a 16:9 preview via its own
   // style). A hard-coded aspectRatio here pinned the video to 16:9 even when
   // absolute-filled, leaving the live stage short and chat spilling below.
   wrap: {

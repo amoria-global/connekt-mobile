@@ -298,7 +298,7 @@ const useStyles = makeStyles((c) => ({
   actionTextPrimary: { color: c.textOnPrimary },
 
   // Reject sheet
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,18,23,0.55)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,18,23,0.55)' },
   sheet: {
     position: 'absolute',
     left: 0,

@@ -71,9 +71,9 @@ export default function GalleryScreen() {
           >
             <View style={styles.cover}>
               {item.coverPhoto ? (
-                <Image source={{ uri: item.coverPhoto }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
+                <Image source={{ uri: item.coverPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
               ) : (
-                <View style={[StyleSheet.absoluteFillObject, styles.coverFallback]}>
+                <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
                   <Ionicons name="images-outline" size={26} color={colors.textMuted} />
                 </View>
               )}

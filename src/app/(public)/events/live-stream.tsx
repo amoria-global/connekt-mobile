@@ -154,7 +154,7 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
     <Animated.View style={[splashStyles.wrap, { opacity: fade }]}>
       {/* Whole overlay is tappable — viewer can dismiss instantly
           instead of waiting for the 2.6s timer. */}
-      <Pressable style={StyleSheet.absoluteFillObject} onPress={dismiss} />
+      <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
       <View style={splashStyles.content} pointerEvents="none">
         <View style={splashStyles.iconWrap}>
           <Ionicons name="play-circle" size={40} color="#fff" />
@@ -1253,7 +1253,7 @@ export default function PublicLiveStreamScreen() {
               // tap-to-return placeholder here so we never run two HLS
               // sessions at once.
               <Pressable style={styles.fsReturn} onPress={() => setChatFullscreen(false)}>
-                <Image source={eventThumbSource} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+                <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
                 <View style={styles.placeholderScrim} />
                 <Ionicons name="scan-outline" size={30} color="rgba(255,255,255,0.9)" />
                 <Text style={styles.placeholderText}>Playing in full screen — tap to return</Text>
@@ -1265,14 +1265,14 @@ export default function PublicLiveStreamScreen() {
               // overlay already carries the LIVE NOW pill.
               <HlsPlayer
                 url={manifestUrl}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 controlsBottomOffset={insets.bottom + 72}
                 showLiveBadge={false}
               />
             )
           ) : (
             <>
-              <Image source={eventThumbSource} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+              <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
               <View style={styles.placeholderScrim} />
               <View style={styles.placeholderContent}>
                 {/*
@@ -1504,19 +1504,19 @@ export default function PublicLiveStreamScreen() {
           {manifestUrl ? (
             <HlsPlayer
               url={manifestUrl}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               controlsBottomOffset={insets.bottom + 72}
               showLiveBadge={false}
             />
           ) : (
             <>
-              <Image source={eventThumbSource} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+              <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
               <View style={styles.placeholderScrim} />
             </>
           )}
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             pointerEvents="box-none"
           >
             <LiveChatPanel
@@ -1745,9 +1745,9 @@ const useStyles = makeStyles((c) => ({
     overflow: 'hidden',
     backgroundColor: '#0F1217',
   },
-  placeholderScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(7,8,13,0.62)' },
+  placeholderScrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(7,8,13,0.62)' },
   placeholderContent: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
@@ -1794,7 +1794,7 @@ const useStyles = makeStyles((c) => ({
   liveRoot: { flex: 1, backgroundColor: '#000' },
   stageFull: { flex: 1, backgroundColor: '#000', position: 'relative', overflow: 'hidden' },
   tokenOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
@@ -1814,7 +1814,7 @@ const useStyles = makeStyles((c) => ({
   errorToastText: { flex: 1, color: '#fff', fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
 
   fsReturn: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
@@ -1960,7 +1960,7 @@ const useStyles = makeStyles((c) => ({
   },
   chatErrorText: { color: c.error, fontSize: 12 },
 
-  floatingLayer: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end' },
+  floatingLayer: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end' },
   floatingEmoji: { position: 'absolute', bottom: 80, fontSize: 32 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
@@ -2016,7 +2016,7 @@ const useStyles = makeStyles((c) => ({
 // legibility comes from per-element translucent-black pills + text shadows.
 const useChatFx = makeStyles((c) => ({
   panel: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'space-between',
     paddingHorizontal: 10,
   },
@@ -2169,7 +2169,7 @@ const useChatFx = makeStyles((c) => ({
 
 const splashStyles = StyleSheet.create({
   wrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(7,8,13,0.88)',
     alignItems: 'center',
     justifyContent: 'center',

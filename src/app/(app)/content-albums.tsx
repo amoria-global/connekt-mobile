@@ -156,9 +156,9 @@ function ContentAlbumCard({ album, onOpen }: { album: ContentAlbumItem; onOpen: 
     <Pressable style={styles.card} onPress={onOpen} android_ripple={{ color: 'rgba(0,0,0,0.05)' }}>
       <View style={styles.cover}>
         {album.coverPhoto ? (
-          <Image source={{ uri: album.coverPhoto }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
+          <Image source={{ uri: album.coverPhoto }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
         ) : (
-          <View style={[StyleSheet.absoluteFillObject, styles.coverFallback]}>
+          <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
             <Ionicons name="images-outline" size={26} color={colors.textMuted} />
           </View>
         )}
