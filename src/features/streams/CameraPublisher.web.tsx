@@ -209,7 +209,7 @@ const useStyles = makeStyles((c) => ({
   wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: '#000' },
   video: { width: '100%', height: '100%', objectFit: 'cover', border: 0 } as any,
   errorOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,

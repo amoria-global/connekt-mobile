@@ -137,7 +137,7 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
     backgroundColor: c.background,
   },
-  wash: StyleSheet.absoluteFillObject,
+  wash: StyleSheet.absoluteFill,
 
   center: { alignItems: 'center', justifyContent: 'center', gap: spacing.xl },
   mark: { width: 132, height: 132 },

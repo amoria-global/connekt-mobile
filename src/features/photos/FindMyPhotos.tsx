@@ -1459,7 +1459,7 @@ export function FindMyPhotos() {
         colors={['#052047', '#052047', '#103E83']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       <KeyboardAvoidingView
@@ -1734,7 +1734,7 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: '#10B981',
   },
   lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.2)',
     padding: spacing.sm,
     alignItems: 'flex-end',
@@ -1751,7 +1751,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   lockPrice: { color: '#FFF', fontSize: 11, fontWeight: '700' },
   selectedOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(242,12,143,0.15)',
     alignItems: 'flex-end',
     justifyContent: 'flex-start',

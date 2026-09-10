@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.1.7",
+    "version": "2.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -10,16 +10,11 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "updates": {
-      "url": "https://u.expo.dev/d81fbfa6-f576-4450-97c6-c443332179be",
-      "enabled": true,
-      "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
-    },
-    "splash": {
-      "image": "./assets/images/logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+   "updates": {
+  "enabled": true,
+  "checkAutomatically": "ON_LOAD",
+  "fallbackToCacheTimeout": 0
+},
     },
     "ios": {
       "supportsTablet": true,
@@ -100,7 +95,7 @@
             "enableShrinkResourcesInReleaseBuilds": false
           },
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "16.4"
           }
         }
       ]
@@ -109,11 +104,8 @@
       "typedRoutes": true,
       "reactCompiler": false
     },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "d81fbfa6-f576-4450-97c6-c443332179be"
-      }
-    }
+   "extra": {
+  "router": {}
+}   }
   }
-}
+

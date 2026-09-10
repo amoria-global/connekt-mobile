@@ -329,7 +329,7 @@ export function GiftOverlay({
   return (
     <View
       pointerEvents="none"
-      style={[StyleSheet.absoluteFillObject, style]}
+      style={[StyleSheet.absoluteFill, style]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -417,7 +417,7 @@ const useS = makeStyles((c) => ({
   floaterLayer: { position: 'absolute', right: 6, width: 80, top: 0 },
 
   takeover: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 30,

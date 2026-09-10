@@ -428,14 +428,14 @@ function PhotographerEventCard({
     >
       <Image
         source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         contentFit="cover"
         transition={200}
       />
       <LinearGradient
         colors={['rgba(4,10,26,0.55)', 'rgba(4,10,26,0.15)', 'rgba(4,10,26,0.88)']}
         locations={[0, 0.42, 1]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       {/* Top row: date + status (left), stream (right) */}

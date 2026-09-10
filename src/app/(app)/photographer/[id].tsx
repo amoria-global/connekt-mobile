@@ -611,7 +611,7 @@ const useStyles = makeStyles((c, e) => ({
     resizeMode: 'cover',
   },
   gradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   topNav: {
     position: 'absolute',

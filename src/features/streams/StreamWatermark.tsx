@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   // Always on top of the player surface.
   top: { zIndex: 999, elevation: 999 },
   centerWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

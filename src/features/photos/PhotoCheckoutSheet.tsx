@@ -110,7 +110,7 @@ export function PhotoCheckoutSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)' },
   sheetContainer: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: '#0B2A57',

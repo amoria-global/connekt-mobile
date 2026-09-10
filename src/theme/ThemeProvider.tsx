@@ -63,13 +63,14 @@ export function ThemeProvider({
   children: ReactNode;
   preference?: ThemePreference;
 }) {
-  // Returns 'light' | 'dark' | null. null happens on some Android versions and
-  // in tests — treat it as light, matching the historical default.
+  // Returns 'light' | 'dark' | 'unspecified' (React Native 0.86). Anything
+  // that is not an explicit 'dark' is treated as light, matching the
+  // historical default.
   const systemScheme = useColorScheme();
 
   const value = useMemo<ThemeContextValue>(() => {
     const scheme: ColorSchemeName =
-      preference === 'system' ? (systemScheme ?? 'light') : preference;
+      preference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : preference;
     const colors = palettes[scheme];
 
     return {

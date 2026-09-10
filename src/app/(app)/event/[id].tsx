@@ -467,9 +467,9 @@ export default function EventDetailScreen() {
         {/* Hero image with status pills */}
         <View style={styles.hero}>
           {ev?.coverImage ? (
-            <Image source={{ uri: ev.coverImage }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={250} />
+            <Image source={{ uri: ev.coverImage }} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} />
           ) : (
-            <View style={[StyleSheet.absoluteFillObject, styles.heroFallback]}>
+            <View style={[StyleSheet.absoluteFill, styles.heroFallback]}>
               <Ionicons name="image-outline" size={40} color="rgba(255,255,255,0.5)" />
             </View>
           )}

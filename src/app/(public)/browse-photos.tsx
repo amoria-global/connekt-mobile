@@ -149,7 +149,7 @@ export default function BrowsePhotosScreen() {
         style={[styles.card, { width: cellWidth, height: cellWidth * 1.2, marginBottom: gap }]}
         onPress={() => setPreviewing(item)}
       >
-        <Image source={{ uri: item.fileUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
+        <Image source={{ uri: item.fileUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
         <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={styles.gradient} />
         {digitalPurchasesEnabled ? (
           <Pressable
@@ -173,7 +173,7 @@ export default function BrowsePhotosScreen() {
 
   return (
     <View style={[styles.container, { flex: 1 }]}>
-      <LinearGradient colors={['#052047', '#052047', '#103E83']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['#052047', '#052047', '#103E83']} style={StyleSheet.absoluteFill} />
 
       {loading ? (
         <View style={styles.center}>
@@ -221,7 +221,7 @@ export default function BrowsePhotosScreen() {
       {/* Lightbox preview */}
       <Modal visible={!!previewing} transparent animationType="fade">
         <View style={styles.lightboxContainer}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPreviewing(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPreviewing(null)} />
           <View style={[styles.lightboxContent, { marginTop: insets.top, marginBottom: insets.bottom }]}>
             <View style={styles.lightboxHeader}>
               <Pressable
@@ -317,7 +317,7 @@ export default function BrowsePhotosScreen() {
               columnWrapperStyle={{ gap: 6 }}
               renderItem={({ item }) => (
                 <Pressable style={styles.successThumb} onPress={() => downloadPhoto(item)}>
-                  <Image source={{ uri: item.fileUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+                  <Image source={{ uri: item.fileUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   <View style={styles.successThumbOverlay}>
                     <Ionicons name="download" size={18} color="#fff" />
                   </View>
@@ -395,5 +395,5 @@ const useStyles = makeStyles((c) => ({
   successTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '800' },
   unlockCode: { color: '#FBBF24', fontSize: 14, fontWeight: '700', marginBottom: 8 },
   successThumb: { flex: 1, maxWidth: '32%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.1)' },
-  successThumbOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
+  successThumbOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
 }));

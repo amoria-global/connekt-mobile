@@ -265,11 +265,11 @@ function OwnerEventCard({
   const pill = heroStatus(event);
   return (
     <Pressable style={styles.card} onPress={onOpen} android_ripple={{ color: 'rgba(255,255,255,0.06)' }}>
-      <Image source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
+      <Image source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
       <LinearGradient
         colors={['rgba(4,10,26,0.55)', 'rgba(4,10,26,0.12)', 'rgba(4,10,26,0.9)']}
         locations={[0, 0.4, 1]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       <View style={styles.cardTop}>

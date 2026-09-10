@@ -30,8 +30,10 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files (only .env.example is committed)
+.env
+.env.*
+!.env.example
 
 # Play publishing credential — eas.json points `submit.production.android
 # .serviceAccountKeyPath` here, so this file gets created locally at some

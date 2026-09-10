@@ -13,7 +13,7 @@ import { Asset } from 'expo-asset';
 import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdateBanner } from '@/features/updates/UpdateBanner';
-import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
+import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import { colors, useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
 
 /**

@@ -967,7 +967,7 @@ const useStyles = makeStyles((c) => ({
   heroWrap: { width: '100%', height: 280, position: 'relative' },
   cover: { width: '100%', height: '100%', backgroundColor: c.surfaceMuted },
   coverScrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(7,8,13,0.42)',
   },
   heroTopRail: {

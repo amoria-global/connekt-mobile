@@ -69,9 +69,9 @@ export default function PhotobooksScreen() {
             >
               <View style={styles.cover}>
                 {item.coverImage ? (
-                  <Image source={{ uri: item.coverImage }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={200} />
+                  <Image source={{ uri: item.coverImage }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
                 ) : (
-                  <View style={[StyleSheet.absoluteFillObject, styles.coverFallback]}>
+                  <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
                     <Ionicons name="book-outline" size={26} color={colors.textMuted} />
                   </View>
                 )}

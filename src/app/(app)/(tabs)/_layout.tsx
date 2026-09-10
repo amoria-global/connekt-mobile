@@ -54,13 +54,13 @@ function CustomTabBar({ state, descriptors, navigation, insets, onMore }: any) {
     >
       {Platform.OS === 'ios' ? (
         <>
-          <BlurView tint="light" intensity={28} style={StyleSheet.absoluteFillObject} />
+          <BlurView tint="light" intensity={28} style={StyleSheet.absoluteFill} />
           <View
-            style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.primary, opacity: 0.92 }]}
+            style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary, opacity: 0.92 }]}
           />
         </>
       ) : (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: colors.primary }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.primary }]} />
       )}
 
       <View style={styles.tabRow}>
