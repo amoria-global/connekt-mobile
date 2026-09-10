@@ -10,11 +10,11 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
-   "updates": {
-  "enabled": true,
-  "checkAutomatically": "ON_LOAD",
-  "fallbackToCacheTimeout": 0
-},
+    "updates": {
+      "url": "https://u.expo.dev/d81fbfa6-f576-4450-97c6-c443332179be",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     },
     "ios": {
       "supportsTablet": true,
@@ -104,8 +104,12 @@
       "typedRoutes": true,
       "reactCompiler": false
     },
-   "extra": {
-  "router": {}
-}   }
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d81fbfa6-f576-4450-97c6-c443332179be"
+      }
+    }
   }
+}
 
