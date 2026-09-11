@@ -1,0 +1,54 @@
+name: ci
+
+# The first CI this repo has ever had (CONN-TEST-2).
+#
+# Until now connekt-mobile had no workflow of any kind, so the lint, typecheck
+# and format scripts that already existed in package.json never ran
+# automatically - they only ran when someone remembered. That is the repo where
+# a KYC screen shipped calling an endpoint that did not exist and posting
+# parameters the backend never accepted (CONN-ONB-1), producing real 404s in
+# production traffic.
+#
+# Node 20, not 22: react-native 0.86.3 declares engines
+# "^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0" and the toolchain resolves
+# differently across them. Pin to what developers actually run here so CI
+# reproduces local results rather than diverging from them.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install dependencies
+        # --frozen-lockfile, not --immutable: this repo is pinned to yarn
+        # 1.22.22 with a v1 lockfile, and --immutable is Berry-only syntax.
+        run: yarn install --frozen-lockfile
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Test
+        run: yarn test
+
+      - name: Lint
+        # Last, and non-blocking for now. The existing code has never been
+        # linted in CI, so turning it into a hard gate in the same change that
+        # introduces the workflow would make every unrelated PR red. Drop this
+        # flag once the backlog is cleared.
+        run: yarn lint
+        continue-on-error: true
