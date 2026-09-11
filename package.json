@@ -56,7 +56,11 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@react-native/jest-preset": "0.86.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.4",
+    "jest": "^29",
+    "jest-expo": "~57.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -71,7 +75,10 @@
     "eas-build": "eas build --platform all",
     "eas-build-android": "eas build --platform android",
     "eas-build-ios": "eas build --platform ios",
-    "build": "expo build:android && expo build:ios"
+    "build": "expo build:android && expo build:ios",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "private": true
 }
