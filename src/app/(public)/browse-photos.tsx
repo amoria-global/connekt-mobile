@@ -149,7 +149,7 @@ export default function BrowsePhotosScreen() {
         style={[styles.card, { width: cellWidth, height: cellWidth * 1.2, marginBottom: gap }]}
         onPress={() => setPreviewing(item)}
       >
-        <Image source={{ uri: item.fileUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
+        <Image source={{ uri: item.thumbnailUrl || item.fileUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
         <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={styles.gradient} />
         {digitalPurchasesEnabled ? (
           <Pressable
@@ -242,7 +242,7 @@ export default function BrowsePhotosScreen() {
 
             {previewing && (
               <View style={styles.lightboxImageContainer}>
-                <Image source={{ uri: previewing.fileUrl }} style={styles.lightboxImage} contentFit="contain" />
+                <Image source={{ uri: previewing.thumbnailUrl || previewing.fileUrl }} style={styles.lightboxImage} contentFit="contain" />
                 <View style={styles.lightboxWatermarkBand}>
                   <Text style={styles.lightboxWatermarkText}>
                     PREVIEW · {previewing.photographerName.toUpperCase()}
@@ -319,7 +319,7 @@ export default function BrowsePhotosScreen() {
               columnWrapperStyle={{ gap: 6 }}
               renderItem={({ item }) => (
                 <Pressable style={styles.successThumb} onPress={() => downloadPhoto(item)}>
-                  <Image source={{ uri: item.fileUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  <Image source={{ uri: item.thumbnailUrl || item.fileUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   <View style={styles.successThumbOverlay}>
                     <Ionicons name="download" size={18} color="#fff" />
                   </View>
