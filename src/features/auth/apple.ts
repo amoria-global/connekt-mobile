@@ -46,11 +46,38 @@ type FirstHandshakeProfile = Pick<AppleCredentialPayload, 'email' | 'firstName' 
  * Android and web, and wherever the native module is absent.
  */
 export async function isAppleSignInAvailable(): Promise<boolean> {
-  if (Platform.OS !== 'ios') return false;
+  return (await appleSignInStatus()).available;
+}
+
+/**
+ * The same check, but it says WHY when the answer is no.
+ *
+ * `isAvailableAsync` returning false is indistinguishable from the module being
+ * absent, and the button simply renders nothing either way. That silence sent
+ * someone hunting for deleted code when the truth was that the host app could
+ * not provide the native module. A reason costs nothing and is logged in
+ * development only.
+ */
+export type AppleAvailability = {
+  available: boolean;
+  /** Why not. `null` when available. */
+  reason: null | 'not-ios' | 'module-missing' | 'unsupported-device';
+};
+
+export async function appleSignInStatus(): Promise<AppleAvailability> {
+  // Apple sign-in is iOS-only here. Android would need Apple's web flow (a
+  // Services ID plus a backend redirect), which is not wired up.
+  if (Platform.OS !== 'ios') return { available: false, reason: 'not-ios' };
+
   try {
-    return await AppleAuthentication.isAvailableAsync();
+    const ok = await AppleAuthentication.isAvailableAsync();
+    // iOS 12 or earlier, or a device Apple does not offer it on.
+    return ok ? { available: true, reason: null } : { available: false, reason: 'unsupported-device' };
   } catch {
-    return false;
+    // The native module is not in the host app at all. In practice this is Expo
+    // Go running an SDK that does not carry expo-apple-authentication: a
+    // development build is the fix, not a code change.
+    return { available: false, reason: 'module-missing' };
   }
 }
 
