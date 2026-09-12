@@ -71,21 +71,31 @@ export EXPO_ASC_APP_ID=...      # App Store Connect → App Information → Appl
 export EXPO_APPLE_TEAM_ID=...   # developer.apple.com → Membership
 ```
 
-**The blocker is Google sign-in.** `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is now
-referenced by the build profile but has no value, so the button renders
-"not configured". Shipping a visibly dead sign-in button invites a
-**guideline 2.1 (app completeness)** rejection.
+**The blocker is Google sign-in.** `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` has no
+value anywhere, so the button renders "not configured". Shipping a visibly dead
+sign-in button invites a **guideline 2.1 (app completeness)** rejection.
 
 To fix it you need an **iOS** OAuth client — not the web one:
 
 1. Google Cloud Console → Credentials → Create OAuth client ID → **iOS**.
 2. Bundle ID: `com.connekyt.app`.
-3. Store it as an EAS secret, so it never enters the repo:
+3. Set it as an EAS environment variable, so it never enters the repo:
 
 ```bash
-eas secret:create --scope project \
-  --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID --value <the ios client id>
+eas env:set production --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID \
+  --value <the ios client id> --visibility sensitive
+eas env:set preview    --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID \
+  --value <the ios client id> --visibility sensitive
 ```
+
+> **Do not put it in `eas.json` as `"$EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID"`.** A
+> build profile's `env` values are literal strings; only the `submit` block
+> resolves `$` references. `eas config --platform ios --profile production --json`
+> proves it, reporting the value back verbatim as `$EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`.
+> That is worse than leaving it unset: the junk string is non-empty, so
+> `isGoogleConfiguredFor` returns true, the button renders as working, and it
+> fails inside Google's OAuth flow after the tap. Two such lines were added to
+> this repo and have been removed.
 
 > **Check which Google Cloud project first.** The consent screen on a previous
 > attempt read **"Ikibandoh"**, which is not a Connekyt project. Creating the
@@ -130,7 +140,7 @@ correct behaviour, not a gap.
 | Build profile | ready | ready |
 | Icons | ready | ready |
 | Submit config | ready | ready, needs 3 env values |
-| Google sign-in | ready | **needs an iOS client ID** |
+| Google sign-in | ready | **needs an iOS client ID as an EAS env var** |
 | Apple sign-in | n/a | ready |
 | Credentials to obtain | Play service account JSON | Apple ID, ASC app ID, team ID |
 | Run on a device | **not yet** | **not yet** |

@@ -22,8 +22,8 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Connekyt uses your camera to record video messages and to broadcast your event live.",
-        "NSMicrophoneUsageDescription": "Connekyt uses your microphone to record video messages and live audio."
+        "NSCameraUsageDescription": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live.",
+        "NSMicrophoneUsageDescription": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message."
       }
     },
     "android": {
@@ -74,15 +74,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Connekyt accesses your photos so you can share them.",
-          "cameraPermission": "Connekyt uses your camera to record video messages and to broadcast your event live.",
-          "microphonePermission": "Connekyt uses your microphone to record video messages and live audio."
+          "photosPermission": "Connekyt accesses your photo library so you can upload event photos, pick a photo to find yourself in an album, and set your profile picture.",
+          "cameraPermission": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live.",
+          "microphonePermission": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Connekyt uses your camera to scan the QR code shown on your TV so it can sign you in."
+          "cameraPermission": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live."
         }
       ],
       "@react-native-community/datetimepicker",
