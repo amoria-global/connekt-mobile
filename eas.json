@@ -30,7 +30,7 @@
       }
     },
     "preview-simulator": {
-      "distribution": "internal",
+      "extends": "preview",
       "ios": {
         "simulator": true
       }
