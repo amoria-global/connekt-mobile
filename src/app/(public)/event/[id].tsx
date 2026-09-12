@@ -50,7 +50,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
-import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { canShowDigitalPrice, digitalPurchasesEnabled } from '@/features/payments/policy';
 import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import type { PublicEvent } from '@/features/events/types';
 import {
@@ -113,6 +113,10 @@ function priceLabel(e: {
   streamFeeCurrencyAbbreviation?: string | null;
 }): { label: string; amount: string } {
   const code = e.streamFeeCurrencyAbbreviation || 'RWF';
+  const paid = (e.streamFee || 0) > 0 || (e.price || 0) > 0;
+  // A price is part of the purchase surface, so it goes where the buy button
+  // went. "Ticketed" keeps the useful half. Free stays visible.
+  if (paid && !canShowDigitalPrice(false)) return { label: '', amount: 'Ticketed' };
   if (e.streamFee && e.streamFee > 0)
     return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
   if (e.price && e.price > 0)
@@ -154,9 +158,11 @@ function buildCta(
   viewerId: string | null,
 ): Cta | null {
   const { isCancelled, isCompleted, isLive, isUpcoming, isPaid } = status;
-  const price = `${(e.price || e.streamFee || 0).toLocaleString()} ${
-    e.streamFeeCurrencyAbbreviation || 'RWF'
-  }`;
+  // Undefined where digital prices are gated off, so the disabled ticket CTA
+  // below carries no figure the user cannot act on.
+  const price = canShowDigitalPrice(!isPaid)
+    ? `${(e.price || e.streamFee || 0).toLocaleString()} ${e.streamFeeCurrencyAbbreviation || 'RWF'}`
+    : undefined;
   if (isCancelled)
     return { label: 'Event cancelled', icon: 'close-circle', tone: 'cancelled', disabled: true };
   if (isCompleted)

@@ -3,6 +3,7 @@ import {
   digitalPurchasesEnabled,
   isDigitalDeclaration,
   canPayDeclarationHere,
+  canShowDigitalPrice,
 } from './policy';
 
 /**
@@ -97,5 +98,28 @@ describe('canPayDeclarationHere', () => {
     // digital, so a legitimate payment is never silently blocked.
     expect(canPayDeclarationHere('SOMETHING_NEW')).toBe(true);
     expect(canPayDeclarationHere(null)).toBe(true);
+  });
+});
+
+describe('canShowDigitalPrice', () => {
+  /**
+   * Found by running a release build, not by reading code. browse-photos
+   * showed "$2.03" on every photo after the buy button had been gated away,
+   * and explore-events and the event page both showed a stream fee the user
+   * could do nothing with.
+   *
+   * Hiding the button but keeping the price is the half-measure both stores
+   * see through, and it is also just a bad screen: a figure nobody can act on.
+   */
+  it('hides a paid price where digital purchases are gated off', () => {
+    expect(canShowDigitalPrice(false)).toBe(digitalPurchasesEnabled);
+    expect(canShowDigitalPrice(false)).toBe(false); // ios
+  });
+
+  it('always shows Free, on every platform', () => {
+    // "Free" is information about what the app can do, not an invitation to
+    // pay. Hiding it would make free events look paywalled, which costs the
+    // user something real and buys no compliance.
+    expect(canShowDigitalPrice(true)).toBe(true);
   });
 });
