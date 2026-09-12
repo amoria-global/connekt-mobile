@@ -191,7 +191,7 @@ export default function NewAlbumScreen() {
             <Pressable style={styles.select} onPress={() => setEventPickerOpen(true)}>
               <Text style={[styles.selectText, !selectedEvent && styles.selectPlaceholder]} numberOfLines={1}>
                 {selectedEvent
-                  ? `${selectedEvent.title}${selectedEvent.eventDate ? ` — ${shortDate(selectedEvent.eventDate)}` : ''}`
+                  ? `${selectedEvent.title}${selectedEvent.eventDate ? `, ${shortDate(selectedEvent.eventDate)}` : ''}`
                   : 'Choose an event…'}
               </Text>
               <Ionicons name="chevron-down" size={18} color={colors.textMuted} />

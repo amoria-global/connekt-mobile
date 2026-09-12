@@ -192,7 +192,7 @@ export function UserHome() {
         {events.loading ? (
           <Loader />
         ) : upcomingEvents.length === 0 ? (
-          <EmptyCard icon="calendar-outline" text="No upcoming events — book a photographer or buy stream access." />
+          <EmptyCard icon="calendar-outline" text="No upcoming events yet. Book a photographer or buy stream access." />
         ) : (
           upcomingEvents.slice(0, 4).map((e) => (
             <Pressable key={e.id} style={styles.listRow} onPress={() => router.push(`/event/${e.id}` as never)}>
@@ -219,7 +219,7 @@ export function UserHome() {
         {streams.loading ? (
           <Loader />
         ) : watches.length === 0 ? (
-          <EmptyCard icon="videocam-outline" text="No streams yet — buy access to watch live events." />
+          <EmptyCard icon="videocam-outline" text="No streams yet. Buy access to watch live events." />
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hRow}>
             {watches.slice(0, 8).map((s) => (
@@ -260,7 +260,7 @@ export function UserHome() {
         {albums.loading ? (
           <Loader />
         ) : purchasedPhotos.length === 0 ? (
-          <EmptyCard icon="images-outline" text="No purchased photos yet — find yours from any event." />
+          <EmptyCard icon="images-outline" text="No purchased photos yet. Find yours from any event." />
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hRow}>
             {purchasedPhotos.slice(0, 8).map((p) => (

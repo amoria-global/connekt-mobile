@@ -405,7 +405,7 @@ export default function PublicEventDetailScreen() {
         // the error inline instead of getting bounced into the live-
         // stream → back-to-here loop.
         setVerifyError(
-          "Your access couldn't be confirmed. The payment record may not have settled yet — try again in a moment, or buy access.",
+          "Your access couldn't be confirmed. The payment record may not have settled yet. Try again in a moment, or buy access.",
         );
         return;
       }

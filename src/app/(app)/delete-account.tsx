@@ -20,7 +20,7 @@ const CONSEQUENCES = [
   'Your profile, name, email, and phone number are permanently removed.',
   'You lose access to your bookings, purchased photos, and streams.',
   'Your photos and identity documents are deleted from your account.',
-  'This cannot be undone — you will need to create a new account to return.',
+  'This cannot be undone. You will need to create a new account to return.',
 ];
 
 export default function DeleteAccountScreen() {

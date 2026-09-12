@@ -790,7 +790,7 @@ export function FindMyPhotos() {
           Find <Text style={{ color: '#FF6B6B' }}>Your Photos</Text>
         </Text>
         <Text style={styles.lead}>
-          Snap a selfie or paste an invite code — we&apos;ll find every photo you appear in.
+          Snap a selfie or paste an invite code, and we&apos;ll find every photo you appear in.
         </Text>
       </View>
 

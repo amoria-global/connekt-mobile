@@ -564,7 +564,7 @@ export default function StreamControlScreen() {
               </Text>
             </View>
             <Text style={styles.noteText}>
-              No stream key or bearer token needed — the URL is self-authenticating.
+              No stream key or bearer token needed. The URL is self-authenticating.
             </Text>
 
             {/* Recommended encoder settings */}

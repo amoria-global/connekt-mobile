@@ -378,7 +378,7 @@ export default function PhotographerProfileScreen() {
                 <View style={styles.card}>
                   <Text style={styles.cardHeaderEyebrow}>AVAILABILITY</Text>
                   <Text style={styles.availabilityBody}>
-                    Pick your event date in the booking form — we check this photographer is
+                    Pick your event date in the booking form, and we check this photographer is
                     free for that day before you pay anything.
                   </Text>
                   <Pressable

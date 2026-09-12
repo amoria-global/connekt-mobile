@@ -275,7 +275,7 @@ export function PhoneInput({
     const lens = [...country.nsnLengths].sort((a, b) => a - b);
     hint = lens.length
       ? `${country.name} numbers have ${lens.join(' or ')} digits (${nsn.length}/${maxLen})`
-      : `${nsn.length} digits — keep typing`;
+      : `${nsn.length} digits, keep typing`;
     tone = complete ? 'err' : 'info';
   }
 

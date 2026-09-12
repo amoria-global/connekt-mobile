@@ -227,7 +227,7 @@ function PayPanel({
             <Ionicons name="tv-outline" size={22} color={colors.success} />
             <Text style={[styles.statusText, { color: colors.success }]}>
               Finish the payment in the page that opened. Once it&apos;s confirmed, your TV
-              unlocks on its own — this can take a few seconds. You can close this screen.
+              unlocks on its own, which can take a few seconds. You can close this screen.
             </Text>
           </View>
         ) : digitalPurchasesEnabled ? (

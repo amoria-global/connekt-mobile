@@ -198,7 +198,7 @@ export function GiftTray({
             <Text style={s.stateEmoji}>🎁</Text>
             <Text style={s.stateText}>
               {gifts && gifts.length > 0
-                ? `No ${tab === 'POPULAR' ? 'popular' : 'premium'} gifts right now — try the other tab.`
+                ? `No ${tab === 'POPULAR' ? 'popular' : 'premium'} gifts right now. Try the other tab.`
                 : 'No gifts available right now. Please check back soon.'}
             </Text>
           </View>
