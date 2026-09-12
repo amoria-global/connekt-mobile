@@ -455,7 +455,7 @@ export default function StreamControlScreen() {
             </View>
             <ScrollView ref={chatScrollRef} style={styles.chatList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
               {chats.length === 0 ? (
-                <Text style={styles.chatEmpty}>No messages yet — viewer comments appear here live.</Text>
+                <Text style={styles.chatEmpty}>No messages yet. Viewer comments appear here live.</Text>
               ) : (
                 chats.map((c) => {
                   const isGift = (c.chatType ?? c.type ?? '').toUpperCase() === 'GIFT';

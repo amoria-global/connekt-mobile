@@ -129,7 +129,7 @@ export function UserHome() {
         >
           <Text style={styles.heroEyebrow}>WELCOME BACK</Text>
           <Text style={styles.heroName} numberOfLines={1}>{name}</Text>
-          <Text style={styles.heroSub}>Your photos, streams, and payments — all in one place.</Text>
+          <Text style={styles.heroSub}>Your photos, streams, and payments, all in one place.</Text>
 
           <View style={styles.heroStatsRow}>
             {stats.map((s) => (
@@ -324,7 +324,7 @@ export function UserHome() {
         ) : pendingItems.length === 0 ? (
           <View style={styles.settledCard}>
             <Ionicons name="checkmark-circle-outline" size={22} color={colors.success} />
-            <Text style={styles.settledText}>You're all settled up — no payments due.</Text>
+            <Text style={styles.settledText}>You're all settled up. No payments due.</Text>
           </View>
         ) : (
           <>

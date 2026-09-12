@@ -514,7 +514,7 @@ export default function PhotographerProfileScreen() {
                 label="Event title"
                 value={rebookTitle}
                 onChangeText={setRebookTitle}
-                placeholder="e.g. Eric & Diana — Reception"
+                placeholder="e.g. Eric & Diana Reception"
                 style={styles.modalInput}
               />
               <Input
