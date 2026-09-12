@@ -45,19 +45,45 @@ type Props =
 
 /**
  * Whether the client ID required by THIS platform is present.
+ *
  * `expo-auth-session`'s Google provider throws (invariantClientId) if the
- * platform's own client ID is missing — so a build that only sets the iOS /
+ * platform's own client ID is missing - so a build that only sets the iOS /
  * Android IDs still crashed on web where `webClientId` is mandatory. We gate
  * on the platform-specific id, not "any id is set".
+ *
+ * The native branches used to read `|| !!env.googleWebClientId`, which is the
+ * "any id is set" this comment says we do not do. The consequence was a live
+ * 400 from Google: with only a web client ID configured, the button rendered
+ * on a phone, useAuthRequest received only `webClientId`, and expo-auth-session
+ * built a CUSTOM SCHEME redirect for native. Google refuses that pairing -
+ *
+ *     Error 400: invalid_request
+ *     Custom scheme URIs are not allowed for 'WEB' client type.
+ *
+ * A web client ID cannot stand in for a native one. They are different OAuth
+ * client types with different allowed redirect URIs: https for web, a custom
+ * scheme (or reversed client id) for iOS and Android. Falling back to the web
+ * ID on a device can only ever produce that error, so it is better to show the
+ * "not configured" state and say which variable is missing.
+ *
+ * Extracted as a pure, exported function so it can be tested off-device. The
+ * bug it replaces was a single `||` in an expression nothing could reach.
  */
-const googleConfiguredForPlatform =
-  Platform.OS === 'web'
-    ? !!env.googleWebClientId
-    : Platform.OS === 'ios'
-      ? !!env.googleIosClientId || !!env.googleWebClientId
-      : Platform.OS === 'android'
-        ? !!env.googleAndroidClientId || !!env.googleWebClientId
-        : false;
+export function isGoogleConfiguredFor(
+  platform: string,
+  ids: { web?: string; ios?: string; android?: string },
+): boolean {
+  if (platform === 'web') return !!ids.web;
+  if (platform === 'ios') return !!ids.ios;
+  if (platform === 'android') return !!ids.android;
+  return false;
+}
+
+const googleConfiguredForPlatform = isGoogleConfiguredFor(Platform.OS, {
+  web: env.googleWebClientId,
+  ios: env.googleIosClientId,
+  android: env.googleAndroidClientId,
+});
 
 /**
  * "Continue with Google". Splitting on the platform-aware config flag keeps
