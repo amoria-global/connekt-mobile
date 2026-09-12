@@ -486,6 +486,15 @@ export interface BrowseRow {
   category: string | null;
   categoryLabel: string | null;
   fileUrl: string;
+  /**
+   * Grid-sized variant from the thumbnail pipeline. Use this, not fileUrl.
+   *
+   * fileUrl is the ORIGINAL, and PaidMediaAccessGuard on the backend returns
+   * 403 for originals in galleries that sell per photo, which is every gallery
+   * this endpoint lists. Rendering fileUrl gives an empty tile. Thumbnails are
+   * the intended public preview and are never gated.
+   */
+  thumbnailUrl?: string;
   photographerId: string | null;
   photographerName: string;
   photographerLogo: string | null;
@@ -507,6 +516,7 @@ export async function fetchBrowsePhotos(page: number, size: number = 50): Promis
     category: str(r.category) ?? null,
     categoryLabel: str(r.categoryLabel) ?? null,
     fileUrl: String(r.fileUrl ?? r.url ?? ''),
+    thumbnailUrl: str(r.thumbnailUrl) ?? undefined,
     photographerId: str(r.photographerId) ?? null,
     photographerName: String(r.photographerName ?? 'Unknown'),
     photographerLogo: str(r.photographerLogo) ?? null,
