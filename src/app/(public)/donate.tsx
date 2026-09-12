@@ -56,7 +56,7 @@ export default function PublicDonateScreen() {
           <Ionicons name="heart" size={28} color={colors.accent} />
           <Text style={styles.heroTitle}>Support a Connekyt creator</Text>
           <Text style={styles.heroSub}>
-            100% of every donation reaches the people behind the stream — no platform cut.
+            100% of every donation reaches the people behind the stream, with no platform cut.
           </Text>
         </View>
 

@@ -725,7 +725,7 @@ export default function PublicLiveStreamScreen() {
             // backend signal so we (and the user) can see what changed.
             if (!cancelled) {
               setTokenError(
-                "Backend returned hasAccess=false for this viewerId — even though it accepted you on the event page. Tell support which event id you're testing.",
+                "Backend returned hasAccess=false for this viewerId, even though it accepted you on the event page. Tell support which event id you're testing.",
               );
             }
           }
@@ -1016,7 +1016,7 @@ export default function PublicLiveStreamScreen() {
         setAccessGranted(true);
         await storage.set(`streamToken_${id}`, tokenInput.trim()).catch(() => {});
       } else if (status.isLive) {
-        setTokenError('The stream is starting — please try again in a moment.');
+        setTokenError('The stream is starting. Please try again in a moment.');
       } else {
         setTokenError('This event has no live stream right now.');
       }
@@ -1045,7 +1045,7 @@ export default function PublicLiveStreamScreen() {
         setAccessGranted(true);
         setConflictOpen(false);
       } else {
-        setTokenError('Access confirmed, but the stream isn’t live yet — try again in a moment.');
+        setTokenError('Access confirmed, but the stream isn’t live yet. Try again in a moment.');
         setConflictOpen(false);
       }
     } catch (e) {
@@ -1088,7 +1088,7 @@ export default function PublicLiveStreamScreen() {
       // Only PAID events gate on a real purchase. On a free event we
       // register the person outright so they can comment immediately.
       if (reg.needsPayment && status.isPaid) {
-        setInfoError("We couldn't find a paid record for this email — buy access to start.");
+        setInfoError("We couldn't find a paid record for this email. Buy access to start.");
         return;
       }
       if (!reg.viewerId) {
@@ -1579,7 +1579,7 @@ export default function PublicLiveStreamScreen() {
             <Text style={styles.modalTitle}>You're watching on another device</Text>
             <Text style={styles.modalHint}>
               Only one device can watch on the same paid ticket at a time. It'll free up
-              automatically once the other device stops watching — tap retry to check.
+              automatically once the other device stops watching. Tap retry to check.
             </Text>
             <Button
               title={conflictBusy ? 'Checking…' : 'Retry'}
@@ -1604,7 +1604,7 @@ export default function PublicLiveStreamScreen() {
               <Text style={styles.modalHint}>
                 {status.isPaid
                   ? "Enter the name, email and phone you used when buying your ticket. We'll restore access on this device."
-                  : 'Enter your name and email to comment — no account needed. This event is free.'}
+                  : 'Enter your name and email to comment. No account needed, and this event is free.'}
               </Text>
               <Input
                 label="Name"

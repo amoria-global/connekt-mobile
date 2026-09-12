@@ -382,7 +382,7 @@ export default function EventDetailScreen() {
 
       await refresh();
       Alert.alert(
-        disputeFlagged ? 'Thanks — we’ll look into it' : 'All done',
+        disputeFlagged ? 'Thanks, we’ll look into it' : 'All done',
         disputeFlagged
           ? 'We’ve passed your feedback on and asked the photographer to follow up.'
           : 'Thanks for confirming. The photographer has been paid.',

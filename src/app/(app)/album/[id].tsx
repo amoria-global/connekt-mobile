@@ -275,9 +275,9 @@ export default function AlbumDetailScreen() {
               <View style={styles.approvalCard}>
                 <Text style={styles.approvalCardText}>
                   {approval === 'DRAFT'
-                    ? 'Draft — submit for review to publish this album to the public browse library.'
+                    ? 'Draft. Submit for review to publish this album to the public browse library.'
                     : approval === 'PENDING_APPROVAL'
-                      ? 'Under review — our team will publish it to the catalog once approved.'
+                      ? 'Under review. Our team will publish it to the catalog once approved.'
                       : approval === 'APPROVED'
                         ? 'Live on the public browse library.'
                         : `Needs changes${data?.approvalComment ? `: ${data.approvalComment}` : '. Update it and resubmit.'}`}

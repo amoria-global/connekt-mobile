@@ -873,7 +873,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       </Pressable>
                       <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginBottom: 16, lineHeight: 18 }}>
                         Your booking is reserved. To secure it, finish the payment on the connekyt.com
-                        secure checkout — you can also do this later from Payments.
+                        secure checkout. You can also do this later from Payments.
                       </Text>
                     </>
                   ) : (
