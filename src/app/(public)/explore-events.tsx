@@ -66,6 +66,7 @@ import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { canShowDigitalPrice } from '@/features/payments/policy';
 
 
 const PAGE_SIZE = 12;
@@ -94,8 +95,18 @@ const TABS: { label: string; short: string; value: PublicEventsTab; icon: keyof 
   { label: 'Recently ended', short: 'Ended', value: 'completed', icon: 'checkmark-circle' },
 ];
 
+/**
+ * The chip under each event card. Paid events show no figure where digital
+ * purchases are gated off (see features/payments/policy), because a price is
+ * part of the purchase surface. "Ticketed" still tells the user what kind of
+ * event it is, which is the useful half.
+ */
 function priceText(e: PublicEvent): { label: string; amount: string } {
   const code = e.streamFeeCurrencyAbbreviation || 'RWF';
+  const paid = (e.streamFee || 0) > 0 || (e.price || 0) > 0;
+  if (paid && !canShowDigitalPrice(false)) {
+    return { label: '', amount: 'Ticketed' };
+  }
   if (e.streamFee && e.streamFee > 0) {
     return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
   }

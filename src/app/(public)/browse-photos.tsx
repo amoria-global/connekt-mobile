@@ -162,7 +162,9 @@ export default function BrowsePhotosScreen() {
         ) : null}
         <View style={styles.cardFooter}>
           <Text style={styles.cardTitle} numberOfLines={1}>{item.photographerName}</Text>
-          <Text style={styles.cardPrice}>{sym(item.buyerCurrency)}{item.buyerPrice}</Text>
+          {digitalPurchasesEnabled ? (
+            <Text style={styles.cardPrice}>{sym(item.buyerCurrency)}{item.buyerPrice}</Text>
+          ) : null}
         </View>
         <View style={styles.watermark}>
           <Text style={styles.watermarkText}>PREVIEW</Text>

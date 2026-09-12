@@ -72,3 +72,19 @@ export function isDigitalDeclaration(paymentType?: string | null): boolean {
 export function canPayDeclarationHere(paymentType?: string | null): boolean {
   return !isDigitalDeclaration(paymentType) || digitalPurchasesEnabled;
 }
+
+/**
+ * Whether a PRICE for digital content may be shown.
+ *
+ * Hiding the buy button but leaving the price is the half-measure both stores
+ * see straight through: the price is part of the purchase surface, and a
+ * figure the user cannot act on is also just bad UX. Seen live on a release
+ * build before this existed, browse-photos showed "$2.03" on every photo with
+ * no way to buy one.
+ *
+ * Free stays visible. "Free" is information about what the app can do, not an
+ * invitation to pay, and hiding it would make free events look paywalled.
+ */
+export function canShowDigitalPrice(isFree: boolean): boolean {
+  return isFree || digitalPurchasesEnabled;
+}
