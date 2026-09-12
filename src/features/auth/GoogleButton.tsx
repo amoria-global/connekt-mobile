@@ -89,10 +89,30 @@ const googleConfiguredForPlatform = isGoogleConfiguredFor(Platform.OS, {
  * "Continue with Google". Splitting on the platform-aware config flag keeps
  * hook order consistent while avoiding the `useAuthRequest` invariant crash
  * when the platform's Google client ID isn't set.
+ *
+ * When the platform has no client ID, the button is ABSENT in a release build
+ * and diagnostic in a dev build.
+ *
+ * Rendering it anyway was a guaranteed App Store rejection. Seen on a
+ * simulator: the button looks completely normal, and tapping it raises
+ * "Google sign-in not configured. Add your ios Google OAuth client ID
+ * (EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) to enable this." An App Review tester
+ * taps every sign-in button, and a non-functioning one is guideline 2.1, app
+ * completeness. The alert also prints an internal environment variable name
+ * to whoever is holding the phone, which is not something a user should ever
+ * be shown.
+ *
+ * A sign-in button that cannot sign anyone in should not exist. Apple's own
+ * 4.8 obligation is unaffected: it attaches to third-party sign-in the app
+ * actually OFFERS, so hiding Google here removes the requirement rather than
+ * breaching it, and Sign in with Apple stays regardless.
+ *
+ * In development the diagnostic is the useful behaviour, so __DEV__ keeps it.
  */
 export function GoogleButton(props: Props) {
   const { label = 'Continue with Google' } = props;
   if (!googleConfiguredForPlatform) {
+    if (!__DEV__) return null;
     return (
       <Shell
         label={label}
