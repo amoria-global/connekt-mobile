@@ -106,7 +106,7 @@ export default function NewPhotobookScreen() {
             label="Photobook name"
             value={name}
             onChangeText={setName}
-            placeholder="e.g. Diana & Eric — Wedding"
+            placeholder="e.g. Diana & Eric Wedding"
             autoCapitalize="sentences"
           />
           <Input
@@ -121,7 +121,7 @@ export default function NewPhotobookScreen() {
             label="Event id (optional)"
             value={eventId}
             onChangeText={setEventId}
-            placeholder="UUID — leave blank for a standalone book"
+            placeholder="UUID, or leave blank for a standalone book"
             autoCapitalize="none"
           />
           <Input

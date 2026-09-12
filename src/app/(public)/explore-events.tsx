@@ -311,7 +311,7 @@ export default function ExploreEventsScreen() {
         </View>
         <Text style={styles.heroTitle}>Catch every moment, live.</Text>
         <Text style={styles.heroSub}>
-          Discover events near you and join the live stream — no login needed.
+          Discover events near you and join the live stream. No login needed.
         </Text>
       </View>
 

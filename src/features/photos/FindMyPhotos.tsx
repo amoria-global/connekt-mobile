@@ -1245,7 +1245,7 @@ export function FindMyPhotos() {
                 <> Extras cost <Text style={{ color: '#fff', fontWeight: '700' }}>{freeAlbumCurrencyAbbr || ''} {freeAlbumPricePerExtra}</Text> each.</>
               )}
               {freeAcquiredIds.size > 0 && (
-                <> You already own <Text style={{ color: '#fff', fontWeight: '700' }}>{freeAcquiredIds.size}</Text> — free to re-download.</>
+                <> You already own <Text style={{ color: '#fff', fontWeight: '700' }}>{freeAcquiredIds.size}</Text>, free to re-download.</>
               )}
             </Text>
           )}

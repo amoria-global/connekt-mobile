@@ -437,7 +437,7 @@ function LiveChatPanel({
             keyboardShouldPersistTaps="handled"
           >
             {chats.length === 0 ? (
-              <Text style={chatFx.empty}>No messages yet — say hi 👋</Text>
+              <Text style={chatFx.empty}>No messages yet. Say hi 👋</Text>
             ) : (
               chats.map((c) => (
                 <OverlayChatRow
@@ -1256,7 +1256,7 @@ export default function PublicLiveStreamScreen() {
                 <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
                 <View style={styles.placeholderScrim} />
                 <Ionicons name="scan-outline" size={30} color="rgba(255,255,255,0.9)" />
-                <Text style={styles.placeholderText}>Playing in full screen — tap to return</Text>
+                <Text style={styles.placeholderText}>Playing in full screen. Tap to return</Text>
               </Pressable>
             ) : (
               // Branded volume + fullscreen live above the chat composer (not

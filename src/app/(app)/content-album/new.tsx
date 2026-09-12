@@ -136,7 +136,7 @@ export default function NewContentAlbumScreen() {
             ) : (
               <View style={styles.coverPlaceholder}>
                 <Ionicons name="image-outline" size={26} color={colors.primary} />
-                <Text style={styles.hint}>Add a cover — falls back to your first photo</Text>
+                <Text style={styles.hint}>Add a cover. Falls back to your first photo</Text>
               </View>
             )}
           </Pressable>

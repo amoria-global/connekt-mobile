@@ -14,7 +14,7 @@ export default function FeedbackScreen() {
         <ContactForm
           eyebrow="Help us improve"
           title="Share your feedback"
-          subtitle="Found a bug, have an idea, or something didn't feel right? Tell us — every bit of feedback shapes Connekyt."
+          subtitle="Found a bug, have an idea, or something didn't feel right? Tell us. Every bit of feedback shapes Connekyt."
           defaultSubject="Feedback"
           lockSubject
           submitLabel="Send feedback"
