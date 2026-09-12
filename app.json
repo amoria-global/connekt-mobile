@@ -17,7 +17,7 @@
       "url": "https://u.expo.dev/d0fb9ad8-3174-4915-9000-6389c4a89b00"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.connekyt.app",
       "usesAppleSignIn": true,
       "infoPlist": {

@@ -182,7 +182,7 @@ function buildCta(
     // "Already paid? Verify access" and group-code cards below stay visible,
     // so anyone who already holds access can still get in.
     if (!digitalPurchasesEnabled)
-      return { label: 'Ticket required — verify below if you have one', sub: price, icon: 'ticket', tone: 'live', disabled: true };
+      return { label: 'Ticket required. Verify below if you have one', sub: price, icon: 'ticket', tone: 'live', disabled: true };
     return {
       label: 'Buy access',
       sub: price,
@@ -198,7 +198,7 @@ function buildCta(
     if (hasPurchasedAccess)
       return { label: 'Access reserved', icon: 'checkmark-circle', tone: 'owned', disabled: true };
     if (!digitalPurchasesEnabled)
-      return { label: 'Ticket required — verify below if you have one', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
+      return { label: 'Ticket required. Verify below if you have one', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
     return {
       label: 'Reserve your spot',
       sub: price,

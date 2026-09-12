@@ -239,12 +239,14 @@ function PayPanel({
             </View>
           </>
         ) : (
-          // Android: digital purchases are policy-gated off in-app.
+          // Digital purchases are policy-gated off in the app on both stores.
+          // Say what isn't possible here and stop. Naming where else to buy is
+          // the steering both stores prohibit, so this copy must not do it.
           <View style={styles.statusBox}>
             <Ionicons name="information-circle" size={22} color={colors.textMuted} />
             <Text style={styles.statusText}>
-              Paid streams can&apos;t be purchased from inside the app on this device. Open
-              connekyt.com in your browser, or use an invite code on your TV if you have one.
+              Paid streams can&apos;t be purchased in the app. If you already have an
+              invite code, you can enter it on your TV.
             </Text>
           </View>
         )}
