@@ -6,7 +6,7 @@ import { isApiError, useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { appleLogin, isNeedsRole, isNeedsTotp } from './api';
 import type { AppleProfile } from './api';
-import { isAppleSignInAvailable, isAppleSignInCancelled, requestAppleCredential } from './apple';
+import { appleSignInStatus, isAppleSignInCancelled, requestAppleCredential } from './apple';
 import type { CustomerType } from './types';
 
 /** Same two-mode contract as GoogleButton, for the same reason: no silent default role. */
@@ -21,13 +21,36 @@ type Props =
    */
   | { mode: 'login'; onNeedsRole: (profile: AppleProfile) => void; label?: string };
 
-/** Availability is an async native query, so the button mounts hidden and appears once known. */
+/**
+ * Availability is an async native query, so the button mounts hidden and
+ * appears once known.
+ *
+ * In development the reason for a `false` is logged once. Rendering nothing is
+ * right in production - an auth option the device cannot honour should not be
+ * offered - but it is indistinguishable from the button having been deleted,
+ * and that ambiguity has already cost real debugging time. The log makes the
+ * difference between "Android, working as intended" and "this host app has no
+ * expo-apple-authentication, build a dev client" visible in one line.
+ */
 function useAppleSignInAvailable(): boolean {
   const [available, setAvailable] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    isAppleSignInAvailable().then((ok) => {
-      if (!cancelled) setAvailable(ok);
+    appleSignInStatus().then((status) => {
+      if (cancelled) return;
+      setAvailable(status.available);
+      if (__DEV__ && !status.available) {
+        const why = {
+          'not-ios': 'Apple sign-in is iOS-only, so the button is hidden here by design.',
+          'unsupported-device':
+            'iOS reports Apple sign-in unavailable (iOS 12 or earlier, or an unsupported device).',
+          'module-missing':
+            'expo-apple-authentication is not in this host app. Expo Go does not carry it for '
+            + 'this SDK - run a development build (npx expo install expo-dev-client, '
+            + 'eas build --profile development) and the button returns.',
+        }[status.reason ?? 'not-ios'];
+        console.warn(`[AppleButton] hidden: ${why}`);
+      }
     });
     return () => {
       cancelled = true;
