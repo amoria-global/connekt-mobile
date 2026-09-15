@@ -167,12 +167,12 @@ function ConfiguredGoogleButton(props: Props) {
           }
           // Existing account — the backend ignores customerType for a customer
           // it did not just create, so the stored role is preserved.
-          const session = await googleLogin(profile, 'Client');
+          const session = await googleLogin(profile, 'Client', accessToken);
           applySession(session);
           return;
         }
 
-        const session = await googleLogin(profile, props.customerType);
+        const session = await googleLogin(profile, props.customerType, accessToken);
         applySession(session); // root guard redirects into the app
       } catch (err) {
         Alert.alert('Google sign-in failed', isApiError(err) ? err.message : 'Please try again.');
