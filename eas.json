@@ -24,9 +24,16 @@
       "ios": {
         "simulator": false
       },
+<<<<<<< HEAD
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://backend.connekyt.com/api/remote",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "151339453973-onclu11vd2p1slg9bjj8g8rcc88h3vsr.apps.googleusercontent.com"
+=======
+      "env": {                                 
+        "EXPO_PUBLIC_API_BASE_URL":            
+          "https://backend.connekyt.com/api/remote",   
+         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID":"728809448366-p7n5gjov2ubgkcl0poun7argihmgk71c.apps.googleusercontent.com"                       
+>>>>>>> 2e43ab5 (fix(auth): Android Google sign-in uses a real Android OAuth client)
       }
     },
     "preview-simulator": {
@@ -43,7 +50,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://backend.connekyt.com/api/remote",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "151339453973-onclu11vd2p1slg9bjj8g8rcc88h3vsr.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "728809448366-p7n5gjov2ubgkcl0poun7argihmgk71c.apps.googleusercontent.com"
       }
     },
     "production-apk": {
