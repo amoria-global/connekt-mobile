@@ -81,7 +81,7 @@ function ConfiguredGoogleButton({ customerType = 'Client', label }: Props) {
       setLoading(true);
       try {
         const profile = await fetchGoogleProfile(accessToken);
-        const session = await googleLogin(profile, customerType ?? 'Client');
+        const session = await googleLogin(profile, customerType ?? 'Client', accessToken);
         applySession(session); // root guard redirects into the app
       } catch (err) {
         Alert.alert('Google sign-in failed', isApiError(err) ? err.message : 'Please try again.');
