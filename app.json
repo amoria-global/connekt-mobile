@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
+    "owner": "amoria-global-tech-ltd",
     "userInterfaceStyle": "automatic",
     "runtimeVersion": {
       "policy": "appVersion"

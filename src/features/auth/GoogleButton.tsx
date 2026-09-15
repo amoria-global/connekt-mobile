@@ -63,6 +63,16 @@ function ConfiguredGoogleButton({ customerType = 'Client', label }: Props) {
   });
 
   useEffect(() => {
+    // Google reports configuration problems (a Web client id used on Android,
+    // a missing SHA-1) as an error response. Silently ignoring it left users
+    // staring at Google's "Access blocked" page with nothing in the app.
+    if (response?.type === 'error') {
+      Alert.alert(
+        'Google sign-in is unavailable',
+        response.error?.description || response.error?.message || 'Please sign in with your email and password for now.',
+      );
+      return;
+    }
     if (response?.type !== 'success') return;
     const accessToken = response.authentication?.accessToken;
     if (!accessToken) return;
