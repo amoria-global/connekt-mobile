@@ -353,8 +353,10 @@ export async function fetchGoogleProfile(accessToken: string): Promise<GooglePro
 export async function googleLogin(
   profile: GoogleProfile,
   customerType: CustomerType,
+  accessToken: string,
 ): Promise<AuthSession> {
   const qs = new URLSearchParams({
+    googleAccessToken: accessToken,
     email: profile.email,
     firstName: profile.firstName,
     lastName: profile.lastName,
