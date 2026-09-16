@@ -58,3 +58,32 @@ No iOS build has ever been produced and no Apple team is linked to the EAS proje
 Expo Go can load the JavaScript for a look at the UI, but sign-in, push notifications,
 updates and deep links all behave differently there and prove nothing. A real iPhone build
 needs an Apple Developer membership first.
+
+The greenfield sandbox lives at `src/_design-sandbox/` and is git-ignored.
+
+## ⚠️ Payments — read `docs/PAYMENTS.md` before touching anything money-related
+
+**This app does not take payments.** No phone collection, no MoMo/card picker,
+no gateway polling, no settlement. Every paid flow opens the connekyt.com web
+checkout in the in-app browser (`src/features/payments/webCheckout.ts`).
+
+That means the **web client owns payment correctness and this app inherits its
+fixes automatically** — a web payment fix reaches mobile buyers with no app
+release, and no change here can repair a web payment bug.
+
+- **Do not build a native payment flow** without reading `docs/PAYMENTS.md`
+  and the backend's `docs/PAYMENTS.md`. The web flow took seven production
+  defects to get right, including one where anonymous buyers were told a
+  successful payment had failed and offered a retry that charges again.
+- **Do not wire up the dead payment helpers** in `features/photos/api.ts`,
+  `features/streams/api.ts` or `features/donations/api.ts`. They are defined
+  and never called, and they are flagged in place.
+- **Never poll an authenticated status endpoint for a buyer.** Photo and
+  stream buyers are anonymous; use `/public/payments/xentripay/status/{refid}`.
+- **Never send an amount from the client.** `mintHandoffUrl` sends none by
+  design so the server sets the price.
+- **The in-app browser is a separate storage jar.** Nothing the checkout
+  writes to localStorage is readable here. Delivery relies on the emailed
+  unlock code.
+- **Always check `action` on the envelope** — the backend returns HTTP 200 for
+  failures, so `action: 0` with a 200 is a failure.
