@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
@@ -7,6 +7,8 @@ import { Screen } from '@/components/ui/Screen';
 import { resendOtp, verifyOtp } from '@/features/auth/api';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
+
+const RESEND_COOLDOWN_S = 30;
 
 export default function VerifyOtpScreen() {
   const { customerId, email, phone } = useLocalSearchParams<{
@@ -23,9 +25,27 @@ export default function VerifyOtpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
+  // Seconds until Resend is allowed again. Starts at the cooldown because a
+  // code was just sent by signup or login before this screen opened.
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_S);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  // Without a customerId there is nothing to verify or resend. Say so rather
+  // than leaving buttons that silently do nothing.
+  const missingCustomer = !customerId;
+  const missingMessage = 'This verification session has expired. Go back and sign in again to get a new code.';
 
   const onVerify = async () => {
-    if (!customerId) return;
+    if (!customerId) {
+      setError(missingMessage);
+      return;
+    }
     setError(null);
     setInfo(null);
     setSubmitting(true);
@@ -40,13 +60,23 @@ export default function VerifyOtpScreen() {
   };
 
   const onResend = async () => {
-    if (!customerId) return;
+    if (!customerId) {
+      setError(missingMessage);
+      return;
+    }
+    if (resending || cooldown > 0) return;
     setError(null);
+    setInfo(null);
+    setResending(true);
     try {
       await resendOtp(customerId);
-      setInfo(`A new code has been sent to your ${channelKind}.`);
-    } catch {
-      setError('Could not resend the code. Please try again.');
+      setOtp('');
+      setInfo(`A new code has been sent to your ${channelKind}. Use the newest code, earlier codes no longer work. Check your spam folder if it does not arrive.`);
+      setCooldown(RESEND_COOLDOWN_S);
+    } catch (err) {
+      setError(isApiError(err) ? err.message : 'Could not resend the code. Please try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -66,16 +96,29 @@ export default function VerifyOtpScreen() {
           keyboardType="number-pad"
           placeholder="123456"
           maxLength={6}
-          error={error ?? undefined}
+          error={error ?? (missingCustomer ? missingMessage : undefined)}
         />
 
         {info ? <Text style={styles.info}>{info}</Text> : null}
 
         <Button title="Verify" onPress={onVerify} loading={submitting} />
 
-        <Pressable onPress={onResend} style={styles.resend}>
+        <Pressable
+          onPress={onResend}
+          disabled={resending || cooldown > 0 || missingCustomer}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: resending || cooldown > 0 || missingCustomer }}
+          style={styles.resend}
+        >
           <Text style={styles.resendText}>
-            Didn&apos;t get a code? <Text style={styles.link}>Resend</Text>
+            Didn&apos;t get a code?{' '}
+            {resending ? (
+              <Text style={styles.muted}>Sending...</Text>
+            ) : cooldown > 0 ? (
+              <Text style={styles.muted}>Resend in {cooldown}s</Text>
+            ) : (
+              <Text style={styles.link}>Resend</Text>
+            )}
           </Text>
         </Pressable>
       </View>
@@ -92,4 +135,5 @@ const styles = StyleSheet.create({
   resend: { alignItems: 'center', marginTop: spacing.sm },
   resendText: { color: colors.textMuted, fontSize: fontSize.sm },
   link: { color: colors.primary, fontWeight: fontWeight.bold },
+  muted: { color: colors.textMuted, fontWeight: fontWeight.semibold },
 });
