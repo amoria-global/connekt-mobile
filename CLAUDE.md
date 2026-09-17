@@ -40,7 +40,9 @@ verify (typecheck) then test then build (`expo export`) then migrate then deploy
   version, which is exactly why this gate exists.
 - **deploy** never runs on a push. Publishing is a manual `workflow_dispatch` where a human
   types `publish`, because an update reaches every phone on next launch and cannot be
-  recalled. It needs the `EXPO_TOKEN` repository secret.
+  recalled. It needs the `EXPO_TOKEN` repository secret (an account-level Expo robot token).
+  Running the workflow without typing `publish` is a dry run: it checks the credential with
+  `eas whoami`, re-runs the gate, and publishes nothing. Rehearse that way first.
 - Run the gate locally before asking for a publish: `node scripts/check-ota-compatibility.mjs`.
 - When a new store build ships from `main`, point `production` at that build's commit and
   update `.eas/production-baseline.json` (commit, app version, build number, fingerprint
