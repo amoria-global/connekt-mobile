@@ -23,10 +23,30 @@ shipping one platform silently.
 A git push reaches nobody. Installed apps pull JavaScript from the `production` EAS channel.
 
 `main` may sit on an Expo SDK newer than the natives users are running, and publishing that
-JavaScript onto older natives breaks every install. So publish hotfixes from a vehicle
-branch: branch off the commit the shipped build was made from, cherry-pick only the fix,
-then `eas update --branch production --platform <os>` from there. Confirm the shipped
-commit with the EAS build list before choosing the base.
+JavaScript onto older natives breaks every install. So the `production` branch, not `main`,
+is what installed phones run. It sits on the commit the shipped store build was made from,
+plus cherry-picked JavaScript-only fixes. Never publish an update from `main`.
+
+The flow mirrors the backend's pipeline, in `.github/workflows/production.yml`:
+verify (typecheck) then test then build (`expo export`) then migrate then deploy.
+
+- **migrate** is `scripts/check-ota-compatibility.mjs`. It compares the branch against
+  `.eas/production-baseline.json`, which records the commit, app version and fingerprint
+  of the installed build. It refuses the publish when the app version no longer matches
+  what phones run, when the `runtimeVersion` policy changed, when any runtime dependency
+  was added, removed or bumped, or when native app config changed (plugins, permissions,
+  identifiers, scheme). Those changes need a new store build, not an update. The
+  `runtimeVersion` policy is `appVersion`, so phones accept any update that claims their
+  version, which is exactly why this gate exists.
+- **deploy** never runs on a push. Publishing is a manual `workflow_dispatch` where a human
+  types `publish`, because an update reaches every phone on next launch and cannot be
+  recalled. It needs the `EXPO_TOKEN` repository secret.
+- Run the gate locally before asking for a publish: `node scripts/check-ota-compatibility.mjs`.
+- When a new store build ships from `main`, point `production` at that build's commit and
+  update `.eas/production-baseline.json` (commit, app version, build number, fingerprint
+  from `eas build:list`).
+- GitHub Free gives private repos no branch protection and no required reviewers, so
+  nothing enforces review on `production`. The manual publish step is the real gate.
 
 Verify a publish two ways, never by trusting the CLI output alone:
 
