@@ -23,10 +23,20 @@ shipping one platform silently.
 A git push reaches nobody. Installed apps pull JavaScript from the `production` EAS channel.
 
 `main` may sit on an Expo SDK newer than the natives users are running, and publishing that
-JavaScript onto older natives breaks every install. So publish hotfixes from a vehicle
-branch: branch off the commit the shipped build was made from, cherry-pick only the fix,
-then `eas update --branch production --platform <os>` from there. Confirm the shipped
-commit with the EAS build list before choosing the base.
+JavaScript onto older natives breaks every install. **Never publish an update from `main`.**
+As proof of the scale: `main` (SDK 57, app version 2.2.0) differs from the installed 2.1.7
+build by 41 runtime dependencies, new config plugins and renamed Android permissions.
+
+The release line is the `production` branch. It sits on the commit the shipped store build
+was made from, plus cherry-picked JavaScript-only fixes, and it carries the gated pipeline
+(`.github/workflows/production.yml`): verify, test, build, migrate, deploy. The migrate
+stage is `scripts/check-ota-compatibility.mjs` against `.eas/production-baseline.json`, and
+deploy is a manual `workflow_dispatch` because an update cannot be recalled. Publish a
+hotfix by cherry-picking it onto `production`, never by publishing from here.
+
+When a new store build ships from `main`, point `production` at that build's commit and
+refresh `.eas/production-baseline.json` (commit, app version, build number, fingerprint
+from `eas build:list`). Those three files live here too so they survive that move.
 
 Verify a publish two ways, never by trusting the CLI output alone:
 
