@@ -1,0 +1,165 @@
+name: production
+
+# The mobile equivalent of the backend's verify -> test -> build -> migrate ->
+# deploy pipeline, with one deliberate difference: deploy never runs by itself.
+#
+# A backend deploy can be rolled back by redeploying. An OTA update cannot: it
+# reaches every installed phone on next launch, and there is no recall. So a
+# push to production runs everything up to and including the compatibility
+# gate, and stops. Publishing happens when a human starts this workflow by
+# hand (Actions -> production -> Run workflow) and types "publish".
+#
+# GitHub Free does not offer branch protection or required reviewers on
+# private repositories, so nothing here can enforce that production only
+# receives reviewed commits. Treat the manual trigger as the gate.
+
+on:
+  pull_request:
+    branches: [production]
+  push:
+    branches: [production]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "publish" to send an OTA update to every installed phone'
+        required: true
+        default: ''
+      platform:
+        description: Platform to publish
+        required: true
+        default: android
+        type: choice
+        options: [android, all, ios]
+      message:
+        description: Update message shown in EAS
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never let two publishes race the same channel.
+  group: mobile-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Typecheck
+        run: yarn typecheck
+
+  test:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      # This release line carries no Jest harness yet (it predates the one on
+      # main). Rather than pretend, the step says so and the pipeline still
+      # has a real gate in typecheck plus the compatibility check below.
+      - name: Test
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.test ? 0 : 1)"; then
+            yarn test
+          else
+            echo "::warning title=No test suite on this branch::package.json has no test script. Port the Jest setup from main onto this release line so updates are covered by tests."
+          fi
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      # Proves the exact bundle an update would carry actually compiles. A
+      # publish that fails here would otherwise ship a broken bundle.
+      - name: Export update bundle
+        env:
+          EXPO_PUBLIC_API_BASE_URL: https://backend.connekyt.com/api/remote
+        run: npx expo export --platform android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-bundle
+          path: dist
+          retention-days: 7
+
+  migrate:
+    # The gate that keeps installed phones alive. See the script's header.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the script reads the installed build's commit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check OTA compatibility with the installed build
+        run: node scripts/check-ota-compatibility.mjs
+
+  deploy:
+    needs: migrate
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Require an explicit confirmation
+        if: inputs.confirm != 'publish'
+        run: |
+          echo "::error title=Not confirmed::Re-run and type publish in the confirm field."
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Require the Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error title=EXPO_TOKEN missing::Create a robot access token at expo.dev and add it as the EXPO_TOKEN repository secret."
+            exit 1
+          fi
+      - name: Re-check compatibility at publish time
+        run: node scripts/check-ota-compatibility.mjs
+      - name: Publish OTA update
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx eas-cli@latest update \
+            --branch production \
+            --platform "${{ inputs.platform }}" \
+            --message "${{ inputs.message }}" \
+            --non-interactive
+      - name: Show what phones will fetch
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli@latest update:list --branch production --limit 1 --non-interactive
