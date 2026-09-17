@@ -189,10 +189,24 @@ export async function verifyTotp(customerId: string, code: string): Promise<Auth
   return session;
 }
 
+/**
+ * Asks the backend to email (or text) a fresh OTP. Each resend replaces the
+ * previous code, so only the newest one verifies. The backend answers failures
+ * with HTTP 200 and action 0 ("Customer not found", "OTP already verified"),
+ * so the envelope is checked rather than trusting the status.
+ */
 export async function resendOtp(customerId: string): Promise<void> {
-  await api.post(`/auth/resend-otp?customerId=${encodeURIComponent(customerId)}`, undefined, {
-    skipAuth: true,
-  });
+  const res = await api.post<{ action: number; message?: string }>(
+    `/auth/resend-otp?customerId=${encodeURIComponent(customerId)}`,
+    undefined,
+    { skipAuth: true },
+  );
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'We could not send a new code. Please try again.',
+    } satisfies ApiError;
+  }
 }
 
 /**
