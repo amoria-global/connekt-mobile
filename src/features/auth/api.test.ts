@@ -1,9 +1,13 @@
+import { api } from '@/api/client';
 import {
+  resendOtp,
   isNeedsVerification,
   isNeedsTotp,
   isNeedsPasswordChange,
   isNeedsRole,
 } from './api';
+
+jest.mock('@/api/client', () => ({ api: { post: jest.fn(), get: jest.fn() } }));
 
 /**
  * The first test in this repo (CONN-TEST-2).
@@ -103,5 +107,36 @@ describe('the four are mutually exclusive', () => {
       isNeedsRole(err),
     ].filter(Boolean);
     expect(matches).toHaveLength(1);
+  });
+});
+
+/**
+ * Users reported not receiving their OTP. The backend was proven to deliver
+ * it, but resend-otp answers its failures with HTTP 200 and action 0, and the
+ * app treated any 200 as "a new code has been sent". The user then waited for
+ * an email that was never going to come.
+ */
+describe('resendOtp', () => {
+  const post = api.post as jest.Mock;
+  beforeEach(() => post.mockReset());
+
+  it('resolves only when the backend says action 1', async () => {
+    post.mockResolvedValue({ action: 1, message: 'OTP resent successfully' });
+    await expect(resendOtp('c1')).resolves.toBeUndefined();
+    expect(post).toHaveBeenCalledWith('/auth/resend-otp?customerId=c1', undefined, { skipAuth: true });
+  });
+
+  it('throws the backend message on action 0 instead of claiming success', async () => {
+    for (const message of ['Customer not found', 'OTP already verified']) {
+      post.mockResolvedValue({ action: 0, message });
+      await expect(resendOtp('c1')).rejects.toMatchObject({ message });
+    }
+  });
+
+  it('still fails with a readable message when the envelope has no message', async () => {
+    for (const body of [{ action: 0 }, {}, undefined]) {
+      post.mockResolvedValue(body);
+      await expect(resendOtp('c1')).rejects.toMatchObject({ message: expect.stringMatching(/new code/) });
+    }
   });
 });
