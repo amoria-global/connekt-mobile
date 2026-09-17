@@ -125,11 +125,17 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Require an explicit confirmation
-        if: inputs.confirm != 'publish'
+      # Running this workflow WITHOUT typing publish is a dry run: it proves the
+      # token still authenticates and the gate passes, and publishes nothing.
+      # That is the only way to rehearse a publish, since the real one cannot
+      # be undone.
+      - name: Announce mode
         run: |
-          echo "::error title=Not confirmed::Re-run and type publish in the confirm field."
-          exit 1
+          if [ "${{ inputs.confirm }}" = "publish" ]; then
+            echo "Mode: PUBLISH. Every installed phone gets this on next launch."
+          else
+            echo "Mode: dry run. confirm was not publish, so nothing will be published."
+          fi
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -150,7 +156,13 @@ jobs:
           fi
       - name: Re-check compatibility at publish time
         run: node scripts/check-ota-compatibility.mjs
+      # Proves the secret authenticates before anything irreversible happens.
+      - name: Check the Expo credential
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli@latest whoami --non-interactive
       - name: Publish OTA update
+        if: inputs.confirm == 'publish'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
@@ -163,3 +175,10 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: npx eas-cli@latest update:list --branch production --limit 1 --non-interactive
+      - name: Dry run summary
+        if: inputs.confirm != 'publish'
+        run: |
+          echo "Dry run finished: the credential works and the compatibility gate passed."
+          echo "To publish, run this workflow again with confirm set to publish."
+          echo "::notice title=Nothing published::This was a dry run; installed phones are untouched."
+
