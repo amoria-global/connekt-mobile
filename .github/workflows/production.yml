@@ -55,6 +55,11 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+      # A direct push to production must not be able to repoint the app at
+      # another Expo project either. See the script's header for what this
+      # caught on main.
+      - name: Check the Expo project identity
+        run: node scripts/check-expo-project.mjs
       - name: Typecheck
         run: yarn typecheck
 
