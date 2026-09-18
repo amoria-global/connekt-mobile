@@ -15,7 +15,7 @@
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/d0fb9ad8-3174-4915-9000-6389c4a89b00"
+      "url": "https://u.expo.dev/d81fbfa6-f576-4450-97c6-c443332179be"
     },
     "ios": {
       "supportsTablet": false,
@@ -114,9 +114,8 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "d0fb9ad8-3174-4915-9000-6389c4a89b00"
+        "projectId": "d81fbfa6-f576-4450-97c6-c443332179be"
       }
-    },
-    "owner": "muben"
+    }
   }
 }
