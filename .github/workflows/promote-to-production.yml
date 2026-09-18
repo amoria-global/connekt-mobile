@@ -1,0 +1,118 @@
+name: promote main to production
+
+# Closes the loop between main and installed phones.
+#
+# When main passes its tests, this asks the compatibility gate whether the
+# phones in the field could actually run main's JavaScript:
+#
+#   - they can  -> main is merged into production, and the production
+#                  workflow publishes the update automatically.
+#   - they cannot -> nothing is merged. The run stays green and says a store
+#                  build is required, because a red pipeline on every push
+#                  would be noise rather than a signal.
+#
+# Today it always takes the second path: main is SDK 57 / 2.2.0 while phones
+# run the 2.1.7 SDK 54 build, which differs by 41 native dependencies, new
+# config plugins and renamed permissions. Merging that into production and
+# publishing it would install JavaScript importing native modules the app
+# does not contain, and every phone would crash on launch.
+#
+# It starts taking the first path by itself once the 2.2.0 build is live in
+# the store and .eas/production-baseline.json is updated to that build.
+#
+# Needs PROMOTE_TOKEN: a fine-grained PAT with contents:write on this repo.
+# The org caps the default GITHUB_TOKEN at read-only, so it cannot push.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-to-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Typecheck
+        run: yarn typecheck
+      - name: Test
+        run: yarn test
+
+  promote:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # The PAT has to be on the checkout itself, or the push below is
+          # rejected: the default token is read-only here.
+          token: ${{ secrets.PROMOTE_TOKEN || github.token }}
+
+      # The gate is plain Node with no imports beyond fs and child_process,
+      # so it needs no install step.
+      - name: Ask the gate whether phones can run this
+        id: gate
+        run: |
+          if node scripts/check-ota-compatibility.mjs; then
+            echo "compatible=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "compatible=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Store build required
+        if: steps.gate.outputs.compatible == 'false'
+        run: |
+          {
+            echo "### Not promoted"
+            echo
+            echo "main cannot run on the installed build, so it was not merged into production."
+            echo "The gate output above lists what differs. This needs a store build:"
+            echo
+            echo '1. `eas build --profile production --platform android` from main'
+            echo "2. submit it to Play and let users update"
+            echo '3. re-point `production` at that commit and refresh `.eas/production-baseline.json`'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning title=Not promoted::main needs a store build before it can reach phones. See the job summary."
+
+      - name: Merge main into production
+        if: steps.gate.outputs.compatible == 'true'
+        env:
+          # No [skip publish] here on purpose: this merge is meant to reach
+          # phones, and the production workflow publishes what it receives.
+          SUBJECT: "Merge branch 'main' into 'production'"
+          PROMOTE_TOKEN: ${{ secrets.PROMOTE_TOKEN }}
+        run: |
+          if [ -z "$PROMOTE_TOKEN" ]; then
+            echo "::error title=PROMOTE_TOKEN missing::Add a fine-grained PAT with contents:write as PROMOTE_TOKEN, or merge main into production by hand."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin production
+          git checkout -B production origin/production
+          if ! git merge --no-ff "$GITHUB_SHA" -m "$SUBJECT"; then
+            git merge --abort || true
+            echo "::error title=Merge conflict::main does not merge cleanly into production. Resolve it by hand."
+            exit 1
+          fi
+          git push origin production
+          {
+            echo "### Promoted"
+            echo
+            echo "main was merged into production. The production workflow publishes it to phones."
+          } >> "$GITHUB_STEP_SUMMARY"
