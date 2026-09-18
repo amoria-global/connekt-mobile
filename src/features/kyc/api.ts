@@ -21,7 +21,10 @@ function str(v: unknown): string | undefined {
 }
 
 export async function getKyc(): Promise<KycState> {
-  const res = await api.get<ApiEnvelope<Raw>>('/customer/kyc');
+  // The bare /customer/kyc path has no handler on the backend; the status
+  // route is /customer/kyc/status. Caught by the contract test ported from
+  // main, where this was fixed as CONN-TEST-4.
+  const res = await api.get<ApiEnvelope<Raw>>('/customer/kyc/status');
   const d = (res?.data ?? {}) as Raw;
   return {
     status: (str(d.status) ?? 'NONE').toUpperCase(),
