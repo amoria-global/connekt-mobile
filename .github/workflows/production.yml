@@ -74,12 +74,7 @@ jobs:
       # main). Rather than pretend, the step says so and the pipeline still
       # has a real gate in typecheck plus the compatibility check below.
       - name: Test
-        run: |
-          if node -e "process.exit(require('./package.json').scripts?.test ? 0 : 1)"; then
-            yarn test
-          else
-            echo "::warning title=No test suite on this branch::package.json has no test script. Port the Jest setup from main onto this release line so updates are covered by tests."
-          fi
+        run: yarn test
 
   build:
     needs: test
@@ -121,7 +116,15 @@ jobs:
 
   deploy:
     needs: migrate
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/production'
+    # A push to production publishes automatically once every gate above has
+    # passed, which is how the backend behaves. Put [skip publish] in the
+    # commit subject for CI-only or docs commits. A manual run still works,
+    # and without "publish" it is a dry run.
+    if: >-
+      github.ref == 'refs/heads/production' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' &&
+        !contains(github.event.head_commit.message, '[skip publish]')))
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -130,11 +133,16 @@ jobs:
       # That is the only way to rehearse a publish, since the real one cannot
       # be undone.
       - name: Announce mode
+        env:
+          EVENT: ${{ github.event_name }}
+          CONFIRM: ${{ inputs.confirm }}
         run: |
-          if [ "${{ inputs.confirm }}" = "publish" ]; then
-            echo "Mode: PUBLISH. Every installed phone gets this on next launch."
+          if [ "$EVENT" = "push" ]; then
+            echo "Mode: PUBLISH (automatic, push to production). Every installed phone gets this on next launch."
+          elif [ "$CONFIRM" = "publish" ]; then
+            echo "Mode: PUBLISH (manual). Every installed phone gets this on next launch."
           else
-            echo "Mode: dry run. confirm was not publish, so nothing will be published."
+            echo "Mode: dry run. Nothing will be published."
           fi
       - uses: actions/checkout@v4
         with:
@@ -161,22 +169,26 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: npx eas-cli@latest whoami --non-interactive
+      # The commit subject and the typed message arrive as env vars, never
+      # interpolated into the shell, so a message cannot inject commands.
       - name: Publish OTA update
-        if: inputs.confirm == 'publish'
+        if: github.event_name == 'push' || inputs.confirm == 'publish'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          PLATFORM: ${{ inputs.platform || 'android' }}
+          TYPED_MESSAGE: ${{ inputs.message }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          npx eas-cli@latest update \
-            --branch production \
-            --platform "${{ inputs.platform }}" \
-            --message "${{ inputs.message }}" \
-            --non-interactive
+          MSG="$TYPED_MESSAGE"
+          if [ -z "$MSG" ]; then MSG=$(printf '%s' "$COMMIT_MESSAGE" | head -1); fi
+          echo "Publishing: $MSG"
+          npx eas-cli@latest update --branch production --platform "$PLATFORM" --message "$MSG" --non-interactive
       - name: Show what phones will fetch
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: npx eas-cli@latest update:list --branch production --limit 1 --non-interactive
       - name: Dry run summary
-        if: inputs.confirm != 'publish'
+        if: github.event_name == 'workflow_dispatch' && inputs.confirm != 'publish'
         run: |
           echo "Dry run finished: the credential works and the compatibility gate passed."
           echo "To publish, run this workflow again with confirm set to publish."
