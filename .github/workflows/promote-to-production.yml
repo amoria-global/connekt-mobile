@@ -77,6 +77,26 @@ jobs:
             echo "compatible=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Proves the credential can write, on every run, not only on the rare
+      # run that actually promotes. A dry-run push changes nothing: it fails
+      # with 403 when the token is missing, expired, or lacks contents:write,
+      # which is the day you want to hear about it, not the day a release is
+      # waiting.
+      - name: Verify the promote credential can push
+        env:
+          PROMOTE_TOKEN: ${{ secrets.PROMOTE_TOKEN }}
+        run: |
+          if [ -z "$PROMOTE_TOKEN" ]; then
+            echo "::warning title=PROMOTE_TOKEN missing::Promotion will stop when the gate first passes. Add a PAT with contents:write."
+            exit 0
+          fi
+          if git push --dry-run origin "HEAD:refs/heads/ci-promote-credential-check" 2>&1 | tail -3; then
+            echo "The promote credential can push to this repository."
+          else
+            echo "::error title=PROMOTE_TOKEN cannot push::The secret exists but was refused. Check it has contents:write on this repo and has not expired."
+            exit 1
+          fi
+
       - name: Store build required
         if: steps.gate.outputs.compatible == 'false'
         run: |
