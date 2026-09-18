@@ -47,6 +47,9 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+      # Cheap, and it runs before anything else can act on a drifted config.
+      - name: Check the Expo project identity
+        run: node scripts/check-expo-project.mjs
       - name: Typecheck
         run: yarn typecheck
       - name: Test
