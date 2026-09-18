@@ -31,8 +31,10 @@ The release line is the `production` branch. It sits on the commit the shipped s
 was made from, plus cherry-picked JavaScript-only fixes, and it carries the gated pipeline
 (`.github/workflows/production.yml`): verify, test, build, migrate, deploy. The migrate
 stage is `scripts/check-ota-compatibility.mjs` against `.eas/production-baseline.json`, and
-deploy is a manual `workflow_dispatch` because an update cannot be recalled. Publish a
-hotfix by cherry-picking it onto `production`, never by publishing from here.
+deploy publishes automatically once those stages pass on a push to `production`, with
+`[skip publish]` in a commit subject as the opt-out, plus a manual `workflow_dispatch` that
+also offers a dry run. Publish a hotfix by cherry-picking it onto `production`, never by
+publishing from here, and never by merging `main` into it.
 
 When a new store build ships from `main`, point `production` at that build's commit and
 refresh `.eas/production-baseline.json` (commit, app version, build number, fingerprint
