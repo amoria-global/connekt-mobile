@@ -38,11 +38,16 @@ verify (typecheck) then test then build (`expo export`) then migrate then deploy
   identifiers, scheme). Those changes need a new store build, not an update. The
   `runtimeVersion` policy is `appVersion`, so phones accept any update that claims their
   version, which is exactly why this gate exists.
-- **deploy** never runs on a push. Publishing is a manual `workflow_dispatch` where a human
-  types `publish`, because an update reaches every phone on next launch and cannot be
-  recalled. It needs the `EXPO_TOKEN` repository secret (an account-level Expo robot token).
-  Running the workflow without typing `publish` is a dry run: it checks the credential with
-  `eas whoami`, re-runs the gate, and publishes nothing. Rehearse that way first.
+- **deploy** publishes automatically once every stage above passes, the same way a push to
+  the backend's `production` deploys. It needs the `EXPO_TOKEN` repository secret (an
+  account-level Expo robot token) and uses the commit subject as the update message.
+  - Put `[skip publish]` in the commit subject for CI, test or documentation commits that
+    should not reach phones.
+  - A manual `workflow_dispatch` run still works: type `publish` to ship, or leave it blank
+    for a dry run that checks the credential with `eas whoami`, re-runs the gate and
+    publishes nothing.
+  - A bad update is recovered by publishing a good one (or republishing the previous
+    update); phones pick it up on their next launch, so keep the fix small and fast.
 - Run the gate locally before asking for a publish: `node scripts/check-ota-compatibility.mjs`.
 - When a new store build ships from `main`, point `production` at that build's commit and
   update `.eas/production-baseline.json` (commit, app version, build number, fingerprint

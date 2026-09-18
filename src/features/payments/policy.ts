@@ -33,7 +33,11 @@
  */
 import { Platform } from 'react-native';
 
-export const digitalPurchasesEnabled = Platform.OS !== 'android';
+// Web only. This read `Platform.OS !== 'android'`, which left iOS able to
+// buy digital goods outside Apple's in-app purchase rules. No iOS build has
+// ever shipped from this line, so nothing in the field changes, and Android
+// already evaluated false. Matches main.
+export const digitalPurchasesEnabled = Platform.OS === 'web';
 
 /**
  * Payment-declaration types that pay for DIGITAL goods (stream access, tips,
