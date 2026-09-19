@@ -38,7 +38,10 @@ import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
+import { KycBanner } from '@/features/kyc/KycBanner';
 import { UserHome } from '@/features/dashboard/UserHome';
+import { ClientHome } from '@/features/dashboard/ClientHome';
+import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
 import {
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
@@ -405,13 +408,16 @@ export default function HomeScreen() {
   const hasFailedPayments = pending.some((p) => p.status === 'failed');
 
   // ── Render ────────────────────────────────────────────────────────────
-  // The `User` (mobile/TV consumer) role has its own action-first home rather
-  // than the business analytics dashboard.
+  // The `User`, `Client`, and `Photographer` roles have specialized,
+  // role-tailored homes rather than the generic business analytics dashboard.
   if (isUser) return <UserHome />;
+  if (isClient) return <ClientHome />;
+  if (isPhotographer) return <PhotographerHome />;
 
   return (
     <Screen padded={false} edges={['bottom']}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}>
+        <KycBanner />
         {showsDashboard ? (
           <>
             <DashboardHero

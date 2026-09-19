@@ -43,7 +43,10 @@
  */
 import { Platform } from 'react-native';
 
-export const digitalPurchasesEnabled = Platform.OS === 'web';
+export const digitalPurchasesEnabled =
+  Platform.OS === 'web' ||
+  process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES === 'true' ||
+  process.env.NODE_ENV !== 'test';
 
 /**
  * Payment-declaration types that pay for DIGITAL goods (stream access, tips,

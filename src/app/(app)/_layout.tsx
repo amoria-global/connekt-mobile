@@ -1,14 +1,14 @@
-import { useEffect } from 'react';
-import { Stack, useRouter, useSegments, type Href } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { Platform, View } from 'react-native';
 import { PersistentBottomBar } from '@/components/PersistentBottomBar';
 import {
-  addNotificationResponseListener,
-  registerForPushNotifications,
+    addNotificationResponseListener,
+    registerForPushNotifications,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
-import { colors, useTheme } from '@/theme';
+import { useTheme } from '@/theme';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { Platform, View } from 'react-native';
 
 export default function AppLayout() {
   const { isDark, colors: c } = useTheme();
@@ -75,7 +75,7 @@ export default function AppLayout() {
         <Stack.Screen name="stream/[id]" options={{ title: 'Stream' }} />
         <Stack.Screen name="stream/control/[id]" options={{ title: 'Go Live' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
-        <Stack.Screen name="find-my-photos" options={{ title: 'Find My Photos' }} />
+        <Stack.Screen name="find-my-photos" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />
         <Stack.Screen name="preferences" options={{ title: 'Notifications' }} />
         <Stack.Screen
@@ -119,7 +119,7 @@ export default function AppLayout() {
         <Stack.Screen name="tv-devices" options={{ title: 'Manage TVs' }} />
         <Stack.Screen name="connect-to-tv" options={{ title: 'Connect to TV', presentation: 'fullScreenModal' }} />
         <Stack.Screen name="pay-on-tv" options={{ title: 'Pay on TV', presentation: 'fullScreenModal' }} />
-        <Stack.Screen name="kyc" options={{ title: 'Verification' }} />
+        <Stack.Screen name="kyc" options={{ headerShown: false }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
         <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
         <Stack.Screen name="team/index" options={{ title: 'Team' }} />

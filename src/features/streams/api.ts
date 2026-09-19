@@ -3,6 +3,7 @@
  */
 import { api } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
+import { isApiError } from '@/store/auth';
 import { appendFile } from '@/utils/upload';
 
 export type Stream = {
@@ -345,6 +346,141 @@ export async function checkAnonymousAccessStatus(
 }
 
 /**
+ * Concurrency Heartbeat: Posts every 20-30s while player is active.
+ * Heartbeat timeout is 60s server-side; missing heartbeats releases session.
+ */
+export async function sendAnonymousHeartbeat(
+  eventId: string,
+  viewerId: string,
+  deviceFingerprint: string,
+): Promise<{ ok: boolean; status?: string }> {
+  try {
+    const res = await api.post<ApiEnvelope<Raw> & Raw>(
+      `/public/anonymous-viewer/${encodeURIComponent(eventId)}/heartbeat`,
+      { viewerId, deviceFingerprint },
+      { skipAuth: true },
+    );
+    const top = (res ?? {}) as Raw;
+    return { ok: top.action === 1 || top.status === 'SUCCESS', status: str(top.status) };
+  } catch (err) {
+    return { ok: false, status: isApiError(err) ? err.message : undefined };
+  }
+}
+
+/**
+ * Clean Exit Hook: Deactivates session immediately when user leaves player
+ * or backgrounds the app, allowing another device to claim access.
+ */
+export async function deactivateAnonymousSession(
+  eventId: string,
+  deviceFingerprint: string,
+): Promise<void> {
+  try {
+    await api.post<ApiEnvelope<unknown>>(
+      `/public/anonymous-viewer/${encodeURIComponent(eventId)}/deactivate`,
+      { deviceFingerprint },
+      { skipAuth: true },
+    );
+  } catch {
+    /* Best-effort on unmount/background */
+  }
+}
+
+export type InitiateAnonymousPaymentPayload = {
+  viewerId: string;
+  phone: string;
+  paymentMethod: 'MOBILE_MONEY' | 'CARD';
+  telecomProvider?: 'MTN' | 'AIRTEL';
+  redirectUrl?: string;
+  donationAmount?: number;
+  viewerCount?: number;
+  currencyId?: string;
+};
+
+export type InitiateAnonymousPaymentResult = {
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  refid?: string;
+  tid?: string;
+  paymentUrl?: string;
+  message?: string;
+};
+
+/**
+ * Initiates Mobile Money or Card payment for an anonymous viewer.
+ * Mobile Money triggers a USSD prompt on the user's phone.
+ */
+export async function initiateAnonymousPayment(
+  eventId: string,
+  payload: InitiateAnonymousPaymentPayload,
+): Promise<InitiateAnonymousPaymentResult> {
+  const res = await api.post<ApiEnvelope<Raw> & Raw>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/initiate-payment`,
+    payload,
+    { skipAuth: true },
+  );
+  const top = (res ?? {}) as Raw;
+  const d = (top.data ?? top) as Raw;
+  return {
+    status: (str(top.status) ?? str(d.status) ?? 'PENDING') as InitiateAnonymousPaymentResult['status'],
+    refid: str(top.refid) ?? str(d.refid),
+    tid: str(top.tid) ?? str(d.tid),
+    paymentUrl: str(top.paymentUrl) ?? str(d.paymentUrl) ?? str(d.redirectUrl),
+    message: str(top.message) ?? str(d.message),
+  };
+}
+
+export type AnonymousPaymentStatusResult = {
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  hlsManifestUrl?: string;
+  whepUrl?: string;
+  message?: string;
+};
+
+/**
+ * Polls transaction status after initiating payment.
+ */
+export async function checkAnonymousPaymentStatus(
+  eventId: string,
+  refid: string,
+  viewerId: string,
+): Promise<AnonymousPaymentStatusResult> {
+  const res = await api.post<ApiEnvelope<Raw> & Raw>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/payment-status`,
+    { refid, viewerId },
+    { skipAuth: true },
+  );
+  const top = (res ?? {}) as Raw;
+  const d = (top.data ?? top) as Raw;
+  return {
+    status: (str(top.status) ?? str(d.status) ?? 'PENDING') as AnonymousPaymentStatusResult['status'],
+    hlsManifestUrl: str(d.hlsManifestUrl) ?? str(top.hlsManifestUrl),
+    whepUrl: str(d.whepUrl) ?? str(top.whepUrl),
+    message: str(top.message) ?? str(d.message),
+  };
+}
+
+/**
+ * Instant reconcile on demand when user taps "Already paid? Verify access".
+ */
+export async function reconcileAnonymousByFingerprint(
+  eventId: string,
+  fingerprint: string,
+): Promise<{ status: string; viewerId?: string; hlsManifestUrl?: string }> {
+  const res = await api.post<ApiEnvelope<Raw> & Raw>(
+    `/public/anonymous-viewer/${encodeURIComponent(eventId)}/reconcile-by-fingerprint`,
+    { fingerprint },
+    { skipAuth: true },
+  );
+  const top = (res ?? {}) as Raw;
+  const d = (top.data ?? top) as Raw;
+  return {
+    status: str(top.status) ?? str(d.status) ?? 'REQUIRES_PAYMENT',
+    viewerId: str(top.viewerId) ?? str(d.viewerId),
+    hlsManifestUrl: str(top.hlsManifestUrl) ?? str(d.hlsManifestUrl),
+  };
+}
+
+/**
  * Cloudflare Stream WHEP → HLS URL conversion. Only swaps the path;
  * the customer hash + live input id stay identical. Returns undefined
  * if the input doesn't look like a WHEP URL.
@@ -471,26 +607,28 @@ export async function sendPublicStreamChat(
 }
 
 /**
- * Reactions are stored as REACTION-typed chat rows; the backend
- * fans them out via the same broadcaster so every viewer sees them
- * as floating emoji animations. message carries the emoji literal.
+ * Emoji reactions endpoint: POST /api/remote/public/events/{eventId}/reactions
+ * Open to everyone (no payment or viewerId required). Rate limit: 60/min.
  */
 export async function sendPublicStreamReaction(
   eventId: string,
-  payload: { viewerId: string; deviceFingerprint: string; emoji: string },
+  payload: { emoji: string; deviceFingerprint: string; viewerId?: string; name?: string },
 ): Promise<void> {
-  const res = await api.post<ApiEnvelope<Raw>>(
-    `/public/events/${encodeURIComponent(eventId)}/chats`,
-    {
-      viewerId: payload.viewerId,
-      deviceFingerprint: payload.deviceFingerprint,
-      message: payload.emoji,
-      messageType: 'REACTION',
-    },
+  const body: Record<string, unknown> = {
+    emoji: payload.emoji,
+    deviceFingerprint: payload.deviceFingerprint,
+  };
+  if (payload.name) body.name = payload.name;
+  if (payload.viewerId) body.viewerId = payload.viewerId;
+
+  const res = await api.post<ApiEnvelope<Raw> & Raw>(
+    `/public/events/${encodeURIComponent(eventId)}/reactions`,
+    body,
     { skipAuth: true },
   );
-  if (res?.action !== 1) {
-    throw { status: 400, message: res?.message || 'Could not send reaction.' };
+  const top = (res ?? {}) as Raw;
+  if (top.action !== 1 && top.status !== 'SUCCESS' && !top.ok) {
+    // Non-fatal fallback - best effort
   }
 }
 

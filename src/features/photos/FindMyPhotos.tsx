@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import * as ScreenCapture from 'expo-screen-capture';
 import { downloadAsync, cacheDirectory } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import {
@@ -23,7 +24,6 @@ import {
   useWindowDimensions,
   Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -34,6 +34,8 @@ import {
   browsePhotosUrl,
   openWebCheckout,
 } from '@/features/payments/webCheckout';
+import { PhotoCheckoutSheet } from './PhotoCheckoutSheet';
+import { savePhotoToGallery, saveBatchPhotosToGallery } from '@/utils/gallerySaver';
 import {
   faceSearch,
   getViewerId,
@@ -48,13 +50,18 @@ import {
   type FoundPhoto,
   type AlbumPhotoItem,
   type FreeAlbumPhoto,
+  type MultiAlbumPurchaseItem,
 } from '@/features/photos/api';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imagePicker';
-import { isApiError } from '@/store/auth';
-import { colors, spacing, radii, makeStyles, useTheme } from '@/theme';
+import { isApiError, useAuth } from '@/store/auth';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+const WATERMARK_COLS = [0, 1, 2, 3, 4];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -65,17 +72,10 @@ function maskEmail(email: string) {
 }
 
 async function downloadAndShare(url: string, filename: string) {
-  try {
-    const localUri = (cacheDirectory ?? '') + filename;
-    const { uri } = await downloadAsync(url, localUri);
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, { mimeType: 'image/jpeg', dialogTitle: 'Save photo' });
-    } else {
-      await WebBrowser.openBrowserAsync(url);
-    }
-  } catch {
-    await WebBrowser.openBrowserAsync(url);
-  }
+  await savePhotoToGallery(url, filename, {
+    notifyOnSuccess: true,
+    customSuccessMessage: 'High-resolution photo saved directly to your Photos gallery.',
+  });
 }
 
 // ─── Photo cells ─────────────────────────────────────────────────────────────
@@ -92,6 +92,9 @@ function PhotoCell({
   watermarkText,
   onPress,
   onLongPress,
+  onPreview,
+  onToggleSelect,
+  selectionMode = false,
 }: {
   uri?: string;
   size: number;
@@ -104,6 +107,9 @@ function PhotoCell({
   watermarkText?: string;
   onPress: () => void;
   onLongPress?: () => void;
+  onPreview?: () => void;
+  onToggleSelect?: () => void;
+  selectionMode?: boolean;
 }) {
   const styles = useStyles();
   return (
@@ -123,36 +129,79 @@ function PhotoCell({
         contentFit="cover"
         transition={200}
       />
+
+      {/* Selected highlight overlay */}
+      {selected && (
+        <View style={styles.selectedOverlay} pointerEvents="none" />
+      )}
+
+      {/* Top-Left: Status / Price badge */}
       {owned && (
-        <View style={[styles.lockOverlay, { backgroundColor: 'rgba(16,185,129,0.15)' }]}>
-          <View style={[styles.lockBadge, { backgroundColor: 'rgba(16,185,129,0.85)' }]}>
-            <Ionicons name="checkmark-circle" size={13} color="#FFF" />
-            <Text style={styles.lockPrice}>OWNED</Text>
-          </View>
+        <View style={styles.cellOwnedBadge}>
+          <Ionicons name="checkmark-circle" size={12} color="#FFF" />
+          <Text style={styles.cellOwnedText}>OWNED</Text>
         </View>
       )}
       {locked && !owned && (
-        <View style={styles.lockOverlay}>
-          <View style={styles.lockBadge}>
-            <Ionicons name="lock-closed" size={13} color="#FFF" />
-            {price != null && price > 0 && (
-              <Text style={styles.lockPrice}>{formatMoney(price, currency)}</Text>
-            )}
-          </View>
+        <View style={styles.cellPriceBadge}>
+          <Ionicons name="lock-closed" size={11} color="#FFF" />
+          {price != null && price > 0 && (
+            <Text style={styles.cellPriceText}>{formatMoney(price, currency)}</Text>
+          )}
         </View>
       )}
-      {selected && !owned && (
-        <View style={styles.selectedOverlay}>
-          <View style={styles.checkBadge}>
+      {!locked && !owned && (price == null || price === 0) && (
+        <View style={styles.cellFreeBadge}>
+          <Text style={styles.cellFreeText}>FREE</Text>
+        </View>
+      )}
+
+      {/* Top-Right: Selection checkbox (easy 1-tap select/deselect) */}
+      {(onToggleSelect || selected !== undefined) && (
+        <Pressable
+          style={[styles.selectCheckbox, selected && styles.selectCheckboxActive]}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            if (onToggleSelect) {
+              onToggleSelect();
+            } else {
+              onPress();
+            }
+          }}
+          hitSlop={8}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: !!selected }}
+          accessibilityLabel={selected ? 'Deselect photo' : 'Select photo'}
+        >
+          {selected ? (
             <Ionicons name="checkmark" size={14} color="#FFF" />
-          </View>
-        </View>
+          ) : null}
+        </Pressable>
       )}
+
+      {/* When in selection mode, show preview expand button */}
+      {selectionMode && onPreview && (
+        <Pressable
+          style={styles.expandBadge}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onPreview();
+          }}
+          hitSlop={8}
+          accessibilityLabel="Preview photo full screen"
+        >
+          <Ionicons name="expand-outline" size={13} color="#FFF" />
+        </Pressable>
+      )}
+
+      {/* Caption if present */}
       {eventTitle ? (
-        <View style={styles.caption}>
+        <View style={styles.caption} pointerEvents="none">
           <Text style={styles.captionText} numberOfLines={1}>{eventTitle}</Text>
         </View>
       ) : null}
+
+      {/* Watermark overlay */}
       {watermarkText && !owned && (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-22deg' }] }}>
@@ -228,9 +277,13 @@ export function FindMyPhotos() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // --- Viewer ID ---
+  const user = useAuth((s) => s.user);
+
+  // --- Viewer ID (bound to authenticated user for dynamic watermarking) ---
   const [viewerId, setViewerId] = useState('anon');
-  useEffect(() => { getViewerId().then(setViewerId); }, []);
+  useEffect(() => {
+    getViewerId(user?.customerId ? String(user.customerId) : undefined).then(setViewerId);
+  }, [user?.customerId]);
 
   // --- Face search ---
   const [selfie, setSelfie] = useState<PickedImage | null>(null);
@@ -240,6 +293,11 @@ export function FindMyPhotos() {
   const [faceResults, setFaceResults] = useState<FoundPhoto[] | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedResultIds, setSelectedResultIds] = useState<Set<string>>(new Set());
+  const [scanProgress, setScanProgress] = useState(0);
+  const [noMatchesOpen, setNoMatchesOpen] = useState(false);
+  const [visibleResultsCount, setVisibleResultsCount] = useState(16);
+  const [visibleAlbumCount, setVisibleAlbumCount] = useState(24);
+  const [visibleFreeCount, setVisibleFreeCount] = useState(24);
 
   // Scan-line + pulse-ring loop on the face-scanning circle (mirrors web's
   // scanLineMove / scanPulse keyframes).
@@ -262,7 +320,24 @@ export function FindMyPhotos() {
     lineLoop.start();
     pulseLoop.start();
     return () => { lineLoop.stop(); pulseLoop.stop(); };
-  }, [searching, scanLineAnim, pulseAnim]);
+  }, [searching]);
+
+  // Dynamic progress indicators to keep the user informed during facial recognition
+  const [scanStep, setScanStep] = useState(0);
+  useEffect(() => {
+    if (!searching) {
+      setScanStep(0);
+      return;
+    }
+    const t1 = setTimeout(() => setScanStep(1), 2500);
+    const t2 = setTimeout(() => setScanStep(2), 6500);
+    const t3 = setTimeout(() => setScanStep(3), 13000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [searching]);
 
   // --- Invite code → album ---
   const [albumLoading, setAlbumLoading] = useState(false);
@@ -303,12 +378,21 @@ export function FindMyPhotos() {
   const [albumFaceScanning, setAlbumFaceScanning] = useState(false);
 
   // --- Purchase state ---
-  // buyerId + purchaseRefid come back from the unlock-code flow and are used
-  // to authorize downloads of already-purchased photos. New purchases happen
-  // on connekyt.com (web checkout handoff) — the app collects nothing.
   const [buyerId, setBuyerId] = useState<string | null>(null);
   const [purchaseRefid, setPurchaseRefid] = useState<string | null>(null);
   const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null);
+
+  // --- In-App Checkout & Lightbox & Batch Downloader ---
+  const [checkoutVisible, setCheckoutVisible] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState<MultiAlbumPurchaseItem[]>([]);
+  const [checkoutPhotoCount, setCheckoutPhotoCount] = useState(0);
+  const [checkoutPhotographerCount, setCheckoutPhotographerCount] = useState(0);
+  const [checkoutCurrencySym, setCheckoutCurrencySym] = useState('$');
+  const [checkoutTotal, setCheckoutTotal] = useState(0);
+  const [checkoutPendingPhotoIds, setCheckoutPendingPhotoIds] = useState<string[]>([]);
+  const [previewPhoto, setPreviewPhoto] = useState<AlbumPhotoItem | FoundPhoto | null>(null);
+  const [downloadingBatch, setDownloadingBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<string | null>(null);
 
   // --- Unlock ---
   const [unlockOpen, setUnlockOpen] = useState(false);
@@ -328,6 +412,64 @@ export function FindMyPhotos() {
     return () => clearTimeout(t);
   }, [purchaseNotice]);
 
+  // ─── Screenshot Protection for Copyrighted Photos ──────────────────────────
+  // Prevents taking screenshots/recordings once scanned/album photos are displayed.
+  useEffect(() => {
+    const hasPhotos = Boolean(
+      (faceResults && faceResults.length > 0) ||
+      (albumPhotos && albumPhotos.length > 0) ||
+      (freePhotos && freePhotos.length > 0) ||
+      previewPhoto
+    );
+
+    if (hasPhotos) {
+      ScreenCapture.preventScreenCaptureAsync('find-my-photos').catch(() => {});
+      if (Platform.OS === 'ios') {
+        ScreenCapture.enableAppSwitcherProtectionAsync(0.8).catch(() => {});
+      }
+    } else {
+      ScreenCapture.allowScreenCaptureAsync('find-my-photos').catch(() => {});
+      if (Platform.OS === 'ios') {
+        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+      }
+    }
+
+    return () => {
+      ScreenCapture.allowScreenCaptureAsync('find-my-photos').catch(() => {});
+      if (Platform.OS === 'ios') {
+        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+      }
+    };
+  }, [faceResults, albumPhotos, freePhotos, previewPhoto]);
+
+  // Listen for screenshot attempts to notify user that preview photos are protected
+  useEffect(() => {
+    const hasPhotos = Boolean(
+      (faceResults && faceResults.length > 0) ||
+      (albumPhotos && albumPhotos.length > 0) ||
+      (freePhotos && freePhotos.length > 0) ||
+      previewPhoto
+    );
+    if (!hasPhotos) return;
+
+    let sub: { remove: () => void } | undefined;
+    try {
+      sub = ScreenCapture.addScreenshotListener(() => {
+        Alert.alert(
+          'Screenshot Restricted',
+          'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
+          [{ text: 'OK' }]
+        );
+      });
+    } catch {
+      // Ignored if unsupported in environment
+    }
+
+    return () => {
+      sub?.remove();
+    };
+  }, [faceResults, albumPhotos, freePhotos, previewPhoto]);
+
   // ─── Face search ──────────────────────────────────────────────────────────
 
   const onPick = async (fn: () => Promise<PickedImage | null>, type: 'take' | 'upload') => {
@@ -345,13 +487,56 @@ export function FindMyPhotos() {
   const performSearch = async (img: PickedImage, inviteCode: string) => {
     setSearching(true);
     setSearchError(null);
+    setScanProgress(0);
+
+    // Smooth progress counter counting towards 100%
+    const progressTimer = setInterval(() => {
+      setScanProgress((prev) => {
+        let step = 1.0;
+        if (prev < 25) step = 1.2;
+        else if (prev < 65) step = 0.65;
+        else if (prev < 88) step = 0.35;
+        else if (prev < 94) step = 0.08;
+        else step = 0;
+
+        return Math.min(94, prev + step);
+      });
+    }, 50);
+
     try {
       const res = await faceSearch(img, inviteCode);
-      setFaceResults(res);
-      setSelectedResultIds(new Set());
-    } catch (err) {
-      setSearchError(isApiError(err) ? err.message : 'Search failed. Please try again.');
+      clearInterval(progressTimer);
+
+      // Finish counting to 100%
+      setScanProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 350));
+
+      if (res && res.length > 0) {
+        setFaceResults(res);
+        setVisibleResultsCount(16);
+        setSelectedResultIds(new Set());
+      } else {
+        // No matches found: stay on current page and display centered modal
+        setNoMatchesOpen(true);
+      }
+    } catch (err: any) {
+      clearInterval(progressTimer);
+      console.warn('[performSearch] Face search error:', err);
+      let msg = isApiError(err)
+        ? err.message
+        : err?.message || (typeof err === 'string' ? err : 'Search failed. Please try again.');
+      if (msg.toLowerCase().includes('network connection was lost') || msg.toLowerCase().includes('-1005')) {
+        msg = 'The network connection was lost. Please check your internet connection and try again.';
+      } else {
+        msg = msg
+          .replace(/\s*\(at [^)]+\)/g, '')
+          .replace(/^fetch failed:\s*/i, '')
+          .replace(/^UnexpectedException:\s*/i, '')
+          .trim() || 'Search failed. Please try again.';
+      }
+      setSearchError(msg);
     } finally {
+      clearInterval(progressTimer);
       setSearching(false);
     }
   };
@@ -489,15 +674,32 @@ export function FindMyPhotos() {
       ? freePhotos.filter((p) => photoIds.includes(p.id))
       : freePhotos.filter((p) => selectedFreeIds.has(p.id));
     if (!toDownload.length) return;
-    for (const photo of toDownload) {
-      await downloadAndShare(photo.url, `photo-${photo.id}.jpg`);
+    setDownloadingBatch(true);
+    setBatchProgress(`Saving 1 of ${toDownload.length} to Photos…`);
+    try {
+      const items = toDownload.map((photo) => ({ url: photo.url, filename: `photo-${photo.id}.jpg` }));
+      const res = await saveBatchPhotosToGallery(items, (curr, total) => {
+        setBatchProgress(`Saving ${curr} of ${total} to Photos…`);
+      });
+      if (res.saved > 0) {
+        Alert.alert(
+          'Saved to Photos',
+          `Successfully saved ${res.saved} photo${res.saved !== 1 ? 's' : ''} directly to your Photos gallery.`,
+          [{ text: 'OK' }]
+        );
+      }
+      try { await logFreeAlbumDownload(freeAlbumId, toDownload.map((p) => p.id)); } catch { /* best-effort */ }
+      setFreeAcquiredIds((prev) => {
+        const next = new Set(prev);
+        toDownload.forEach((p) => next.add(p.id));
+        return next;
+      });
+    } catch {
+      Alert.alert('Download Error', 'Some photos could not be saved to Photos. Please check permissions.');
+    } finally {
+      setDownloadingBatch(false);
+      setBatchProgress(null);
     }
-    try { await logFreeAlbumDownload(freeAlbumId, toDownload.map((p) => p.id)); } catch { /* best-effort */ }
-    setFreeAcquiredIds((prev) => {
-      const next = new Set(prev);
-      toDownload.forEach((p) => next.add(p.id));
-      return next;
-    });
   };
 
   const handleFreeDownload = async () => {
@@ -597,37 +799,145 @@ export function FindMyPhotos() {
     );
   };
 
-  // ─── Purchase flow (paid albums + face-results) ────────────────────────────
-  //
-  // Purchases are completed on connekyt.com — the app never collects buyer
-  // details or payment methods. The Buy buttons that call this are gated on
-  // digitalPurchasesEnabled (and the guard is repeated here). Once paid on
-  // the web, the buyer returns and uses "Already paid? Unlock" (email or
-  // unlock code) to download.
-  const openPurchaseFor = (photos: (AlbumPhotoItem | FoundPhoto)[], _forAlbumId: string) => {
-    if (!digitalPurchasesEnabled) return;
+  // ─── In-App Purchase Flow (paid albums + face-results) ───────────────────
+  const openPurchaseFor = (photos: (AlbumPhotoItem | FoundPhoto)[], defaultAlbumId?: string) => {
     const payable = photos.filter((p) => !p.isPurchased && (p.price ?? 0) > 0);
     if (!payable.length) {
       setPurchaseNotice('You already own all selected photos.');
       return;
     }
-    // The web find-my-photos page is keyed by the album's invite/access code
-    // — the code the user typed to open this gallery. Face-search results can
-    // span albums the user has no code for; those land on the public
-    // marketplace instead.
-    const accessCode = code.trim();
-    setPurchaseNotice('Complete your purchase on connekyt.com, then come back and tap "Already paid? Unlock".');
-    void openWebCheckout(accessCode ? albumPurchaseUrl(accessCode) : browsePhotosUrl());
+
+    const groups = new Map<string, { ids: string[]; total: number; currency: string }>();
+    for (const p of payable) {
+      const aId =
+        (p as AlbumPhotoItem).albumId ??
+        (p as FoundPhoto).albumId ??
+        defaultAlbumId ??
+        albumId ??
+        'album';
+      const cur =
+        (p as AlbumPhotoItem).currencyAbbreviation ??
+        (p as FoundPhoto).currency ??
+        albumCurrencyAbbr ??
+        'RWF';
+      const g = groups.get(aId) || { ids: [], total: 0, currency: cur };
+      g.ids.push(p.id as string);
+      g.total += Number(p.price || 0);
+      groups.set(aId, g);
+    }
+
+    const items: MultiAlbumPurchaseItem[] = Array.from(groups.entries()).map(([aId, g]) => ({
+      albumId: aId,
+      photoIds: g.ids,
+      amount: g.total,
+      currencyId: g.currency,
+    }));
+
+    const totalAmount = payable.reduce((s, p) => s + (p.price ?? 0), 0);
+    const sym =
+      (payable[0] as AlbumPhotoItem).currencyAbbreviation ??
+      (payable[0] as FoundPhoto).currency ??
+      albumCurrencyAbbr ??
+      '';
+
+    setCheckoutItems(items);
+    setCheckoutPhotoCount(payable.length);
+    setCheckoutPhotographerCount(items.length);
+    setCheckoutCurrencySym(sym ? `${sym} ` : '$');
+    setCheckoutTotal(totalAmount);
+    setCheckoutPendingPhotoIds(payable.map((p) => p.id as string));
+    setCheckoutVisible(true);
+  };
+
+  const handleInAppPurchaseSuccess = (
+    refid: string,
+    unlockCodeResult: string | null,
+    purchasedPhotoIds: string[],
+  ) => {
+    const ids = purchasedPhotoIds.length ? purchasedPhotoIds : checkoutPendingPhotoIds;
+    const owned = new Set(ids);
+
+    setAlbumPhotos((prev) =>
+      prev?.map((p) => (owned.has(p.id) ? { ...p, isPurchased: true } : p)) ?? prev,
+    );
+    setFaceResults((prev) =>
+      prev?.map((p) => (owned.has(p.id as string) ? { ...p, isPurchased: true } : p)) ?? prev,
+    );
+
+    setPurchaseRefid(refid);
+    if (unlockCodeResult) {
+      setUnlockIdentifier(unlockCodeResult);
+    }
+
+    setPurchaseNotice(
+      `Purchase successful! Unlocked ${ids.length} photo${ids.length !== 1 ? 's' : ''}. Tap to download.`,
+    );
+
+    setSelectedAlbumIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+    setSelectedResultIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+
+    setCheckoutVisible(false);
   };
 
   const handleDownloadPurchased = async (photo: AlbumPhotoItem | FoundPhoto) => {
-    const aId = (photo as AlbumPhotoItem).albumId ?? albumId;
+    const aId = (photo as AlbumPhotoItem).albumId ?? (photo as FoundPhoto).albumId ?? albumId;
     if (!aId) return;
     const url = getPhotoDownloadUrl(aId, photo.id as string, {
       refid: purchaseRefid ?? undefined,
       buyerId: buyerId ?? undefined,
     });
     await downloadAndShare(url, `photo-${photo.id}.jpg`);
+  };
+
+  const handleBatchDownload = async (photos: (AlbumPhotoItem | FoundPhoto)[]) => {
+    const toDownload = photos.filter((p) => p.isPurchased);
+    if (!toDownload.length) return;
+
+    setDownloadingBatch(true);
+    try {
+      const items = toDownload
+        .map((photo) => {
+          const aId =
+            (photo as AlbumPhotoItem).albumId ??
+            (photo as FoundPhoto).albumId ??
+            albumId;
+          if (!aId) return null;
+          const url = getPhotoDownloadUrl(aId, photo.id as string, {
+            refid: purchaseRefid ?? undefined,
+            buyerId: buyerId ?? undefined,
+          });
+          return { url, filename: `photo-${photo.id}.jpg` };
+        })
+        .filter((i): i is { url: string; filename: string } => i !== null);
+
+      const res = await saveBatchPhotosToGallery(items, (curr, total) => {
+        setBatchProgress(`Saving ${curr} of ${total} to Photos…`);
+      });
+
+      if (res.saved > 0) {
+        Alert.alert(
+          'Saved to Photos',
+          `Successfully saved ${res.saved} high-resolution photo${res.saved > 1 ? 's' : ''} directly to your device gallery.`,
+          [{ text: 'OK' }]
+        );
+        setPurchaseNotice(`Saved ${res.saved} photo${res.saved !== 1 ? 's' : ''} to Photos.`);
+      } else {
+        setPurchaseNotice('Could not save photos. Please verify your photo permissions.');
+      }
+    } catch {
+      setPurchaseNotice('Some photos could not be saved. Please try again.');
+    } finally {
+      setDownloadingBatch(false);
+      setBatchProgress(null);
+    }
   };
 
   // ─── Unlock ───────────────────────────────────────────────────────────────
@@ -718,23 +1028,22 @@ export function FindMyPhotos() {
     return reportContent('PHOTO', reportPhoto.id, reason, description);
   };
 
-  // ─── Album photo press ────────────────────────────────────────────────────
+  // ─── Album photo press & selection ────────────────────────────────────────
 
-  const handleAlbumPhotoPress = (photo: AlbumPhotoItem) => {
-    if (photo.isPurchased) {
-      handleDownloadPurchased(photo);
-      return;
-    }
-    if ((photo.price ?? 0) === 0) {
-      downloadAndShare(photo.url, `photo-${photo.id}.jpg`);
-      return;
-    }
-    // Toggle selection
+  const toggleAlbumSelect = (id: string) => {
     setSelectedAlbumIds((prev) => {
       const next = new Set(prev);
-      next.has(photo.id) ? next.delete(photo.id) : next.add(photo.id);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  const handleAlbumPhotoPress = (photo: AlbumPhotoItem) => {
+    if (selectedAlbumIds.size > 0) {
+      toggleAlbumSelect(photo.id);
+    } else {
+      setPreviewPhoto(photo);
+    }
   };
 
   const handleAlbumBulkBuy = () => {
@@ -743,22 +1052,22 @@ export function FindMyPhotos() {
     openPurchaseFor(chosen, albumId);
   };
 
-  // ─── Face result press ────────────────────────────────────────────────────
+  // ─── Face result press & selection ────────────────────────────────────────
 
-  const handleResultPhotoPress = (photo: FoundPhoto) => {
-    if (photo.isPurchased && photo.albumId) {
-      handleDownloadPurchased(photo);
-      return;
-    }
-    if ((photo.price ?? 0) === 0 && photo.url) {
-      downloadAndShare(photo.url, `photo-${photo.id}.jpg`);
-      return;
-    }
+  const toggleResultSelect = (id: string) => {
     setSelectedResultIds((prev) => {
       const next = new Set(prev);
-      next.has(photo.id as string) ? next.delete(photo.id as string) : next.add(photo.id as string);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  const handleResultPhotoPress = (photo: FoundPhoto) => {
+    if (selectedResultIds.size > 0) {
+      toggleResultSelect(photo.id as string);
+    } else {
+      setPreviewPhoto(photo);
+    }
   };
 
   const handleResultBulkBuy = () => {
@@ -773,28 +1082,19 @@ export function FindMyPhotos() {
   // ─── Render: Connect screen ───────────────────────────────────────────────
 
   const renderConnect = () => (
-    <LinearGradient
-      colors={['rgba(5,32,71,0.98)', 'rgba(16,62,131,0.95)']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.webContainer}
-    >
-      {/* Badge + hero (compact: title + one-line lead, drops the
-          redundant "Facial Recognition Scan" sub-heading that repeated
-          everything the hero already said). */}
-      <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+    <View style={styles.flatContainer}>
+      {/* Badge + hero */}
+      <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
         <View style={styles.badgeWrap}>
           <Text style={styles.badgeText}>FACE RECOGNITION</Text>
         </View>
-        <Text style={styles.heroTitle}>
-          Find <Text style={{ color: '#FF6B6B' }}>Your Photos</Text>
-        </Text>
+        <Text style={styles.heroTitle}>Find Your Photos</Text>
         <Text style={styles.lead}>
-          Snap a selfie or paste an invite code, and we&apos;ll find every photo you appear in.
+          Take a selfie or upload a photo to instantly find every photo you appear in.
         </Text>
       </View>
 
-      {/* Scanning animation */}
+      {/* Scanning animation - clean solid bar, NO gradients */}
       {searching && selfie ? (
         <View style={styles.scanningWrap}>
           <View style={styles.scanningCircleWrap}>
@@ -808,12 +1108,7 @@ export function FindMyPhotos() {
                   { transform: [{ translateY: scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 137] }) }] },
                 ]}
               >
-                <LinearGradient
-                  colors={['transparent', '#FF6B6B', '#FFFFFF', '#FF6B6B', 'transparent']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                />
+                <View style={[styles.scanLineBar, { backgroundColor: colors.accent }]} />
               </Animated.View>
             </View>
             <Animated.View
@@ -821,14 +1116,37 @@ export function FindMyPhotos() {
               style={[
                 styles.scanPulseRing,
                 {
-                  opacity: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }),
+                  opacity: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.9] }),
                   transform: [{ scale: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) }],
                 },
               ]}
             />
           </View>
-          <Text style={styles.scanningTitle}>Scanning...</Text>
-          <Text style={styles.scanningSubText}>Matching your face across event photos</Text>
+
+          {/* Progress bar + percentage counting to 100% */}
+          <View style={styles.progressBarTrack}>
+            <View style={[styles.progressBarFill, { width: `${Math.min(100, Math.max(0, scanProgress))}%` }]} />
+          </View>
+          <Text style={styles.progressPercentText}>{Math.round(scanProgress)}%</Text>
+
+          <Text style={styles.scanningTitle}>
+            {scanProgress < 25
+              ? 'Uploading photo...'
+              : scanProgress < 65
+                ? 'Analyzing facial features...'
+                : scanProgress < 95
+                  ? (code.trim() ? `Scanning album ${code.trim()}...` : 'Scanning event galleries...')
+                  : 'Matching your photos...'}
+          </Text>
+          <Text style={styles.scanningSubText}>
+            {scanProgress < 25
+              ? 'Preparing your photo for secure AI lookup'
+              : scanProgress < 65
+                ? 'Detecting landmarks and facial geometry'
+                : scanProgress < 95
+                  ? (code.trim() ? 'Searching photos in this event' : 'Comparing face embeddings across galleries')
+                  : 'Almost done, ranking your best matches'}
+          </Text>
         </View>
 
       /* Selfie ready state */
@@ -837,7 +1155,10 @@ export function FindMyPhotos() {
           <View style={styles.selfiePreviewCircle}>
             <Image source={{ uri: selfie.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
           </View>
-          <Text style={styles.selfieReadyText}>Photo ready for scan</Text>
+          <View style={styles.selfieReadyPill}>
+            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+            <Text style={styles.selfieReadyText}>Photo ready to scan</Text>
+          </View>
           <Pressable
             onPress={() => { setSelfie(null); setActiveOption(null); setFaceResults(null); setSearchError(null); }}
             style={styles.changeSelfieBtn}
@@ -850,52 +1171,73 @@ export function FindMyPhotos() {
       ) : (
         <View style={styles.webPickOptions}>
           <Pressable
-            style={styles.webPickCard}
+            style={({ pressed }) => [
+              styles.webPickCard,
+              activeOption === 'take' && styles.webPickCardActive,
+              pressed && styles.webPickCardPressed,
+            ]}
             onPress={() => onPick(takeSelfie, 'take')}
           >
-            <View style={[styles.webIconWrap, { backgroundColor: 'rgba(255,107,107,0.15)' }]}>
-              <Ionicons name="camera-outline" size={26} color="#FF6B6B" />
+            <View style={[styles.webIconWrap, { backgroundColor: colors.tint }]}>
+              <Ionicons name="camera-outline" size={26} color={colors.primary} />
             </View>
             <Text style={styles.webPickTitle}>Take Selfie</Text>
             <Text style={styles.webPickSub}>Use camera</Text>
           </Pressable>
 
           <Pressable
-            style={styles.webPickCard}
+            style={({ pressed }) => [
+              styles.webPickCard,
+              activeOption === 'upload' && styles.webPickCardActive,
+              pressed && styles.webPickCardPressed,
+            ]}
             onPress={() => onPick(pickFromLibrary, 'upload')}
           >
-            <View style={[styles.webIconWrap, { backgroundColor: 'rgba(131,180,255,0.15)' }]}>
-              <Ionicons name="arrow-up-outline" size={26} color="#83B4FF" />
+            <View style={[styles.webIconWrap, { backgroundColor: colors.tintAccent }]}>
+              <Ionicons name="arrow-up-outline" size={26} color={colors.accent} />
             </View>
             <Text style={styles.webPickTitle}>Upload Photo</Text>
             <Text style={styles.webPickSub}>From gallery</Text>
           </Pressable>
 
-          <Pressable
-            style={styles.webPickCard}
-            onPress={() => router.push('/browse-photos')}
-          >
-            <View style={styles.infoBadge}>
-              <Text style={styles.infoBadgeText}>i</Text>
-            </View>
-            <View style={[styles.webIconWrap, { backgroundColor: 'rgba(242,12,143,0.15)' }]}>
-              <Ionicons name="grid-outline" size={26} color="#F20C8F" />
-            </View>
-            <Text style={styles.webPickTitle}>Browse Photos</Text>
-            <Text style={styles.webPickSub}>Stock library</Text>
-          </Pressable>
+          {Boolean(user) && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.webPickCard,
+                pressed && styles.webPickCardPressed,
+              ]}
+              onPress={() => router.push('/browse-photos')}
+            >
+              <View style={styles.infoBadge}>
+                <Text style={styles.infoBadgeText}>i</Text>
+              </View>
+              <View style={[styles.webIconWrap, { backgroundColor: colors.tint }]}>
+                <Ionicons name="grid-outline" size={26} color={colors.primary} />
+              </View>
+              <Text style={styles.webPickTitle}>Browse Photos</Text>
+              <Text style={styles.webPickSub}>Stock library</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
       {!searching && (
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.webFindBtn,
-            !selfie && { backgroundColor: 'rgba(255,255,255,0.08)' },
+            !selfie && styles.webFindBtnDisabled,
+            pressed && Boolean(selfie) && styles.webFindBtnPressed,
           ]}
           onPress={handleFindMyPhotos}
+          accessibilityRole="button"
+          accessibilityLabel="Find My Photos"
         >
-          <Text style={[styles.webFindBtnText, !selfie && { color: 'rgba(255,255,255,0.35)' }]}>
+          <Ionicons
+            name="search"
+            size={18}
+            color={!selfie ? colors.textMuted : colors.textOnPrimary}
+          />
+          <Text style={[styles.webFindBtnText, !selfie && styles.webFindBtnTextDisabled]}>
             Find My Photos
           </Text>
         </Pressable>
@@ -912,8 +1254,7 @@ export function FindMyPhotos() {
         </View>
       )}
 
-      {/* Invite code (compact: heading + single-line hint, no
-          three-divider footer that was eating space below). */}
+      {/* Invite code */}
       {!searching && (
         <>
           <Text style={styles.inviteHeading}>Have an invite code?</Text>
@@ -927,7 +1268,7 @@ export function FindMyPhotos() {
             onChangeText={(t) => { setCode(t); setAlbumError(null); }}
             autoCapitalize="characters"
             style={styles.codeInput}
-            placeholderTextColor="rgba(255,255,255,0.4)"
+            placeholderTextColor={colors.textMuted}
             returnKeyType="go"
             onSubmitEditing={handleAccessGallery}
           />
@@ -940,40 +1281,44 @@ export function FindMyPhotos() {
             disabled={albumLoading}
           >
             {albumLoading
-              ? <ActivityIndicator size="small" color="#052047" />
+              ? <ActivityIndicator size="small" color="#fff" />
               : <Text style={styles.accessBtnText}>Access Gallery</Text>}
           </Pressable>
         </>
       )}
-    </LinearGradient>
+    </View>
   );
 
   // ─── Render: Paid album grid ──────────────────────────────────────────────
 
   const renderAlbumGrid = () => {
     const photos = albumPhotos ?? [];
-    const displayedPhotos = albumFilteredIds !== null
+    const allFiltered = albumFilteredIds !== null
       ? photos.filter((p) => albumFilteredIds!.has(p.id))
       : photos;
+    const displayedPhotos = allFiltered.slice(0, visibleAlbumCount);
+    const hasMoreAlbumPhotos = allFiltered.length > visibleAlbumCount;
     const selectedUnpurchased = photos.filter(
       (p) => selectedAlbumIds.has(p.id) && !p.isPurchased && (p.price ?? 0) > 0
     );
     const selectedPurchased = photos.filter(
       (p) => selectedAlbumIds.has(p.id) && p.isPurchased
     );
+    const allPurchased = photos.filter((p) => p.isPurchased);
+    const unpurchasedInAlbum = photos.filter((p) => !p.isPurchased && (p.price ?? 0) > 0);
 
     return (
       <View style={{ flex: 1 }}>
         {/* Album header */}
         <View style={styles.albumHeader}>
           <View style={styles.albumBadge}>
-            <Ionicons name="camera" size={11} color="#F20C8F" />
+            <Ionicons name="camera" size={11} color={colors.primary} />
             <Text style={styles.albumBadgeText}>PHOTO ALBUM</Text>
           </View>
           <Text style={styles.albumTitle}>{albumTitle || 'Event Album'}</Text>
           {albumPhotographerName ? (
             <Text style={styles.albumSub}>
-              by <Text style={{ color: '#fff', fontWeight: '700' }}>{albumPhotographerName}</Text>
+              by <Text style={{ color: colors.text, fontWeight: '700' }}>{albumPhotographerName}</Text>
             </Text>
           ) : null}
           <Text style={styles.albumCount}>
@@ -982,7 +1327,7 @@ export function FindMyPhotos() {
               : `${photos.length} photo${photos.length !== 1 ? 's' : ''}`}
           </Text>
           <Text style={styles.albumHint}>
-            Tap photos to select · Tap a purchased photo to download · Long-press to report
+            Tap photos to select · Tap ⤢ to preview full-screen · Long-press to report
           </Text>
 
           <View style={styles.albumActionRow}>
@@ -1013,6 +1358,56 @@ export function FindMyPhotos() {
               <Text style={styles.unlockPillBtnText}>Already paid? Unlock</Text>
             </Pressable>
           </View>
+
+          {/* Quick Shortcuts: Download All Owned / Select All Unpurchased */}
+          <View style={styles.quickShortcutsRow}>
+            {allPurchased.length > 0 && (
+              <Pressable
+                style={styles.batchDownloadBtn}
+                onPress={() => handleBatchDownload(allPurchased)}
+                disabled={downloadingBatch}
+              >
+                {downloadingBatch ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Ionicons name="cloud-download-outline" size={14} color="#FFF" />
+                )}
+                <Text style={styles.batchDownloadBtnText}>
+                  {downloadingBatch
+                    ? (batchProgress || 'Downloading…')
+                    : `Download All Owned (${allPurchased.length})`}
+                </Text>
+              </Pressable>
+            )}
+
+            {unpurchasedInAlbum.length > 0 && (
+              <Pressable
+                style={styles.shortcutBtn}
+                onPress={() => {
+                  if (selectedAlbumIds.size === unpurchasedInAlbum.length) {
+                    setSelectedAlbumIds(new Set());
+                  } else {
+                    setSelectedAlbumIds(new Set(unpurchasedInAlbum.map((p) => p.id)));
+                  }
+                }}
+              >
+                <Ionicons
+                  name={
+                    selectedAlbumIds.size === unpurchasedInAlbum.length
+                      ? 'close-circle-outline'
+                      : 'checkbox-outline'
+                  }
+                  size={14}
+                  color={colors.primary}
+                />
+                <Text style={styles.shortcutBtnText}>
+                  {selectedAlbumIds.size === unpurchasedInAlbum.length
+                    ? 'Deselect All'
+                    : `Select All (${unpurchasedInAlbum.length})`}
+                </Text>
+              </Pressable>
+            )}
+          </View>
         </View>
 
         {purchaseNotice ? (
@@ -1028,7 +1423,7 @@ export function FindMyPhotos() {
           numColumns={2}
           scrollEnabled={false}
           columnWrapperStyle={{ gap }}
-          contentContainerStyle={{ gap, paddingBottom: selectedAlbumIds.size > 0 ? 120 : 24 }}
+          contentContainerStyle={{ gap, paddingBottom: selectedAlbumIds.size > 0 ? 140 : 32 }}
           renderItem={({ item }) => (
             <PhotoCell
               uri={item.isPurchased
@@ -1039,29 +1434,79 @@ export function FindMyPhotos() {
               price={item.price}
               currency={item.currencyAbbreviation}
               selected={selectedAlbumIds.has(item.id)}
+              owned={item.isPurchased}
+              selectionMode={selectedAlbumIds.size > 0}
               onPress={() => handleAlbumPhotoPress(item)}
+              onToggleSelect={() => toggleAlbumSelect(item.id)}
+              onPreview={() => setPreviewPhoto(item)}
               onLongPress={() => onLongPressPhoto(item.id, albumPhotographerName || albumTitle)}
             />
           )}
         />
 
+        {hasMoreAlbumPhotos && (
+          <View style={styles.loadMoreContainer}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.loadMoreBtn,
+                pressed && styles.loadMoreBtnPressed,
+              ]}
+              onPress={() => setVisibleAlbumCount((prev) => prev + 24)}
+              accessibilityRole="button"
+              accessibilityLabel="Load more album photos"
+            >
+              <Ionicons name="arrow-down-circle-outline" size={18} color={colors.primary} />
+              <Text style={styles.loadMoreBtnText}>
+                Load More Photos ({displayedPhotos.length} of {allFiltered.length})
+              </Text>
+            </Pressable>
+
+            {allFiltered.length > visibleAlbumCount + 24 && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.showAllPillBtn,
+                  pressed && styles.loadMoreBtnPressed,
+                ]}
+                onPress={() => setVisibleAlbumCount(allFiltered.length)}
+                accessibilityRole="button"
+                accessibilityLabel="Show all album photos"
+              >
+                <Text style={styles.showAllPillBtnText}>Show All ({allFiltered.length})</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
         {/* Selection action bar */}
         {selectedAlbumIds.size > 0 && (
-          <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing.md }]}>
-            <Text style={styles.actionBarCount}>{selectedAlbumIds.size} selected</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) + spacing.sm }]}>
+            <View style={styles.actionBarTopRow}>
+              <Text style={styles.actionBarCount}>{selectedAlbumIds.size} photo{selectedAlbumIds.size !== 1 ? 's' : ''} selected</Text>
+              <Pressable onPress={() => setSelectedAlbumIds(new Set())} hitSlop={8}>
+                <Text style={styles.actionBarClearText}>Clear</Text>
+              </Pressable>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm, width: '100%' }}>
               {selectedPurchased.length > 0 && (
                 <Pressable
                   style={[styles.actionBarBtn, { backgroundColor: '#10B981' }]}
-                  onPress={() => selectedPurchased.forEach((p) => handleDownloadPurchased(p))}
+                  onPress={() => handleBatchDownload(selectedPurchased)}
+                  disabled={downloadingBatch}
                 >
-                  <Ionicons name="cloud-download-outline" size={16} color="#FFF" />
-                  <Text style={styles.actionBarBtnText}>Download {selectedPurchased.length}</Text>
+                  {downloadingBatch ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Ionicons name="cloud-download-outline" size={16} color="#FFF" />
+                  )}
+                  <Text style={styles.actionBarBtnText}>
+                    {downloadingBatch ? (batchProgress || 'Saving…') : `Download ${selectedPurchased.length}`}
+                  </Text>
                 </Pressable>
               )}
-              {selectedUnpurchased.length > 0 && digitalPurchasesEnabled && (
+              {selectedUnpurchased.length > 0 && (
                 <Pressable
-                  style={[styles.actionBarBtn, { backgroundColor: '#F20C8F' }]}
+                  style={[styles.actionBarBtn, { backgroundColor: colors.primary }]}
                   onPress={handleAlbumBulkBuy}
                 >
                   <Ionicons name="card-outline" size={16} color="#FFF" />
@@ -1072,9 +1517,6 @@ export function FindMyPhotos() {
                 </Pressable>
               )}
             </View>
-            <Pressable onPress={() => setSelectedAlbumIds(new Set())}>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 4 }}>Clear</Text>
-            </Pressable>
           </View>
         )}
 
@@ -1099,7 +1541,7 @@ export function FindMyPhotos() {
       {freeTitle ? <Text style={styles.albumTitle}>{freeTitle}</Text> : null}
       {freePhotographer ? (
         <Text style={styles.albumSub}>
-          by <Text style={{ color: '#fff', fontWeight: '700' }}>{freePhotographer}</Text>
+          by <Text style={{ color: colors.text, fontWeight: '700' }}>{freePhotographer}</Text>
         </Text>
       ) : null}
       <Text style={[styles.subLead, { marginTop: 16, marginBottom: 24 }]}>
@@ -1113,7 +1555,7 @@ export function FindMyPhotos() {
         keyboardType="email-address"
         autoCapitalize="none"
         style={[styles.codeInput, freeError ? { borderColor: '#EF4444' } : {}]}
-        placeholderTextColor="rgba(255,255,255,0.4)"
+        placeholderTextColor={colors.textMuted}
         returnKeyType="done"
         onSubmitEditing={handleFreeRequestAccess}
       />
@@ -1126,7 +1568,7 @@ export function FindMyPhotos() {
         disabled={freeLoading || !freeEmail.trim()}
       >
         {freeLoading
-          ? <ActivityIndicator size="small" color="#052047" />
+          ? <ActivityIndicator size="small" color="#fff" />
           : <Text style={styles.accessBtnText}>Request Access</Text>}
       </Pressable>
 
@@ -1146,7 +1588,7 @@ export function FindMyPhotos() {
       <Text style={styles.albumTitle}>Enter Verification Code</Text>
       <Text style={[styles.subLead, { marginVertical: 12 }]}>
         We sent a 6-digit code to{'\n'}
-        <Text style={{ color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>{maskEmail(freeEmail)}</Text>
+        <Text style={{ color: colors.text, fontWeight: '600' }}>{maskEmail(freeEmail)}</Text>
       </Text>
 
       <OtpInput value={freeOtp} onChange={(v) => { setFreeOtp(v); setFreeError(''); }} error={!!freeError} />
@@ -1159,14 +1601,14 @@ export function FindMyPhotos() {
         disabled={freeLoading || freeOtp.length < 6}
       >
         {freeLoading
-          ? <ActivityIndicator size="small" color="#052047" />
+          ? <ActivityIndicator size="small" color="#fff" />
           : <Text style={styles.accessBtnText}>Verify</Text>}
       </Pressable>
 
-      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, textAlign: 'center', marginTop: 16 }}>
+      <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 16 }}>
         Didn't receive it?{' '}
         <Text
-          style={{ color: '#60A5FA', textDecorationLine: 'underline' }}
+          style={{ color: colors.primary, textDecorationLine: 'underline' }}
           onPress={handleFreeResend}
         >
           Resend
@@ -1196,13 +1638,15 @@ export function FindMyPhotos() {
     // Android caps the download at the free quota, so the count on the button
     // has to be what will actually arrive — not what's selected.
     const downloadableNow = digitalPurchasesEnabled ? totalSelected : totalSelected - info.overflow;
+    const displayedFreePhotos = freePhotos.slice(0, visibleFreeCount);
+    const hasMoreFreePhotos = freePhotos.length > visibleFreeCount;
 
     return (
       <View style={{ flex: 1 }}>
         {/* Album header */}
         <View style={styles.albumHeader}>
           <View style={styles.albumBadge}>
-            <Ionicons name="camera" size={11} color="#F20C8F" />
+            <Ionicons name="camera" size={11} color={colors.primary} />
             <Text style={styles.albumBadgeText}>FREE ALBUM</Text>
           </View>
           <Text style={styles.albumTitle}>{freeTitle}</Text>
@@ -1251,13 +1695,13 @@ export function FindMyPhotos() {
           )}
 
           {freeStatusMsg ? (
-            <Text style={{ color: '#F20C8F', fontSize: 13, marginTop: 8, lineHeight: 18 }}>{freeStatusMsg}</Text>
+            <Text style={{ color: colors.primary, fontSize: 13, marginTop: 8, lineHeight: 18 }}>{freeStatusMsg}</Text>
           ) : null}
         </View>
 
         {/* Grid */}
         <FlatList
-          data={freePhotos}
+          data={displayedFreePhotos}
           keyExtractor={(p) => p.id}
           numColumns={2}
           scrollEnabled={false}
@@ -1266,25 +1710,81 @@ export function FindMyPhotos() {
           renderItem={({ item }) => {
             const owned = freeAcquiredIds.has(item.id);
             const selected = selectedFreeIds.has(item.id);
-            return (
-              <PhotoCell
-                uri={owned
-                  ? item.thumbnailUrl
-                  : stampPreviewUrl(item.thumbnailUrl, viewerId)}
-                size={cell}
-                owned={owned}
-                selected={selected && !owned}
-                watermarkText={isCapped && !owned ? `PREVIEW · ${freePhotographer || 'PHOTOGRAPHER'}` : undefined}
-                onPress={() => toggleFreePhoto(item.id)}
-                onLongPress={() => onLongPressPhoto(item.id, freePhotographer || freeTitle)}
-              />
-            );
-          }}
-        />
+              return (
+                <PhotoCell
+                  uri={owned
+                    ? item.thumbnailUrl
+                    : stampPreviewUrl(item.thumbnailUrl, viewerId)}
+                  size={cell}
+                  owned={owned}
+                  selected={selected && !owned}
+                  watermarkText={isCapped && !owned ? `PREVIEW · ${freePhotographer || 'PHOTOGRAPHER'}` : undefined}
+                  selectionMode={totalSelected > 0}
+                  onPress={() => {
+                    if (totalSelected > 0) {
+                      toggleFreePhoto(item.id);
+                    } else {
+                      setPreviewPhoto({
+                        ...item,
+                        isPurchased: owned,
+                        price: 0,
+                        photographerName: freePhotographer,
+                        eventTitle: freeTitle,
+                      });
+                    }
+                  }}
+                  onToggleSelect={() => toggleFreePhoto(item.id)}
+                  onPreview={() =>
+                    setPreviewPhoto({
+                      ...item,
+                      isPurchased: owned,
+                      price: 0,
+                      photographerName: freePhotographer,
+                      eventTitle: freeTitle,
+                    })
+                  }
+                  onLongPress={() => onLongPressPhoto(item.id, freePhotographer || freeTitle)}
+                />
+              );
+            }}
+          />
+
+        {hasMoreFreePhotos && (
+          <View style={styles.loadMoreContainer}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.loadMoreBtn,
+                pressed && styles.loadMoreBtnPressed,
+              ]}
+              onPress={() => setVisibleFreeCount((prev) => prev + 24)}
+              accessibilityRole="button"
+              accessibilityLabel="Load more free photos"
+            >
+              <Ionicons name="arrow-down-circle-outline" size={18} color={colors.primary} />
+              <Text style={styles.loadMoreBtnText}>
+                Load More Photos ({displayedFreePhotos.length} of {freePhotos.length})
+              </Text>
+            </Pressable>
+
+            {freePhotos.length > visibleFreeCount + 24 && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.showAllPillBtn,
+                  pressed && styles.loadMoreBtnPressed,
+                ]}
+                onPress={() => setVisibleFreeCount(freePhotos.length)}
+                accessibilityRole="button"
+                accessibilityLabel="Show all free photos"
+              >
+                <Text style={styles.showAllPillBtnText}>Show All ({freePhotos.length})</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {/* Bottom action bar */}
         {totalSelected > 0 && (
-          <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing.md }]}>
+          <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) + spacing.sm }]}>
             <Text style={styles.actionBarCount}>{totalSelected} selected</Text>
             <Pressable
               style={[
@@ -1328,9 +1828,21 @@ export function FindMyPhotos() {
       return (
         <EmptyState
           icon="images-outline"
-          title="No Matches Found"
-          message="We couldn't find you in any event photos. Make sure your face is clearly visible and try again."
-          action={{ label: 'Try Again', onPress: () => { setFaceResults(null); setSelfie(null); setActiveOption(null); } }}
+          title="No Matching Photos Found"
+          message={
+            code.trim()
+              ? `We couldn't find your face in album "${code.trim()}". Make sure your face is clearly visible, well-lit, and try again.`
+              : "We couldn't find your face in any published galleries. Make sure your face is clearly visible, well-lit, and try again."
+          }
+          action={{
+            label: 'Try Again',
+            onPress: () => {
+              setFaceResults(null);
+              setSelfie(null);
+              setActiveOption(null);
+              setSearchError(null);
+            },
+          }}
         />
       );
     }
@@ -1341,14 +1853,119 @@ export function FindMyPhotos() {
     const selectedPurchased = results.filter(
       (p) => selectedResultIds.has(p.id as string) && p.isPurchased
     );
+    const allPurchased = results.filter((p) => p.isPurchased);
+    const unpurchasedInResults = results.filter((p) => !p.isPurchased && (p.price ?? 0) > 0);
+    const isSelectionMode = selectedResultIds.size > 0;
+    const selectedUnpurchasedTotal = selectedUnpurchased.reduce((sum, p) => sum + (p.price ?? 0), 0);
+    const resultCurrency = selectedUnpurchased[0]?.currency;
+    const targetAlbumId = results.find((p) => p.albumId)?.albumId || albumId || null;
+    const displayedResults = results.slice(0, visibleResultsCount);
+    const hasMoreResults = results.length > visibleResultsCount;
 
     return (
       <View style={{ flex: 1 }}>
         <View style={styles.albumHeader}>
-          <Text style={styles.albumTitle}>{results.length} Match{results.length !== 1 ? 'es' : ''} Found</Text>
-          <Text style={styles.albumHint}>
-            Tap photos to select · Purchased photos can be downloaded · Long-press to report
+          <View style={styles.albumBadge}>
+            <Text style={styles.albumBadgeText}>MATCHES FOUND</Text>
+          </View>
+          <Text style={styles.albumTitle}>
+            {results.length} Photo{results.length !== 1 ? 's' : ''} Found
           </Text>
+          <Text style={styles.albumHint}>
+            {isSelectionMode
+              ? `${selectedResultIds.size} of ${results.length} selected`
+              : hasMoreResults
+              ? `Showing ${displayedResults.length} of ${results.length} photos · Tap to preview or select`
+              : 'Tap a photo to preview, or tap the checkbox to select'}
+          </Text>
+
+          {/* Top Actions: Search with another photo & Unlock with code */}
+          <View style={styles.resultsActionsRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.resultsActionBtn,
+                pressed && styles.resultsActionBtnPressed,
+              ]}
+              onPress={() => {
+                setFaceResults(null);
+                setSelfie(null);
+                setActiveOption(null);
+                setSearchError(null);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Search with Another Photo"
+            >
+              <Ionicons name="camera-reverse-outline" size={15} color={colors.primary} />
+              <Text style={styles.resultsActionBtnText}>Search with Another Photo</Text>
+            </Pressable>
+
+            {targetAlbumId ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.resultsActionBtn,
+                  pressed && styles.resultsActionBtnPressed,
+                ]}
+                onPress={() => openUnlock(targetAlbumId)}
+                accessibilityRole="button"
+                accessibilityLabel="Unlock with Code"
+              >
+                <Ionicons name="key-outline" size={15} color={colors.primary} />
+                <Text style={styles.resultsActionBtnText}>Unlock with Code</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* Quick Shortcuts: Download All Owned / Select All Unpurchased */}
+          {(allPurchased.length > 0 || unpurchasedInResults.length > 0) && (
+            <View style={styles.quickShortcutsRow}>
+              {allPurchased.length > 0 && (
+                <Pressable
+                  style={styles.batchDownloadBtn}
+                  onPress={() => handleBatchDownload(allPurchased)}
+                  disabled={downloadingBatch}
+                >
+                  {downloadingBatch ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Ionicons name="cloud-download-outline" size={15} color="#FFF" />
+                  )}
+                  <Text style={styles.batchDownloadBtnText}>
+                    {downloadingBatch
+                      ? (batchProgress || 'Downloading…')
+                      : `Download All Owned (${allPurchased.length})`}
+                  </Text>
+                </Pressable>
+              )}
+
+              {unpurchasedInResults.length > 0 && (
+                <Pressable
+                  style={styles.shortcutBtn}
+                  onPress={() => {
+                    if (selectedResultIds.size === unpurchasedInResults.length) {
+                      setSelectedResultIds(new Set());
+                    } else {
+                      setSelectedResultIds(new Set(unpurchasedInResults.map((p) => p.id as string)));
+                    }
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      selectedResultIds.size === unpurchasedInResults.length
+                        ? 'close-circle-outline'
+                        : 'checkbox-outline'
+                    }
+                    size={15}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.shortcutBtnText}>
+                    {selectedResultIds.size === unpurchasedInResults.length
+                      ? 'Deselect All'
+                      : `Select All (${unpurchasedInResults.length})`}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          )}
         </View>
 
         {purchaseNotice ? (
@@ -1358,12 +1975,12 @@ export function FindMyPhotos() {
         ) : null}
 
         <FlatList
-          data={results}
+          data={displayedResults}
           keyExtractor={(p) => p.id as string}
           numColumns={2}
           scrollEnabled={false}
           columnWrapperStyle={{ gap }}
-          contentContainerStyle={{ gap, paddingBottom: selectedResultIds.size > 0 ? 120 : 24 }}
+          contentContainerStyle={{ gap, paddingBottom: hasMoreResults ? 12 : (isSelectionMode ? 140 : 32) }}
           renderItem={({ item }) => (
             <PhotoCell
               uri={item.isPurchased
@@ -1375,52 +1992,103 @@ export function FindMyPhotos() {
               currency={item.currency}
               eventTitle={item.eventTitle}
               selected={selectedResultIds.has(item.id as string)}
+              owned={item.isPurchased}
+              selectionMode={isSelectionMode}
               onPress={() => handleResultPhotoPress(item)}
+              onToggleSelect={() => toggleResultSelect(item.id as string)}
+              onPreview={() => setPreviewPhoto(item)}
               onLongPress={() => onLongPressPhoto(item.id as string, item.photographerName || item.eventTitle)}
             />
           )}
         />
 
-        {/* Selection bar */}
-        {selectedResultIds.size > 0 && (
-          <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing.md }]}>
-            <Text style={styles.actionBarCount}>{selectedResultIds.size} selected</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              {selectedPurchased.length > 0 && (
-                <Pressable
-                  style={[styles.actionBarBtn, { backgroundColor: '#10B981' }]}
-                  onPress={() => selectedPurchased.forEach((p) => handleDownloadPurchased(p))}
-                >
-                  <Ionicons name="cloud-download-outline" size={16} color="#FFF" />
-                  <Text style={styles.actionBarBtnText}>Download {selectedPurchased.length}</Text>
-                </Pressable>
-              )}
-              {selectedUnpurchased.length > 0 && digitalPurchasesEnabled && (
-                <Pressable
-                  style={[styles.actionBarBtn, { backgroundColor: '#F20C8F' }]}
-                  onPress={handleResultBulkBuy}
-                >
-                  <Ionicons name="card-outline" size={16} color="#FFF" />
-                  <Text style={styles.actionBarBtnText}>Buy {selectedUnpurchased.length}</Text>
-                </Pressable>
-              )}
-            </View>
-            <Pressable onPress={() => setSelectedResultIds(new Set())}>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 4 }}>Clear</Text>
+        {/* Progressive Load More Pagination */}
+        {hasMoreResults && (
+          <View
+            style={[
+              styles.loadMoreContainer,
+              { paddingBottom: isSelectionMode ? 120 : spacing.xl },
+            ]}
+          >
+            <Pressable
+              style={({ pressed }) => [
+                styles.loadMoreBtn,
+                pressed && styles.loadMoreBtnPressed,
+              ]}
+              onPress={() =>
+                setVisibleResultsCount((prev) => Math.min(results.length, prev + 16))
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Load more photos"
+            >
+              <Ionicons name="arrow-down-circle-outline" size={18} color={colors.primary} />
+              <Text style={styles.loadMoreBtnText}>
+                Load More Photos ({displayedResults.length} of {results.length})
+              </Text>
             </Pressable>
+
+            {results.length > visibleResultsCount + 16 && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.showAllPillBtn,
+                  pressed && styles.loadMoreBtnPressed,
+                ]}
+                onPress={() => setVisibleResultsCount(results.length)}
+                accessibilityRole="button"
+                accessibilityLabel="Show all photos"
+              >
+                <Text style={styles.showAllPillBtnText}>Show All ({results.length})</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingBottom: spacing.xl }}>
-          <Pressable onPress={() => { setFaceResults(null); setSelfie(null); setActiveOption(null); }}>
-            <Text style={styles.ghostLink}>Search Again</Text>
-          </Pressable>
-          {results[0]?.albumId && (
-            <Pressable onPress={() => openUnlock(results[0].albumId)}>
-              <Text style={styles.ghostLink}>Got an unlock code?</Text>
-            </Pressable>
-          )}
-        </View>
+        {/* Selection bar */}
+        {isSelectionMode && (
+          <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) + spacing.sm }]}>
+            <View style={styles.actionBarTopRow}>
+              <Text style={styles.actionBarCount}>
+                {selectedResultIds.size} photo{selectedResultIds.size !== 1 ? 's' : ''} selected
+              </Text>
+              <Pressable onPress={() => setSelectedResultIds(new Set())} hitSlop={8}>
+                <Text style={styles.actionBarClearText}>Clear</Text>
+              </Pressable>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm, width: '100%' }}>
+              {selectedPurchased.length > 0 && (
+                <Pressable
+                  style={[styles.actionBarBtn, { backgroundColor: '#10B981' }]}
+                  onPress={() => handleBatchDownload(selectedPurchased)}
+                  disabled={downloadingBatch}
+                >
+                  {downloadingBatch ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Ionicons name="cloud-download-outline" size={16} color="#FFF" />
+                  )}
+                  <Text style={styles.actionBarBtnText}>
+                    {downloadingBatch ? (batchProgress || 'Saving…') : `Download ${selectedPurchased.length}`}
+                  </Text>
+                </Pressable>
+              )}
+              {selectedUnpurchased.length > 0 && (
+                <Pressable
+                  style={[styles.actionBarBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleResultBulkBuy}
+                >
+                  <Ionicons name="card-outline" size={16} color="#FFF" />
+                  <Text style={styles.actionBarBtnText}>
+                    Buy {selectedUnpurchased.length}
+                    {selectedUnpurchasedTotal > 0
+                      ? ` · ${formatMoney(selectedUnpurchasedTotal, resultCurrency)}`
+                      : ''}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -1434,33 +2102,49 @@ export function FindMyPhotos() {
   const showConnect = !showFreeFlow && !showAlbum && !showFaceResults;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#052047' }}>
-      <Stack.Screen
-        options={{
-          title: 'Find My Photos',
-          headerLeft: () => (
-            <Pressable
-              onPress={() => {
-                if (showFaceResults) { setFaceResults(null); setSelfie(null); }
-                else if (showAlbum) { setAlbumPhotos(null); }
-                else if (showFreeFlow) { setFreeFlow('idle'); }
-                else if (router.canGoBack()) router.back();
-                else router.replace('/');
-              }}
-              style={{ marginLeft: 8, padding: 8 }}
-            >
-              <Ionicons name="chevron-back" size={28} color="#FFF" />
-            </Pressable>
-          ),
-        }}
-      />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <LinearGradient
-        colors={['#052047', '#052047', '#103E83']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+      {/* Top Bar in head — full-width rounded bar */}
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
+        <View style={styles.topBarPill}>
+          <Pressable
+            onPress={() => {
+              if (showFaceResults) { setFaceResults(null); setSelfie(null); }
+              else if (showAlbum) { setAlbumPhotos(null); }
+              else if (showFreeFlow) { setFreeFlow('idle'); }
+              else if (router.canGoBack()) router.back();
+              else router.replace('/');
+            }}
+            hitSlop={12}
+            style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel={showFaceResults || showAlbum || showFreeFlow ? 'Back' : 'Go back'}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </Pressable>
+
+          <View style={styles.topBarPillCenter}>
+            <Text style={styles.topBarPillText}>Find My Photos</Text>
+          </View>
+
+          <View style={styles.topBarSpacer} />
+        </View>
+      </View>
+
+      {/* Floating Batch Download Progress Pill */}
+      {downloadingBatch && batchProgress ? (
+        <View
+          style={[
+            styles.floatingProgressBanner,
+            { top: Math.max(insets.top + 60, 68) },
+          ]}
+          accessibilityLiveRegion="polite"
+        >
+          <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.floatingProgressText}>{batchProgress}</Text>
+        </View>
+      ) : null}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -1471,7 +2155,7 @@ export function FindMyPhotos() {
           contentContainerStyle={[
             styles.scroll,
             {
-              paddingTop: insets.top + spacing.sm,
+              paddingTop: spacing.md,
               paddingBottom: Math.max(insets.bottom + spacing.lg, 60),
             },
           ]}
@@ -1487,6 +2171,56 @@ export function FindMyPhotos() {
           {showConnect && renderConnect()}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Clean Customized No Matches Modal ── */}
+      <Modal
+        visible={noMatchesOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoMatchesOpen(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setNoMatchesOpen(false)}
+        >
+          <Pressable
+            style={[styles.modalContent, styles.customModalCard]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Pressable
+              onPress={() => setNoMatchesOpen(false)}
+              style={({ pressed }) => [styles.customModalClose, pressed && styles.customModalClosePressed]}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+            </Pressable>
+
+            <View style={styles.customModalIconWrap}>
+              <Ionicons name="search-outline" size={28} color={colors.primary} />
+            </View>
+
+            <Text style={styles.customModalTitle}>No Photos Found</Text>
+
+            <Text style={styles.customModalMessage}>
+              We couldn&apos;t find any photos matching your selfie. Please try again with another photo or different lighting.
+            </Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.customModalBtn,
+                pressed && styles.customModalBtnPressed,
+              ]}
+              onPress={() => setNoMatchesOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Try Again"
+            >
+              <Text style={styles.customModalBtnText}>Try Again</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* ── Unlock Modal ── */}
       <Modal visible={unlockOpen} transparent animationType="slide">
@@ -1534,6 +2268,224 @@ export function FindMyPhotos() {
         subject={reportPhoto?.subject}
         submit={submitPhotoReport}
       />
+
+      {/* ── In-App Photo Checkout Sheet ── */}
+      <PhotoCheckoutSheet
+        visible={checkoutVisible}
+        onClose={() => setCheckoutVisible(false)}
+        items={checkoutItems}
+        photoCount={checkoutPhotoCount}
+        photographerCount={checkoutPhotographerCount}
+        currencySym={checkoutCurrencySym}
+        total={checkoutTotal}
+        onSuccess={handleInAppPurchaseSuccess}
+      />
+
+      {/* ── Full-Screen Watermarked Lightbox Modal ── */}
+      <Modal
+        visible={!!previewPhoto}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewPhoto(null)}
+      >
+        <View style={styles.lightboxContainer}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPreviewPhoto(null)} />
+          <View
+            style={[
+              styles.lightboxContent,
+              { marginTop: Math.max(insets.top, 16), marginBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
+            {/* Lightbox Header: Report and Close buttons */}
+            <View style={styles.lightboxHeader}>
+              <Pressable
+                onPress={() => {
+                  const target = previewPhoto;
+                  setPreviewPhoto(null);
+                  if (target) {
+                    onLongPressPhoto(
+                      target.id as string,
+                      (target as FoundPhoto).photographerName || albumPhotographerName || albumTitle,
+                    );
+                  }
+                }}
+                style={styles.lightboxIconBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Report photo"
+                hitSlop={8}
+              >
+                <Ionicons name="flag-outline" size={20} color="#FFF" />
+              </Pressable>
+              <Pressable
+                onPress={() => setPreviewPhoto(null)}
+                style={styles.lightboxIconBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close preview"
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={26} color="#FFF" />
+              </Pressable>
+            </View>
+
+            {/* Lightbox Image Preview with Watermark or Owned badge */}
+            {previewPhoto && (
+              <View style={styles.lightboxImageContainer}>
+                <Image
+                  source={{
+                    uri: previewPhoto.isPurchased
+                      ? (previewPhoto.thumbnailUrl || (previewPhoto as any).url)
+                      : stampPreviewUrl(previewPhoto.thumbnailUrl || (previewPhoto as any).url, viewerId),
+                  }}
+                  style={styles.lightboxImage}
+                  contentFit="contain"
+                  transition={200}
+                />
+
+                {!previewPhoto.isPurchased && (
+                  <View style={styles.lightboxWatermarkOverlay} pointerEvents="none">
+                    <View style={styles.watermarkPatternGrid}>
+                      {WATERMARK_ROWS.map((rowIndex) => (
+                        <View
+                          key={rowIndex}
+                          style={[
+                            styles.watermarkPatternRow,
+                            { marginLeft: rowIndex % 2 === 0 ? -30 : -110 },
+                          ]}
+                        >
+                          {WATERMARK_COLS.map((colIndex) => (
+                            <Text key={colIndex} style={styles.watermarkPatternText}>
+                              CONNEKYT PREVIEW
+                            </Text>
+                          ))}
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {previewPhoto.isPurchased && (
+                  <View style={styles.lightboxOwnedPill}>
+                    <Ionicons name="checkmark-circle" size={15} color="#10B981" />
+                    <Text style={styles.lightboxOwnedText}>OWNED · FULL RESOLUTION</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Lightbox Footer with Title, Photographer & Actions */}
+            {previewPhoto && (
+              <View style={styles.lightboxFooter}>
+                <View style={{ gap: 2 }}>
+                  <Text style={styles.lightboxTitle} numberOfLines={1}>
+                    {(previewPhoto as FoundPhoto).eventTitle || albumTitle || 'Photo Preview'}
+                  </Text>
+                  <Text style={styles.lightboxPhotographer}>
+                    by{' '}
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>
+                      {(previewPhoto as FoundPhoto).photographerName ||
+                        albumPhotographerName ||
+                        'Photographer'}
+                    </Text>
+                  </Text>
+                </View>
+
+                <View style={styles.lightboxActions}>
+                  {previewPhoto.isPurchased ? (
+                    <Pressable
+                      style={[styles.lbBtn, styles.lbBtnOwned]}
+                      onPress={() => {
+                        const target = previewPhoto;
+                        setPreviewPhoto(null);
+                        handleDownloadPurchased(target);
+                      }}
+                    >
+                      <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
+                      <Text style={styles.lbBtnText}>Download High-Res</Text>
+                    </Pressable>
+                  ) : (previewPhoto.price ?? 0) === 0 ? (
+                    <Pressable
+                      style={[styles.lbBtn, styles.lbBtnOwned]}
+                      onPress={() => {
+                        const target = previewPhoto;
+                        setPreviewPhoto(null);
+                        downloadAndShare(
+                          (target as any).url || target.thumbnailUrl,
+                          `photo-${target.id}.jpg`,
+                        );
+                      }}
+                    >
+                      <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
+                      <Text style={styles.lbBtnText}>Download Free</Text>
+                    </Pressable>
+                  ) : (
+                    <>
+                      <Pressable
+                        style={[
+                          styles.lbBtn,
+                          styles.lbBtnGhost,
+                          (selectedAlbumIds.has(previewPhoto.id as string) ||
+                            selectedResultIds.has(previewPhoto.id as string)) &&
+                            styles.lbBtnGhostActive,
+                        ]}
+                        onPress={() => {
+                          const id = previewPhoto.id as string;
+                          if (albumPhotos) {
+                            toggleAlbumSelect(id);
+                          } else {
+                            toggleResultSelect(id);
+                          }
+                        }}
+                      >
+                        <Ionicons
+                          name={
+                            selectedAlbumIds.has(previewPhoto.id as string) ||
+                            selectedResultIds.has(previewPhoto.id as string)
+                              ? 'checkmark-circle'
+                              : 'add-circle-outline'
+                          }
+                          size={18}
+                          color="#FFF"
+                        />
+                        <Text style={styles.lbBtnText}>
+                          {selectedAlbumIds.has(previewPhoto.id as string) ||
+                          selectedResultIds.has(previewPhoto.id as string)
+                            ? 'Selected'
+                            : 'Select'}
+                        </Text>
+                      </Pressable>
+
+                      {(previewPhoto.price ?? 0) > 0 && (
+                        <Pressable
+                          style={[styles.lbBtn, styles.lbBtnPrimary]}
+                          onPress={() => {
+                            const target = previewPhoto;
+                            setPreviewPhoto(null);
+                            openPurchaseFor(
+                              [target],
+                              (target as AlbumPhotoItem).albumId ?? (target as FoundPhoto).albumId,
+                            );
+                          }}
+                        >
+                          <Ionicons name="card-outline" size={18} color="#FFF" />
+                          <Text style={styles.lbBtnText}>
+                            Buy ·{' '}
+                            {formatMoney(
+                              previewPhoto.price,
+                              (previewPhoto as any).currencyAbbreviation ||
+                                (previewPhoto as any).currency ||
+                                albumCurrencyAbbr,
+                            )}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </>
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1541,143 +2493,248 @@ export function FindMyPhotos() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const useStyles = makeStyles((c, e) => ({
-  scroll: { padding: spacing.lg, gap: spacing.md },
+  // Top bar in head — full-width rounded bar
+  topBar: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    backgroundColor: c.background,
+  },
+  topBarPill: {
+    width: '100%',
+    height: 52,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    ...e(2),
+  },
+  topBarBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarBackBtnPressed: { opacity: 0.65, transform: [{ scale: 0.94 }] },
+  topBarPillCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+  },
+  topBarPillText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  topBarSpacer: {
+    width: 40,
+    height: 40,
+  },
 
-  // Connect screen — gradient card now sits flush at the top (no extra
-  // marginTop) and uses tighter padding so the invite-code + Access
-  // Gallery button reach inside the visible viewport on 360×640 phones.
+  scroll: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+  },
+
+  // Flat page container (replaces centered modal card)
+  flatContainer: {
+    width: '100%',
+  },
   webContainer: {
-    borderRadius: 24,
-    padding: spacing.lg,
-    marginTop: 0,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
+    width: '100%',
   },
   badgeWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: radii.full,
     marginBottom: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: c.tint,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: c.borderSoft,
   },
-  badgeText: { color: '#FF6B6B', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  heroTitle: { fontFamily: 'PragatiNarrow_700Bold', fontSize: 26, color: '#FFF', marginBottom: 4, textAlign: 'center', lineHeight: 30 },
-  lead: { fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 18, textAlign: 'center', paddingHorizontal: spacing.sm },
-  subHeading: { fontSize: 14, fontWeight: '700', color: '#FFF', marginBottom: 4, marginTop: 0, textAlign: 'center' },
-  subLead: { fontSize: 12, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 18, marginBottom: spacing.md },
+  badgeText: { color: c.primary, fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 1 },
+  heroTitle: { fontSize: 26, fontWeight: fontWeight.extrabold, color: c.primary, marginBottom: 6, textAlign: 'center', lineHeight: 32 },
+  lead: { fontSize: 14, color: c.textMuted, lineHeight: 20, textAlign: 'center', paddingHorizontal: spacing.sm },
+  subHeading: { fontSize: 14, fontWeight: fontWeight.bold, color: c.text, marginBottom: 4, marginTop: 0, textAlign: 'center' },
+  subLead: { fontSize: 12, color: c.textMuted, textAlign: 'center', lineHeight: 18, marginBottom: spacing.md },
 
-  // Scanning state — shrunk from 180×180 to 140×140 so the lead +
-  // status copy still fits above the Find My Photos button.
-  scanningWrap: { alignItems: 'center', marginVertical: spacing.md },
+  // Scanning state — solid accent bar, NO gradients
+  scanningWrap: { alignItems: 'center', marginVertical: spacing.lg },
   scanningCircleWrap: { width: 140, height: 140 },
   scanningCircle: {
     width: 140, height: 140, borderRadius: 70,
     overflow: 'hidden',
-    borderWidth: 3, borderColor: '#FF6B6B',
-    shadowColor: '#FF6B6B', shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
+    borderWidth: 3, borderColor: c.primary,
   },
   scanLineWrap: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
+  scanLineBar: {
+    width: '100%',
+    height: 3,
+    borderRadius: 1.5,
+  },
   scanPulseRing: {
-    position: 'absolute', top: -3, left: -3, right: -3, bottom: -3,
-    borderRadius: 73, borderWidth: 2, borderColor: 'rgba(255,107,107,0.5)',
+    position: 'absolute', top: -4, left: -4, right: -4, bottom: -4,
+    borderRadius: 74, borderWidth: 2, borderColor: c.primary,
   },
-  scanningTitle: { color: '#FFF', fontSize: 15, fontWeight: '600', marginTop: 10 },
-  scanningSubText: { color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 4 },
-
-  // Selfie ready state — 90×90 instead of 120×120
-  selfieReadyWrap: { alignItems: 'center', marginBottom: spacing.md },
-  selfiePreviewCircle: {
-    width: 90, height: 90, borderRadius: 45,
+  progressBarTrack: {
+    width: 220,
+    height: 6,
+    borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
     overflow: 'hidden',
-    borderWidth: 3, borderColor: '#FF6B6B',
-    marginBottom: 8,
-    shadowColor: '#FF6B6B', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
   },
-  selfieReadyText: { color: '#10B981', fontSize: 12, fontWeight: '600', marginBottom: 6 },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: radii.full,
+    backgroundColor: c.primary,
+  },
+  progressPercentText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.extrabold,
+    color: c.primary,
+    marginTop: spacing.xs,
+    fontVariant: ['tabular-nums'],
+  },
+  scanningTitle: { color: c.text, fontSize: 16, fontWeight: fontWeight.bold, marginTop: 14, textAlign: 'center' },
+  scanningSubText: { color: c.textMuted, fontSize: 13, marginTop: 4, textAlign: 'center' },
+
+  // Selfie ready state
+  selfieReadyWrap: { alignItems: 'center', marginVertical: spacing.md },
+  selfiePreviewCircle: {
+    width: 96, height: 96, borderRadius: 48,
+    overflow: 'hidden',
+    borderWidth: 3, borderColor: c.primary,
+    marginBottom: 10,
+    backgroundColor: c.surfaceMuted,
+  },
+  selfieReadyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+    marginBottom: 10,
+  },
+  selfieReadyText: { color: '#10B981', fontSize: 12.5, fontWeight: fontWeight.bold },
   changeSelfieBtn: {
-    paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: 8, borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: radii.full, borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.surface,
   },
-  changeSelfieBtnText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '500' },
+  changeSelfieBtnText: { color: c.text, fontSize: 13, fontWeight: fontWeight.semibold },
 
   // Pick options
-  webPickOptions: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  webPickOptions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
   webPickCard: {
     flex: 1,
     alignItems: 'center',
-    padding: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: 14,
+    padding: spacing.md,
+    paddingVertical: spacing.lg,
+    borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderStyle: 'dashed',
+    borderColor: c.border,
+    backgroundColor: c.surface,
+    ...e(1),
+  },
+  webPickCardActive: {
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+  },
+  webPickCardPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
   },
   webIconWrap: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 48, height: 48, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  webPickTitle: { fontSize: 12, fontWeight: '700', color: '#FFF', textAlign: 'center', marginBottom: 1 },
-  webPickSub: { fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'center' },
+  webPickTitle: { fontSize: 14, fontWeight: fontWeight.bold, color: c.text, textAlign: 'center', marginBottom: 2 },
+  webPickSub: { fontSize: 12, color: c.textMuted, textAlign: 'center' },
   infoBadge: {
     position: 'absolute', top: 8, right: 8,
     width: 18, height: 18, borderRadius: 9,
-    backgroundColor: 'rgba(242,12,143,0.22)',
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
     alignItems: 'center', justifyContent: 'center',
   },
-  infoBadgeText: { color: '#F20C8F', fontSize: 11, fontWeight: '800', fontStyle: 'italic' },
+  infoBadgeText: { color: c.primary, fontSize: 11, fontWeight: '800', fontStyle: 'italic' },
 
   webFindBtn: {
     width: '100%',
-    backgroundColor: '#FF6B6B',
-    borderRadius: 10,
-    paddingVertical: 12,
+    height: 52,
+    backgroundColor: c.primary,
+    borderRadius: radii.full,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginBottom: spacing.xs,
+    ...e(1),
   },
-  webFindBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  webFindBtnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+  webFindBtnDisabled: {
+    backgroundColor: c.surfaceMuted,
+    opacity: 0.6,
+  },
+  webFindBtnText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.textOnPrimary },
+  webFindBtnTextDisabled: { color: c.textMuted },
 
   // Invite footer hint (kept in stylesheet for legacy callers; no
   // longer rendered on the connect screen).
   inviteFooterHint: { marginTop: spacing.md, alignItems: 'center', gap: 8 },
-  inviteFooterText: { color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', lineHeight: 16 },
+  inviteFooterText: { color: c.textMuted, fontSize: 11, textAlign: 'center', lineHeight: 16 },
 
   error: { color: '#EF4444', textAlign: 'center', marginTop: spacing.xs, fontSize: 12 },
 
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.md },
-  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  dividerText: { color: 'rgba(255,255,255,0.4)', paddingHorizontal: spacing.md, fontSize: 12, fontWeight: '600' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.lg, gap: spacing.md },
+  dividerLine: { flex: 1, height: 1.5, backgroundColor: c.border, borderRadius: radii.full },
+  dividerText: { color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.bold, letterSpacing: 1.2, textTransform: 'uppercase' },
 
-  inviteHeading: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 4, textAlign: 'center' },
-  inviteSubText: { fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 16, textAlign: 'center', marginBottom: 10 },
+  inviteHeading: { fontSize: 16, fontWeight: fontWeight.bold, color: c.text, marginBottom: 4, textAlign: 'center' },
+  inviteSubText: { fontSize: 13, color: c.textMuted, lineHeight: 18, textAlign: 'center', marginBottom: 12 },
 
   codeInput: {
     width: '100%',
+    height: 52,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    color: '#fff',
-    fontSize: 15,
-    letterSpacing: 1.5,
-    fontWeight: '600',
+    borderColor: c.border,
+    backgroundColor: c.surface,
+    color: c.text,
+    fontSize: 16,
+    letterSpacing: 2,
+    fontWeight: fontWeight.bold,
     textAlign: 'center',
     marginBottom: 10,
   },
   accessBtn: {
     width: '100%',
-    backgroundColor: '#FF6B6B',
-    borderRadius: 10,
-    paddingVertical: 12,
+    height: 52,
+    backgroundColor: c.primary,
+    borderRadius: radii.full,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...e(1),
   },
-  accessBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  accessBtnText: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
   // Album / results
   albumHeader: {
@@ -1690,48 +2747,120 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(242,12,143,0.14)',
+    backgroundColor: c.tint,
     borderWidth: 1,
-    borderColor: 'rgba(242,12,143,0.36)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
+    borderColor: c.borderSoft,
+    borderRadius: radii.full,
+    paddingHorizontal: 12,
     paddingVertical: 5,
     marginBottom: 10,
   },
-  albumBadgeText: { color: '#F20C8F', fontSize: 11, fontWeight: '700', letterSpacing: 0.8 },
-  albumTitle: { fontFamily: 'PragatiNarrow_700Bold', fontSize: 30, color: '#fff', textAlign: 'center', marginBottom: 6, lineHeight: 36 },
-  albumSub: { color: 'rgba(255,255,255,0.65)', fontSize: 15, marginBottom: 4, textAlign: 'center' },
-  albumCount: { color: 'rgba(255,255,255,0.55)', fontSize: 14, marginTop: 6, fontWeight: '500' },
-  albumHint: { color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 6, textAlign: 'center', lineHeight: 18 },
+  albumBadgeText: { color: c.primary, fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
+  albumTitle: { fontFamily: 'PragatiNarrow_700Bold', fontSize: 30, color: c.text, textAlign: 'center', marginBottom: 6, lineHeight: 36 },
+  albumSub: { color: c.textMuted, fontSize: 15, marginBottom: 4, textAlign: 'center' },
+  albumCount: { color: c.textSoft, fontSize: 14, marginTop: 6, fontWeight: '500' },
+  albumHint: { color: c.textMuted, fontSize: 12, marginTop: 6, textAlign: 'center', lineHeight: 18 },
 
   noticeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(242,12,143,0.12)',
+    backgroundColor: c.tint,
     borderWidth: 1,
-    borderColor: 'rgba(242,12,143,0.3)',
+    borderColor: c.borderSoft,
     borderRadius: 12,
     padding: 12,
     marginHorizontal: spacing.xl,
     marginBottom: spacing.md,
   },
-  noticeText: { color: '#F9A8D4', fontSize: 13, flex: 1 },
+  noticeText: { color: c.primary, fontSize: 13, flex: 1 },
 
   // Photo cells
   cell: {
-    backgroundColor: '#1E293B',
-    borderRadius: 14,
+    backgroundColor: c.surfaceMuted,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: c.borderSoft,
+    ...e(1),
   },
   cellSelected: {
-    borderWidth: 2,
-    borderColor: '#F20C8F',
+    borderWidth: 2.5,
+    borderColor: c.primary,
   },
   cellOwned: {
-    borderWidth: 2,
-    borderColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16,185,129,0.5)',
+  },
+  selectCheckbox: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  selectCheckboxActive: {
+    backgroundColor: c.primary,
+    borderColor: '#FFF',
+  },
+  cellOwnedBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3.5,
+    backgroundColor: 'rgba(16,185,129,0.92)',
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
+    borderRadius: radii.full,
+    zIndex: 5,
+  },
+  cellOwnedText: {
+    color: '#FFF',
+    fontSize: 9.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
+  },
+  cellPriceBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3.5,
+    backgroundColor: 'rgba(0,0,0,0.68)',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: radii.full,
+    zIndex: 5,
+  },
+  cellPriceText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+  },
+  cellFreeBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(3,150,156,0.9)',
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
+    borderRadius: radii.full,
+    zIndex: 5,
+  },
+  cellFreeText: {
+    color: '#FFF',
+    fontSize: 9.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
   },
   lockOverlay: {
     ...StyleSheet.absoluteFill,
@@ -1752,14 +2881,11 @@ const useStyles = makeStyles((c, e) => ({
   lockPrice: { color: '#FFF', fontSize: 11, fontWeight: '700' },
   selectedOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(242,12,143,0.15)',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-start',
-    padding: spacing.sm,
+    backgroundColor: c.tint,
   },
   checkBadge: {
     width: 22, height: 22, borderRadius: 11,
-    backgroundColor: '#F20C8F',
+    backgroundColor: c.primary,
     alignItems: 'center', justifyContent: 'center',
   },
   caption: {
@@ -1774,41 +2900,45 @@ const useStyles = makeStyles((c, e) => ({
   actionBar: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(5,32,71,0.95)',
+    backgroundColor: c.surface,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    padding: spacing.md,
-    alignItems: 'center',
+    borderTopColor: c.borderSoft,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     gap: spacing.sm,
+    ...e(4),
   },
-  actionBarCount: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' },
+  actionBarCount: { color: c.text, fontSize: 14, fontWeight: fontWeight.bold },
   actionBarBtn: {
+    flex: 1,
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: radii.full,
+    ...e(1),
   },
-  actionBarBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  actionBarBtnText: { color: '#FFF', fontSize: 14, fontWeight: fontWeight.bold },
 
-  ghostLink: { color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '500' },
+  ghostLink: { color: c.textMuted, fontSize: 14, fontWeight: '500' },
 
   // Album scan + filter buttons
   albumActionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' },
   scanInAlbumBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 50, backgroundColor: '#FF6B6B',
+    borderRadius: radii.full, backgroundColor: c.primary,
   },
   scanInAlbumBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   showAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 50, backgroundColor: c.surfaceMuted,
+    borderWidth: 1, borderColor: c.border,
   },
-  showAllBtnText: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
+  showAllBtnText: { color: c.text, fontSize: 13, fontWeight: '600' },
   unlockPillBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 10,
@@ -1822,10 +2952,10 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 9, marginTop: 10,
     borderRadius: 10, borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: c.border,
+    backgroundColor: c.surfaceMuted,
   },
-  selectAllBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  selectAllBtnText: { color: c.text, fontSize: 13, fontWeight: '700' },
 
   // Watermark overlay text on capped free photos
   watermarkOverlayText: {
@@ -1843,17 +2973,17 @@ const useStyles = makeStyles((c, e) => ({
   scanningSelfie: {},
   scanSpinner: {},
   scanningText: { fontSize: 0 },
-  webPickCardActive: {},
 
   // Free album card (email / otp screens)
   freeCard: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: c.card,
     borderRadius: 24,
     padding: spacing.xl,
     marginTop: spacing.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: c.border,
     alignItems: 'center',
+    ...e(2),
   },
 
   // OTP
@@ -1862,9 +2992,9 @@ const useStyles = makeStyles((c, e) => ({
     width: 44, height: 52,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    color: '#fff',
+    borderColor: c.border,
+    backgroundColor: c.surfaceMuted,
+    color: c.text,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
@@ -1880,10 +3010,12 @@ const useStyles = makeStyles((c, e) => ({
     padding: spacing.xl,
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.elevated,
     borderRadius: 24,
     padding: spacing.xl,
     width: '100%',
+    borderWidth: 1,
+    borderColor: c.border,
     ...e(3),
   },
   modalHeader: {
@@ -1892,19 +3024,397 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#0F172A' },
-  modalSub: { fontSize: 14, color: '#475569', lineHeight: 20, marginBottom: spacing.lg },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: c.text },
+  modalSub: { fontSize: 14, color: c.textMuted, lineHeight: 20, marginBottom: spacing.lg },
   modalInput: {
     width: '100%',
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-    color: '#0F172A',
+    borderColor: c.border,
+    backgroundColor: c.surfaceMuted,
+    color: c.text,
     fontSize: 15,
     marginBottom: spacing.sm,
   },
   errorText: { color: '#EF4444', fontSize: 13, marginBottom: spacing.sm },
+
+  // Clean customized modal
+  customModalCard: {
+    alignItems: 'center',
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg + 4,
+    paddingHorizontal: spacing.xl,
+    maxWidth: 320,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.elevated,
+    position: 'relative',
+    ...e(3),
+  },
+  customModalClose: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customModalClosePressed: { opacity: 0.6 },
+  customModalIconWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  customModalTitle: {
+    fontSize: 18,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  customModalMessage: {
+    fontSize: 13,
+    color: c.textMuted,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: spacing.xl,
+  },
+  customModalBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: radii.full,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...e(1),
+  },
+  customModalBtnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  customModalBtnText: {
+    color: c.textOnPrimary,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+  },
+
+  // Action bar top row & clear
+  actionBarTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 4,
+  },
+  actionBarClearText: {
+    color: c.primary,
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+
+  // Quick shortcuts in album / face results
+  quickShortcutsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  batchDownloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: radii.full,
+    ...e(1),
+  },
+  batchDownloadBtnText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+  },
+  shortcutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: c.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.border,
+    ...e(1),
+  },
+  shortcutBtnText: {
+    color: c.text,
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+  },
+
+  resultsActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  resultsActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: c.tint,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  resultsActionBtnPressed: {
+    opacity: 0.7,
+  },
+  resultsActionBtnText: {
+    color: c.primary,
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+  },
+
+  // Load More Pagination
+  loadMoreContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: radii.full,
+    width: '100%',
+    maxWidth: 340,
+    ...e(1),
+  },
+  loadMoreBtnPressed: {
+    opacity: 0.75,
+  },
+  loadMoreBtnText: {
+    color: c.primary,
+    fontSize: 14,
+    fontWeight: fontWeight.bold,
+  },
+  showAllPillBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  showAllPillBtnText: {
+    color: c.textMuted,
+    fontSize: 12,
+    fontWeight: fontWeight.semibold,
+  },
+
+  // Expand badge on PhotoCell
+  expandBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    zIndex: 5,
+  },
+
+  // Lightbox modal styles
+  lightboxContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.94)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lightboxContent: {
+    width: '100%',
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+  },
+  lightboxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    zIndex: 10,
+  },
+  lightboxIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginVertical: 10,
+    overflow: 'hidden',
+  },
+  lightboxImage: {
+    width: '100%',
+    height: '100%',
+  },
+  lightboxWatermarkOverlay: {
+    ...StyleSheet.absoluteFill,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  watermarkPatternGrid: {
+    width: 900,
+    height: 1100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    transform: [{ rotate: '-25deg' }],
+  },
+  watermarkPatternRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginVertical: 18,
+  },
+  watermarkPatternText: {
+    color: 'rgba(255,255,255,0.22)',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
+    marginHorizontal: 16,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  lightboxOwnedPill: {
+    position: 'absolute',
+    top: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16,185,129,0.92)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  lightboxOwnedText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  lightboxFooter: {
+    backgroundColor: 'rgba(15,23,42,0.92)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    padding: spacing.md,
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  lightboxTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  lightboxPhotographer: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+  },
+  lightboxActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  lbBtn: {
+    flex: 1,
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radii.full,
+  },
+  lbBtnOwned: {
+    backgroundColor: '#10B981',
+  },
+  lbBtnPrimary: {
+    backgroundColor: c.primary,
+  },
+  lbBtnGhost: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  lbBtnGhostActive: {
+    backgroundColor: c.tint,
+    borderColor: c.primary,
+  },
+  lbBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: fontWeight.bold,
+  },
+  floatingProgressBanner: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    zIndex: 9999,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingProgressText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: fontWeight.semibold,
+  },
 }));

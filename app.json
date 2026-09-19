@@ -24,7 +24,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live.",
-        "NSMicrophoneUsageDescription": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message."
+        "NSMicrophoneUsageDescription": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message.",
+        "NSPhotoLibraryAddUsageDescription": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library."
       }
     },
     "android": {
@@ -84,6 +85,13 @@
         "expo-camera",
         {
           "cameraPermission": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library.",
+          "savePhotosPermission": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library."
         }
       ],
       "@react-native-community/datetimepicker",

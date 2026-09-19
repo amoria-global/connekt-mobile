@@ -28,11 +28,13 @@
  * For non-Cloudflare URLs that are genuinely HLS, we fall back to
  * expo-video's native AVPlayer / ExoPlayer path.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { WebView } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StreamWatermark } from './StreamWatermark';
+import { logoBase64 } from '@/utils/logoBase64';
 
 /**
  * Normalize any Cloudflare playback URL to its WHEP endpoint
@@ -61,6 +63,7 @@ export function HlsPlayer({
   url,
   style,
   controls = true,
+  muted,
 }: {
   url: string;
   style?: any;
@@ -72,12 +75,14 @@ export function HlsPlayer({
   controlsBottomOffset?: number;
   /** Web-only: toggle the in-video LIVE badge. No-op on native. */
   showLiveBadge?: boolean;
+  /** Programmatic audio mute state. */
+  muted?: boolean;
 }) {
   const whepUrl = toWhepUrl(url);
   if (whepUrl) {
-    return <CloudflareWhepPlayer whepUrl={whepUrl} style={style} />;
+    return <CloudflareWhepPlayer whepUrl={whepUrl} style={style} muted={muted} />;
   }
-  return <NativeHlsPlayer url={url} style={style} controls={controls} />;
+  return <NativeHlsPlayer url={url} style={style} controls={controls} muted={muted} />;
 }
 
 /**
@@ -87,11 +92,12 @@ export function HlsPlayer({
  * exponential-backoff reconnect and the getStats() stall watchdog the
  * web uses, so an encoder drop / silent stall self-heals.
  */
-function buildWhepHtml(whepUrl: string): string {
+function buildWhepHtml(whepUrl: string, topInset: number = 0): string {
+  const bugTop = Math.max(14, topInset + 10);
   return `<!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
   html,body{margin:0;padding:0;height:100%;width:100%;background:#000;overflow:hidden;}
   #v{width:100%;height:100%;object-fit:contain;background:#000;display:block;}
@@ -99,24 +105,25 @@ function buildWhepHtml(whepUrl: string): string {
        color:#9aa3b2;font-family:-apple-system,system-ui,'Segoe UI',sans-serif;
        font-size:14px;text-align:center;padding:16px;pointer-events:none;}
   /* Brand watermark — burned into the player, always on top (z-index),
-     low opacity, no pill so it reads as part of the video. */
+     muted opacity, no pill so it reads as part of the video. */
   #wm-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
        overflow:hidden;pointer-events:none;z-index:999;}
-  #wm-center span{transform:rotate(-22deg);color:#fff;opacity:0.08;font-weight:900;
+  #wm-center span{transform:rotate(-22deg);color:#fff;opacity:0.07;font-weight:900;
        letter-spacing:3px;font-size:9vw;white-space:nowrap;text-transform:uppercase;
        text-shadow:0 2px 14px rgba(0,0,0,.35);
        font-family:-apple-system,system-ui,'Segoe UI',sans-serif;}
-  #wm-bug{position:absolute;top:12px;left:12px;display:flex;align-items:center;
-       color:#fff;opacity:0.5;font-weight:800;letter-spacing:1.1px;font-size:12px;
+  #wm-bug{position:absolute;top:${bugTop}px;right:14px;display:flex;align-items:center;
+       gap:6px;color:#fff;opacity:0.40;font-weight:800;letter-spacing:1.1px;font-size:11px;
        text-transform:uppercase;pointer-events:none;z-index:999;
        text-shadow:0 1px 5px rgba(0,0,0,.95);
        font-family:-apple-system,system-ui,'Segoe UI',sans-serif;}
+  .wm-logo{width:18px;height:18px;object-fit:contain;display:inline-block;}
 </style>
 </head>
 <body>
 <video id="v" playsinline autoplay muted></video>
 <div id="wm-center"><span>Amoria Connekyt</span></div>
-<div id="wm-bug">Amoria Connekyt</div>
+<div id="wm-bug"><img src="${logoBase64}" class="wm-logo" alt="logo" /><span>Amoria Connekyt</span></div>
 <div id="msg">Connecting…</div>
 <script>
 (function(){
@@ -241,11 +248,29 @@ function buildWhepHtml(whepUrl: string): string {
 </html>`;
 }
 
-function CloudflareWhepPlayer({ whepUrl, style }: { whepUrl: string; style?: any }) {
-  const html = useMemo(() => buildWhepHtml(whepUrl), [whepUrl]);
+function CloudflareWhepPlayer({ whepUrl, style, muted }: { whepUrl: string; style?: any; muted?: boolean }) {
+  const insets = useSafeAreaInsets();
+  const webViewRef = useRef<WebView>(null);
+  const html = useMemo(() => buildWhepHtml(whepUrl, insets?.top || 0), [whepUrl, insets?.top]);
+
+  useEffect(() => {
+    if (typeof muted === 'boolean' && webViewRef.current) {
+      webViewRef.current.injectJavaScript(`
+        (function() {
+          try {
+            var v = document.getElementById('v');
+            if (v) { v.muted = ${muted ? 'true' : 'false'}; }
+          } catch(e) {}
+        })();
+        true;
+      `);
+    }
+  }, [muted]);
+
   return (
     <View style={[styles.wrap, style]}>
       <WebView
+        ref={webViewRef}
         // Remount on URL change so a rotated/reset stream re-negotiates.
         key={whepUrl}
         // Real https baseUrl → the cross-origin POST to cloudflarestream.com
@@ -269,14 +294,35 @@ function CloudflareWhepPlayer({ whepUrl, style }: { whepUrl: string; style?: any
   );
 }
 
-function NativeHlsPlayer({ url, style, controls = true }: { url: string; style?: any; controls?: boolean }) {
+function NativeHlsPlayer({
+  url,
+  style,
+  controls = true,
+  muted,
+}: {
+  url: string;
+  style?: any;
+  controls?: boolean;
+  muted?: boolean;
+}) {
+  const insets = useSafeAreaInsets();
   const player = useVideoPlayer({ uri: url }, (p) => {
     p.loop = false;
-    p.muted = true;
+    p.muted = muted ?? true;
     p.audioMixingMode = 'auto';
-    p.staysActiveInBackground = false;
+    p.staysActiveInBackground = true;
     p.play();
   });
+
+  useEffect(() => {
+    if (typeof muted === 'boolean') {
+      try {
+        player.muted = muted;
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [player, muted]);
 
   useEffect(() => {
     let isMounted = true;
@@ -286,7 +332,9 @@ function NativeHlsPlayer({ url, style, controls = true }: { url: string; style?:
       setTimeout(() => {
         if (!isMounted) return;
         try {
-          player.muted = false;
+          if (muted === undefined || muted === false) {
+            player.muted = false;
+          }
         } catch {
           /* ignore */
         }
@@ -322,7 +370,7 @@ function NativeHlsPlayer({ url, style, controls = true }: { url: string; style?:
       if (retry) clearTimeout(retry);
       sub.remove();
     };
-  }, [player, url]);
+  }, [player, url, muted]);
 
   return (
     <View style={[styles.wrap, style]}>
@@ -334,7 +382,7 @@ function NativeHlsPlayer({ url, style, controls = true }: { url: string; style?:
         contentFit="contain"
         nativeControls={controls}
       />
-      <StreamWatermark position="top-left" />
+      <StreamWatermark position="top-right" offset={{ top: Math.max(14, (insets?.top || 0) + 10), right: 14 }} />
     </View>
   );
 }

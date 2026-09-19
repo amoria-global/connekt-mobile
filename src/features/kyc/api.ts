@@ -33,13 +33,42 @@
 import * as WebBrowser from 'expo-web-browser';
 import { api } from '@/api/client';
 import { env } from '@/config/env';
+import type { PickedImage } from '@/services/imagePicker';
 import type { ApiEnvelope } from '@/types';
+import { appendFile } from '@/utils/upload';
 
 export type KycState = {
   /** PENDING | APPROVED | REJECTED | NONE */
   status: string;
   submittedAt?: string;
   rejectionReason?: string;
+  documentType?: string;
+  fullLegalName?: string;
+};
+
+export type DocumentTypeOption = 'NATIONAL_ID' | 'PASSPORT' | 'DRIVER_LICENSE';
+
+export type KycSubmissionPayload = {
+  fullLegalName: string;
+  gender: string;
+  locationAddress?: string;
+  documentType: DocumentTypeOption;
+  challengeToken: string;
+  challengeOrder?: string;
+  challengeTimingsMs?: string;
+  selfiePhoto: PickedImage;
+  livenessFrames?: PickedImage[];
+  governmentIdDocument: PickedImage;
+  governmentIdDocumentBack?: PickedImage;
+};
+
+export type KycSubmitResult = {
+  action: number;
+  message: string;
+  data?: {
+    id: string;
+    status: string;
+  };
 };
 
 type Raw = Record<string, unknown>;
@@ -48,30 +77,133 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
-/** Reads the account's verification state. Matches KycController#status. */
 export async function getKyc(): Promise<KycState> {
   const res = await api.get<ApiEnvelope<Raw>>('/customer/kyc/status');
   const d = (res?.data ?? {}) as Raw;
+  const sub = (d.latestSubmission ?? {}) as Raw;
+  const rawStatus = str(d.kycStatus) ?? str(d.status) ?? str(sub.status) ?? 'NONE';
+  const status = rawStatus === 'NOT_SUBMITTED' ? 'NONE' : rawStatus.toUpperCase();
   return {
-    status: (str(d.status) ?? 'NONE').toUpperCase(),
-    submittedAt: str(d.submittedAt) ?? str(d.submitted_at),
-    rejectionReason: str(d.rejectionReason) ?? str(d.rejection_reason),
+    status,
+    submittedAt: str(sub.createdAt) ?? str(d.submittedAt) ?? str(d.submitted_at),
+    rejectionReason: str(sub.reviewComment) ?? str(d.rejectionReason) ?? str(d.rejection_reason),
+    documentType: str(sub.documentType) ?? str(d.documentType),
+    fullLegalName: str(sub.fullLegalName) ?? str(d.fullLegalName),
   };
 }
 
 /**
- * Opens identity verification on the web dashboard.
- *
- * `?kyc=1` lands directly on the wizard instead of a profile page the user then
- * has to find a button on.
- *
- * The in-app browser is a separate storage jar - nothing the app holds is
- * readable there - so the user signs in once inside the browser. That is real
- * friction, and it is still strictly better than the screen this replaces,
- * which could never succeed at all. A short-lived handoff token would remove
- * it; the existing one is payment-specific (`/payments/handoff`, receiver
- * `/user/complete-payment`), so that is a backend change, not a client one.
+ * Requests a one-time challenge token from the backend for the KYC submission.
+ */
+export async function getChallengeToken(): Promise<string> {
+  const res = await api.post<{ action: number; challengeToken: string }>('/customer/kyc/challenge-token');
+  return res.challengeToken;
+}
+
+/**
+ * Submits the complete KYC multipart body directly to the backend.
+ */
+export async function submitKyc(payload: KycSubmissionPayload): Promise<KycSubmitResult> {
+  const form = new FormData();
+  form.append('fullLegalName', payload.fullLegalName.trim());
+  form.append('gender', payload.gender);
+  if (payload.locationAddress?.trim()) {
+    form.append('locationAddress', payload.locationAddress.trim());
+  }
+  form.append('documentType', payload.documentType);
+  form.append('challengeToken', payload.challengeToken);
+  if (payload.challengeOrder) {
+    form.append('challengeOrder', payload.challengeOrder);
+  }
+  if (payload.challengeTimingsMs) {
+    form.append('challengeTimingsMs', payload.challengeTimingsMs);
+  }
+
+  await appendFile(form, 'selfiePhoto', {
+    uri: payload.selfiePhoto.uri,
+    name: payload.selfiePhoto.name || 'selfie.jpg',
+    type: payload.selfiePhoto.type || 'image/jpeg',
+  });
+
+  if (payload.livenessFrames && payload.livenessFrames.length > 0) {
+    for (let i = 0; i < payload.livenessFrames.length; i++) {
+      const frame = payload.livenessFrames[i];
+      await appendFile(form, 'livenessFrames', {
+        uri: frame.uri,
+        name: frame.name || `frame_${i}.jpg`,
+        type: frame.type || 'image/jpeg',
+      });
+    }
+  }
+
+  await appendFile(form, 'governmentIdDocument', {
+    uri: payload.governmentIdDocument.uri,
+    name: payload.governmentIdDocument.name || 'id_front.jpg',
+    type: payload.governmentIdDocument.type || 'image/jpeg',
+  });
+
+  if (payload.governmentIdDocumentBack) {
+    await appendFile(form, 'governmentIdDocumentBack', {
+      uri: payload.governmentIdDocumentBack.uri,
+      name: payload.governmentIdDocumentBack.name || 'id_back.jpg',
+      type: payload.governmentIdDocumentBack.type || 'image/jpeg',
+    });
+  }
+
+  return api.post<KycSubmitResult>('/customer/kyc/submit', form);
+}
+
+export type DocTypeValidationResult = {
+  status: 'MATCH' | 'MISMATCH' | 'NOT_A_DOCUMENT' | 'UNCERTAIN' | 'SKIPPED' | 'ERROR';
+  message: string;
+  detectedType?: string;
+  confidence?: number;
+};
+
+export type DocSideValidationResult = {
+  status: 'SIDE_MATCH' | 'SIDE_WRONG' | 'SIDE_UNCERTAIN' | 'SIDE_SKIPPED' | 'ERROR';
+  message: string;
+  detectedSide?: string;
+};
+
+/**
+ * Validates whether an uploaded document photo matches the selected document type.
+ */
+export async function validateDocType(
+  documentType: DocumentTypeOption,
+  image: PickedImage,
+): Promise<DocTypeValidationResult> {
+  const form = new FormData();
+  form.append('documentType', documentType);
+  await appendFile(form, 'image', {
+    uri: image.uri,
+    name: image.name || 'document.jpg',
+    type: image.type || 'image/jpeg',
+  });
+  return api.post<DocTypeValidationResult>('/customer/kyc/validate-doc-type', form);
+}
+
+/**
+ * Validates whether an uploaded document photo is the FRONT or BACK of an ID.
+ */
+export async function validateDocSide(
+  side: 'FRONT' | 'BACK',
+  image: PickedImage,
+): Promise<DocSideValidationResult> {
+  const form = new FormData();
+  form.append('side', side);
+  await appendFile(form, 'image', {
+    uri: image.uri,
+    name: image.name || 'document.jpg',
+    type: image.type || 'image/jpeg',
+  });
+  return api.post<DocSideValidationResult>('/customer/kyc/validate-doc-side', form);
+}
+
+/**
+ * Opens identity verification on the web dashboard (fallback).
  */
 export async function openWebKycFlow(): Promise<void> {
   await WebBrowser.openBrowserAsync(`${env.dashboardBaseUrl}/user/client/profile?kyc=1`);
 }
+

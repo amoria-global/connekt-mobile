@@ -17,28 +17,37 @@
  */
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logoBase64 } from '@/utils/logoBase64';
 
 export function StreamWatermark({
-  position = 'top-left',
+  position = 'top-right',
+  offset,
 }: {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  offset?: { top?: number; right?: number; bottom?: number; left?: number };
 }) {
+  const insets = useSafeAreaInsets();
+  const defaultTop = Math.max(14, (insets?.top || 0) + 10);
+  const defaultBottom = Math.max(14, (insets?.bottom || 0) + 10);
+  const defaultLeft = Math.max(14, (insets?.left || 0) + 14);
+  const defaultRight = Math.max(14, (insets?.right || 0) + 14);
+
   const corner = {
-    ...(position.startsWith('top') ? { top: 12 } : { bottom: 12 }),
-    ...(position.endsWith('left') ? { left: 12 } : { right: 12 }),
+    ...(position.startsWith('top') ? { top: offset?.top ?? defaultTop } : { bottom: offset?.bottom ?? defaultBottom }),
+    ...(position.endsWith('left') ? { left: offset?.left ?? defaultLeft } : { right: offset?.right ?? defaultRight }),
   } as const;
 
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.top]}>
-      {/* Layer 1 — faint full-frame diagonal wordmark. */}
+      {/* Layer 1 — faint full-frame diagonal wordmark (muted). */}
       <View style={styles.centerWrap} pointerEvents="none">
         <Text style={styles.diagonal} numberOfLines={1}>
           AMORIA CONNEKYT
         </Text>
       </View>
 
-      {/* Layer 2 — corner bug, burned-in (no pill) so it reads as part of the video. */}
+      {/* Layer 2 — muted corner bug on top-right: logo icon + logo wordmark */}
       <View style={[styles.bug, corner]} pointerEvents="none">
         <Image source={{ uri: logoBase64 }} style={styles.logo} contentFit="contain" />
         <Text style={styles.bugText} numberOfLines={1}>
@@ -60,24 +69,24 @@ const styles = StyleSheet.create({
   },
   diagonal: {
     color: '#fff',
-    opacity: 0.08,
-    fontSize: 46,
+    opacity: 0.07,
+    fontSize: 44,
     fontWeight: '900',
     letterSpacing: 3,
     transform: [{ rotate: '-22deg' }],
-    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 12,
+    textShadowRadius: 10,
   },
-  // Burned-in corner bug — no pill background, so it reads as part of the video.
+  // Burned-in corner bug (logo icon + logo text) — muted subtle broadcast bug
   bug: {
     position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    opacity: 0.5,
+    opacity: 0.40,
   },
-  logo: { width: 20, height: 20 },
+  logo: { width: 18, height: 18 },
   bugText: {
     color: '#fff',
     fontSize: 11,

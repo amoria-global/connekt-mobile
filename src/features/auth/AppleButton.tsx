@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, Text } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, Text } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { isApiError, useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -60,9 +60,8 @@ function useAppleSignInAvailable(): boolean {
 }
 
 /**
- * "Continue with Apple". Renders nothing where Apple sign-in is unavailable
- * (Android, web, iOS < 13), so screens can drop it in next to GoogleButton
- * without their own platform checks. Shows in Expo Go on iOS.
+ * "Continue with Apple". Always rendered on login and registration so that
+ * users on all platforms see the option, with native sign-in invoked where available.
  *
  * Follows Apple's button guidelines: Apple logo, black button in light mode
  * and white in dark mode, same height and radius as the Google button so the
@@ -74,16 +73,24 @@ export function AppleButton(props: Props) {
   const applySession = useAuth((s) => s.applySession);
   const [loading, setLoading] = useState(false);
   const styles = useStyles();
-  const { isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const available = useAppleSignInAvailable();
 
-  if (!available) return null;
-
-  // Apple's guidelines: black button on light backgrounds, white on dark.
-  const background = isDark ? '#FFFFFF' : '#000000';
-  const foreground = isDark ? '#000000' : '#FFFFFF';
+  // Branding: Brand primary navy (#083A85 in light, #3D6FD6 in dark)
+  const background = colors.primary;
+  const foreground = colors.textOnPrimary;
+  const borderColor = colors.primary;
 
   const onPress = async () => {
+    if (!available) {
+      Alert.alert(
+        'Apple Sign-In',
+        Platform.OS === 'ios'
+          ? 'Sign in with Apple requires a physical iOS device with an Apple ID or a development build.'
+          : 'Sign in with Apple is currently supported on iOS devices.',
+      );
+      return;
+    }
     setLoading(true);
     try {
       // In sign-in mode the role is irrelevant: the backend only reads

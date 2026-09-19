@@ -1,47 +1,85 @@
 /**
- * Public event-stream registration (formerly the in-app payment screen).
+ * Public event-stream ticket & access checkout.
  *
- * The app no longer collects payment details. This screen remains because
- * it's deep-linkable and it handles the FREE-event bypass:
- *   1. Collect viewer name/email (anonymous viewer)
- *   2. registerAnonymousViewer — free events (!needsPayment) go straight
- *      to the live stream, exactly as before
- *   3. Paid events show the fee and a single (policy-gated) "Buy access on
- *      connekyt.com" button that opens the web checkout. On Android
- *      nothing purchasable is shown (digitalPurchasesEnabled gate).
- *
- * The flow uses zero auth: the backend identifies the viewer by an
- * opaque per-install `deviceId` (SecureStore). This matches the web's
- * anonymous-viewer registration.
+ * Implements full in-app checkout aligned with the Backend Infrastructure specs:
+ *   1. Identity & Registration:
+ *      • Collect viewer Name + Email (normalized to lowercase as unique identity key).
+ *      • Calls POST /anonymous-viewer/{id}/register.
+ *      • Auto-bypasses payment for free events or pre-existing purchases.
+ *   2. In-App Payment Selection:
+ *      • Country-aware routing (RW, KE, UG, TZ, etc.) with flag selector.
+ *      • Mobile Money (MTN / Airtel / M-Pesa) with country phone normalization.
+ *      • Credit / Debit Card handoff via in-app browser session.
+ *   3. USSD Push & Polling:
+ *      • Calls POST /anonymous-viewer/{id}/initiate-payment.
+ *      • Polls POST /anonymous-viewer/{id}/payment-status every 2 seconds.
+ *   4. Instant Reconcile:
+ *      • "Already paid? Verify access" calls POST /reconcile-by-fingerprint.
+ *   5. Seamless Transition:
+ *      • Auto-unlocks and navigates directly into /events/live-stream on success.
  */
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
-import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
-import { registerAnonymousViewer } from '@/features/streams/api';
+import {
+  checkAnonymousPaymentStatus,
+  initiateAnonymousPayment,
+  reconcileAnonymousByFingerprint,
+  registerAnonymousViewer,
+  type InitiateAnonymousPaymentPayload,
+} from '@/features/streams/api';
 import { getEffectivePrice, type EffectivePrice } from '@/features/geopricing/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
+import { detectPaymentCountry } from '@/features/reference/api';
+import {
+  dialCodeFor,
+  formatPhoneE164,
+  isPlausibleMobile,
+  phoneHintForCountry,
+} from '@/features/payments/formatPhone';
+import { flagEmoji } from '@/components/ui/PhoneInput';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+
+type Stage = 'contact' | 'payment' | 'awaiting' | 'success';
+
+const PAYMENT_COUNTRIES = [
+  { iso2: 'RW', name: 'Rwanda', dial: '250' },
+  { iso2: 'KE', name: 'Kenya', dial: '254' },
+  { iso2: 'UG', name: 'Uganda', dial: '256' },
+  { iso2: 'TZ', name: 'Tanzania', dial: '255' },
+  { iso2: 'CD', name: 'DR Congo', dial: '243' },
+  { iso2: 'GH', name: 'Ghana', dial: '233' },
+  { iso2: 'NG', name: 'Nigeria', dial: '234' },
+  { iso2: 'ZM', name: 'Zambia', dial: '260' },
+  { iso2: 'CM', name: 'Cameroon', dial: '237' },
+  { iso2: 'CI', name: "Côte d'Ivoire", dial: '225' },
+  { iso2: 'SN', name: 'Senegal', dial: '221' },
+  { iso2: 'MW', name: 'Malawi', dial: '265' },
+];
 
 function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
-  return `${fee.toLocaleString()} ${symbol || code || 'RWF'}`;
+  return `${symbol || code || 'RWF'} ${fee.toLocaleString()}`;
 }
 
 export default function EventPaymentScreen() {
@@ -52,17 +90,21 @@ export default function EventPaymentScreen() {
 
   const event = useAsync(useCallback(() => getPublicEventDetailed(id), [id]));
 
-  // Viewer identity. A logged-in user registers with their session data — no
-  // need to re-enter name/email; a guest gives name + email only.
+  // Viewer identity
   const authUser = useAuth((s) => s.user);
   const loggedIn = !!authUser;
   const [name, setName] = useState(
     authUser ? [authUser.firstName, authUser.lastName].filter(Boolean).join(' ') : '',
   );
   const [email, setEmail] = useState(authUser?.email ?? '');
+  const [viewerId, setViewerId] = useState<string | null>(null);
 
-  // Geo-priced effective amount for this viewer's location (display only —
-  // the web checkout re-resolves and charges the server-fixed amount).
+  // Flow stages
+  const [stage, setStage] = useState<Stage>('contact');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Geo-pricing
   const [effective, setEffective] = useState<EffectivePrice | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -76,11 +118,186 @@ export default function EventPaymentScreen() {
     };
   }, [id]);
 
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Set once registration confirms the event actually needs payment; the
-  // screen then shows the fee + web-checkout handoff instead of a form.
-  const [needsPayment, setNeedsPayment] = useState(false);
+  // Country & phone payment state
+  const [country, setCountry] = useState('RW');
+  const [countryModalOpen, setCountryModalOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'MOBILE_MONEY' | 'CARD'>('MOBILE_MONEY');
+  const [telecomProvider, setTelecomProvider] = useState<'MTN' | 'AIRTEL'>('MTN');
+  const [phone, setPhone] = useState('');
+
+  // Payment polling state
+  const [refid, setRefid] = useState<string | null>(null);
+  const [pollCountdown, setPollCountdown] = useState(90);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    detectPaymentCountry()
+      .then((c) => {
+        if (c && PAYMENT_COUNTRIES.some((p) => p.iso2 === c.toUpperCase())) {
+          setCountry(c.toUpperCase());
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const eventRaw = event.data;
+  const baseFee = effective?.price ?? eventRaw?.streamFee ?? eventRaw?.price ?? 0;
+  const feeCurrencyCode = effective?.currencyAbbreviation ?? eventRaw?.streamFeeCurrencyAbbreviation ?? 'RWF';
+  const feeCurrencySymbol = effective?.currencySymbol ?? eventRaw?.streamFeeCurrencySymbol;
+  const totalLabel = feeLabel(baseFee, feeCurrencyCode, feeCurrencySymbol);
+
+  const formOk = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
+
+  // Clean up polling timer
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
+
+  // ── Step 1: Register Viewer ───────────────────────────────────────────────
+  const onRegister = async () => {
+    if (!formOk) {
+      Alert.alert('Check your details', 'Please enter your name and a valid email address.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const deviceId = await getDeviceId();
+      const normalizedEmail = email.trim().toLowerCase();
+      const reg = await registerAnonymousViewer(id, {
+        name: name.trim(),
+        email: normalizedEmail,
+        phone: phone ? formatPhoneE164(phone, country) : '0000000000',
+        deviceId,
+      });
+
+      if (!reg.viewerId) {
+        throw { status: 0, message: 'Could not register your viewer access.' };
+      }
+
+      setViewerId(reg.viewerId);
+      await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
+
+      // If already paid or event is free, immediately grant access
+      if (!reg.needsPayment) {
+        setStage('success');
+        return;
+      }
+
+      // Paid event — transition to in-app payment selection
+      setStage('payment');
+    } catch (e) {
+      setError(isApiError(e) ? e.message : 'Could not proceed. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Step 2: Instant Reconcile ("Already paid?") ───────────────────────────
+  const onReconcileAccess = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const deviceId = await getDeviceId();
+      const rec = await reconcileAnonymousByFingerprint(id, deviceId);
+      if (rec.status === 'ACCESS_GRANTED' && rec.viewerId) {
+        await storage.set(`anonymousViewer_${id}`, rec.viewerId).catch(() => {});
+        setViewerId(rec.viewerId);
+        setStage('success');
+        return;
+      }
+      Alert.alert(
+        'No Previous Purchase Found',
+        'We could not find an active pass for this device. Please complete payment or register with the email used at checkout.',
+      );
+    } catch {
+      Alert.alert('Error', 'Could not verify access right now. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Step 3: Initiate Payment ──────────────────────────────────────────────
+  const onInitiatePayment = async () => {
+    if (!viewerId) return;
+    setError(null);
+
+    const formattedPhone = formatPhoneE164(phone, country);
+    if (paymentMethod === 'MOBILE_MONEY' && !isPlausibleMobile(phone, country)) {
+      setError(`Please enter a valid ${country} phone number.`);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const payload: InitiateAnonymousPaymentPayload = {
+        viewerId,
+        phone: formattedPhone,
+        paymentMethod,
+        telecomProvider: paymentMethod === 'MOBILE_MONEY' ? telecomProvider : undefined,
+        currencyId: feeCurrencyCode,
+      };
+
+      const res = await initiateAnonymousPayment(id, payload);
+
+      if (paymentMethod === 'CARD' && res.paymentUrl) {
+        // Open secure browser modal for 3DS authentication
+        await WebBrowser.openAuthSessionAsync(res.paymentUrl, 'connekt://payment-callback');
+        // Check status after card completion
+        if (res.refid) {
+          startPolling(res.refid, viewerId);
+        }
+      } else if (res.refid) {
+        // Mobile money: start polling USSD status
+        setRefid(res.refid);
+        setStage('awaiting');
+        startPolling(res.refid, viewerId);
+      } else if (res.status === 'SUCCESS') {
+        setStage('success');
+      } else {
+        throw new Error(res.message || 'Payment initiation failed.');
+      }
+    } catch (e) {
+      setError(isApiError(e) ? e.message : 'Could not initiate payment. Please verify your phone number.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Step 4: Status Polling ────────────────────────────────────────────────
+  const startPolling = (txRefid: string, vId: string) => {
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    let secondsLeft = 90;
+    setPollCountdown(secondsLeft);
+
+    pollTimerRef.current = setInterval(async () => {
+      secondsLeft -= 2;
+      setPollCountdown(Math.max(0, secondsLeft));
+
+      try {
+        const check = await checkAnonymousPaymentStatus(id, txRefid, vId);
+        if (check.status === 'SUCCESS') {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+          setStage('success');
+        } else if (check.status === 'FAILED') {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          setError(check.message || 'Payment was declined or timed out. Please try again.');
+          setStage('payment');
+        }
+      } catch {
+        /* best-effort poll */
+      }
+
+      if (secondsLeft <= 0) {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        setError('Payment approval timed out. Please check your phone balance and try again.');
+        setStage('payment');
+      }
+    }, 2000);
+  };
 
   if (event.loading && !event.data) {
     return (
@@ -91,97 +308,64 @@ export default function EventPaymentScreen() {
       </Screen>
     );
   }
+
   if (event.error || !event.data) {
     return (
       <Screen>
         <View style={styles.centered}>
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.muted}>{event.error ?? 'Could not load this event.'}</Text>
+          <Text style={styles.muted}>{event.error ?? 'Could not load event details.'}</Text>
         </View>
       </Screen>
     );
   }
 
-  const data = event.data;
-  // Prefer the geo-resolved price for this viewer; fall back to the event default.
-  const baseFee = effective?.price ?? data.streamFee ?? 0;
-  const feeCurrencyCode = effective?.currencyAbbreviation ?? data.streamFeeCurrencyAbbreviation;
-  const feeCurrencySymbol = effective?.currencySymbol ?? data.streamFeeCurrencySymbol;
-  const totalLabel = feeLabel(baseFee, feeCurrencyCode, feeCurrencySymbol);
-
-  const formOk = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
-
-  const onRegister = async () => {
-    if (!formOk) {
-      Alert.alert('Check your info', 'Enter your name and email.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const deviceId = await getDeviceId();
-      const reg = await registerAnonymousViewer(id, {
-        name: name.trim(),
-        email: email.trim(),
-        // No phone is collected anymore (it was only ever needed for Mobile
-        // Money). The register DTO still @NotBlank-requires one on older
-        // backends, so send the same harmless placeholder live-stream uses.
-        phone: '0000000000',
-        deviceId,
-      });
-      if (!reg.viewerId) throw { status: 0, message: 'Could not register your viewer access.' };
-
-      // Free stream (or already-paid record): skip payment and go straight to
-      // the live screen. Persist the viewerId so the event detail's CTA shows
-      // "Start watching" instead of "Watch live" on a later visit.
-      if (!reg.needsPayment) {
-        await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
-        router.replace(`/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href);
-        return;
-      }
-
-      // Paid stream — the app never collects the payment. Show the fee +
-      // (gated) web-checkout handoff below.
-      setNeedsPayment(true);
-    } catch (e) {
-      setError(isApiError(e) ? e.message : 'Something went wrong. Please try again.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const onBuyOnWeb = () => {
-    if (!digitalPurchasesEnabled) return;
-    void openWebCheckout(streamAccessUrl(id));
-  };
+  const data = event.data!;
 
   return (
     <Screen padded={false} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* Header Summary */}
         <View style={styles.summary}>
           <Text style={styles.summaryEvent} numberOfLines={1}>
             {data.title}
           </Text>
-          <Text style={styles.summarySub}>Stream access</Text>
+          <Text style={styles.summarySub}>
+            {data.eventOrganizer ? `Organized by ${data.eventOrganizer} · ` : ''}Live Stream Access
+          </Text>
           <Text style={styles.summaryAmount}>{totalLabel}</Text>
         </View>
 
-        {!needsPayment ? (
-          <>
-            <Text style={styles.h2}>Your details</Text>
+        {/* ── STAGE 1: Contact Information ── */}
+        {stage === 'contact' && (
+          <View style={styles.section}>
+            <Text style={styles.h2}>Your Access Pass</Text>
+            <Text style={styles.subtext}>
+              Enter your name and email to link your access pass and receive your receipt.
+            </Text>
+
             {loggedIn ? (
               <View style={styles.signedInCard}>
-                <Ionicons name="person-circle" size={22} color={colors.primary} />
+                <Ionicons name="person-circle" size={24} color={colors.primary} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.signedInName} numberOfLines={1}>{name || 'Your account'}</Text>
+                  <Text style={styles.signedInName} numberOfLines={1}>
+                    {name || 'Signed in'}
+                  </Text>
                   {email ? <Text style={styles.signedInEmail} numberOfLines={1}>{email}</Text> : null}
                 </View>
               </View>
             ) : (
               <>
-                <Input placeholder="Full name" value={name} onChangeText={setName} autoCapitalize="words" />
                 <Input
-                  placeholder="Email"
+                  label="Full name"
+                  placeholder="Jane Doe"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
+                <Input
+                  label="Email address"
+                  placeholder="jane@example.com"
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -198,100 +382,633 @@ export default function EventPaymentScreen() {
             ) : null}
 
             <Button
-              title={busy ? 'Checking…' : 'Continue'}
+              title={busy ? 'Registering…' : 'Continue to Payment'}
               onPress={onRegister}
               loading={busy}
               disabled={!formOk || busy}
             />
-            <Text style={styles.note}>
-              {digitalPurchasesEnabled
-                ? 'Free events start playing right away. Ticketed events are purchased on connekyt.com.'
-                : 'Free events start playing right away.'}
-            </Text>
-          </>
-        ) : digitalPurchasesEnabled ? (
-          <>
-            <View style={styles.feeCard}>
-              <Text style={styles.feeLabel}>Access fee</Text>
-              <Text style={styles.feeValue}>{totalLabel}</Text>
+
+            <Pressable style={styles.reconcileBtn} onPress={onReconcileAccess} disabled={busy}>
+              <Ionicons name="sync-outline" size={16} color={colors.primary} />
+              <Text style={styles.reconcileBtnText}>Already paid? Restore access on this device</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* ── STAGE 2: Payment Options ── */}
+        {stage === 'payment' && (
+          <View style={styles.section}>
+            <View style={styles.feeBanner}>
+              <View>
+                <Text style={styles.feeBannerLabel}>Total to Pay</Text>
+                <Text style={styles.feeBannerAmount}>{totalLabel}</Text>
+              </View>
+              <Pressable
+                style={styles.countryPill}
+                onPress={() => setCountryModalOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Select payment country"
+              >
+                <Text style={styles.countryFlag}>{flagEmoji(country)}</Text>
+                <Text style={styles.countryCode}>{country}</Text>
+                <Ionicons name="chevron-down" size={14} color={colors.text} />
+              </Pressable>
             </View>
-            <Button title="Buy access on connekyt.com" onPress={onBuyOnWeb} />
-            <Text style={styles.note}>
-              Payment is completed securely on connekyt.com. Once you&apos;ve paid, come
-              back and verify your access from the event page.
+
+            {/* Payment Method Selector */}
+            <Text style={styles.sectionTitle}>Select Payment Method</Text>
+            <View style={styles.methodsRow}>
+              <Pressable
+                style={[
+                  styles.methodCard,
+                  paymentMethod === 'MOBILE_MONEY' && styles.methodCardActive,
+                ]}
+                onPress={() => setPaymentMethod('MOBILE_MONEY')}
+              >
+                <Ionicons
+                  name="phone-portrait-outline"
+                  size={20}
+                  color={paymentMethod === 'MOBILE_MONEY' ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.methodText,
+                    paymentMethod === 'MOBILE_MONEY' && styles.methodTextActive,
+                  ]}
+                >
+                  Mobile Money
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.methodCard,
+                  paymentMethod === 'CARD' && styles.methodCardActive,
+                ]}
+                onPress={() => setPaymentMethod('CARD')}
+              >
+                <Ionicons
+                  name="card-outline"
+                  size={20}
+                  color={paymentMethod === 'CARD' ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.methodText,
+                    paymentMethod === 'CARD' && styles.methodTextActive,
+                  ]}
+                >
+                  Card (Visa/MC)
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Mobile Money Details */}
+            {paymentMethod === 'MOBILE_MONEY' ? (
+              <View style={styles.providerBox}>
+                {country === 'RW' && (
+                  <View style={styles.providerToggleRow}>
+                    <Pressable
+                      style={[
+                        styles.providerPill,
+                        telecomProvider === 'MTN' && styles.providerPillActive,
+                      ]}
+                      onPress={() => setTelecomProvider('MTN')}
+                    >
+                      <Text
+                        style={[
+                          styles.providerPillText,
+                          telecomProvider === 'MTN' && styles.providerPillTextActive,
+                        ]}
+                      >
+                        MTN MoMo
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.providerPill,
+                        telecomProvider === 'AIRTEL' && styles.providerPillActive,
+                      ]}
+                      onPress={() => setTelecomProvider('AIRTEL')}
+                    >
+                      <Text
+                        style={[
+                          styles.providerPillText,
+                          telecomProvider === 'AIRTEL' && styles.providerPillTextActive,
+                        ]}
+                      >
+                        Airtel Money
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                <Text style={styles.inputLabel}>Mobile Phone Number</Text>
+                <View style={styles.phoneInputRow}>
+                  <View style={styles.dialPrefix}>
+                    <Text style={styles.dialPrefixText}>+{dialCodeFor(country)}</Text>
+                  </View>
+                  <TextInput
+                    style={styles.phoneInput}
+                    placeholder={phoneHintForCountry(country)}
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="phone-pad"
+                    value={phone}
+                    onChangeText={setPhone}
+                  />
+                </View>
+                <Text style={styles.hintText}>
+                  A prompt will be sent directly to your phone. Enter your PIN to approve.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.cardInfoBox}>
+                <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
+                <Text style={styles.cardInfoText}>
+                  Secure 3D-Secure 256-bit encrypted checkout. Card payments are supported in all currencies.
+                </Text>
+              </View>
+            )}
+
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={20} color={colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <Button
+              title={
+                busy
+                  ? 'Processing…'
+                  : paymentMethod === 'MOBILE_MONEY'
+                  ? `Pay ${totalLabel} with Mobile Money`
+                  : `Pay ${totalLabel} with Card`
+              }
+              onPress={onInitiatePayment}
+              loading={busy}
+              disabled={busy}
+            />
+
+            <Pressable style={styles.backLink} onPress={() => setStage('contact')}>
+              <Text style={styles.backLinkText}>← Edit Contact Details</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* ── STAGE 3: Awaiting USSD PIN Approval ── */}
+        {stage === 'awaiting' && (
+          <View style={styles.awaitingCard}>
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: spacing.md }} />
+            <Text style={styles.awaitingTitle}>Check Your Phone</Text>
+            <Text style={styles.awaitingSub}>
+              A USSD payment prompt has been dispatched to{' '}
+              <Text style={{ fontWeight: '700', color: colors.text }}>
+                +{dialCodeFor(country)} {phone}
+              </Text>
+              . Please enter your Mobile Money PIN to approve the payment.
             </Text>
-          </>
-        ) : (
-          // Nothing routes here on Android, but a paid stream must never
-          // surface a purchase path from inside the app there.
-          <View style={styles.errorBox}>
-            <Ionicons name="information-circle" size={20} color={colors.textMuted} />
-            <Text style={styles.mutedInline}>
-              This event needs access that cannot be purchased in the app. If you
-              already have access, use your invite code on the event page.
+
+            <View style={styles.countdownBox}>
+              <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+              <Text style={styles.countdownText}>Waiting for confirmation… ({pollCountdown}s)</Text>
+            </View>
+
+            <Button
+              title="Cancel / Try Another Method"
+              variant="outline"
+              onPress={() => {
+                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                setStage('payment');
+              }}
+            />
+          </View>
+        )}
+
+        {/* ── STAGE 4: Success State ── */}
+        {stage === 'success' && (
+          <View style={styles.successCard}>
+            <View style={styles.successIconCircle}>
+              <Ionicons name="checkmark" size={32} color="#fff" />
+            </View>
+            <Text style={styles.successTitle}>Access Pass Activated!</Text>
+            <Text style={styles.successSub}>
+              Your live stream access for <Text style={{ fontWeight: '700' }}>{data.title}</Text> has
+              been unlocked and linked to this device.
             </Text>
+
+            <Button
+              title="Watch Live Stream Now"
+              onPress={() => {
+                router.replace(
+                  `/events/live-stream?id=${id}${viewerId ? `&viewerId=${viewerId}` : ''}` as unknown as Href,
+                );
+              }}
+            />
           </View>
         )}
       </ScrollView>
+
+      {/* Country Selector Modal */}
+      <Modal
+        visible={countryModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCountryModalOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Select Payment Country</Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {PAYMENT_COUNTRIES.map((c) => (
+                <Pressable
+                  key={c.iso2}
+                  style={[styles.countryRow, country === c.iso2 && styles.countryRowActive]}
+                  onPress={() => {
+                    setCountry(c.iso2);
+                    setCountryModalOpen(false);
+                  }}
+                >
+                  <Text style={styles.countryRowFlag}>{flagEmoji(c.iso2)}</Text>
+                  <Text style={styles.countryRowName}>{c.name}</Text>
+                  <Text style={styles.countryRowDial}>+{c.dial}</Text>
+                  {country === c.iso2 && (
+                    <Ionicons name="checkmark" size={18} color={colors.primary} />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  mutedInline: { flex: 1, color: c.textMuted, fontSize: fontSize.sm },
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 120 },
-
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.xl,
+  },
+  muted: {
+    color: c.textMuted,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+  },
+  scroll: {
+    padding: spacing.lg,
+    gap: spacing.lg,
+    paddingBottom: 100,
+  },
   summary: {
     padding: spacing.lg,
     backgroundColor: c.primary,
-    borderRadius: radii.lg,
-    gap: 2,
+    borderRadius: radii.xl,
+    gap: 4,
   },
-  summaryEvent: { color: c.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  summarySub: { color: 'rgba(255,255,255,0.78)', fontSize: fontSize.xs },
-  summaryAmount: {
-    marginTop: spacing.sm,
+  summaryEvent: {
     color: c.textOnPrimary,
-    fontSize: fontSize['2xl'],
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
   },
-
-  h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  summarySub: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: fontSize.xs,
+  },
+  summaryAmount: {
+    marginTop: spacing.md,
+    color: c.textOnPrimary,
+    fontSize: fontSize['3xl'],
+    fontWeight: fontWeight.extrabold,
+  },
+  section: {
+    gap: spacing.md,
+  },
+  h2: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  subtext: {
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    lineHeight: 20,
+  },
   signedInCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: c.infoBg,
+    backgroundColor: c.tint,
     borderRadius: radii.lg,
     padding: spacing.md,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
   },
-  signedInName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
-  signedInEmail: { fontSize: fontSize.xs, color: c.textMuted },
-
-  feeCard: {
+  signedInName: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  signedInEmail: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: c.errorBg,
+    borderRadius: radii.md,
+  },
+  errorText: {
+    flex: 1,
+    color: c.error,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+  },
+  reconcileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+  },
+  reconcileBtnText: {
+    color: c.primary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  feeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: spacing.lg,
+    padding: spacing.md,
     backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
-  feeLabel: { color: c.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  feeValue: { color: c.primary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
-
-  errorBox: {
+  feeBannerLabel: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    fontWeight: fontWeight.medium,
+  },
+  feeBannerAmount: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  countryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: c.tint,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  countryFlag: {
+    fontSize: 16,
+  },
+  countryCode: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  sectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  methodsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  methodCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.md,
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+  },
+  methodCardActive: {
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+  },
+  methodText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: c.textMuted,
+  },
+  methodTextActive: {
+    color: c.primary,
+    fontWeight: fontWeight.bold,
+  },
+  providerBox: {
+    gap: spacing.sm,
+  },
+  providerToggleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  providerPill: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  providerPillActive: {
+    backgroundColor: c.tint,
+    borderColor: c.primary,
+  },
+  providerPillText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    fontWeight: fontWeight.medium,
+  },
+  providerPillTextActive: {
+    color: c.primary,
+    fontWeight: fontWeight.bold,
+  },
+  inputLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+    marginTop: 4,
+  },
+  phoneInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    overflow: 'hidden',
+  },
+  dialPrefix: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: c.tint,
+    borderRightWidth: 1,
+    borderRightColor: c.borderSoft,
+  },
+  dialPrefixText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  phoneInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: fontSize.sm,
+    color: c.text,
+  },
+  hintText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    lineHeight: 16,
+  },
+  cardInfoBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: c.errorBg,
+    padding: spacing.md,
+    backgroundColor: c.tint,
     borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
   },
-  errorText: { flex: 1, color: c.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-
-  note: { textAlign: 'center', color: c.textMuted, fontSize: fontSize.xs },
+  cardInfoText: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    color: c.text,
+    lineHeight: 18,
+  },
+  backLink: {
+    alignSelf: 'center',
+    paddingVertical: spacing.xs,
+  },
+  backLinkText: {
+    color: c.textMuted,
+    fontSize: fontSize.xs,
+  },
+  awaitingCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    gap: spacing.md,
+  },
+  awaitingTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  awaitingSub: {
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  countdownBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginVertical: spacing.sm,
+  },
+  countdownText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+  },
+  successCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    gap: spacing.md,
+  },
+  successIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: spacing.sm,
+  },
+  successTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  successSub: {
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.md,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: c.background,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  modalTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+    marginBottom: spacing.xs,
+  },
+  countryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+  },
+  countryRowActive: {
+    backgroundColor: c.tint,
+  },
+  countryRowFlag: {
+    fontSize: 20,
+  },
+  countryRowName: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: c.text,
+    fontWeight: fontWeight.medium,
+  },
+  countryRowDial: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    fontWeight: fontWeight.bold,
+  },
 }));

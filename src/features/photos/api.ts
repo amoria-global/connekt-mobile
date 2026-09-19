@@ -74,9 +74,31 @@ export async function faceSearch(
   if (purchase?.refid) qs.set('refid', purchase.refid);
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
 
-  const res = await api.post<ApiEnvelope<Raw[]>>(`/public/face-search${suffix}`, form);
-  const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapFoundPhoto).filter((p) => p.id);
+  const res = await api.post<ApiEnvelope<Raw[]>>(`/public/face-search${suffix}`, form, {
+    skipAuth: true,
+    timeoutMs: 120_000,
+  });
+
+  if (res && res.action === 0) {
+    throw {
+      status: 400,
+      message: res.message || 'No matching photos found.',
+    } satisfies ApiError;
+  }
+
+  let rawList: Raw[] = [];
+  if (Array.isArray(res?.data)) {
+    rawList = res.data;
+  } else if (res?.data && typeof res.data === 'object') {
+    const d = res.data as Raw;
+    if (Array.isArray(d.photos)) rawList = d.photos as Raw[];
+    else if (Array.isArray(d.items)) rawList = d.items as Raw[];
+    else if (Array.isArray(d.results)) rawList = d.results as Raw[];
+  } else if (Array.isArray(res)) {
+    rawList = res as Raw[];
+  }
+
+  return rawList.map(mapFoundPhoto).filter((p) => p.id);
 }
 
 // ─── Viewer ID + preview URL watermarking ──────────────────────────────────
@@ -365,6 +387,7 @@ export type MultiAlbumPurchaseItem = {
 export async function initiateMultiAlbumPurchase(data: {
   items: MultiAlbumPurchaseItem[];
   buyerId?: string;
+  buyerName?: string;
   viewerEmail?: string;
   // Web parity: the same endpoint accepts a payment method so the buyer
   // can pick mobile money (phone + operator) OR card. Card returns a
@@ -380,6 +403,7 @@ export async function initiateMultiAlbumPurchase(data: {
 }): Promise<AlbumPurchaseResult> {
   const body: Record<string, unknown> = { items: data.items };
   if (data.buyerId) body.buyerId = data.buyerId;
+  if (data.buyerName) body.buyerName = data.buyerName;
   if (data.viewerEmail) body.viewerEmail = data.viewerEmail;
   if (data.paymentMethod) body.paymentMethod = data.paymentMethod;
   if (data.phone) body.phone = data.phone;
