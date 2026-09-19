@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { OtpInput } from '@/components/ui/OtpInput';
 import { Screen } from '@/components/ui/Screen';
 import { resendOtp, verifyOtp } from '@/features/auth/api';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Image, Pressable, Text, View } from 'react-native';
 
 const RESEND_COOLDOWN_S = 30;
 
 export default function VerifyOtpScreen() {
+  const styles = useStyles();
+  const router = useRouter();
+  const { colors } = useTheme();
   const { customerId, email, phone } = useLocalSearchParams<{
     customerId: string;
     email?: string;
@@ -41,19 +45,22 @@ export default function VerifyOtpScreen() {
   const missingCustomer = !customerId;
   const missingMessage = 'This verification session has expired. Go back and sign in again to get a new code.';
 
-  const onVerify = async () => {
+  const onVerify = async (codeToVerify?: string) => {
     if (!customerId) {
       setError(missingMessage);
       return;
     }
+    const code = (codeToVerify ?? otp).trim();
+    if (code.length === 0) return;
     setError(null);
     setInfo(null);
     setSubmitting(true);
     try {
-      const session = await verifyOtp(customerId, otp.trim());
+      const session = await verifyOtp(customerId, code);
       applySession(session); // root guard redirects into the app
     } catch (err) {
       setError(isApiError(err) ? err.message : 'Verification failed. Try again.');
+      setOtp('');
     } finally {
       setSubmitting(false);
     }
@@ -68,6 +75,7 @@ export default function VerifyOtpScreen() {
     setError(null);
     setInfo(null);
     setResending(true);
+    setOtp('');
     try {
       await resendOtp(customerId);
       setOtp('');
@@ -81,27 +89,48 @@ export default function VerifyOtpScreen() {
   };
 
   return (
-    <Screen>
-      <View style={styles.container}>
-        <Text style={styles.title}>Verify your account</Text>
-        <Text style={styles.subtitle}>
-          We sent a code to <Text style={styles.email}>{channel}</Text>.
-          Enter it below to activate your account.
-        </Text>
+    <Screen padded={false}>
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
+          hitSlop={12}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </Pressable>
+      </View>
 
-        <Input
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Image
+            source={require('../../../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Verify your account</Text>
+          <Text style={styles.subtitle}>
+            We sent a verification code to <Text style={styles.email}>{channel}</Text>. Enter it below to activate your account.
+          </Text>
+        </View>
+
+        <OtpInput
           label="Verification code"
           value={otp}
-          onChangeText={setOtp}
-          keyboardType="number-pad"
-          placeholder="123456"
-          maxLength={6}
+          onChange={(v) => {
+            setOtp(v);
+            if (error) setError(null);
+          }}
+          onComplete={(completedCode) => {
+            void onVerify(completedCode);
+          }}
           error={error ?? (missingCustomer ? missingMessage : undefined)}
         />
 
         {info ? <Text style={styles.info}>{info}</Text> : null}
 
-        <Button title="Verify" onPress={onVerify} loading={submitting} />
+        <Button title="Verify" onPress={() => onVerify()} loading={submitting} />
 
         <Pressable
           onPress={onResend}
@@ -126,14 +155,79 @@ export default function VerifyOtpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22 },
-  email: { color: colors.text, fontWeight: fontWeight.semibold },
-  info: { color: colors.success, fontSize: fontSize.sm },
-  resend: { alignItems: 'center', marginTop: spacing.sm },
-  resendText: { color: colors.textMuted, fontSize: fontSize.sm },
-  link: { color: colors.primary, fontWeight: fontWeight.bold },
-  muted: { color: colors.textMuted, fontWeight: fontWeight.semibold },
-});
+const useStyles = makeStyles((c) => ({
+  topBar: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  backBtnPressed: {
+    opacity: 0.75,
+    backgroundColor: c.borderSoft,
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    gap: spacing.lg,
+  },
+  header: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+    marginBottom: spacing.xs,
+  },
+  title: {
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.extrabold,
+    color: c.primary,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: fontSize.md,
+    color: c.textMuted,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  email: {
+    color: c.text,
+    fontWeight: fontWeight.bold,
+  },
+  info: {
+    color: c.success,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+  },
+  resend: {
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  resendText: {
+    color: c.textMuted,
+    fontSize: fontSize.sm,
+  },
+  link: {
+    color: c.primary,
+    fontWeight: fontWeight.bold,
+  },
+  muted: {
+    color: c.textMuted,
+    fontWeight: fontWeight.semibold,
+  },
+}));

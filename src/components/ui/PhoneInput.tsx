@@ -35,13 +35,14 @@ import {
   type PhoneCountry,
   formatInternational,
   formatNsn,
+  getPlaceholderForCountry,
   matchDialCode,
   nsnMaxLen,
   onlyDigits,
   phoneCountryFor,
   validateNsn,
 } from '@/lib/phoneKit';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme , type Palette as ThemePalette } from '@/theme';
 
 /** Emitted on every change. `digits` is the backend wire format. */
 export interface PhoneValue {
@@ -104,21 +105,27 @@ type Palette = {
   itemPressed: string;
 };
 
-const LIGHT: Palette = {
-  text: colors.text,
-  label: colors.textSoft,
-  muted: colors.textMuted,
-  rowBg: colors.surface,
-  border: colors.border,
-  divider: colors.borderSoft,
-  focus: colors.primary,
+/**
+ * Built from the ACTIVE palette rather than the static light one, so the
+ * default (non-`dark`) variant follows the system theme. `DARK` below stays
+ * fixed on purpose — it is the stream-overlay/dark-sheet variant selected by
+ * the `dark` prop, which is independent of the system colour scheme.
+ */
+const makeLight = (c: ThemePalette): Palette => ({
+  text: c.text,
+  label: c.textSoft,
+  muted: c.textMuted,
+  rowBg: c.surface,
+  border: c.border,
+  divider: c.borderSoft,
+  focus: c.primary,
   ok: '#059669',
   err: '#DC2626',
-  sheetBg: colors.surface,
-  searchBg: colors.background,
-  itemSelected: colors.infoBg,
+  sheetBg: c.surface,
+  searchBg: c.background,
+  itemSelected: c.infoBg,
   itemPressed: '#F1F5FB',
-};
+});
 
 const DARK: Palette = {
   text: '#FFFFFF',
@@ -148,6 +155,7 @@ export type PhoneInputProps = {
   label?: string;
   /** External error (form-level validation) — overrides the built-in hint. */
   error?: string;
+  placeholder?: string;
 };
 
 export function PhoneInput({
@@ -157,8 +165,11 @@ export function PhoneInput({
   dark = false,
   label,
   error,
+  placeholder,
 }: PhoneInputProps) {
-  const ui = dark ? DARK : LIGHT;
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const ui = dark ? DARK : makeLight(colors);
 
   const [country, setCountry] = useState<PhoneCountry | null>(
     () => phoneCountryFor(defaultIso2) ?? phoneCountryFor('RW'),
@@ -186,32 +197,51 @@ export function PhoneInput({
   const maxLen = nsnMaxLen(country);
   const complete = nsn.length >= maxLen;
 
-  const display = country
-    ? `+${country.dial}${nsn ? ' ' + formatNsn(country, nsn) : ' '}`
-    : nsn
-      ? `+${nsn}`
-      : '+';
+  /**
+   * The field shows ONLY the national number — the dial code is displayed once,
+   * in the flag chip beside it. This used to be `+${dial} ${nsn}`, which put the
+   * code inside the editable value and rendered as "🇷🇼 +250 ⌄ | +250" on an
+   * empty field. (The web component fixed the same bug; see
+   * knockout/app/components/phone/InternationalPhoneInput.tsx.)
+   */
+  const display = country ? (nsn ? formatNsn(country, nsn) : '') : nsn;
+
 
   const handleText = (t: string) => {
     const d = onlyDigits(t);
     if (!d) {
-      // Cleared below the dial code — collapse to '+' so typing (or pasting)
-      // a new code re-detects from scratch.
-      setCountry(null);
       setNsn('');
       return;
     }
-    // Longest-prefix re-detection; the current pick breaks ties (US/CA).
-    const m = matchDialCode(d, country?.iso2 ?? defaultIso2);
-    if (m) {
-      let rest = d.slice(m.dial.length);
-      if (m.trunkPrefix && rest.startsWith(m.trunkPrefix)) rest = rest.slice(m.trunkPrefix.length);
-      setCountry(m);
-      setNsn(rest.slice(0, nsnMaxLen(m) + 2));
-    } else {
-      setCountry(null);
-      setNsn(d.slice(0, FALLBACK_NSN_MAX + 4));
+
+    /**
+     * Now that the value carries no dial code, plain typing must NOT be read as
+     * one — otherwise a leading "7" would flip the country mid-entry. Dial-code
+     * matching therefore runs only when the input actually looks international:
+     * it contains a '+', or it overflows the national plan. Mirrors the web
+     * component's `looksInternational` guard.
+     */
+    const looksInternational =
+      t.includes('+') || (country != null && d.length > nsnMaxLen(country) + 1);
+
+    if (looksInternational) {
+      const m = matchDialCode(d, country?.iso2 ?? defaultIso2);
+      if (m) {
+        let rest = d.slice(m.dial.length);
+        if (m.trunkPrefix && rest.startsWith(m.trunkPrefix)) rest = rest.slice(m.trunkPrefix.length);
+        setCountry(m);
+        setNsn(rest.slice(0, nsnMaxLen(m) + 2));
+        return;
+      }
     }
+
+    // Plain national entry. A pasted trunk prefix ("0788…") is stripped, which
+    // is what users copy off a local contact card.
+    let rest = d;
+    if (country?.trunkPrefix && rest.startsWith(country.trunkPrefix)) {
+      rest = rest.slice(country.trunkPrefix.length);
+    }
+    setNsn(rest.slice(0, country ? nsnMaxLen(country) + 2 : FALLBACK_NSN_MAX + 4));
   };
 
   const selectCountry = (c: PhoneCountry) => {
@@ -223,31 +253,9 @@ export function PhoneInput({
     setPickerOpen(false);
   };
 
-  // Hint line: external error → example → progress → valid → error.
-  let hint = '';
-  let tone: 'info' | 'ok' | 'err' = 'info';
-  if (error) {
-    hint = error;
-    tone = 'err';
-  } else if (!country) {
-    hint = nsn ? 'Unknown country code' : '';
-    tone = nsn ? 'err' : 'info';
-  } else if (!nsn) {
-    const exampleLen = country.nsnLengths[0] ?? 8;
-    hint = `e.g. ${formatInternational(country, '7'.padEnd(exampleLen, '8'))}`;
-  } else if (isValid) {
-    hint = `${country.name} · looks good`;
-    tone = 'ok';
-  } else {
-    const lens = [...country.nsnLengths].sort((a, b) => a - b);
-    hint = lens.length
-      ? `${country.name} numbers have ${lens.join(' or ')} digits (${nsn.length}/${maxLen})`
-      : `${nsn.length} digits — keep typing`;
-    tone = complete ? 'err' : 'info';
-  }
-
-  const showErr = !!error || (!!nsn && !country) || (!!nsn && !isValid && complete);
-  const borderColor = showErr ? ui.err : nsn && isValid ? ui.ok : focused ? ui.focus : ui.border;
+  const showErr = Boolean(error);
+  const borderColor = showErr ? ui.err : focused ? ui.focus : ui.border;
+  const activePlaceholder = placeholder ?? getPlaceholderForCountry(country);
 
   const query = search.trim().toLowerCase();
   const qDigits = onlyDigits(query);
@@ -303,23 +311,18 @@ export function PhoneInput({
           autoComplete="tel"
           textContentType="telephoneNumber"
           accessibilityLabel={label ?? 'Phone number'}
+          placeholder={activePlaceholder}
           placeholderTextColor={ui.muted}
         />
-        {nsn && isValid ? (
-          <Ionicons name="checkmark-circle" size={18} color={ui.ok} style={styles.stateIcon} />
-        ) : nsn && showErr ? (
+        {showErr ? (
           <Ionicons name="close-circle" size={18} color={ui.err} style={styles.stateIcon} />
         ) : null}
       </View>
-      <Text
-        style={[
-          styles.hint,
-          { color: tone === 'ok' ? ui.ok : tone === 'err' ? ui.err : ui.muted },
-        ]}
-        numberOfLines={2}
-      >
-        {hint}
-      </Text>
+      {error ? (
+        <Text style={[styles.hint, { color: ui.err }]} numberOfLines={2}>
+          {error}
+        </Text>
+      ) : null}
 
       <Modal
         visible={pickerOpen}
@@ -404,7 +407,7 @@ export function PhoneInput({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { gap: spacing.xs },
   label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   row: {
@@ -485,4 +488,4 @@ const styles = StyleSheet.create({
   itemName: { flex: 1, fontSize: fontSize.sm },
   itemDial: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
   emptyText: { textAlign: 'center', paddingVertical: spacing.xl, fontSize: fontSize.sm },
-});
+}));

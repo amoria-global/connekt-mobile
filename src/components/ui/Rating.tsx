@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize } from '@/theme';
+import { fontSize, makeStyles } from '@/theme';
 
 export function Rating({ value, count }: { value?: number; count?: number }) {
+  const styles = useStyles();
   if (value == null) return null;
   return (
     <View style={styles.wrap}>
@@ -13,8 +14,8 @@ export function Rating({ value, count }: { value?: number; count?: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  value: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
-  count: { fontSize: fontSize.xs, color: colors.textMuted },
-});
+  value: { fontSize: fontSize.sm, fontWeight: '700', color: c.text },
+  count: { fontSize: fontSize.xs, color: c.textMuted },
+}));

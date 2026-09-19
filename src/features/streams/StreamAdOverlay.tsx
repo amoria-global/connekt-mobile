@@ -72,6 +72,8 @@ function AdVideo({ uri, style }: { uri: string; style: StyleProp<ViewStyle> }) {
   const player = useVideoPlayer({ uri }, (p) => {
     p.loop = true;
     p.muted = true;
+    // Silent ad loop — must not interrupt whatever the viewer is listening to.
+    p.audioMixingMode = 'mixWithOthers';
     p.play();
   });
   return <VideoView player={player} style={style as any} contentFit="cover" nativeControls={false} />;
@@ -117,7 +119,7 @@ function AdView({
       : { bottom: bottomSafe, left: 0, right: 0 };
     return (
       <Pressable style={[styles.bar, pos]} onPress={onPress}>
-        <AdMedia ad={ad} style={StyleSheet.absoluteFillObject} />
+        <AdMedia ad={ad} style={StyleSheet.absoluteFill} />
         {onClose ? <CloseButton onClose={onClose} /> : null}
       </Pressable>
     );
@@ -127,7 +129,7 @@ function AdView({
     const pos: ViewStyle = p.side === 'left' ? { left: 8 } : { right: 8 };
     return (
       <Pressable style={[styles.rail, pos]} onPress={onPress}>
-        <AdMedia ad={ad} style={StyleSheet.absoluteFillObject} />
+        <AdMedia ad={ad} style={StyleSheet.absoluteFill} />
         {onClose ? <CloseButton onClose={onClose} /> : null}
       </Pressable>
     );
@@ -140,7 +142,7 @@ function AdView({
     };
     return (
       <Pressable style={[styles.corner, pos]} onPress={onPress}>
-        <AdMedia ad={ad} style={StyleSheet.absoluteFillObject} />
+        <AdMedia ad={ad} style={StyleSheet.absoluteFill} />
         {onClose ? <CloseButton onClose={onClose} /> : null}
       </Pressable>
     );
@@ -152,10 +154,10 @@ function AdView({
   return (
     <>
       <Pressable style={[styles.lRail, { bottom: bottomSafe }, railPos]} onPress={onPress}>
-        <AdMedia ad={ad} style={StyleSheet.absoluteFillObject} />
+        <AdMedia ad={ad} style={StyleSheet.absoluteFill} />
       </Pressable>
       <Pressable style={[styles.bar, { bottom: bottomSafe, left: 0, right: 0 }]} onPress={onPress}>
-        <AdMedia ad={ad} style={StyleSheet.absoluteFillObject} />
+        <AdMedia ad={ad} style={StyleSheet.absoluteFill} />
         {onClose ? <CloseButton onClose={onClose} /> : null}
       </Pressable>
     </>
@@ -276,7 +278,7 @@ export function StreamAdOverlay({
   if (!enabled || !active) return null;
 
   return (
-    <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       <AdView
         ad={active}
         onPress={() => onPressAd(active)}

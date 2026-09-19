@@ -21,9 +21,17 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"            # connekt-mobile
 ENV_FILE="$ROOT/.env"
 PROPS="$ROOT/../amoria-connect/src/main/resources/application-dev.properties"
 
-# 1) Mobile app .env
-printf 'EXPO_PUBLIC_API_BASE_URL=http://%s:8080/api/remote\n' "$IP" > "$ENV_FILE"
-echo "✓ .env            → http://$IP:8080/api/remote"
+# 1) Mobile app .env — update only EXPO_PUBLIC_API_BASE_URL, keep every other
+#    line (Google client IDs etc.) exactly as it is. .env is git-ignored.
+URL="http://$IP:8080/api/remote"
+touch "$ENV_FILE"
+if grep -qE '^#?[[:space:]]*EXPO_PUBLIC_API_BASE_URL=' "$ENV_FILE"; then
+  /usr/bin/sed -i '' -E "s|^#?[[:space:]]*EXPO_PUBLIC_API_BASE_URL=.*|EXPO_PUBLIC_API_BASE_URL=$URL|" "$ENV_FILE"
+else
+  printf 'EXPO_PUBLIC_API_BASE_URL=%s\n' "$URL" >> "$ENV_FILE"
+fi
+echo "✓ .env            → $URL"
+echo "  (to go back to production, delete or comment out that line)"
 
 # 2) Backend base-url (media URLs)
 if [ -f "$PROPS" ]; then

@@ -5,6 +5,7 @@
 import { api } from '@/api/client';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
+import { forgetFirstHandshake, type AppleCredentialPayload } from './apple';
 import type {
   AuthSession,
   CustomerType,
@@ -27,7 +28,13 @@ function normalizeRole(raw?: string): CustomerType | undefined {
   if (r === 'viewer') return 'Viewer';
   if (r === 'user') return 'User';
   if (r === 'coordinator' || r === 'event-coordinator') return 'Coordinator';
-  return 'Client'; // unknown → safe default
+  // ROLE INVARIANT: never infer, replace or downgrade a role. This used to
+  // return 'Client' for anything unrecognised, so a backend role this client
+  // does not know about was silently recorded as Client in the session — a
+  // downgrade with no error anywhere. `undefined` is already part of this
+  // function's contract (a missing role returns it), so callers handle it, and
+  // an unknown role now surfaces as "no role" rather than as the wrong one.
+  return undefined;
 }
 
 /** Thrown by login() when the account exists but its email isn't verified yet. */
@@ -53,17 +60,7 @@ export function isNeedsTotp(err: unknown): err is NeedsTotpError {
   );
 }
 
-export type NeedsPasswordChangeError = ApiError & {
-  needsPasswordChange: true;
-  email: string;
-  /**
-   * The access token from the login that triggered the forced change. The
-   * session is deliberately not persisted yet (the user isn't through the
-   * gate), but /auth/set-new-password resolves the account from the caller's
-   * session on this branch, so the token has to travel with the error.
-   */
-  token?: string;
-};
+export type NeedsPasswordChangeError = ApiError & { needsPasswordChange: true; email: string };
 
 export function isNeedsPasswordChange(err: unknown): err is NeedsPasswordChangeError {
   return (
@@ -117,17 +114,17 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
   }
 
   if (res.mustChangePassword) {
+    // Park the token ONLY — never persistSession, which would treat someone
+    // still holding a temporary password as fully signed in. The forced-change
+    // screen needs this one credential to prove to /auth/set-new-password who
+    // it is; the backend resolves the account from it and will not accept an
+    // email in the body as identity.
+    if (res.token) await storage.set(StorageKeys.authToken, res.token);
     throw {
       status: 403,
       message: 'You must change your password to continue.',
       needsPasswordChange: true,
-      // The account's real email, NOT `credentials.email` - that field
-      // carries whatever identifier was typed, and login accepts a phone
-      // number (normalized to digits like "250788123456"). Feeding that to
-      // /auth/set-new-password made the backend's findByEmail lookup throw,
-      // so phone-login users with a forced password change hit a 500.
-      email: res.email ?? credentials.email,
-      token: res.token,
+      email: credentials.email,
     } as NeedsPasswordChangeError;
   }
 
@@ -232,94 +229,53 @@ export async function forgotPassword(email: string): Promise<void> {
 }
 
 /**
- * Checks a reset token from the emailed link before we ask for a new
- * password, so an expired or malformed token fails immediately instead of
- * after the user has filled in the form.
- */
-export async function validateResetToken(token: string): Promise<void> {
-  const res = await api.get<{ action: number; message?: string }>(
-    `/auth/validate-token?token=${encodeURIComponent(token)}`,
-    { skipAuth: true },
-  );
-  if (res.action !== 1) {
-    throw {
-      status: 400,
-      message: res.message || 'This reset link is invalid or has expired.',
-    } satisfies ApiError;
-  }
-}
-
-/**
- * Completes a self-service password reset using the single-use token from the
- * reset email. This is the endpoint a user-initiated reset MUST use.
+ * Exchange an SMS recovery OTP for a real password-reset token.
  *
- * The older /auth/set-new-password takes only an email and verifies no token
- * whatsoever, so routing a reset through it would let anyone overwrite any
- * account's password knowing nothing but the address. This one validates the
- * token, checks expiry, enforces the server-side password policy, and burns
- * the token on success. The backend reads these as query params, not a body.
+ * The two recovery channels hand back DIFFERENT things:
+ *   • email  -> a link containing a PasswordResetToken (a UUID)
+ *   • SMS    -> a short numeric OTP
+ *
+ * `/auth/set-new-password` only accepts the token — it resolves `code` with
+ * `passwordResetTokenRepository.findByToken(...)`. Posting a raw SMS OTP there
+ * returns "This reset link is invalid or has expired", which is exactly what
+ * phone-only users hit. This endpoint turns the OTP into the token the reset
+ * call needs, so both channels converge on one code path.
+ *
+ * Backend: POST /auth/forgot-password/verify-code -> { action, code }.
  */
-export async function resetPasswordWithToken(data: {
-  token: string;
-  password: string;
-  confirmPassword: string;
-}): Promise<void> {
-  const qs = new URLSearchParams({
-    token: data.token,
-    password: data.password,
-    confirmPassword: data.confirmPassword,
-  }).toString();
-
-  const res = await api.post<{ action: number; message?: string }>(
-    `/auth/reset-password?${qs}`,
+export async function exchangeRecoveryCode(identifier: string, code: string): Promise<string> {
+  const qs = new URLSearchParams({ identifier, code }).toString();
+  const res = await api.post<{ action: number; message?: string; code?: string }>(
+    `/auth/forgot-password/verify-code?${qs}`,
     undefined,
     { skipAuth: true },
   );
-  if (res.action !== 1) {
+  if (res.action !== 1 || !res.code) {
     throw {
       status: 400,
-      message: res.message || 'Password reset failed. Please try again.',
+      message: res.message || 'That code is invalid or has expired. Please request a new one.',
     } satisfies ApiError;
   }
+  return res.code;
 }
 
-/**
- * Forced first-login password change: an invited team member signing in with
- * a temporary password (`mustChangePassword`).
- *
- * /auth/set-new-password never resolves the account from the request body -
- * `email` is advisory and can only veto a mismatch. The account comes from
- * proof: either a reset token sent as `code`, or the caller's own session,
- * and the session branch is accepted only while isPasswordChanged is false.
- * So this call must carry the access token from the login that triggered the
- * change; without it the backend answers "Your session has expired".
- *
- * Self-service "forgot my password" uses {@link resetPasswordWithToken}.
- */
 export async function setNewPassword(data: {
+  /** Advisory. The backend resolves the account from `code` or the session. */
   email?: string;
+  /** Reset token from the emailed link. Omit for the forced first change. */
+  code?: string;
   password: string;
+  newPassword?: string;
   confirmPassword: string;
-  /** Access token from the login that reported mustChangePassword. */
-  authToken?: string;
 }): Promise<void> {
-  const res = await api.post<{ action: number; message?: string }>(
-    '/auth/set-new-password',
-    {
-      email: data.email,
-      password: data.password,
-      // The backend cross-checks these two and refuses if they disagree, so a
-      // caller can never set one password while believing it set another.
-      newPassword: data.password,
-      confirmPassword: data.confirmPassword,
-    },
-    {
-      // Bypass the stored-token lookup - the session isn't persisted yet - and
-      // present the login token explicitly instead.
-      skipAuth: true,
-      headers: data.authToken ? { Authorization: `Bearer ${data.authToken}` } : undefined,
-    },
-  );
+  // Attach the parked token explicitly rather than dropping skipAuth: that
+  // keeps the client's 401 auto-refresh disabled. A forced-change user has no
+  // refresh token yet, and that path would sign them straight back out.
+  const token = await storage.get(StorageKeys.authToken);
+  const res = await api.post<{ action: number; message?: string }>('/auth/set-new-password', data, {
+    skipAuth: true,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (res.action !== 1) {
     throw {
       status: 400,
@@ -395,6 +351,111 @@ export async function googleLogin(
   return session;
 }
 
+/**
+ * Does an account already exist for this email?
+ *
+ * Used by the LOGIN screen's Google button. `/auth/google` creates an account
+ * when none matches, so calling it without a chosen role would mint one with a
+ * guessed role. Checking first lets the caller route an unknown user to role
+ * selection instead of silently creating a Client.
+ *
+ * Backend contract: POST /auth/check-email -> action 0 = taken, 1 = free.
+ */
+export async function isEmailRegistered(email: string): Promise<boolean> {
+  const res = await api.post<{ action?: number }>(
+    '/auth/check-email',
+    { email },
+    { skipAuth: true },
+  );
+  return res.action === 0;
+}
+
+/**
+ * Roles a user can pick during mobile registration.
+ *
+ * The backend additionally accepts 'User' and 'Viewer' (see
+ * AuthService.VALID_CUSTOMER_TYPES). 'Viewer' is deliberately NOT offered here:
+ * it is excluded from `ownsEvents`, so a Viewer account renders the Events tab
+ * as a permanent empty state (this is why V285's Play-review seed uses 'User').
+ */
+/** Profile handed to role selection; '' where Apple shared nothing (mirrors GoogleProfile). */
+export type AppleProfile = { email: string; firstName: string; lastName: string };
+
+/** Thrown by appleLogin() in sign-in mode when this Apple ID has no account yet. */
+export type NeedsRoleError = ApiError & { needsRole: true; profile: AppleProfile };
+
+export function isNeedsRole(err: unknown): err is NeedsRoleError {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { needsRole?: unknown }).needsRole === true &&
+    typeof (err as { profile?: unknown }).profile === 'object'
+  );
+}
+
+/**
+ * Sign in / register via Apple. Unlike the Google path the credential goes in
+ * a JSON body, never query params: the identity token is a bearer credential
+ * and must not land in access logs. `/auth/apple` resolves against
+ * env.apiBaseUrl (…/api/remote), the backend's alias for the canonical
+ * /api/v1/auth/apple. The backend verifies the token against Apple's JWKS and
+ * returns the same flat session shape as /auth/login.
+ *
+ * `createIfMissing: false` is the sign-in screen's contract: no role is known
+ * there, so an unknown Apple ID must not be registered. The backend then
+ * answers `action 3` + `needsRole`, surfaced here as NeedsRoleError so the
+ * caller can route into role selection with the verified profile.
+ */
+export async function appleLogin(
+  credential: AppleCredentialPayload,
+  options: { createIfMissing: boolean },
+): Promise<AuthSession> {
+  const res = await api.post<LoginResponse & { needsRole?: boolean }>(
+    '/auth/apple',
+    { ...credential, createIfMissing: options.createIfMissing },
+    { skipAuth: true },
+  );
+
+  if (res.action === 3 && res.needsRole) {
+    // Keep the cached first-handshake profile: registration continues on the
+    // signup screen, where Apple will no longer return name/email.
+    throw {
+      status: 404,
+      message: res.message || 'Choose how you will use Connekyt to continue.',
+      needsRole: true,
+      profile: {
+        email: res.email ?? credential.email ?? '',
+        firstName: res.firstName ?? credential.firstName ?? '',
+        lastName: res.lastName ?? credential.lastName ?? '',
+      },
+    } as NeedsRoleError;
+  }
+  if (res.action === 2 && res.customerId) {
+    throw {
+      status: 403,
+      message: res.message || 'Two-factor authentication is required.',
+      needsTotp: true,
+      customerId: res.customerId,
+    } as NeedsTotpError;
+  }
+  if (res.action !== 1 || !res.token) {
+    throw {
+      status: 401,
+      message: res.message || 'Apple sign-in failed. Please try again.',
+    } satisfies ApiError;
+  }
+
+  const session: AuthSession = {
+    token: res.token,
+    refreshToken: res.refreshToken,
+    user: userFromResponse(res, credential.email ?? ''),
+  };
+  await persistSession(session);
+  // The backend now owns the profile; the on-device first-handshake copy can go.
+  await forgetFirstHandshake(credential.appleUserId);
+  return session;
+}
+
 export const CUSTOMER_TYPES: CustomerType[] = ['Client', 'Photographer', 'Coordinator'];
 
 /**
@@ -431,7 +492,11 @@ export async function establishSession(params: {
 
 export async function logout(): Promise<void> {
   try {
-    await api.post('/auth/logout');
+    // Ends this phone's session only (CONN-AUTH-7). '/auth/logout' is "sign
+    // out everywhere" and used to run here, so logging out of the phone
+    // silently signed out the web dashboard and any paired TV hours later.
+    const refreshToken = await storage.get(StorageKeys.refreshToken).catch(() => null);
+    await api.post('/auth/logout-device', refreshToken ? { refreshToken } : undefined);
   } catch {
     // Even if the server call fails, clear local state.
   }
@@ -440,12 +505,22 @@ export async function logout(): Promise<void> {
 
 async function persistSession(session: AuthSession): Promise<void> {
   await storage.set(StorageKeys.authToken, session.token);
-  if (session.refreshToken) await storage.set(StorageKeys.refreshToken, session.refreshToken);
+  if (session.refreshToken) {
+    await storage.set(StorageKeys.refreshToken, session.refreshToken);
+  } else {
+    // Critical on an account switch: if the new session carries no refresh
+    // token, the PREVIOUS account's one used to survive here. The next 401
+    // would then refresh into that other identity and silently swap who is
+    // signed in. A session without a refresh token must leave none behind.
+    await storage.remove(StorageKeys.refreshToken);
+  }
   await storage.set(StorageKeys.session, JSON.stringify(session));
 }
 
 export async function loadSession(): Promise<AuthSession | null> {
-  const raw = await storage.get(StorageKeys.session);
+  // A rejected read (locked keychain, corrupted entry) must not propagate:
+  // bootstrap would be left hanging and the app would sit on the splash.
+  const raw = await storage.get(StorageKeys.session).catch(() => null);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as AuthSession;

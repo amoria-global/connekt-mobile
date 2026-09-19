@@ -5,17 +5,15 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { setNewPassword } from '@/features/auth/api';
-import { PASSWORD_HINT, validatePassword } from '@/features/auth/passwordPolicy';
+import { storage, StorageKeys } from '@/services/storage';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
 
 export default function ChangePasswordScreen() {
+  const styles = useStyles();
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string; token?: string }>();
+  const params = useLocalSearchParams<{ email?: string }>();
   const email = params.email ?? '';
-  // The account is resolved from this session token, not from the email in
-  // the body - the backend treats that field as advisory only.
-  const authToken = params.token || undefined;
   
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -30,9 +28,9 @@ export default function ChangePasswordScreen() {
       setError('All fields are required.');
       return;
     }
-    const policyError = validatePassword(password);
-    if (policyError) {
-      setError(policyError);
+    // Same rule the server enforces, and the same one signup already states.
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@!#$%^&*=+]).{8,}$/.test(password)) {
+      setError('Use at least 8 characters, including a letter, a number and one of @!#$%^&*=+');
       return;
     }
     if (password !== confirmPassword) {
@@ -42,12 +40,18 @@ export default function ChangePasswordScreen() {
 
     setSubmitting(true);
     try {
+      // No code: the proof for a forced first change is the session parked at
+      // login, which setNewPassword attaches. The backend resolves the account
+      // from it, so the email is advisory only.
       await setNewPassword({
         email: email.trim(),
         password,
+        newPassword: password,
         confirmPassword,
-        authToken,
       });
+      // Sign in fresh with the new password rather than keeping the token that
+      // was only ever meant to authorise this one change.
+      await storage.remove(StorageKeys.authToken);
       setSuccess(true);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
@@ -82,6 +86,10 @@ export default function ChangePasswordScreen() {
 
           <Input
             label="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
             value={email}
             editable={false}
           />
@@ -91,7 +99,10 @@ export default function ChangePasswordScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="Enter a new password"
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
+            placeholder="8+ chars, a letter, a number and a symbol"
           />
 
           <Input
@@ -99,11 +110,12 @@ export default function ChangePasswordScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
             placeholder="Type it again"
             error={error ?? undefined}
           />
-
-          <Text style={styles.hint}>{PASSWORD_HINT}</Text>
 
           <Button title="Save and continue" onPress={onSubmit} loading={submitting} />
 
@@ -119,11 +131,10 @@ export default function ChangePasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   container: { flex: 1, justifyContent: 'center', gap: spacing.md },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22, marginBottom: spacing.sm },
-  hint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
+  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22, marginBottom: spacing.sm },
   successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl },
-});
+}));

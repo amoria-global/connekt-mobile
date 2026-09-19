@@ -24,7 +24,7 @@ import { listCurrencies } from '@/features/reference/api';
 import { useAsync } from '@/hooks/useAsync';
 import { pickFromLibrary, pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 const schema = z.object({
   title: z.string().min(1, 'Give the album a title'),
@@ -37,6 +37,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function NewContentAlbumScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [cover, setCover] = useState<PickedImage | null>(null);
@@ -134,7 +136,7 @@ export default function NewContentAlbumScreen() {
             ) : (
               <View style={styles.coverPlaceholder}>
                 <Ionicons name="image-outline" size={26} color={colors.primary} />
-                <Text style={styles.hint}>Add a cover — falls back to your first photo</Text>
+                <Text style={styles.hint}>Add a cover. Falls back to your first photo</Text>
               </View>
             )}
           </Pressable>
@@ -237,17 +239,17 @@ export default function NewContentAlbumScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.xl, paddingBottom: spacing['3xl'], gap: spacing.lg },
-  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  sub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginTop: -8 },
+  title: { fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
+  sub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20, marginTop: -8 },
   group: { gap: spacing.xs },
-  label: { fontFamily: fonts.bold, fontSize: 11, color: colors.accent, letterSpacing: 0.6 },
-  hint: { fontSize: fontSize.xs, color: colors.textMuted },
-  err: { fontSize: fontSize.xs, color: colors.error },
+  label: { fontFamily: fonts.bold, fontSize: 11, color: c.accent, letterSpacing: 0.6 },
+  hint: { fontSize: fontSize.xs, color: c.textMuted },
+  err: { fontSize: fontSize.xs, color: c.error },
   alignStart: { alignSelf: 'flex-start' },
 
-  cover: { height: 150, borderRadius: radii.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', backgroundColor: colors.surfaceMuted },
+  cover: { height: 150, borderRadius: radii.lg, overflow: 'hidden', borderWidth: 1, borderColor: c.border, borderStyle: 'dashed', backgroundColor: c.surfaceMuted },
   coverImg: { width: '100%', height: '100%' },
   coverPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.lg },
 
@@ -255,16 +257,16 @@ const styles = StyleSheet.create({
   thumbWrap: { width: 72, height: 72, borderRadius: radii.md, overflow: 'hidden' },
   thumb: { width: '100%', height: '100%' },
   thumbX: { position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: radii.full, backgroundColor: 'rgba(8,58,133,0.85)', alignItems: 'center', justifyContent: 'center' },
-  addThumb: { width: 72, height: 72, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  addThumb: { width: 72, height: 72, borderRadius: radii.md, borderWidth: 1, borderColor: c.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
-  chipTextActive: { color: colors.textOnPrimary },
+  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
+  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
+  chipTextActive: { color: c.textOnPrimary },
 
   row: { flexDirection: 'row', gap: spacing.md },
   rowItem: { flex: 1, gap: spacing.xs },
   multiline: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
-  serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

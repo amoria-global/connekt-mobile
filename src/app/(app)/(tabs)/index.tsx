@@ -19,7 +19,7 @@
  * Photographer / Viewer fall back to the original quick-action layout
  * because their dashboards live on different pages.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Image as RNImage } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,7 +38,10 @@ import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
+import { KycBanner } from '@/features/kyc/KycBanner';
 import { UserHome } from '@/features/dashboard/UserHome';
+import { ClientHome } from '@/features/dashboard/ClientHome';
+import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
 import {
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
@@ -69,7 +72,7 @@ import { listStreams } from '@/features/streams/api';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 // ────── Greetings (web parity: pages/client/home.tsx:64-114) ──────────────
@@ -164,6 +167,8 @@ const PERIOD_LABEL: Record<AnalyticsPeriod, string> = {
 };
 
 export default function HomeScreen() {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const user = useAuth((s) => s.user);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [payNowOpen, setPayNowOpen] = useState(false);
@@ -261,13 +266,33 @@ export default function HomeScreen() {
   const [customTo, setCustomTo] = useState('');
   const [loadingDash, setLoadingDash] = useState(false);
 
+  // The raw text inputs used to sit in loadDashboard's dep array, so typing
+  // "2026-08-01" fired a full seven-request dashboard reload on every single
+  // keystroke. Debounce so the reload happens once the date stops changing.
+  const [debouncedFrom, setDebouncedFrom] = useState('');
+  const [debouncedTo, setDebouncedTo] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebouncedFrom(customFrom);
+      setDebouncedTo(customTo);
+    }, 400);
+    return () => clearTimeout(id);
+  }, [customFrom, customTo]);
+
+  // Every load takes a ticket; only the newest one may write state. Without
+  // this a slow earlier response landed after a newer one and the dashboard
+  // showed figures for a period the user had already moved off.
+  const loadGeneration = useRef(0);
+
   const loadDashboard = useCallback(async () => {
     if (!showsDashboard) return;
+    const myGeneration = ++loadGeneration.current;
+    const isCurrent = () => myGeneration === loadGeneration.current;
     setLoadingDash(true);
     try {
       if (isClient) {
-        const from = period === 'custom' ? customFrom : undefined;
-        const to = period === 'custom' ? customTo : undefined;
+        const from = period === 'custom' ? debouncedFrom : undefined;
+        const to = period === 'custom' ? debouncedTo : undefined;
         const [a, t, p, recent, photogs, payments, perf] = await Promise.allSettled([
           getCustomerAnalytics(),
           getCustomerTrends(period, from, to),
@@ -277,6 +302,7 @@ export default function HomeScreen() {
           getCustomerRecentPayments(),
           getCustomerPerformance(period, from, to),
         ]);
+        if (!isCurrent()) return;
         if (a.status === 'fulfilled') setAnalyticsClient(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (p.status === 'fulfilled') setPending(p.value);
@@ -290,6 +316,7 @@ export default function HomeScreen() {
           getCoordinatorTrends(period),
           getCoordinatorPendingPayments(),
         ]);
+        if (!isCurrent()) return;
         if (a.status === 'fulfilled') setAnalyticsCoord(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (p.status === 'fulfilled') setPending(p.value);
@@ -298,13 +325,16 @@ export default function HomeScreen() {
           getPhotographerAnalytics(),
           getPhotographerTrends(period),
         ]);
+        if (!isCurrent()) return;
         if (a.status === 'fulfilled') setAnalyticsPhotog(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
       }
     } finally {
-      setLoadingDash(false);
+      // Only the newest load owns the spinner, or a superseded one turns it
+      // off while the current request is still in flight.
+      if (isCurrent()) setLoadingDash(false);
     }
-  }, [showsDashboard, isClient, isCoordinator, isPhotographer, period, customFrom, customTo]);
+  }, [showsDashboard, isClient, isCoordinator, isPhotographer, period, debouncedFrom, debouncedTo]);
 
   useEffect(() => {
     loadDashboard();
@@ -378,13 +408,16 @@ export default function HomeScreen() {
   const hasFailedPayments = pending.some((p) => p.status === 'failed');
 
   // ── Render ────────────────────────────────────────────────────────────
-  // The `User` (mobile/TV consumer) role has its own action-first home rather
-  // than the business analytics dashboard.
+  // The `User`, `Client`, and `Photographer` roles have specialized,
+  // role-tailored homes rather than the generic business analytics dashboard.
   if (isUser) return <UserHome />;
+  if (isClient) return <ClientHome />;
+  if (isPhotographer) return <PhotographerHome />;
 
   return (
     <Screen padded={false} edges={['bottom']}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}>
+        <KycBanner />
         {showsDashboard ? (
           <>
             <DashboardHero
@@ -514,7 +547,10 @@ export default function HomeScreen() {
         {/* Quick actions (kept for every role — shortcuts to non-tab screens) */}
         <Text style={styles.sectionTitle}>Quick actions</Text>
         <View style={styles.actionsPanel}>
-          {(ACTIONS_BY_ROLE[role] ?? ACTIONS_BY_ROLE.Client).map((a) => (
+          {/* ROLE INVARIANT: an unknown role shows NO shortcuts rather than
+              borrowing Client's — the old `?? ACTIONS_BY_ROLE.Client` silently
+              handed Client's actions to whoever had no resolved role. */}
+          {((role && ACTIONS_BY_ROLE[role]) || []).map((a) => (
             <Pressable
               key={a.label}
               style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
@@ -606,9 +642,11 @@ function DashboardHero({
   subtitle: string;
   stats: { label: string; value: string; tone: string }[];
 }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   return (
     <LinearGradient
-      colors={['rgba(8,58,133,0.08)', 'rgba(242,12,143,0.08)']}
+      colors={[...gradients.wash]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.hero}
@@ -665,6 +703,7 @@ function KpiCard({
   timeframe,
   onPress,
 }: KpiSpec & { timeframe: string; onPress?: () => void }) {
+  const styles = useStyles();
   const dir = trend?.direction ?? 'up';
   const trendColor = dir === 'up' ? '#10B981' : '#EF4444';
   return (
@@ -712,6 +751,8 @@ function PendingPaymentsAlert({
   onViewAll: () => void;
   onPayNow: (p: PendingPayment) => void;
 }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const tone = hasFailed ? colors.errorBg : colors.warningBg;
   const stroke = hasFailed ? colors.error : colors.warning;
   const titleText = hasFailed ? 'Payment action required' : 'Pending payments';
@@ -796,6 +837,7 @@ function PendingPaymentsAlert({
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={{ gap: spacing.sm }}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -825,6 +867,8 @@ function ActivityRow({
   activity: RecentActivity;
   router: ReturnType<typeof useRouter>;
 }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const { label, icon, href } = describeActivity(activity.type);
 
   return (
@@ -887,17 +931,23 @@ function SimpleHeader({
   router,
 }: {
   name: string;
-  role: string;
+  /** Absent when the session carries no resolved role — the badge is then hidden
+      rather than showing a substituted one. */
+  role: string | undefined;
   wallet: ReturnType<typeof useAsync<Awaited<ReturnType<typeof getWallet>>>>;
   router: ReturnType<typeof useRouter>;
 }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   return (
     <>
       <View style={styles.header}>
         <Text style={styles.greeting}>Hello, {name} 👋</Text>
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>{role}</Text>
-        </View>
+        {role ? (
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{role}</Text>
+          </View>
+        ) : null}
       </View>
 
       <Pressable
@@ -918,6 +968,8 @@ function SimpleHeader({
 }
 
 function PerformanceMiniChart({ data }: { data: PerformancePoint[] }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const maxVal = Math.max(...data.flatMap((d) => [d.value1, d.value2]), 1);
   return (
     <View style={styles.perfCard}>
@@ -959,6 +1011,8 @@ function PhotographerRow({
   photographer: RecentPhotographer;
   onPress: () => void;
 }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const chip = STATUS_COLOR[photographer.status] ?? { bg: colors.surfaceMuted, text: colors.textMuted };
   return (
     <Pressable
@@ -991,6 +1045,8 @@ function RecentPaymentRow({
   payment: RecentPayment;
   currency?: string;
 }) {
+  const { colors, gradients } = useTheme();
+  const styles = useStyles();
   const isFailure = payment.type === 'Failed';
   const typeColor = isFailure ? colors.error : colors.warning;
   return (
@@ -1015,7 +1071,7 @@ function RecentPaymentRow({
 
 // ────── Styles ────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120, gap: spacing.lg },
 
   // Hero
@@ -1023,7 +1079,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
     gap: spacing.sm,
   },
@@ -1033,30 +1089,30 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
   heroEyebrow: {
-    color: colors.accent,
+    color: c.accent,
     fontFamily: fonts.bold,
     fontSize: 10,
     fontWeight: fontWeight.extrabold,
     letterSpacing: 1.4,
   },
-  heroTitle: { fontFamily: fonts.bold, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.text, lineHeight: 28 },
-  heroSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textSoft },
+  heroTitle: { fontFamily: fonts.bold, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text, lineHeight: 28 },
+  heroSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textSoft },
   heroStatsCard: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
   heroStatCell: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
   heroStatLabel: {
-    color: colors.textMuted,
+    color: c.textMuted,
     fontFamily: fonts.bold,
     fontSize: 10,
     fontWeight: fontWeight.bold,
@@ -1068,42 +1124,38 @@ const styles = StyleSheet.create({
   // Period tabs
   periodTabs: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.full,
     padding: 3,
     gap: 2,
   },
   periodTab: { flex: 1, paddingVertical: 7, alignItems: 'center', borderRadius: radii.full },
   periodTabActive: {
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
+    backgroundColor: c.surface,
+    ...e(1),
   },
-  periodTabText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
-  periodTabTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  periodTabText: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold },
+  periodTabTextActive: { color: c.primary, fontWeight: fontWeight.bold },
 
   // KPI grid
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   kpi: {
     width: '47.5%',
     flexGrow: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: 2,
   },
   kpiHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   kpiIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   kpiTrend: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   kpiTrendText: { fontSize: 10, fontWeight: fontWeight.bold },
-  kpiTitle: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, marginTop: 6 },
-  kpiValue: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: colors.text },
-  kpiTimeframe: { fontFamily: fonts.regular, fontSize: 10, color: colors.textMuted },
+  kpiTitle: { fontFamily: fonts.regular, fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold, marginTop: 6 },
+  kpiValue: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  kpiTimeframe: { fontFamily: fonts.regular, fontSize: 10, color: c.textMuted },
 
   // Pending payments alert
   alert: {
@@ -1120,83 +1172,83 @@ const styles = StyleSheet.create({
   alertScroll: { gap: spacing.sm, paddingTop: 4 },
   payCard: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     padding: spacing.sm,
     width: 240,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.sm,
   },
   payAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   payAvatarImg: { width: 36, height: 36 },
   payNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  payName: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, flexShrink: 1 },
+  payName: { color: c.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, flexShrink: 1 },
   payChip: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: radii.full },
   payChipText: { fontSize: 9, fontWeight: fontWeight.bold },
-  payEvent: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 },
+  payEvent: { color: c.textMuted, fontSize: fontSize.xs, marginTop: 2 },
   payAmount: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, marginTop: 2 },
   payNowChip: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radii.full,
     marginTop: 6,
   },
-  payNowChipText: { color: colors.textOnPrimary, fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
+  payNowChipText: { color: c.textOnPrimary, fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
 
   // Activity
   activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent },
   activityIcon: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activityLabel: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, textTransform: 'uppercase' },
-  activityTitle: { fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.semibold, marginTop: 2 },
-  activityTime: { fontSize: 10, color: colors.textMuted },
+  activityLabel: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold, textTransform: 'uppercase' },
+  activityTitle: { fontSize: fontSize.sm, color: c.text, fontWeight: fontWeight.semibold, marginTop: 2 },
+  activityTime: { fontSize: 10, color: c.textMuted },
 
   // Legacy header (Photographer / Viewer)
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  greeting: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
+  greeting: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
   roleBadge: {
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radii.full,
   },
-  roleText: { color: colors.info, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  roleText: { color: c.info, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   balanceCard: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.xs,
-    shadowColor: colors.primary,
+    shadowColor: c.primary,
     shadowOpacity: 0.25,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -1204,24 +1256,24 @@ const styles = StyleSheet.create({
   },
   cardPressed: { opacity: 0.95 },
   balanceLabel: { color: '#C7D2FE', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  balanceValue: { color: colors.textOnPrimary, fontSize: fontSize['3xl'], fontWeight: fontWeight.extrabold },
+  balanceValue: { color: c.textOnPrimary, fontSize: fontSize['3xl'], fontWeight: fontWeight.extrabold },
   balanceFoot: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
-  balanceLink: { color: colors.accentLight, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  balanceLink: { color: c.accentLight, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   // Sections
-  sectionTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  seeAll: { color: colors.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  seeAll: { color: c.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 
   // Quick actions
   actionsPanel: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.xl,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xs,
-    shadowColor: colors.primary,
+    shadowColor: c.primary,
     shadowOpacity: 0.25,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -1247,34 +1299,34 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     textAlign: 'center',
   },
 
   loader: { alignSelf: 'flex-start' },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm },
+  muted: { color: c.textMuted, fontSize: fontSize.sm },
 
   // Custom date range
   customDateRow: { flexDirection: 'row', gap: spacing.sm },
   customDateField: { flex: 1, gap: 4 },
-  customDateLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  customDateLabel: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold },
   customDateInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: fontSize.sm,
-    color: colors.text,
+    color: c.text,
   },
 
   // Performance chart
   perfCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -1282,20 +1334,20 @@ const styles = StyleSheet.create({
   perfCol: { flex: 1, alignItems: 'center', gap: 4 },
   perfBarGroup: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   perfBar: { width: 8, borderRadius: 4 },
-  perfBar1: { backgroundColor: colors.primary },
-  perfBar2: { backgroundColor: colors.accent },
-  perfDayLabel: { fontSize: 9, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  perfBar1: { backgroundColor: c.primary },
+  perfBar2: { backgroundColor: c.accent },
+  perfDayLabel: { fontSize: 9, color: c.textMuted, fontWeight: fontWeight.semibold },
   perfLegend: { flexDirection: 'row', gap: spacing.md },
   perfLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   perfLegendDot: { width: 8, height: 8, borderRadius: 4 },
-  perfLegendText: { fontSize: fontSize.xs, color: colors.textMuted },
+  perfLegendText: { fontSize: fontSize.xs, color: c.textMuted },
 
   // Photographers + Recent Payments
   photographerCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   photogRow: {
@@ -1304,20 +1356,20 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderSoft,
+    borderBottomColor: c.borderSoft,
   },
   photogAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   photogAvatarImg: { width: 36, height: 36 },
-  photogName: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
-  photogEvent: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  photogName: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
+  photogEvent: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
   photogChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
   photogChipText: { fontSize: 10, fontWeight: fontWeight.bold },
   recentPayAmount: { fontSize: fontSize.sm, fontWeight: fontWeight.extrabold },
@@ -1325,13 +1377,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
   },
   previewBody: { flex: 1, gap: 2 },
-  previewTitle: { fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  previewSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted },
-});
+  previewTitle: { fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  previewSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
+}));

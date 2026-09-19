@@ -14,7 +14,7 @@
 import { api } from '@/api/client';
 import { env } from '@/config/env';
 import { storage, StorageKeys } from '@/services/storage';
-import type { ApiEnvelope, ID } from '@/types';
+import type { ApiEnvelope, ApiError, ID } from '@/types';
 
 export type Conversation = {
   id: ID;
@@ -139,7 +139,16 @@ export async function sendMessage(partnerId: string, text: string): Promise<void
   form.append('senderId', senderId);
   form.append('recipientId', partnerId);
   form.append('content', text);
-  await api.post('/chat/send', form);
+  const res = await api.post<{ action?: number; message?: string }>('/chat/send', form);
+  // A refusal (blocked, restricted content, recipient gone) arrives as HTTP
+  // 200 with action:0. Swallowing it made the message disappear from the
+  // thread with no error — the screen has error handling that never ran.
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'Message not sent. Please try again.',
+    } satisfies ApiError;
+  }
 }
 
 /** Mark all messages from a partner as read. */

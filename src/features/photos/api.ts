@@ -5,7 +5,7 @@
  */
 import { api } from '@/api/client';
 import { env } from '@/config/env';
-import type { ApiEnvelope, ID } from '@/types';
+import type { ApiEnvelope, ApiError, ID } from '@/types';
 import type { PickedImage } from '@/services/imagePicker';
 import { storage } from '@/services/storage';
 import { appendFile } from '@/utils/upload';
@@ -74,9 +74,31 @@ export async function faceSearch(
   if (purchase?.refid) qs.set('refid', purchase.refid);
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
 
-  const res = await api.post<ApiEnvelope<Raw[]>>(`/public/face-search${suffix}`, form);
-  const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapFoundPhoto).filter((p) => p.id);
+  const res = await api.post<ApiEnvelope<Raw[]>>(`/public/face-search${suffix}`, form, {
+    skipAuth: true,
+    timeoutMs: 120_000,
+  });
+
+  if (res && res.action === 0) {
+    throw {
+      status: 400,
+      message: res.message || 'No matching photos found.',
+    } satisfies ApiError;
+  }
+
+  let rawList: Raw[] = [];
+  if (Array.isArray(res?.data)) {
+    rawList = res.data;
+  } else if (res?.data && typeof res.data === 'object') {
+    const d = res.data as Raw;
+    if (Array.isArray(d.photos)) rawList = d.photos as Raw[];
+    else if (Array.isArray(d.items)) rawList = d.items as Raw[];
+    else if (Array.isArray(d.results)) rawList = d.results as Raw[];
+  } else if (Array.isArray(res)) {
+    rawList = res as Raw[];
+  }
+
+  return rawList.map(mapFoundPhoto).filter((p) => p.id);
 }
 
 // ─── Viewer ID + preview URL watermarking ──────────────────────────────────
@@ -140,6 +162,15 @@ export type AlbumData = {
 
 export async function getAlbumByCode(code: string): Promise<AlbumData> {
   const res = await api.get<ApiEnvelope<Raw>>(`/public/albums?code=${encodeURIComponent(code)}`);
+  // A wrong or expired code answers HTTP 200 with action:0. Falling through
+  // to the parser turned that into an album with zero photos, so the screen
+  // showed an empty gallery instead of "that code isn't right".
+  if (res?.action !== 1) {
+    throw {
+      status: 404,
+      message: res?.message || 'That code did not match an album. Check it and try again.',
+    } satisfies ApiError;
+  }
   // Backend wraps in { action:1, data: {...} }; api client puts that into res.data
   const d = (res?.data ?? res ?? {}) as Raw;
   const pricing = (d.pricing as Raw) || {};
@@ -299,6 +330,28 @@ export async function identifyAlbumBuyer(
   };
 }
 
+// ─── ⚠ UNUSED payment surface — read docs/PAYMENTS.md before wiring any of
+//     this up ────────────────────────────────────────────────────────────────
+//
+// Everything from here to the unlock helpers below (initiateAlbumPurchase,
+// initiateMultiAlbumPurchase, recordAlbumPurchase, getPublicPaymentStatus) is
+// defined but NEVER CALLED. The app does not take payments natively: photo
+// checkout opens connekyt.com in the in-app browser via
+// `webCheckout.browsePhotosUrl` / `albumPurchaseUrl`, and the web client owns
+// initiation, polling, settlement and delivery.
+//
+// Wiring these up means re-implementing a payment flow that took seven
+// production defects to get right on web — including one where anonymous
+// buyers were told a successful payment had failed and offered a retry that
+// charges them again. If you genuinely need a native flow, read
+// docs/PAYMENTS.md first, keep every status read on the PUBLIC endpoints these
+// use, and give every failure path a terminal state.
+//
+// Note also that the in-app browser is a separate storage jar: anything the
+// web checkout writes to localStorage (buyerId, cart, unlock code) is NOT
+// visible to this app and disappears when the sheet closes. Delivery
+// therefore relies on the emailed unlock code, not on app-side state.
+
 export type AlbumPurchaseResult = {
   refid: string;
   paymentUrl?: string;
@@ -334,6 +387,7 @@ export type MultiAlbumPurchaseItem = {
 export async function initiateMultiAlbumPurchase(data: {
   items: MultiAlbumPurchaseItem[];
   buyerId?: string;
+  buyerName?: string;
   viewerEmail?: string;
   // Web parity: the same endpoint accepts a payment method so the buyer
   // can pick mobile money (phone + operator) OR card. Card returns a
@@ -349,6 +403,7 @@ export async function initiateMultiAlbumPurchase(data: {
 }): Promise<AlbumPurchaseResult> {
   const body: Record<string, unknown> = { items: data.items };
   if (data.buyerId) body.buyerId = data.buyerId;
+  if (data.buyerName) body.buyerName = data.buyerName;
   if (data.viewerEmail) body.viewerEmail = data.viewerEmail;
   if (data.paymentMethod) body.paymentMethod = data.paymentMethod;
   if (data.phone) body.phone = data.phone;
@@ -429,6 +484,15 @@ export async function unlockAlbumPhotos(albumId: string, identifier: string): Pr
     `/public/albums/${encodeURIComponent(albumId)}/unlock-photos`,
     body,
   );
+  // A wrong code or an unknown email answers HTTP 200 with action:0. Reading
+  // straight through returned an empty unlock, so the sheet closed as though
+  // it had worked and the buyer saw nothing change and no error.
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'That code or email did not match this album.',
+    } satisfies ApiError;
+  }
   const d = (res?.data ?? {}) as Raw;
   return {
     buyerId: str(d.buyerId),
@@ -446,6 +510,15 @@ export interface BrowseRow {
   category: string | null;
   categoryLabel: string | null;
   fileUrl: string;
+  /**
+   * Grid-sized variant from the thumbnail pipeline. Use this, not fileUrl.
+   *
+   * fileUrl is the ORIGINAL, and PaidMediaAccessGuard on the backend returns
+   * 403 for originals in galleries that sell per photo, which is every gallery
+   * this endpoint lists. Rendering fileUrl gives an empty tile. Thumbnails are
+   * the intended public preview and are never gated.
+   */
+  thumbnailUrl?: string;
   photographerId: string | null;
   photographerName: string;
   photographerLogo: string | null;
@@ -467,6 +540,7 @@ export async function fetchBrowsePhotos(page: number, size: number = 50): Promis
     category: str(r.category) ?? null,
     categoryLabel: str(r.categoryLabel) ?? null,
     fileUrl: String(r.fileUrl ?? r.url ?? ''),
+    thumbnailUrl: str(r.thumbnailUrl) ?? undefined,
     photographerId: str(r.photographerId) ?? null,
     photographerName: String(r.photographerName ?? 'Unknown'),
     photographerLogo: str(r.photographerLogo) ?? null,

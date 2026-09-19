@@ -7,10 +7,12 @@ import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { listClients } from '@/features/clients/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 export default function ClientsScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listClients(), []));
 
@@ -68,24 +70,24 @@ export default function ClientsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
   },
   pressed: { opacity: 0.7 },
-  avatar: { width: 48, height: 48, borderRadius: radii.full, backgroundColor: colors.surfaceMuted },
-  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
-  initials: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  avatar: { width: 48, height: 48, borderRadius: radii.full, backgroundColor: c.surfaceMuted },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
+  initials: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   body: { flex: 1, gap: 1 },
-  name: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  email: { fontSize: fontSize.sm, color: colors.textMuted },
-  meta: { fontSize: fontSize.xs, color: colors.textMuted },
-  spent: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.primary },
-});
+  name: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  email: { fontSize: fontSize.sm, color: c.textMuted },
+  meta: { fontSize: fontSize.xs, color: c.textMuted },
+  spent: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.primary },
+}));

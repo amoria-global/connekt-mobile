@@ -9,9 +9,11 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { disableTotp, enableTotp, getTotpStatus, setupTotp, type TotpSetup } from '@/features/security/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function TwoFactorScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getTotpStatus(), []));
   const [setup, setSetup] = useState<TotpSetup | null>(null);
   const [code, setCode] = useState('');
@@ -122,25 +124,25 @@ export default function TwoFactorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: spacing.xl, gap: spacing.lg },
   statusCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
   },
-  statusOn: { borderColor: colors.success, backgroundColor: colors.successBg },
-  statusText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  statusOn: { borderColor: c.success, backgroundColor: c.successBg },
+  statusText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   section: { gap: spacing.lg },
-  body: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 21 },
-  qr: { width: 200, height: 200, alignSelf: 'center', backgroundColor: colors.surface, borderRadius: radii.md },
-  secret: { fontSize: fontSize.sm, color: colors.textSoft, textAlign: 'center' },
-  secretCode: { fontWeight: fontWeight.bold, color: colors.text },
-  error: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  body: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 21 },
+  qr: { width: 200, height: 200, alignSelf: 'center', backgroundColor: c.surface, borderRadius: radii.md },
+  secret: { fontSize: fontSize.sm, color: c.textSoft, textAlign: 'center' },
+  secretCode: { fontWeight: fontWeight.bold, color: c.text },
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

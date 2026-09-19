@@ -29,7 +29,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGiftCatalog, type GiftCatalogItem, type GiftExchangeRate } from '@/features/streams/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, useTheme , makeStyles} from '@/theme';
 import { formatGiftUsd } from './GiftOverlay';
 
 type Tier = 'POPULAR' | 'PREMIUM';
@@ -44,6 +44,8 @@ export function GiftTray({
   /** Called with the chosen gift; the host screen decides the handoff. */
   onSendGift: (gift: GiftCatalogItem) => void | Promise<void>;
 }) {
+  const s = useS();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -196,7 +198,7 @@ export function GiftTray({
             <Text style={s.stateEmoji}>🎁</Text>
             <Text style={s.stateText}>
               {gifts && gifts.length > 0
-                ? `No ${tab === 'POPULAR' ? 'popular' : 'premium'} gifts right now — try the other tab.`
+                ? `No ${tab === 'POPULAR' ? 'popular' : 'premium'} gifts right now. Try the other tab.`
                 : 'No gifts available right now. Please check back soon.'}
             </Text>
           </View>
@@ -257,7 +259,7 @@ export function GiftTray({
 
 // Dark-glass sheet over the live video — fixed dark surface by design
 // (matches the live screens), not a light/dark theme surface.
-const s = StyleSheet.create({
+const useS = makeStyles((c) => ({
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor: 'rgba(18,21,30,0.98)',
@@ -282,7 +284,7 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  sheetTitle: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.extrabold },
+  sheetTitle: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.extrabold },
   sheetHint: { color: 'rgba(255,255,255,0.55)', fontSize: fontSize.xs },
 
   viewRow: {
@@ -313,7 +315,7 @@ const s = StyleSheet.create({
     borderColor: 'rgba(242,12,143,0.55)',
   },
   viewPillText: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: fontWeight.bold },
-  viewPillTextOn: { color: colors.textOnPrimary },
+  viewPillTextOn: { color: c.textOnPrimary },
 
   tabs: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   tab: { paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.lg, borderRadius: radii.full },
@@ -323,7 +325,7 @@ const s = StyleSheet.create({
     borderColor: 'rgba(242,12,143,0.55)',
   },
   tabText: { color: 'rgba(255,255,255,0.65)', fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-  tabTextOn: { color: colors.textOnPrimary },
+  tabTextOn: { color: c.textOnPrimary },
 
   grid: {
     flexDirection: 'row',
@@ -342,13 +344,13 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  tileSel: { borderColor: colors.accent, backgroundColor: 'rgba(242,12,143,0.14)' },
+  tileSel: { borderColor: c.accent, backgroundColor: 'rgba(242,12,143,0.14)' },
   tileEmoji: { fontSize: 30, lineHeight: 34 },
   tileName: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: fontWeight.semibold },
   tilePrice: { color: '#ffd166', fontSize: fontSize.xs, fontWeight: fontWeight.extrabold },
   tileLocal: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: fontWeight.semibold },
   tileSend: {
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     borderRadius: radii.full,
     alignSelf: 'stretch',
     alignItems: 'center',
@@ -357,7 +359,7 @@ const s = StyleSheet.create({
     minHeight: 24,
     justifyContent: 'center',
   },
-  tileSendText: { color: colors.textOnPrimary, fontSize: 11, fontWeight: fontWeight.extrabold },
+  tileSendText: { color: c.textOnPrimary, fontSize: 11, fontWeight: fontWeight.extrabold },
 
   stateBox: {
     minHeight: 160,
@@ -376,12 +378,12 @@ const s = StyleSheet.create({
   },
   retryBtn: {
     marginTop: spacing.xs,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     borderRadius: radii.full,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xl,
     minHeight: 40,
     justifyContent: 'center',
   },
-  retryText: { color: colors.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.extrabold },
-});
+  retryText: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.extrabold },
+}));

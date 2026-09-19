@@ -54,7 +54,7 @@ import {
   type StreamCredentials,
 } from '@/features/streams/photographer';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const OBS_STEPS = [
   'Open OBS → File → Settings.',
@@ -84,6 +84,8 @@ const STATUS_META: Record<
 };
 
 export default function StreamControlScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [creds, setCreds] = useState<StreamCredentials>({});
@@ -453,7 +455,7 @@ export default function StreamControlScreen() {
             </View>
             <ScrollView ref={chatScrollRef} style={styles.chatList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
               {chats.length === 0 ? (
-                <Text style={styles.chatEmpty}>No messages yet — viewer comments appear here live.</Text>
+                <Text style={styles.chatEmpty}>No messages yet. Viewer comments appear here live.</Text>
               ) : (
                 chats.map((c) => {
                   const isGift = (c.chatType ?? c.type ?? '').toUpperCase() === 'GIFT';
@@ -562,7 +564,7 @@ export default function StreamControlScreen() {
               </Text>
             </View>
             <Text style={styles.noteText}>
-              No stream key or bearer token needed — the URL is self-authenticating.
+              No stream key or bearer token needed. The URL is self-authenticating.
             </Text>
 
             {/* Recommended encoder settings */}
@@ -694,6 +696,8 @@ function cap(s?: string): string {
 }
 
 function Stat({ label, value, icon }: { label: string; value: string; icon: keyof typeof Ionicons.glyphMap }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.stat}>
       <View style={styles.statHead}>
@@ -716,6 +720,8 @@ function ModeTab({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <Pressable style={[styles.modeTab, active && styles.modeTabActive]} onPress={onPress}>
       <Ionicons name={icon} size={16} color={active ? colors.primary : colors.textMuted} />
@@ -724,16 +730,16 @@ function ModeTab({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 140 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingTop: 80 },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm },
+  muted: { color: c.textMuted, fontSize: fontSize.sm },
 
   statusBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.lg,
@@ -741,17 +747,17 @@ const styles = StyleSheet.create({
   },
   statusLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
-  statusLabel: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
+  statusLabel: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   watchingPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radii.full,
   },
-  watchingText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+  watchingText: { fontSize: 12, fontWeight: '700', color: c.primary },
 
   previewWrap: { position: 'relative' },
   preview: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: '#000' },
@@ -767,20 +773,20 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
     fontSize: 12,
     fontWeight: '800',
-    color: colors.primary,
-    backgroundColor: colors.infoBg,
+    color: c.primary,
+    backgroundColor: c.infoBg,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radii.full,
     overflow: 'hidden',
   },
   chatList: { maxHeight: 160 },
-  chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted, fontStyle: 'italic' },
+  chatEmpty: { fontSize: fontSize.sm, color: c.textMuted, fontStyle: 'italic' },
   chatRow: { flexDirection: 'row', gap: 6, paddingVertical: 3, flexWrap: 'wrap' },
-  chatName: { fontSize: fontSize.sm, fontWeight: '800', color: colors.primary },
-  chatNameGift: { color: colors.accent },
-  chatMsg: { fontSize: fontSize.sm, color: colors.text, flexShrink: 1 },
-  chatGift: { fontSize: fontSize.sm, color: colors.accent, fontWeight: '800', flexShrink: 1 },
+  chatName: { fontSize: fontSize.sm, fontWeight: '800', color: c.primary },
+  chatNameGift: { color: c.accent },
+  chatMsg: { fontSize: fontSize.sm, color: c.text, flexShrink: 1 },
+  chatGift: { fontSize: fontSize.sm, color: c.accent, fontWeight: '800', flexShrink: 1 },
   giftChip: {
     marginLeft: 6,
     backgroundColor: 'rgba(242,12,143,0.10)',
@@ -790,22 +796,22 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radii.full,
   },
-  giftChipText: { fontSize: 12, fontWeight: '800', color: colors.accent },
+  giftChipText: { fontSize: 12, fontWeight: '800', color: c.accent },
 
   statsRow: { flexDirection: 'row', gap: 6 },
   stat: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.md,
     paddingVertical: 8,
     alignItems: 'center',
     gap: 2,
   },
   statHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statLabel: { fontSize: 10, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase' },
-  statValue: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  statLabel: { fontSize: 10, fontWeight: '700', color: c.textMuted, textTransform: 'uppercase' },
+  statValue: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
 
   modeRow: { flexDirection: 'row', gap: 8 },
   modeTab: {
@@ -816,86 +822,86 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: radii.md,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  modeTabActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  modeTabText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textMuted },
-  modeTabTextActive: { color: colors.primary },
+  modeTabActive: { borderColor: c.primary, backgroundColor: c.infoBg },
+  modeTabText: { fontSize: fontSize.sm, fontWeight: '700', color: c.textMuted },
+  modeTabTextActive: { color: c.primary },
 
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  cardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  cardHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
-  okHint: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
+  cardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  cardHint: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
+  okHint: { fontSize: fontSize.sm, color: c.text, lineHeight: 20 },
   stopCamera: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 4 },
-  stopCameraText: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: '600' },
+  stopCameraText: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: '600' },
 
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   stepNum: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
   },
   stepNumText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  stepText: { flex: 1, fontSize: fontSize.sm, color: colors.text, lineHeight: 19 },
+  stepText: { flex: 1, fontSize: fontSize.sm, color: c.text, lineHeight: 19 },
 
   fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  fieldLabel: { fontSize: fontSize.xs, fontWeight: '700', color: colors.textSoft, letterSpacing: 0.4, textTransform: 'uppercase' },
+  fieldLabel: { fontSize: fontSize.xs, fontWeight: '700', color: c.textSoft, letterSpacing: 0.4, textTransform: 'uppercase' },
   copyChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  copyChipText: { fontSize: 12, color: colors.primary, fontWeight: '700' },
-  urlBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, padding: spacing.md },
-  urlText: { fontSize: 12, color: colors.text, fontFamily: 'monospace' },
-  noteText: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic' },
+  copyChipText: { fontSize: 12, color: c.primary, fontWeight: '700' },
+  urlBox: { backgroundColor: c.surfaceMuted, borderRadius: radii.md, padding: spacing.md },
+  urlText: { fontSize: 12, color: c.text, fontFamily: 'monospace' },
+  noteText: { fontSize: 12, color: c.textMuted, fontStyle: 'italic' },
 
-  table: { borderWidth: 1, borderColor: colors.borderSoft, borderRadius: radii.md, overflow: 'hidden' },
-  tr: { flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
-  trHead: { backgroundColor: colors.surfaceMuted },
-  th: { flex: 1, fontSize: 10, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase' },
-  td: { flex: 1, fontSize: 11, color: colors.text },
+  table: { borderWidth: 1, borderColor: c.borderSoft, borderRadius: radii.md, overflow: 'hidden' },
+  tr: { flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: c.borderSoft },
+  trHead: { backgroundColor: c.surfaceMuted },
+  th: { flex: 1, fontSize: 10, fontWeight: '800', color: c.textMuted, textTransform: 'uppercase' },
+  td: { flex: 1, fontSize: 11, color: c.text },
 
-  tokenBox: { backgroundColor: colors.infoBg, borderRadius: radii.md, padding: spacing.md, alignItems: 'center' },
-  tokenText: { fontSize: 18, fontWeight: '800', letterSpacing: 3, color: colors.primary },
+  tokenBox: { backgroundColor: c.infoBg, borderRadius: radii.md, padding: spacing.md, alignItems: 'center' },
+  tokenText: { fontSize: 18, fontWeight: '800', letterSpacing: 3, color: c.primary },
 
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.errorBg,
+    backgroundColor: c.errorBg,
     padding: spacing.lg,
     borderRadius: radii.lg,
   },
-  errorText: { flex: 1, color: colors.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  errorText: { flex: 1, color: c.error, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 
   actions: { gap: spacing.sm },
-  endBtn: { backgroundColor: colors.error },
+  endBtn: { backgroundColor: c.error },
 
   endedBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.xl,
     alignItems: 'center',
     gap: 6,
   },
-  endedTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  endedHint: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center' },
+  endedTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  endedHint: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center' },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   confirmCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.xl,
     padding: spacing.xl,
     alignItems: 'center',
@@ -907,11 +913,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.error,
+    backgroundColor: c.error,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  confirmTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  confirmText: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  confirmTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  confirmText: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
   confirmRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, alignSelf: 'stretch' },
-});
+}));

@@ -39,7 +39,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
 import {
   acceptEventBooking,
@@ -129,6 +129,8 @@ const STAT_META = [
 ] as const;
 
 export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: number }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
 
@@ -408,6 +410,7 @@ function PhotographerEventCard({
   onLiveStream: () => void;
   onCreateAlbum: () => void;
 }) {
+  const styles = useStyles();
   const s = statusOf(event);
   const booking = (event.bookingStatus ?? '').toUpperCase();
   const pill = STATUS_PILL[s];
@@ -425,14 +428,14 @@ function PhotographerEventCard({
     >
       <Image
         source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         contentFit="cover"
         transition={200}
       />
       <LinearGradient
         colors={['rgba(4,10,26,0.55)', 'rgba(4,10,26,0.15)', 'rgba(4,10,26,0.88)']}
         locations={[0, 0.42, 1]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       {/* Top row: date + status (left), stream (right) */}
@@ -560,6 +563,8 @@ function AcceptBookingSheet({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
@@ -636,6 +641,7 @@ function DeclineBookingSheet({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const styles = useStyles();
   return (
     <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
@@ -660,6 +666,8 @@ function DeclineBookingSheet({
 }
 
 function SheetMeta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   if (!text) return null;
   return (
     <View style={styles.sheetMeta}>
@@ -671,19 +679,19 @@ function SheetMeta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.lg },
 
   // Header
   eyebrow: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: colors.accent,
+    color: c.accent,
     letterSpacing: 1.2,
     marginBottom: 2,
   },
-  h1: { fontFamily: fonts.bold, fontSize: 30, color: colors.text, letterSpacing: -0.5 },
-  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, marginTop: 2, lineHeight: 20 },
+  h1: { fontFamily: fonts.bold, fontSize: 30, color: c.text, letterSpacing: -0.5 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, marginTop: 2, lineHeight: 20 },
 
   viewTabs: { gap: 6, paddingVertical: spacing.md },
   viewTab: {
@@ -694,11 +702,11 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
   },
-  viewTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  viewTabText: { fontFamily: fonts.bold, fontSize: 14, color: colors.textMuted },
+  viewTabActive: { backgroundColor: c.primary, borderColor: c.primary },
+  viewTabText: { fontFamily: fonts.bold, fontSize: 14, color: c.textMuted },
   viewTabTextActive: { color: '#fff' },
 
   // Stats
@@ -711,9 +719,9 @@ const styles = StyleSheet.create({
     padding: 14,
     paddingTop: 16,
     borderRadius: radii.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   statAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
@@ -725,8 +733,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  statLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
-  statValue: { fontFamily: fonts.bold, fontSize: 24, color: colors.text, lineHeight: 26 },
+  statLabel: { fontFamily: fonts.regular, fontSize: 13, color: c.textMuted },
+  statValue: { fontFamily: fonts.bold, fontSize: 24, color: c.text, lineHeight: 26 },
 
   // Filters
   filterRow: { gap: 8, paddingBottom: spacing.md },
@@ -737,10 +745,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
-  filterPillActive: { backgroundColor: colors.primary },
-  filterText: { fontFamily: fonts.bold, fontSize: 14, color: colors.textSoft },
+  filterPillActive: { backgroundColor: c.primary },
+  filterText: { fontFamily: fonts.bold, fontSize: 14, color: c.textSoft },
   filterTextActive: { color: '#fff' },
   filterBadge: {
     minWidth: 22,
@@ -751,7 +759,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
-  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: colors.primary },
+  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.primary },
   filterBadgeTextActive: { color: '#fff' },
 
   // Search
@@ -762,12 +770,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 44,
     borderRadius: radii.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     marginBottom: spacing.xs,
   },
-  searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.text, padding: 0 },
+  searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: c.text, padding: 0 },
 
   // Card
   card: {
@@ -820,7 +828,7 @@ const styles = StyleSheet.create({
   },
   clientLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   avatar: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)' },
-  avatarFallback: { backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  avatarFallback: { backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
   avatarInitial: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
   clientName: { fontFamily: fonts.regular, fontSize: 13, color: 'rgba(255,255,255,0.9)', flexShrink: 1 },
   timePill: {
@@ -849,14 +857,14 @@ const styles = StyleSheet.create({
   actAccept: { backgroundColor: '#10B981', flex: 1 },
   actDeny: { backgroundColor: '#EF4444', flex: 1 },
   actStream: { backgroundColor: '#8B5CF6' },
-  actAlbum: { backgroundColor: colors.primary },
+  actAlbum: { backgroundColor: c.primary },
   actAcceptedChip: { backgroundColor: '#10B981' },
   pkgBadge: {
     marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: radii.md,
@@ -866,7 +874,7 @@ const styles = StyleSheet.create({
   // Accept sheet
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,26,0.6)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     padding: spacing.xl,
@@ -883,35 +891,35 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sheetEyebrow: { fontFamily: fonts.bold, fontSize: 11, color: '#10B981', letterSpacing: 1 },
-  sheetTitle: { fontFamily: fonts.bold, fontSize: 22, color: colors.text },
+  sheetTitle: { fontFamily: fonts.bold, fontSize: 22, color: c.text },
   sheetCard: {
     alignSelf: 'stretch',
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
     borderRadius: radii.lg,
     padding: spacing.lg,
     marginTop: spacing.sm,
     gap: 6,
   },
-  sheetCardEyebrow: { fontFamily: fonts.bold, fontSize: 10, color: colors.accent, letterSpacing: 1 },
-  sheetEventTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.text },
+  sheetCardEyebrow: { fontFamily: fonts.bold, fontSize: 10, color: c.accent, letterSpacing: 1 },
+  sheetEventTitle: { fontFamily: fonts.bold, fontSize: 18, color: c.text },
   sheetMetaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   sheetMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '46%' },
-  sheetMetaText: { fontFamily: fonts.regular, fontSize: 13, color: colors.textSoft, flex: 1 },
+  sheetMetaText: { fontFamily: fonts.regular, fontSize: 13, color: c.textSoft, flex: 1 },
   sheetTerms: {
     alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.md,
     padding: spacing.md,
     marginTop: spacing.md,
   },
-  sheetTermsText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.primary, lineHeight: 18 },
+  sheetTermsText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: c.primary, lineHeight: 18 },
   sheetNote: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
     marginTop: spacing.md,
     lineHeight: 18,
@@ -926,20 +934,20 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: radii.md,
   },
-  sheetCancel: { backgroundColor: colors.surfaceMuted },
-  sheetCancelText: { fontFamily: fonts.bold, fontSize: 15, color: colors.textSoft },
+  sheetCancel: { backgroundColor: c.surfaceMuted },
+  sheetCancelText: { fontFamily: fonts.bold, fontSize: 15, color: c.textSoft },
   sheetConfirm: { backgroundColor: '#10B981' },
   sheetConfirmText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
 
   // Decline sheet
   declineSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.md,
   },
-  declineTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.text },
-  declineHint: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted, lineHeight: 20 },
+  declineTitle: { fontFamily: fonts.bold, fontSize: 20, color: c.text },
+  declineHint: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, lineHeight: 20 },
   declineInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
-});
+}));

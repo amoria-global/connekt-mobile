@@ -22,7 +22,7 @@
  * with a guaranteed `keyboardShouldPersistTaps`+`contentInsetAdjustmentBehavior`
  * so it's always reachable.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image as RNImage } from 'react-native';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -44,22 +44,24 @@ import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { Screen } from '@/components/ui/Screen';
 import { CUSTOMER_TYPES, signup } from '@/features/auth/api';
 import { GoogleButton } from '@/features/auth/GoogleButton';
+import { AppleButton } from '@/features/auth/AppleButton';
 import type { CustomerType } from '@/features/auth/types';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const schema = z
   .object({
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
-    // Email is optional — a phone number alone is enough to register (the OTP
-    // is then sent by SMS). If provided, it must be a valid address.
+    // Email is REQUIRED at registration, matching the web client. The backend
+    // and schema still permit phone-only accounts (customers.email is nullable,
+    // and login/recovery both resolve a phone) so EXISTING phone-only accounts
+    // keep working — but no NEW account is created without an email.
     email: z
       .string()
       .trim()
-      .email('Enter a valid email')
-      .optional()
-      .or(z.literal('')),
+      .min(1, 'Email is required')
+      .email('Enter a valid email address'),
     // Phone lives OUTSIDE the schema: PhoneInput manages a PhoneValue in
     // local state (typed country-aware validation) and its digits are
     // injected at submit — see onSubmit.
@@ -95,41 +97,96 @@ function checkPassword(pwd: string): Checks {
   const hasSpecial = /[@!#$%^&*=+]/.test(pwd);
   const mixedCase = /[a-z]/.test(pwd) && /[A-Z]/.test(pwd);
   const longer = pwd.length >= 12;
-  // Score: count satisfied core rules + bonus for length/case.
-  const core = [lengthOk, hasLetter, hasDigit, hasSpecial].filter(Boolean).length;
-  const bonus = longer || mixedCase ? 1 : 0;
-  const score = Math.min(4, core + bonus - (core === 4 ? 0 : 0));
-  const label =
-    score <= 1 ? 'Weak' : score === 2 ? 'Fair' : score === 3 ? 'Good' : 'Strong';
-  const color =
-    score <= 1 ? '#dc2626' : score === 2 ? '#f59e0b' : score === 3 ? '#0a4da3' : '#10b981';
-  // Backend rejects unless all 4 core rules pass → gate submit on strongEnough.
-  const strongEnough = lengthOk && hasLetter && hasDigit && hasSpecial;
+  // Score, byte-for-byte the same model the web client uses
+  // (knockout/app/pages/auth/login.tsx passwordChecks). They had drifted:
+  // mobile summed `core + (longer || mixedCase)`, so a password with only 3 of
+  // the 4 required rules could still show a full 4/4 bar, and mobile let it be
+  // submitted while web refused it. Same input must score the same everywhere.
+  //
+  //   0 none -> 1 weak -> 2 fair -> 3 good -> 4 strong
+  //   required gates the FLOOR (capped at 2 until all four pass);
+  //   bonus tops it off. Submission needs all four AND at least one bonus.
+  const requiredScore = [lengthOk, hasLetter, hasDigit, hasSpecial].filter(Boolean).length;
+  const bonusScore = (longer ? 1 : 0) + (mixedCase ? 1 : 0);
+
+  let score = 0;
+  if (pwd.length === 0) score = 0;
+  else if (requiredScore < 4) score = Math.min(2, requiredScore);
+  else score = Math.min(4, 2 + bonusScore);
+
+  // Web's exact labels/colours, including 'Too weak' at 1 and #3b82f6 at 3.
+  const label = ['', 'Too weak', 'Fair', 'Good', 'Strong'][score];
+  const color = ['#e5e7eb', '#dc2626', '#f59e0b', '#3b82f6', '#10b981'][score];
+
+  const allRequiredMet = requiredScore === 4;
+  const strongEnough = allRequiredMet && score >= 3;
   return { lengthOk, hasLetter, hasDigit, hasSpecial, mixedCase, longer, score, label, color, strongEnough };
 }
 
 export default function SignupScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ role?: string }>();
-  const initialRole = (CUSTOMER_TYPES as string[]).includes(params.role ?? '')
+  const params = useLocalSearchParams<{
+    role?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  }>();
+
+  /**
+   * The role MUST arrive from `choose-role`. There is deliberately no fallback:
+   * this used to default to 'Client', so any path that forgot to pass a role
+   * silently created a Client account — invisible until the user could not find
+   * their own features. A missing role now sends the user back to pick one.
+   */
+  /**
+   * Arrives when Google authenticated someone with no account yet: the login
+   * screen hands the verified profile to `choose-role`, which forwards it here
+   * with the chosen role. Web does the same (`isGooglePreFilled`) and locks the
+   * fields — Google already proved these, so retyping them invites typos and a
+   * mismatched account.
+   */
+  const googlePrefill = Boolean(params.email);
+
+  const role = (CUSTOMER_TYPES as string[]).includes(params.role ?? '')
     ? (params.role as CustomerType)
-    : 'Client';
-  const [role] = useState<CustomerType>(initialRole);
+    : null;
+
+  useEffect(() => {
+    if (role === null) router.replace('/login');
+  }, [role, router]);
   const [serverError, setServerError] = useState<string | null>(null);
   const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  /**
+   * Registration is a three-step wizard rather than one tall form:
+   *   1. who you are  (names + email)
+   *   2. phone number
+   *   3. password
+   *
+   * All six fields on one screen meant a long scroll on a phone, with the
+   * submit button below the fold and the keyboard covering whatever you were
+   * typing. Each step now fits without scrolling, and a step only advances once
+   * its own fields validate — so errors surface next to the field that caused
+   * them instead of all at once at the end.
+   */
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const TOTAL_STEPS = 3;
 
   const {
     control,
     handleSubmit,
     watch,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
+      firstName: params.firstName ?? '',
+      lastName: params.lastName ?? '',
+      email: params.email ?? '',
       password: '',
       confirmPassword: '',
     },
@@ -141,8 +198,46 @@ export default function SignupScreen() {
   const passwordsMatch =
     (confirmPassword?.length ?? 0) > 0 && password === confirmPassword;
 
+  /** Advance only when THIS step's fields are valid. */
+  const goNext = async () => {
+    setServerError(null);
+    if (step === 1) {
+      const ok = await trigger(['firstName', 'lastName', 'email']);
+      if (ok) setStep(2);
+      return;
+    }
+    if (step === 2) {
+      // Phone lives outside the zod schema — the country-aware kit owns it.
+      if (!phoneValue?.isValid) {
+        setPhoneError('Enter a valid phone number');
+        return;
+      }
+      setPhoneError(null);
+      setStep(3);
+    }
+  };
+
+  const goBack = () => {
+    setServerError(null);
+    if (step === 1) {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/login');
+      }
+    } else {
+      setStep((s) => (s === 3 ? 2 : 1));
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
+    // Fail safe rather than guessing: without a chosen role there is nothing
+    // valid to register as, and defaulting is what created wrong-role accounts.
+    if (role === null) {
+      router.replace('/login');
+      return;
+    }
     // Phone is validated by the country-aware kit, not the zod schema.
     if (!phoneValue?.isValid) {
       setPhoneError('Enter a valid phone number');
@@ -176,6 +271,11 @@ export default function SignupScreen() {
   // Web parity: Google sign-up is hidden for Photographer accounts because
   // photographers complete a 6-step onboarding wizard that the OAuth shortcut
   // skips (login.tsx:1230 — `signupUserType !== 'Photographer'`).
+  // Nothing renders without a role — the effect above is already redirecting to
+  // role selection. This also narrows `role` to CustomerType for everything
+  // below, so no downstream path can be reached with a missing role.
+  if (role === null) return null;
+
   const showGoogle = role !== 'Photographer';
 
   return (
@@ -185,6 +285,18 @@ export default function SignupScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={goBack}
+            hitSlop={12}
+            style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </Pressable>
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -200,22 +312,36 @@ export default function SignupScreen() {
               style={styles.logo}
               resizeMode="contain"
             />
-            <Text style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>Create your account to get started</Text>
+            <Text style={styles.title}>Create your first account</Text>
             <View style={styles.rolePill}>
               <Text style={styles.rolePillText}>{role}</Text>
             </View>
           </View>
 
           <View style={styles.form}>
+            {/* Step indicator — tells the user how much is left. */}
+            <View
+              style={styles.steps}
+              accessibilityRole="progressbar"
+              accessibilityLabel={`Step ${step} of ${TOTAL_STEPS}`}
+            >
+              {[1, 2, 3].map((n) => (
+                <View key={n} style={[styles.stepDot, n <= step && styles.stepDotOn]} />
+              ))}
+            </View>
+
+            {step === 1 ? (
+            <>
             <View style={styles.row}>
               <View style={styles.col}>
                 <Field
                   control={control}
                   name="firstName"
                   label="First name"
+                  editable={!googlePrefill}
+                  textContentType="givenName"
+                  autoComplete="given-name"
                   error={errors.firstName?.message}
-                  placeholder="John"
                 />
               </View>
               <View style={styles.col}>
@@ -223,8 +349,10 @@ export default function SignupScreen() {
                   control={control}
                   name="lastName"
                   label="Last name"
+                  editable={!googlePrefill}
+                  textContentType="familyName"
+                  autoComplete="family-name"
                   error={errors.lastName?.message}
-                  placeholder="Doe"
                 />
               </View>
             </View>
@@ -232,13 +360,19 @@ export default function SignupScreen() {
             <Field
               control={control}
               name="email"
-              label="Email (optional)"
+              label="Your Email"
+              editable={!googlePrefill}
+              textContentType="emailAddress"
+              autoComplete="email"
               error={errors.email?.message}
               keyboardType="email-address"
               autoCapitalize="none"
-              placeholder="you@example.com"
             />
 
+            </>
+            ) : null}
+
+            {step === 2 ? (
             <PhoneInput
               label="Phone"
               defaultIso2="RW"
@@ -249,15 +383,20 @@ export default function SignupScreen() {
               error={phoneError ?? undefined}
             />
 
+            ) : null}
+
+            {step === 3 ? (
+            <>
             <View>
               <Field
                 control={control}
                 name="password"
                 label="Password"
+                textContentType="newPassword"
+                autoComplete="new-password"
                 error={errors.password?.message}
                 secureTextEntry
                 autoCapitalize="none"
-                placeholder="••••••••"
               />
               {password && password.length > 0 ? (
                 <StrengthMeter checks={checks} />
@@ -272,17 +411,19 @@ export default function SignupScreen() {
               <Field
                 control={control}
                 name="confirmPassword"
-                label="Confirm password"
+                label="Confirm Password"
+                textContentType="newPassword"
+                autoComplete="new-password"
                 error={errors.confirmPassword?.message}
                 secureTextEntry
                 autoCapitalize="none"
-                placeholder="••••••••"
               />
               {confirmPassword && confirmPassword.length > 0 ? (
                 <MatchIndicator matches={passwordsMatch} strongEnough={checks.strongEnough} />
               ) : null}
             </View>
 
+            {/* Terms sit on the final step, next to the button that accepts them. */}
             <Text style={styles.terms}>
               By creating an account, you agree to our{' '}
               <Text style={styles.termsLink} onPress={() => router.push('/terms-of-service')}>
@@ -294,35 +435,50 @@ export default function SignupScreen() {
               </Text>
               .
             </Text>
+            </>
+            ) : null}
 
             {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
-            <Button
-              title="Create account"
-              onPress={() => {
-                // Surface the phone error alongside the schema errors even
-                // when other fields fail RHF validation.
-                setPhoneError(phoneValue?.isValid ? null : 'Enter a valid phone number');
-                void handleSubmit(onSubmit)();
-              }}
-              loading={isSubmitting}
-              disabled={!checks.strongEnough || !passwordsMatch}
-            />
+            {step < TOTAL_STEPS ? (
+              <Button title="Continue" onPress={goNext} />
+            ) : (
+              <Button
+                title="Create account"
+                onPress={() => {
+                  // Surface the phone error alongside the schema errors even
+                  // when other fields fail RHF validation.
+                  setPhoneError(phoneValue?.isValid ? null : 'Enter a valid phone number');
+                  void handleSubmit(onSubmit)();
+                }}
+                loading={isSubmitting}
+                disabled={!checks.strongEnough || !passwordsMatch}
+              />
+            )}
 
-            <Pressable style={styles.signInLine} onPress={() => router.back()} hitSlop={8}>
-              <Text style={styles.signInText}>
-                Already a member? <Text style={styles.signInLink}>Sign in</Text>
-              </Text>
-            </Pressable>
+            {step === 1 ? (
+              <Pressable
+                style={styles.signInLine}
+                onPress={() => router.replace('/login')}
+                hitSlop={8}
+              >
+                <Text style={styles.signInText}>
+                  Already have an account? <Text style={styles.signInLink}>Log in</Text>
+                </Text>
+              </Pressable>
+            ) : null}
 
-            {showGoogle ? (
+            {/* Social sign-up only on step 1: it replaces the whole form, so
+                offering it later would discard what the user already typed. */}
+            {step === 1 && showGoogle ? (
               <>
                 <View style={styles.divider}>
                   <View style={styles.line} />
-                  <Text style={styles.dividerText}>or sign up with</Text>
+                  <Text style={styles.dividerText}>Or continue with</Text>
                   <View style={styles.line} />
                 </View>
-                <GoogleButton label="Continue with Google" customerType={role} />
+                <GoogleButton mode="signup" label="Continue with Google" customerType={role} />
+                <AppleButton mode="signup" label="Continue with Apple" customerType={role} />
               </>
             ) : null}
           </View>
@@ -343,6 +499,12 @@ type FieldProps = {
   secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'sentences';
   placeholder?: string;
+  /** iOS Keychain / Android autofill hints. Without these iOS neither offers
+   *  saved credentials nor prompts to save a new one at signup. */
+  textContentType?: React.ComponentProps<typeof Input>['textContentType'];
+  autoComplete?: React.ComponentProps<typeof Input>['autoComplete'];
+  /** Locked when Google already supplied and verified the value. */
+  editable?: boolean;
 };
 
 function Field({
@@ -354,6 +516,9 @@ function Field({
   secureTextEntry,
   autoCapitalize,
   placeholder,
+  textContentType,
+  autoComplete,
+  editable,
 }: FieldProps) {
   return (
     <Controller
@@ -370,6 +535,9 @@ function Field({
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           placeholder={placeholder}
+          textContentType={textContentType}
+          autoComplete={autoComplete}
+          editable={editable}
         />
       )}
     />
@@ -379,6 +547,8 @@ function Field({
 // ────── Strength meter (web parity: login.tsx:1137-1178) ────────────────
 
 function StrengthMeter({ checks }: { checks: Checks }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.strengthWrap}>
       <View style={styles.strengthBar}>
@@ -403,7 +573,7 @@ function StrengthMeter({ checks }: { checks: Checks }) {
         <Bullet
           bonus
           ok={checks.longer || checks.mixedCase}
-          label="12+ characters or mixed case (recommended)"
+          label="12+ characters or mixed case (required)"
         />
       </View>
     </View>
@@ -411,6 +581,8 @@ function StrengthMeter({ checks }: { checks: Checks }) {
 }
 
 function Bullet({ ok, label, bonus }: { ok: boolean; label: string; bonus?: boolean }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.bulletRow}>
       <Ionicons
@@ -433,6 +605,7 @@ function Bullet({ ok, label, bonus }: { ok: boolean; label: string; bonus?: bool
 // ────── Live password-match indicator (web parity: 1196-1207) ──────────
 
 function MatchIndicator({ matches, strongEnough }: { matches: boolean; strongEnough: boolean }) {
+  const styles = useStyles();
   if (matches && strongEnough) {
     return (
       <View style={styles.matchRow}>
@@ -452,7 +625,7 @@ function MatchIndicator({ matches, strongEnough }: { matches: boolean; strongEno
   return null;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
@@ -462,25 +635,47 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
 
+  topBar: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  backBtnPressed: {
+    opacity: 0.75,
+    backgroundColor: c.borderSoft,
+  },
+
   // Header — small logo + title centered (mobile mode of web auth page)
   header: { alignItems: 'center', gap: 2, marginBottom: spacing.xs },
   logo: { width: 40, height: 40, marginBottom: 4 },
   title: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
-    color: colors.primary,
+    color: c.primary,
     textAlign: 'center',
   },
-  subtitle: { fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center' },
+  subtitle: { fontSize: fontSize.xs, color: c.textMuted, textAlign: 'center' },
   rolePill: {
     marginTop: 6,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: radii.full,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
   },
   rolePillText: {
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
@@ -491,7 +686,7 @@ const styles = StyleSheet.create({
   col: { flex: 1 },
 
   // Helper text shown under password when empty (web parity 1179-1181)
-  helper: { fontSize: 11, color: colors.textMuted, marginTop: 3, lineHeight: 16 },
+  helper: { fontSize: 11, color: c.textMuted, marginTop: 3, lineHeight: 16 },
 
   // Strength meter
   strengthWrap: { marginTop: 6 },
@@ -507,27 +702,48 @@ const styles = StyleSheet.create({
   matchText: { fontSize: 11, fontWeight: fontWeight.semibold },
 
   // Terms (web parity 1213-1218)
-  terms: { fontSize: 11, color: colors.textMuted, lineHeight: 16, marginTop: 2 },
-  termsLink: { color: colors.primary, fontWeight: fontWeight.bold, textDecorationLine: 'underline' },
+  terms: { fontSize: 11, color: c.textMuted, lineHeight: 16, marginTop: 2 },
+  termsLink: { color: c.primary, fontWeight: fontWeight.bold, textDecorationLine: 'underline' },
 
-  serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
+  serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
+  // ── Wizard progress ──────────────────────────────────────────────────
+  steps: {
+    flexDirection: 'row',
+    gap: 8,
+    alignSelf: 'center',
+    width: 140,
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
+  stepDot: {
+    flex: 1,
+    height: 4,
+    borderRadius: radii.full,
+    backgroundColor: c.borderSoft,
+  },
+  stepDotOn: { backgroundColor: c.primary },
   signInLine: { alignSelf: 'center', paddingVertical: 2 },
-  signInText: { color: colors.textMuted, fontSize: fontSize.sm },
-  signInLink: { color: colors.primary, fontWeight: fontWeight.bold },
+  signInText: { color: c.textMuted, fontSize: fontSize.sm },
+  signInLink: { color: c.primary, fontWeight: fontWeight.bold },
 
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    marginVertical: spacing.xs,
+    marginVertical: spacing.sm,
   },
-  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  line: {
+    flex: 1,
+    height: 2,
+    borderRadius: radii.full,
+    backgroundColor: c.border,
+  },
   dividerText: {
-    color: colors.textMuted,
+    color: c.textSoft,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 0.6,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
-});
+}));

@@ -35,7 +35,7 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
-import { colors, fonts, fontSize, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> = {
@@ -46,6 +46,8 @@ const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> =
 };
 
 export default function AlbumDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isPhotographer } = useRole();
@@ -273,9 +275,9 @@ export default function AlbumDetailScreen() {
               <View style={styles.approvalCard}>
                 <Text style={styles.approvalCardText}>
                   {approval === 'DRAFT'
-                    ? 'Draft — submit for review to publish this album to the public browse library.'
+                    ? 'Draft. Submit for review to publish this album to the public browse library.'
                     : approval === 'PENDING_APPROVAL'
-                      ? 'Under review — our team will publish it to the catalog once approved.'
+                      ? 'Under review. Our team will publish it to the catalog once approved.'
                       : approval === 'APPROVED'
                         ? 'Live on the public browse library.'
                         : `Needs changes${data?.approvalComment ? `: ${data.approvalComment}` : '. Update it and resubmit.'}`}
@@ -401,6 +403,7 @@ function ActBtn({
   onPress: () => void;
   loading?: boolean;
 }) {
+  const styles = useStyles();
   const v = ACT_STYLES[variant];
   return (
     <Pressable
@@ -429,6 +432,7 @@ function PhotoCell({
   size: number;
   onLongPress?: () => void;
 }) {
+  const styles = useStyles();
   const open = () => {
     if (image.url) WebBrowser.openBrowserAsync(image.url);
   };
@@ -439,30 +443,30 @@ function PhotoCell({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   list: { padding: spacing.lg, gap: spacing.sm },
   header: { gap: 4, marginBottom: spacing.md },
 
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   kindBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full },
-  kindNormal: { backgroundColor: colors.primary },
+  kindNormal: { backgroundColor: c.primary },
   kindContent: { backgroundColor: '#7C3AED' },
   kindText: { fontFamily: fonts.bold, fontSize: 10, color: '#fff', letterSpacing: 0.6 },
   approvalPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.full },
   approvalPillText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.3 },
 
-  title: { fontFamily: fonts.bold, fontSize: 26, color: colors.text, letterSpacing: -0.5 },
-  meta: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
+  title: { fontFamily: fonts.bold, fontSize: 26, color: c.text, letterSpacing: -0.5 },
+  meta: { fontFamily: fonts.regular, fontSize: 13, color: c.textMuted },
 
   approvalCard: {
     marginTop: spacing.sm,
     padding: spacing.md,
     borderRadius: radii.md,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
-  approvalCardText: { fontFamily: fonts.regular, fontSize: 13, color: colors.textSoft, lineHeight: 19 },
+  approvalCardText: { fontFamily: fonts.regular, fontSize: 13, color: c.textSoft, lineHeight: 19 },
 
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
   actBtn: {
@@ -481,26 +485,26 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     padding: spacing.md,
     borderRadius: radii.md,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: 4,
   },
   faceHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  faceTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: colors.primary },
-  faceMsg: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textSoft, lineHeight: 18 },
+  faceTitle: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.primary },
+  faceMsg: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textSoft, lineHeight: 18 },
 
   lockedCard: {
     marginTop: spacing.lg,
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.xl,
   },
-  lockedTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: colors.text },
-  lockedMsg: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.sm },
-  cell: { borderRadius: radii.sm, overflow: 'hidden', backgroundColor: colors.surfaceMuted, marginBottom: spacing.sm },
-});
+  lockedTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, color: c.text },
+  lockedMsg: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', marginBottom: spacing.sm },
+  cell: { borderRadius: radii.sm, overflow: 'hidden', backgroundColor: c.surfaceMuted, marginBottom: spacing.sm },
+}));

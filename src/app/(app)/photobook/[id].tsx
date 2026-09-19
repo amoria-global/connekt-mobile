@@ -21,10 +21,12 @@ import { isApiError } from '@/store/auth';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { getPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 export default function PhotobookDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -131,6 +133,7 @@ export default function PhotobookDetailScreen() {
 }
 
 function Photo({ photo, size }: { photo: PhotobookPhoto; size: number }) {
+  const styles = useStyles();
   return (
     <Pressable
       onPress={() => photo.url && WebBrowser.openBrowserAsync(photo.url)}
@@ -141,24 +144,24 @@ function Photo({ photo, size }: { photo: PhotobookPhoto; size: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   list: { padding: spacing.lg, gap: spacing.sm },
   header: { gap: spacing.sm, marginBottom: spacing.md },
-  cover: { width: '100%', height: 170, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted },
+  cover: { width: '100%', height: 170, borderRadius: radii.lg, backgroundColor: c.surfaceMuted },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  title: { flex: 1, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
-  meta: { fontSize: fontSize.sm, color: colors.textMuted },
-  desc: { fontSize: fontSize.md, color: colors.textSoft, lineHeight: 22 },
+  title: { flex: 1, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
+  meta: { fontSize: fontSize.sm, color: c.textMuted },
+  desc: { fontSize: fontSize.md, color: c.textSoft, lineHeight: 22 },
   payBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  payText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.primary },
-  cell: { borderRadius: radii.sm, overflow: 'hidden', backgroundColor: colors.surfaceMuted, marginBottom: spacing.sm },
-});
+  payText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.primary },
+  cell: { borderRadius: radii.sm, overflow: 'hidden', backgroundColor: c.surfaceMuted, marginBottom: spacing.sm },
+}));

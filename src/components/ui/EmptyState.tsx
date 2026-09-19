@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { Button } from './Button';
 
 type Props = {
@@ -11,6 +11,8 @@ type Props = {
 };
 
 export function EmptyState({ icon, title, message, action }: Props) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.wrap}>
       <View style={styles.iconCircle}>
@@ -23,17 +25,17 @@ export function EmptyState({ icon, title, message, action }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   iconCircle: {
     width: 72,
     height: 72,
     borderRadius: radii.full,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  message: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', maxWidth: 280 },
+  title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  message: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', maxWidth: 280 },
   action: { marginTop: spacing.md, alignSelf: 'center', paddingHorizontal: spacing['2xl'] },
-});
+}));

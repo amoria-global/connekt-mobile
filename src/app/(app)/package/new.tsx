@@ -12,7 +12,7 @@ import { createPackage, updatePackage, type Package, type ServiceType } from '@/
 import { listCurrencies } from '@/features/reference/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const TIERS = ['Silver', 'Gold', 'Diamond'];
 const PRICE_UNITS = ['per event', 'per hour', 'per day'];
@@ -30,6 +30,8 @@ type FormValues = z.infer<typeof schema>;
 const numStr = (v?: number) => (v != null ? String(v) : '');
 
 export default function NewPackageScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const params = useLocalSearchParams<{ editId?: string; data?: string }>();
   const isEditing = !!params.editId;
@@ -216,19 +218,19 @@ export default function NewPackageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.xl, paddingBottom: spacing['3xl'], gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
   group: { gap: spacing.xs },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
   row: { flexDirection: 'row', gap: spacing.md },
   rowItem: { flex: 1, gap: spacing.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
-  chipTextActive: { color: colors.textOnPrimary },
+  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
+  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
+  chipTextActive: { color: c.textOnPrimary },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   multiline: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
-  serverError: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

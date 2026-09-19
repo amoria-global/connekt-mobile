@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import {
   Animated,
@@ -17,7 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/store/onboarding';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 type Slide = {
   key: string;
@@ -74,6 +75,7 @@ const SLIDES: Slide[] = [
 ];
 
 export default function WelcomeScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const complete = useOnboarding((s) => s.complete);
   const reduceMotion = useReducedMotion();
@@ -232,6 +234,11 @@ export default function WelcomeScreen() {
         }}
       />
 
+      {/* The hero is a navy scrim over photography in BOTH schemes, so the
+          icons stay light — the root ThemedStatusBar would render them dark
+          on navy in light mode. */}
+      <StatusBar style="light" />
+
       {/* Fixed: Skip */}
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
         <Pressable
@@ -271,6 +278,10 @@ function VideoFill({ source, contentFit = 'cover' }: { source: number; contentFi
   const player = useVideoPlayer(source, (p) => {
     p.loop = true;
     p.muted = true;
+    // Decorative, silent video. Without this it still activates an iOS audio
+    // session and PAUSES the user's music — `muted` alone does not prevent
+    // that, because the interruption comes from the session, not the volume.
+    p.audioMixingMode = 'mixWithOthers';
     p.play();
   });
   return (
@@ -282,6 +293,7 @@ function VideoFill({ source, contentFit = 'cover' }: { source: number; contentFi
 
 /** Pagination dash that animates its real width (reserves layout space → no overlap). */
 function Dash({ active }: { active: boolean }) {
+  const styles = useStyles();
   const w = useRef(new Animated.Value(active ? 26 : 8)).current;
   const o = useRef(new Animated.Value(active ? 1 : 0.4)).current;
   useEffect(() => {
@@ -293,10 +305,25 @@ function Dash({ active }: { active: boolean }) {
   return <Animated.View style={[styles.dash, { width: w, opacity: o }]} />;
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.primary },
+/**
+ * This screen is a FIXED-DARK media hero: a full-bleed photo under a navy
+ * legibility scrim, with white type on top. Its chrome must therefore stay
+ * light-on-dark in BOTH schemes — theming it to app-surface tokens is what made
+ * the dark version look broken (the white CTA became a grey blob on a dark
+ * photo, and the circle's white ring turned grey).
+ *
+ * So the values below are deliberately literal, not `c.*`. They are keyed to
+ * the scrim, not to the app background. `c.*` is used only where the token is
+ * scheme-independent anyway (accent, textOnPrimary).
+ */
+const SCRIM_NAVY = '#062B63';   // matches the scrim gradient's darkest stop
+const ON_MEDIA = '#FFFFFF';     // CTA surface + ring, always over photography
+const ON_MEDIA_INK = '#083A85'; // brand navy, reads on the white CTA
+
+const useStyles = makeStyles((c, e) => ({
+  container: { flex: 1, backgroundColor: SCRIM_NAVY },
   slide: { overflow: 'hidden' },
-  tint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,58,133,0.28)' },
+  tint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8,58,133,0.28)' },
 
   topBar: { position: 'absolute', top: 0, right: 0, left: 0, flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.lg },
   skipPill: {
@@ -305,7 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
-  skip: { color: colors.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  skip: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   pressed: { opacity: 0.6 },
 
   copy: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: spacing.xl, gap: spacing.md },
@@ -327,12 +354,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 4,
     borderColor: 'rgba(255,255,255,0.92)',
-    backgroundColor: colors.surfaceMuted,
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 12,
+    backgroundColor: SCRIM_NAVY,
+    ...e(4),
   },
   circleDot: {
     position: 'absolute',
@@ -341,14 +364,14 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: radii.full,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
   },
   center: { textAlign: 'center' },
   title: {
     fontSize: 38,
     lineHeight: 44,
     fontWeight: fontWeight.extrabold,
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     letterSpacing: -0.6,
     textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 2 },
@@ -366,20 +389,16 @@ const styles = StyleSheet.create({
 
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.xl, gap: spacing.lg },
   dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  dash: { height: 6, borderRadius: radii.full, backgroundColor: colors.textOnPrimary },
+  dash: { height: 6, borderRadius: radii.full, backgroundColor: c.textOnPrimary },
 
   cta: {
     height: 56,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
+    borderRadius: radii.full,
+    backgroundColor: ON_MEDIA,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    ...e(4),
   },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  ctaText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-});
+  ctaText: { color: ON_MEDIA_INK, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+}));

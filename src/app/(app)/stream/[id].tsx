@@ -12,9 +12,11 @@ import { getStream, joinStream, listStreamChats, sendInAppStreamChat, type Strea
 import { formatGiftUsd, parseGiftMeta } from '@/features/streams/gifting/GiftOverlay';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function StreamDetailScreen() {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isCoordinator } = useRole();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getStream(id), [id]));
@@ -173,7 +175,7 @@ export default function StreamDetailScreen() {
               player={player}
               style={StyleSheet.absoluteFill}
               contentFit="contain"
-              allowsFullscreen
+              fullscreenOptions={{ enable: true }}
               nativeControls
             />
           ) : (
@@ -282,9 +284,9 @@ export default function StreamDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, gap: spacing.lg },
   hero: {
     height: 220,
@@ -299,16 +301,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.md,
     left: spacing.md,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radii.sm,
   },
-  liveText: { color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.extrabold },
-  title: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.text },
-  meta: { fontSize: fontSize.md, color: colors.textMuted, marginTop: -spacing.sm },
+  liveText: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.extrabold },
+  title: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text },
+  meta: { fontSize: fontSize.md, color: c.textMuted, marginTop: -spacing.sm },
   tipSection: { gap: spacing.md, marginTop: spacing.sm },
-  tipTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  tipTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   tipRow: { flexDirection: 'row', gap: spacing.md, flexWrap: 'wrap' },
   tipChip: {
     flexGrow: 1,
@@ -316,63 +318,63 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pressed: { opacity: 0.8 },
-  tipText: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  tipText: { color: c.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   chatSection: { gap: spacing.sm, marginTop: spacing.sm },
   chatRow: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
     gap: 2,
   },
-  chatSender: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
-  chatMsg: { fontSize: fontSize.sm, color: colors.text },
-  chatEmpty: { fontSize: fontSize.sm, color: colors.textMuted },
+  chatSender: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.primary },
+  chatMsg: { fontSize: fontSize.sm, color: c.text },
+  chatEmpty: { fontSize: fontSize.sm, color: c.textMuted },
   // GIFT rows: pink-tinted card + accent copy, mirroring the live screens'
   // gift language (emoji + "sent a {name} · $X").
   chatRowGift: {
     backgroundColor: 'rgba(242,12,143,0.06)',
     borderColor: 'rgba(242,12,143,0.35)',
   },
-  chatSenderGift: { color: colors.accent },
-  chatMsgGift: { fontSize: fontSize.sm, color: colors.accent, fontWeight: fontWeight.bold },
+  chatSenderGift: { color: c.accent },
+  chatMsgGift: { fontSize: fontSize.sm, color: c.accent, fontWeight: fontWeight.bold },
   waitingCard: {
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     alignItems: 'center',
     gap: 6,
   },
-  waitingTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  waitingText: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center' },
-  waitingLink: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold, marginTop: 4 },
+  waitingTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  waitingText: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center' },
+  waitingLink: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold, marginTop: 4 },
 
   composer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.sm },
   composerInput: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.full,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.sm,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   sendBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import type { TimeFieldProps } from './TimeField';
 
 /**
@@ -8,6 +8,8 @@ import type { TimeFieldProps } from './TimeField';
  * Its native value format is already HH:mm, so no parsing is needed.
  */
 export function TimeField({ label, value, onChange, error }: TimeFieldProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   return (
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
@@ -37,8 +39,8 @@ const inputStyle = {
   outline: 'none',
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { gap: spacing.xs },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSoft },
-  error: { fontSize: fontSize.xs, color: colors.error },
-});
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
+  error: { fontSize: fontSize.xs, color: c.error },
+}));

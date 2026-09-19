@@ -41,9 +41,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
+  Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -52,6 +56,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { listPublicEventsDetailed } from '@/features/events/api';
@@ -63,13 +68,19 @@ import {
   type PublicEventsTab,
 } from '@/features/events/types';
 import { storage } from '@/services/storage';
-import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { isApiError, useAuth } from '@/store/auth';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { canShowDigitalPrice } from '@/features/payments/policy';
 
 
 const PAGE_SIZE = 12;
-const SAVED_KEY = 'connekyt:savedEvents';
+// No colon: `storage` is expo-secure-store on device, whose keys may only
+// contain alphanumerics, '.', '-' and '_'. 'connekyt:savedEvents' made every
+// read and write reject, and both call sites swallow the error — so saved
+// events silently never persisted on iOS or Android. It worked on web
+// (localStorage accepts anything), which is why it looked correct in dev.
+const SAVED_KEY = 'connekyt_savedEvents';
 
 type DateRange = 'all' | 'today' | 'tomorrow' | 'this-week' | 'this-month' | 'next-month';
 
@@ -82,6 +93,50 @@ const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
   { value: 'next-month', label: 'Next month' },
 ];
 
+function filterByDateRange(events: PublicEvent[], range: DateRange): PublicEvent[] {
+  if (range === 'all') return events;
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  return events.filter((e) => {
+    if (!e.eventDate) return false;
+    const d = new Date(e.eventDate);
+    if (Number.isNaN(d.getTime())) return false;
+
+    if (range === 'today') {
+      return d >= startOfDay && d <= endOfDay;
+    }
+    if (range === 'tomorrow') {
+      const startOfTom = new Date(startOfDay);
+      startOfTom.setDate(startOfTom.getDate() + 1);
+      const endOfTom = new Date(endOfDay);
+      endOfTom.setDate(endOfTom.getDate() + 1);
+      return d >= startOfTom && d <= endOfTom;
+    }
+    if (range === 'this-week') {
+      const dayOfWeek = startOfDay.getDay();
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      return d >= startOfWeek && d <= endOfWeek;
+    }
+    if (range === 'this-month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      return d >= startOfMonth && d <= endOfMonth;
+    }
+    if (range === 'next-month') {
+      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
+      return d >= startOfNextMonth && d <= endOfNextMonth;
+    }
+    return true;
+  });
+}
+
 const TABS: { label: string; short: string; value: PublicEventsTab; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'All events', short: 'All', value: 'all', icon: 'grid' },
   { label: 'Live now', short: 'Live', value: 'live', icon: 'radio' },
@@ -89,8 +144,18 @@ const TABS: { label: string; short: string; value: PublicEventsTab; icon: keyof 
   { label: 'Recently ended', short: 'Ended', value: 'completed', icon: 'checkmark-circle' },
 ];
 
+/**
+ * The chip under each event card. Paid events show no figure where digital
+ * purchases are gated off (see features/payments/policy), because a price is
+ * part of the purchase surface. "Ticketed" still tells the user what kind of
+ * event it is, which is the useful half.
+ */
 function priceText(e: PublicEvent): { label: string; amount: string } {
   const code = e.streamFeeCurrencyAbbreviation || 'RWF';
+  const paid = (e.streamFee || 0) > 0 || (e.price || 0) > 0;
+  if (paid && !canShowDigitalPrice(false)) {
+    return { label: '', amount: 'Ticketed' };
+  }
   if (e.streamFee && e.streamFee > 0) {
     return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
   }
@@ -128,8 +193,23 @@ function tabFromStatusParam(s: string | undefined): PublicEventsTab {
   return 'all';
 }
 
+type SuggestionItem = {
+  id: string;
+  type: 'event' | 'category' | 'location' | 'organizer';
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  eventId?: string;
+  filterValue?: string;
+};
+
 export default function ExploreEventsScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const authStatus = useAuth((s) => s.status);
+  const isAuthenticated = authStatus === 'authenticated';
   const params = useLocalSearchParams<{
     status?: string;
     category?: string;
@@ -139,18 +219,19 @@ export default function ExploreEventsScreen() {
 
   const [tab, setTab] = useState<PublicEventsTab>(() => tabFromStatusParam(params.status));
   const [search, setSearch] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [searchTerm, setSearchTerm] = useState(''); // debounced for the API
   const [category, setCategory] = useState<string>(params.category ?? 'all');
   const [location, setLocation] = useState<string>(params.location ?? 'all');
   const [dateRange, setDateRange] = useState<DateRange>(
     (DATE_RANGE_OPTIONS.find((o) => o.value === (params.date ?? 'all'))?.value ?? 'all') as DateRange,
   );
-  const [bannerShown, setBannerShown] = useState(true);
   const [page, setPage] = useState(1);
 
-  // Discovered categories (web seeds this from previously-seen events).
-  const seenCats = useRef<Set<string>>(new Set());
-  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  // Live verification (`liveStreamIds`) needs the auth-required Cloudflare
+  // check, which guests can't make. Pass empty — the helpers fall back to
+  // `hasLiveStream === true`, identical to the web when the check fails.
+  const liveStreamIds = useMemo(() => new Set<string>(), []);
 
   // Bookmarks — persisted to SecureStore under the same key the web uses.
   const [saved, setSaved] = useState<Set<string>>(new Set());
@@ -189,11 +270,18 @@ export default function ExploreEventsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Only the newest request may write results: switching tab or typing a
+  // search used to let a slow earlier response land last and repaint the list
+  // with the previous filter's events.
+  const fetchGeneration = useRef(0);
+
   const fetchEvents = useCallback(async () => {
+    const myGeneration = ++fetchGeneration.current;
+    const isCurrent = () => myGeneration === fetchGeneration.current;
     setLoading(true);
     setError(null);
     try {
-      const res = await listPublicEventsDetailed({
+      let res = await listPublicEventsDetailed({
         page: page - 1,
         size: PAGE_SIZE,
         sortColumn: 'eventDate',
@@ -204,41 +292,290 @@ export default function ExploreEventsScreen() {
         dateRange: dateRange !== 'all' ? dateRange : undefined,
         search: searchTerm || undefined,
       });
-      setData(res.content);
-      setTotalPages(res.totalPages);
 
-      // Accumulate categories the way the web does.
-      let changed = false;
-      for (const e of res.content) {
-        const c = e.eventCategory?.name?.trim();
-        if (c && !seenCats.current.has(c)) {
-          seenCats.current.add(c);
-          changed = true;
+      // Resilient fallback:
+      // In live database, events often have `eventStatus: "AWAITING_REVIEW"` with `isPublished: true`.
+      // Calling backend with strict status (e.g. status=PUBLISHED or status=ONGOING) returns 0 results.
+      // If 0 items are returned for a specific tab or dateRange, fallback to querying
+      // without strict status and filter client-side so user sees matching events.
+      if (res.content.length === 0 && (tab !== 'all' || (dateRange !== 'all' && res.totalElements === 0))) {
+        const fallbackRes = await listPublicEventsDetailed({
+          page: 0,
+          size: 50,
+          sortColumn: 'eventDate',
+          sortDirection: tab === 'completed' ? 'desc' : 'asc',
+          category: category !== 'all' ? category : undefined,
+          location: location !== 'all' ? location : undefined,
+          search: searchTerm || undefined,
+        });
+
+        if (fallbackRes.content.length > 0) {
+          let filtered = fallbackRes.content;
+          if (tab === 'live') {
+            filtered = filtered.filter((e) => isEventLive(e, liveStreamIds));
+          } else if (tab === 'upcoming') {
+            filtered = filtered.filter((e) => !isEventLive(e, liveStreamIds) && !isEventEnded(e));
+          } else if (tab === 'completed') {
+            filtered = filtered.filter((e) => isEventEnded(e));
+          }
+
+          if (dateRange !== 'all') {
+            filtered = filterByDateRange(filtered, dateRange);
+          }
+
+          res = {
+            ...fallbackRes,
+            content: filtered,
+            totalElements: filtered.length,
+            totalPages: Math.ceil(filtered.length / PAGE_SIZE) || 1,
+          };
         }
       }
-      if (changed) setCategoryOptions(Array.from(seenCats.current).sort());
+
+      if (!isCurrent()) return;
+      setData(res.content);
+      setTotalPages(res.totalPages);
     } catch (e) {
+      if (!isCurrent()) return;
       setError(isApiError(e) ? e.message : 'Could not load events. Pull to retry.');
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [page, tab, category, location, dateRange, searchTerm]);
+  }, [page, tab, category, location, dateRange, searchTerm, liveStreamIds]);
+
+  // Any change to the filters starts a new result set, so go back to its
+  // first page. Searching from page 3 used to keep page 3 against a result
+  // set that often had only one, leaving an empty list and — because the
+  // pager hides itself when there is nothing to page through — no way back.
+  useEffect(() => {
+    setPage(1);
+  }, [tab, category, location, dateRange, searchTerm]);
 
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Live verification (`liveStreamIds`) needs the auth-required Cloudflare
-  // check, which guests can't make. Pass empty — the helpers fall back to
-  // `hasLiveStream === true`, identical to the web when the check fails.
-  const liveStreamIds = useMemo(() => new Set<string>(), []);
+  // Dedicated pool for story circles so live & upcoming events remain visible
+  // even if the user applies specific filters/searches in the feed below.
+  // Supports smooth horizontal virtualization and pagination for 100+ events.
+  const [storiesList, setStoriesList] = useState<PublicEvent[]>([]);
+  const [storiesPage, setStoriesPage] = useState(0);
+  const [storiesTotalPages, setStoriesTotalPages] = useState(1);
+  const [loadingMoreStories, setLoadingMoreStories] = useState(false);
 
-  const featuredLive = useMemo(
-    () => data.filter((e) => isEventLive(e, liveStreamIds)),
-    [data, liveStreamIds],
+  const fetchStoriesPage = useCallback(async (pageNum: number, isInitial = false) => {
+    try {
+      if (!isInitial) setLoadingMoreStories(true);
+      const res = await listPublicEventsDetailed({
+        page: pageNum,
+        size: 25,
+        sortColumn: 'eventDate',
+        sortDirection: 'asc',
+      });
+      if (res.content.length > 0) {
+        setStoriesList((prev) => {
+          if (isInitial) return res.content;
+          const map = new Map<string, PublicEvent>();
+          for (const ev of prev) map.set(ev.id, ev);
+          for (const ev of res.content) map.set(ev.id, ev);
+          return Array.from(map.values());
+        });
+      }
+      setStoriesPage(pageNum);
+      setStoriesTotalPages(res.totalPages || 1);
+    } catch {
+      // Fallback gracefully
+    } finally {
+      if (!isInitial) setLoadingMoreStories(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStoriesPage(0, true);
+  }, [fetchStoriesPage]);
+
+  const loadMoreStories = useCallback(() => {
+    if (loadingMoreStories) return;
+    if (storiesPage + 1 < storiesTotalPages) {
+      fetchStoriesPage(storiesPage + 1);
+    }
+  }, [loadingMoreStories, storiesPage, storiesTotalPages, fetchStoriesPage]);
+
+  const handleRefresh = useCallback(async () => {
+    fetchStoriesPage(0, true);
+    await fetchEvents();
+  }, [fetchStoriesPage, fetchEvents]);
+
+  const activeStories = useMemo(() => {
+    const pool = storiesList.length > 0 ? storiesList : data;
+    // Deduplicate by event ID
+    const map = new Map<string, PublicEvent>();
+    for (const e of pool) {
+      if (e.id && !map.has(e.id)) map.set(e.id, e);
+    }
+    const allUnique = Array.from(map.values());
+    const live = allUnique.filter((e) => isEventLive(e, liveStreamIds));
+    const upcoming = allUnique.filter((e) => !isEventLive(e, liveStreamIds) && !isEventEnded(e));
+    const rest = allUnique.filter(
+      (e) => !live.some((l) => l.id === e.id) && !upcoming.some((u) => u.id === e.id),
+    );
+    // Uncapped — users can scroll smoothly through all events (even 100+)
+    return [...live, ...upcoming, ...rest];
+  }, [storiesList, data, liveStreamIds]);
+
+  // Discovered categories (from storiesList + data pool)
+  const categoryOptions = useMemo(() => {
+    const allEventsPool = new Map<string, PublicEvent>();
+    for (const e of storiesList) if (e.id) allEventsPool.set(e.id, e);
+    for (const e of data) if (e.id) allEventsPool.set(e.id, e);
+    const cats = new Set<string>();
+    for (const e of allEventsPool.values()) {
+      const c = e.eventCategory?.name?.trim();
+      if (c) cats.add(c);
+    }
+    return Array.from(cats).sort();
+  }, [storiesList, data]);
+
+  // Discovered locations (from storiesList + data pool)
+  const locationOptions = useMemo(() => {
+    const allEventsPool = new Map<string, PublicEvent>();
+    for (const e of storiesList) if (e.id) allEventsPool.set(e.id, e);
+    for (const e of data) if (e.id) allEventsPool.set(e.id, e);
+    const locs = new Set<string>();
+    for (const e of allEventsPool.values()) {
+      if (e.location?.trim()) locs.add(e.location.trim());
+    }
+    return Array.from(locs).sort();
+  }, [storiesList, data]);
+
+  // Global live count across the entire event pool (stories + feed)
+  const liveCount = useMemo(() => {
+    const pool = storiesList.length > 0 ? storiesList : data;
+    return pool.filter((e) => isEventLive(e, liveStreamIds)).length;
+  }, [storiesList, data, liveStreamIds]);
+
+  // Global search autocomplete suggestions across events, categories, locations, and organizers
+  const suggestions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+
+    const allEventsPool = new Map<string, PublicEvent>();
+    for (const e of storiesList) if (e.id) allEventsPool.set(e.id, e);
+    for (const e of data) if (e.id) allEventsPool.set(e.id, e);
+    const pool = Array.from(allEventsPool.values());
+
+    const results: SuggestionItem[] = [];
+    const seenTitles = new Set<string>();
+
+    // 1. Matching Events (by title)
+    for (const e of pool) {
+      if (e.title && e.title.toLowerCase().includes(q)) {
+        if (!seenTitles.has(`event-${e.id}`)) {
+          seenTitles.add(`event-${e.id}`);
+          const isLive = isEventLive(e, liveStreamIds);
+          results.push({
+            id: `event-${e.id}`,
+            type: 'event',
+            title: e.title,
+            subtitle: [e.location, e.eventCategory?.name].filter(Boolean).join(' · '),
+            badge: isLive ? 'LIVE' : undefined,
+            eventId: e.id,
+          });
+        }
+      }
+      if (results.length >= 3) break;
+    }
+
+    // 2. Matching Categories
+    for (const cat of categoryOptions) {
+      if (cat.toLowerCase().includes(q)) {
+        if (!seenTitles.has(`cat-${cat}`)) {
+          seenTitles.add(`cat-${cat}`);
+          results.push({
+            id: `cat-${cat}`,
+            type: 'category',
+            title: cat,
+            subtitle: 'Category',
+            filterValue: cat,
+          });
+        }
+      }
+      if (results.length >= 5) break;
+    }
+
+    // 3. Matching Locations
+    for (const loc of locationOptions) {
+      if (loc.toLowerCase().includes(q)) {
+        if (!seenTitles.has(`loc-${loc}`)) {
+          seenTitles.add(`loc-${loc}`);
+          results.push({
+            id: `loc-${loc}`,
+            type: 'location',
+            title: loc,
+            subtitle: 'Location / Venue',
+            filterValue: loc,
+          });
+        }
+      }
+      if (results.length >= 7) break;
+    }
+
+    // 4. Matching Organizers
+    const organizers = Array.from(
+      new Set(
+        pool
+          .map((e) =>
+            (e.creator
+              ? `${e.creator.firstName ?? ''} ${e.creator.lastName ?? ''}`.trim()
+              : e.eventOrganizer
+            )?.trim(),
+          )
+          .filter((o): o is string => Boolean(o)),
+      ),
+    );
+    for (const org of organizers) {
+      if (org.toLowerCase().includes(q)) {
+        if (!seenTitles.has(`org-${org}`)) {
+          seenTitles.add(`org-${org}`);
+          results.push({
+            id: `org-${org}`,
+            type: 'organizer',
+            title: org,
+            subtitle: 'Organizer / Host',
+            filterValue: org,
+          });
+        }
+      }
+      if (results.length >= 8) break;
+    }
+
+    return results.slice(0, 6);
+  }, [search, storiesList, data, categoryOptions, locationOptions, liveStreamIds]);
+
+  const handleSelectSuggestion = useCallback(
+    (item: SuggestionItem) => {
+      setSearchFocused(false);
+      Keyboard.dismiss();
+      if (item.type === 'event' && item.eventId) {
+        router.push(`/event/${item.eventId}` as never);
+      } else if (item.type === 'category' && item.filterValue) {
+        setCategory(item.filterValue);
+        setSearch('');
+        setTab('all');
+        setPage(1);
+      } else if (item.type === 'location' && item.filterValue) {
+        setLocation(item.filterValue);
+        setSearch('');
+        setTab('all');
+        setPage(1);
+      } else if (item.filterValue) {
+        setSearch(item.filterValue);
+        setTab('all');
+        setPage(1);
+      }
+    },
+    [router],
   );
-
-  const liveCount = featuredLive.length;
   const activeFilterCount =
     (category !== 'all' ? 1 : 0) +
     (location !== 'all' ? 1 : 0) +
@@ -266,77 +603,113 @@ export default function ExploreEventsScreen() {
     return `${count} ${noun} ${suffix}`;
   })();
 
+  const renderTopBar = () => (
+    <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
+      <View style={styles.topBarPill}>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
+          hitSlop={12}
+          style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Back to sign in"
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </Pressable>
+
+        <View style={styles.topBarPillCenter}>
+          <Text style={styles.topBarPillText}>Explore Events</Text>
+        </View>
+
+        <Pressable
+          onPress={() => (isAuthenticated ? router.replace('/(app)/(tabs)') : router.push('/login'))}
+          hitSlop={8}
+          style={({ pressed }) => [styles.topBarSignInBtn, pressed && { opacity: 0.75 }]}
+          accessibilityRole="button"
+          accessibilityLabel={isAuthenticated ? 'Dashboard' : 'Sign in'}
+        >
+          <Text style={styles.topBarSignInText}>{isAuthenticated ? 'Dashboard' : 'Sign In'}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
   const header = (
     <View>
-      {bannerShown ? (
-        <View style={styles.banner}>
-          <Ionicons name="megaphone" size={14} color={colors.textOnPrimary} />
-          <Text style={styles.bannerCta} numberOfLines={1}>
-            Discover amazing events near you!
-          </Text>
-          <Pressable onPress={() => setBannerShown(false)} hitSlop={8}>
-            <Ionicons name="close" size={16} color="rgba(255,255,255,0.85)" />
-          </Pressable>
-        </View>
-      ) : null}
-
-      <View style={styles.hero}>
-        <View style={styles.heroEyebrow}>
-          <Ionicons name="sparkles" size={12} color="#FFD28A" />
-          <Text style={styles.heroEyebrowText}>CONNEKYT EVENTS</Text>
-        </View>
-        <Text style={styles.heroTitle}>Catch every moment, live.</Text>
-        <Text style={styles.heroSub}>
-          Discover events near you and join the live stream — no login needed.
-        </Text>
-      </View>
-
-      {featuredLive.length > 0 ? (
-        <View style={styles.trends}>
-          <View style={styles.trendsHead}>
-            <View style={styles.trendsPill}>
-              <Text style={styles.trendsFlame}>🔥</Text>
-              <Text style={styles.trendsPillText}>Hot Live Trends</Text>
-              <View style={styles.trendsCount}>
-                <Text style={styles.trendsCountText}>{featuredLive.length}</Text>
-              </View>
-            </View>
-            {featuredLive.length > 4 ? (
-              <Pressable onPress={() => switchTab('live')} hitSlop={8}>
-                <Text style={styles.trendsAll}>View all →</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          <ScrollView
+      {/* Instagram-Style Story Circles Tray (Virtualized & Paginated for 100+ events) */}
+      {activeStories.length > 0 ? (
+        <View style={styles.storiesContainer}>
+          <FlatList
+            data={activeStories}
+            keyExtractor={(e) => `story-${e.id}`}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.trendsScroll}
-          >
-            {featuredLive.map((e) => (
-              <Pressable
-                key={e.id}
-                style={styles.story}
-                onPress={() => router.push(`/event/${e.id}` as never)}
-              >
-                <View style={styles.storyRing}>
-                  <View style={styles.storyAvatar}>
-                    <Image
-                      source={e.eventPhoto ? { uri: e.eventPhoto } : EVENT_COVER_PLACEHOLDER}
-                      style={styles.storyImg}
-                      contentFit="cover"
-                    />
+            contentContainerStyle={styles.storiesScroll}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'android'}
+            onEndReached={loadMoreStories}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMoreStories ? (
+                <View style={styles.storyFooterLoader}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : null
+            }
+            renderItem={({ item: e }) => {
+              const isLive = isEventLive(e, liveStreamIds);
+              const isEnded = isEventEnded(e);
+              return (
+                <Pressable
+                  key={e.id}
+                  style={({ pressed }) => [styles.storyItem, pressed && { opacity: 0.8 }]}
+                  onPress={() => router.push(`/event/${e.id}` as never)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${e.title}, ${isLive ? 'Live now' : 'Event'}`}
+                >
+                  <View style={styles.storyCircleWrapper}>
+                    <LinearGradient
+                      colors={
+                        isLive
+                          ? ['#F58529', '#DD2A7B', '#8134AF']
+                          : isEnded
+                          ? ['#64748B', '#94A3B8']
+                          : ['#4F46E5', '#7C3AED', '#EC4899']
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.storyGradientRing}
+                    >
+                      <View style={styles.storyInnerGap}>
+                        <Image
+                          source={e.eventPhoto ? { uri: e.eventPhoto } : EVENT_COVER_PLACEHOLDER}
+                          style={styles.storyImage}
+                          contentFit="cover"
+                          transition={200}
+                        />
+                      </View>
+                    </LinearGradient>
+
+                    {isLive ? (
+                      <View style={styles.storyLivePill}>
+                        <View style={styles.storyLivePillDot} />
+                        <Text style={styles.storyLivePillText}>LIVE</Text>
+                      </View>
+                    ) : !isEnded ? (
+                      <View style={styles.storySoonPill}>
+                        <Text style={styles.storySoonPillText}>SOON</Text>
+                      </View>
+                    ) : null}
                   </View>
-                </View>
-                <View style={styles.storyLive}>
-                  <View style={styles.storyLiveDot} />
-                  <Text style={styles.storyLiveText}>LIVE</Text>
-                </View>
-                <Text style={styles.storyTitle} numberOfLines={2}>
-                  {e.title}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+
+                  <Text style={styles.storyNameText} numberOfLines={1} ellipsizeMode="tail">
+                    {e.title}
+                  </Text>
+                </Pressable>
+              );
+            }}
+          />
         </View>
       ) : null}
 
@@ -366,15 +739,24 @@ export default function ExploreEventsScreen() {
       </View>
 
       <View style={styles.controls}>
-        <View style={styles.searchWrap}>
-          <Ionicons name="search" size={16} color={colors.textMuted} />
+        <View style={[styles.searchWrap, searchFocused && styles.searchWrapFocused]}>
+          <Ionicons name="search" size={17} color={searchFocused ? colors.primary : colors.textMuted} />
           <TextInput
             value={search}
-            onChangeText={setSearch}
-            placeholder="Search events…"
+            onChangeText={(text) => {
+              setSearch(text);
+              if (!searchFocused) setSearchFocused(true);
+            }}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
+            placeholder="Search events, venues, categories…"
             placeholderTextColor={colors.textMuted}
             style={styles.searchInput}
             returnKeyType="search"
+            onSubmitEditing={() => {
+              setSearchFocused(false);
+              Keyboard.dismiss();
+            }}
           />
           {search ? (
             <Pressable
@@ -383,11 +765,72 @@ export default function ExploreEventsScreen() {
                 setPage(1);
               }}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
             >
-              <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </Pressable>
           ) : null}
         </View>
+
+        {/* Global Search Autocomplete Suggestions */}
+        {searchFocused && suggestions.length > 0 ? (
+          <View style={styles.suggestionsCard}>
+            <View style={styles.suggestionsHeader}>
+              <Text style={styles.suggestionsHeaderTitle}>SUGGESTIONS</Text>
+              <Text style={styles.suggestionsHeaderCount}>{suggestions.length}</Text>
+            </View>
+            {suggestions.map((item) => (
+              <Pressable
+                key={item.id}
+                style={({ pressed }) => [styles.suggestionRow, pressed && styles.suggestionRowPressed]}
+                onPress={() => handleSelectSuggestion(item)}
+              >
+                <View
+                  style={[
+                    styles.suggestionIconWrap,
+                    item.type === 'event' && item.badge ? styles.suggestionIconWrapLive : null,
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      item.type === 'event'
+                        ? 'calendar'
+                        : item.type === 'category'
+                        ? 'pricetag'
+                        : item.type === 'location'
+                        ? 'location'
+                        : 'person'
+                    }
+                    size={14}
+                    color={item.type === 'event' && item.badge ? '#E11D48' : colors.primary}
+                  />
+                </View>
+                <View style={styles.suggestionTextCol}>
+                  <View style={styles.suggestionTitleRow}>
+                    <Text style={styles.suggestionTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    {item.badge ? (
+                      <View style={styles.suggestionBadge}>
+                        <Text style={styles.suggestionBadgeText}>{item.badge}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  {item.subtitle ? (
+                    <Text style={styles.suggestionSubtitle} numberOfLines={1}>
+                      {item.subtitle}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={styles.suggestionTypeTag}>
+                  <Text style={styles.suggestionTypeTagText}>{item.type}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
 
         <ScrollView
           horizontal
@@ -396,6 +839,7 @@ export default function ExploreEventsScreen() {
         >
           <FilterChip
             icon="pricetag"
+            title="Categories"
             value={category}
             options={[{ value: 'all', label: 'All categories' }, ...categoryOptions.map((c) => ({ value: c, label: c }))]}
             onChange={(v) => {
@@ -405,8 +849,12 @@ export default function ExploreEventsScreen() {
           />
           <FilterChip
             icon="location"
+            title="Locations"
             value={location}
-            options={[{ value: 'all', label: 'All locations' }]}
+            options={[
+              { value: 'all', label: 'All locations' },
+              ...locationOptions.map((l) => ({ value: l, label: l })),
+            ]}
             onChange={(v) => {
               setLocation(v);
               setPage(1);
@@ -414,6 +862,7 @@ export default function ExploreEventsScreen() {
           />
           <FilterChip
             icon="calendar"
+            title="Date Range"
             value={dateRange}
             options={DATE_RANGE_OPTIONS}
             onChange={(v) => {
@@ -466,7 +915,8 @@ export default function ExploreEventsScreen() {
 
   if (loading && data.length === 0 && !error) {
     return (
-      <Screen edges={['bottom']}>
+      <Screen padded={false} edges={['bottom']}>
+        {renderTopBar()}
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -476,9 +926,12 @@ export default function ExploreEventsScreen() {
 
   return (
     <Screen padded={false} edges={['bottom']}>
+      {renderTopBar()}
       <FlatList
         data={data}
         keyExtractor={(e) => e.id}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         renderItem={({ item }) => (
           <View style={styles.cardWrap}>
             <PosterCard
@@ -496,7 +949,7 @@ export default function ExploreEventsScreen() {
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={fetchEvents} tintColor={colors.primary} />
+          <RefreshControl refreshing={loading} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
           error ? (
@@ -556,6 +1009,9 @@ function PosterCard({
   onPress: () => void;
   onToggleSave: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  const router = useRouter();
   const date = dateParts(event.eventDate);
   const price = priceText(event);
   const org = organizerInfo(event);
@@ -645,177 +1101,348 @@ function PosterCard({
             </Text>
           </View>
         </View>
+
+        {/* Event Card Action Buttons: View Details & Find Photos on ended, Watch Live on live, View Details on upcoming */}
+        {isEnded ? (
+          <View style={styles.cardEndedSection}>
+            <Pressable
+              style={({ pressed }) => [styles.viewCardBtn, pressed && { opacity: 0.85 }]}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onPress();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`View details for ${event.title}`}
+            >
+              <Ionicons name="eye-outline" size={15} color={colors.primary} />
+              <Text style={styles.viewCardBtnText} numberOfLines={1}>
+                View Details
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.findPhotosCardBtn, pressed && { opacity: 0.88 }]}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                router.push('/find-photos' as never);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Find My Photos"
+            >
+              <Ionicons name="search" size={14} color="#FFFFFF" />
+              <Text style={styles.findPhotosBtnText} numberOfLines={1}>
+                Find Photos
+              </Text>
+            </Pressable>
+          </View>
+        ) : isLive ? (
+          <View style={styles.cardActionSection}>
+            <Pressable
+              style={({ pressed }) => [styles.watchLiveCardBtn, pressed && { opacity: 0.88 }]}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onPress();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Watch ${event.title} live`}
+            >
+              <Ionicons name="play" size={14} color="#FFFFFF" />
+              <Text style={styles.watchLiveBtnText} numberOfLines={1}>
+                Watch Live
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.cardActionSection}>
+            <Pressable
+              style={({ pressed }) => [styles.viewCardFullBtn, pressed && { opacity: 0.85 }]}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onPress();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`View details for ${event.title}`}
+            >
+              <Ionicons name="eye-outline" size={15} color={colors.primary} />
+              <Text style={styles.viewCardFullBtnText} numberOfLines={1}>
+                View Details
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     </Pressable>
   );
 }
 
-// ────── Filter chip dropdown ───────────────────────────────────────────────
+// ────── Filter chip dropdown (Bottom Sheet Modal) ──────────────────────────
 
 function FilterChip({
   icon,
+  title,
   value,
   options,
   onChange,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
+  title: string;
   value: string;
   options: { value: string; label: string }[];
   onChange: (v: string) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
   const active = value !== 'all';
+
   return (
-    <View style={styles.filterChipWrap}>
+    <>
       <Pressable
-        onPress={() => setOpen((o) => !o)}
+        onPress={() => setOpen(true)}
         style={[styles.filterChip, active && styles.filterChipActive]}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}: ${current?.label ?? 'Any'}`}
       >
-        <Ionicons name={icon} size={13} color={active ? colors.primary : colors.textMuted} />
+        <Ionicons name={icon} size={14} color={active ? colors.primary : colors.textMuted} />
         <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
           {current?.label ?? 'Any'}
         </Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={12} color={colors.textMuted} />
+        <Ionicons name="chevron-down" size={12} color={active ? colors.primary : colors.textMuted} />
       </Pressable>
-      {open ? (
-        <View style={styles.filterMenu}>
-          {options.map((o) => {
-            const sel = o.value === value;
-            return (
+
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)}>
+          <Pressable
+            style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitleRow}>
+                <Ionicons name={icon} size={18} color={colors.primary} />
+                <Text style={styles.modalTitle}>{title}</Text>
+              </View>
               <Pressable
-                key={o.value}
-                style={[styles.filterMenuItem, sel && styles.filterMenuItemActive]}
-                onPress={() => {
-                  onChange(o.value);
-                  setOpen(false);
-                }}
+                onPress={() => setOpen(false)}
+                hitSlop={10}
+                style={styles.modalCloseBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
               >
-                <Text style={[styles.filterMenuText, sel && styles.filterMenuTextActive]}>{o.label}</Text>
-                {sel ? <Ionicons name="checkmark" size={14} color={colors.primary} /> : null}
+                <Ionicons name="close" size={20} color={colors.textMuted} />
               </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
-    </View>
+            </View>
+
+            <FlatList
+              data={options}
+              keyExtractor={(item) => item.value}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              style={styles.modalOptionsList}
+              renderItem={({ item }) => {
+                const selected = item.value === value;
+                return (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.modalOptionRow,
+                      selected && styles.modalOptionRowSelected,
+                      pressed && { opacity: 0.75 },
+                    ]}
+                    onPress={() => {
+                      onChange(item.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionLabel,
+                        selected && styles.modalOptionLabelSelected,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {item.label}
+                    </Text>
+                    {selected ? (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={18} color={colors.borderSoft} />
+                    )}
+                  </Pressable>
+                );
+              }}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   // Containers
   listContent: { paddingBottom: 120, gap: spacing.md, flexGrow: 1 },
   cardWrap: { paddingHorizontal: spacing.xl },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyWrap: { paddingTop: spacing['2xl'], paddingHorizontal: spacing.xl, alignItems: 'center', gap: spacing.md },
-  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
 
-  // Banner
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  // Top bar in head — full-width rounded floating bar matching FindMyPhotos
+  topBar: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-    backgroundColor: colors.primaryDark,
+    paddingBottom: spacing.sm,
+    backgroundColor: c.background,
   },
-  bannerCta: { flex: 1, color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-
-  // Hero
-  hero: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
-    backgroundColor: colors.primary,
-    gap: spacing.xs,
-  },
-  heroEyebrow: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  topBarPill: {
+    width: '100%',
+    height: 52,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    marginBottom: 6,
-  },
-  heroEyebrowText: { color: '#FFD28A', fontSize: 10, letterSpacing: 1.4, fontWeight: fontWeight.bold },
-  heroTitle: {
-    color: colors.textOnPrimary,
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.extrabold,
-    lineHeight: 32,
-  },
-  heroSub: { color: 'rgba(255,255,255,0.82)', fontSize: fontSize.sm, maxWidth: 320 },
-
-  // Trends row
-  trends: { paddingTop: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
-  trendsHead: {
+    backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: 6,
+    ...e(2),
   },
-  trendsPill: {
+  topBarBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarBackBtnPressed: { opacity: 0.65, transform: [{ scale: 0.94 }] },
+  topBarPillCenter: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    justifyContent: 'center',
+    gap: spacing.xs + 2,
+  },
+  topBarPillText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  topBarSignInBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: radii.full,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.tint,
   },
-  trendsFlame: { fontSize: 14 },
-  trendsPillText: { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-  trendsCount: {
-    backgroundColor: colors.accent,
-    minWidth: 18,
-    paddingHorizontal: 6,
-    height: 18,
-    borderRadius: 9,
+  topBarSignInText: {
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+
+  // Instagram Story Circles Tray
+  storiesContainer: {
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  storiesScroll: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+    alignItems: 'center',
+  },
+  storyItem: {
+    width: 74,
+    alignItems: 'center',
+    gap: 5,
+  },
+  storyCircleWrapper: {
+    width: 68,
+    height: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  storyGradientRing: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    padding: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trendsCountText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold },
-  trendsAll: { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  trendsScroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
-  story: { width: 84, alignItems: 'center', gap: 6 },
-  storyRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    padding: 3,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  storyAvatar: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    backgroundColor: colors.surface,
+  storyInnerGap: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 31.5,
+    backgroundColor: c.background,
     padding: 2,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  storyImg: { width: '100%', height: '100%', borderRadius: 33 },
-  storyLive: {
+  storyImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 29.5,
+  },
+  storyLivePill: {
+    position: 'absolute',
+    bottom: -5,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: colors.accent,
+    backgroundColor: '#E11D48',
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 1.5,
     borderRadius: radii.full,
-    marginTop: -10,
+    borderWidth: 1.5,
+    borderColor: c.background,
   },
-  storyLiveDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
-  storyLiveText: { color: '#fff', fontSize: 9, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
-  storyTitle: { fontSize: 11, color: colors.textSoft, fontWeight: fontWeight.semibold, textAlign: 'center' },
+  storyLivePillDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#FFFFFF',
+  },
+  storyLivePillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: fontWeight.extrabold,
+    letterSpacing: 0.5,
+  },
+  storySoonPill: {
+    position: 'absolute',
+    bottom: -5,
+    alignSelf: 'center',
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: c.background,
+  },
+  storySoonPillText: {
+    color: '#FFFFFF',
+    fontSize: 8.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.4,
+  },
+  storyNameText: {
+    fontSize: 11,
+    fontWeight: fontWeight.medium,
+    color: c.text,
+    textAlign: 'center',
+    width: 70,
+  },
+  storyFooterLoader: {
+    width: 44,
+    height: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: spacing.xs,
+  },
 
   // Tabs
   tabsRow: {
@@ -834,17 +1461,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 6,
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
   },
-  tabActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
-  tabLabel: { color: colors.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  tabLabelActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  tabActive: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.primary },
+  tabLabel: { color: c.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  tabLabelActive: { color: c.primary, fontWeight: fontWeight.bold },
   tabCount: {
     minWidth: 18,
     height: 18,
     paddingHorizontal: 5,
     borderRadius: 9,
-    backgroundColor: colors.accent,
+    backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -856,58 +1483,294 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
+    backgroundColor: c.surface,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
+    ...e(1),
   },
-  searchInput: { flex: 1, color: colors.text, fontSize: fontSize.sm, padding: 0 },
+  searchWrapFocused: {
+    borderColor: c.primary,
+    backgroundColor: c.surface,
+    ...e(2),
+  },
+  searchInput: { flex: 1, color: c.text, fontSize: fontSize.sm, padding: 0 },
+
+  // Suggestions Card (Global Autocomplete)
+  suggestionsCard: {
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    marginTop: 2,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    overflow: 'hidden',
+    ...e(3),
+  },
+  suggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    backgroundColor: c.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+  },
+  suggestionsHeaderTitle: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: c.textMuted,
+    letterSpacing: 0.8,
+  },
+  suggestionsHeaderCount: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+    gap: spacing.sm,
+  },
+  suggestionRowPressed: {
+    backgroundColor: c.tint,
+  },
+  suggestionIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: c.infoBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionIconWrapLive: {
+    backgroundColor: '#FFE4E6',
+  },
+  suggestionTextCol: {
+    flex: 1,
+    gap: 1,
+  },
+  suggestionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  suggestionTitle: {
+    fontSize: fontSize.xs + 1,
+    fontWeight: fontWeight.semibold,
+    color: c.text,
+    flexShrink: 1,
+  },
+  suggestionSubtitle: {
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  suggestionBadge: {
+    backgroundColor: '#E11D48',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: radii.full,
+  },
+  suggestionBadgeText: {
+    color: '#fff',
+    fontSize: 8.5,
+    fontWeight: fontWeight.bold,
+  },
+  suggestionTypeTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    backgroundColor: c.background,
+  },
+  suggestionTypeTagText: {
+    fontSize: 10,
+    color: c.textMuted,
+    fontWeight: fontWeight.medium,
+    textTransform: 'uppercase',
+  },
   filtersRow: { gap: spacing.sm, paddingVertical: spacing.xs },
 
   filterChipWrap: { position: 'relative' },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: radii.full,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  filterChipActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  filterChipText: { color: colors.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  filterChipTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
-  filterMenu: {
-    position: 'absolute',
-    top: 38,
-    left: 0,
-    minWidth: 180,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingVertical: 4,
-    zIndex: 10,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+  filterChipActive: { borderColor: c.primary, backgroundColor: c.infoBg },
+  filterChipText: { color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  filterChipTextActive: { color: c.primary, fontWeight: fontWeight.bold },
+
+  // Filter Modal Sheet
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
   },
-  filterMenuItem: {
+  modalSheet: {
+    backgroundColor: c.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
+    paddingHorizontal: spacing.xl,
+    maxHeight: '75%',
+    ...e(4),
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: c.borderSoft,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
+    paddingBottom: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
   },
-  filterMenuItemActive: { backgroundColor: colors.infoBg },
-  filterMenuText: { color: colors.text, fontSize: fontSize.sm },
-  filterMenuTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
+  modalHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  modalTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOptionsList: {
+    marginVertical: spacing.xs,
+  },
+  modalOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    marginVertical: 2,
+  },
+  modalOptionRowSelected: {
+    backgroundColor: c.infoBg,
+  },
+  modalOptionLabel: {
+    fontSize: fontSize.sm,
+    color: c.text,
+    fontWeight: fontWeight.medium,
+    flex: 1,
+    paddingRight: spacing.md,
+  },
+  modalOptionLabelSelected: {
+    color: c.primary,
+    fontWeight: fontWeight.bold,
+  },
+
+  // Ended & Live Event Card Section
+  cardEndedSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: spacing.xs + 2,
+  },
+  cardActionSection: {
+    marginTop: spacing.xs + 2,
+  },
+  viewCardBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.sm,
+  },
+  viewCardBtnText: {
+    color: c.primary,
+    fontSize: 12.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.2,
+  },
+  findPhotosCardBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radii.full,
+    backgroundColor: c.primary,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.sm,
+    ...e(1),
+  },
+  findPhotosBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.2,
+  },
+  watchLiveCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radii.full,
+    backgroundColor: c.accent,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    ...e(1),
+  },
+  watchLiveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.2,
+  },
+  viewCardFullBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surfaceMuted,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.md,
+  },
+  viewCardFullBtnText: {
+    color: c.text,
+    fontSize: 12.5,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.2,
+  },
 
   // Result strip
   resultStrip: {
@@ -919,19 +1782,19 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     gap: 4,
   },
-  resultText: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  resultFilters: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  resultText: { color: c.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  resultFilters: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   // Card
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
   cardPressed: { opacity: 0.92 },
-  cardMedia: { width: '100%', height: 180, position: 'relative', backgroundColor: colors.surfaceMuted },
+  cardMedia: { width: '100%', height: 180, position: 'relative', backgroundColor: c.surfaceMuted },
   cardArt: { width: '100%', height: '100%' },
   cardScrim: {
     position: 'absolute',
@@ -953,7 +1816,7 @@ const styles = StyleSheet.create({
   cardDateMo: {
     width: '100%',
     paddingVertical: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     color: '#fff',
     fontSize: 10,
     fontWeight: fontWeight.bold,
@@ -961,7 +1824,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cardDateDay: {
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.lg,
     fontWeight: fontWeight.extrabold,
     paddingVertical: 2,
@@ -984,8 +1847,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   statusText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
-  statusUpcoming: { backgroundColor: colors.primary },
-  statusLive: { backgroundColor: colors.accent },
+  statusUpcoming: { backgroundColor: c.primary },
+  statusLive: { backgroundColor: c.accent },
   statusEnded: { backgroundColor: '#6A6D76' },
   pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
   bookmark: {
@@ -996,12 +1859,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookmarkSaved: { backgroundColor: colors.surface },
+  bookmarkSaved: { backgroundColor: c.surface },
 
   cardMeta: { padding: spacing.md, gap: 6 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardVenue: { flex: 1, color: colors.textMuted, fontSize: fontSize.xs },
-  cardTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, lineHeight: 22 },
+  cardVenue: { flex: 1, color: c.textMuted, fontSize: fontSize.xs },
+  cardTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, lineHeight: 22 },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1014,24 +1877,24 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   orgAvatarImg: { width: '100%', height: '100%' },
-  orgInitial: { color: colors.textSoft, fontSize: 11, fontWeight: fontWeight.bold },
-  orgName: { flex: 1, color: colors.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  orgInitial: { color: c.textSoft, fontSize: 11, fontWeight: fontWeight.bold },
+  orgName: { flex: 1, color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
   priceChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radii.full,
   },
-  priceText: { color: colors.primary, fontSize: fontSize.xs },
+  priceText: { color: c.primary, fontSize: fontSize.xs },
   priceNum: { fontWeight: fontWeight.bold },
 
   // Pagination
@@ -1050,11 +1913,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
+    borderColor: c.primary,
+    backgroundColor: c.surface,
   },
-  pagerBtnDisabled: { borderColor: colors.borderSoft, backgroundColor: colors.surfaceMuted },
-  pagerBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  pagerBtnTextDisabled: { color: colors.textMuted },
-  pagerInfo: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-});
+  pagerBtnDisabled: { borderColor: c.borderSoft, backgroundColor: c.surfaceMuted },
+  pagerBtnText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  pagerBtnTextDisabled: { color: c.textMuted },
+  pagerInfo: { color: c.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+}));

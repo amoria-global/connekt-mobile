@@ -2572,11 +2572,8 @@
     "path" : "/api/remote/auth/google",
     "controller" : "AuthController#googleAuth",
     "params" : [ {
-      "name" : "googleAccessToken",
-      "required" : false
-    }, {
       "name" : "email",
-      "required" : true
+      "required" : false
     }, {
       "name" : "firstName",
       "required" : true
@@ -2589,6 +2586,9 @@
     }, {
       "name" : "customerType",
       "required" : true
+    }, {
+      "name" : "googleAccessToken",
+      "required" : false
     } ]
   }, {
     "method" : "POST",
@@ -4461,7 +4461,10 @@
       "required" : true
     }, {
       "name" : "currencyId",
-      "required" : true
+      "required" : false
+    }, {
+      "name" : "currencyCode",
+      "required" : false
     }, {
       "name" : "message",
       "required" : false
@@ -6181,7 +6184,11 @@
   }, {
     "method" : "GET",
     "path" : "/api/remote/public/donation-tiers",
-    "controller" : "PublicRemoteController#getDonationTiers"
+    "controller" : "PublicRemoteController#getDonationTiers",
+    "params" : [ {
+      "name" : "currency",
+      "required" : false
+    } ]
   }, {
     "method" : "POST",
     "path" : "/api/remote/public/donations",
@@ -6191,7 +6198,10 @@
       "required" : true
     }, {
       "name" : "currencyId",
-      "required" : true
+      "required" : false
+    }, {
+      "name" : "currencyCode",
+      "required" : false
     }, {
       "name" : "donorName",
       "required" : false
