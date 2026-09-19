@@ -62,7 +62,7 @@ export async function pickFromLibrary(): Promise<PickedImage | null> {
     return null;
   }
   const res = await ImagePicker.launchImageLibraryAsync({
-    quality: 0.7,
+    quality: 0.5,
     mediaTypes: ['images'],
   });
   if (res.canceled || !res.assets?.length) return null;
@@ -77,7 +77,7 @@ export async function pickMultipleFromLibrary(limit = 30): Promise<PickedImage[]
     return [];
   }
   const res = await ImagePicker.launchImageLibraryAsync({
-    quality: 0.7,
+    quality: 0.5,
     mediaTypes: ['images'],
     allowsMultipleSelection: true,
     selectionLimit: limit,
@@ -108,10 +108,30 @@ export async function takeSelfie(): Promise<PickedImage | null> {
     return null;
   }
   const res = await ImagePicker.launchCameraAsync({
-    quality: 0.7,
+    quality: 0.5,
     mediaTypes: ['images'],
     cameraType: ImagePicker.CameraType.front,
   });
   if (res.canceled || !res.assets?.length) return null;
   return toPicked(res.assets[0]);
 }
+
+/**
+ * Launches the camera straight to the rear-facing lens for document capture.
+ */
+export async function takeDocumentPhoto(): Promise<PickedImage | null> {
+  if (Platform.OS === 'web') return pickFromLibrary();
+  const perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) {
+    if (perm.canAskAgain === false) promptOpenSettings('camera');
+    return null;
+  }
+  const res = await ImagePicker.launchCameraAsync({
+    quality: 0.7,
+    mediaTypes: ['images'],
+    cameraType: ImagePicker.CameraType.back,
+  });
+  if (res.canceled || !res.assets?.length) return null;
+  return toPicked(res.assets[0]);
+}
+

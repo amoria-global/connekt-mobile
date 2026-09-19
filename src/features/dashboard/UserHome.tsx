@@ -28,6 +28,7 @@ import { getCustomerAnalytics, getCustomerPendingPayments, type PendingPayment }
 import { getCompletedStreams, getPurchasedAlbums } from '@/features/library/api';
 import { listEvents } from '@/features/events/api';
 import { listDonations } from '@/features/donations/api';
+import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { formatMoney } from '@/utils/format';
 import { colors, spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
@@ -118,6 +119,7 @@ export function UserHome() {
         contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
+        <KycBanner />
         {/* Gradient hero with embedded snapshot cards — mirrors the salo-run
             User dashboard hero (navy → pink, translucent white stat cards). */}
         <LinearGradient

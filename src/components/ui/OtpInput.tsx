@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from 'react-native';
 
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
@@ -39,6 +39,12 @@ export function OtpInput({ value, onChange, error, label, editable = true, onCom
   const refs = useRef<(TextInput | null)[]>([]);
 
   const digits = value.padEnd(LENGTH, ' ').slice(0, LENGTH).split('');
+
+  useEffect(() => {
+    if (!value) {
+      refs.current[0]?.focus();
+    }
+  }, [value]);
 
   const commit = (next: string) => {
     onChange(next);

@@ -139,6 +139,7 @@ export function HlsPlayer({
   controls = true,
   controlsBottomOffset,
   showLiveBadge = true,
+  muted,
 }: {
   url: string;
   style?: any;
@@ -149,6 +150,8 @@ export function HlsPlayer({
   controlsBottomOffset?: number;
   /** Show the in-video LIVE badge. Hidden where the screen already shows one. */
   showLiveBadge?: boolean;
+  /** Programmatic audio mute state. */
+  muted?: boolean;
 }) {
   const whepUrl = toWhepUrl(url);
   const [whepFailed, setWhepFailed] = useState(false);
@@ -158,7 +161,7 @@ export function HlsPlayer({
     setWhepFailed(false);
   }, [url]);
 
-  const ctrl = { controls, controlsBottomOffset, showLiveBadge };
+  const ctrl = { controls, controlsBottomOffset, showLiveBadge, muted };
   if (whepUrl && !whepFailed) {
     return <WhepVideo whepUrl={whepUrl} style={style} {...ctrl} onFatal={() => setWhepFailed(true)} />;
   }
@@ -177,6 +180,7 @@ function WhepVideo({
   controls = true,
   controlsBottomOffset,
   showLiveBadge = true,
+  muted,
 }: {
   whepUrl: string;
   style?: any;
@@ -184,8 +188,15 @@ function WhepVideo({
   controls?: boolean;
   controlsBottomOffset?: number;
   showLiveBadge?: boolean;
+  muted?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (typeof muted === 'boolean' && videoRef.current) {
+      videoRef.current.muted = muted;
+    }
+  }, [muted]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -370,7 +381,7 @@ function WhepVideo({
   return (
     <View style={[styles.wrap, style]}>
       <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
-      <StreamWatermark position="top-left" />
+      <StreamWatermark position="top-right" />
       {controls ? (
         <PlayerControls videoRef={videoRef} bottomOffset={controlsBottomOffset} showLive={showLiveBadge} />
       ) : null}
@@ -384,15 +395,23 @@ function HlsVideo({
   controls = true,
   controlsBottomOffset,
   showLiveBadge = true,
+  muted,
 }: {
   url: string;
   style?: any;
   controls?: boolean;
   controlsBottomOffset?: number;
   showLiveBadge?: boolean;
+  muted?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+
+  useEffect(() => {
+    if (typeof muted === 'boolean' && videoRef.current) {
+      videoRef.current.muted = muted;
+    }
+  }, [muted]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -476,7 +495,7 @@ function HlsVideo({
   return (
     <View style={[styles.wrap, style]}>
       <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
-      <StreamWatermark position="top-left" />
+      <StreamWatermark position="top-right" />
       {controls ? (
         <PlayerControls videoRef={videoRef} bottomOffset={controlsBottomOffset} showLive={showLiveBadge} />
       ) : null}

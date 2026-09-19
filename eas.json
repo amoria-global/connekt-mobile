@@ -62,9 +62,9 @@
         "releaseStatus": "draft"
       },
       "ios": {
-        "appleId": "$EXPO_APPLE_ID",
-        "ascAppId": "$EXPO_ASC_APP_ID",
-        "appleTeamId": "$EXPO_APPLE_TEAM_ID"
+        "appleId": "moses.mirarayi@icloud.com",
+        "ascAppId": "6811336076",
+        "appleTeamId": "Z34A347245"
       }
     }
   }

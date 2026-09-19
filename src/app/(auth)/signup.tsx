@@ -125,6 +125,7 @@ function checkPassword(pwd: string): Checks {
 
 export default function SignupScreen() {
   const styles = useStyles();
+  const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{
     role?: string;
@@ -153,7 +154,7 @@ export default function SignupScreen() {
     : null;
 
   useEffect(() => {
-    if (role === null) router.replace('/choose-role');
+    if (role === null) router.replace('/login');
   }, [role, router]);
   const [serverError, setServerError] = useState<string | null>(null);
   const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
@@ -218,8 +219,15 @@ export default function SignupScreen() {
 
   const goBack = () => {
     setServerError(null);
-    if (step === 1) router.back();
-    else setStep((s) => (s === 3 ? 2 : 1));
+    if (step === 1) {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/login');
+      }
+    } else {
+      setStep((s) => (s === 3 ? 2 : 1));
+    }
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -227,7 +235,7 @@ export default function SignupScreen() {
     // Fail safe rather than guessing: without a chosen role there is nothing
     // valid to register as, and defaulting is what created wrong-role accounts.
     if (role === null) {
-      router.replace('/choose-role');
+      router.replace('/login');
       return;
     }
     // Phone is validated by the country-aware kit, not the zod schema.
@@ -277,6 +285,18 @@ export default function SignupScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={goBack}
+            hitSlop={12}
+            style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </Pressable>
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -300,16 +320,15 @@ export default function SignupScreen() {
 
           <View style={styles.form}>
             {/* Step indicator — tells the user how much is left. */}
-            <View style={styles.steps} accessibilityRole="progressbar"
-                  accessibilityLabel={`Step ${step} of ${TOTAL_STEPS}`}>
+            <View
+              style={styles.steps}
+              accessibilityRole="progressbar"
+              accessibilityLabel={`Step ${step} of ${TOTAL_STEPS}`}
+            >
               {[1, 2, 3].map((n) => (
                 <View key={n} style={[styles.stepDot, n <= step && styles.stepDotOn]} />
               ))}
             </View>
-            <Text style={styles.stepLabel}>
-              {step === 1 ? 'Your details' : step === 2 ? 'Your phone number' : 'Choose a password'}
-              {`  ·  Step ${step} of ${TOTAL_STEPS}`}
-            </Text>
 
             {step === 1 ? (
             <>
@@ -323,7 +342,6 @@ export default function SignupScreen() {
                   textContentType="givenName"
                   autoComplete="given-name"
                   error={errors.firstName?.message}
-                  placeholder="Enter your First Name"
                 />
               </View>
               <View style={styles.col}>
@@ -335,7 +353,6 @@ export default function SignupScreen() {
                   textContentType="familyName"
                   autoComplete="family-name"
                   error={errors.lastName?.message}
-                  placeholder="Enter your Last Name"
                 />
               </View>
             </View>
@@ -350,7 +367,6 @@ export default function SignupScreen() {
               error={errors.email?.message}
               keyboardType="email-address"
               autoCapitalize="none"
-              placeholder="example@gmail.com"
             />
 
             </>
@@ -381,7 +397,6 @@ export default function SignupScreen() {
                 error={errors.password?.message}
                 secureTextEntry
                 autoCapitalize="none"
-                placeholder="Enter your Password"
               />
               {password && password.length > 0 ? (
                 <StrengthMeter checks={checks} />
@@ -402,7 +417,6 @@ export default function SignupScreen() {
                 error={errors.confirmPassword?.message}
                 secureTextEntry
                 autoCapitalize="none"
-                placeholder="Confirm your Password"
               />
               {confirmPassword && confirmPassword.length > 0 ? (
                 <MatchIndicator matches={passwordsMatch} strongEnough={checks.strongEnough} />
@@ -442,17 +456,17 @@ export default function SignupScreen() {
               />
             )}
 
-            <Pressable style={styles.signInLine} onPress={goBack} hitSlop={8}>
-              <Text style={styles.signInText}>
-                {step === 1 ? (
-                  <>
-                    Already have an account? <Text style={styles.signInLink}>Log in</Text>
-                  </>
-                ) : (
-                  <Text style={styles.signInLink}>Back</Text>
-                )}
-              </Text>
-            </Pressable>
+            {step === 1 ? (
+              <Pressable
+                style={styles.signInLine}
+                onPress={() => router.replace('/login')}
+                hitSlop={8}
+              >
+                <Text style={styles.signInText}>
+                  Already have an account? <Text style={styles.signInLink}>Log in</Text>
+                </Text>
+              </Pressable>
+            ) : null}
 
             {/* Social sign-up only on step 1: it replaces the whole form, so
                 offering it later would discard what the user already typed. */}
@@ -460,7 +474,7 @@ export default function SignupScreen() {
               <>
                 <View style={styles.divider}>
                   <View style={styles.line} />
-                  <Text style={styles.dividerText}>Or sign up with</Text>
+                  <Text style={styles.dividerText}>Or continue with</Text>
                   <View style={styles.line} />
                 </View>
                 <GoogleButton mode="signup" label="Continue with Google" customerType={role} />
@@ -621,6 +635,28 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.sm,
   },
 
+  topBar: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  backBtnPressed: {
+    opacity: 0.75,
+    backgroundColor: c.borderSoft,
+  },
+
   // Header — small logo + title centered (mobile mode of web auth page)
   header: { alignItems: 'center', gap: 2, marginBottom: spacing.xs },
   logo: { width: 40, height: 40, marginBottom: 4 },
@@ -672,21 +708,21 @@ const useStyles = makeStyles((c) => ({
   serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
   // ── Wizard progress ──────────────────────────────────────────────────
-  steps: { flexDirection: 'row', gap: 6, alignSelf: 'center', marginBottom: 2 },
+  steps: {
+    flexDirection: 'row',
+    gap: 8,
+    alignSelf: 'center',
+    width: 140,
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
   stepDot: {
-    width: 26,
+    flex: 1,
     height: 4,
     borderRadius: radii.full,
     backgroundColor: c.borderSoft,
   },
   stepDotOn: { backgroundColor: c.primary },
-  stepLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    color: c.textMuted,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
   signInLine: { alignSelf: 'center', paddingVertical: 2 },
   signInText: { color: c.textMuted, fontSize: fontSize.sm },
   signInLink: { color: c.primary, fontWeight: fontWeight.bold },
@@ -695,14 +731,19 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    marginVertical: spacing.xs,
+    marginVertical: spacing.sm,
   },
-  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.border },
+  line: {
+    flex: 1,
+    height: 2,
+    borderRadius: radii.full,
+    backgroundColor: c.border,
+  },
   dividerText: {
-    color: c.textMuted,
+    color: c.textSoft,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 0.6,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
 }));

@@ -6,7 +6,7 @@
  * affirmative consent BEFORE collecting them. These helpers show that
  * disclosure once, remember the choice, and only proceed if the user agrees.
  */
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const FACE_CONSENT_KEY = 'consent.faceRecognition.v1';
@@ -29,6 +29,12 @@ async function remember(key: string): Promise<void> {
 }
 
 function ask(title: string, message: string): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+    }
+    return Promise.resolve(true);
+  }
   return new Promise((resolve) => {
     Alert.alert(title, message, [
       { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },

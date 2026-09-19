@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -20,10 +20,13 @@ import { Screen } from '@/components/ui/Screen';
 import { isNeedsVerification, isNeedsTotp, isNeedsPasswordChange } from '@/features/auth/api';
 import { GoogleButton } from '@/features/auth/GoogleButton';
 import { AppleButton } from '@/features/auth/AppleButton';
+import { ChooseRoleBottomSheet } from '@/features/auth/ChooseRoleBottomSheet';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
+import type { CustomerType } from '@/features/auth/types';
 import { parsePhone } from '@/lib/phoneKit';
 import { isApiError, useAuth } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 const schema = z.object({
   // Still accepts an email OR a phone number — phone-only accounts (registered
@@ -48,21 +51,55 @@ export default function LoginScreen() {
   const login = useAuth((s) => s.login);
   const applySession = useAuth((s) => s.applySession);
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    selectRole?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  }>();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [roleSheetVisible, setRoleSheetVisible] = useState(false);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
+  const [prefilledProfile, setPrefilledProfile] = useState<{
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (params.selectRole === '1') {
+      if (params.email || params.firstName || params.lastName) {
+        setPrefilledProfile({
+          email: params.email,
+          firstName: params.firstName,
+          lastName: params.lastName,
+        });
+      }
+      setRoleSheetVisible(true);
+    }
+  }, [params.selectRole, params.email, params.firstName, params.lastName]);
 
   /**
-   * Registration is IN-APP and starts with role selection.
-   *
-   * It previously handed off to the web sign-up in a browser, on the reasoning
-   * that the web owned the account-type picker. That left the app's own
-   * role-aware `signup.tsx` unreachable, and it meant a user left the app to
-   * create an account. Role selection now lives in `choose-role`, which is the
-   * single source of truth every registration method downstream consumes.
+   * Registration starts with role selection displayed as a native bottom sheet.
+   * Once a role is chosen, the user navigates into the full-page signup flow.
    */
   const onRegister = () => {
     setServerError(null);
-    router.push('/choose-role');
+    setPrefilledProfile(null);
+    setRoleSheetVisible(true);
+  };
+
+  const onSelectRole = (role: CustomerType) => {
+    setRoleSheetVisible(false);
+    router.push({
+      pathname: '/signup',
+      params: {
+        role,
+        ...(prefilledProfile?.email ? { email: prefilledProfile.email } : {}),
+        ...(prefilledProfile?.firstName ? { firstName: prefilledProfile.firstName } : {}),
+        ...(prefilledProfile?.lastName ? { lastName: prefilledProfile.lastName } : {}),
+      },
+    });
   };
 
   const {
@@ -140,7 +177,6 @@ export default function LoginScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
                     label="Your Email"
-                    placeholder="example@gmail.com"
                     autoCapitalize="none"
                     autoComplete="username"
                     textContentType="username"
@@ -158,7 +194,6 @@ export default function LoginScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
                     label="Password"
-                    placeholder="Enter your Password"
                     secureTextEntry
                     autoCapitalize="none"
                     autoComplete="current-password"
@@ -207,50 +242,123 @@ export default function LoginScreen() {
               <GoogleButton
                 mode="login"
                 label="Continue with Google"
-                onNeedsRole={(profile) =>
-                  router.push({
-                    pathname: '/choose-role',
-                    params: {
-                      email: profile.email,
-                      firstName: profile.firstName,
-                      lastName: profile.lastName,
-                    },
-                  })
-                }
+                onNeedsRole={(profile) => {
+                  setPrefilledProfile({
+                    email: profile.email,
+                    firstName: profile.firstName,
+                    lastName: profile.lastName,
+                  });
+                  setRoleSheetVisible(true);
+                }}
               />
               {/* Same rule as Google: sign-in never creates an account. The
                   backend is asked not to register an unknown Apple ID and the
                   verified profile is carried into role selection. */}
               <AppleButton
                 mode="login"
-                onNeedsRole={(profile) =>
-                  router.push({
-                    pathname: '/choose-role',
-                    params: {
-                      email: profile.email,
-                      firstName: profile.firstName,
-                      lastName: profile.lastName,
-                    },
-                  })
-                }
+                label="Continue with Apple"
+                onNeedsRole={(profile) => {
+                  setPrefilledProfile({
+                    email: profile.email,
+                    firstName: profile.firstName,
+                    lastName: profile.lastName,
+                  });
+                  setRoleSheetVisible(true);
+                }}
               />
             </View>
 
-            <View style={styles.guestRow}>
-              <Pressable
-                style={({ pressed }) => [styles.guestPill, pressed && styles.guestPillPressed]}
-                onPress={() => setFindPhotosModalVisible(true)}
-              >
-                <Ionicons name="scan" size={16} color={colors.accent} />
-                <Text style={styles.guestPillText}>Find my photos</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.guestPill, pressed && styles.guestPillPressed]}
-                onPress={() => router.push('/explore-events')}
-              >
-                <Ionicons name="calendar" size={16} color={colors.primary} />
-                <Text style={styles.guestPillText}>Explore events</Text>
-              </Pressable>
+            <View style={styles.guestSection}>
+              <View style={styles.guestHeaderRow}>
+                <Text style={styles.guestSectionTitle}>Explore without account</Text>
+                <View style={styles.guestTagPill}>
+                  <Text style={styles.guestTagText}>FREE ACCESS</Text>
+                </View>
+              </View>
+
+              <View style={styles.guestCardsRow}>
+                {/* Find My Photos card */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.guestCard,
+                    pressed && styles.guestCardPressed,
+                  ]}
+                  onPress={() => router.push('/find-photos')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Find my photos with AI facial recognition"
+                >
+                  <Image
+                    source={require('../../../assets/images/scan.png')}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                  <LinearGradient
+                    colors={['rgba(8,20,44,0.25)', 'rgba(8,20,44,0.92)']}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.guestCardContent}>
+                    <View style={[styles.badge, styles.badgeAi]}>
+                      <Ionicons name="scan-outline" size={12} color="#F20C8F" />
+                      <Text style={styles.badgeText}>AI SCAN</Text>
+                    </View>
+
+                    <View style={styles.guestCardFooter}>
+                      <View style={styles.guestCardTextCol}>
+                        <Text style={styles.guestCardTitle} numberOfLines={1}>
+                          Find My Photos
+                        </Text>
+                        <Text style={styles.guestCardDesc} numberOfLines={2}>
+                          Selfie photo lookup
+                        </Text>
+                      </View>
+                      <View style={styles.cardArrowWrap}>
+                        <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                      </View>
+                    </View>
+                  </View>
+                </Pressable>
+
+                {/* Explore Events card */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.guestCard,
+                    pressed && styles.guestCardPressed,
+                  ]}
+                  onPress={() => router.push('/explore-events')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Explore public events and live streams"
+                >
+                  <Image
+                    source={require('../../../assets/images/live.png')}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                  <LinearGradient
+                    colors={['rgba(8,20,44,0.25)', 'rgba(8,20,44,0.92)']}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.guestCardContent}>
+                    <View style={[styles.badge, styles.badgeLive]}>
+                      <View style={styles.livePulseDot} />
+                      <Text style={styles.badgeText}>LIVE & EVENTS</Text>
+                    </View>
+
+                    <View style={styles.guestCardFooter}>
+                      <View style={styles.guestCardTextCol}>
+                        <Text style={styles.guestCardTitle} numberOfLines={1}>
+                          Explore Events
+                        </Text>
+                        <Text style={styles.guestCardDesc} numberOfLines={2}>
+                          Live streams & events
+                        </Text>
+                      </View>
+                      <View style={styles.cardArrowWrap}>
+                        <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                      </View>
+                    </View>
+                  </View>
+                </Pressable>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -261,11 +369,17 @@ export default function LoginScreen() {
         onClose={() => setFindPhotosModalVisible(false)}
         getPhotosRoute="/find-photos"
       />
+
+      <ChooseRoleBottomSheet
+        visible={roleSheetVisible}
+        onClose={() => setRoleSheetVisible(false)}
+        onSelectRole={onSelectRole}
+      />
     </Screen>
   );
 }
 
-const useStyles = makeStyles((c) => ({
+const useStyles = makeStyles((c, e) => ({
   flex: { flex: 1 },
   // `flexGrow: 1` + `justifyContent: 'space-between'` lets the form sit in
   // the natural flow on tall devices and pin the signup link to the bottom
@@ -301,38 +415,140 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    marginVertical: spacing.xs,
+    marginVertical: spacing.sm,
   },
-  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.border },
+  line: {
+    flex: 1,
+    height: 2,
+    borderRadius: radii.full,
+    backgroundColor: c.border,
+  },
   dividerText: {
-    color: c.textMuted,
+    color: c.textSoft,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    letterSpacing: 0.8,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
 
-  // Side-by-side guest pills so both options are equally weighted and the
-  // section fits in a single row on every supported width (down to 320px:
-  // the row uses `flex: 1` and shrinks the labels with `numberOfLines`).
-  guestRow: { flexDirection: 'row', gap: spacing.sm },
-  guestPill: {
-    flex: 1,
+  // ── Audience-engaging guest exploration cards ──────────────────────────
+  guestSection: {
+    marginTop: spacing.xs,
+    gap: spacing.xs,
+  },
+  guestHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.sm,
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    marginBottom: 2,
+  },
+  guestSectionTitle: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: c.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  guestTagPill: {
+    backgroundColor: c.tint,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: radii.full,
-    backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
-  guestPillPressed: { opacity: 0.6 },
-  guestPillText: {
-    color: c.text,
-    fontSize: fontSize.sm,
+  guestTagText: {
+    fontSize: 9,
     fontWeight: fontWeight.bold,
+    color: c.primary,
+    letterSpacing: 0.5,
+  },
+  guestCardsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  guestCard: {
+    flex: 1,
+    height: 136,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
+    backgroundColor: '#0A1428',
+    borderWidth: 1.5,
+    borderColor: c.border,
+    ...e(2),
+  },
+  guestCardPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
+  },
+  guestCardContent: {
+    flex: 1,
+    padding: spacing.sm + 2,
+    justifyContent: 'space-between',
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  badgeAi: {
+    backgroundColor: 'rgba(242, 12, 143, 0.25)',
+    borderColor: 'rgba(242, 12, 143, 0.5)',
+  },
+  badgeLive: {
+    backgroundColor: 'rgba(220, 38, 38, 0.25)',
+    borderColor: 'rgba(220, 38, 38, 0.5)',
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  guestCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  guestCardTextCol: {
+    flex: 1,
+  },
+  guestCardTitle: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  guestCardDesc: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 1,
+    lineHeight: 13,
+  },
+  cardArrowWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
 }));

@@ -176,6 +176,16 @@ export function PersistentBottomBar() {
     },
   ];
 
+  // Full-screen flows / modal wizards that manage their own navigation and bottom action bars:
+  // Hide the persistent bottom tabs so they don't occlude the flow's buttons or distract the user.
+  if (
+    segments.includes('kyc') ||
+    segments.includes('connect-to-tv') ||
+    segments.includes('pay-on-tv')
+  ) {
+    return null;
+  }
+
   return (
     <>
       <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 6) }]}>

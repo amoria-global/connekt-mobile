@@ -43,6 +43,9 @@ export const env = {
   /** Network request timeout in milliseconds. */
   requestTimeoutMs: 20_000,
 
+  /** Network request timeout for file/multipart uploads in milliseconds (2 minutes). */
+  uploadTimeoutMs: 120_000,
+
   /**
    * Google OAuth client IDs (from Google Cloud Console). Set whichever apply
    * via EXPO_PUBLIC_GOOGLE_* env vars. The web client ID is reused from the

@@ -1,24 +1,69 @@
 /**
- * Public donation flow (guest, no auth).
+ * Public donation flow (guest, in-app).
  *
- * The app no longer collects donation payment details (amount entry,
- * donor info, phone numbers, telecom / card pickers) or polls the
- * gateway. It shows the cause + suggested tiers and hands the user off
- * to the connekyt.com donations page, where the whole flow completes.
- *
- * When `eventId` is in the query it is passed through so the web page
- * preselects the cause.
+ * Provides a native in-app donation experience with Mobile Money & Card:
+ *   1. Event / Creator Cause Header (100% of proceeds reach the creator).
+ *   2. Suggested & Custom Donation Tiers (GET /public/donation-tiers).
+ *   3. Donor information (Name, Email for receipt, optional supportive message).
+ *   4. Multi-country Mobile Money & Card selection.
+ *   5. Seamless USSD push prompt and gateway polling (GET /public/payments/xentripay/status/{refid}).
+ *   6. Celebration receipt with instant feedback.
  */
-import { useCallback, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import {
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
-import { getDonationTiers } from '@/features/donations/api';
-import { donationUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { getPublicEventDetailed } from '@/features/events/api';
+import {
+  createPublicDonation,
+  getDonationTiers,
+  initiatePublicDonationPayment,
+  resolveCurrencyId,
+  type InitiatePublicDonationPayload,
+} from '@/features/donations/api';
+import { getPublicPaymentStatus } from '@/features/photos/api';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { isApiError, useAuth } from '@/store/auth';
+import {
+  detectPaymentCountry,
+  getPaymentOptions,
+  listCurrencies,
+  type PaymentOperator,
+} from '@/features/reference/api';
+import {
+  dialCodeFor,
+  formatPhoneE164,
+  isPlausibleMobile,
+  phoneHintForCountry,
+} from '@/features/payments/formatPhone';
+import { flagEmoji } from '@/components/ui/PhoneInput';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+
+type Stage = 'form' | 'awaiting' | 'success';
+
+type MethodTile = {
+  id: string;
+  name: string;
+  provider: string;
+  isCard: boolean;
+};
 
 const FALLBACK_TIERS: { amount: number }[] = [
   { amount: 1000 },
@@ -27,104 +72,1522 @@ const FALLBACK_TIERS: { amount: number }[] = [
   { amount: 25000 },
 ];
 
+const PAYMENT_COUNTRIES: { iso2: string; name: string; dial: string }[] = [
+  { iso2: 'RW', name: 'Rwanda', dial: '250' },
+  { iso2: 'KE', name: 'Kenya', dial: '254' },
+  { iso2: 'UG', name: 'Uganda', dial: '256' },
+  { iso2: 'TZ', name: 'Tanzania', dial: '255' },
+  { iso2: 'CD', name: 'DR Congo', dial: '243' },
+  { iso2: 'GH', name: 'Ghana', dial: '233' },
+  { iso2: 'NG', name: 'Nigeria', dial: '234' },
+  { iso2: 'ZM', name: 'Zambia', dial: '260' },
+  { iso2: 'CM', name: 'Cameroon', dial: '237' },
+  { iso2: 'CI', name: "Côte d'Ivoire", dial: '225' },
+  { iso2: 'SN', name: 'Senegal', dial: '221' },
+  { iso2: 'MW', name: 'Malawi', dial: '265' },
+  { iso2: 'BJ', name: 'Benin', dial: '229' },
+  { iso2: 'BF', name: 'Burkina Faso', dial: '226' },
+  { iso2: 'CG', name: 'Congo-Brazzaville', dial: '242' },
+  { iso2: 'ET', name: 'Ethiopia', dial: '251' },
+  { iso2: 'GA', name: 'Gabon', dial: '241' },
+  { iso2: 'MZ', name: 'Mozambique', dial: '258' },
+  { iso2: 'SL', name: 'Sierra Leone', dial: '232' },
+  { iso2: 'ZW', name: 'Zimbabwe', dial: '263' },
+];
+
+const COUNTRY_TO_CURRENCY_CODE: Record<string, string> = {
+  RW: 'RWF',
+  KE: 'KES',
+  UG: 'UGX',
+  TZ: 'TZS',
+  GH: 'GHS',
+  NG: 'NGN',
+  ZM: 'ZMW',
+  MW: 'MWK',
+  CI: 'XOF',
+  SN: 'XOF',
+  BJ: 'XOF',
+  BF: 'XOF',
+  CM: 'XAF',
+  CG: 'XAF',
+  GA: 'XAF',
+  CD: 'CDF',
+  ET: 'ETB',
+  MZ: 'MZN',
+  SL: 'SLE',
+};
+
+const CURRENCY_DEFAULT_TIERS: Record<string, number[]> = {
+  USD: [5, 10, 25, 50],
+  EUR: [5, 10, 25, 50],
+  GBP: [5, 10, 25, 50],
+  KES: [200, 500, 1000, 2500],
+  UGX: [5000, 10000, 25000, 50000],
+  TZS: [2500, 5000, 10000, 25000],
+  NGN: [1000, 2500, 5000, 10000],
+  GHS: [20, 50, 100, 200],
+  ZMW: [50, 100, 250, 500],
+  MWK: [2000, 5000, 10000, 25000],
+  XOF: [1000, 2500, 5000, 10000],
+  XAF: [1000, 2500, 5000, 10000],
+  CDF: [2500, 5000, 10000, 25000],
+  ETB: [200, 500, 1000, 2500],
+  RWF: [1000, 5000, 10000, 25000],
+};
+
+const FALLBACK_CURRENCIES: { id: string; code: string; name: string; symbol: string }[] = [
+  { id: '490c5ab1-a150-459e-be6b-d45131a1e13a', code: 'RWF', name: 'Rwandan franc', symbol: 'RF' },
+  { id: 'b807b880-6b57-4208-bf87-549a1535b2f3', code: 'USD', name: 'US Dollar', symbol: '$' },
+  { id: '5070cf4e-9a1f-4b26-9dae-97a6013ad4b0', code: 'EUR', name: 'Euro', symbol: '€' },
+  { id: 'e82f75a7-fe33-4b90-85a1-ae13919e0921', code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh' },
+  { id: '68e02a65-2e52-4e78-b07d-2c516ec12675', code: 'UGX', name: 'Ugandan Shilling', symbol: 'USh' },
+  { id: '1f742d3f-f838-49d2-90df-890e0c2af8fe', code: 'TZS', name: 'Tanzanian Shilling', symbol: 'TSh' },
+  { id: 'dd9cb53f-dcd1-4a01-ae17-624925d05fe6', code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
+  { id: '8b1dd030-3e2e-4ea2-8052-b283111743a9', code: 'GHS', name: 'Ghanaian Cedi', symbol: 'GH₵' },
+  { id: '8e38f423-174f-4bd1-8c2c-f2d9409433f0', code: 'ZMW', name: 'Zambian Kwacha', symbol: 'ZK' },
+  { id: '6bf7bebd-a637-4024-a27e-6c61baff8d5d', code: 'MWK', name: 'Malawian Kwacha', symbol: 'MK' },
+  { id: 'aa958d33-caf5-4a28-973b-b4923f426de5', code: 'XOF', name: 'West African CFA Franc', symbol: 'CFA' },
+  { id: '7b3e123a-eeb3-4cad-bd0f-f8e6f6c77ae1', code: 'XAF', name: 'Central African CFA Franc', symbol: 'FCFA' },
+  { id: 'dd9c32d0-f7cd-4da8-93d1-9b94190f391c', code: 'CDF', name: 'Congolese Franc', symbol: 'FC' },
+  { id: 'd3825531-935a-46ad-a8d9-959dfc403b6d', code: 'ETB', name: 'Ethiopian Birr', symbol: 'Br' },
+];
+
 export default function PublicDonateScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { eventId } = useLocalSearchParams<{ eventId?: string }>();
 
-  const tiers = useAsync(useCallback(() => getDonationTiers(), []));
-  const presetTiers = tiers.data?.length ? tiers.data : FALLBACK_TIERS;
+  // Fetch event details if an eventId was provided
+  const event = useAsync(
+    useCallback(async () => {
+      if (!eventId) return null;
+      return getPublicEventDetailed(eventId);
+    }, [eventId]),
+  );
 
-  const [opening, setOpening] = useState(false);
+  // Currency Selection
+  const [currencyCode, setCurrencyCode] = useState('RWF');
+  const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
 
-  const onDonate = async () => {
-    if (opening) return;
-    setOpening(true);
-    try {
-      await openWebCheckout(donationUrl(eventId));
-    } catch {
-      Alert.alert('Could not open the donations page', 'Please try again.');
-    } finally {
-      setOpening(false);
+  const tiersAsync = useAsync(
+    useCallback(() => getDonationTiers(currencyCode), [currencyCode]),
+  );
+  const currenciesAsync = useAsync(useCallback(() => listCurrencies(), []));
+
+  // Preset tiers based on active currency (prefer live backend tiers, fallback to CURRENCY_DEFAULT_TIERS)
+  const presetAmounts = useMemo(() => {
+    if (tiersAsync.data && tiersAsync.data.length > 0) {
+      return tiersAsync.data.slice(0, 4).map((t) => t.amount);
     }
+    return CURRENCY_DEFAULT_TIERS[currencyCode] || [1000, 5000, 10000, 25000];
+  }, [currencyCode, tiersAsync.data]);
+
+  // Selected amount & custom amount
+  const [selectedAmount, setSelectedAmount] = useState<number>(5000);
+  const [isCustom, setIsCustom] = useState(false);
+  const [amountInputText, setAmountInputText] = useState('5,000');
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
+  const amountInputRef = useRef<TextInput>(null);
+
+  const availableCurrencies = currenciesAsync.data?.length ? currenciesAsync.data : FALLBACK_CURRENCIES;
+
+  const filteredCurrencies = useMemo(() => {
+    const q = currencySearch.trim().toLowerCase();
+    if (!q) return availableCurrencies;
+    return availableCurrencies.filter(
+      (c) =>
+        c.code.toLowerCase().includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        (c.symbol && c.symbol.toLowerCase().includes(q)),
+    );
+  }, [availableCurrencies, currencySearch]);
+
+  const onSelectCurrency = (code: string) => {
+    setCurrencyCode(code);
+    setCurrencyModalOpen(false);
+    setCurrencySearch('');
+    const tiers = CURRENCY_DEFAULT_TIERS[code] || [1000, 5000, 10000, 25000];
+    const defaultAmount = tiers[1] || tiers[0] || 5000;
+    setSelectedAmount(defaultAmount);
+    setIsCustom(false);
+    setAmountInputText(defaultAmount.toLocaleString());
+  };
+
+  // Whenever dynamic tiers arrive from backend for the selected currency, keep preset aligned if not custom
+  useEffect(() => {
+    if (!isCustom && tiersAsync.data && tiersAsync.data.length > 0) {
+      const liveTiers = tiersAsync.data.slice(0, 4).map((t) => t.amount);
+      if (liveTiers.length > 0 && !liveTiers.includes(selectedAmount)) {
+        const def = liveTiers[1] || liveTiers[0];
+        setSelectedAmount(def);
+        setAmountInputText(def.toLocaleString());
+      }
+    }
+  }, [tiersAsync.data, isCustom, selectedAmount]);
+
+  // Donor identity
+  const authUser = useAuth((s) => s.user);
+  const [donorName, setDonorName] = useState(
+    authUser ? [authUser.firstName, authUser.lastName].filter(Boolean).join(' ') : '',
+  );
+  const [donorEmail, setDonorEmail] = useState(authUser?.email ?? '');
+  const [donorMessage, setDonorMessage] = useState('');
+  const [showDonorDetails, setShowDonorDetails] = useState(false);
+
+  // Country & Payment Method (Mirrors PhotoCheckoutSheet)
+  const [country, setCountry] = useState('RW');
+  const [countryModalOpen, setCountryModalOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [supportsCard, setSupportsCard] = useState(true);
+  const [operators, setOperators] = useState<PaymentOperator[]>([
+    { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
+    { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' },
+  ]);
+  const [method, setMethod] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
+
+  // Flow & Polling
+  const [stage, setStage] = useState<Stage>('form');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refid, setRefid] = useState<string | null>(null);
+  const [pollCountdown, setPollCountdown] = useState(90);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load geo payment country and payment options
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const detected = (await detectPaymentCountry().catch(() => undefined)) || 'RW';
+        if (cancelled) return;
+        setCountry(detected);
+        const opts = await getPaymentOptions(detected).catch(() => null);
+        if (cancelled) return;
+        if (opts) {
+          setSupportsCard(opts.supportsCard);
+          if (opts.operators.length > 0) {
+            setOperators(opts.operators);
+            setMethod(opts.operators[0].id.toLowerCase());
+          }
+        }
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
+
+  // Filtered countries for country modal search
+  const filteredCountries = useMemo(() => {
+    const q = countrySearch.trim().toLowerCase();
+    if (!q) return PAYMENT_COUNTRIES;
+    return PAYMENT_COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.iso2.toLowerCase() === q ||
+        c.dial.includes(q.replace(/^\+/, '')),
+    );
+  }, [countrySearch]);
+
+  // Method tiles (Same as PhotoCheckoutSheet)
+  const tiles: MethodTile[] = useMemo(() => {
+    const list: MethodTile[] = operators.map((o) => ({
+      id: o.id.toLowerCase(),
+      name: o.name,
+      provider: o.id,
+      isCard: false,
+    }));
+    if (supportsCard) {
+      list.push({ id: 'card', name: 'Credit / Debit Card', provider: 'CARD', isCard: true });
+    }
+    return list;
+  }, [operators, supportsCard]);
+
+  // Default selection if unset
+  useEffect(() => {
+    if (!method && tiles.length > 0) {
+      setMethod(tiles[0].id);
+    }
+  }, [tiles, method]);
+
+  const selectedTile = tiles.find((t) => t.id === method) ?? tiles[0] ?? null;
+  const isCard = selectedTile?.isCard ?? false;
+  const isRwanda = country.toUpperCase() === 'RW';
+
+  const selectCountry = async (cIso2: string) => {
+    setCountry(cIso2);
+    setCountryModalOpen(false);
+    setCountrySearch('');
+    const mappedCur = COUNTRY_TO_CURRENCY_CODE[cIso2];
+    if (mappedCur && mappedCur !== currencyCode) {
+      onSelectCurrency(mappedCur);
+    }
+    setPhone((prev) => {
+      let d = prev.replace(/[^0-9]/g, '');
+      const dial = dialCodeFor(cIso2);
+      if (d.startsWith(dial)) d = d.slice(dial.length);
+      if (d.startsWith('0')) d = d.replace(/^0+/, '');
+      return d.slice(0, 10);
+    });
+    try {
+      const opts = await getPaymentOptions(cIso2).catch(() => null);
+      if (opts) {
+        setSupportsCard(opts.supportsCard);
+        if (opts.operators.length > 0) {
+          setOperators(opts.operators);
+          setMethod(opts.operators[0].id.toLowerCase());
+        }
+      }
+    } catch {}
+  };
+
+  const handlePhoneChange = (text: string) => {
+    let digits = text.replace(/[^0-9]/g, '');
+    const dial = dialCodeFor(country);
+    if (digits.startsWith(dial)) {
+      digits = digits.slice(dial.length);
+    }
+    if (digits.startsWith('0')) {
+      digits = digits.replace(/^0+/, '');
+    }
+    setPhone(digits.slice(0, 10));
+  };
+
+  // Provider-aware placeholder: dynamically changes when user selects a different provider!
+  const getProviderPlaceholder = (cIso2: string, providerId?: string) => {
+    const c = cIso2.toUpperCase();
+    const p = (providerId || '').toUpperCase();
+    if (c === 'RW') {
+      if (p.includes('AIRTEL')) return '728 123 456';
+      return '788 123 456'; // MTN default
+    }
+    if (c === 'KE') {
+      if (p.includes('AIRTEL')) return '733 123 456';
+      return '712 345 678'; // Safaricom / M-Pesa
+    }
+    if (c === 'UG') {
+      if (p.includes('AIRTEL')) return '701 234 567';
+      return '772 123 456'; // MTN UG
+    }
+    if (c === 'TZ') {
+      if (p.includes('AIRTEL')) return '784 123 456';
+      if (p.includes('TIGO')) return '713 123 456';
+      return '754 123 456'; // Vodacom M-Pesa
+    }
+    return phoneHintForCountry(c).replace(/^0/, '');
+  };
+
+  const phoneOk = isCard
+    ? true
+    : isRwanda
+      ? /^7\d{8}$/.test(phone.trim())
+      : isPlausibleMobile(phone, country);
+
+  const activeAmount = isCustom
+    ? parseInt(amountInputText.replace(/[^0-9]/g, ''), 10) || 0
+    : selectedAmount;
+
+  const onSelectPreset = (amount: number) => {
+    setSelectedAmount(amount);
+    setIsCustom(false);
+    setAmountInputText(amount.toLocaleString());
+    Keyboard.dismiss();
+  };
+
+  const onSelectCustom = () => {
+    setIsCustom(true);
+    if (!amountInputText || amountInputText === '0') {
+      const fallback = selectedAmount > 0 ? selectedAmount : 5000;
+      setAmountInputText(fallback.toLocaleString());
+    }
+    setTimeout(() => {
+      amountInputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleAmountChange = (text: string) => {
+    setIsCustom(true);
+    const digits = text.replace(/[^0-9]/g, '');
+    if (!digits) {
+      setAmountInputText('');
+      return;
+    }
+    const val = parseInt(digits, 10);
+    if (val > 100_000_000) return;
+    setAmountInputText(val.toLocaleString());
+    const matched = presetAmounts.includes(val);
+    if (matched) {
+      setSelectedAmount(val);
+      setIsCustom(false);
+    }
+  };
+
+  const onAmountFocus = () => {
+    setIsAmountFocused(true);
+    setIsCustom(true);
+  };
+
+  const onClearAmount = () => {
+    setAmountInputText('');
+    setIsCustom(true);
+    amountInputRef.current?.focus();
+  };
+
+  const onInitiateDonation = async () => {
+    if (activeAmount <= 0) {
+      setError('Please select or enter a donation amount.');
+      return;
+    }
+
+    if (!selectedTile) {
+      setError('Please select a payment method.');
+      return;
+    }
+
+    if (!isCard && !phoneOk) {
+      setError(
+        isRwanda
+          ? `${selectedTile.provider === 'AIRTEL' ? 'Airtel' : 'MTN'} numbers must start with 7 and have 9 digits (e.g. ${getProviderPlaceholder(country, selectedTile.provider)}).`
+          : `Please enter a valid mobile number for +${dialCodeFor(country)}.`,
+      );
+      return;
+    }
+
+    setError(null);
+    setBusy(true);
+
+    try {
+      // 1. Create Public Donation Row
+      const matchedCur = currenciesAsync.data?.find(
+        (c) => c.code.toUpperCase() === currencyCode.toUpperCase(),
+      );
+      const effectiveCurrencyId = matchedCur?.id || resolveCurrencyId(currencyCode);
+
+      const created = await createPublicDonation({
+        amount: activeAmount,
+        currencyId: effectiveCurrencyId,
+        currencyCode,
+        donorName: donorName.trim() || 'Anonymous Supporter',
+        donorEmail: donorEmail.trim() || undefined,
+        message: donorMessage.trim() || undefined,
+        paymentMethod: isCard ? 'CARD' : 'MOBILE_MONEY',
+        eventId,
+      });
+
+      if (!created.id) {
+        throw new Error('Could not create donation record.');
+      }
+
+      // 2. Initiate Payment
+      const formattedPhone = isCard ? '' : formatPhoneE164(phone, country);
+      const telecom = isCard ? undefined : selectedTile.provider;
+
+      const res = await initiatePublicDonationPayment({
+        donationId: String(created.id),
+        phone: formattedPhone,
+        paymentMethod: isCard ? 'CARD' : 'MOBILE_MONEY',
+        telecomProvider: telecom,
+        country,
+        redirectUrl: 'connekt://donation-callback',
+      });
+
+      if (isCard && res.paymentUrl) {
+        await WebBrowser.openAuthSessionAsync(res.paymentUrl, 'connekt://donation-callback');
+        if (res.refid) {
+          startPolling(res.refid);
+        }
+      } else if (res.refid) {
+        setRefid(res.refid);
+        setStage('awaiting');
+        startPolling(res.refid);
+      } else if (res.status === 'SUCCESS') {
+        setStage('success');
+      } else {
+        throw new Error(res.message || 'Donation payment initiation failed.');
+      }
+    } catch (e) {
+      setError(isApiError(e) ? e.message : 'Could not process donation. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startPolling = (txRefid: string) => {
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    let secondsLeft = 90;
+    setPollCountdown(secondsLeft);
+
+    pollTimerRef.current = setInterval(async () => {
+      secondsLeft -= 2;
+      setPollCountdown(Math.max(0, secondsLeft));
+
+      try {
+        const check = await getPublicPaymentStatus(txRefid);
+        if (check === 'success') {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          setStage('success');
+        } else if (check === 'failed') {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          setError('Payment was declined or cancelled. Please try again.');
+          setStage('form');
+        }
+      } catch {
+        /* best-effort poll */
+      }
+
+      if (secondsLeft <= 0) {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        setError('Payment approval timed out. Please try again.');
+        setStage('form');
+      }
+    }, 2000);
   };
 
   return (
     <Screen padded={false} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.hero}>
-          <Ionicons name="heart" size={28} color={colors.accent} />
-          <Text style={styles.heroTitle}>Support a Connekyt creator</Text>
-          <Text style={styles.heroSub}>
-            100% of every donation reaches the people behind the stream, with no platform cut.
-          </Text>
-        </View>
+      {/* Top Bar in head — full-width rounded floating bar matching ExploreEvents & FindMyPhotos */}
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
+        <View style={styles.topBarPill}>
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore-events'))}
+            hitSlop={12}
+            style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </Pressable>
 
-        <Text style={styles.h2}>Suggested amounts</Text>
-        <View style={styles.tiers}>
-          {presetTiers.map((t) => (
-            <View key={t.amount} style={styles.tier}>
-              <Text style={styles.tierAmount}>{t.amount.toLocaleString()}</Text>
-              <Text style={styles.tierCurrency}>RWF</Text>
+          <View style={styles.topBarPillCenter}>
+            <Text style={styles.topBarPillText}>Donate</Text>
+          </View>
+
+          <View style={styles.topBarSpacer} />
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* Cause / Event Compact Summary Banner */}
+        <View style={styles.compactHero}>
+          <View style={styles.compactHeroLeft}>
+            <View style={styles.compactHeartCircle}>
+              <Ionicons name="heart" size={16} color="#E11D48" />
             </View>
-          ))}
+            <View style={styles.compactHeroInfo}>
+              <Text style={styles.compactHeroTitle} numberOfLines={1}>
+                {event.data?.title ? event.data.title : 'Connekyt Community Cause'}
+              </Text>
+              <Text style={styles.compactHeroSub} numberOfLines={1}>
+                {event.data?.eventOrganizer
+                  ? `by ${event.data.eventOrganizer} · 100% reaches the cause`
+                  : '100% of proceeds reach the creator'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.zeroFeeBadge}>
+            <Text style={styles.zeroFeeBadgeText}>0% FEE</Text>
+          </View>
         </View>
 
-        <View style={styles.webHint}>
-          <Ionicons name="globe-outline" size={16} color={colors.info} />
-          <Text style={styles.webHintText}>
-            You&apos;ll choose your amount and payment method on the connekyt.com secure
-            donations page.
-          </Text>
-        </View>
+        {stage === 'form' && (
+          <View style={styles.formContent}>
+            {/* Amount Selection */}
+            <View style={styles.amountSection}>
+              <View style={styles.amountHeaderRow}>
+                <Text style={styles.sectionHeading}>DONATION AMOUNT ({currencyCode})</Text>
+                {isCustom && <Text style={styles.customActiveBadge}>Custom</Text>}
+              </View>
 
-        <Button
-          title="Donate on connekyt.com"
-          onPress={onDonate}
-          loading={opening}
-          disabled={opening}
-        />
+              {/* Big amount input field */}
+              <View
+                style={[
+                  styles.amountInputContainer,
+                  isAmountFocused && styles.amountInputContainerFocused,
+                ]}
+              >
+                <Pressable
+                  style={styles.currencyPrefixWrap}
+                  onPress={() => setCurrencyModalOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Selected currency ${currencyCode}. Tap to change.`}
+                >
+                  <Text style={styles.currencyPrefixText}>{currencyCode}</Text>
+                  <Ionicons name="chevron-down" size={13} color={colors.primary} />
+                </Pressable>
+                <TextInput
+                  ref={amountInputRef}
+                  style={styles.amountMainInput}
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
+                  value={amountInputText}
+                  onChangeText={handleAmountChange}
+                  onFocus={onAmountFocus}
+                  onBlur={() => setIsAmountFocused(false)}
+                  accessibilityLabel="Donation amount"
+                />
+                {amountInputText.length > 0 && (
+                  <Pressable
+                    onPress={onClearAmount}
+                    hitSlop={10}
+                    style={styles.clearAmountBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear amount"
+                  >
+                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Quick-select preset chips row (4 presets + Custom) */}
+              <View style={styles.amountChipsRow}>
+                {presetAmounts.map((amt) => {
+                  const active = !isCustom && selectedAmount === amt;
+                  return (
+                    <Pressable
+                      key={amt}
+                      style={[styles.amountChip, active && styles.amountChipActive]}
+                      onPress={() => onSelectPreset(amt)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${amt.toLocaleString()} ${currencyCode}`}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.amountChipText, active && styles.amountChipTextActive]}
+                      >
+                        {amt.toLocaleString()}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+
+                <Pressable
+                  style={[styles.amountChip, isCustom && styles.amountChipActive]}
+                  onPress={onSelectCustom}
+                  accessibilityRole="button"
+                  accessibilityLabel="Custom donation amount"
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.amountChipText, isCustom && styles.amountChipTextActive]}
+                  >
+                    Custom
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Payment Method */}
+            <View style={styles.paymentSection}>
+              <View style={styles.paymentHeader}>
+                <Text style={styles.sectionHeading}>SELECT PAYMENT METHOD</Text>
+                <Pressable
+                  style={styles.countryPill}
+                  onPress={() => setCountryModalOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change country"
+                >
+                  <Text style={styles.countryFlag}>{flagEmoji(country)}</Text>
+                  <Text style={styles.countryCode}>{country}</Text>
+                  <Ionicons name="chevron-down" size={13} color={colors.text} />
+                </Pressable>
+              </View>
+
+              {/* Payment Method Tiles Grid (Matches Find My Photos / PhotoCheckoutSheet) */}
+              <View style={styles.methods}>
+                {tiles.map((tile) => {
+                  const isSelected = selectedTile?.id === tile.id;
+                  return (
+                    <Pressable
+                      key={tile.id}
+                      style={[styles.method, isSelected && styles.methodActive]}
+                      onPress={() => setMethod(tile.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select ${tile.name}`}
+                    >
+                      <Ionicons
+                        name={tile.isCard ? 'card-outline' : 'phone-portrait-outline'}
+                        size={20}
+                        color={isSelected ? colors.primary : colors.textMuted}
+                      />
+                      <Text
+                        style={[styles.methodLabel, isSelected && styles.methodLabelActive]}
+                        numberOfLines={1}
+                      >
+                        {tile.name}
+                      </Text>
+                      {isSelected && (
+                        <View style={styles.methodCheck}>
+                          <Ionicons name="checkmark" size={12} color={colors.textOnPrimary} />
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Mobile Money Phone Input with dynamic provider-specific placeholder */}
+              {!isCard && selectedTile && (
+                <View style={styles.phoneSection}>
+                  <Text style={styles.fieldLabel}>
+                    MOBILE MONEY NUMBER ({selectedTile.provider}) *
+                  </Text>
+                  <View style={styles.phoneRow}>
+                    <Pressable
+                      style={styles.dialBadge}
+                      onPress={() => setCountryModalOpen(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Selected country ${country}, dial code +${dialCodeFor(country)}. Tap to change.`}
+                    >
+                      <Text style={styles.dialFlag}>{flagEmoji(country)}</Text>
+                      <Text style={styles.dialText}>+{dialCodeFor(country)}</Text>
+                      <Ionicons name="chevron-down" size={13} color={colors.textMuted} />
+                    </Pressable>
+                    <TextInput
+                      value={phone}
+                      onChangeText={handlePhoneChange}
+                      placeholder={getProviderPlaceholder(country, selectedTile.provider)}
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="phone-pad"
+                      style={[
+                        styles.phoneInputField,
+                        phone.length > 0 && !phoneOk && styles.inputError,
+                      ]}
+                    />
+                  </View>
+                  {phone.length > 0 && !phoneOk && (
+                    <Text style={styles.inputErrorText}>
+                      {isRwanda
+                        ? `${selectedTile.provider === 'AIRTEL' ? 'Airtel' : 'MTN'} numbers must start with 7 and have 9 digits (e.g. ${getProviderPlaceholder(country, selectedTile.provider)}).`
+                        : `Please enter a valid mobile number for +${dialCodeFor(country)}.`}
+                    </Text>
+                  )}
+                  <Text style={styles.helperText}>
+                    {isRwanda
+                      ? `Country code +250 is mandatory. Prompt will be sent to +250 ${phone || getProviderPlaceholder(country, selectedTile.provider)}.`
+                      : `Country code +${dialCodeFor(country)} is mandatory. Prompt will be sent to +${dialCodeFor(country)} ${phone || '...'}.`}
+                  </Text>
+                </View>
+              )}
+
+              {/* Card Notice */}
+              {isCard && (
+                <View style={[styles.notice, styles.noticeInfo]}>
+                  <Ionicons name="shield-checkmark" size={16} color={colors.info} />
+                  <Text style={styles.noticeInfoText}>
+                    You will be directed to a 3D-Secure window to complete your card payment.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Optional Donor Note / Name (Collapsible accordion) */}
+            <View style={styles.detailsAccordion}>
+              <Pressable
+                style={styles.detailsToggleRow}
+                onPress={() => setShowDonorDetails((v) => !v)}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle donor note and details"
+              >
+                <View style={styles.detailsToggleLeft}>
+                  <Ionicons
+                    name="chatbubble-ellipses-outline"
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.detailsToggleText}>
+                    {donorName.trim() || donorMessage.trim()
+                      ? 'Name & Message added'
+                      : 'Add name or message (optional)'}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={showDonorDetails ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+
+              {showDonorDetails && (
+                <View style={styles.detailsExpandBox}>
+                  <TextInput
+                    style={styles.compactInput}
+                    placeholder="Your name (optional, default: Anonymous)"
+                    placeholderTextColor={colors.textMuted}
+                    value={donorName}
+                    onChangeText={setDonorName}
+                    autoCapitalize="words"
+                  />
+                  <TextInput
+                    style={styles.compactInput}
+                    placeholder="Email for donation receipt (optional)"
+                    placeholderTextColor={colors.textMuted}
+                    value={donorEmail}
+                    onChangeText={setDonorEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                  <TextInput
+                    style={[styles.compactInput, styles.compactInputMultiline]}
+                    placeholder="Add an encouraging note or wish…"
+                    placeholderTextColor={colors.textMuted}
+                    value={donorMessage}
+                    onChangeText={setDonorMessage}
+                    multiline
+                    numberOfLines={2}
+                  />
+                </View>
+              )}
+            </View>
+
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={18} color={colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <Button
+              title={
+                busy
+                  ? 'Processing…'
+                  : isCard
+                    ? `Proceed to Pay · ${currencyCode} ${activeAmount.toLocaleString()}`
+                    : `Donate ${currencyCode} ${activeAmount.toLocaleString()}`
+              }
+              onPress={onInitiateDonation}
+              loading={busy}
+              disabled={busy || activeAmount <= 0 || (!isCard && !phoneOk)}
+            />
+          </View>
+        )}
+
+        {stage === 'awaiting' && (
+          <View style={styles.awaitingCard}>
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: spacing.md }} />
+            <Text style={styles.awaitingTitle}>Check Your Phone</Text>
+            <Text style={styles.awaitingSub}>
+              A USSD payment prompt of{' '}
+              <Text style={{ fontWeight: '700', color: colors.text }}>
+                {currencyCode} {activeAmount.toLocaleString()}
+              </Text>{' '}
+              was sent to +{dialCodeFor(country)} {phone}. Please enter your PIN to complete the donation.
+            </Text>
+
+            <View style={styles.countdownBox}>
+              <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+              <Text style={styles.countdownText}>Waiting for confirmation… ({pollCountdown}s)</Text>
+            </View>
+
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={() => {
+                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                setStage('form');
+              }}
+            />
+          </View>
+        )}
+
+        {stage === 'success' && (
+          <View style={styles.successCard}>
+            <View style={styles.heartSuccessCircle}>
+              <Ionicons name="heart" size={36} color="#fff" />
+            </View>
+            <Text style={styles.successTitle}>Thank You!</Text>
+            <Text style={styles.successSub}>
+              Your generous contribution of{' '}
+              <Text style={{ fontWeight: '700' }}>
+                {currencyCode} {activeAmount.toLocaleString()}
+              </Text>{' '}
+              has been confirmed and directly allocated to the event cause.
+            </Text>
+
+            <Button
+              title="Return to Event"
+              onPress={() => {
+                if (eventId && router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/explore-events');
+                }
+              }}
+            />
+          </View>
+        )}
       </ScrollView>
+
+      {/* Country Modal */}
+      <Modal
+        visible={countryModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCountryModalOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Select Payment Country</Text>
+              <Pressable onPress={() => setCountryModalOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.pickerSearch}>
+              <Ionicons name="search" size={16} color={colors.textMuted} />
+              <TextInput
+                value={countrySearch}
+                onChangeText={setCountrySearch}
+                placeholder="Search country or code…"
+                placeholderTextColor={colors.textMuted}
+                style={styles.pickerSearchInput}
+                autoCorrect={false}
+              />
+              {countrySearch.length > 0 && (
+                <Pressable onPress={() => setCountrySearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+
+            <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
+              {filteredCountries.map((c) => (
+                <Pressable
+                  key={c.iso2}
+                  style={[styles.countryRow, country === c.iso2 && styles.countryRowActive]}
+                  onPress={() => selectCountry(c.iso2)}
+                >
+                  <Text style={styles.countryRowFlag}>{flagEmoji(c.iso2)}</Text>
+                  <Text style={styles.countryRowName}>{c.name}</Text>
+                  <Text style={styles.countryRowDial}>+{c.dial}</Text>
+                  {country === c.iso2 && (
+                    <Ionicons name="checkmark" size={18} color={colors.primary} />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Currency Selection Modal */}
+      <Modal
+        visible={currencyModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCurrencyModalOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCurrencyModalOpen(false)}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Select Donation Currency</Text>
+              <Pressable onPress={() => setCurrencyModalOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.pickerSearch}>
+              <Ionicons name="search" size={16} color={colors.textMuted} />
+              <TextInput
+                value={currencySearch}
+                onChangeText={setCurrencySearch}
+                placeholder="Search currency (e.g. USD, EUR, RWF)…"
+                placeholderTextColor={colors.textMuted}
+                style={styles.pickerSearchInput}
+                autoCorrect={false}
+              />
+              {currencySearch.length > 0 && (
+                <Pressable onPress={() => setCurrencySearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+
+            <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
+              {filteredCurrencies.map((c) => (
+                <Pressable
+                  key={c.code}
+                  style={[styles.countryRow, currencyCode === c.code && styles.countryRowActive]}
+                  onPress={() => onSelectCurrency(c.code)}
+                >
+                  <View style={styles.currencySymbolBadge}>
+                    <Text style={styles.currencySymbolBadgeText}>{c.symbol || c.code}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.countryRowName}>{c.name}</Text>
+                    <Text style={styles.currencySubCode}>{c.code}</Text>
+                  </View>
+                  {currencyCode === c.code && (
+                    <Ionicons name="checkmark" size={18} color={colors.primary} />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 120 },
-  hero: {
-    padding: spacing.lg,
+const useStyles = makeStyles((c, e) => ({
+  // Top bar in head — full-width rounded floating bar matching ExploreEvents & FindMyPhotos
+  topBar: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    backgroundColor: c.background,
+  },
+  topBarPill: {
+    width: '100%',
+    height: 52,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    ...e(2),
+  },
+  topBarBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarBackBtnPressed: { opacity: 0.65, transform: [{ scale: 0.94 }] },
+  topBarPillCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarPillText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  topBarSpacer: {
+    width: 40,
+    height: 40,
+  },
+  scroll: {
+    padding: spacing.md,
+    gap: spacing.md,
+    paddingBottom: 40,
+  },
+  compactHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
     backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    gap: spacing.xs,
   },
-  heroTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-  heroSub: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
+  compactHeroLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  compactHeartCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFE4E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactHeroInfo: {
+    flex: 1,
+  },
+  compactHeroTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  compactHeroSub: {
+    fontSize: 11,
+    color: c.textMuted,
+    marginTop: 1,
+  },
+  zeroFeeBadge: {
+    backgroundColor: c.tint,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  zeroFeeBadgeText: {
+    fontSize: 10,
+    fontWeight: fontWeight.extrabold,
+    color: c.primary,
+    letterSpacing: 0.5,
+  },
 
-  h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  formContent: {
+    gap: spacing.md,
+  },
+  sectionHeading: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: c.textMuted,
+    letterSpacing: 0.7,
+  },
 
-  tiers: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  tier: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    padding: spacing.md,
+  // Amount
+  amountSection: {
+    gap: spacing.sm,
+  },
+  amountHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  customActiveBadge: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: c.primary,
+    backgroundColor: c.tint,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
     borderRadius: radii.md,
     borderWidth: 1.5,
+    borderColor: c.border,
+    backgroundColor: c.surface,
+    overflow: 'hidden',
+  },
+  amountInputContainerFocused: {
+    borderColor: c.primary,
+  },
+  currencyPrefixWrap: {
+    height: '100%',
+    paddingHorizontal: spacing.sm + 4,
+    backgroundColor: c.tint,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+    borderRightWidth: 1,
+    borderRightColor: c.borderSoft,
+  },
+  currencyPrefixText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  amountMainInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: spacing.md,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  clearAmountBtn: {
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  amountChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    width: '100%',
+  },
+  amountChip: {
+    flex: 1,
+    height: 38,
+    borderRadius: radii.md,
+    borderWidth: 1,
     borderColor: c.borderSoft,
     backgroundColor: c.surface,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
   },
-  tierAmount: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-  tierCurrency: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold, marginTop: 2 },
+  amountChipActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  amountChipText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  amountChipTextActive: {
+    color: '#FFFFFF',
+  },
 
-  webHint: {
+  // Payment
+  paymentSection: {
+    gap: spacing.xs + 2,
+  },
+  paymentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  countryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: c.surface,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  countryFlag: { fontSize: 14 },
+  countryCode: { fontSize: 11, fontWeight: fontWeight.bold, color: c.text },
+  methods: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 2,
+  },
+  method: {
+    width: '47%',
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
+  },
+  methodActive: {
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+  },
+  methodCheck: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  methodLabel: {
+    color: c.textMuted,
+    fontSize: 11.5,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  methodLabelActive: {
+    color: c.primary,
+    fontWeight: fontWeight.extrabold,
+  },
+  phoneSection: {
+    gap: 6,
+    marginTop: 4,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: c.textSoft,
+    letterSpacing: 0.5,
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  dialBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: c.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  dialFlag: {
+    fontSize: 16,
+  },
+  dialText: {
+    color: c.text,
+    fontSize: 13.5,
+    fontWeight: fontWeight.bold,
+  },
+  phoneInputField: {
+    flex: 1,
+    height: 48,
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    paddingHorizontal: 12,
+    fontSize: fontSize.sm,
+    color: c.text,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  inputError: {
+    borderColor: c.error,
+  },
+  inputErrorText: {
+    color: c.error,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  helperText: {
+    color: c.textMuted,
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  notice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: 8,
+    padding: 12,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  noticeInfo: {
+    backgroundColor: c.infoBg,
+    borderColor: c.info,
+  },
+  noticeInfoText: {
+    flex: 1,
+    color: c.info,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+
+  // Accordion details
+  detailsAccordion: {
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    overflow: 'hidden',
+  },
+  detailsToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  detailsToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailsToggleText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: c.textSoft,
+  },
+  detailsExpandBox: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.xs + 2,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+    paddingTop: spacing.sm,
+  },
+  compactInput: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+    fontSize: fontSize.xs,
+    color: c.text,
+    backgroundColor: c.background,
+  },
+  compactInputMultiline: {
+    minHeight: 48,
+    textAlignVertical: 'top',
+  },
+
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.md,
-    backgroundColor: c.infoBg,
+    backgroundColor: c.errorBg,
     borderRadius: radii.md,
   },
-  webHintText: { flex: 1, color: c.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
+  errorText: {
+    flex: 1,
+    color: c.error,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+  },
+  awaitingCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    gap: spacing.md,
+  },
+  awaitingTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  awaitingSub: {
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  countdownBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginVertical: spacing.sm,
+  },
+  countdownText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+  },
+  successCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    gap: spacing.md,
+  },
+  heartSuccessCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E11D48',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: spacing.sm,
+  },
+  successTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  successSub: {
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.md,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: c.background,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  modalTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  pickerSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.surfaceMuted,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    gap: 8,
+    marginBottom: spacing.xs,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: c.text,
+    paddingVertical: 0,
+  },
+  countryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+  },
+  countryRowActive: {
+    backgroundColor: c.tint,
+  },
+  countryRowFlag: {
+    fontSize: 20,
+  },
+  countryRowName: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: c.text,
+    fontWeight: fontWeight.medium,
+  },
+  countryRowDial: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    fontWeight: fontWeight.bold,
+  },
+  currencySymbolBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    backgroundColor: c.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currencySymbolBadgeText: {
+    fontSize: 14,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  currencySubCode: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    marginTop: 1,
+  },
 }));

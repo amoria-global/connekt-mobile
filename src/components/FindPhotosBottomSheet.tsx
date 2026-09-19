@@ -1,8 +1,10 @@
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, makeStyles, useTheme } from '@/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/store/auth';
+import { makeStyles, useTheme } from '@/theme';
 
 interface Props {
   visible: boolean;
@@ -12,9 +14,12 @@ interface Props {
 }
 
 export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Props) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const status = useAuth((s) => s.status);
+  const isLoggedIn = status === 'authenticated';
 
   return (
     <Modal
@@ -22,54 +27,62 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-      <Pressable 
-        style={StyleSheet.absoluteFill} 
-        onPress={onClose}
+      <BlurView
+        intensity={Platform.OS === 'ios' ? 25 : 40}
+        tint={isDark ? 'dark' : 'regular'}
+        style={StyleSheet.absoluteFill}
       />
-      <View style={{ flex: 1, justifyContent: 'flex-end' }} pointerEvents="box-none">
-        <View style={styles.bottomSheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetHeaderTitle}>What would you like to do?</Text>
-            
-            {/* Get Your Photos Option */}
-            <Pressable 
-              style={({pressed}) => [styles.sheetOption, pressed && { backgroundColor: '#f8fafc' }]}
-              onPress={() => {
-                onClose();
-                router.push(getPhotosRoute as any);
-              }}
-            >
-              <View style={styles.sheetIconWrap}>
-                <Ionicons name="scan-outline" size={32} color={colors.primary} />
-              </View>
-              <View style={styles.sheetTextWrap}>
-                <Text style={styles.sheetTitle}>Get Your Photos</Text>
-                <Text style={styles.sheetSub}>AI face scan from your events</Text>
-              </View>
-            </Pressable>
+      <Pressable 
+        style={[StyleSheet.absoluteFill, styles.backdrop]} 
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      />
+      <View style={styles.sheetWrapper} pointerEvents="box-none">
+        <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetHeaderTitle}>What would you like to do?</Text>
+          
+          {/* Get Your Photos Option */}
+          <Pressable 
+            style={({ pressed }) => [styles.sheetOption, pressed && styles.sheetOptionPressed]}
+            onPress={() => {
+              onClose();
+              router.push(getPhotosRoute as any);
+            }}
+          >
+            <View style={[styles.sheetIconWrap, { backgroundColor: colors.tint }]}>
+              <Ionicons name="scan-outline" size={28} color={colors.primary} />
+            </View>
+            <View style={styles.sheetTextWrap}>
+              <Text style={styles.sheetTitle}>Get Your Photos</Text>
+              <Text style={styles.sheetSub}>AI face scan from your events</Text>
+            </View>
+          </Pressable>
 
-            <View style={styles.sheetDivider} />
-
-            {/* Browse Photos Option */}
-            <Pressable 
-              style={({pressed}) => [styles.sheetOption, pressed && { backgroundColor: '#f8fafc' }]}
-              onPress={() => {
-                onClose();
-                // Both public and app can try to route to gallery. 
-                // If public, might need to be login redirected, but that's fine.
-                router.push('/gallery');
-              }}
-            >
-              <View style={styles.sheetIconWrap}>
-                <Ionicons name="apps" size={32} color="#e11d48" />
-              </View>
-              <View style={styles.sheetTextWrap}>
-                <Text style={styles.sheetTitle}>Browse Photos</Text>
-                <Text style={styles.sheetSub}>Stock photos by category, paid per photo</Text>
-              </View>
-            </Pressable>
+          {/* Browse Photos Option (only for logged-in users) */}
+          {isLoggedIn && (
+            <>
+              <View style={styles.sheetDivider} />
+              <Pressable 
+                style={({ pressed }) => [styles.sheetOption, pressed && styles.sheetOptionPressed]}
+                onPress={() => {
+                  onClose();
+                  router.push('/browse-photos');
+                }}
+              >
+                <View style={[styles.sheetIconWrap, { backgroundColor: colors.tintAccent }]}>
+                  <Ionicons name="apps" size={28} color={colors.accent} />
+                </View>
+                <View style={styles.sheetTextWrap}>
+                  <Text style={styles.sheetTitle}>Browse Photos</Text>
+                  <Text style={styles.sheetSub}>Stock photos by category, paid per photo</Text>
+                </View>
+              </Pressable>
+            </>
+          )}
         </View>
       </View>
     </Modal>
@@ -77,37 +90,53 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
 }
 
 const useStyles = makeStyles((c, e) => ({
+  backdrop: {
+    backgroundColor: c.scrim,
+  },
+  sheetWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   bottomSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: c.elevated,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: c.border,
     paddingTop: 16,
-    paddingBottom: 40,
-    ...e(3),
+    ...e(4),
   },
   sheetHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#cbd5e1',
+    backgroundColor: c.border,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 16,
   },
   sheetHeaderTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#64748b',
+    color: c.textMuted,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   sheetOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    paddingHorizontal: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    marginHorizontal: 12,
+  },
+  sheetOptionPressed: {
+    backgroundColor: c.surfaceMuted,
   },
   sheetIconWrap: {
     width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -116,18 +145,19 @@ const useStyles = makeStyles((c, e) => ({
     flex: 1,
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 4,
+    color: c.text,
+    marginBottom: 3,
   },
   sheetSub: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 13,
+    color: c.textMuted,
   },
   sheetDivider: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: c.borderSoft,
     marginHorizontal: 24,
+    marginVertical: 4,
   },
 }));

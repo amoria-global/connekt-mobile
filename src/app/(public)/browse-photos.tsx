@@ -8,19 +8,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Linking,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import * as ScreenCapture from 'expo-screen-capture';
+import { savePhotoToGallery, saveBatchPhotosToGallery } from '@/utils/gallerySaver';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/store/auth';
 import {
   fetchBrowsePhotos,
   getPhotoDownloadUrl,
@@ -31,13 +37,17 @@ import { PhotoCheckoutSheet } from '@/features/photos/PhotoCheckoutSheet';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
-import { spacing, makeStyles } from '@/theme';
+import { spacing, radii, makeStyles, useTheme } from '@/theme';
+
+const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+const WATERMARK_COLS = [0, 1, 2, 3, 4];
 
 function sym(code?: string | null) {
   return code === 'USD' ? '$' : code === 'EUR' ? '€' : code === 'GBP' ? '£' : `${code ?? ''} `;
 }
 
 export default function BrowsePhotosScreen() {
+  const { colors } = useTheme();
   const styles = useStyles();
   const [items, setItems] = useState<BrowseRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +68,14 @@ export default function BrowsePhotosScreen() {
   const [purchaseRefid, setPurchaseRefid] = useState<string | null>(null);
   const [unlockCode, setUnlockCode] = useState<string | null>(null);
 
+  // Pagination & infinite scroll
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [savingAllBatch, setSavingAllBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<string | null>(null);
+
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const numColumns = width > 600 ? 3 : 2;
@@ -65,18 +83,117 @@ export default function BrowsePhotosScreen() {
   const contentPadding = spacing.md;
   const cellWidth = (width - contentPadding * 2 - gap * (numColumns - 1)) / numColumns;
 
+  const router = useRouter();
+  const status = useAuth((s) => s.status);
+
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        setItems(await fetchBrowsePhotos(0, 50));
-      } catch (err) {
-        console.error('Failed to load browse photos', err);
-      } finally {
-        setLoading(false);
+    if (status === 'unauthenticated') {
+      router.replace('/login');
+    }
+  }, [status, router]);
+
+  const loadInitial = async () => {
+    try {
+      setLoading(true);
+      const res = await fetchBrowsePhotos(0, 30);
+      setItems(res);
+      setPage(0);
+      setHasMore(res.length >= 30);
+    } catch (err) {
+      console.error('Failed to load browse photos', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    loadInitial();
+  }, [status]);
+
+  const onRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const res = await fetchBrowsePhotos(0, 30);
+      setItems(res);
+      setPage(0);
+      setHasMore(res.length >= 30);
+    } catch (err) {
+      console.error('Failed to refresh browse photos', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const onEndReached = async () => {
+    if (loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const nextItems = await fetchBrowsePhotos(nextPage, 30);
+      if (nextItems.length === 0) {
+        setHasMore(false);
+      } else {
+        setItems((prev) => {
+          const existingIds = new Set(prev.map((i) => i.imageId));
+          const filtered = nextItems.filter((i) => !existingIds.has(i.imageId));
+          return [...prev, ...filtered];
+        });
+        setPage(nextPage);
+        setHasMore(nextItems.length >= 30);
       }
-    })();
-  }, []);
+    } catch (err) {
+      console.error('Failed to load more photos', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // ─── Screenshot Protection for Copyrighted Photos ──────────────────────────
+  useEffect(() => {
+    const hasPhotos = items.length > 0 || previewing !== null;
+    if (hasPhotos) {
+      ScreenCapture.preventScreenCaptureAsync('browse-photos').catch(() => {});
+      if (Platform.OS === 'ios') {
+        ScreenCapture.enableAppSwitcherProtectionAsync(0.8).catch(() => {});
+      }
+    } else {
+      ScreenCapture.allowScreenCaptureAsync('browse-photos').catch(() => {});
+      if (Platform.OS === 'ios') {
+        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+      }
+    }
+
+    return () => {
+      ScreenCapture.allowScreenCaptureAsync('browse-photos').catch(() => {});
+      if (Platform.OS === 'ios') {
+        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+      }
+    };
+  }, [items.length, previewing]);
+
+  useEffect(() => {
+    const hasPhotos = items.length > 0 || previewing !== null;
+    if (!hasPhotos) return;
+
+    let sub: { remove: () => void } | undefined;
+    try {
+      sub = ScreenCapture.addScreenshotListener(() => {
+        Alert.alert(
+          'Screenshot Restricted',
+          'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
+          [{ text: 'OK' }]
+        );
+      });
+    } catch {
+      // Ignored if unsupported in environment
+    }
+
+    return () => {
+      sub?.remove();
+    };
+  }, [items.length, previewing]);
 
   const inCart = (id: string) => !!cart[id];
   const toggleCart = (row: BrowseRow) =>
@@ -136,10 +253,41 @@ export default function BrowsePhotosScreen() {
     return reportContent('PHOTO', reporting.imageId, reason, description);
   };
 
-  const downloadPhoto = (row: BrowseRow) => {
+  const downloadPhoto = async (row: BrowseRow) => {
     if (!purchaseRefid) return;
     const url = getPhotoDownloadUrl(row.galleryId, row.imageId, { refid: purchaseRefid });
-    Linking.openURL(url).catch(() => {});
+    await savePhotoToGallery(url, `photo-${row.imageId}.jpg`, {
+      notifyOnSuccess: true,
+      customSuccessMessage: 'Original photo saved directly to your Photos gallery.',
+    });
+  };
+
+  const handleSaveAllPurchased = async () => {
+    if (!purchased || !purchased.length || savingAllBatch || !purchaseRefid) return;
+    setSavingAllBatch(true);
+    try {
+      const batchItems = purchased.map((row) => ({
+        url: getPhotoDownloadUrl(row.galleryId, row.imageId, { refid: purchaseRefid }),
+        filename: `photo-${row.imageId}.jpg`,
+      }));
+
+      const res = await saveBatchPhotosToGallery(batchItems, (curr, total) => {
+        setBatchProgress(`Saving ${curr} of ${total} to Photos…`);
+      });
+
+      if (res.saved > 0) {
+        Alert.alert(
+          'Saved to Photos',
+          `Successfully saved ${res.saved} high-resolution photo${res.saved > 1 ? 's' : ''} directly to your device gallery.`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch {
+      Alert.alert('Download Error', 'Some photos could not be saved. Please try again.');
+    } finally {
+      setSavingAllBatch(false);
+      setBatchProgress(null);
+    }
   };
 
   const renderItem = ({ item }: { item: BrowseRow }) => {
@@ -175,11 +323,9 @@ export default function BrowsePhotosScreen() {
 
   return (
     <View style={[styles.container, { flex: 1 }]}>
-      <LinearGradient colors={['#052047', '#052047', '#103E83']} style={StyleSheet.absoluteFill} />
-
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#FFF" />
+          <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -194,6 +340,22 @@ export default function BrowsePhotosScreen() {
           }}
           columnWrapperStyle={numColumns > 1 ? { gap } : undefined}
           renderItem={renderItem}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.5}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.listFooter}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.listFooterText}>Loading more photos…</Text>
+              </View>
+            ) : !hasMore && items.length > 0 ? (
+              <View style={styles.listFooter}>
+                <Text style={styles.listFooterText}>You&apos;ve reached the end of the collection ({items.length} photos)</Text>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.5)" />
@@ -243,10 +405,24 @@ export default function BrowsePhotosScreen() {
             {previewing && (
               <View style={styles.lightboxImageContainer}>
                 <Image source={{ uri: previewing.thumbnailUrl || previewing.fileUrl }} style={styles.lightboxImage} contentFit="contain" />
-                <View style={styles.lightboxWatermarkBand}>
-                  <Text style={styles.lightboxWatermarkText}>
-                    PREVIEW · {previewing.photographerName.toUpperCase()}
-                  </Text>
+                <View style={styles.lightboxWatermarkOverlay} pointerEvents="none">
+                  <View style={styles.watermarkPatternGrid}>
+                    {WATERMARK_ROWS.map((rowIndex) => (
+                      <View
+                        key={rowIndex}
+                        style={[
+                          styles.watermarkPatternRow,
+                          { marginLeft: rowIndex % 2 === 0 ? -30 : -110 },
+                        ]}
+                      >
+                        {WATERMARK_COLS.map((colIndex) => (
+                          <Text key={colIndex} style={styles.watermarkPatternText}>
+                            CONNEKYT PREVIEW
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
                 </View>
               </View>
             )}
@@ -311,6 +487,22 @@ export default function BrowsePhotosScreen() {
               <Text style={styles.unlockCode}>Unlock code: {unlockCode}</Text>
             ) : null}
             <Text style={styles.sheetHint}>Tap a photo to download the full-resolution file.</Text>
+            {purchased && purchased.length > 1 && (
+              <Pressable
+                style={[styles.saveAllBtn, savingAllBatch && { opacity: 0.7 }]}
+                onPress={handleSaveAllPurchased}
+                disabled={savingAllBatch}
+              >
+                {savingAllBatch ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="cloud-download-outline" size={18} color="#fff" />
+                )}
+                <Text style={styles.saveAllBtnText}>
+                  {savingAllBatch ? (batchProgress || 'Saving to Photos…') : `Save All to Photos (${purchased.length})`}
+                </Text>
+              </Pressable>
+            )}
             <FlatList
               data={purchased ?? []}
               keyExtractor={(it) => it.imageId}
@@ -342,10 +534,10 @@ export default function BrowsePhotosScreen() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  container: { backgroundColor: '#052047' },
+const useStyles = makeStyles((c, e) => ({
+  container: { backgroundColor: c.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.1)' },
+  card: { borderRadius: 12, overflow: 'hidden', backgroundColor: c.surfaceMuted },
   gradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '50%' },
   cartToggle: {
     position: 'absolute', top: 8, right: 8, width: 30, height: 30, borderRadius: 15,
@@ -355,21 +547,22 @@ const useStyles = makeStyles((c) => ({
   cartToggleOn: { backgroundColor: '#F20C8F', borderColor: '#F20C8F' },
   cardFooter: { position: 'absolute', bottom: 8, left: 8, right: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   cardTitle: { color: '#FFF', fontSize: 12, fontWeight: '600', flex: 1, marginRight: 8 },
-  cardPrice: { color: '#FFF', fontSize: 12, fontWeight: '700', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+  cardPrice: { color: '#FFF', fontSize: 12, fontWeight: '700', backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
   watermark: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   watermarkText: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyText: { color: 'rgba(255,255,255,0.7)', marginTop: 16, fontSize: 15 },
+  emptyText: { color: c.textMuted, marginTop: 16, fontSize: 15 },
 
   cartBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: spacing.lg, paddingTop: 12,
-    backgroundColor: 'rgba(5,32,71,0.96)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: c.elevated, borderTopWidth: 1, borderTopColor: c.border,
+    ...e(4),
   },
-  cartBarCount: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
-  cartBarTotal: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  cartBarBtn: { backgroundColor: '#F20C8F', paddingHorizontal: 22, paddingVertical: 12, borderRadius: 12 },
+  cartBarCount: { color: c.textMuted, fontSize: 12 },
+  cartBarTotal: { color: c.text, fontSize: 18, fontWeight: '800' },
+  cartBarBtn: { backgroundColor: c.primary, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 12 },
   cartBarBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 
   lightboxContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' },
@@ -378,15 +571,44 @@ const useStyles = makeStyles((c) => ({
   closeButton: { padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
   lightboxImageContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   lightboxImage: { width: '100%', height: '100%' },
-  lightboxWatermarkBand: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 12, paddingHorizontal: 100, transform: [{ rotate: '-45deg' }], borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  lightboxWatermarkText: { color: 'rgba(255,255,255,0.8)', fontSize: 20, fontWeight: '900', letterSpacing: 4 },
+  lightboxWatermarkOverlay: {
+    ...StyleSheet.absoluteFill,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  watermarkPatternGrid: {
+    width: 900,
+    height: 1100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    transform: [{ rotate: '-25deg' }],
+  },
+  watermarkPatternRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginVertical: 18,
+  },
+  watermarkPatternText: {
+    color: 'rgba(255,255,255,0.22)',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
+    marginHorizontal: 16,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
   lightboxFooter: { padding: spacing.xl },
   lightboxTitle: { color: '#FFF', fontSize: 20, fontWeight: '700', marginBottom: 4 },
   lightboxPhotographer: { color: 'rgba(255,255,255,0.7)', fontSize: 15, marginBottom: 20 },
   lightboxActions: { flexDirection: 'row', gap: 10 },
   lbBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 12 },
   lbBtnGhost: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  lbBtnPrimary: { backgroundColor: '#F20C8F' },
+  lbBtnPrimary: { backgroundColor: c.primary },
   lbBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   sheetHint: { color: 'rgba(255,255,255,0.65)', fontSize: 13, lineHeight: 19 },
@@ -398,4 +620,33 @@ const useStyles = makeStyles((c) => ({
   unlockCode: { color: '#FBBF24', fontSize: 14, fontWeight: '700', marginBottom: 8 },
   successThumb: { flex: 1, maxWidth: '32%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.1)' },
   successThumbOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
+
+  listFooter: {
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  listFooterText: {
+    color: c.textMuted,
+    fontSize: 12.5,
+    fontWeight: '500',
+  },
+  saveAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    borderRadius: radii.full,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  saveAllBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 }));

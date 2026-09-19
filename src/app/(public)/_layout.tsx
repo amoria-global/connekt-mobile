@@ -1,10 +1,47 @@
-import { Stack } from 'expo-router';
+import { Pressable, Text } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/theme';
 
 /** Guest-accessible screens (no login required). */
 export default function PublicLayout() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const router = useRouter();
+
+  const renderBackToLogin = (tintColor?: string) => (
+    <Pressable
+      onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
+      hitSlop={12}
+      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingRight: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel="Back to sign in"
+    >
+      <Ionicons name="chevron-back" size={22} color={tintColor || colors.textOnPrimary} />
+      <Text style={{ color: tintColor || colors.textOnPrimary, fontSize: 14, fontWeight: '700', marginLeft: -2 }}>
+        Sign in
+      </Text>
+    </Pressable>
+  );
+
+  const renderBackOnly = (tintColor?: string) => (
+    <Pressable
+      onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
+      hitSlop={12}
+      style={({ pressed }) => [{
+        padding: 6,
+        marginLeft: -2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.7 : 1,
+      }]}
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+    >
+      <Ionicons name="chevron-back" size={24} color={tintColor || colors.textOnPrimary} />
+    </Pressable>
+  );
+
   return (
     <>
       <Stack
@@ -17,14 +54,40 @@ export default function PublicLayout() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Screen name="explore-events" options={{ title: 'Explore events' }} />
-        <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
+        <Stack.Screen
+          name="explore-events"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="event/[id]"
+          options={{
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="events/join" options={{ title: 'Join event' }} />
         <Stack.Screen name="events/pay" options={{ title: 'Payment' }} />
         <Stack.Screen name="events/live-stream" options={{ title: 'Live stream' }} />
-        <Stack.Screen name="donate" options={{ title: 'Donate' }} />
-        <Stack.Screen name="find-photos" options={{ title: 'Find My Photos' }} />
-        <Stack.Screen name="browse-photos" options={{ title: 'Browse Photos' }} />
+        <Stack.Screen
+          name="donate"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="find-photos"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="browse-photos"
+          options={{
+            title: 'Browse Photos',
+            headerLeft: () => renderBackToLogin(),
+          }}
+        />
         <Stack.Screen name="gallery" options={{ title: 'Gallery' }} />
         <Stack.Screen name="help-center/index" options={{ title: 'Help Center' }} />
         <Stack.Screen name="help-center/booking" options={{ title: 'Booking Help' }} />
@@ -40,7 +103,7 @@ export default function PublicLayout() {
         <Stack.Screen name="about" options={{ title: 'About' }} />
         <Stack.Screen name="trust-safety" options={{ title: 'Trust & Safety' }} />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </>
   );
 }

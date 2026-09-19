@@ -9,7 +9,6 @@ import {
   PragatiNarrow_400Regular,
   PragatiNarrow_700Bold,
 } from '@expo-google-fonts/pragati-narrow';
-import { Asset } from 'expo-asset';
 import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdateBanner } from '@/features/updates/UpdateBanner';
@@ -61,6 +60,9 @@ function applyDefaultFont() {
   let regular: string | undefined;
   let bold: string | undefined;
   try {
+    // Dynamically require expo-asset only on web where @font-face CSS injection is needed.
+    // Prevents native iOS/Android from evaluating requireNativeModule('ExpoAsset') on startup.
+    const { Asset } = require('expo-asset') as typeof import('expo-asset');
     regular = Asset.fromModule(PragatiNarrow_400Regular).uri;
     bold = Asset.fromModule(PragatiNarrow_700Bold).uri;
   } catch {
@@ -112,7 +114,7 @@ function useProtectedRoute() {
     const group = segments[0];
     const inAuthGroup = group === '(auth)';
     const inOnboarding = group === '(onboarding)';
-    // Guest-browsable screens (explore events / find photos) need no login.
+    // Guest-browsable screens (explore events, find photos, donate, legal, help) need no login.
     const inPublic = group === '(public)';
     const onTerms = (segments as string[]).includes('terms');
 

@@ -35,6 +35,7 @@ import {
   type PhoneCountry,
   formatInternational,
   formatNsn,
+  getPlaceholderForCountry,
   matchDialCode,
   nsnMaxLen,
   onlyDigits,
@@ -154,6 +155,7 @@ export type PhoneInputProps = {
   label?: string;
   /** External error (form-level validation) — overrides the built-in hint. */
   error?: string;
+  placeholder?: string;
 };
 
 export function PhoneInput({
@@ -163,6 +165,7 @@ export function PhoneInput({
   dark = false,
   label,
   error,
+  placeholder,
 }: PhoneInputProps) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -203,10 +206,6 @@ export function PhoneInput({
    */
   const display = country ? (nsn ? formatNsn(country, nsn) : '') : nsn;
 
-  /** Greyed example so the expected shape is obvious without a dial code. */
-  const exampleNsn = country
-    ? formatNsn(country, '7'.padEnd(country.nsnLengths[0] ?? 9, '8'))
-    : '';
 
   const handleText = (t: string) => {
     const d = onlyDigits(t);
@@ -254,33 +253,9 @@ export function PhoneInput({
     setPickerOpen(false);
   };
 
-  // Hint line: external error → example → progress → valid → error.
-  let hint = '';
-  let tone: 'info' | 'ok' | 'err' = 'info';
-  if (error) {
-    hint = error;
-    tone = 'err';
-  } else if (!country) {
-    hint = nsn ? 'Unknown country code' : '';
-    tone = nsn ? 'err' : 'info';
-  } else if (!nsn) {
-    // No hint on an empty field: the chip already shows the dial code and the
-    // placeholder already shows the national shape, so an "e.g. +250 788 888 888"
-    // line was the same information a third time — and one more row of height.
-    hint = '';
-  } else if (isValid) {
-    hint = `${country.name} · looks good`;
-    tone = 'ok';
-  } else {
-    const lens = [...country.nsnLengths].sort((a, b) => a - b);
-    hint = lens.length
-      ? `${country.name} numbers have ${lens.join(' or ')} digits (${nsn.length}/${maxLen})`
-      : `${nsn.length} digits, keep typing`;
-    tone = complete ? 'err' : 'info';
-  }
-
-  const showErr = !!error || (!!nsn && !country) || (!!nsn && !isValid && complete);
-  const borderColor = showErr ? ui.err : nsn && isValid ? ui.ok : focused ? ui.focus : ui.border;
+  const showErr = Boolean(error);
+  const borderColor = showErr ? ui.err : focused ? ui.focus : ui.border;
+  const activePlaceholder = placeholder ?? getPlaceholderForCountry(country);
 
   const query = search.trim().toLowerCase();
   const qDigits = onlyDigits(query);
@@ -336,24 +311,18 @@ export function PhoneInput({
           autoComplete="tel"
           textContentType="telephoneNumber"
           accessibilityLabel={label ?? 'Phone number'}
-          placeholder={exampleNsn}
+          placeholder={activePlaceholder}
           placeholderTextColor={ui.muted}
         />
-        {nsn && isValid ? (
-          <Ionicons name="checkmark-circle" size={18} color={ui.ok} style={styles.stateIcon} />
-        ) : nsn && showErr ? (
+        {showErr ? (
           <Ionicons name="close-circle" size={18} color={ui.err} style={styles.stateIcon} />
         ) : null}
       </View>
-      <Text
-        style={[
-          styles.hint,
-          { color: tone === 'ok' ? ui.ok : tone === 'err' ? ui.err : ui.muted },
-        ]}
-        numberOfLines={2}
-      >
-        {hint}
-      </Text>
+      {error ? (
+        <Text style={[styles.hint, { color: ui.err }]} numberOfLines={2}>
+          {error}
+        </Text>
+      ) : null}
 
       <Modal
         visible={pickerOpen}

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 /**
@@ -8,7 +8,15 @@ import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
  * but accepts `children` so the same pill can show location/context later
  * without changing the top-bar layout.
  */
-export function BrandPill({ onPress, children }: { onPress?: () => void; children?: ReactNode }) {
+export function BrandPill({
+  onPress,
+  children,
+  style,
+}: {
+  onPress?: () => void;
+  children?: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   const styles = useStyles();
   const content = children ?? (
     <>
@@ -23,12 +31,12 @@ export function BrandPill({ onPress, children }: { onPress?: () => void; childre
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, pressed && styles.pressed]}>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, style, pressed && styles.pressed]}>
         {content}
       </Pressable>
     );
   }
-  return <View style={styles.pill}>{content}</View>;
+  return <View style={[styles.pill, style]}>{content}</View>;
 }
 
 const useStyles = makeStyles((c, e) => ({
