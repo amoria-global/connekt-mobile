@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { useResponsive } from '@/hooks/useResponsive';
-import { colors, spacing } from '@/theme';
+import { spacing, makeStyles } from '@/theme';
 
 /**
  * Maximum content width on large viewports (web / iPad). Beyond ~520 px
@@ -25,6 +25,7 @@ type Props = {
 };
 
 export function Screen({ children, padded = true, edges = ['top', 'bottom'], style }: Props) {
+  const styles = useStyles();
   const { isLarge, isXLarge } = useResponsive();
   const clampWidth = isLarge || isXLarge;
   return (
@@ -43,8 +44,8 @@ export function Screen({ children, padded = true, edges = ['top', 'bottom'], sty
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+const useStyles = makeStyles((c) => ({
+  safe: { flex: 1, backgroundColor: c.background },
   content: { flex: 1 },
   contentClamped: {
     width: '100%',
@@ -52,4 +53,4 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   padded: { paddingHorizontal: spacing.xl },
-});
+}));

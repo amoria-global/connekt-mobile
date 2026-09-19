@@ -13,6 +13,8 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
   /** Skip attaching the auth token (e.g. for login/refresh). */
   skipAuth?: boolean;
+  /** Custom request timeout in ms (e.g. for large uploads or ML face recognition). */
+  timeoutMs?: number;
   /** Internal: marks a request that has already been retried after a refresh. */
   _retried?: boolean;
 };
@@ -24,11 +26,14 @@ export function setOnAuthExpired(cb: () => void) {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, skipAuth, headers, _retried, ...rest } = options;
+  const { body, skipAuth, headers, timeoutMs, _retried, ...rest } = options;
 
   const url = path.startsWith('http') ? path : `${env.apiBaseUrl}${path}`;
 
-  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  const isForm =
+    typeof FormData !== 'undefined' &&
+    (body instanceof FormData ||
+      (body != null && typeof (body as { append?: unknown }).append === 'function'));
 
   const finalHeaders: Record<string, string> = {
     Accept: 'application/json',
@@ -42,8 +47,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (token) finalHeaders.Authorization = `Bearer ${token}`;
   }
 
+  // File uploads, face scans, and KYC documents take longer to transmit and process on backend.
+  const effectiveTimeout =
+    timeoutMs ?? (isForm ? (env.uploadTimeoutMs ?? 120_000) : env.requestTimeoutMs);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), env.requestTimeoutMs);
+  const timeout = setTimeout(() => controller.abort(), effectiveTimeout);
 
   try {
     const res = await fetch(url, {
@@ -59,11 +67,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
     // Access token likely expired → try a one-time refresh, then retry.
     if (res.status === 401 && !skipAuth && !_retried) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
+      const outcome = await refreshAccessToken();
+      if (outcome === 'refreshed') {
         return request<T>(path, { ...options, _retried: true });
       }
-      onAuthExpired?.();
+      // Only a real refusal ends the session. When the refresh simply could
+      // not be reached, fall through and let the original 401 surface as a
+      // retryable error instead of throwing the user out to the login screen.
+      if (outcome === 'rejected') onAuthExpired?.();
     }
 
     const isJson = res.headers.get('content-type')?.includes('application/json');
@@ -75,33 +86,111 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
     return payload as T;
   } catch (err) {
-    if (isAbortError(err)) {
-      throw { status: 408, message: 'Request timed out' } satisfies ApiError;
+    if (isAbortError(err, controller)) {
+      throw {
+        status: 408,
+        message: 'Request timed out. Please check your internet connection and try again.',
+      } satisfies ApiError;
     }
+
+    // iOS NSURLSession -1005 ("The network connection was lost") happens when reusing
+    // an idle keep-alive TCP socket that the server/Cloudflare has closed.
+    // Retrying once immediately opens a fresh socket, which usually succeeds.
+    if (isConnectionLostError(err) && !_retried) {
+      return request<T>(path, { ...options, _retried: true });
+    }
+
     if (isApiError(err)) throw err;
     const rawMessage = err instanceof Error ? err.message : String(err ?? 'Network error');
-    throw { status: 0, message: rawMessage || 'Network error' } satisfies ApiError;
+    const userMessage = isConnectionLostError(err)
+      ? 'The network connection was lost. Please check your internet connection and try again.'
+      : sanitizeErrorMessage(rawMessage);
+    throw { status: 0, message: userMessage } satisfies ApiError;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function isAbortError(err: unknown): boolean {
+function sanitizeErrorMessage(msg: string): string {
+  if (!msg) return 'Network error';
+  return (
+    msg
+      .replace(/\s*\(at [^)]+\)/g, '')
+      .replace(/^fetch failed:\s*/i, '')
+      .replace(/^UnexpectedException:\s*/i, '')
+      .trim() || 'Network error'
+  );
+}
+
+function isConnectionLostError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return (
+    msg.includes('network connection was lost') ||
+    msg.includes('connection was lost') ||
+    msg.includes('-1005') ||
+    msg.includes('connection reset') ||
+    msg.includes('connection closed') ||
+    msg.includes('broken pipe') ||
+    msg.includes('socket closed') ||
+    msg.includes('econnreset')
+  );
+}
+
+function isAbortError(err: unknown, controller?: AbortController): boolean {
+  if (controller?.signal?.aborted) {
+    return true;
+  }
+
   if (typeof DOMException !== 'undefined' && err instanceof DOMException) {
     return err.name === 'AbortError';
   }
 
+  if (err instanceof Error) {
+    if (err.name === 'AbortError' || err.message === 'AbortError' || err.message === 'Aborted') {
+      return true;
+    }
+    const msg = (err.message || '').toLowerCase();
+    if (
+      msg.includes('fetch request has been canceled') ||
+      msg.includes('fetchrequestcanceledexception') ||
+      msg.includes('nativeresponse') ||
+      msg.includes('operation was aborted') ||
+      msg.includes('request has been canceled') ||
+      msg.includes('request was cancelled') ||
+      msg.includes('request was canceled')
+    ) {
+      return true;
+    }
+  }
+
+  const strErr = String(err ?? '').toLowerCase();
   return (
-    err instanceof Error &&
-    (err.name === 'AbortError' || err.message === 'AbortError' || err.message === 'Aborted')
+    strErr.includes('fetch request has been canceled') ||
+    strErr.includes('fetchrequestcanceledexception') ||
+    strErr.includes('nativeresponse')
   );
 }
 
 // --- Token refresh (single-flight) ---------------------------------------
 
-let refreshPromise: Promise<boolean> | null = null;
+/**
+ * Three outcomes, not two.
+ *
+ * 'refreshed'   — we hold a new access token.
+ * 'rejected'    — the server actually said no (no stored token, an explicit
+ *                 refusal, 401/403). The session really is dead.
+ * 'unavailable' — we could not ask: network down, timeout, 5xx. This says
+ *                 NOTHING about the session's validity.
+ *
+ * Collapsing the last two into `false` is what signed people out the moment
+ * a lift or a tunnel interrupted one request mid-action.
+ */
+type RefreshOutcome = 'refreshed' | 'rejected' | 'unavailable';
 
-function refreshAccessToken(): Promise<boolean> {
+let refreshPromise: Promise<RefreshOutcome> | null = null;
+
+function refreshAccessToken(): Promise<RefreshOutcome> {
   if (!refreshPromise) {
     refreshPromise = doRefresh().finally(() => {
       refreshPromise = null;
@@ -110,30 +199,39 @@ function refreshAccessToken(): Promise<boolean> {
   return refreshPromise;
 }
 
-async function doRefresh(): Promise<boolean> {
-  const refreshToken = await storage.get(StorageKeys.refreshToken);
-  if (!refreshToken) return false;
+async function doRefresh(): Promise<RefreshOutcome> {
+  const refreshToken = await storage.get(StorageKeys.refreshToken).catch(() => null);
+  if (!refreshToken) return 'rejected';
+
+  // This was the only fetch in the file without a timeout, and it is
+  // single-flight: a hung refresh stalled every request queued behind it.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), env.requestTimeoutMs);
 
   try {
     const res = await fetch(`${env.apiBaseUrl}/auth/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ refreshToken }),
+      signal: controller.signal,
     });
-    if (!res.ok) return false;
+    // A refusal is 401/403 or a 200 envelope saying no. A 5xx is the server
+    // failing, not the session expiring.
+    if (res.status >= 500) return 'unavailable';
+    if (!res.ok) return 'rejected';
 
     const data = (await res.json()) as {
       action?: number;
       token?: string;
       refreshToken?: string;
     };
-    if (data.action !== 1 || !data.token) return false;
+    if (data.action !== 1 || !data.token) return 'rejected';
 
     await storage.set(StorageKeys.authToken, data.token);
     if (data.refreshToken) await storage.set(StorageKeys.refreshToken, data.refreshToken);
 
     // Keep the persisted session blob's token in sync.
-    const raw = await storage.get(StorageKeys.session);
+    const raw = await storage.get(StorageKeys.session).catch(() => null);
     if (raw) {
       try {
         const session = JSON.parse(raw);
@@ -144,9 +242,13 @@ async function doRefresh(): Promise<boolean> {
         // ignore malformed session blob
       }
     }
-    return true;
+    return 'refreshed';
   } catch {
-    return false;
+    // Aborts, DNS failures, offline: we never got an answer, so we must not
+    // conclude the session is dead.
+    return 'unavailable';
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

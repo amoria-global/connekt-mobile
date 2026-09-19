@@ -43,7 +43,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
 
@@ -66,6 +66,8 @@ function isExpired(isoDate?: string): boolean {
 }
 
 export default function JoinPackageScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id, codeReady } = useLocalSearchParams<{ id: string; codeReady?: string }>();
   const router = useRouter();
   const { data, loading, error } = useAsync(
@@ -310,17 +312,17 @@ export default function JoinPackageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 120 },
 
   // Saved group code card (shown after payment)
   codeCard: {
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.lg,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: c.primary,
     padding: spacing.lg,
     gap: spacing.md,
   },
@@ -329,12 +331,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  codeCardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
+  codeCardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
   codeBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
@@ -342,102 +344,102 @@ const styles = StyleSheet.create({
   codeText: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
-    color: colors.text,
+    color: c.text,
     letterSpacing: 3,
     fontVariant: ['tabular-nums'],
   },
-  codeHint: { fontSize: fontSize.sm, color: colors.textSoft, lineHeight: 20 },
-  codeExpiry: { fontSize: fontSize.xs, color: colors.textMuted },
+  codeHint: { fontSize: fontSize.sm, color: c.textSoft, lineHeight: 20 },
+  codeExpiry: { fontSize: fontSize.xs, color: c.textMuted },
 
   // Event preview
   previewCard: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
-  previewCover: { width: 96, height: 96, backgroundColor: colors.surfaceMuted },
+  previewCover: { width: 96, height: 96, backgroundColor: c.surfaceMuted },
   previewBody: { flex: 1, padding: spacing.md, gap: 2, justifyContent: 'center' },
-  previewTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  previewMeta: { color: colors.textMuted, fontSize: fontSize.xs },
-  previewFee: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold, marginTop: 4 },
+  previewTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  previewMeta: { color: c.textMuted, fontSize: fontSize.xs },
+  previewFee: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold, marginTop: 4 },
 
-  h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  h2: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
 
   opt: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  optActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  optActive: { borderColor: c.primary, backgroundColor: c.infoBg },
   radio: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioActive: { borderColor: colors.primary },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  optTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  optHint: { fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  radioActive: { borderColor: c.primary },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.primary },
+  optTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  optHint: { fontSize: fontSize.sm, color: c.textMuted, marginTop: 2 },
 
   peopleCard: {
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.sm,
   },
-  peopleLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  peopleLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
   peopleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, alignSelf: 'flex-start' },
   stepBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
   },
   peopleInput: {
     minWidth: 64,
     fontSize: fontSize.xl,
     textAlign: 'center',
-    color: colors.text,
+    color: c.text,
     fontWeight: fontWeight.bold,
     padding: 0,
   },
-  peopleHint: { fontSize: fontSize.xs, color: colors.textMuted },
+  peopleHint: { fontSize: fontSize.xs, color: c.textMuted },
 
   totalCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: spacing.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.lg,
   },
   totalLabel: { color: 'rgba(255,255,255,0.85)', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  totalValue: { color: colors.textOnPrimary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
+  totalValue: { color: c.textOnPrimary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
 
   // Redeem section (web parity: invite code input)
   redeemSection: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     overflow: 'hidden',
   },
   redeemToggle: {
@@ -447,7 +449,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   redeemToggleText: {
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
   },
@@ -456,14 +458,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     gap: spacing.md,
   },
-  redeemHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
+  redeemHint: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
   redeemErrorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.errorBg,
+    backgroundColor: c.errorBg,
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  redeemErrorText: { flex: 1, color: colors.error, fontSize: fontSize.sm },
-});
+  redeemErrorText: { flex: 1, color: c.error, fontSize: fontSize.sm },
+}));

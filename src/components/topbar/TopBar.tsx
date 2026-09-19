@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useRole } from '@/features/auth/role';
 import { listNotifications } from '@/features/notifications/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
-import { spacing } from '@/theme';
+import { spacing, radii, makeStyles, useTheme } from '@/theme';
 import { BrandPill } from './BrandPill';
 import { NotificationButton } from './NotificationButton';
 import { ProfileButton } from './ProfileButton';
@@ -20,14 +21,23 @@ export function useTopBarHeight() {
   return insets.top + BAR_HEIGHT;
 }
 
+export type TopBarProps = {
+  /** If true, renders a back chevron button on the left slot instead of ProfileButton */
+  back?: boolean;
+  /** Optional custom back action. Defaults to router.back() */
+  onBack?: () => void;
+};
+
 /**
  * Shared, translucent (frosted-glass) top bar for all roles:
- * profile (left) · brand pill (center) · notifications (right).
+ * profile/back (left) · brand pill (center) · notifications (right).
  * Renders as an absolute overlay so content scrolls under the blur.
  * Place it as the last child of a screen and pad the scroll content by
  * useTopBarHeight().
  */
-export function TopBar() {
+export function TopBar({ back, onBack }: TopBarProps = {}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
@@ -41,7 +51,18 @@ export function TopBar() {
       <BlurView intensity={32} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={styles.tint} pointerEvents="none" />
       <View style={[styles.row, { top: insets.top }]}>
-        <ProfileButton user={user} onPress={() => router.push('/profile')} />
+        {back ? (
+          <Pressable
+            onPress={onBack ?? (() => router.back())}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </Pressable>
+        ) : (
+          <ProfileButton user={user} onPress={() => router.push('/profile')} />
+        )}
         <BrandPill />
         <NotificationButton hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
       </View>
@@ -49,7 +70,7 @@ export function TopBar() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   wrap: {
     position: 'absolute',
     top: 0,
@@ -60,7 +81,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(8,58,133,0.12)',
   },
-  tint: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,58,133,0.5)' },
+  tint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8,58,133,0.5)' },
   row: {
     position: 'absolute',
     left: 0,
@@ -71,4 +92,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-});
+  btn: {
+    width: 46,
+    height: 46,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...e(2),
+  },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
+}));

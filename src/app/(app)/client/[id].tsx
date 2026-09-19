@@ -11,10 +11,12 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 export default function ClientDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data, loading, error } = useAsync(useCallback(() => getClient(id), [id]));
@@ -207,6 +209,7 @@ export default function ClientDetailScreen() {
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.statCard}>
       <Text style={styles.statValue}>{value}</Text>
@@ -215,16 +218,16 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm },
+  muted: { color: c.textMuted, fontSize: fontSize.sm },
   scroll: { padding: spacing.xl, gap: spacing.xl },
   headerCard: { alignItems: 'center', gap: spacing.xs },
-  avatar: { width: 88, height: 88, borderRadius: radii.full, backgroundColor: colors.surfaceMuted },
-  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
-  initials: { color: colors.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
-  name: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.text, marginTop: spacing.sm },
-  meta: { fontSize: fontSize.sm, color: colors.textMuted },
+  avatar: { width: 88, height: 88, borderRadius: radii.full, backgroundColor: c.surfaceMuted },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
+  initials: { color: c.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
+  name: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text, marginTop: spacing.sm },
+  meta: { fontSize: fontSize.sm, color: c.textMuted },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   moreBtn: {
     alignItems: 'center',
@@ -234,12 +237,12 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: c.border,
+    backgroundColor: c.surface,
   },
   blockedNote: {
     fontSize: fontSize.xs,
-    color: colors.textMuted,
+    color: c.textMuted,
     marginTop: spacing.xs,
   },
   favBtn: {
@@ -251,38 +254,38 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: c.border,
+    backgroundColor: c.surface,
   },
   favBtnActive: { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' },
-  favText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.primary },
+  favText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.primary },
   favTextActive: { color: '#B45309' },
   stats: { flexDirection: 'row', gap: spacing.md },
   statCard: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     alignItems: 'center',
     gap: 2,
   },
-  statValue: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: colors.primary },
-  statLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  statValue: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.primary },
+  statLabel: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   eventRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
   },
   pressed: { opacity: 0.7 },
   eventBody: { flex: 1, gap: 2 },
-  eventTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  eventDate: { fontSize: fontSize.xs, color: colors.textMuted },
-});
+  eventTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  eventDate: { fontSize: fontSize.xs, color: c.textMuted },
+}));

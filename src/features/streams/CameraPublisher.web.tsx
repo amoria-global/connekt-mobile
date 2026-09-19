@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme';
+import { makeStyles } from '@/theme';
 
 export type PublishStatus = 'idle' | 'starting' | 'publishing' | 'error';
 
@@ -40,6 +40,7 @@ function waitIce(pc: RTCPeerConnection, timeout: number): Promise<void> {
 }
 
 export function CameraPublisher({ whipUrl, publish, onStatusChange, style }: Props) {
+  const styles = useStyles();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -204,11 +205,11 @@ export function CameraPublisher({ whipUrl, publish, onStatusChange, style }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: '#000' },
   video: { width: '100%', height: '100%', objectFit: 'cover', border: 0 } as any,
   errorOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -231,4 +232,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

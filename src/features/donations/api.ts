@@ -27,12 +27,12 @@ function pageContent(data: unknown): Raw[] {
   return Array.isArray(c) ? (c as Raw[]) : [];
 }
 
-export async function getDonationTiers(): Promise<DonationTier[]> {
+export async function getDonationTiers(currency?: string): Promise<DonationTier[]> {
   // Web parity: PublicRemoteController@GetMapping("/donation-tiers")
   // lives under @RequestMapping("/api/remote/public"), so the real
-  // path is /public/donation-tiers. The previous /donation-tiers
-  // call 404'd which made the donation screen crash on load.
-  const res = await api.get<ApiEnvelope<Raw> & Raw>('/public/donation-tiers', {
+  // path is /public/donation-tiers. Accepts ?currency=USD/KES/RWF.
+  const query = currency ? `?currency=${encodeURIComponent(currency)}` : '';
+  const res = await api.get<ApiEnvelope<Raw> & Raw>(`/public/donation-tiers${query}`, {
     skipAuth: true,
   });
   const d = (res?.data ?? res ?? {}) as Raw;
@@ -68,14 +68,49 @@ export type DonationCreated = {
   status?: string;
 };
 
+export const KNOWN_CURRENCY_UUIDS: Record<string, string> = {
+  RWF: '490c5ab1-a150-459e-be6b-d45131a1e13a',
+  KES: 'e82f75a7-fe33-4b90-85a1-ae13919e0921',
+  UGX: '68e02a65-2e52-4e78-b07d-2c516ec12675',
+  TZS: '1f742d3f-f838-49d2-90df-890e0c2af8fe',
+  USD: 'b807b880-6b57-4208-bf87-549a1535b2f3',
+  EUR: '5070cf4e-9a1f-4b26-9dae-97a6013ad4b0',
+  GHS: '8b1dd030-3e2e-4ea2-8052-b283111743a9',
+  NGN: 'dd9cb53f-dcd1-4a01-ae17-624925d05fe6',
+  ZMW: '8e38f423-174f-4bd1-8c2c-f2d9409433f0',
+  MWK: '6bf7bebd-a637-4024-a27e-6c61baff8d5d',
+  XOF: 'aa958d33-caf5-4a28-973b-b4923f426de5',
+  XAF: '7b3e123a-eeb3-4cad-bd0f-f8e6f6c77ae1',
+  CDF: 'dd9c32d0-f7cd-4da8-93d1-9b94190f391c',
+  ETB: 'd3825531-935a-46ad-a8d9-959dfc403b6d',
+  MZN: 'f0b5d08e-1ff0-49f8-afb3-c3c58ca09d5d',
+  SLE: '1df1d289-d74d-4fc5-8058-4569f1e33e3d',
+};
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function resolveCurrencyId(currencyIdOrCode?: string): string {
+  if (!currencyIdOrCode) return KNOWN_CURRENCY_UUIDS.RWF;
+  if (UUID_REGEX.test(currencyIdOrCode)) return currencyIdOrCode;
+  const upper = currencyIdOrCode.toUpperCase();
+  return KNOWN_CURRENCY_UUIDS[upper] || KNOWN_CURRENCY_UUIDS.RWF;
+}
+
 export async function donate(input: {
   amount: number;
-  currencyId: string;
+  currencyId?: string;
+  currencyCode?: string;
   message?: string;
   paymentMethod?: 'MOBILE_MONEY' | 'CARD';
   eventId?: string;
 }): Promise<DonationCreated> {
-  const qs = new URLSearchParams({ amount: String(input.amount), currencyId: input.currencyId });
+  const effectiveCurrencyId = resolveCurrencyId(input.currencyId || input.currencyCode);
+  const code =
+    input.currencyCode ||
+    (input.currencyId && !UUID_REGEX.test(input.currencyId) ? input.currencyId : undefined);
+  const qs = new URLSearchParams({ amount: String(input.amount) });
+  if (effectiveCurrencyId) qs.set('currencyId', effectiveCurrencyId);
+  if (code) qs.set('currencyCode', code.toUpperCase());
   if (input.message?.trim()) qs.append('message', input.message.trim());
   if (input.paymentMethod) qs.append('paymentMethod', input.paymentMethod);
   if (input.eventId) qs.append('eventId', input.eventId);
@@ -89,12 +124,13 @@ export async function donate(input: {
 
 /**
  * Public donation creation (no auth, web parity:
- * POST /public/donations?amount=&currencyId=&donorName=&donorEmail=&message=&paymentMethod=&eventId=).
+ * POST /public/donations?amount=&currencyId=&currencyCode=&donorName=&donorEmail=&message=&paymentMethod=&eventId=).
  * Returns the donation row used by `initiateXentriPayDonation` to take payment.
  */
 export type PublicDonationInput = {
   amount: number;
   currencyId?: string;
+  currencyCode?: string;
   donorName?: string;
   donorEmail?: string;
   message?: string;
@@ -111,8 +147,13 @@ export type PublicDonationCreated = {
 export async function createPublicDonation(
   input: PublicDonationInput,
 ): Promise<PublicDonationCreated> {
+  const effectiveCurrencyId = resolveCurrencyId(input.currencyId || input.currencyCode);
+  const code =
+    input.currencyCode ||
+    (input.currencyId && !UUID_REGEX.test(input.currencyId) ? input.currencyId : undefined);
   const qs = new URLSearchParams({ amount: String(input.amount) });
-  if (input.currencyId) qs.set('currencyId', input.currencyId);
+  if (effectiveCurrencyId) qs.set('currencyId', effectiveCurrencyId);
+  if (code) qs.set('currencyCode', code.toUpperCase());
   if (input.donorName?.trim()) qs.set('donorName', input.donorName.trim());
   if (input.donorEmail?.trim()) qs.set('donorEmail', input.donorEmail.trim());
   if (input.message?.trim()) qs.set('message', input.message.trim());
@@ -129,4 +170,42 @@ export async function createPublicDonation(
   }
   const d = (res?.data ?? {}) as Raw;
   return { id: String(d.id ?? ''), amount: num(d.amount), status: str(d.status) };
+}
+
+export type InitiatePublicDonationPayload = {
+  donationId: string;
+  phone: string;
+  paymentMethod: 'MOBILE_MONEY' | 'CARD';
+  telecomProvider?: string;
+  country?: string;
+  redirectUrl?: string;
+};
+
+export type InitiatePublicDonationResult = {
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  refid?: string;
+  paymentUrl?: string;
+  message?: string;
+};
+
+/**
+ * Initiates Mobile Money or Card payment for a public donation.
+ * Web parity: PublicXentriPayController#initiateDonation
+ */
+export async function initiatePublicDonationPayment(
+  payload: InitiatePublicDonationPayload,
+): Promise<InitiatePublicDonationResult> {
+  const res = await api.post<ApiEnvelope<Raw> & Raw>(
+    '/public/payments/xentripay/initiate-donation',
+    payload,
+    { skipAuth: true },
+  );
+  const top = (res ?? {}) as Raw;
+  const d = (top.data ?? top) as Raw;
+  return {
+    status: (str(top.status) ?? str(d.status) ?? 'PENDING') as InitiatePublicDonationResult['status'],
+    refid: str(top.refid) ?? str(d.refid),
+    paymentUrl: str(top.paymentUrl) ?? str(d.paymentUrl) ?? str(d.redirectUrl),
+    message: str(top.message) ?? str(d.message),
+  };
 }

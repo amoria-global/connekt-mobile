@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.1.7",
+    "version": "2.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -12,23 +12,20 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/d81fbfa6-f576-4450-97c6-c443332179be",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
-    },
-    "splash": {
-      "image": "./assets/images/logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/d81fbfa6-f576-4450-97c6-c443332179be"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.connekyt.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Connekyt uses your camera to record video messages and to broadcast your event live.",
-        "NSMicrophoneUsageDescription": "Connekyt uses your microphone to record video messages and live audio."
+        "NSCameraUsageDescription": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live.",
+        "NSMicrophoneUsageDescription": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message.",
+        "NSPhotoLibraryAddUsageDescription": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library."
       }
     },
     "android": {
@@ -38,8 +35,13 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.amoria.connekyt.app",
-      "versionCode": 1,
-      "permissions": ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "POST_NOTIFICATIONS"]
+      "versionCode": 2,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "output": "static",
@@ -53,10 +55,17 @@
           "image": "./assets/images/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF"
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "image": "./assets/images/logo.png",
+            "imageWidth": 200,
+            "resizeMode": "contain",
+            "backgroundColor": "#0E1117"
+          }
         }
       ],
       "expo-secure-store",
+      "expo-apple-authentication",
       "expo-video",
       [
         "expo-notifications",
@@ -67,15 +76,22 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Connekyt accesses your photos so you can share them.",
-          "cameraPermission": "Connekyt uses your camera to record video messages and to broadcast your event live.",
-          "microphonePermission": "Connekyt uses your microphone to record video messages and live audio."
+          "photosPermission": "Connekyt accesses your photo library so you can upload event photos, pick a photo to find yourself in an album, and set your profile picture.",
+          "cameraPermission": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live.",
+          "microphonePermission": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Connekyt uses your camera to scan the QR code shown on your TV so it can sign you in."
+          "cameraPermission": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library.",
+          "savePhotosPermission": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library."
         }
       ],
       "@react-native-community/datetimepicker",
@@ -85,13 +101,19 @@
           "android": {
             "extraProguardRules": "-keep class expo.modules.kotlin.** { *; }\n-keep class expo.modules.** { *; }\n-dontwarn expo.modules.**\n-keep class com.facebook.react.** { *; }\n-keep class com.swmansion.** { *; }\n-keep class com.horcrux.svg.** { *; }",
             "enableProguardInReleaseBuilds": false,
-            "enableShrinkResourcesInReleaseBuilds": false
+            "enableShrinkResourcesInReleaseBuilds": false,
+            "enableMinifyInReleaseBuilds": false
           },
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "16.4"
           }
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-font",
+      "expo-image",
+      "expo-sharing",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -33,7 +33,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import type { EventItem } from '@/features/events/types';
-import { colors, fonts, radii, spacing } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type Mode = 'event' | 'personal';
 type PersonalType = 'PAID' | 'FREE';
@@ -47,6 +47,8 @@ function shortDate(iso?: string) {
 }
 
 export default function NewAlbumScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const params = useLocalSearchParams<{ eventId?: string }>();
 
@@ -189,7 +191,7 @@ export default function NewAlbumScreen() {
             <Pressable style={styles.select} onPress={() => setEventPickerOpen(true)}>
               <Text style={[styles.selectText, !selectedEvent && styles.selectPlaceholder]} numberOfLines={1}>
                 {selectedEvent
-                  ? `${selectedEvent.title}${selectedEvent.eventDate ? ` — ${shortDate(selectedEvent.eventDate)}` : ''}`
+                  ? `${selectedEvent.title}${selectedEvent.eventDate ? `, ${shortDate(selectedEvent.eventDate)}` : ''}`
                   : 'Choose an event…'}
               </Text>
               <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
@@ -404,6 +406,8 @@ export default function NewAlbumScreen() {
 // ─── Small presentational helpers ────────────────────────────────────────
 
 function FieldLabel({ text, required }: { text: string; required?: boolean }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Text style={styles.fieldLabel}>
       {text} {required ? <Text style={{ color: colors.accent }}>*</Text> : null}
@@ -412,6 +416,8 @@ function FieldLabel({ text, required }: { text: string; required?: boolean }) {
 }
 
 function ModeTab({ active, icon, label, onPress }: { active: boolean; icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable style={[styles.modeTab, active && styles.modeTabActive]} onPress={onPress}>
       <Ionicons name={icon} size={16} color={active ? colors.primary : colors.textMuted} />
@@ -435,6 +441,8 @@ function TypeCard({
   lines: string[];
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable style={[styles.typeCard, active && styles.typeCardActive]} onPress={onPress}>
       <View style={styles.typeHead}>
@@ -457,10 +465,10 @@ function TypeCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.lg, paddingBottom: 60, gap: spacing.sm },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 1.2 },
-  h1: { fontFamily: fonts.bold, fontSize: 26, color: colors.text, letterSpacing: -0.5, marginBottom: spacing.sm },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
+  h1: { fontFamily: fonts.bold, fontSize: 26, color: c.text, letterSpacing: -0.5, marginBottom: spacing.sm },
 
   modeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   modeTab: {
@@ -472,43 +480,43 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
   },
-  modeTabActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  modeTabText: { fontFamily: fonts.bold, fontSize: 15, color: colors.textMuted },
-  modeTabTextActive: { color: colors.primary },
+  modeTabActive: { borderColor: c.primary, backgroundColor: c.infoBg },
+  modeTabText: { fontFamily: fonts.bold, fontSize: 15, color: c.textMuted },
+  modeTabTextActive: { color: c.primary },
 
-  fieldLabel: { fontFamily: fonts.bold, fontSize: 11, color: colors.accent, letterSpacing: 0.6, marginTop: spacing.sm },
+  fieldLabel: { fontFamily: fonts.bold, fontSize: 11, color: c.accent, letterSpacing: 0.6, marginTop: spacing.sm },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderRadius: radii.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontFamily: fonts.regular,
     fontSize: 15,
-    color: colors.text,
-    backgroundColor: colors.surface,
+    color: c.text,
+    backgroundColor: c.surface,
   },
   multiline: { height: 90, textAlignVertical: 'top', paddingTop: 12 },
-  readonly: { backgroundColor: colors.surfaceMuted, justifyContent: 'center' },
-  readonlyText: { fontFamily: fonts.regular, fontSize: 15, color: colors.textSoft },
-  helper: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, lineHeight: 17 },
+  readonly: { backgroundColor: c.surfaceMuted, justifyContent: 'center' },
+  readonlyText: { fontFamily: fonts.regular, fontSize: 15, color: c.textSoft },
+  helper: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, lineHeight: 17 },
 
   select: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     borderRadius: radii.md,
     paddingHorizontal: 14,
     height: 50,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
   },
-  selectText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: colors.text },
-  selectPlaceholder: { color: colors.textMuted },
+  selectText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: c.text },
+  selectPlaceholder: { color: c.textMuted },
 
   row: { flexDirection: 'row', gap: spacing.md },
   rowItem: { flex: 1 },
@@ -517,53 +525,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderLeftWidth: 3,
-    borderLeftColor: colors.accent,
+    borderLeftColor: c.accent,
     borderRadius: radii.md,
     padding: spacing.md,
     marginTop: spacing.sm,
   },
-  noteText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.textSoft, lineHeight: 18 },
-  bold: { fontFamily: fonts.bold, color: colors.primary },
+  noteText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: c.textSoft, lineHeight: 18 },
+  bold: { fontFamily: fonts.bold, color: c.primary },
 
   typeRow: { flexDirection: 'row', gap: spacing.sm },
   typeCard: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     borderRadius: radii.lg,
     padding: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     gap: 4,
   },
-  typeCardActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  typeCardActive: { borderColor: c.primary, backgroundColor: c.infoBg },
   typeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  typeIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
-  typeIconActive: { backgroundColor: colors.primary },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  radioActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  typeTag: { fontFamily: fonts.bold, fontSize: 9, color: colors.textMuted, letterSpacing: 0.6 },
-  typeTitle: { fontFamily: fonts.bold, fontSize: 16, color: colors.text, marginBottom: 2 },
+  typeIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  typeIconActive: { backgroundColor: c.primary },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  radioActive: { backgroundColor: c.primary, borderColor: c.primary },
+  typeTag: { fontFamily: fonts.bold, fontSize: 9, color: c.textMuted, letterSpacing: 0.6 },
+  typeTitle: { fontFamily: fonts.bold, fontSize: 16, color: c.text, marginBottom: 2 },
   typeLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  typeLineText: { flex: 1, fontFamily: fonts.regular, fontSize: 11.5, color: colors.textSoft },
+  typeLineText: { flex: 1, fontFamily: fonts.regular, fontSize: 11.5, color: c.textSoft },
 
   detailNote: { borderRadius: radii.md, padding: spacing.md, gap: 2, marginTop: spacing.sm },
-  detailNoteInfo: { backgroundColor: colors.infoBg },
+  detailNoteInfo: { backgroundColor: c.infoBg },
   detailNoteFree: { backgroundColor: '#ECFDF5' },
-  detailNoteWarn: { backgroundColor: colors.warningBg },
-  detailNoteTitle: { fontFamily: fonts.bold, fontSize: 13, color: colors.primary, marginBottom: 2 },
-  detailNoteText: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.textSoft, lineHeight: 18 },
+  detailNoteWarn: { backgroundColor: c.warningBg },
+  detailNoteTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.primary, marginBottom: 2 },
+  detailNoteText: { fontFamily: fonts.regular, fontSize: 12.5, color: c.textSoft, lineHeight: 18 },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
-  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontFamily: fonts.bold, fontSize: 13, color: colors.textSoft },
+  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
+  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipText: { fontFamily: fonts.bold, fontSize: 13, color: c.textSoft },
   chipTextActive: { color: '#fff' },
 
   uploadBox: {
     borderWidth: 1.5,
-    borderColor: colors.accentLight,
+    borderColor: c.accentLight,
     borderStyle: 'dashed',
     borderRadius: radii.lg,
     paddingVertical: spacing.xl,
@@ -575,31 +583,31 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 12,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
-  uploadTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  uploadTitle: { fontFamily: fonts.bold, fontSize: 15, color: c.text },
 
   thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   thumbWrap: { width: 72, height: 72, borderRadius: radii.md, overflow: 'hidden' },
   thumb: { width: '100%', height: '100%' },
   thumbX: { position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: radii.full, backgroundColor: 'rgba(8,58,133,0.85)', alignItems: 'center', justifyContent: 'center' },
 
-  error: { fontFamily: fonts.regular, fontSize: 13, color: colors.error, textAlign: 'center', marginTop: spacing.sm },
+  error: { fontFamily: fonts.regular, fontSize: 13, color: c.error, textAlign: 'center', marginTop: spacing.sm },
 
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   btn: { flex: 1, height: 50, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center' },
-  cancel: { backgroundColor: colors.surfaceMuted },
-  cancelText: { fontFamily: fonts.bold, fontSize: 15, color: colors.textSoft },
-  create: { backgroundColor: colors.accent },
+  cancel: { backgroundColor: c.surfaceMuted },
+  cancelText: { fontFamily: fonts.bold, fontSize: 15, color: c.textSoft },
+  create: { backgroundColor: c.accent },
   createText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
 
   pickerBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,26,0.55)', justifyContent: 'flex-end' },
-  picker: { backgroundColor: colors.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.lg, gap: spacing.sm },
-  pickerTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.text, marginBottom: spacing.xs },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
-  pickerRowTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
-  pickerRowMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, marginTop: 1 },
-});
+  picker: { backgroundColor: c.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.lg, gap: spacing.sm },
+  pickerTitle: { fontFamily: fonts.bold, fontSize: 18, color: c.text, marginBottom: spacing.xs },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.borderSoft },
+  pickerRowTitle: { fontFamily: fonts.bold, fontSize: 15, color: c.text },
+  pickerRowMeta: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, marginTop: 1 },
+}));

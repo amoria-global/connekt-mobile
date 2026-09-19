@@ -7,7 +7,7 @@ import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { confirmTvPairing } from '@/features/tv/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 /** The TV's QR encodes {"code":"AB3K9Z"} — fall back to raw text as the code. */
 function extractPairingCode(scanned: string): string {
@@ -21,6 +21,8 @@ function extractPairingCode(scanned: string): string {
 }
 
 export default function ConnectToTvScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [status, setStatus] = useState<'scanning' | 'connecting' | 'success' | 'error'>('scanning');
@@ -92,9 +94,9 @@ export default function ConnectToTvScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.xl },
-  body: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center' },
+  body: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center' },
   cameraWrap: { flex: 1, backgroundColor: '#000' },
   frame: {
     position: 'absolute',
@@ -103,9 +105,9 @@ const styles = StyleSheet.create({
     right: '15%',
     bottom: '35%',
     borderWidth: 3,
-    borderColor: colors.accent,
+    borderColor: c.accent,
     borderRadius: radii.xl,
   },
-  successText: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.success },
-  errorText: { fontSize: fontSize.sm, color: colors.error, textAlign: 'center' },
-});
+  successText: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: c.success },
+  errorText: { fontSize: fontSize.sm, color: c.error, textAlign: 'center' },
+}));

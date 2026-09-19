@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
-import { colors, fontSize, spacing } from '@/theme';
+import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function PaymentMethodsHelpScreen() {
+  const styles = useStyles();
   const [openSection, setOpenSection] = useState<string | null>('cards');
 
   const toggleSection = (id: string) => {
@@ -68,19 +69,19 @@ export default function PaymentMethodsHelpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: { paddingBottom: spacing.xxxl },
-  header: { backgroundColor: colors.primary, padding: spacing.xl, paddingTop: spacing.xxxl, paddingBottom: spacing.xl },
-  title: { fontSize: fontSize.xxl, fontWeight: '800', color: colors.textOnPrimary, marginBottom: spacing.xs },
-  subtitle: { fontSize: fontSize.md, color: colors.textOnPrimary + 'CC' },
+  header: { backgroundColor: c.primary, padding: spacing.xl, paddingTop: spacing.xxxl, paddingBottom: spacing.xl },
+  title: { fontSize: fontSize.xxl, fontWeight: '800', color: c.textOnPrimary, marginBottom: spacing.xs },
+  subtitle: { fontSize: fontSize.md, color: c.textOnPrimary + 'CC' },
   content: { padding: spacing.md },
-  accordionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.card, padding: spacing.lg, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
-  accordionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text },
-  accordionIcon: { fontSize: fontSize.xl, color: colors.textMuted },
+  accordionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: c.card, padding: spacing.lg, borderRadius: 12, borderWidth: 1, borderColor: c.border, marginBottom: spacing.sm },
+  accordionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: c.text },
+  accordionIcon: { fontSize: fontSize.xl, color: c.textMuted },
   accordionContent: { paddingHorizontal: spacing.sm, paddingVertical: spacing.md },
-  bodyText: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 24, marginBottom: spacing.lg },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.text, marginBottom: spacing.md, marginTop: spacing.md },
-  card: { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: 12, padding: spacing.md, marginBottom: spacing.lg },
-  listItem: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 24, marginBottom: spacing.sm },
-  bold: { fontWeight: '700', color: colors.text },
-});
+  bodyText: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 24, marginBottom: spacing.lg },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: '700', color: c.text, marginBottom: spacing.md, marginTop: spacing.md },
+  card: { backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderRadius: 12, padding: spacing.md, marginBottom: spacing.lg },
+  listItem: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 24, marginBottom: spacing.sm },
+  bold: { fontWeight: '700', color: c.text },
+}));

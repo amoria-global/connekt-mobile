@@ -11,10 +11,12 @@ import {
   requestWithdrawal,
 } from '@/features/withdrawals/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 export default function WithdrawScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const methods = useAsync(useCallback(() => listWithdrawalMethods(), []));
   const history = useAsync(useCallback(() => listWithdrawals(), []));
 
@@ -107,34 +109,34 @@ export default function WithdrawScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.xl, gap: spacing.xl },
   section: { gap: spacing.sm },
-  sectionTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.textMuted, textTransform: 'uppercase' },
+  sectionTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.textMuted, textTransform: 'uppercase' },
   method: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     padding: spacing.lg,
   },
-  methodActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
-  methodName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  methodAcc: { fontSize: fontSize.sm, color: colors.textMuted },
-  check: { color: colors.primary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+  methodActive: { borderColor: c.primary, backgroundColor: c.infoBg },
+  methodName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  methodAcc: { fontSize: fontSize.sm, color: c.textMuted },
+  check: { color: c.primary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
   },
-  historyAmount: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  muted: { fontSize: fontSize.sm, color: colors.textMuted },
-  error: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  historyAmount: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  muted: { fontSize: fontSize.sm, color: c.textMuted },
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

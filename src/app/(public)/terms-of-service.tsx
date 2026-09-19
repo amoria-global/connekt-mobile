@@ -1,9 +1,10 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { TERMS_SECTIONS } from '@/content/termsOfService';
-import { colors, fontSize, spacing } from '@/theme';
+import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function TermsOfServiceScreen() {
+  const styles = useStyles();
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -24,24 +25,24 @@ export default function TermsOfServiceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: { padding: spacing.xl, paddingBottom: spacing.xxxl },
   header: { marginBottom: spacing.xxl, alignItems: 'center' },
   title: {
     fontSize: fontSize.xxl,
     fontWeight: '800',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.xs,
     textAlign: 'center',
   },
-  subtitle: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600', textAlign: 'center' },
-  updated: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: spacing.xs, textAlign: 'center' },
+  subtitle: { fontSize: fontSize.md, color: c.primary, fontWeight: '600', textAlign: 'center' },
+  updated: { fontSize: fontSize.xs, color: c.textMuted, marginTop: spacing.xs, textAlign: 'center' },
   section: { marginBottom: spacing.xl },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.md,
   },
-  bodyText: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 24 },
-});
+  bodyText: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 24 },
+}));

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
-import { colors, fontSize, spacing } from '@/theme';
+import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function MyAccountHelpScreen() {
+  const styles = useStyles();
   const [openSection, setOpenSection] = useState<string | null>('create');
 
   const toggleSection = (id: string) => {
@@ -161,12 +162,12 @@ export default function MyAccountHelpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   container: {
     paddingBottom: spacing.xxxl,
   },
   header: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     padding: spacing.xl,
     paddingTop: spacing.xxxl,
     paddingBottom: spacing.xl,
@@ -174,12 +175,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.xxl,
     fontWeight: '800',
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     marginBottom: spacing.xs,
   },
   subtitle: {
     fontSize: fontSize.md,
-    color: colors.textOnPrimary + 'CC',
+    color: c.textOnPrimary + 'CC',
   },
   content: {
     padding: spacing.md,
@@ -188,21 +189,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: c.card,
     padding: spacing.lg,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginBottom: spacing.sm,
   },
   accordionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
   },
   accordionIcon: {
     fontSize: fontSize.xl,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   accordionContent: {
     paddingHorizontal: spacing.sm,
@@ -210,20 +211,20 @@ const styles = StyleSheet.create({
   },
   bodyText: {
     fontSize: fontSize.md,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 24,
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.md,
     marginTop: spacing.md,
   },
   card: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
+    backgroundColor: c.card,
+    borderColor: c.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: spacing.md,
@@ -231,12 +232,12 @@ const styles = StyleSheet.create({
   },
   listItem: {
     fontSize: fontSize.md,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 24,
     marginBottom: spacing.sm,
   },
   bold: {
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
   },
-});
+}));

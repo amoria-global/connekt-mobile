@@ -33,6 +33,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
   Animated,
@@ -50,7 +51,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
-import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { canShowDigitalPrice, digitalPurchasesEnabled } from '@/features/payments/policy';
 import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import type { PublicEvent } from '@/features/events/types';
 import {
@@ -62,9 +63,9 @@ import {
 } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
-import { isApiError } from '@/store/auth';
+import { isApiError, useAuth } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
@@ -93,7 +94,10 @@ function eventStartMs(date?: string, time?: string): number | null {
 
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
-const SAVED_KEY = 'connekyt:savedEvents';
+// Must match explore-events.tsx. No colon: SecureStore keys allow only
+// alphanumerics, '.', '-' and '_', so the old key rejected every read and
+// write and saved events never persisted on device.
+const SAVED_KEY = 'connekyt_savedEvents';
 
 function formatTime12h(t?: string): string {
   if (!t) return '';
@@ -110,6 +114,10 @@ function priceLabel(e: {
   streamFeeCurrencyAbbreviation?: string | null;
 }): { label: string; amount: string } {
   const code = e.streamFeeCurrencyAbbreviation || 'RWF';
+  const paid = (e.streamFee || 0) > 0 || (e.price || 0) > 0;
+  // A price is part of the purchase surface, so it goes where the buy button
+  // went. "Ticketed" keeps the useful half. Free stays visible.
+  if (paid && !canShowDigitalPrice(false)) return { label: '', amount: 'Ticketed' };
   if (e.streamFee && e.streamFee > 0)
     return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
   if (e.price && e.price > 0)
@@ -151,9 +159,11 @@ function buildCta(
   viewerId: string | null,
 ): Cta | null {
   const { isCancelled, isCompleted, isLive, isUpcoming, isPaid } = status;
-  const price = `${(e.price || e.streamFee || 0).toLocaleString()} ${
-    e.streamFeeCurrencyAbbreviation || 'RWF'
-  }`;
+  // Undefined where digital prices are gated off, so the disabled ticket CTA
+  // below carries no figure the user cannot act on.
+  const price = canShowDigitalPrice(!isPaid)
+    ? `${(e.price || e.streamFee || 0).toLocaleString()} ${e.streamFeeCurrencyAbbreviation || 'RWF'}`
+    : undefined;
   if (isCancelled)
     return { label: 'Event cancelled', icon: 'close-circle', tone: 'cancelled', disabled: true };
   if (isCompleted)
@@ -179,7 +189,7 @@ function buildCta(
     // "Already paid? Verify access" and group-code cards below stay visible,
     // so anyone who already holds access can still get in.
     if (!digitalPurchasesEnabled)
-      return { label: 'Ticket required — verify below if you have one', sub: price, icon: 'ticket', tone: 'live', disabled: true };
+      return { label: 'Ticket required. Verify below if you have one', sub: price, icon: 'ticket', tone: 'live', disabled: true };
     return {
       label: 'Buy access',
       sub: price,
@@ -195,7 +205,7 @@ function buildCta(
     if (hasPurchasedAccess)
       return { label: 'Access reserved', icon: 'checkmark-circle', tone: 'owned', disabled: true };
     if (!digitalPurchasesEnabled)
-      return { label: 'Ticket required — verify below if you have one', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
+      return { label: 'Ticket required. Verify below if you have one', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
     return {
       label: 'Reserve your spot',
       sub: price,
@@ -238,6 +248,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function PublicEventDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -345,6 +357,17 @@ export default function PublicEventDetailScreen() {
   const [verifyEmail, setVerifyEmail] = useState('');
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const currentUser = useAuth((s) => s.user);
+  useEffect(() => {
+    if (currentUser?.email && !verifyEmail) {
+      setVerifyEmail(currentUser.email);
+    }
+    const fullName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim();
+    if (fullName && !verifyName) {
+      setVerifyName(fullName);
+    }
+  }, [currentUser, verifyEmail, verifyName]);
   const onVerifyAccess = async () => {
     if (!verifyName.trim() || !verifyEmail.includes('@')) {
       setVerifyError('Enter the name and email you used at checkout.');
@@ -400,7 +423,7 @@ export default function PublicEventDetailScreen() {
         // the error inline instead of getting bounced into the live-
         // stream → back-to-here loop.
         setVerifyError(
-          "Your access couldn't be confirmed. The payment record may not have settled yet — try again in a moment, or buy access.",
+          "Your access couldn't be confirmed. The payment record may not have settled yet. Try again in a moment, or buy access.",
         );
         return;
       }
@@ -461,7 +484,24 @@ export default function PublicEventDetailScreen() {
 
   if (loading && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={['bottom']}>
+        <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
+          <View style={styles.topBarPill}>
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore-events'))}
+              hitSlop={12}
+              style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+            </Pressable>
+            <View style={styles.topBarPillCenter}>
+              <Text style={styles.topBarPillText}>Event</Text>
+            </View>
+            <View style={{ width: 40 }} />
+          </View>
+        </View>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -470,7 +510,24 @@ export default function PublicEventDetailScreen() {
   }
   if (error && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={['bottom']}>
+        <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
+          <View style={styles.topBarPill}>
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore-events'))}
+              hitSlop={12}
+              style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+            </Pressable>
+            <View style={styles.topBarPillCenter}>
+              <Text style={styles.topBarPillText}>Event</Text>
+            </View>
+            <View style={{ width: 40 }} />
+          </View>
+        </View>
         <View style={styles.centered}>
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
           <Text style={styles.errorText}>{error}</Text>
@@ -510,8 +567,52 @@ export default function PublicEventDetailScreen() {
 
   return (
     <Screen padded={false} edges={['bottom']}>
+      {/* Top Bar in head — full-width rounded floating bar matching ExploreEvents & FindMyPhotos */}
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
+        <View style={styles.topBarPill}>
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore-events'))}
+            hitSlop={12}
+            style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </Pressable>
+
+          <View style={styles.topBarPillCenter}>
+            <Text style={styles.topBarPillText}>Event</Text>
+          </View>
+
+          <View style={styles.topBarActions}>
+            <Pressable
+              style={({ pressed }) => [styles.topBarActionBtn, pressed && { opacity: 0.7 }]}
+              onPress={onShare}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Share event"
+            >
+              <Ionicons name="share-social-outline" size={19} color={colors.text} />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.topBarActionBtn, pressed && { opacity: 0.7 }]}
+              onPress={toggleSaved}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={isSaved ? 'Remove from saved' : 'Save event'}
+            >
+              <Ionicons
+                name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                size={19}
+                color={isSaved ? '#F59E0B' : colors.text}
+              />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* ── Hero: cover + glass buttons ─────────────────────────── */}
+        {/* ── Hero: cover ─────────────────────────── */}
         <View style={styles.heroWrap}>
           <Image
             source={data.eventPhoto ? { uri: data.eventPhoto } : EVENT_COVER_PLACEHOLDER}
@@ -521,39 +622,6 @@ export default function PublicEventDetailScreen() {
           />
           {/* Dark scrim over the cover, matching web `.ve-hero-veil` */}
           <View style={styles.coverScrim} />
-
-          {/* Top rail: back + spacer + share + bookmark (web `.ve-hero-top`) */}
-          <View style={[styles.heroTopRail, { paddingTop: Math.max(insets.top, 12) }]}>
-            <Pressable
-              style={styles.glassBtn}
-              onPress={() => router.back()}
-              hitSlop={8}
-              accessibilityLabel="Go back"
-            >
-              <Ionicons name="chevron-back" size={20} color="#fff" />
-            </Pressable>
-            <View style={{ flex: 1 }} />
-            <Pressable
-              style={styles.glassBtn}
-              onPress={onShare}
-              hitSlop={8}
-              accessibilityLabel="Share event"
-            >
-              <Ionicons name="share-social-outline" size={18} color="#fff" />
-            </Pressable>
-            <Pressable
-              style={[styles.glassBtn, isSaved && styles.glassBtnSaved]}
-              onPress={toggleSaved}
-              hitSlop={8}
-              accessibilityLabel={isSaved ? 'Remove from saved' : 'Save event'}
-            >
-              <Ionicons
-                name={isSaved ? 'bookmark' : 'bookmark-outline'}
-                size={18}
-                color={isSaved ? '#F59E0B' : '#fff'}
-              />
-            </Pressable>
-          </View>
 
           {/* Status pill (web `.ve-status-pill`) */}
           {status.isLive ? (
@@ -584,10 +652,70 @@ export default function PublicEventDetailScreen() {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.title}>{data.title}</Text>
+          {/* Ended event quick card on top with Name, Location, Date, Description, and Find My Photos button */}
+          {status.isCompleted ? (
+            <View style={styles.endedTopCard}>
+              <Text style={styles.endedTopTitle}>{data.title}</Text>
+
+              <View style={styles.endedTopMetaList}>
+                {data.eventDate ? (
+                  <View style={styles.endedTopMetaItem}>
+                    <View style={styles.endedTopMetaIconWrap}>
+                      <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                    </View>
+                    <Text style={styles.endedTopMetaText}>{formatDate(data.eventDate)}</Text>
+                  </View>
+                ) : null}
+                {data.location ? (
+                  <View style={styles.endedTopMetaItem}>
+                    <View style={styles.endedTopMetaIconWrap}>
+                      <Ionicons name="location-outline" size={16} color={colors.primary} />
+                    </View>
+                    <Text style={styles.endedTopMetaText}>{data.location}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {desc ? (
+                <View style={styles.endedDescSection}>
+                  <Text
+                    style={styles.endedDescText}
+                    numberOfLines={descExpanded ? undefined : 3}
+                  >
+                    {desc}
+                  </Text>
+                  {desc.length > 120 ? (
+                    <Pressable
+                      onPress={() => setDescExpanded((v) => !v)}
+                      hitSlop={8}
+                      style={styles.endedReadMoreBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel={descExpanded ? 'Show less description' : 'Read more description'}
+                    >
+                      <Text style={styles.endedReadMoreText}>
+                        {descExpanded ? 'Show less ↑' : 'Read more ↓'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+
+              <Pressable
+                style={({ pressed }) => [styles.endedFindPhotosBtn, pressed && { opacity: 0.88 }]}
+                onPress={() => router.push('/find-photos' as never)}
+                accessibilityRole="button"
+                accessibilityLabel="Find My Photos"
+              >
+                <Ionicons name="search" size={18} color="#FFFFFF" />
+                <Text style={styles.endedFindPhotosBtnText}>Find My Photos</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={styles.title}>{data.title}</Text>
+          )}
 
           {/* Tags row */}
-          {tags.length > 0 ? (
+          {!status.isCompleted && tags.length > 0 ? (
             <View style={styles.tagsRow}>
               {tags.map((tag) => (
                 <View key={tag} style={styles.tag}>
@@ -629,31 +757,33 @@ export default function PublicEventDetailScreen() {
           ) : null}
 
           {/* Event quick-info card */}
-          <View style={styles.infoCard}>
-            {data.eventDate ? (
-              <Row icon="calendar-outline" text={formatDate(data.eventDate)} />
-            ) : null}
-            {data.startTime ? (
-              <Row
-                icon="time-outline"
-                text={
-                  data.endTime
-                    ? `${formatTime12h(data.startTime)} – ${formatTime12h(data.endTime)}`
-                    : formatTime12h(data.startTime)
-                }
-              />
-            ) : null}
-            {data.location ? <Row icon="location-outline" text={data.location} /> : null}
-            {data.maxGuests ? (
-              <Row
-                icon="people-outline"
-                text={`Up to ${data.maxGuests.toLocaleString()} guests`}
-              />
-            ) : null}
-          </View>
+          {!status.isCompleted ? (
+            <View style={styles.infoCard}>
+              {data.eventDate ? (
+                <Row icon="calendar-outline" text={formatDate(data.eventDate)} />
+              ) : null}
+              {data.startTime ? (
+                <Row
+                  icon="time-outline"
+                  text={
+                    data.endTime
+                      ? `${formatTime12h(data.startTime)} – ${formatTime12h(data.endTime)}`
+                      : formatTime12h(data.startTime)
+                  }
+                />
+              ) : null}
+              {data.location ? <Row icon="location-outline" text={data.location} /> : null}
+              {data.maxGuests ? (
+                <Row
+                  icon="people-outline"
+                  text={`Up to ${data.maxGuests.toLocaleString()} guests`}
+                />
+              ) : null}
+            </View>
+          ) : null}
 
           {/* About this event (web `.ve-card` about section + `.ve-readmore`) */}
-          {desc ? (
+          {!status.isCompleted && desc ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>About this event</Text>
               <Text style={styles.bodyText}>{descText}</Text>
@@ -668,7 +798,7 @@ export default function PublicEventDetailScreen() {
           ) : null}
 
           {/* Hosts & crew (web `.ve-hosts-grid`) */}
-          {(organizer || data.photographerName || data.photographerId) ? (
+          {!status.isCompleted && (organizer || data.photographerName || data.photographerId) ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Hosts &amp; crew</Text>
               <View style={styles.hostsGrid}>
@@ -727,8 +857,8 @@ export default function PublicEventDetailScreen() {
             </View>
           ) : null}
 
-          {/* Primary CTA */}
-          {cta ? (
+          {/* Primary CTA for active events */}
+          {!status.isCompleted && cta ? (
             <CtaButton
               cta={cta}
               onPress={() => {
@@ -736,7 +866,11 @@ export default function PublicEventDetailScreen() {
                 // when digitalPurchasesEnabled — see buildCta). Everything
                 // else keeps its in-app route.
                 if (cta.action === 'webCheckout') {
-                  void openWebCheckout(streamAccessUrl(id));
+                  openWebCheckout(streamAccessUrl(id))
+                    .then(() => {
+                      setVerifyOpen(true);
+                    })
+                    .catch(() => {});
                 } else if (cta.href) {
                   router.push(cta.href);
                 }
@@ -849,7 +983,9 @@ export default function PublicEventDetailScreen() {
               onPress={() => router.push(`/donate?eventId=${id}` as unknown as Href)}
             >
               <Ionicons name="heart-outline" size={18} color={colors.accent} />
-              <Text style={styles.secondaryText}>Support this event with a donation</Text>
+              <Text style={styles.secondaryText}>
+                {status.isCompleted ? 'Donate' : 'Support this event with a donation'}
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -903,6 +1039,8 @@ export default function PublicEventDetailScreen() {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <Ionicons name={icon} size={18} color={colors.primary} />
@@ -912,6 +1050,9 @@ function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: strin
 }
 
 function CtaButton({ cta, onPress }: { cta: Cta; onPress: () => void }) {
+  const ctaToneStyles = useCtaToneStyles();
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable
       style={({ pressed }) => [
@@ -942,7 +1083,7 @@ function CtaButton({ cta, onPress }: { cta: Cta; onPress: () => void }) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -950,39 +1091,66 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.xl,
   },
-  errorText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { paddingBottom: 120 },
 
   // ── Hero ──────────────────────────────────────────────────────────────────
   heroWrap: { width: '100%', height: 280, position: 'relative' },
-  cover: { width: '100%', height: '100%', backgroundColor: colors.surfaceMuted },
+  cover: { width: '100%', height: '100%', backgroundColor: c.surfaceMuted },
   coverScrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(7,8,13,0.42)',
   },
-  heroTopRail: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  // Top bar in head — full-width rounded floating bar matching ExploreEvents & FindMyPhotos
+  topBar: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    backgroundColor: c.background,
+  },
+  topBarPill: {
+    width: '100%',
+    height: 52,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    ...e(2),
   },
-  glassBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(7,8,13,0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
+  topBarBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glassBtnSaved: {
-    borderColor: 'rgba(245,158,11,0.55)',
-    backgroundColor: 'rgba(245,158,11,0.15)',
+  topBarBackBtnPressed: { opacity: 0.65, transform: [{ scale: 0.94 }] },
+  topBarPillCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  topBarPillText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+    textAlign: 'center',
+  },
+  topBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingRight: 4,
+  },
+  topBarActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Status pill (web `.ve-status-pill`)
@@ -1029,31 +1197,31 @@ const styles = StyleSheet.create({
 
   // ── Body ──────────────────────────────────────────────────────────────────
   body: { padding: spacing.xl, gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.text },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
 
   // Tags
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  tagText: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  tagText: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold },
 
   // Countdown
   countdownCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: c.primary,
     padding: spacing.lg,
     gap: spacing.sm,
   },
   countdownEyebrow: {
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
@@ -1063,29 +1231,29 @@ const styles = StyleSheet.create({
   countdownNum: {
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.extrabold,
-    color: colors.text,
+    color: c.text,
     fontVariant: ['tabular-nums'],
   },
-  countdownUnit: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  countdownUnit: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold },
 
   // Info card
   infoCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.md,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  rowText: { flex: 1, fontSize: fontSize.md, color: colors.textSoft },
+  rowText: { flex: 1, fontSize: fontSize.md, color: c.textSoft },
 
   // About section
   section: { gap: spacing.sm },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  bodyText: { fontSize: fontSize.md, color: colors.textSoft, lineHeight: 24 },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  bodyText: { fontSize: fontSize.md, color: c.textSoft, lineHeight: 24 },
   readMore: {
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
     marginTop: 2,
@@ -1097,17 +1265,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
   },
   hostAvatarWrap: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1115,29 +1283,29 @@ const styles = StyleSheet.create({
   hostAvatarOrganizer: { backgroundColor: '#083A85' },
   hostAvatar: { width: '100%', height: '100%' },
   hostInfo: { flex: 1, gap: 2 },
-  hostRole: { fontSize: 11, color: colors.textMuted, fontWeight: fontWeight.semibold, letterSpacing: 0.4 },
-  hostName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  hostSub: { fontSize: 11, color: colors.textMuted },
+  hostRole: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold, letterSpacing: 0.4 },
+  hostName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  hostSub: { fontSize: 11, color: c.textMuted },
 
   // Fee card
   feeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.md,
   },
   feeLabel: {
-    color: colors.textMuted,
+    color: c.textMuted,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     letterSpacing: 0.5,
   },
   feeValue: {
-    color: colors.primary,
+    color: c.primary,
     fontSize: fontSize.xl,
     fontWeight: fontWeight.extrabold,
     marginTop: 2,
@@ -1146,12 +1314,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: radii.full,
   },
-  feeBadgeText: { color: colors.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  feeBadgeText: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
 
   // CTA
   ctaBase: {
@@ -1164,11 +1332,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
   },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  ctaDisabled: { backgroundColor: colors.surfaceMuted },
+  ctaDisabled: { backgroundColor: c.surfaceMuted },
   ctaText: { alignItems: 'flex-start' },
-  ctaLabel: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  ctaLabel: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   ctaSub: { color: 'rgba(255,255,255,0.85)', fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginTop: 2 },
-  ctaLabelDisabled: { color: colors.textMuted },
+  ctaLabelDisabled: { color: c.textMuted },
 
   // Verify access
   verifyBtn: {
@@ -1180,17 +1348,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.infoBg,
+    borderColor: c.primary,
+    backgroundColor: c.infoBg,
   },
-  verifyBtnText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  verifyBtnText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   // Group code redeem (web `.ve-hero-group`)
   groupCodeCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.sm,
   },
@@ -1199,21 +1367,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  groupCodeTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text },
+  groupCodeTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
   groupCodeRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   groupCodeInput: {
     flex: 1,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.sm,
   },
   groupCodeBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     borderRadius: radii.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: 10,
@@ -1223,14 +1391,14 @@ const styles = StyleSheet.create({
     height: 42,
   },
   groupCodeBtnText: { color: '#fff', fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  groupCodeError: { color: colors.error, fontSize: 12 },
+  groupCodeError: { color: c.error, fontSize: 12 },
 
   // Send a wish (web `.ve-wishes`)
   wishCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.md,
   },
@@ -1239,31 +1407,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  wishTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  wishSub: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  wishTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  wishSub: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
   wishTextarea: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.sm,
     minHeight: 90,
     textAlignVertical: 'top',
   },
-  wishMsg: { color: colors.error, fontSize: 12, fontWeight: fontWeight.semibold },
+  wishMsg: { color: c.error, fontSize: 12, fontWeight: fontWeight.semibold },
   wishSuccessBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.successBg,
+    backgroundColor: c.successBg,
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  wishSuccessText: { color: colors.success, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, flex: 1 },
+  wishSuccessText: { color: c.success, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, flex: 1 },
 
   // Donation
   secondary: {
@@ -1273,40 +1441,124 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },
-  secondaryText: { color: colors.accent, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  secondaryText: { color: c.accent, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
   // Retry
   retryBtn: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderRadius: radii.md,
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
-  retryText: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  retryText: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+
+  // Ended Event Top Card & Find Photos
+  endedTopCard: {
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    gap: spacing.md,
+    marginBottom: spacing.xs,
+    width: '100%',
+    ...e(2),
+  },
+  endedTopTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+    lineHeight: 28,
+    flexShrink: 1,
+    width: '100%',
+  },
+  endedTopMetaList: {
+    gap: 8,
+    width: '100%',
+  },
+  endedTopMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    width: '100%',
+  },
+  endedTopMetaIconWrap: {
+    paddingTop: 2,
+  },
+  endedTopMetaText: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    fontWeight: fontWeight.medium,
+    lineHeight: 20,
+  },
+  endedDescSection: {
+    width: '100%',
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+  },
+  endedDescText: {
+    fontSize: fontSize.sm,
+    color: c.textSoft,
+    lineHeight: 22,
+    flexShrink: 1,
+    width: '100%',
+  },
+  endedReadMoreBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    marginTop: 4,
+  },
+  endedReadMoreText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  endedFindPhotosBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: c.primary,
+    borderRadius: radii.full,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.xs,
+    width: '100%',
+    ...e(2),
+  },
+  endedFindPhotosBtnText: {
+    color: '#FFFFFF',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.3,
+  },
 
   // Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },
-  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   modalHint: {
     fontSize: fontSize.sm,
-    color: colors.textMuted,
+    color: c.textMuted,
     lineHeight: 20,
     marginBottom: spacing.sm,
   },
-  cancelText: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 4 },
-});
+  cancelText: { color: c.textMuted, fontSize: fontSize.sm, marginTop: 4 },
+}));
 
-const ctaToneStyles = StyleSheet.create({
-  live: { backgroundColor: colors.accent },
-  reserve: { backgroundColor: colors.primary },
-  owned: { backgroundColor: colors.successBg },
-  ended: { backgroundColor: colors.surfaceMuted },
-  cancelled: { backgroundColor: colors.errorBg },
-});
+const useCtaToneStyles = makeStyles((c) => ({
+  live: { backgroundColor: c.accent },
+  reserve: { backgroundColor: c.primary },
+  owned: { backgroundColor: c.successBg },
+  ended: { backgroundColor: c.surfaceMuted },
+  cancelled: { backgroundColor: c.errorBg },
+}));

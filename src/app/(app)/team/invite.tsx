@@ -24,9 +24,11 @@ import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { inviteMember, listRoles, type TeamRole } from '@/features/teams/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function TeamInviteScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const [roles, setRoles] = useState<TeamRole[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
@@ -186,47 +188,47 @@ export default function TeamInviteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.xl, paddingBottom: 80, gap: spacing.md },
   hint: {
     flexDirection: 'row',
     gap: spacing.sm,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     borderRadius: radii.md,
     padding: spacing.md,
     alignItems: 'flex-start',
   },
-  hintText: { flex: 1, color: colors.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
+  hintText: { flex: 1, color: c.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
   row: { flexDirection: 'row', gap: spacing.sm },
   col: { flex: 1 },
-  label: { fontSize: fontSize.sm, color: colors.textSoft, fontWeight: fontWeight.semibold, marginTop: spacing.sm },
-  empty: { padding: spacing.lg, backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderSoft },
-  emptyText: { color: colors.textMuted, fontSize: fontSize.sm },
+  label: { fontSize: fontSize.sm, color: c.textSoft, fontWeight: fontWeight.semibold, marginTop: spacing.sm },
+  empty: { padding: spacing.lg, backgroundColor: c.surface, borderRadius: radii.md, borderWidth: 1, borderColor: c.borderSoft },
+  emptyText: { color: c.textMuted, fontSize: fontSize.sm },
   roleList: { gap: spacing.sm },
   roleCard: {
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  roleCardActive: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  roleCardActive: { borderColor: c.primary, backgroundColor: c.infoBg },
   radio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
-  radioActive: { borderColor: colors.primary },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  roleName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  roleDescription: { fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
-  rolePerms: { fontSize: fontSize.xs, color: colors.accent, fontWeight: fontWeight.bold, marginTop: 4 },
-  error: { color: colors.error, fontSize: fontSize.sm, textAlign: 'center' },
-});
+  radioActive: { borderColor: c.primary },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.primary },
+  roleName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  roleDescription: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
+  rolePerms: { fontSize: fontSize.xs, color: c.accent, fontWeight: fontWeight.bold, marginTop: 4 },
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+}));

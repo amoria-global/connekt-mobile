@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { forgotPassword } from '@/features/auth/api';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function ForgotPasswordScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState(params.email ?? '');
@@ -54,14 +56,32 @@ export default function ForgotPasswordScreen() {
             <Ionicons name="mail-outline" size={32} color={colors.primary} />
           </View>
           <Text style={styles.title}>Check your email</Text>
+
+          {/*
+            The email carries a LINK, not a code, so the shortest honest path is:
+            open it, set the password there, come back and sign in. That is the
+            primary action below.
+
+            Entering a code stays available but secondary, because phone-only
+            accounts receive an SMS code instead of an email — and the endpoint
+            is deliberately uniform (anti-enumeration), so this screen cannot
+            know which channel was used and must serve both.
+          */}
           <Text style={styles.subtitle}>
-            We sent a password reset link to{'\n'}
-            <Text style={styles.email}>{email.trim()}</Text>. Open that link on this device to finish resetting your password.
+            If an account matches{'\n'}
+            <Text style={styles.email}>{email.trim()}</Text>, we&apos;ve sent a
+            password reset link.
           </Text>
-          <Button title="Back to sign in" onPress={() => router.replace('/login')} style={{ width: '100%' }} />
+
+          <Button
+            title="Back to sign in"
+            onPress={() => router.replace('/login')}
+            style={{ width: '100%' }}
+          />
+
           <Pressable onPress={onResend} style={styles.back}>
             <Text style={styles.backText}>
-              {resent ? 'Reset link resent ✓' : "Didn't get it? Resend link"}
+              {resent ? 'Sent again ✓' : "Didn't get it? Send again"}
             </Text>
           </Pressable>
         </View>
@@ -84,6 +104,7 @@ export default function ForgotPasswordScreen() {
             onChangeText={setEmail}
             autoCapitalize="none"
             autoComplete="email"
+            textContentType="emailAddress"
             keyboardType="email-address"
             error={error ?? undefined}
           />
@@ -99,21 +120,21 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   container: { flex: 1, justifyContent: 'center', gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22 },
-  email: { color: colors.text, fontWeight: fontWeight.semibold },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
+  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22 },
+  email: { color: c.text, fontWeight: fontWeight.semibold },
   back: { alignItems: 'center', marginTop: spacing.sm },
-  backText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  backText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg },
   iconCircle: {
     width: 72,
     height: 72,
     borderRadius: 999,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

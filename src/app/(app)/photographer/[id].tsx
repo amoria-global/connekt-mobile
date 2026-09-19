@@ -23,12 +23,14 @@ import { Input } from '@/components/ui/Input';
 import { isApiError } from '@/store/auth';
 import { Stars } from '@/components/ui/Stars';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 
 let hasAutoShownWizard = false;
 
 function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyphMap; onPress?: () => void; style?: any }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <Pressable style={[styles.iconButton, style]} onPress={onPress}>
       <Feather name={icon} size={18} color={colors.primary} />
@@ -46,6 +48,8 @@ const REPORT_REASONS = [
 ];
 
 export default function PhotographerProfileScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isCoordinator } = useRole();
@@ -374,7 +378,7 @@ export default function PhotographerProfileScreen() {
                 <View style={styles.card}>
                   <Text style={styles.cardHeaderEyebrow}>AVAILABILITY</Text>
                   <Text style={styles.availabilityBody}>
-                    Pick your event date in the booking form — we check this photographer is
+                    Pick your event date in the booking form, and we check this photographer is
                     free for that day before you pay anything.
                   </Text>
                   <Pressable
@@ -510,7 +514,7 @@ export default function PhotographerProfileScreen() {
                 label="Event title"
                 value={rebookTitle}
                 onChangeText={setRebookTitle}
-                placeholder="e.g. Eric & Diana — Reception"
+                placeholder="e.g. Eric & Diana Reception"
                 style={styles.modalInput}
               />
               <Input
@@ -564,22 +568,22 @@ export default function PhotographerProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 10 },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, marginTop: 10 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },
-  sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  sheetHint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20, marginBottom: spacing.sm },
-  formLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textSoft, marginTop: spacing.sm, letterSpacing: 0.4 },
+  sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  sheetHint: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20, marginBottom: spacing.sm },
+  formLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.textSoft, marginTop: spacing.sm, letterSpacing: 0.4 },
   modalInput: { marginTop: spacing.sm },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -587,13 +591,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: fontSize.xs, color: colors.textSoft, fontWeight: fontWeight.semibold },
-  chipTextActive: { color: colors.textOnPrimary },
+  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipText: { fontSize: fontSize.xs, color: c.textSoft, fontWeight: fontWeight.semibold },
+  chipTextActive: { color: c.textOnPrimary },
   
   headerArea: {
     height: 480, // Substantial height for the cover and gradient
@@ -607,7 +611,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   gradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   topNav: {
     position: 'absolute',
@@ -627,11 +631,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    ...e(3),
   },
   profileInfoContainer: {
     position: 'absolute',
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
   avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
   },
   avatarText: {
     color: 'white',
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   tabTextActive: {
     color: 'white',
@@ -772,11 +772,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderRadius: radii.xl,
     padding: spacing.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    ...e(1),
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -793,7 +789,7 @@ const styles = StyleSheet.create({
   },
   availabilityBody: {
     fontSize: fontSize.sm,
-    color: colors.textSoft,
+    color: c.textSoft,
     lineHeight: 20,
     marginBottom: spacing.md,
   },
@@ -805,10 +801,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: c.border,
+    backgroundColor: c.surface,
   },
-  availabilityBtnText: { color: colors.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.sm },
+  availabilityBtnText: { color: c.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.sm },
   bookButton: {
     backgroundColor: '#083A85',
     flexDirection: 'row',
@@ -843,7 +839,7 @@ const styles = StyleSheet.create({
   monthText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
   },
   calendarContainer: {
     marginTop: 0,
@@ -867,7 +863,7 @@ const styles = StyleSheet.create({
   monthTextCenter: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
+    color: c.primary,
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -901,7 +897,7 @@ const styles = StyleSheet.create({
   },
   daySquareSelected: {
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: c.primary,
   },
   dayText: {
     fontSize: 12,
@@ -951,7 +947,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fontSize.md,
-    color: colors.textMuted,
+    color: c.textMuted,
   },
   reviewsContainer: {
     paddingHorizontal: spacing.lg,
@@ -961,11 +957,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: spacing.lg,
     borderRadius: radii.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    ...e(1),
     gap: spacing.xs,
   },
   reviewTop: {
@@ -975,13 +967,13 @@ const styles = StyleSheet.create({
   },
   reviewer: {
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
     fontSize: fontSize.md,
   },
   reviewComment: {
-    color: colors.textSoft,
+    color: c.textSoft,
     fontSize: fontSize.sm,
     lineHeight: 20,
     marginTop: 4,
   },
-});
+}));

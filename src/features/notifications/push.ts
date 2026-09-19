@@ -32,6 +32,19 @@ Notifications.setNotificationHandler({
 let registered = false;
 
 /**
+ * Forget that this device registered, so the next signed-in user registers
+ * their own token.
+ *
+ * Without this the latch survived a sign-out: the second account on a shared
+ * phone registered nothing and received no notifications at all, while the
+ * first account's pushes kept arriving on a device they had signed out of.
+ * Call on logout and whenever a session expires.
+ */
+export function resetPushRegistration(): void {
+  registered = false;
+}
+
+/**
  * Requests permission and registers this device's Expo push token with the
  * backend. Safe to call more than once (no-ops after the first success) and
  * on any platform (returns null where push isn't available, e.g. simulators
@@ -70,8 +83,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
     );
     if (!token) return null;
 
-    registered = true;
+    // Latch only AFTER the backend has accepted it. Setting it first meant a
+    // single network failure permanently convinced this install that it was
+    // registered, and it never tried again.
     await registerPushToken(token, Platform.OS);
+    registered = true;
     return token;
   } catch {
     // Permission denied / no network / not configured — non-fatal.

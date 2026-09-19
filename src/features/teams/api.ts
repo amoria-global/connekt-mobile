@@ -7,7 +7,7 @@
  * fall back to a "members can't manage the team" notice otherwise.
  */
 import { api } from '@/api/client';
-import type { ApiEnvelope, ID } from '@/types';
+import type { ApiEnvelope, ApiError, ID } from '@/types';
 
 type Raw = Record<string, unknown>;
 
@@ -144,6 +144,15 @@ export async function inviteMember(input: {
   department?: string;
 }): Promise<TeamMember> {
   const res = await api.post<ApiEnvelope<Raw>>('/team/users', input);
+  // A refusal (address already on the team, seat limit reached, role gone)
+  // is HTTP 200 with action:0. Mapping the empty payload returned a blank
+  // member and the owner went back to the list believing an invite was sent.
+  if (res?.action !== 1) {
+    throw {
+      status: 400,
+      message: res?.message || 'Could not send that invitation.',
+    } satisfies ApiError;
+  }
   const d = (res?.data ?? {}) as Raw;
   return mapMember((d.user ?? {}) as Raw);
 }

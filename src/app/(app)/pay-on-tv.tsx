@@ -33,7 +33,7 @@ import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { openWebCheckout, payToWatchUrl } from '@/features/payments/webCheckout';
 import { isApiError } from '@/store/auth';
-import { colors, fonts, fontSize, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 
 /**
  * The TV encodes a full pay-to-watch URL. Pull eventId + device out of it,
@@ -63,6 +63,8 @@ function feeLabel(fee: number, code?: string | null, symbol?: string | null): st
 }
 
 export default function PayOnTvScreen() {
+  const styles = useStyles();
+  const { colors, gradients } = useTheme();
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [target, setTarget] = useState<{ eventId: string; device: string } | null>(null);
@@ -133,6 +135,8 @@ function PayPanel({
   onBack: () => void;
   onDone: () => void;
 }) {
+  const styles = useStyles();
+  const { colors, gradients } = useTheme();
   const [title, setTitle] = useState<string>('This stream');
   const [fee, setFee] = useState<number>(0);
   const [feeCode, setFeeCode] = useState<string | undefined>();
@@ -202,7 +206,7 @@ function PayPanel({
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Hero — brand gradient with the amount as the anchor */}
         <LinearGradient
-          colors={[colors.primary, '#0a4da3', colors.accent]}
+          colors={[...gradients.brand]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
@@ -223,7 +227,7 @@ function PayPanel({
             <Ionicons name="tv-outline" size={22} color={colors.success} />
             <Text style={[styles.statusText, { color: colors.success }]}>
               Finish the payment in the page that opened. Once it&apos;s confirmed, your TV
-              unlocks on its own — this can take a few seconds. You can close this screen.
+              unlocks on its own, which can take a few seconds. You can close this screen.
             </Text>
           </View>
         ) : digitalPurchasesEnabled ? (
@@ -235,12 +239,14 @@ function PayPanel({
             </View>
           </>
         ) : (
-          // Android: digital purchases are policy-gated off in-app.
+          // Digital purchases are policy-gated off in the app on both stores.
+          // Say what isn't possible here and stop. Naming where else to buy is
+          // the steering both stores prohibit, so this copy must not do it.
           <View style={styles.statusBox}>
             <Ionicons name="information-circle" size={22} color={colors.textMuted} />
             <Text style={styles.statusText}>
-              Paid streams can&apos;t be purchased from inside the app on this device. Open
-              connekyt.com in your browser, or use an invite code on your TV if you have one.
+              Paid streams can&apos;t be purchased in the app. If you already have an
+              invite code, you can enter it on your TV.
             </Text>
           </View>
         )}
@@ -269,6 +275,8 @@ function PayPanel({
 }
 
 function Step({ icon, text, done }: { icon: keyof typeof Ionicons.glyphMap; text: string; done?: boolean }) {
+  const styles = useStyles();
+  const { colors, gradients } = useTheme();
   return (
     <View style={styles.step}>
       <View style={[styles.stepIcon, done && styles.stepIconDone]}>
@@ -287,13 +295,13 @@ const CARD_SHADOW = {
   elevation: 3,
 } as const;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   // Widen this screen past the app-wide 520px phone clamp so it reads as a
   // proper modal on web / tablet. On phones it's a no-op.
   wide: { width: '100%', maxWidth: 640, alignSelf: 'center' },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.xl },
-  body: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  body: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
 
   // ── Scanner ──
   cameraWrap: { flex: 1, backgroundColor: '#000' },
@@ -304,7 +312,7 @@ const styles = StyleSheet.create({
     right: '14%',
     bottom: '34%',
     borderWidth: 3,
-    borderColor: colors.accent,
+    borderColor: c.accent,
     borderRadius: radii['2xl'],
   },
   scanErrorBar: {
@@ -340,10 +348,10 @@ const styles = StyleSheet.create({
 
   // ── Steps ──
   steps: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     gap: spacing.lg,
   },
@@ -352,16 +360,16 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: radii.full,
-    backgroundColor: colors.infoBg,
+    backgroundColor: c.infoBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepIconDone: { backgroundColor: colors.success },
-  stepText: { flex: 1, fontFamily: fonts.regular, color: colors.textSoft, fontSize: fontSize.sm, lineHeight: 20 },
+  stepIconDone: { backgroundColor: c.success },
+  stepText: { flex: 1, fontFamily: fonts.regular, color: c.textSoft, fontSize: fontSize.sm, lineHeight: 20 },
 
-  statusBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, backgroundColor: colors.infoBg, borderRadius: radii.lg },
-  statusOk: { backgroundColor: colors.successBg },
-  statusText: { flex: 1, fontFamily: fonts.regular, color: colors.textSoft, fontSize: fontSize.sm, lineHeight: 19 },
+  statusBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, backgroundColor: c.infoBg, borderRadius: radii.lg },
+  statusOk: { backgroundColor: c.successBg },
+  statusText: { flex: 1, fontFamily: fonts.regular, color: c.textSoft, fontSize: fontSize.sm, lineHeight: 19 },
 
   // ── Sticky footer ──
   footer: {
@@ -370,11 +378,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    borderTopColor: c.borderSoft,
+    backgroundColor: c.surface,
   },
   rescanLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 2 },
-  rescanText: { fontFamily: fonts.bold, color: colors.textMuted, fontSize: fontSize.sm },
+  rescanText: { fontFamily: fonts.bold, color: c.textMuted, fontSize: fontSize.sm },
   secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
-  note: { fontFamily: fonts.regular, textAlign: 'center', color: colors.textMuted, fontSize: 11 },
-});
+  note: { fontFamily: fonts.regular, textAlign: 'center', color: c.textMuted, fontSize: 11 },
+}));

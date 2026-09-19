@@ -4,6 +4,7 @@ import {
   isNeedsVerification,
   isNeedsTotp,
   isNeedsPasswordChange,
+  isNeedsRole,
 } from './api';
 
 jest.mock('@/api/client', () => ({ api: { post: jest.fn(), get: jest.fn() } }));
@@ -73,15 +74,29 @@ describe('isNeedsPasswordChange', () => {
   });
 });
 
-describe('the three are mutually exclusive', () => {
+describe('isNeedsRole', () => {
+  it('requires the profile as well as the flag', () => {
+    // The profile is what carries the Google/Apple identity into role
+    // selection, so the flag alone is not enough to route there - there would
+    // be nothing to create the account with.
+    expect(isNeedsRole({ needsRole: true, profile: { email: 'a@b.com' } })).toBe(true);
+    expect(isNeedsRole({ needsRole: true })).toBe(false);
+  });
+
+  it('rejects everything else', () => {
+    expect(isNeedsRole({ needsVerification: true, customerId: 'c1' })).toBe(false);
+    expect(isNeedsRole(null)).toBe(false);
+  });
+});
+
+describe('the four are mutually exclusive', () => {
   // The post-login router checks these in sequence. If two matched the same
   // error, the branch order would silently decide the user's fate.
   const cases = [
     { needsVerification: true, customerId: 'c1' },
     { needsTotp: true, customerId: 'c1' },
     { needsPasswordChange: true, email: 'a@b.com' },
-    // main also carries a needsRole guard. This release line predates role
-    // selection, so there are three predicates here, not four.
+    { needsRole: true, profile: { email: 'a@b.com' } },
   ];
 
   it.each(cases)('%j matches exactly one predicate', (err) => {
@@ -89,6 +104,7 @@ describe('the three are mutually exclusive', () => {
       isNeedsVerification(err),
       isNeedsTotp(err),
       isNeedsPasswordChange(err),
+      isNeedsRole(err),
     ].filter(Boolean);
     expect(matches).toHaveLength(1);
   });

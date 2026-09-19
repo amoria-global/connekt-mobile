@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 type Option<T extends string> = { label: string; value: T };
 
@@ -12,6 +12,7 @@ export function Segmented<T extends string>({
   options: Option<T>[];
   onChange: (v: T) => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.wrap}>
       {options.map((o) => {
@@ -30,23 +31,19 @@ export function Segmented<T extends string>({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   wrap: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: c.surfaceMuted,
     borderRadius: radii.full,
     padding: 4,
     gap: 4,
   },
   seg: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radii.full },
   segActive: {
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    backgroundColor: c.surface,
+    ...e(2),
   },
-  segText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textMuted },
-  segTextActive: { color: colors.primary, fontWeight: fontWeight.bold },
-});
+  segText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textMuted },
+  segTextActive: { color: c.primary, fontWeight: fontWeight.bold },
+}));

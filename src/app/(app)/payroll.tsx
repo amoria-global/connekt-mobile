@@ -5,10 +5,12 @@ import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { getPayrollReport } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
 export default function PayrollScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { data, loading, error } = useAsync(useCallback(() => getPayrollReport(), []));
 
   if (loading && !data) {
@@ -68,6 +70,7 @@ export default function PayrollScreen() {
 }
 
 function Stat({ label, value, tint }: { label: string; value: string; tint: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.statCard}>
       <Text style={styles.statLabel}>{label}</Text>
@@ -78,37 +81,37 @@ function Stat({ label, value, tint }: { label: string; value: string; tint: stri
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, gap: spacing.lg },
   cards: { flexDirection: 'row', gap: spacing.sm },
   statCard: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.md,
     gap: spacing.xs,
   },
-  statLabel: { fontSize: fontSize.xs, color: colors.textMuted, fontWeight: fontWeight.semibold },
+  statLabel: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold },
   statValue: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
   },
   rowBody: { flex: 1, gap: 2 },
-  rowTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.text },
-  rowDate: { fontSize: fontSize.xs, color: colors.textMuted },
+  rowTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  rowDate: { fontSize: fontSize.xs, color: c.textMuted },
   rowRight: { alignItems: 'flex-end', gap: spacing.xs },
-  rowAmount: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.primary },
-});
+  rowAmount: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
+}));

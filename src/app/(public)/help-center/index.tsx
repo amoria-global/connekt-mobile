@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
-import { colors, fontSize, spacing } from '@/theme';
+import { spacing, fontSize, makeStyles, useTheme } from '@/theme';
 
 const categories = [
   {
@@ -51,6 +51,8 @@ const categories = [
 ];
 
 export default function HelpCenterScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleCategoryPress = (id: string) => {
@@ -139,12 +141,12 @@ export default function HelpCenterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, e) => ({
   container: {
     paddingBottom: spacing.xxxl,
   },
   hero: {
-    backgroundColor: colors.primary,
+    backgroundColor: c.primary,
     padding: spacing.xl,
     paddingTop: spacing.xxxl,
     paddingBottom: spacing.xxl,
@@ -155,19 +157,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.xxl,
     fontWeight: '800',
-    color: colors.textOnPrimary,
+    color: c.textOnPrimary,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
   subtitle: {
     fontSize: fontSize.md,
-    color: colors.textOnPrimary + 'CC',
+    color: c.textOnPrimary + 'CC',
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
   searchContainer: {
     width: '100%',
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -177,7 +179,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: fontSize.md,
-    color: colors.text,
+    color: c.text,
     paddingVertical: spacing.xs,
   },
   statsStrip: {
@@ -186,13 +188,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginHorizontal: spacing.md,
     marginTop: -spacing.xl,
-    backgroundColor: colors.card,
+    backgroundColor: c.card,
     borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...e(2),
   },
   statItem: {
     alignItems: 'center',
@@ -200,11 +198,11 @@ const styles = StyleSheet.create({
   statNum: {
     fontSize: fontSize.lg,
     fontWeight: '800',
-    color: colors.primary,
+    color: c.primary,
   },
   statLabel: {
     fontSize: fontSize.xs,
-    color: colors.textMuted,
+    color: c.textMuted,
     textTransform: 'uppercase',
     marginTop: 2,
     fontWeight: '600',
@@ -218,36 +216,32 @@ const styles = StyleSheet.create({
     margin: spacing.md,
     marginTop: spacing.sm,
     padding: spacing.xl,
-    backgroundColor: colors.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     gap: spacing.sm,
   },
-  helpFooterTitle: { fontSize: fontSize.lg, fontWeight: '800', color: colors.text },
-  helpFooterText: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
+  helpFooterTitle: { fontSize: fontSize.lg, fontWeight: '800', color: c.text },
+  helpFooterText: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
   helpFooterRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   helpFooterBtn: {
     flex: 1,
     paddingVertical: spacing.md,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     alignItems: 'center',
   },
-  helpFooterBtnText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
-  helpFooterBtnPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
-  helpFooterBtnPrimaryText: { fontSize: fontSize.sm, fontWeight: '700', color: colors.textOnPrimary },
+  helpFooterBtnText: { fontSize: fontSize.sm, fontWeight: '700', color: c.text },
+  helpFooterBtnPrimary: { backgroundColor: c.primary, borderColor: c.primary },
+  helpFooterBtnPrimaryText: { fontSize: fontSize.sm, fontWeight: '700', color: c.textOnPrimary },
   card: {
-    backgroundColor: colors.card,
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: spacing.md,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    ...e(1),
   },
   iconContainer: {
     width: 48,
@@ -265,21 +259,21 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: fontSize.lg,
     fontWeight: '700',
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.xs,
   },
   cardDesc: {
     fontSize: fontSize.sm,
-    color: colors.textMuted,
+    color: c.textMuted,
     marginBottom: spacing.md,
   },
   cardFooter: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    borderTopColor: c.border,
     paddingTop: spacing.sm,
   },
   articleCount: {
     fontSize: fontSize.xs,
     fontWeight: '700',
   },
-});
+}));

@@ -1,65 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
-import { resetPasswordWithToken, validateResetToken } from '@/features/auth/api';
-import { PASSWORD_HINT, validatePassword } from '@/features/auth/passwordPolicy';
+import { exchangeRecoveryCode, setNewPassword } from '@/features/auth/api';
+import { storage, StorageKeys } from '@/services/storage';
 import { isApiError } from '@/store/auth';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
 
-/**
- * Completes a password reset started from the emailed link.
- *
- * The reset email carries a single-use token (`?token=`), never a short code,
- * so this screen is driven entirely by that token — it arrives via the
- * deep link. There is deliberately no "type your reset code" field: the
- * backend never issues one, and the earlier version of this screen demanded a
- * code the user could never obtain, which made mobile password reset a dead
- * end for every role.
- */
 export default function ResetPasswordScreen() {
+  const styles = useStyles();
   const router = useRouter();
-  const params = useLocalSearchParams<{ token?: string }>();
-  const token = params.token ?? '';
-
+  const params = useLocalSearchParams<{ email?: string; code?: string }>();
+  
+  const [email, setEmail] = useState(params.email ?? '');
+  const [code, setCode] = useState(params.code ?? '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
+  
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Fail fast on a dead link rather than after the user fills the form.
-  const [checking, setChecking] = useState(true);
-  const [tokenError, setTokenError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    if (!token) {
-      setTokenError('This reset link is missing its security token. Open the link from your reset email again.');
-      setChecking(false);
-      return;
-    }
-    validateResetToken(token)
-      .catch((err) => {
-        if (active) {
-          setTokenError(isApiError(err) ? err.message : 'This reset link is invalid or has expired.');
-        }
-      })
-      .finally(() => active && setChecking(false));
-    return () => {
-      active = false;
-    };
-  }, [token]);
-
   const onSubmit = async () => {
     setError(null);
-
-    const policyError = validatePassword(password);
-    if (policyError) {
-      setError(policyError);
+    if (!email.trim() || !code.trim() || !password || !confirmPassword) {
+      setError('All fields are required.');
+      return;
+    }
+    // Same rule the server enforces, and the same one signup already states.
+    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@!#$%^&*=+]).{8,}$/.test(password)) {
+      setError('Use at least 8 characters, including a letter, a number and one of @!#$%^&*=+');
       return;
     }
     if (password !== confirmPassword) {
@@ -69,7 +41,33 @@ export default function ResetPasswordScreen() {
 
     setSubmitting(true);
     try {
-      await resetPasswordWithToken({ token, password, confirmPassword });
+      // The reset mail carries a link, not a short code, so people paste the
+      // whole URL into this field. Accept either.
+      const pasted = code.trim();
+      const match = pasted.match(/[?&](?:token|code)=([^&\s]+)/i);
+      let resetToken = match ? decodeURIComponent(match[1]) : pasted;
+
+      /**
+       * A short numeric value is the SMS OTP, not a reset token. The two
+       * recovery channels hand back different things: email sends a LINK
+       * carrying a PasswordResetToken, SMS sends a numeric code. But
+       * /auth/set-new-password resolves `code` with findByToken(), so posting
+       * the OTP straight there fails with "This reset link is invalid or has
+       * expired" — the dead end phone-only users were hitting. Exchange it for
+       * the real token first so both channels converge here.
+       */
+      if (/^\d{4,8}$/.test(resetToken)) {
+        resetToken = await exchangeRecoveryCode(email.trim(), resetToken);
+      }
+      // Make sure no unrelated parked token rides along on a recovery.
+      await storage.remove(StorageKeys.authToken);
+      await setNewPassword({
+        email: email.trim(),
+        code: resetToken,
+        password,
+        newPassword: password,
+        confirmPassword,
+      });
       setSuccess(true);
     } catch (err) {
       setError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
@@ -78,41 +76,11 @@ export default function ResetPasswordScreen() {
     }
   };
 
-  if (checking) {
-    return (
-      <Screen>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.subtitle}>Checking your reset link…</Text>
-        </View>
-      </Screen>
-    );
-  }
-
-  if (tokenError) {
-    return (
-      <Screen>
-        <View style={styles.successWrap}>
-          <Text style={styles.title}>Link no longer valid</Text>
-          <Text style={styles.subtitle}>{tokenError}</Text>
-          <Button
-            title="Request a new link"
-            onPress={() => router.replace('/forgot-password')}
-            style={{ width: '100%' }}
-          />
-          <Pressable onPress={() => router.replace('/login')} style={styles.back}>
-            <Text style={styles.backText}>Back to sign in</Text>
-          </Pressable>
-        </View>
-      </Screen>
-    );
-  }
-
   if (success) {
     return (
       <Screen>
         <View style={styles.successWrap}>
-          <Text style={styles.title}>Password reset</Text>
+          <Text style={styles.title}>Password Reset</Text>
           <Text style={styles.subtitle}>
             Your password has been successfully reset. You can now sign in with your new password.
           </Text>
@@ -128,15 +96,40 @@ export default function ResetPasswordScreen() {
         <View style={styles.container}>
           <Text style={styles.title}>Create New Password</Text>
           <Text style={styles.subtitle}>
-            Your identity has been verified. Please create a new secure password for your account.
+            Please create a new secure password for your account.
           </Text>
+
+          <Input
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
+            keyboardType="email-address"
+            editable={!params.email}
+          />
+          
+          <Input
+            label="Reset code or link"
+            placeholder="Paste the link from your email, or the SMS code"
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
+            value={code}
+            onChangeText={setCode}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!params.code}
+          />
 
           <Input
             label="New Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="Enter a new password"
+            textContentType="newPassword"
+            autoComplete="new-password"
+            autoCapitalize="none"
           />
 
           <Input
@@ -144,31 +137,30 @@ export default function ResetPasswordScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
-            placeholder="Type it again"
+            textContentType="newPassword"
+            autoComplete="new-password"
+            autoCapitalize="none"
             error={error ?? undefined}
           />
 
-          <Text style={styles.hint}>{PASSWORD_HINT}</Text>
-
           <Button title="Reset Password" onPress={onSubmit} loading={submitting} />
 
-          <Pressable onPress={() => router.replace('/login')} style={styles.back}>
-            <Text style={styles.backText}>Back to sign in</Text>
-          </Pressable>
+          <Button 
+            title="Cancel" 
+            variant="outline" 
+            onPress={() => router.back()} 
+            style={{ marginTop: spacing.sm }} 
+          />
         </View>
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   container: { flex: 1, justifyContent: 'center', gap: spacing.md },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: colors.primary },
-  subtitle: { fontSize: fontSize.md, color: colors.textMuted, lineHeight: 22, marginBottom: spacing.sm },
-  hint: { fontSize: fontSize.sm, color: colors.textMuted, lineHeight: 20 },
-  back: { alignItems: 'center', marginTop: spacing.sm },
-  backText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
+  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22, marginBottom: spacing.sm },
   successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl },
-});
+}));

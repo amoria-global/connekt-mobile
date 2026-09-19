@@ -8,10 +8,11 @@ import { useRole } from '@/features/auth/role';
 import { listNotifications, markAllRead, markRead, type AppNotification } from '@/features/notifications/api';
 import { notificationTarget } from '@/features/notifications/routing';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, fonts, fontSize, fontWeight, radii, spacing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles } from '@/theme';
 import { formatDate } from '@/utils/format';
 
 export default function NotificationsScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const { role } = useRole();
   const { data, loading, error, refresh } = useAsync(
@@ -83,22 +84,22 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   markAll: { paddingHorizontal: spacing.xl },
-  markAllText: { color: colors.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  markAllText: { color: c.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: c.borderSoft,
     gap: spacing.xs,
   },
-  unread: { borderColor: colors.primary, backgroundColor: colors.infoBg },
+  unread: { borderColor: c.primary, backgroundColor: c.infoBg },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  title: { flex: 1, fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text },
-  dot: { width: 9, height: 9, borderRadius: radii.full, backgroundColor: colors.accent },
-  body: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: colors.textSoft },
-  time: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: colors.textMuted },
-});
+  title: { flex: 1, fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  dot: { width: 9, height: 9, borderRadius: radii.full, backgroundColor: c.accent },
+  body: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textSoft },
+  time: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
+}));
