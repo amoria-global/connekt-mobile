@@ -1,8 +1,33 @@
-import { useEffect, useState } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Controller, useForm } from 'react-hook-form';
-import { Ionicons } from '@expo/vector-icons';
+import { FindPhotosBottomSheet } from "@/components/FindPhotosBottomSheet";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Screen } from "@/components/ui/Screen";
+import {
+  isNeedsPasswordChange,
+  isNeedsTotp,
+  isNeedsVerification,
+} from "@/features/auth/api";
+import { AppleButton } from "@/features/auth/AppleButton";
+import { ChooseRoleBottomSheet } from "@/features/auth/ChooseRoleBottomSheet";
+import { GoogleButton } from "@/features/auth/GoogleButton";
+import type { CustomerType } from "@/features/auth/types";
+import { parsePhone } from "@/lib/phoneKit";
+import { isApiError, useAuth } from "@/store/auth";
+import {
+  fontSize,
+  fontWeight,
+  fonts,
+  makeStyles,
+  radii,
+  spacing,
+  useTheme,
+} from "@/theme";
+import { Ionicons } from "@expo/vector-icons";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { LinearGradient } from "expo-linear-gradient";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   Image,
   KeyboardAvoidingView,
@@ -12,21 +37,8 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { z } from 'zod';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Screen } from '@/components/ui/Screen';
-import { isNeedsVerification, isNeedsTotp, isNeedsPasswordChange } from '@/features/auth/api';
-import { GoogleButton } from '@/features/auth/GoogleButton';
-import { AppleButton } from '@/features/auth/AppleButton';
-import { ChooseRoleBottomSheet } from '@/features/auth/ChooseRoleBottomSheet';
-import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
-import type { CustomerType } from '@/features/auth/types';
-import { parsePhone } from '@/lib/phoneKit';
-import { isApiError, useAuth } from '@/store/auth';
-import { LinearGradient } from 'expo-linear-gradient';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+} from "react-native";
+import { z } from "zod";
 
 const schema = z.object({
   // Still accepts an email OR a phone number — phone-only accounts (registered
@@ -35,12 +47,14 @@ const schema = z.object({
   // field is presented as an email field, and a phone quietly also works.
   email: z
     .string()
-    .min(1, 'Email is required')
+    .min(1, "Email is required")
     .refine(
-      (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim()) || /^[+\d][\d\s-]{5,}$/.test(v.trim()),
-      'Enter a valid email address',
+      (v) =>
+        /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim()) ||
+        /^[+\d][\d\s-]{5,}$/.test(v.trim()),
+      "Enter a valid email address",
     ),
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(1, "Password is required"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -67,7 +81,7 @@ export default function LoginScreen() {
   } | null>(null);
 
   useEffect(() => {
-    if (params.selectRole === '1') {
+    if (params.selectRole === "1") {
       if (params.email || params.firstName || params.lastName) {
         setPrefilledProfile({
           email: params.email,
@@ -92,12 +106,16 @@ export default function LoginScreen() {
   const onSelectRole = (role: CustomerType) => {
     setRoleSheetVisible(false);
     router.push({
-      pathname: '/signup',
+      pathname: "/signup",
       params: {
         role,
         ...(prefilledProfile?.email ? { email: prefilledProfile.email } : {}),
-        ...(prefilledProfile?.firstName ? { firstName: prefilledProfile.firstName } : {}),
-        ...(prefilledProfile?.lastName ? { lastName: prefilledProfile.lastName } : {}),
+        ...(prefilledProfile?.firstName
+          ? { firstName: prefilledProfile.firstName }
+          : {}),
+        ...(prefilledProfile?.lastName
+          ? { lastName: prefilledProfile.lastName }
+          : {}),
       },
     });
   };
@@ -109,7 +127,7 @@ export default function LoginScreen() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -121,31 +139,47 @@ export default function LoginScreen() {
     const raw = values.email.trim();
     let identifier = raw;
     if (/^[+0-9][0-9\s-]{5,}$/.test(raw)) {
-      const parsed = parsePhone(raw, 'RW');
-      if (parsed.country && parsed.nsn) identifier = `${parsed.country.dial}${parsed.nsn}`;
+      const parsed = parsePhone(raw, "RW");
+      if (parsed.country && parsed.nsn)
+        identifier = `${parsed.country.dial}${parsed.nsn}`;
     }
     try {
       await login({ email: identifier, password: values.password });
     } catch (err) {
       if (isNeedsPasswordChange(err)) {
+        const token =
+          typeof err === "object" &&
+          err !== null &&
+          "token" in err &&
+          typeof err.token === "string"
+            ? err.token
+            : "";
+        const email = typeof err.email === "string" ? err.email : "";
         router.push({
-          pathname: '/change-password',
-          params: { email: err.email, token: err.token ?? '' },
+          pathname: "/change-password",
+          params: { email, token },
         });
         return;
       }
       if (isNeedsTotp(err)) {
-        router.push({ pathname: '/verify-totp', params: { customerId: err.customerId } });
+        router.push({
+          pathname: "/verify-totp",
+          params: { customerId: err.customerId },
+        });
         return;
       }
       if (isNeedsVerification(err)) {
         router.push({
-          pathname: '/verify-otp',
+          pathname: "/verify-otp",
           params: { customerId: err.customerId, email: values.email },
         });
         return;
       }
-      setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
+      setServerError(
+        isApiError(err)
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
     }
   };
 
@@ -153,8 +187,8 @@ export default function LoginScreen() {
     <Screen padded={false}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -165,7 +199,7 @@ export default function LoginScreen() {
           <View style={styles.top}>
             <View style={styles.header}>
               <Image
-                source={require('../../../assets/images/logo.png')}
+                source={require("../../../assets/images/logo.png")}
                 style={styles.logo}
                 resizeMode="contain"
               />
@@ -212,16 +246,25 @@ export default function LoginScreen() {
               <Pressable
                 style={styles.forgotWrap}
                 onPress={() =>
-                  router.push({ pathname: '/forgot-password', params: { email: getValues('email') } })
+                  router.push({
+                    pathname: "/forgot-password",
+                    params: { email: getValues("email") },
+                  })
                 }
                 hitSlop={8}
               >
                 <Text style={styles.forgotText}>Forgot your password?</Text>
               </Pressable>
 
-              {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
+              {serverError ? (
+                <Text style={styles.serverError}>{serverError}</Text>
+              ) : null}
 
-              <Button title="Log in" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+              <Button
+                title="Log in"
+                onPress={handleSubmit(onSubmit)}
+                loading={isSubmitting}
+              />
 
               <Pressable
                 style={styles.registerLine}
@@ -229,7 +272,8 @@ export default function LoginScreen() {
                 hitSlop={8}
               >
                 <Text style={styles.registerText}>
-                  Not registered yet? <Text style={styles.registerLink}>Create an account</Text>
+                  Not registered yet?{" "}
+                  <Text style={styles.registerLink}>Create an account</Text>
                 </Text>
               </Pressable>
 
@@ -273,7 +317,9 @@ export default function LoginScreen() {
 
             <View style={styles.guestSection}>
               <View style={styles.guestHeaderRow}>
-                <Text style={styles.guestSectionTitle}>Explore without account</Text>
+                <Text style={styles.guestSectionTitle}>
+                  Explore without account
+                </Text>
                 <View style={styles.guestTagPill}>
                   <Text style={styles.guestTagText}>FREE ACCESS</Text>
                 </View>
@@ -286,17 +332,17 @@ export default function LoginScreen() {
                     styles.guestCard,
                     pressed && styles.guestCardPressed,
                   ]}
-                  onPress={() => router.push('/find-photos')}
+                  onPress={() => router.push("/find-photos")}
                   accessibilityRole="button"
                   accessibilityLabel="Find my photos with AI facial recognition"
                 >
                   <Image
-                    source={require('../../../assets/images/scan.png')}
+                    source={require("../../../assets/images/scan.png")}
                     style={StyleSheet.absoluteFill}
                     resizeMode="cover"
                   />
                   <LinearGradient
-                    colors={['rgba(8,20,44,0.25)', 'rgba(8,20,44,0.92)']}
+                    colors={["rgba(8,20,44,0.25)", "rgba(8,20,44,0.92)"]}
                     style={StyleSheet.absoluteFill}
                   />
                   <View style={styles.guestCardContent}>
@@ -315,7 +361,11 @@ export default function LoginScreen() {
                         </Text>
                       </View>
                       <View style={styles.cardArrowWrap}>
-                        <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                        <Ionicons
+                          name="arrow-forward"
+                          size={12}
+                          color="#FFFFFF"
+                        />
                       </View>
                     </View>
                   </View>
@@ -327,17 +377,17 @@ export default function LoginScreen() {
                     styles.guestCard,
                     pressed && styles.guestCardPressed,
                   ]}
-                  onPress={() => router.push('/explore-events')}
+                  onPress={() => router.push("/explore-events")}
                   accessibilityRole="button"
                   accessibilityLabel="Explore public events and live streams"
                 >
                   <Image
-                    source={require('../../../assets/images/live.png')}
+                    source={require("../../../assets/images/live.png")}
                     style={StyleSheet.absoluteFill}
                     resizeMode="cover"
                   />
                   <LinearGradient
-                    colors={['rgba(8,20,44,0.25)', 'rgba(8,20,44,0.92)']}
+                    colors={["rgba(8,20,44,0.25)", "rgba(8,20,44,0.92)"]}
                     style={StyleSheet.absoluteFill}
                   />
                   <View style={styles.guestCardContent}>
@@ -356,7 +406,11 @@ export default function LoginScreen() {
                         </Text>
                       </View>
                       <View style={styles.cardArrowWrap}>
-                        <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                        <Ionicons
+                          name="arrow-forward"
+                          size={12}
+                          color="#FFFFFF"
+                        />
                       </View>
                     </View>
                   </View>
@@ -396,7 +450,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   top: { gap: spacing.md },
 
-  header: { alignItems: 'center', gap: 2, marginBottom: spacing.sm },
+  header: { alignItems: "center", gap: 2, marginBottom: spacing.sm },
   logo: { width: 88, height: 44, marginBottom: spacing.xs },
   title: {
     fontSize: fontSize.xl,
@@ -406,17 +460,25 @@ const useStyles = makeStyles((c, e) => ({
   subtitle: { fontSize: fontSize.sm, color: c.textMuted },
 
   form: { gap: spacing.md },
-  forgotWrap: { alignSelf: 'flex-end', marginTop: -spacing.xs, marginBottom: spacing.xs },
-  forgotText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+  forgotWrap: {
+    alignSelf: "flex-end",
+    marginTop: -spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  forgotText: {
+    color: c.primary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  serverError: { color: c.error, fontSize: fontSize.sm, textAlign: "center" },
 
-  registerLine: { alignSelf: 'center', paddingVertical: spacing.xs },
+  registerLine: { alignSelf: "center", paddingVertical: spacing.xs },
   registerText: { color: c.textMuted, fontSize: fontSize.sm },
   registerLink: { color: c.primary, fontWeight: fontWeight.bold },
 
   divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     marginVertical: spacing.sm,
   },
@@ -431,7 +493,7 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     letterSpacing: 1.2,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
 
   // ── Audience-engaging guest exploration cards ──────────────────────────
@@ -440,9 +502,9 @@ const useStyles = makeStyles((c, e) => ({
     gap: spacing.xs,
   },
   guestHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 2,
     marginBottom: 2,
   },
@@ -451,7 +513,7 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: fontWeight.bold,
     color: c.textMuted,
     letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   guestTagPill: {
     backgroundColor: c.tint,
@@ -468,15 +530,15 @@ const useStyles = makeStyles((c, e) => ({
     letterSpacing: 0.5,
   },
   guestCardsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.md,
   },
   guestCard: {
     flex: 1,
     height: 136,
     borderRadius: radii.xl,
-    overflow: 'hidden',
-    backgroundColor: '#0A1428',
+    overflow: "hidden",
+    backgroundColor: "#0A1428",
     borderWidth: 1.5,
     borderColor: c.border,
     ...e(2),
@@ -488,44 +550,44 @@ const useStyles = makeStyles((c, e) => ({
   guestCardContent: {
     flex: 1,
     padding: spacing.sm + 2,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   badge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: "rgba(255, 255, 255, 0.18)",
   },
   badgeAi: {
-    backgroundColor: 'rgba(242, 12, 143, 0.25)',
-    borderColor: 'rgba(242, 12, 143, 0.5)',
+    backgroundColor: "rgba(242, 12, 143, 0.25)",
+    borderColor: "rgba(242, 12, 143, 0.5)",
   },
   badgeLive: {
-    backgroundColor: 'rgba(220, 38, 38, 0.25)',
-    borderColor: 'rgba(220, 38, 38, 0.5)',
+    backgroundColor: "rgba(220, 38, 38, 0.25)",
+    borderColor: "rgba(220, 38, 38, 0.5)",
   },
   badgeText: {
     fontSize: 9,
     fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     letterSpacing: 0.6,
   },
   livePulseDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EF4444',
+    backgroundColor: "#EF4444",
   },
   guestCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
     gap: 4,
   },
   guestCardTextCol: {
@@ -535,12 +597,12 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: 14,
     fontFamily: fonts.bold,
     fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     letterSpacing: -0.2,
   },
   guestCardDesc: {
     fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: "rgba(255, 255, 255, 0.8)",
     marginTop: 1,
     lineHeight: 13,
   },
@@ -548,10 +610,10 @@ const useStyles = makeStyles((c, e) => ({
     width: 22,
     height: 22,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
 }));
