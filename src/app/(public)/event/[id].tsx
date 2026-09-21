@@ -175,7 +175,7 @@ function buildCta(
         icon: 'play-circle',
         tone: 'live',
         disabled: false,
-        href: `/events/live-stream?id=${e.id}` as unknown as Href,
+        href: `/(public)/events/live-stream?id=${e.id}` as unknown as Href,
       };
     if (hasPurchasedAccess)
       return {
@@ -183,7 +183,7 @@ function buildCta(
         icon: 'play-circle',
         tone: 'live',
         disabled: false,
-        href: `/events/live-stream?id=${e.id}${viewerId ? `&viewerId=${viewerId}` : ''}` as unknown as Href,
+        href: `/(public)/events/live-stream?id=${e.id}${viewerId ? `&viewerId=${viewerId}` : ''}` as unknown as Href,
       };
     // No purchase path on Android, and no link out to one either. The
     // "Already paid? Verify access" and group-code cards below stay visible,
@@ -342,7 +342,7 @@ export default function PublicEventDetailScreen() {
       // as soon as it appears. Previously a valid code left the user
       // on the event page with no feedback when stream wasn't broadcasting.
       router.push(
-        `/events/live-stream?id=${id}${res.viewerId ? `&viewerId=${res.viewerId}` : ''}` as unknown as Href,
+        `/(public)/events/live-stream?id=${id}${res.viewerId ? `&viewerId=${res.viewerId}` : ''}` as unknown as Href,
       );
     } catch (e) {
       setGroupCodeError(isApiError(e) ? e.message : 'Could not redeem the code.');
@@ -431,7 +431,7 @@ export default function PublicEventDetailScreen() {
       setViewerId(reg.viewerId);
       setVerifyOpen(false);
       router.push(
-        `/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href,
+        `/(public)/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href,
       );
     } catch (e) {
       setVerifyError(isApiError(e) ? e.message : 'Could not verify access.');
@@ -484,7 +484,7 @@ export default function PublicEventDetailScreen() {
 
   if (loading && !data) {
     return (
-      <Screen padded={false} edges={['bottom']}>
+      <Screen padded={false} edges={[]}>
         <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
           <View style={styles.topBarPill}>
             <Pressable
@@ -510,7 +510,7 @@ export default function PublicEventDetailScreen() {
   }
   if (error && !data) {
     return (
-      <Screen padded={false} edges={['bottom']}>
+      <Screen padded={false} edges={[]}>
         <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
           <View style={styles.topBarPill}>
             <Pressable
@@ -565,8 +565,14 @@ export default function PublicEventDetailScreen() {
         .filter(Boolean)
     : [];
 
+  // Whether to show the sticky bottom CTA bar
+  const showStickyBar =
+    !status.isCompleted &&
+    !status.isCancelled &&
+    cta !== null;
+
   return (
-    <Screen padded={false} edges={['bottom']}>
+    <Screen padded={false} edges={[]}>
       {/* Top Bar in head — full-width rounded floating bar matching ExploreEvents & FindMyPhotos */}
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
         <View style={styles.topBarPill}>
@@ -611,7 +617,7 @@ export default function PublicEventDetailScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, showStickyBar && { paddingBottom: 140 }]}>
         {/* ── Hero: cover ─────────────────────────── */}
         <View style={styles.heroWrap}>
           <Image
@@ -857,35 +863,14 @@ export default function PublicEventDetailScreen() {
             </View>
           ) : null}
 
-          {/* Primary CTA for active events */}
-          {!status.isCompleted && cta ? (
-            <CtaButton
-              cta={cta}
-              onPress={() => {
-                // Purchase CTAs hand off to the web checkout (only reachable
-                // when digitalPurchasesEnabled — see buildCta). Everything
-                // else keeps its in-app route.
-                if (cta.action === 'webCheckout') {
-                  openWebCheckout(streamAccessUrl(id))
-                    .then(() => {
-                      setVerifyOpen(true);
-                    })
-                    .catch(() => {});
-                } else if (cta.href) {
-                  router.push(cta.href);
-                }
-              }}
-            />
-          ) : null}
+          {/* Primary CTA — hidden from scroll body; shown in sticky bar instead */}
 
           {/* Verify access + group code redeem — web parity:
               shown for paid live/upcoming events where access isn't confirmed */}
           {!status.isCompleted && !status.isCancelled && status.isPaid && !hasPurchasedAccess ? (
             <>
-              <Pressable style={styles.verifyBtn} onPress={() => setVerifyOpen(true)}>
-                <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} />
-                <Text style={styles.verifyBtnText}>Already paid? Verify access</Text>
-              </Pressable>
+              {/* Verify access is kept in scroll for group code card context */}
+              <View style={{ height: 0 }} />
 
               {/* Group invite code redeem (web `.ve-hero-group`) — only shown for live paid events */}
               {status.isLive ? (
@@ -980,7 +965,7 @@ export default function PublicEventDetailScreen() {
           {!status.isCancelled ? (
             <Pressable
               style={styles.secondary}
-              onPress={() => router.push(`/donate?eventId=${id}` as unknown as Href)}
+              onPress={() => router.push(`/(public)/donate?eventId=${id}` as unknown as Href)}
             >
               <Ionicons name="heart-outline" size={18} color={colors.accent} />
               <Text style={styles.secondaryText}>
@@ -990,6 +975,35 @@ export default function PublicEventDetailScreen() {
           ) : null}
         </View>
       </ScrollView>
+
+      {/* Sticky bottom CTA bar */}
+      {showStickyBar ? (
+        <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          {status.isPaid && !hasPurchasedAccess ? (
+            <Pressable
+              style={styles.stickyVerifyBtn}
+              onPress={() => setVerifyOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Already paid? Verify access"
+            >
+              <Ionicons name="shield-checkmark-outline" size={15} color={colors.primary} />
+              <Text style={styles.stickyVerifyText}>Already paid? Verify access</Text>
+            </Pressable>
+          ) : null}
+          <CtaButton
+            cta={cta!}
+            onPress={() => {
+              if (cta!.action === 'webCheckout') {
+                openWebCheckout(streamAccessUrl(id))
+                  .then(() => { setVerifyOpen(true); })
+                  .catch(() => {});
+              } else if (cta!.href) {
+                router.push(cta!.href);
+              }
+            }}
+          />
+        </View>
+      ) : null}
 
       {/* Verify access modal */}
       <Modal
@@ -1352,6 +1366,38 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: c.infoBg,
   },
   verifyBtnText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+
+  // Sticky bottom bar
+  stickyBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: c.surface,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 12,
+  },
+  stickyVerifyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: c.primary,
+    backgroundColor: c.infoBg,
+  },
+  stickyVerifyText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   // Group code redeem (web `.ve-hero-group`)
   groupCodeCard: {

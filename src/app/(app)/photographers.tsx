@@ -1,21 +1,38 @@
-import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter, Stack } from 'expo-router';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Screen } from '@/components/ui/Screen';
-import { inviteCoordinatorPhotographer, listPhotographers } from '@/features/photographers/api';
-import { PhotographerCard } from '@/features/photographers/PhotographerCard';
+import {
+  bookmarkPhotographer,
+  inviteCoordinatorPhotographer,
+  listBookmarkedPhotographers,
+  listPhotographers,
+  unbookmarkPhotographer,
+  type Photographer,
+} from '@/features/photographers/api';
 import { useRole } from '@/features/auth/role';
+import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 
-const ITEMS_PER_PAGE = 4;
-
+const ITEMS_PER_PAGE = 8;
 const ALL_CATEGORIES = 'All Categories';
 const ALL_LOCATIONS = 'All Locations';
 const ALL_PRICES = 'All Prices';
@@ -30,49 +47,44 @@ const PRICE_BUCKETS = [
 
 const RATING_OPTIONS = [
   { label: ALL_RATINGS, min: 0 },
-  { label: '4.5+', min: 4.5 },
-  { label: '4.0+', min: 4 },
-  { label: '3.0+', min: 3 },
+  { label: '4.5+ Stars', min: 4.5 },
+  { label: '4.0+ Stars', min: 4 },
+  { label: '3.0+ Stars', min: 3 },
 ] as const;
 
 type SortKey = 'rating' | 'price' | 'name';
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'rating', label: 'Rating' },
-  { key: 'price', label: 'Price' },
-  { key: 'name', label: 'Name' },
+const SORT_OPTIONS: { key: SortKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'rating', label: 'Top Rated', icon: 'star-outline' },
+  { key: 'price', label: 'Price: Low to High', icon: 'cash-outline' },
+  { key: 'name', label: 'Alphabetical', icon: 'text-outline' },
 ];
 
 type SheetKey = 'category' | 'location' | 'price' | 'rating' | 'sort';
 
-// Filter button component
-function FilterButton({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  const { colors } = useTheme();
-  const styles = useStyles();
-  return (
-    <Pressable style={styles.filterButton} onPress={onPress} accessibilityRole="button">
-      <Ionicons name={icon} size={14} color={colors.textMuted} />
-      <Text style={styles.filterButtonText} numberOfLines={1}>{label}</Text>
-      <Ionicons name="chevron-down" size={12} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
-    </Pressable>
-  );
+function getCategoryIcon(cat: string): keyof typeof Ionicons.glyphMap {
+  const lower = cat.toLowerCase();
+  if (lower.includes('all')) return 'apps-outline';
+  if (lower.includes('wedding')) return 'heart-outline';
+  if (lower.includes('portrait')) return 'person-outline';
+  if (lower.includes('event')) return 'calendar-outline';
+  if (lower.includes('birthday')) return 'gift-outline';
+  if (lower.includes('studio')) return 'camera-outline';
+  if (lower.includes('fashion')) return 'shirt-outline';
+  if (lower.includes('graduat')) return 'school-outline';
+  if (lower.includes('family')) return 'people-outline';
+  if (lower.includes('corporate') || lower.includes('business')) return 'briefcase-outline';
+  if (lower.includes('video') || lower.includes('stream')) return 'videocam-outline';
+  return 'camera-outline';
 }
 
 export default function PhotographersScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
+  const responsive = useResponsive();
   const { isCoordinator } = useRole();
-  const [query, setQuery] = useState('');
-  const [showBanner, setShowBanner] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const router = useRouter();
 
+  const [query, setQuery] = useState('');
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [location, setLocation] = useState(ALL_LOCATIONS);
   const [price, setPrice] = useState<string>(ALL_PRICES);
@@ -80,11 +92,66 @@ export default function PhotographersScreen() {
   const [sort, setSort] = useState<SortKey>('rating');
   const [sheet, setSheet] = useState<SheetKey | null>(null);
 
-  // Coordinator invite-by-email state — gated to Coordinator role.
+  // Bookmark state & parity sync
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  const [bookmarkLoading, setBookmarkLoading] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    listBookmarkedPhotographers()
+      .then((items) => {
+        if (!mounted) return;
+        setBookmarkedIds(new Set(items.map((p) => p.id)));
+      })
+      .catch(() => {
+        // Bookmark listing fails gracefully if offline or unauthenticated
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleToggleBookmark = async (id: string) => {
+    if (bookmarkLoading[id]) return;
+    const isBookmarked = bookmarkedIds.has(id);
+    setBookmarkedIds((prev) => {
+      const next = new Set(prev);
+      if (isBookmarked) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+    setBookmarkLoading((prev) => ({ ...prev, [id]: true }));
+    try {
+      if (isBookmarked) {
+        await unbookmarkPhotographer(id);
+      } else {
+        await bookmarkPhotographer(id);
+      }
+    } catch {
+      setBookmarkedIds((prev) => {
+        const next = new Set(prev);
+        if (isBookmarked) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+        return next;
+      });
+    } finally {
+      setBookmarkLoading((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
+  // Coordinator invite-by-email state
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteMessage, setInviteMessage] = useState('');
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
+
+  const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotographers(), []));
 
   const submitInvite = async () => {
     if (!inviteEmail.includes('@')) {
@@ -104,43 +171,44 @@ export default function PhotographersScreen() {
       setInviteSubmitting(false);
     }
   };
-  // Live width — keeps the 2-column grid in step with rotation /
-  // tablet split / web window resize. Replaces a module-level
-  // Dimensions.get that froze the column width at JS-bundle load.
-  const { width: deviceWidth } = useResponsive();
-  const cardWidth = (deviceWidth - spacing.sm * 2) / 2;
-  
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotographers(), []));
-  const router = useRouter();
+
+  const columns = responsive.isLarge ? 3 : 2;
+  const cardGap = spacing.sm;
+  const horizontalPadding = spacing.md * 2;
+  const cardWidth = Math.floor(
+    (responsive.width - horizontalPadding - cardGap * (columns - 1)) / columns,
+  );
 
   const categoryOptions = useMemo(() => {
     const set = new Set<string>();
-    (data ?? []).forEach((p) => { if (p.category) set.add(p.category); });
+    (data ?? []).forEach((p) => {
+      if (p.category) set.add(p.category);
+    });
     return [ALL_CATEGORIES, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [data]);
 
   const locationOptions = useMemo(() => {
     const set = new Set<string>();
-    (data ?? []).forEach((p) => { if (p.location) set.add(p.location); });
+    (data ?? []).forEach((p) => {
+      if (p.location) set.add(p.location);
+    });
     return [ALL_LOCATIONS, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [data]);
 
-  // Only offer buckets that actually contain someone, so the sheet never
-  // shows a range that can only ever return zero results.
   const priceOptions = useMemo(() => {
     const prices = (data ?? [])
       .map((p) => p.startingPrice)
       .filter((n): n is number => typeof n === 'number');
     return [
       ALL_PRICES,
-      ...PRICE_BUCKETS.filter((b) => prices.some((v) => v >= b.min && v < b.max)).map((b) => b.label),
+      ...PRICE_BUCKETS.filter((b) => prices.some((v) => v >= b.min && v < b.max)).map(
+        (b) => b.label,
+      ),
     ];
   }, [data]);
 
   const ratingOptions = useMemo(() => RATING_OPTIONS.map((o) => o.label), []);
 
-  // Options that vanish when the data changes must not leave a stale
-  // selection filtering everything out.
   useEffect(() => {
     if (!categoryOptions.includes(category)) setCategory(ALL_CATEGORIES);
     if (!locationOptions.includes(location)) setLocation(ALL_LOCATIONS);
@@ -148,7 +216,7 @@ export default function PhotographersScreen() {
   }, [categoryOptions, locationOptions, priceOptions, category, location, price]);
 
   const filtered = useMemo(() => {
-    if (!data) return data;
+    if (!data) return [];
     const q = query.trim().toLowerCase();
     const bucket = PRICE_BUCKETS.find((b) => b.label === price);
     const minRating = RATING_OPTIONS.find((o) => o.label === rating)?.min ?? 0;
@@ -174,16 +242,12 @@ export default function PhotographersScreen() {
     return rows.sort((a, b) => {
       if (sort === 'name') return a.name.localeCompare(b.name);
       if (sort === 'price') {
-        // Unpriced profiles sort last rather than reading as free.
         return (a.startingPrice ?? Infinity) - (b.startingPrice ?? Infinity);
       }
       return (b.rating ?? 0) - (a.rating ?? 0);
     });
   }, [data, query, category, location, price, rating, sort]);
 
-  // The search box narrows the list exactly like the filters do, so it counts
-  // as active and gets cleared too — otherwise "Clear filters" leaves a
-  // no-match query in place and appears to do nothing.
   const activeFilterCount =
     (query.trim() ? 1 : 0) +
     (category !== ALL_CATEGORIES ? 1 : 0) +
@@ -197,15 +261,62 @@ export default function PhotographersScreen() {
     setLocation(ALL_LOCATIONS);
     setPrice(ALL_PRICES);
     setRating(ALL_RATINGS);
+    setCurrentPage(0);
   };
 
-  const sheetConfig: Record<SheetKey, { title: string; options: string[]; selected: string; select: (v: string) => void }> = {
-    category: { title: 'Category', options: categoryOptions, selected: category, select: setCategory },
-    location: { title: 'Location', options: locationOptions, selected: location, select: setLocation },
-    price: { title: 'Starting price', options: priceOptions, selected: price, select: setPrice },
-    rating: { title: 'Rating', options: ratingOptions, selected: rating, select: setRating },
+  // Pagination State & Senior Dev Scroll Management
+  const [currentPage, setCurrentPage] = useState(0);
+  const flatListRef = useRef<FlatList<Photographer>>(null);
+
+  // Reset to first page on any query, filter, or sorting change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [query, category, location, price, rating, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages - 1);
+
+  const pagedPhotographers = useMemo(() => {
+    const start = safePage * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, safePage]);
+
+  const goToPage = (pageIndex: number) => {
+    const target = Math.max(0, Math.min(pageIndex, totalPages - 1));
+    setCurrentPage(target);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  const sheetConfig: Record<
+    SheetKey,
+    { title: string; options: string[]; selected: string; select: (v: string) => void }
+  > = {
+    category: {
+      title: 'Select Category',
+      options: categoryOptions,
+      selected: category,
+      select: setCategory,
+    },
+    location: {
+      title: 'Filter by Location',
+      options: locationOptions,
+      selected: location,
+      select: setLocation,
+    },
+    price: {
+      title: 'Starting Price',
+      options: priceOptions,
+      selected: price,
+      select: setPrice,
+    },
+    rating: {
+      title: 'Minimum Rating',
+      options: ratingOptions,
+      selected: rating,
+      select: setRating,
+    },
     sort: {
-      title: 'Sort by',
+      title: 'Sort By',
       options: SORT_OPTIONS.map((o) => o.label),
       selected: SORT_OPTIONS.find((o) => o.key === sort)!.label,
       select: (v) => {
@@ -215,196 +326,372 @@ export default function PhotographersScreen() {
     },
   };
   const activeSheet = sheet ? sheetConfig[sheet] : null;
-  const sortLabel = SORT_OPTIONS.find((o) => o.key === sort)!.label;
-
-  // Reset to the first page whenever the filtered set changes. This is a real
-  // side effect, so it belongs in useEffect — doing it in useMemo set state
-  // during render and made the pager jump/stall.
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filtered]);
-
-  const totalPages = filtered ? Math.ceil(filtered.length / ITEMS_PER_PAGE) : 0;
-
-  // The reset above only lands after paint, so narrowing the filters while on a
-  // deep page would render one frame of "no photographers found". Clamp here so
-  // that frame never shows.
-  const safePage = Math.min(currentPage, Math.max(1, totalPages));
-
-  const paginatedData = useMemo(() => {
-    if (!filtered) return [];
-    const start = (safePage - 1) * ITEMS_PER_PAGE;
-    return filtered.slice(start, start + ITEMS_PER_PAGE);
-  }, [filtered, safePage]);
+  const currentSortObj = SORT_OPTIONS.find((o) => o.key === sort)!;
 
   const handlePhotographerPress = (id: string) => {
-    router.push(`/photographer/${id}`);
+    router.push(`/photographer/${id}` as never);
   };
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Top Promotional Banner */}
-      {showBanner && (
-        <View style={styles.promoBanner}>
-          <Ionicons name="megaphone-outline" size={18} color="white" />
-          <View style={styles.promoTextContainer}>
-            <Text style={styles.promoTextLines}>
-              The Smart Way to{'\n'}Capture Life
-            </Text>
-            <View style={styles.promoDivider} />
-            <Text style={styles.promoTextBold}>
-              Book your perfect photographer{'\n'}today!
-            </Text>
-          </View>
-          <Pressable onPress={() => setShowBanner(false)} hitSlop={10}>
-            <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
-          </Pressable>
-        </View>
-      )}
-
-      {/* Main Blue Header Area */}
-      <View style={[styles.heroSection, { paddingTop: !showBanner ? spacing.md : spacing.md }]}>
+      {/* Title Area */}
+      <View style={styles.titleSection}>
         <View style={styles.eyebrowPill}>
-          <Ionicons name="sparkles" size={10} color="white" />
-          <Text style={styles.eyebrowText}>BROWSE CONNEKYT PHOTOGRAPHERS</Text>
+          <Ionicons name="sparkles" size={10} color={colors.primary} />
+          <Text style={styles.eyebrowText}>VERIFIED PROS</Text>
         </View>
-        <Text style={styles.heroTitle}>Find Your Perfect Photographer</Text>
-        <Text style={styles.heroSubtitle}>
-          Browse through professional photographers and videographers
+        <Text style={styles.title}>Find Photographers</Text>
+        <Text style={styles.subtitle}>
+          Browse vetted visual creators for your upcoming shoots and events
         </Text>
       </View>
 
-      {/* Floating Filter Card */}
-      <View style={styles.filterCard}>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={colors.textMuted} style={styles.searchIcon} />
-          <Input
-            placeholder="Search by name, specialty, or location..."
-            value={query}
-            onChangeText={setQuery}
-            autoCapitalize="none"
-            style={styles.searchInput}
-          />
-        </View>
-        
-        <View style={styles.filtersGrid}>
-          <View style={styles.filtersRow}>
-            <FilterButton icon="camera-outline" label={category} onPress={() => setSheet('category')} />
-            <FilterButton icon="location-outline" label={location} onPress={() => setSheet('location')} />
-          </View>
-          <View style={styles.filtersRow}>
-            <FilterButton icon="cash-outline" label={price} onPress={() => setSheet('price')} />
-            <FilterButton icon="star-outline" label={rating} onPress={() => setSheet('rating')} />
-          </View>
-        </View>
+      {/* Global In-Page Search Bar */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={18} color={colors.textMuted} />
+        <TextInput
+          placeholder="Search by name, style, or location..."
+          placeholderTextColor={colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.searchInput}
+        />
+        {query.trim().length > 0 && (
+          <Pressable onPress={() => setQuery('')} hitSlop={10} style={styles.searchClearBtn}>
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
       </View>
 
-      {/* Results Strip */}
-      <View style={styles.resultsStrip}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-          <Text style={styles.resultsText}>
-            <Text style={styles.resultsCount}>{filtered?.length ?? 0}</Text> photographers found
-          </Text>
-          {activeFilterCount > 0 ? (
-            <Pressable style={styles.clearPill} onPress={clearFilters} accessibilityRole="button">
-              <Ionicons name="close-circle" size={12} color={colors.primary} />
-              <Text style={styles.clearPillText}>Clear filters</Text>
-            </Pressable>
-          ) : null}
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {/*
-           * Coordinator-only invite pill. Web parity: salo-run
-           * coordinator/photographers shows this CTA so a workspace
-           * owner can email a photographer who isn't on the platform
-           * yet. Backend persists the invite + sends a Brevo email.
-           */}
-          {isCoordinator ? (
-            <Pressable style={styles.invitePill} onPress={() => setInviteOpen(true)}>
-              <Ionicons name="mail-outline" size={14} color="#fff" />
-              <Text style={styles.invitePillText}>Invite</Text>
-            </Pressable>
-          ) : null}
-          <Pressable style={styles.sortButton} onPress={() => setSheet('sort')} accessibilityRole="button">
-            <Ionicons name="swap-vertical" size={14} color={colors.text} />
-            <Text style={styles.sortText}>Sort: <Text style={styles.sortValue}>{sortLabel}</Text></Text>
-            <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+      {/* Category Chips Horizontal Rail */}
+      <View style={styles.categoryRailWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryRail}
+        >
+          {categoryOptions.map((cat) => {
+            const active = cat === category;
+            const iconName = getCategoryIcon(cat);
+            const label = cat === ALL_CATEGORIES ? 'All' : cat;
+            return (
+              <Pressable
+                key={cat}
+                style={[styles.categoryChip, active && styles.categoryChipActive]}
+                onPress={() => setCategory(cat)}
+              >
+                <Ionicons
+                  name={iconName}
+                  size={13}
+                  color={active ? '#FFFFFF' : colors.textMuted}
+                />
+                <Text
+                  style={[styles.categoryChipText, active && styles.categoryChipTextActive]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Filter Chips Bar */}
+      <View style={styles.filterPillsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterPillsScroll}
+        >
+          {/* Location Filter Pill */}
+          <Pressable
+            style={[
+              styles.filterPill,
+              location !== ALL_LOCATIONS && styles.filterPillActive,
+            ]}
+            onPress={() => setSheet('location')}
+          >
+            <Ionicons
+              name="location-outline"
+              size={13}
+              color={location !== ALL_LOCATIONS ? colors.primary : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.filterPillText,
+                location !== ALL_LOCATIONS && styles.filterPillTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {location === ALL_LOCATIONS ? 'Location' : location}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={11}
+              color={location !== ALL_LOCATIONS ? colors.primary : colors.textMuted}
+            />
           </Pressable>
-        </View>
+
+          {/* Price Filter Pill */}
+          <Pressable
+            style={[styles.filterPill, price !== ALL_PRICES && styles.filterPillActive]}
+            onPress={() => setSheet('price')}
+          >
+            <Ionicons
+              name="cash-outline"
+              size={13}
+              color={price !== ALL_PRICES ? colors.primary : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.filterPillText,
+                price !== ALL_PRICES && styles.filterPillTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {price === ALL_PRICES ? 'Price' : price}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={11}
+              color={price !== ALL_PRICES ? colors.primary : colors.textMuted}
+            />
+          </Pressable>
+
+          {/* Rating Filter Pill */}
+          <Pressable
+            style={[styles.filterPill, rating !== ALL_RATINGS && styles.filterPillActive]}
+            onPress={() => setSheet('rating')}
+          >
+            <Ionicons
+              name="star-outline"
+              size={13}
+              color={rating !== ALL_RATINGS ? '#F59E0B' : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.filterPillText,
+                rating !== ALL_RATINGS && styles.filterPillTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {rating === ALL_RATINGS ? 'Rating' : rating}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={11}
+              color={rating !== ALL_RATINGS ? '#F59E0B' : colors.textMuted}
+            />
+          </Pressable>
+
+          {/* Sort Selector Pill */}
+          <Pressable
+            style={styles.filterPill}
+            onPress={() => setSheet('sort')}
+          >
+            <Ionicons name={currentSortObj.icon} size={13} color={colors.textMuted} />
+            <Text style={styles.filterPillText} numberOfLines={1}>
+              {currentSortObj.label}
+            </Text>
+            <Ionicons name="chevron-down" size={11} color={colors.textMuted} />
+          </Pressable>
+
+          {/* Reset Filters Pill */}
+          {activeFilterCount > 0 && (
+            <Pressable style={styles.resetPill} onPress={clearFilters}>
+              <Ionicons name="close-circle" size={13} color={colors.primary} />
+              <Text style={styles.resetPillText}>Reset</Text>
+            </Pressable>
+          )}
+        </ScrollView>
+      </View>
+
+      {/* Results Header Strip */}
+      <View style={styles.resultsStrip}>
+        <Text style={styles.resultsText}>
+          <Text style={styles.resultsCount}>{filtered.length}</Text>{' '}
+          {filtered.length === 1 ? 'photographer' : 'photographers'} found
+          {totalPages > 1 ? ` · Page ${safePage + 1} of ${totalPages}` : ''}
+        </Text>
+
+        {isCoordinator && (
+          <Pressable style={styles.inviteBtn} onPress={() => setInviteOpen(true)}>
+            <Ionicons name="mail" size={12} color="#FFFFFF" />
+            <Text style={styles.inviteBtnText}>Invite Pro</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
 
   const renderFooter = () => {
-    if (totalPages <= 1) return null;
-    return (
-      <View style={styles.paginationContainer}>
-        <Pressable 
-          style={[styles.pagerBtn, safePage === 1 && styles.pagerBtnDisabled]}
-          onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
-          disabled={safePage === 1}
-        >
-          <Ionicons name="chevron-back" size={12} color={safePage === 1 ? colors.textMuted : colors.text} />
-          <Text style={[styles.pagerText, safePage === 1 && styles.pagerTextDisabled]}>Prev</Text>
-        </Pressable>
-        
-        <View style={styles.pageNumbers}>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <Pressable
-              key={page}
-              style={[styles.pageNumberBtn, safePage === page && styles.pageNumberBtnActive]}
-              onPress={() => setCurrentPage(page)}
-            >
-              <Text style={[styles.pageNumberText, safePage === page && styles.pageNumberTextActive]}>
-                {page}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+    if (filtered.length === 0) return null;
 
-        <Pressable 
-          style={[styles.pagerBtn, safePage === totalPages && styles.pagerBtnDisabled]}
-          onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-          disabled={safePage === totalPages}
-        >
-          <Text style={[styles.pagerText, safePage === totalPages && styles.pagerTextDisabled]}>Next</Text>
-          <Ionicons name="chevron-forward" size={12} color={safePage === totalPages ? colors.textMuted : colors.text} />
-        </Pressable>
+    const startItem = safePage * ITEMS_PER_PAGE + 1;
+    const endItem = Math.min((safePage + 1) * ITEMS_PER_PAGE, filtered.length);
+
+    if (totalPages <= 1) {
+      return (
+        <View style={styles.listFooter}>
+          <View style={styles.listFooterLine} />
+          <Text style={styles.listFooterText}>
+            Showing all {filtered.length} photographers
+          </Text>
+          <View style={styles.listFooterLine} />
+        </View>
+      );
+    }
+
+    const getPageNumbers = () => {
+      if (totalPages <= 5) {
+        return Array.from({ length: totalPages }, (_, i) => i);
+      }
+      const pages: (number | 'ellipsis-start' | 'ellipsis-end')[] = [];
+      pages.push(0);
+
+      const start = Math.max(1, safePage - 1);
+      const end = Math.min(totalPages - 2, safePage + 1);
+
+      if (start > 1) {
+        pages.push('ellipsis-start');
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (end < totalPages - 2) {
+        pages.push('ellipsis-end');
+      }
+
+      pages.push(totalPages - 1);
+      return pages;
+    };
+
+    const pageNumbers = getPageNumbers();
+
+    return (
+      <View style={styles.pagerContainer}>
+        {/* Result summary text */}
+        <Text style={styles.pagerInfoText}>
+          Showing <Text style={styles.pagerBoldText}>{startItem}–{endItem}</Text> of{' '}
+          <Text style={styles.pagerBoldText}>{filtered.length}</Text> photographers
+        </Text>
+
+        {/* Pager controls row */}
+        <View style={styles.pagerControls}>
+          {/* Prev Button */}
+          <Pressable
+            style={[styles.pagerBtn, safePage === 0 && styles.pagerBtnDisabled]}
+            onPress={() => goToPage(safePage - 1)}
+            disabled={safePage === 0}
+            hitSlop={8}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={13}
+              color={safePage === 0 ? colors.textMuted : colors.text}
+            />
+            <Text
+              style={[
+                styles.pagerBtnText,
+                safePage === 0 && styles.pagerBtnTextDisabled,
+              ]}
+            >
+              Prev
+            </Text>
+          </Pressable>
+
+          {/* Numbered Page Buttons */}
+          {pageNumbers.map((p, idx) => {
+            if (typeof p === 'string') {
+              return (
+                <Text key={`ellipsis-${idx}`} style={styles.pagerEllipsis}>
+                  …
+                </Text>
+              );
+            }
+            const isActive = p === safePage;
+            return (
+              <Pressable
+                key={`page-${p}`}
+                style={[styles.pagerNumBtn, isActive && styles.pagerNumBtnActive]}
+                onPress={() => goToPage(p)}
+                hitSlop={8}
+              >
+                <Text
+                  style={[styles.pagerNumText, isActive && styles.pagerNumTextActive]}
+                >
+                  {p + 1}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {/* Next Button */}
+          <Pressable
+            style={[
+              styles.pagerBtn,
+              safePage >= totalPages - 1 && styles.pagerBtnDisabled,
+            ]}
+            onPress={() => goToPage(safePage + 1)}
+            disabled={safePage >= totalPages - 1}
+            hitSlop={8}
+          >
+            <Text
+              style={[
+                styles.pagerBtnText,
+                safePage >= totalPages - 1 && styles.pagerBtnTextDisabled,
+              ]}
+            >
+              Next
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={13}
+              color={safePage >= totalPages - 1 ? colors.textMuted : colors.text}
+            />
+          </Pressable>
+        </View>
       </View>
     );
   };
 
   return (
     <>
-      <Screen padded={false} edges={['left', 'right', 'bottom']}>
-        <Stack.Screen 
+      <Screen padded={false} edges={[]}>
+        <Stack.Screen
           options={{
             title: 'Photographers',
-            headerStyle: { backgroundColor: showBanner ? '#052960' : '#083A85' },
-            headerTintColor: '#fff',
-            headerTitleStyle: { fontWeight: '700' },
-            headerShadowVisible: false,
             headerBackButtonDisplayMode: 'minimal',
           }}
         />
+
         {loading && !data ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading directory…</Text>
           </View>
         ) : error && !data?.length ? (
           <View style={styles.centered}>
             <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
             <Text style={styles.errorText}>{error}</Text>
+            <Button title="Retry" onPress={refresh} variant="outline" />
           </View>
         ) : (
           <FlatList
-            data={paginatedData}
+            ref={flatListRef}
+            key={`photog-grid-${columns}`}
+            data={pagedPhotographers}
             keyExtractor={(p) => p.id}
-            ListHeaderComponent={renderHeader()}
-            ListFooterComponent={renderFooter()}
-            numColumns={2}
+            ListHeaderComponent={renderHeader}
+            ListFooterComponent={renderFooter}
+            numColumns={columns}
             contentContainerStyle={styles.listContent}
             columnWrapperStyle={styles.columnWrapper}
+            keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
                 refreshing={loading}
@@ -412,55 +699,90 @@ export default function PhotographersScreen() {
                 tintColor={colors.primary}
               />
             }
-            ListEmptyComponent={<EmptyState icon="camera-outline" title="No photographers found" message="Try a different search, or pull to refresh." />}
+            ListEmptyComponent={
+              <EmptyState
+                icon="camera-outline"
+                title="No photographers match"
+                message={
+                  activeFilterCount > 0
+                    ? 'Try clearing your filters or changing your search terms.'
+                    : 'No photographers are currently registered.'
+                }
+                action={
+                  activeFilterCount > 0
+                    ? { label: 'Clear All Filters', onPress: clearFilters }
+                    : undefined
+                }
+              />
+            }
             renderItem={({ item }) => (
-              <Pressable 
-                style={[styles.cardWrapper, { width: cardWidth }]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.cardWrapper,
+                  { width: cardWidth },
+                  pressed && styles.cardPressed,
+                ]}
                 onPress={() => handlePhotographerPress(item.id)}
               >
-                <PhotographerCard photographer={item} />
+                <PhotographerCard
+                  photographer={item}
+                  isBookmarked={bookmarkedIds.has(item.id)}
+                  onToggleBookmark={() => handleToggleBookmark(item.id)}
+                />
               </Pressable>
             )}
           />
         )}
       </Screen>
+
+      {/* Coordinator Invite Modal */}
       <Modal
         visible={inviteOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setInviteOpen(false)}
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setInviteOpen(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Invite a photographer</Text>
             <Text style={styles.modalHint}>
-              They'll receive an email with a link to join your workspace.
+              They will receive an email invitation to register and join your workspace.
             </Text>
-            <Input
-              label="Email"
+            <TextInput
               placeholder="photographer@example.com"
+              placeholderTextColor={colors.textMuted}
               value={inviteEmail}
               onChangeText={setInviteEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              style={styles.modalInput}
             />
-            <Input
-              label="Personal note (optional)"
-              placeholder="Add a short message for context"
+            <TextInput
+              placeholder="Personal note (optional)"
+              placeholderTextColor={colors.textMuted}
               value={inviteMessage}
               onChangeText={setInviteMessage}
               multiline
-              style={{ height: 80, paddingTop: spacing.md, textAlignVertical: 'top', marginTop: spacing.sm }}
+              style={[styles.modalInput, { height: 75, textAlignVertical: 'top' }]}
             />
-            <Button
-              title={inviteSubmitting ? 'Sending…' : 'Send invitation'}
-              onPress={submitInvite}
-              loading={inviteSubmitting}
-            />
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                variant="ghost"
+                onPress={() => setInviteOpen(false)}
+              />
+              <Button
+                title={inviteSubmitting ? 'Sending…' : 'Send Invite'}
+                onPress={submitInvite}
+                loading={inviteSubmitting}
+              />
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
 
+      {/* Filter Bottom Sheet Modal */}
       <Modal
         visible={activeSheet !== null}
         transparent
@@ -469,8 +791,14 @@ export default function PhotographersScreen() {
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setSheet(null)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>{activeSheet?.title}</Text>
-            <ScrollView style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
+            <View style={styles.modalHandle} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.modalTitle}>{activeSheet?.title}</Text>
+              <Pressable onPress={() => setSheet(null)} hitSlop={10}>
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
               {activeSheet?.options.map((option) => {
                 const active = option === activeSheet.selected;
                 return (
@@ -480,16 +808,27 @@ export default function PhotographersScreen() {
                       activeSheet.select(option);
                       setSheet(null);
                     }}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                    style={[styles.chip, active && styles.chipActive]}
+                    style={[styles.sheetOption, active && styles.sheetOptionActive]}
                   >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{option}</Text>
+                    <Text
+                      style={[
+                        styles.sheetOptionText,
+                        active && styles.sheetOptionTextActive,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                    {active && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color={colors.primary}
+                      />
+                    )}
                   </Pressable>
                 );
               })}
             </ScrollView>
-            <Button title="Close" variant="ghost" onPress={() => setSheet(null)} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -498,287 +837,401 @@ export default function PhotographersScreen() {
 }
 
 const useStyles = makeStyles((c, e) => ({
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  listContent: { 
-    flexGrow: 1, 
-    paddingBottom: 120,
-    backgroundColor: '#F8FAFC', // light background for the body
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.xl,
+  },
+  loadingText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+  },
+  errorText: {
+    fontFamily: fonts.regular,
+    color: c.textMuted,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+  },
+  listContent: {
+    flexGrow: 1,
+    paddingBottom: 110,
+    backgroundColor: c.background,
   },
   columnWrapper: {
-    paddingHorizontal: spacing.sm,
-  },
-  cardWrapper: {
-    // Width applied inline via cardWidth (responsive on rotation/resize).
-    padding: spacing.xs,
-  },
-  headerContainer: {
-    backgroundColor: '#F8FAFC',
-    marginBottom: spacing.xs,
-  },
-  promoBanner: {
-    backgroundColor: '#052960',
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    gap: spacing.md,
-  },
-  promoTextContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.sm,
   },
-  promoTextLines: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 11,
-    lineHeight: 14,
+  cardWrapper: {
+    marginBottom: spacing.sm,
   },
-  promoDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  cardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
   },
-  promoTextBold: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
+
+  // Header
+  headerContainer: {
+    backgroundColor: c.background,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
   },
-  heroSection: {
-    backgroundColor: '#083A85',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: 60, // Compacted padding
-    alignItems: 'center',
+  titleSection: {
+    paddingHorizontal: spacing.md,
+    gap: 4,
   },
   eyebrowPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.full,
     gap: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    marginBottom: 12,
+    backgroundColor: c.tint,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: radii.full,
   },
   eyebrowText: {
-    color: 'white',
     fontFamily: fonts.bold,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 9.5,
+    color: c.primary,
+    letterSpacing: 0.7,
   },
-  heroTitle: {
-    color: 'white',
+  title: {
     fontFamily: fonts.bold,
     fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 4,
-    letterSpacing: -0.3,
+    color: c.text,
+    letterSpacing: -0.5,
   },
-  heroSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
+  subtitle: {
     fontFamily: fonts.regular,
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 16,
+    fontSize: 12.5,
+    color: c.textMuted,
+    lineHeight: 17,
   },
-  filterCard: {
-    backgroundColor: 'white',
+
+  // Search Bar
+  searchBar: {
     marginHorizontal: spacing.md,
-    marginTop: -40, // Float over the blue background
-    borderRadius: radii.xl,
-    padding: 12,
-    ...e(3),
-  },
-  searchContainer: {
-    position: 'relative',
-    marginBottom: 12,
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: spacing.sm,
-    top: 10,
-    zIndex: 1,
-  },
-  searchInput: {
-    paddingLeft: 36,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    borderRadius: radii.lg,
-    height: 40,
-    fontSize: 13,
-  },
-  filtersGrid: {
-    gap: 8,
-  },
-  filtersRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  filterButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    borderRadius: radii.lg,
-    paddingHorizontal: 12,
-    height: 36,
-    gap: 6,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.md,
+    height: 46,
+    gap: spacing.sm,
+    ...e(1),
   },
-  filterButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
     color: c.text,
-    flexShrink: 1,
+    height: '100%',
+    paddingVertical: 0,
   },
-  clearPill: {
+  searchClearBtn: {
+    padding: 2,
+  },
+
+  // Category Rail
+  categoryRailWrap: {
+    marginTop: 2,
+  },
+  categoryRail: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 6.5,
+    borderRadius: radii.full,
+  },
+  categoryChipActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  categoryChipText: {
+    fontFamily: fonts.regular,
+    fontSize: 11.5,
+    color: c.text,
+  },
+  categoryChipTextActive: {
+    fontFamily: fonts.bold,
+    color: '#FFFFFF',
+  },
+
+  // Filter Pills
+  filterPillsRow: {
+    marginTop: 2,
+  },
+  filterPillsScroll: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+    alignItems: 'center',
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+  },
+  filterPillActive: {
+    borderColor: c.primary + '60',
+    backgroundColor: c.tint,
+  },
+  filterPillText: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.text,
+  },
+  filterPillTextActive: {
+    fontFamily: fonts.bold,
+    color: c.primary,
+  },
+  resetPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: c.infoBg,
+    backgroundColor: c.tint,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderColor: c.primary + '40',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
     borderRadius: radii.full,
   },
-  clearPillText: {
+  resetPillText: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    fontWeight: '700',
     color: c.primary,
   },
-  chipScroll: { maxHeight: 240 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingBottom: spacing.sm },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radii.lg,
-    backgroundColor: c.surfaceMuted,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
-  chipText: { fontSize: fontSize.xs, color: c.textSoft, fontWeight: fontWeight.semibold },
-  chipTextActive: { color: c.textOnPrimary },
+
+  // Results Strip
   resultsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    marginTop: 16,
-    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
+    marginTop: 6,
   },
   resultsText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 12,
     color: c.textMuted,
   },
   resultsCount: {
     fontFamily: fonts.bold,
-    fontWeight: '700',
-    color: '#083A85',
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.lg,
-    gap: 4,
-  },
-  sortText: {
-    fontSize: 12,
-    color: c.textMuted,
-  },
-  sortValue: {
-    fontWeight: '600',
     color: c.text,
   },
-  paginationContainer: {
+  inviteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: c.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: radii.full,
+  },
+  inviteBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 10.5,
+    color: '#FFFFFF',
+  },
+
+  // List Footer
+  listFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.sm,
     paddingVertical: spacing.xl,
-    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  listFooterLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: c.borderSoft,
+  },
+  listFooterText: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.textMuted,
+  },
+
+  // Pagination Controls
+  pagerContainer: {
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  pagerInfoText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  pagerBoldText: {
+    fontFamily: fonts.bold,
+    color: c.text,
+  },
+  pagerControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
   },
   pagerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    gap: 3,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    ...e(1),
+  },
+  pagerBtnDisabled: {
+    opacity: 0.45,
+    backgroundColor: c.surfaceMuted,
+    borderColor: c.borderSoft,
+  },
+  pagerBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 11.5,
+    color: c.text,
+  },
+  pagerBtnTextDisabled: {
+    color: c.textMuted,
+  },
+  pagerNumBtn: {
+    minWidth: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    paddingHorizontal: 6,
+    ...e(1),
+  },
+  pagerNumBtnActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  pagerNumText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: c.text,
+  },
+  pagerNumTextActive: {
+    color: '#FFFFFF',
+  },
+  pagerEllipsis: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: c.textMuted,
+    paddingHorizontal: 3,
+  },
+
+  // Modals & Bottom Sheets
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: c.elevated,
+    borderTopLeftRadius: radii['2xl'],
+    borderTopRightRadius: radii['2xl'],
+    padding: spacing.lg,
+    paddingBottom: 40,
+    gap: spacing.sm,
+    ...e(3),
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: c.borderSoft,
+    alignSelf: 'center',
+    marginBottom: spacing.xs,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  modalTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.md,
+    color: c.text,
+  },
+  modalHint: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: c.textMuted,
+    lineHeight: 17,
+  },
+  modalInput: {
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
     borderColor: c.borderSoft,
     borderRadius: radii.md,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 4,
-  },
-  pagerBtnDisabled: {
-    opacity: 0.5,
-  },
-  pagerText: {
-    fontSize: 12,
-    fontWeight: '600',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
     color: c.text,
   },
-  pagerTextDisabled: {
-    color: c.textMuted,
-  },
-  pageNumbers: {
+  modalActions: {
     flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  pageNumberBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.md,
-    backgroundColor: 'transparent',
-  },
-  pageNumberBtnActive: {
-    backgroundColor: c.primary,
-  },
-  pageNumberText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: c.text,
-  },
-  pageNumberTextActive: {
-    color: 'white',
-  },
-
-  invitePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: c.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.lg,
-  },
-  invitePillText: { color: '#fff', fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
-
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    padding: spacing.xl,
+    justifyContent: 'flex-end',
     gap: spacing.sm,
+    marginTop: spacing.xs,
   },
-  modalTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: '700', color: c.text },
-  modalHint: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20, marginBottom: spacing.sm },
+  sheetScroll: {
+    maxHeight: 280,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: radii.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+  },
+  sheetOptionActive: {
+    backgroundColor: c.tint,
+  },
+  sheetOptionText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: c.text,
+  },
+  sheetOptionTextActive: {
+    fontFamily: fonts.bold,
+    color: c.primary,
+  },
 }));

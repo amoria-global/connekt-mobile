@@ -21,14 +21,13 @@
  * purchases are policy-gated off entirely (digitalPurchasesEnabled).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { openWebCheckout, payToWatchUrl } from '@/features/payments/webCheckout';
@@ -62,9 +61,14 @@ function feeLabel(fee: number, code?: string | null, symbol?: string | null): st
   return `${fee.toLocaleString()} ${symbol || code || 'RWF'}`;
 }
 
+function leaveScreen(router: ReturnType<typeof useRouter>) {
+  if (router.canGoBack()) router.back();
+  else router.replace('/tv-devices' as Href);
+}
+
 export default function PayOnTvScreen() {
   const styles = useStyles();
-  const { colors, gradients } = useTheme();
+  const { colors } = useTheme();
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [target, setTarget] = useState<{ eventId: string; device: string } | null>(null);
@@ -90,12 +94,35 @@ export default function PayOnTvScreen() {
   };
 
   if (target) {
-    return <PayPanel eventId={target.eventId} device={target.device} onBack={rescan} onDone={() => router.back()} />;
+    return (
+      <PayPanel
+        eventId={target.eventId}
+        device={target.device}
+        onBack={rescan}
+        onDone={() => leaveScreen(router)}
+      />
+    );
   }
 
   return (
-    <Screen padded={false} edges={['top']}>
-      <ScreenHeader title="Pay on TV" subtitle="Scan the payment QR shown on your TV" />
+    <Screen padded={false} edges={['top', 'bottom']}>
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={() => leaveScreen(router)}
+          hitSlop={12}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <Ionicons name="close" size={22} color={colors.text} />
+        </Pressable>
+        <View style={styles.topCopy}>
+          <Text style={styles.title}>Pay on TV</Text>
+          <Text style={styles.subtitle}>Scan the payment QR shown on your TV</Text>
+        </View>
+        <View style={styles.closeBtnSpacer} />
+      </View>
+
       {!permission ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -104,6 +131,7 @@ export default function PayOnTvScreen() {
         <View style={styles.center}>
           <Text style={styles.body}>Connekyt needs camera access to scan the QR on your TV.</Text>
           <Button title="Allow camera access" onPress={requestPermission} />
+          <Button title="Cancel" variant="ghost" onPress={() => leaveScreen(router)} />
         </View>
       ) : (
         <View style={styles.cameraWrap}>
@@ -113,6 +141,14 @@ export default function PayOnTvScreen() {
             onBarcodeScanned={onScanned}
           />
           <View style={styles.frame} pointerEvents="none" />
+          <Pressable
+            style={({ pressed }) => [styles.cameraClose, pressed && styles.pressed]}
+            onPress={() => leaveScreen(router)}
+            accessibilityRole="button"
+            accessibilityLabel="Close scanner"
+          >
+            <Ionicons name="close" size={20} color="#fff" />
+          </Pressable>
           {scanError ? (
             <View style={styles.scanErrorBar}>
               <Text style={styles.scanErrorText}>{scanError}</Text>
@@ -180,7 +216,7 @@ function PayPanel({
   if (loading) {
     return (
       <Screen padded={false} edges={['top']} style={styles.wide}>
-        <ScreenHeader title="Pay on TV" subtitle="Loading stream…" />
+        <ModalChrome title="Pay on TV" subtitle="Loading stream…" onClose={onDone} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -190,11 +226,12 @@ function PayPanel({
   if (loadError) {
     return (
       <Screen padded={false} edges={['top']} style={styles.wide}>
-        <ScreenHeader title="Pay on TV" />
+        <ModalChrome title="Pay on TV" onClose={onDone} />
         <View style={styles.center}>
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
           <Text style={styles.body}>{loadError}</Text>
           <Button title="Scan again" onPress={onBack} />
+          <Button title="Cancel" variant="ghost" onPress={onDone} />
         </View>
       </Screen>
     );
@@ -202,7 +239,7 @@ function PayPanel({
 
   return (
     <Screen padded={false} edges={['top', 'bottom']} style={styles.wide}>
-      <ScreenHeader title="Pay on TV" subtitle="Unlock this stream on your Smart TV" />
+      <ModalChrome title="Pay on TV" subtitle="Unlock this stream on your Smart TV" onClose={onDone} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Hero — brand gradient with the amount as the anchor */}
         <LinearGradient
@@ -274,6 +311,37 @@ function PayPanel({
   );
 }
 
+function ModalChrome({
+  title,
+  subtitle,
+  onClose,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return (
+    <View style={styles.topBar}>
+      <Pressable
+        onPress={onClose}
+        hitSlop={12}
+        style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      >
+        <Ionicons name="close" size={22} color={colors.text} />
+      </Pressable>
+      <View style={styles.topCopy}>
+        <Text style={styles.title}>{title}</Text>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      </View>
+      <View style={styles.closeBtnSpacer} />
+    </View>
+  );
+}
+
 function Step({ icon, text, done }: { icon: keyof typeof Ionicons.glyphMap; text: string; done?: boolean }) {
   const styles = useStyles();
   const { colors, gradients } = useTheme();
@@ -299,6 +367,51 @@ const useStyles = makeStyles((c) => ({
   // Widen this screen past the app-wide 520px phone clamp so it reads as a
   // proper modal on web / tablet. On phones it's a no-op.
   wide: { width: '100%', maxWidth: 640, alignSelf: 'center' },
+
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtnSpacer: { width: 40, height: 40 },
+  topCopy: { flex: 1, gap: 2, paddingTop: 6 },
+  title: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.xl,
+    color: c.text,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    textAlign: 'center',
+  },
+  pressed: { opacity: 0.75 },
+  cameraClose: {
+    position: 'absolute',
+    top: spacing.lg,
+    right: spacing.lg,
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(15,18,23,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.xl },
   body: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', lineHeight: 20 },

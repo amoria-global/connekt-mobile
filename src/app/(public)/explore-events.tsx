@@ -25,17 +25,15 @@
  *   • Saved-events bookmarks persisted to SecureStore under
  *     `connekyt:savedEvents` (matches the web's localStorage key).
  *
- * Status taxonomy (verbatim from knockout events.tsx:373-379):
- *   isLive   = eventStatus === 'ONGOING' && streamStatus !== 'ended'
- *              && (hasLiveStream === true || id ∈ liveStreamIds)
+ * Status taxonomy:
+ *   isLive   = an active stream lifecycle status, or (for legacy rows)
+ *              an ONGOING event with live-stream metadata.
  *   isEnded  = eventStatus === 'COMPLETED' || streamStatus === 'ended'
  *   tab → backend status: all → undefined, live → ONGOING,
  *                          upcoming → PUBLISHED, completed → COMPLETED
  *
- * The web extra-verifies "ONGOING" via Cloudflare's `getStreamVideo`
- * (auth-required); guests on mobile can't call that, so the live set is
- * always empty and we fall back to the `hasLiveStream` flag (same code
- * path the web takes when the verification check is unavailable).
+ * The public list includes enough stream metadata to render the same feed
+ * for signed-in clients and guests without an additional Cloudflare request.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -228,9 +226,8 @@ export default function ExploreEventsScreen() {
   );
   const [page, setPage] = useState(1);
 
-  // Live verification (`liveStreamIds`) needs the auth-required Cloudflare
-  // check, which guests can't make. Pass empty — the helpers fall back to
-  // `hasLiveStream === true`, identical to the web when the check fails.
+  // Kept as an extension point for any server-verified live IDs. The public
+  // list's normalized stream status is the primary source of truth.
   const liveStreamIds = useMemo(() => new Set<string>(), []);
 
   // Bookmarks — persisted to SecureStore under the same key the web uses.
@@ -283,12 +280,15 @@ export default function ExploreEventsScreen() {
     try {
       let res = await listPublicEventsDetailed({
         page: page - 1,
-        size: PAGE_SIZE,
+        // Live state is not always reflected in the event's publication
+        // status. Load the live pool broadly, then use streamStatus and the
+        // stream URLs to decide which cards are actually live.
+        size: tab === 'live' ? 50 : PAGE_SIZE,
         sortColumn: 'eventDate',
         sortDirection: tab === 'completed' ? 'desc' : 'asc',
         category: category !== 'all' ? category : undefined,
         location: location !== 'all' ? location : undefined,
-        status: TAB_TO_STATUS[tab],
+        status: tab === 'live' ? undefined : TAB_TO_STATUS[tab],
         dateRange: dateRange !== 'all' ? dateRange : undefined,
         search: searchTerm || undefined,
       });
@@ -330,6 +330,16 @@ export default function ExploreEventsScreen() {
             totalPages: Math.ceil(filtered.length / PAGE_SIZE) || 1,
           };
         }
+      }
+
+      if (tab === 'live') {
+        const liveContent = res.content.filter((event) => isEventLive(event, liveStreamIds));
+        res = {
+          ...res,
+          content: liveContent,
+          totalElements: liveContent.length,
+          totalPages: Math.ceil(liveContent.length / PAGE_SIZE) || 1,
+        };
       }
 
       if (!isCurrent()) return;
@@ -557,7 +567,7 @@ export default function ExploreEventsScreen() {
       setSearchFocused(false);
       Keyboard.dismiss();
       if (item.type === 'event' && item.eventId) {
-        router.push(`/event/${item.eventId}` as never);
+        router.push(`/(public)/event/${item.eventId}` as never);
       } else if (item.type === 'category' && item.filterValue) {
         setCategory(item.filterValue);
         setSearch('');
@@ -664,7 +674,7 @@ export default function ExploreEventsScreen() {
                 <Pressable
                   key={e.id}
                   style={({ pressed }) => [styles.storyItem, pressed && { opacity: 0.8 }]}
-                  onPress={() => router.push(`/event/${e.id}` as never)}
+                  onPress={() => router.push(`/(public)/event/${e.id}` as never)}
                   accessibilityRole="button"
                   accessibilityLabel={`${e.title}, ${isLive ? 'Live now' : 'Event'}`}
                 >
@@ -915,7 +925,7 @@ export default function ExploreEventsScreen() {
 
   if (loading && data.length === 0 && !error) {
     return (
-      <Screen padded={false} edges={['bottom']}>
+      <Screen padded={false} edges={[]}>
         {renderTopBar()}
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -925,7 +935,7 @@ export default function ExploreEventsScreen() {
   }
 
   return (
-    <Screen padded={false} edges={['bottom']}>
+    <Screen padded={false} edges={[]}>
       {renderTopBar()}
       <FlatList
         data={data}
@@ -940,7 +950,7 @@ export default function ExploreEventsScreen() {
               isEnded={isEventEnded(item)}
               isSaved={saved.has(item.id)}
               onToggleSave={() => toggleSaved(item.id)}
-              onPress={() => router.push(`/event/${item.id}` as never)}
+              onPress={() => router.push(`/(public)/event/${item.id}` as never)}
             />
           </View>
         )}
