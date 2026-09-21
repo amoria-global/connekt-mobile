@@ -38,6 +38,32 @@ const ALL_LOCATIONS = 'All Locations';
 const ALL_PRICES = 'All Prices';
 const ALL_RATINGS = 'All Ratings';
 
+export const STANDARD_CATEGORIES = [
+  'Weddings',
+  'Portraits',
+  'Events',
+  'Studio',
+  'Fashion',
+  'Birthdays',
+  'Family',
+  'Corporate',
+  'Graduation',
+  'Videography',
+  'Drone & Aerial',
+  'Commercial',
+] as const;
+
+export const POPULAR_LOCATIONS = [
+  'Kampala',
+  'Entebbe',
+  'Jinja',
+  'Mbarara',
+  'Gulu',
+  'Kigali',
+  'Nairobi',
+  'Dar es Salaam',
+] as const;
+
 const PRICE_BUCKETS = [
   { label: 'Under $100', min: 0, max: 100 },
   { label: '$100 – $250', min: 100, max: 250 },
@@ -61,6 +87,77 @@ const SORT_OPTIONS: { key: SortKey; label: string; icon: keyof typeof Ionicons.g
 
 type SheetKey = 'category' | 'location' | 'price' | 'rating' | 'sort';
 
+function normalizeTerm(str: string): string {
+  return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function getStem(term: string): string {
+  return term.endsWith('s') && term.length > 3 ? term.slice(0, -1) : term;
+}
+
+function matchesCategory(p: Photographer, targetCategory: string): boolean {
+  if (!targetCategory || targetCategory === ALL_CATEGORIES) return true;
+
+  const targetNorm = normalizeTerm(targetCategory);
+  const targetStem = getStem(targetNorm);
+
+  const candidateStrings = [
+    p.category,
+    ...(p.specialties ?? []),
+  ].filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
+
+  const isTarget = (keyword: string) => targetNorm.includes(keyword) || targetStem.includes(keyword);
+
+  return candidateStrings.some((c) => {
+    const norm = normalizeTerm(c);
+    const stem = getStem(norm);
+
+    // Exact or stem match
+    if (norm === targetNorm || stem === targetStem) return true;
+    // Substring containment
+    if (norm.includes(targetStem) || targetNorm.includes(stem)) return true;
+
+    // Semantic client-need expansions
+    if (isTarget('drone') || isTarget('aerial')) {
+      if (norm.includes('drone') || norm.includes('aerial') || norm.includes('mavic')) return true;
+    }
+    if (isTarget('video') || isTarget('film')) {
+      if (norm.includes('video') || norm.includes('film') || norm.includes('cinemat') || norm.includes('stream')) return true;
+    }
+    if (isTarget('wedding')) {
+      if (norm.includes('wedding') || norm.includes('bridal') || norm.includes('couple') || norm.includes('marriage') || norm.includes('introduction') || norm.includes('kuhingira')) return true;
+    }
+    if (isTarget('family')) {
+      if (norm.includes('family') || norm.includes('maternity') || norm.includes('newborn') || norm.includes('baby') || norm.includes('kids') || norm.includes('children')) return true;
+    }
+    if (isTarget('corporate')) {
+      if (norm.includes('corporate') || norm.includes('business') || norm.includes('conference') || norm.includes('executive') || norm.includes('headshot')) return true;
+    }
+    if (isTarget('portrait')) {
+      if (norm.includes('portrait') || norm.includes('headshot') || norm.includes('glamour') || norm.includes('model')) return true;
+    }
+    if (isTarget('commercial')) {
+      if (norm.includes('commercial') || norm.includes('product') || norm.includes('realestate') || norm.includes('food') || norm.includes('brand')) return true;
+    }
+    if (isTarget('event')) {
+      if (norm.includes('event') || norm.includes('festival') || norm.includes('party') || norm.includes('concert') || norm.includes('gala')) return true;
+    }
+    if (isTarget('birthday')) {
+      if (norm.includes('birthday') || norm.includes('party') || norm.includes('anniversary')) return true;
+    }
+
+    return false;
+  });
+}
+
+function matchesLocation(pLocation?: string, targetLocation?: string): boolean {
+  if (!targetLocation || targetLocation === ALL_LOCATIONS) return true;
+  if (!pLocation) return false;
+  const pNorm = normalizeTerm(pLocation);
+  const tNorm = normalizeTerm(targetLocation);
+  return pNorm.includes(tNorm) || tNorm.includes(pNorm);
+}
+
 function getCategoryIcon(cat: string): keyof typeof Ionicons.glyphMap {
   const lower = cat.toLowerCase();
   if (lower.includes('all')) return 'apps-outline';
@@ -71,9 +168,11 @@ function getCategoryIcon(cat: string): keyof typeof Ionicons.glyphMap {
   if (lower.includes('studio')) return 'camera-outline';
   if (lower.includes('fashion')) return 'shirt-outline';
   if (lower.includes('graduat')) return 'school-outline';
-  if (lower.includes('family')) return 'people-outline';
+  if (lower.includes('family') || lower.includes('maternity') || lower.includes('baby')) return 'people-outline';
   if (lower.includes('corporate') || lower.includes('business')) return 'briefcase-outline';
-  if (lower.includes('video') || lower.includes('stream')) return 'videocam-outline';
+  if (lower.includes('video') || lower.includes('stream') || lower.includes('film')) return 'videocam-outline';
+  if (lower.includes('drone') || lower.includes('aerial')) return 'airplane-outline';
+  if (lower.includes('commercial') || lower.includes('product') || lower.includes('store')) return 'storefront-outline';
   return 'camera-outline';
 }
 
@@ -180,32 +279,62 @@ export default function PhotographersScreen() {
   );
 
   const categoryOptions = useMemo(() => {
-    const set = new Set<string>();
+    const dynamicSet = new Set<string>();
     (data ?? []).forEach((p) => {
-      if (p.category) set.add(p.category);
+      if (p.category && p.category.trim()) dynamicSet.add(p.category.trim());
+      (p.specialties ?? []).forEach((s) => {
+        if (s && s.trim()) dynamicSet.add(s.trim());
+      });
     });
-    return [ALL_CATEGORIES, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+
+    const list: string[] = [ALL_CATEGORIES, ...STANDARD_CATEGORIES];
+
+    dynamicSet.forEach((item) => {
+      const itemNorm = normalizeTerm(item);
+      const itemStem = getStem(itemNorm);
+      const alreadyPresent = list.some((existing) => {
+        const exNorm = normalizeTerm(existing);
+        const exStem = getStem(exNorm);
+        return (
+          exNorm === itemNorm ||
+          exStem === itemStem ||
+          exNorm.includes(itemStem) ||
+          itemNorm.includes(exStem)
+        );
+      });
+      if (!alreadyPresent) {
+        list.push(item);
+      }
+    });
+
+    return list;
   }, [data]);
 
   const locationOptions = useMemo(() => {
     const set = new Set<string>();
     (data ?? []).forEach((p) => {
-      if (p.location) set.add(p.location);
+      if (p.location && p.location.trim()) set.add(p.location.trim());
     });
-    return [ALL_LOCATIONS, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+
+    const list: string[] = [ALL_LOCATIONS, ...POPULAR_LOCATIONS];
+
+    set.forEach((loc) => {
+      const locNorm = normalizeTerm(loc);
+      const alreadyPresent = list.some((existing) => {
+        const exNorm = normalizeTerm(existing);
+        return exNorm === locNorm || exNorm.includes(locNorm) || locNorm.includes(exNorm);
+      });
+      if (!alreadyPresent) {
+        list.push(loc);
+      }
+    });
+
+    return list;
   }, [data]);
 
   const priceOptions = useMemo(() => {
-    const prices = (data ?? [])
-      .map((p) => p.startingPrice)
-      .filter((n): n is number => typeof n === 'number');
-    return [
-      ALL_PRICES,
-      ...PRICE_BUCKETS.filter((b) => prices.some((v) => v >= b.min && v < b.max)).map(
-        (b) => b.label,
-      ),
-    ];
-  }, [data]);
+    return [ALL_PRICES, ...PRICE_BUCKETS.map((b) => b.label)];
+  }, []);
 
   const ratingOptions = useMemo(() => RATING_OPTIONS.map((o) => o.label), []);
 
@@ -223,18 +352,27 @@ export default function PhotographersScreen() {
 
     const rows = data.filter((p) => {
       if (q) {
-        const hit =
-          p.name.toLowerCase().includes(q) ||
-          (p.category ?? '').toLowerCase().includes(q) ||
-          (p.location ?? '').toLowerCase().includes(q);
-        if (!hit) return false;
+        const nameHit = p.name.toLowerCase().includes(q);
+        const catHit = (p.category ?? '').toLowerCase().includes(q);
+        const locHit = (p.location ?? '').toLowerCase().includes(q);
+        const specialtyHit = (p.specialties ?? []).some((s) =>
+          s.toLowerCase().includes(q),
+        );
+        const smartMatch = matchesCategory(p, q);
+
+        if (!nameHit && !catHit && !locHit && !specialtyHit && !smartMatch) {
+          return false;
+        }
       }
-      if (category !== ALL_CATEGORIES && p.category !== category) return false;
-      if (location !== ALL_LOCATIONS && p.location !== location) return false;
+
+      if (!matchesCategory(p, category)) return false;
+      if (!matchesLocation(p.location, location)) return false;
+
       if (bucket) {
         if (typeof p.startingPrice !== 'number') return false;
         if (p.startingPrice < bucket.min || p.startingPrice >= bucket.max) return false;
       }
+
       if (minRating > 0 && (p.rating ?? 0) < minRating) return false;
       return true;
     });
@@ -350,7 +488,7 @@ export default function PhotographersScreen() {
       <View style={styles.searchBar}>
         <Ionicons name="search" size={18} color={colors.textMuted} />
         <TextInput
-          placeholder="Search by name, style, or location..."
+          placeholder="Search by need (Weddings, Studio, Drone), name..."
           placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={setQuery}
@@ -702,15 +840,25 @@ export default function PhotographersScreen() {
             ListEmptyComponent={
               <EmptyState
                 icon="camera-outline"
-                title="No photographers match"
+                title={
+                  category !== ALL_CATEGORIES
+                    ? `No ${category} photographers yet`
+                    : location !== ALL_LOCATIONS
+                    ? `No photographers in ${location} yet`
+                    : query.trim()
+                    ? `No results for "${query.trim()}"`
+                    : 'No photographers match'
+                }
                 message={
                   activeFilterCount > 0
-                    ? 'Try clearing your filters or changing your search terms.'
-                    : 'No photographers are currently registered.'
+                    ? 'Try clearing your filters or exploring another specialty or region.'
+                    : 'No photographers are currently registered in the directory.'
                 }
                 action={
                   activeFilterCount > 0
                     ? { label: 'Clear All Filters', onPress: clearFilters }
+                    : isCoordinator
+                    ? { label: 'Invite a Pro', onPress: () => setInviteOpen(true) }
                     : undefined
                 }
               />

@@ -59,3 +59,4 @@ build-artifacts/
 
 # Scratch copy left by an app.json edit; never belongs in the repo
 app.json.backup
+*.ipa
