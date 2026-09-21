@@ -1728,16 +1728,13 @@ export default function PublicLiveStreamScreen() {
                     <Text style={styles.placeholderText}>Playing in full screen. Tap to return</Text>
                   </Pressable>
                 ) : (
-                  <>
-                    <HlsPlayer
-                      url={manifestUrl}
-                      style={StyleSheet.absoluteFill}
-                      controls={false}
-                      showLiveBadge={false}
-                      muted={isMuted}
-                    />
-                    <StreamWatermark position="top-right" />
-                  </>
+                  <HlsPlayer
+                    url={manifestUrl}
+                    style={StyleSheet.absoluteFill}
+                    controls={false}
+                    showLiveBadge={false}
+                    muted={isMuted}
+                  />
                 )
               ) : (
                 <>
