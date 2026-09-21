@@ -220,7 +220,7 @@ export function OwnerEventsDashboard({
       renderItem={({ item }) => (
         <OwnerEventCard
           event={item}
-          onOpen={() => router.push(`/event/${item.id}` as Href)}
+          onOpen={() => router.push(`/(app)/event/${item.id}` as Href)}
           onEdit={() => router.push(`/event/new?editId=${item.id}` as Href)}
           onShare={() => onShare(item)}
         />

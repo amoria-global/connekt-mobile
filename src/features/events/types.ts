@@ -203,20 +203,29 @@ export type PublicEventsPage = {
 // sees the same tab counts and badges as the website.
 
 /**
- * `isEventLive` — true only when the backend says the event is ONGOING,
- * the stream hasn't ended, AND either `hasLiveStream === true` or the
- * caller has verified the Cloudflare connection is `live`. The
- * verified-id set is passed in (web fetches it via `getStreamVideo`);
- * mobile guests can't call that auth-required endpoint so they pass
- * an empty set and fall back to the `hasLiveStream` flag.
+ * `isEventLive` — prefers the stream's real lifecycle status when present.
+ * For older list responses that do not include it, it falls back to the
+ * event's ONGOING state plus its live-stream metadata.
  */
 export function isEventLive(event: PublicEvent, liveStreamIds?: Set<string>): boolean {
-  if ((event.eventStatus || '').toUpperCase() !== 'ONGOING') return false;
-  if (event.streamStatus === 'ended') return false;
+  const eventStatus = (event.eventStatus || '').toUpperCase();
+  const streamStatus = (event.streamStatus || '').toLowerCase();
+  if (streamStatus === 'ended') return false;
+
+  // The stream lifecycle is the most reliable signal once broadcasting has
+  // started. Some backend rows remain PUBLISHED while the input is already
+  // connected, so requiring ONGOING here hid genuine live events.
+  if (['live', 'connected', 'active', 'broadcasting', 'streaming'].includes(streamStatus)) {
+    return true;
+  }
+
+  if (eventStatus !== 'ONGOING') return false;
   if (event.hasLiveStream === true) return true;
+  if (event.hlsManifestUrl || event.whepUrl) return true;
   return liveStreamIds?.has(event.id) ?? false;
 }
 
 export function isEventEnded(event: PublicEvent): boolean {
-  return (event.eventStatus || '').toUpperCase() === 'COMPLETED' || event.streamStatus === 'ended';
+  return (event.eventStatus || '').toUpperCase() === 'COMPLETED' ||
+    (event.streamStatus || '').toLowerCase() === 'ended';
 }

@@ -328,7 +328,7 @@ export default function StreamControlScreen() {
   }
 
   return (
-    <Screen padded={false} edges={['bottom']}>
+    <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Status bar */}
         <View style={[styles.statusBar, { borderColor: `${meta.color}55` }]}>

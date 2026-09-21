@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -8,7 +8,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -17,7 +16,12 @@ import { Input } from '@/components/ui/Input';
 import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { Screen } from '@/components/ui/Screen';
 import { onlyDigits, parsePhone, type ParsedPhone } from '@/lib/phoneKit';
-import { updateCoverPicture, updateProfile, updateProfilePicture } from '@/features/profile/api';
+import {
+  fetchProfile,
+  updateCoverPicture,
+  updateProfile,
+  updateProfilePicture,
+} from '@/features/profile/api';
 import { pickFromLibrary } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -42,31 +46,80 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const user = useAuth((s) => s.user);
   const updateUser = useAuth((s) => s.updateUser);
+  const customerRole = user?.customerType;
 
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
-  const [phoneSeed] = useState(() => seedPhone(user?.phone ?? ''));
+  const [phoneSeed, setPhoneSeed] = useState(() => seedPhone(user?.phone ?? ''));
   const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
-  const [avatar, setAvatar] = useState(user?.profilePicture);
-  const [cover, setCover] = useState(user?.coverPicture);
+  // Optimistic overrides while a pick/upload is in flight. Display falls
+  // back to the live auth session so a cover set on the Profile tab shows
+  // here immediately (useState alone only captured the mount snapshot).
+  const [avatarOverride, setAvatarOverride] = useState<string | undefined>();
+  const [coverOverride, setCoverOverride] = useState<string | undefined>();
   const [uploading, setUploading] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const avatar = avatarOverride ?? user?.profilePicture;
+  const cover = coverOverride ?? user?.coverPicture;
   const initials = (firstName?.[0] ?? user?.email?.[0] ?? '?').toUpperCase();
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const profile = await fetchProfile();
+          if (cancelled) return;
+          const patch: Parameters<typeof updateUser>[0] = {};
+          if (profile.firstName != null) {
+            patch.firstName = profile.firstName;
+            setFirstName(profile.firstName);
+          }
+          if (profile.lastName != null) {
+            patch.lastName = profile.lastName;
+            setLastName(profile.lastName);
+          }
+          if (profile.phone != null) {
+            patch.phone = profile.phone;
+            setPhoneSeed(seedPhone(profile.phone));
+          }
+          if (profile.profilePicture) {
+            patch.profilePicture = profile.profilePicture;
+            setAvatarOverride(undefined);
+          }
+          if (profile.coverPicture) {
+            patch.coverPicture = profile.coverPicture;
+            setCoverOverride(undefined);
+          }
+          if (profile.profileCompletionPercentage != null) {
+            patch.profileCompletionPercentage = profile.profileCompletionPercentage;
+          }
+          if (Object.keys(patch).length > 0) updateUser(patch);
+        } catch {
+          // Keep the cached session if the refresh fails.
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [updateUser]),
+  );
 
   const onPickAvatar = async () => {
     const img = await pickFromLibrary();
     if (!img) return;
     setError(null);
+    setAvatarOverride(img.uri);
     setUploading(true);
     try {
       const url = await updateProfilePicture(img);
-      const next = url ?? img.uri;
-      setAvatar(next);
-      updateUser({ profilePicture: next });
+      setAvatarOverride(url);
+      updateUser({ profilePicture: url });
     } catch (err) {
+      setAvatarOverride(undefined);
       setError(isApiError(err) ? err.message : 'Could not upload the photo.');
     } finally {
       setUploading(false);
@@ -77,13 +130,14 @@ export default function EditProfileScreen() {
     const img = await pickFromLibrary();
     if (!img) return;
     setError(null);
+    setCoverOverride(img.uri);
     setCoverUploading(true);
     try {
-      const url = await updateCoverPicture(img);
-      const next = url ?? img.uri;
-      setCover(next);
-      updateUser({ coverPicture: next });
+      const url = await updateCoverPicture(img, customerRole);
+      setCoverOverride(url);
+      updateUser({ coverPicture: url });
     } catch (err) {
+      setCoverOverride(undefined);
       setError(isApiError(err) ? err.message : 'Could not upload the cover photo.');
     } finally {
       setCoverUploading(false);
@@ -157,6 +211,7 @@ export default function EditProfileScreen() {
             <Input label="First name" value={firstName} onChangeText={setFirstName} />
             <Input label="Last name" value={lastName} onChangeText={setLastName} />
             <PhoneInput
+              key={`${phoneSeed.country?.iso2 ?? 'RW'}-${phoneSeed.nsn}`}
               label="Phone"
               defaultIso2={phoneSeed.country?.iso2 ?? 'RW'}
               initialNsn={phoneSeed.nsn}

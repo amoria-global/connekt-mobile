@@ -323,7 +323,7 @@ export default function EventPaymentScreen() {
   const data = event.data!;
 
   return (
-    <Screen padded={false} edges={['bottom']}>
+    <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {/* Header Summary */}
         <View style={styles.summary}>

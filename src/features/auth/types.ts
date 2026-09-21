@@ -19,6 +19,16 @@ export type User = {
   profilePicture?: string;
   coverPicture?: string;
   profileCompletionPercentage?: number;
+  kycStatus?: string;
+  address?: string;
+  joinedFrom?: string;
+  rating?: number;
+  completedEvents?: number;
+  reviewsCount?: number;
+  acceptanceRate?: number;
+  organizationName?: string;
+  specialty?: string;
+  about?: string;
 };
 
 export type LoginCredentials = {
@@ -58,6 +68,7 @@ export type LoginResponse = {
   phone?: string;
   customerType?: CustomerType;
   profilePicture?: string;
+  coverPicture?: string;
   profileCompletionPercentage?: number;
   token?: string;
   refreshToken?: string;

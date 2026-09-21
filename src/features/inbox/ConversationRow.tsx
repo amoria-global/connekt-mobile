@@ -1,38 +1,111 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles } from '@/theme';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import type { Conversation } from './api';
 
-export function ConversationRow({ conversation }: { conversation: Conversation }) {
+function formatInstagramTimestamp(dateStr?: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / (60 * 1000));
+
+    if (diffMins < 1) return 'now';
+    if (diffMins < 60) return `${diffMins}m`;
+
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d`;
+
+    const diffWeeks = Math.floor(diffDays / 7);
+    if (diffWeeks < 52) return `${diffWeeks}w`;
+
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+export function ConversationRow({
+  conversation,
+  onPressCamera,
+}: {
+  conversation: Conversation;
+  onPressCamera?: () => void;
+}) {
+  const { colors } = useTheme();
   const styles = useStyles();
   const initials = (conversation.name?.[0] ?? '?').toUpperCase();
   const hasUnread = conversation.unreadCount > 0;
+  const timeStr = formatInstagramTimestamp(conversation.timestamp);
 
   return (
-    <View style={styles.row}>
-      {conversation.avatar ? (
-        <Image source={{ uri: conversation.avatar }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, styles.avatarFallback]}>
-          <Text style={styles.avatarText}>{initials}</Text>
+    <View style={[styles.row, hasUnread && styles.rowUnread]}>
+      {/* Avatar with Instagram-style Online indicator & unread ring */}
+      <View style={styles.avatarContainer}>
+        <View style={[styles.avatarRing, hasUnread && styles.avatarRingActive]}>
+          {conversation.avatar ? (
+            <Image source={{ uri: conversation.avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
         </View>
-      )}
-
-      <View style={styles.body}>
-        <Text style={styles.name} numberOfLines={1}>
-          {conversation.name}
-        </Text>
-        {conversation.lastMessage ? (
-          <Text style={[styles.preview, hasUnread && styles.previewUnread]} numberOfLines={1}>
-            {conversation.lastMessage}
-          </Text>
-        ) : null}
       </View>
 
-      {hasUnread ? (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{conversation.unreadCount}</Text>
+      {/* Main Conversation Text Body */}
+      <View style={styles.body}>
+        <Text style={[styles.name, hasUnread && styles.nameUnread]} numberOfLines={1}>
+          {conversation.name}
+        </Text>
+
+        <View style={styles.subtitleRow}>
+          <Text
+            style={[styles.preview, hasUnread && styles.previewUnread]}
+            numberOfLines={1}
+          >
+            {conversation.lastMessage || 'Sent a message'}
+          </Text>
+          {timeStr ? (
+            <>
+              <Text style={styles.dotSeparator}>·</Text>
+              <Text style={[styles.timestamp, hasUnread && styles.timestampUnread]}>
+                {timeStr}
+              </Text>
+            </>
+          ) : null}
         </View>
-      ) : null}
+      </View>
+
+      {/* Trailing: Instagram unread dot / badge OR Camera icon */}
+      <View style={styles.trailing}>
+        {hasUnread ? (
+          conversation.unreadCount > 1 ? (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>
+                {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.unreadDot} />
+          )
+        ) : (
+          <Pressable
+            onPress={onPressCamera}
+            hitSlop={8}
+            style={({ pressed }) => [styles.cameraBtn, pressed && { opacity: 0.6 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Open camera"
+          >
+            <Ionicons name="camera-outline" size={22} color={colors.textMuted} />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
@@ -41,28 +114,119 @@ const useStyles = makeStyles((c) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: 'transparent',
+    gap: 14,
   },
-  avatar: { width: 48, height: 48, borderRadius: radii.full, backgroundColor: c.surfaceMuted },
-  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
-  avatarText: { color: c.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  body: { flex: 1, gap: 2 },
-  name: { fontFamily: fonts.bold, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
-  preview: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
-  previewUnread: { color: c.text, fontFamily: fonts.bold, fontWeight: fontWeight.semibold },
-  badge: {
-    minWidth: 22,
-    height: 22,
+  rowUnread: {
+    backgroundColor: 'transparent',
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatarRing: {
+    padding: 1.5,
     borderRadius: radii.full,
-    backgroundColor: c.accent,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  avatarRingActive: {
+    borderColor: c.primary,
+  },
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: c.surfaceMuted,
+  },
+  avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    backgroundColor: c.primary,
   },
-  badgeText: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: fonts.bold,
+    fontWeight: '700',
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    gap: 2,
+  },
+  name: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    fontWeight: '600',
+    color: c.text,
+    letterSpacing: -0.2,
+  },
+  nameUnread: {
+    fontWeight: '700',
+    color: c.text,
+  },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  preview: {
+    fontFamily: fonts.regular,
+    fontSize: 13.5,
+    color: c.textMuted,
+    flexShrink: 1,
+  },
+  previewUnread: {
+    fontFamily: fonts.bold,
+    fontWeight: '700',
+    color: c.text,
+  },
+  dotSeparator: {
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  timestamp: {
+    fontFamily: fonts.regular,
+    fontSize: 12.5,
+    color: c.textMuted,
+  },
+  timestampUnread: {
+    fontFamily: fonts.bold,
+    fontWeight: '700',
+    color: c.primary,
+  },
+  trailing: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 28,
+  },
+  unreadDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#0095F6', // Instagram's iconic direct message unread blue
+  },
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#0095F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  unreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontFamily: fonts.bold,
+    fontWeight: '700',
+  },
+  cameraBtn: {
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 }));
