@@ -86,26 +86,31 @@ export function PhotographerCard({
             color={isBookmarked ? colors.primary : colors.textMuted}
           />
         </Pressable>
+      </View>
 
-        {/* Avatar - Straddles the boundary between Cover & Body */}
-        <View style={styles.avatarContainer}>
-          {photographer.avatar ? (
-            <Image
-              source={{ uri: photographer.avatar }}
-              style={styles.avatar}
-              contentFit="cover"
-              transition={150}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
-          )}
-
-          {/* Verified Checkmark Badge */}
-          <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+      {/* Avatar - Straddles the boundary between Cover & Body */}
+      <View
+        style={[
+          styles.avatarContainer,
+          { top: (coverHeight ?? 136) - 24 },
+        ]}
+      >
+        {photographer.avatar ? (
+          <Image
+            source={{ uri: photographer.avatar }}
+            style={styles.avatar}
+            contentFit="cover"
+            transition={150}
+          />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Text style={styles.avatarText}>{initials}</Text>
           </View>
+        )}
+
+        {/* Verified Checkmark Badge */}
+        <View style={styles.verifiedBadge}>
+          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
         </View>
       </View>
 
@@ -303,7 +308,6 @@ const useStyles = makeStyles((c, e) => ({
   // Avatar Straddling Boundary
   avatarContainer: {
     position: 'absolute',
-    bottom: -18,
     left: spacing.md,
     width: 48,
     height: 48,
@@ -312,7 +316,7 @@ const useStyles = makeStyles((c, e) => ({
     borderWidth: 2,
     borderColor: c.surface,
     padding: 2.5,
-    zIndex: 5,
+    zIndex: 10,
     ...e(2),
   },
   avatar: {
