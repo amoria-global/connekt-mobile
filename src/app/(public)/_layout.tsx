@@ -72,7 +72,12 @@ export default function PublicLayout() {
         />
         <Stack.Screen name="events/join" options={{ title: 'Join event' }} />
         <Stack.Screen name="events/pay" options={{ title: 'Payment' }} />
-        <Stack.Screen name="events/live-stream" options={{ title: 'Live stream' }} />
+        <Stack.Screen
+          name="events/live-stream"
+          options={{
+            headerShown: false,
+          }}
+        />
         <Stack.Screen
           name="donate"
           options={{

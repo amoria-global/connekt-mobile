@@ -1690,7 +1690,7 @@ export default function PublicLiveStreamScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ orientation: chatFullscreen ? 'landscape' : 'portrait' }} />
+      <Stack.Screen options={{ headerShown: false, orientation: chatFullscreen ? 'landscape' : 'portrait' }} />
       <Screen padded={false} edges={[]}>
       {status.isLive && !isMiniPlayer ? (
         // ── LIVE: YouTube style layout ──
