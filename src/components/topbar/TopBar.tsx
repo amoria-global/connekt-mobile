@@ -34,10 +34,13 @@ export type TopBarProps = {
  * Renders as an absolute overlay so content scrolls under the blur.
  * Place it as the last child of a screen and pad the scroll content by
  * useTopBarHeight().
+ *
+ * Colours follow the active palette (elevated surface + hairline), matching
+ * PersistentBottomBar so light and dark both keep the same chrome combo.
  */
 export function TopBar({ back, onBack }: TopBarProps = {}) {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
@@ -48,12 +51,20 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
 
   return (
     <View style={[styles.wrap, { height: insets.top + BAR_HEIGHT }]} pointerEvents="box-none">
-      <BlurView intensity={32} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
-      <View style={styles.tint} pointerEvents="none" />
+      <BlurView
+        intensity={48}
+        tint={isDark ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <View
+        style={[styles.tint, { backgroundColor: colors.elevated, opacity: 0.88 }]}
+        pointerEvents="none"
+      />
       <View style={[styles.row, { top: insets.top }]}>
         {back ? (
           <Pressable
-            onPress={onBack ?? (() => router.back())}
+            onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}
             accessibilityRole="button"
             accessibilityLabel="Go back"
             style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
@@ -79,9 +90,9 @@ const useStyles = makeStyles((c, e) => ({
     zIndex: 20,
     overflow: 'hidden',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(8,58,133,0.12)',
+    borderBottomColor: c.border,
   },
-  tint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8,58,133,0.5)' },
+  tint: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   row: {
     position: 'absolute',
     left: 0,

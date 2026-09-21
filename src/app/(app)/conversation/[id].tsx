@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -14,39 +14,99 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { listMessages, sendMessage, type Message } from '@/features/inbox/api';
+import {
+  listMessages,
+  markConversationRead,
+  sendMessage,
+  type Message,
+} from '@/features/inbox/api';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
-import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
+
+function formatMessageTime(dateStr?: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
 
 export default function ConversationScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
-  // The inbox routes by partner customer id, so `id` is both the thread key
-  // and the person a report or block points at.
+  // `id` is the partner's customerId (UUID) used for chat history and sending
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const router = useRouter();
   const myId = useAuth((s) => s.user?.customerId);
-  const { data, loading, error, refresh } = useAsync(
-    useCallback(() => listMessages(id), [id]),
-  );
 
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+
+  const flatListRef = useRef<FlatList<Message>>(null);
 
   const blockAccount = useModeration((s) => s.block);
   const loadModeration = useModeration((s) => s.load);
   const [reportUserOpen, setReportUserOpen] = useState(false);
   const [reportMessage, setReportMessage] = useState<Message | null>(null);
 
+  const partnerLabel = name || 'Creator';
+
+  // Fetch messages from backend
+  const fetchMessages = useCallback(
+    async (isInitial = false) => {
+      if (!id) return;
+      if (isInitial) setLoading(true);
+      try {
+        const msgs = await listMessages(id);
+        setMessages(msgs);
+        setError(null);
+      } catch (e) {
+        if (isInitial) {
+          setError(isApiError(e) ? e.message : 'Failed to load messages');
+        }
+      } finally {
+        if (isInitial) setLoading(false);
+      }
+    },
+    [id],
+  );
+
+  // Initial load + mark read
   useEffect(() => {
     loadModeration();
-  }, [loadModeration]);
+    if (id) {
+      void fetchMessages(true);
+      void markConversationRead(id);
+    }
+  }, [id, fetchMessages, loadModeration]);
 
-  const partnerLabel = name || 'this user';
+  // Live polling: poll every 4 seconds (web parity) to sync real-time exchanges
+  useEffect(() => {
+    if (!id) return;
+    const interval = setInterval(() => {
+      void fetchMessages(false);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [id, fetchMessages]);
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    if (messages.length > 0) {
+      const timer = setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length]);
 
   const onBlock = useCallback(() => {
     Alert.alert(
@@ -100,16 +160,29 @@ export default function ConversationScreen() {
 
   const onSend = async () => {
     const text = draft.trim();
-    if (!text || sending) return;
+    if (!text || sending || !id) return;
     setSending(true);
+    setDraft('');
+
+    // Optimistic local update
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      text,
+      senderId: myId,
+      isMine: true,
+      isRead: false,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMessage]);
+
     try {
       await sendMessage(id, text);
-      setDraft('');
-      await refresh();
+      await fetchMessages(false);
     } catch (e) {
-      // The draft survives so the user can retry, but they need to know why it
-      // didn't send — a block (403) and the content filter (400) both land here
-      // and are otherwise indistinguishable from a dead Send button.
+      // Revert optimistic message and restore draft on failure
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setDraft(text);
       Alert.alert(
         'Message not sent',
         isApiError(e) ? e.message : 'Please check your connection and try again.',
@@ -120,10 +193,10 @@ export default function ConversationScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <Stack.Screen
         options={{
-          title: name || 'Chat',
+          title: partnerLabel,
           headerRight: () => (
             <Pressable
               onPress={onHeaderMenu}
@@ -139,22 +212,35 @@ export default function ConversationScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {loading && !data ? (
+        {loading && messages.length === 0 ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
-        ) : error && !data ? (
+        ) : error && messages.length === 0 ? (
           <View style={styles.centered}>
+            <Ionicons name="alert-circle-outline" size={32} color={colors.textMuted} />
             <Text style={styles.muted}>{error}</Text>
+            <Pressable
+              style={styles.retryBtn}
+              onPress={() => void fetchMessages(true)}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
           </View>
         ) : (
           <FlatList
-            data={data ?? []}
-            keyExtractor={(m) => m.id}
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(m) => String(m.id)}
             renderItem={({ item }) => {
-              const mine = !!myId && item.senderId === myId;
+              const cleanMyId = myId ? String(myId).toLowerCase().trim() : '';
+              const cleanSenderId = item.senderId ? String(item.senderId).toLowerCase().trim() : '';
+              const mine =
+                item.isMine === true ||
+                (!!cleanMyId && !!cleanSenderId && cleanSenderId === cleanMyId);
+
               return (
                 <Bubble
                   message={item}
@@ -164,25 +250,35 @@ export default function ConversationScreen() {
               );
             }}
             contentContainerStyle={styles.list}
-            ListEmptyComponent={<Text style={styles.empty}>No messages yet. Say hello 👋</Text>}
+            ListEmptyComponent={
+              <View style={styles.emptyWrap}>
+                <Ionicons name="chatbubble-ellipses-outline" size={36} color={colors.textMuted} />
+                <Text style={styles.empty}>No messages yet. Say hello to {partnerLabel} 👋</Text>
+              </View>
+            }
           />
         )}
 
         <View style={styles.composer}>
           <TextInput
             style={styles.input}
-            placeholder="Message"
+            placeholder="Type a message…"
             placeholderTextColor={colors.textMuted}
             value={draft}
             onChangeText={setDraft}
             multiline
+            maxLength={2000}
           />
           <Pressable
             onPress={onSend}
             disabled={!draft.trim() || sending}
             style={[styles.sendBtn, (!draft.trim() || sending) && styles.sendDisabled]}
           >
-            <Ionicons name="send" size={18} color={colors.textOnPrimary} />
+            {sending ? (
+              <ActivityIndicator size="small" color={colors.textOnPrimary} />
+            ) : (
+              <Ionicons name="send" size={17} color={colors.textOnPrimary} />
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -191,7 +287,7 @@ export default function ConversationScreen() {
         visible={reportUserOpen}
         onClose={() => setReportUserOpen(false)}
         targetType="USER"
-        subject={name || undefined}
+        subject={partnerLabel}
         submit={submitUserReport}
       />
 
@@ -200,7 +296,7 @@ export default function ConversationScreen() {
         visible={!!reportMessage}
         onClose={() => setReportMessage(null)}
         targetType="DIRECT_MESSAGE"
-        subject={name || undefined}
+        subject={partnerLabel}
         submit={submitMessageReport}
       />
     </SafeAreaView>
@@ -217,13 +313,20 @@ function Bubble({
   onLongPress?: () => void;
 }) {
   const styles = useStyles();
+  const timeStr = formatMessageTime(message.timestamp);
+
   return (
     <Pressable
       onLongPress={onLongPress}
       disabled={!onLongPress}
-      style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}
+      style={[styles.bubbleWrap, mine ? styles.bubbleWrapMine : styles.bubbleWrapTheirs]}
     >
-      <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{message.text}</Text>
+      <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+        <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{message.text}</Text>
+        {timeStr ? (
+          <Text style={[styles.timeText, mine && styles.timeTextMine]}>{timeStr}</Text>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -231,20 +334,34 @@ function Bubble({
 const useStyles = makeStyles((c) => ({
   safe: { flex: 1, backgroundColor: c.background },
   flex: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  muted: { color: c.textMuted, fontSize: fontSize.sm },
-  list: { padding: spacing.lg, gap: spacing.sm, flexGrow: 1 },
-  empty: { textAlign: 'center', color: c.textMuted, marginTop: spacing['2xl'] },
-  bubble: { maxWidth: '78%', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radii.lg },
-  bubbleMine: { alignSelf: 'flex-end', backgroundColor: c.primary, borderBottomRightRadius: 4 },
-  bubbleTheirs: { alignSelf: 'flex-start', backgroundColor: c.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.borderSoft },
-  bubbleText: { fontSize: fontSize.md, color: c.text },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
+  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
+  retryBtn: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    backgroundColor: c.primary,
+    borderRadius: radii.full,
+  },
+  retryText: { color: '#FFFFFF', fontSize: fontSize.sm, fontWeight: '600' },
+  list: { padding: spacing.lg, gap: spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing['3xl'], gap: spacing.sm },
+  empty: { textAlign: 'center', color: c.textMuted, fontSize: fontSize.sm },
+  bubbleWrap: { maxWidth: '80%', marginVertical: 2 },
+  bubbleWrapMine: { alignSelf: 'flex-end' },
+  bubbleWrapTheirs: { alignSelf: 'flex-start' },
+  bubble: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2, borderRadius: radii.lg },
+  bubbleMine: { backgroundColor: c.primary, borderBottomRightRadius: 4 },
+  bubbleTheirs: { backgroundColor: c.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.borderSoft },
+  bubbleText: { fontSize: 15, lineHeight: 21, color: c.text },
   bubbleTextMine: { color: c.textOnPrimary },
+  timeText: { fontSize: 10, color: c.textMuted, alignSelf: 'flex-end', marginTop: 3 },
+  timeTextMine: { color: 'rgba(255, 255, 255, 0.75)' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.borderSoft,
@@ -253,22 +370,24 @@ const useStyles = makeStyles((c) => ({
   input: {
     flex: 1,
     maxHeight: 120,
-    minHeight: 44,
+    minHeight: 42,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: radii.lg,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: Platform.OS === 'ios' ? 10 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 8,
     fontSize: fontSize.md,
     color: c.text,
+    backgroundColor: c.background,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: radii.full,
     backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendDisabled: { opacity: 0.5 },
+  sendDisabled: { opacity: 0.45 },
 }));

@@ -29,6 +29,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MoreSheet } from '@/components/PersistentBottomBar';
 import { useRole } from '@/features/auth/role';
 import { isApiError, useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -145,136 +146,20 @@ function iconFor(routeName: string, focused: boolean): keyof typeof Ionicons.gly
   }
 }
 
-function MoreSheet({
-  visible,
-  onClose,
-  items,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  items: MoreItem[];
-}) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View
-        style={[
-          styles.sheet,
-          { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.lg) },
-        ]}
-      >
-        <View style={styles.handle} />
-        <Text style={styles.sheetTitle}>More</Text>
-        <ScrollView contentContainerStyle={styles.sheetList}>
-          {items.map((item) => (
-            <Pressable
-              key={item.label}
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-              onPress={() => {
-                onClose();
-                if (item.onPress) item.onPress();
-                else if (item.href) router.push(item.href);
-              }}
-            >
-              <View
-                style={[
-                  styles.rowIcon,
-                  { backgroundColor: item.destructive ? colors.errorBg : colors.infoBg },
-                ]}
-              >
-                <Ionicons
-                  name={item.icon}
-                  size={18}
-                  color={item.destructive ? colors.error : colors.primary}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.rowLabel,
-                  { color: item.destructive ? colors.error : colors.text },
-                ]}
-              >
-                {item.label}
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-}
-
 export default function AppTabsLayout() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { role, isCoordinator, isPhotographer, isClient, isUser } = useRole();
-  const logout = useAuth((s) => s.logout);
-
-  // Role-aware overflow menu. Every entry below isn't already on the
-  // visible bar; the goal is "one tap to anywhere from anywhere".
-  const moreItems: MoreItem[] = [
-    { label: 'Profile', icon: 'person-outline', href: '/profile' as Href },
-    { label: 'Notifications', icon: 'notifications-outline', href: '/notifications' as Href },
-    ...(isCoordinator || isClient || isUser
-      ? [
-          { label: 'Find photographers', icon: 'camera-outline' as const, href: '/photographers' as Href },
-          { label: 'Find my photos', icon: 'scan-outline' as const, href: '/find-my-photos' as Href },
-          { label: 'Live streams', icon: 'videocam-outline' as const, href: '/streams' as Href },
-        ]
-      : []),
-    ...(isCoordinator
-      ? [{ label: 'Team', icon: 'people-circle-outline' as const, href: '/team' as Href }]
-      : []),
-    ...(isPhotographer
-      ? [
-          { label: 'Bookings', icon: 'briefcase-outline' as const, href: '/bookings' as Href },
-          { label: 'My packages', icon: 'pricetags-outline' as const, href: '/packages' as Href },
-          { label: 'Clients', icon: 'people-outline' as const, href: '/clients' as Href },
-        ]
-      : []),
-    ...(isClient || isCoordinator || isUser
-      ? [
-          { label: 'My bookings', icon: 'briefcase-outline' as const, href: '/bookings' as Href },
-          { label: 'Payments', icon: 'card-outline' as const, href: '/payments' as Href },
-        ]
-      : []),
-    { label: 'Gallery', icon: 'images-outline', href: '/gallery' as Href },
-    { label: 'Donations', icon: 'heart-outline', href: '/donations' as Href },
-    { label: 'Transactions', icon: 'list-outline', href: '/transactions' as Href },
-    { label: 'Preferences', icon: 'settings-outline', href: '/preferences' as Href },
-    { label: 'Verification', icon: 'shield-checkmark-outline', href: '/kyc' as Href },
-    {
-      label: 'Sign out',
-      icon: 'log-out-outline',
-      destructive: true,
-      onPress: async () => {
-        try {
-          await logout();
-          router.replace('/login' as Href);
-        } catch (e) {
-          if (isApiError(e)) {
-            // swallow — the auth store has already cleared local state
-          }
-        }
-      },
-    },
-  ];
 
   return (
     <>
       <Tabs
         // The visible bar moved to (app)/_layout.tsx (PersistentBottomBar)
         // so it stays on every (app) route, not just (tabs). We render a
-        // null bar here so this Tabs container doesn't paint its own.
+        // null bar here and set tabBarStyle: { display: 'none' } so this
+        // Tabs container doesn't paint an empty ghost bar or reserve height.
         tabBar={() => null}
         screenOptions={{
           headerShown: false,
+          tabBarStyle: { display: 'none' },
           tabBarHideOnKeyboard: Platform.OS === 'android',
           sceneStyle: { backgroundColor: 'transparent' },
         }}
@@ -302,7 +187,7 @@ export default function AppTabsLayout() {
         />
       </Tabs>
 
-      <MoreSheet visible={moreOpen} onClose={() => setMoreOpen(false)} items={moreItems} />
+      <MoreSheet visible={moreOpen} onClose={() => setMoreOpen(false)} />
     </>
   );
 }
