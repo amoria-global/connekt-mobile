@@ -104,26 +104,19 @@ function buildWhepHtml(whepUrl: string, topInset: number = 0): string {
   #msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
        color:#9aa3b2;font-family:-apple-system,system-ui,'Segoe UI',sans-serif;
        font-size:14px;text-align:center;padding:16px;pointer-events:none;}
-  /* Brand watermark — burned into the player, always on top (z-index),
-     muted opacity, no pill so it reads as part of the video. */
-  #wm-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-       overflow:hidden;pointer-events:none;z-index:999;}
-  #wm-center span{transform:rotate(-22deg);color:#fff;opacity:0.07;font-weight:900;
-       letter-spacing:3px;font-size:9vw;white-space:nowrap;text-transform:uppercase;
-       text-shadow:0 2px 14px rgba(0,0,0,.35);
+  /* Brand watermark — clean centered logo with CONNEKYT underneath */
+  #wm-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       gap:8px;overflow:hidden;pointer-events:none;z-index:999;opacity:0.20;}
+  .wm-logo{width:46px;height:46px;object-fit:contain;}
+  #wm-center span{color:#fff;font-weight:800;letter-spacing:4px;font-size:12px;
+       white-space:nowrap;text-transform:uppercase;
+       text-shadow:0 1px 4px rgba(0,0,0,.6);
        font-family:-apple-system,system-ui,'Segoe UI',sans-serif;}
-  #wm-bug{position:absolute;top:${bugTop}px;right:14px;display:flex;align-items:center;
-       gap:6px;color:#fff;opacity:0.40;font-weight:800;letter-spacing:1.1px;font-size:11px;
-       text-transform:uppercase;pointer-events:none;z-index:999;
-       text-shadow:0 1px 5px rgba(0,0,0,.95);
-       font-family:-apple-system,system-ui,'Segoe UI',sans-serif;}
-  .wm-logo{width:18px;height:18px;object-fit:contain;display:inline-block;}
 </style>
 </head>
 <body>
 <video id="v" playsinline autoplay muted></video>
-<div id="wm-center"><span>Amoria Connekyt</span></div>
-<div id="wm-bug"><img src="${logoBase64}" class="wm-logo" alt="logo" /><span>Amoria Connekyt</span></div>
+<div id="wm-center"><img src="${logoBase64}" class="wm-logo" alt="logo" /><span>CONNEKYT</span></div>
 <div id="msg">Connecting…</div>
 <script>
 (function(){
@@ -382,7 +375,7 @@ function NativeHlsPlayer({
         contentFit="contain"
         nativeControls={controls}
       />
-      <StreamWatermark position="top-right" offset={{ top: Math.max(14, (insets?.top || 0) + 10), right: 14 }} />
+      <StreamWatermark />
     </View>
   );
 }

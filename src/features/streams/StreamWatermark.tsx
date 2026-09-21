@@ -20,25 +20,17 @@ import { StyleSheet, Text, View } from 'react-native';
 import { logoBase64 } from '@/utils/logoBase64';
 
 export function StreamWatermark({
-  position = 'top-right',
+  opacity = 0.20,
 }: {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   offset?: { top?: number; right?: number; bottom?: number; left?: number };
+  opacity?: number;
 }) {
-  const corner = {
-    ...(position.startsWith('top') ? { top: 10 } : { bottom: 10 }),
-    ...(position.endsWith('left') ? { left: 10 } : { right: 10 }),
-  } as const;
-
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.top]}>
-      {/* Corner bug — logo + CONNEKYT text, fixed top-right */}
-      <View style={[styles.bug, corner]} pointerEvents="none">
-        <Image source={{ uri: logoBase64 }} style={styles.logo} contentFit="contain" />
-        <Text style={styles.label}>CONNEKYT</Text>
-      </View>
-      {/* Centered ghost watermark */}
-      <View style={styles.center} pointerEvents="none">
+      {/* Centered clean brand watermark: Logo with "CONNEKYT" underneath */}
+      <View style={[styles.center, { opacity }]} pointerEvents="none">
+        <Image source={{ uri: logoBase64 }} style={styles.centerLogo} contentFit="contain" />
         <Text style={styles.centerLabel}>CONNEKYT</Text>
       </View>
     </View>
@@ -47,38 +39,29 @@ export function StreamWatermark({
 
 const styles = StyleSheet.create({
   top: { zIndex: 999, elevation: 999 },
-  bug: {
-    position: 'absolute',
-    alignItems: 'center',
-    opacity: 0.60,
-  },
-  logo: {
-    width: 26,
-    height: 26,
-  },
-  label: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    marginTop: 3,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
   center: {
     position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: 0.08,
+    gap: 8,
+  },
+  centerLogo: {
+    width: 46,
+    height: 46,
   },
   centerLabel: {
-    color: '#fff',
-    fontSize: 18,
+    color: '#ffffff',
+    fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 3,
-    marginTop: 6,
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });
 
