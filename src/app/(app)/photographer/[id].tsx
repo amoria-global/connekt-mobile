@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
-import { RefreshControl, ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
+import { RefreshControl, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -224,11 +225,11 @@ export default function PhotographerProfileScreen() {
     if (data?.images && data.images.length > 0) {
       return data.images;
     }
-    const imgs: string[] = [];
-    if (data?.coverImage) imgs.push(data.coverImage);
-    if (data?.avatar) imgs.push(data.avatar);
-    return imgs;
-  }, [data?.images, data?.coverImage, data?.avatar]);
+    if (data?.coverImage) {
+      return [data.coverImage];
+    }
+    return [];
+  }, [data?.images, data?.coverImage]);
 
   // Booked dates & availability calendar state
   const [bookedDates, setBookedDates] = useState<BookedDate[]>([]);
@@ -376,13 +377,20 @@ export default function PhotographerProfileScreen() {
           {/* Profile Info Overlay */}
           <View style={styles.profileInfoContainer}>
             <View style={styles.avatarWrapper}>
-              {data?.avatar ? (
-                <Image source={{ uri: data.avatar }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarText}>{initials}</Text>
-                </View>
-              )}
+              <View style={styles.avatarInner}>
+                {data?.avatar ? (
+                  <Image
+                    source={{ uri: data.avatar }}
+                    style={styles.avatar}
+                    contentFit="cover"
+                    transition={150}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Text style={styles.avatarText}>{initials}</Text>
+                  </View>
+                )}
+              </View>
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
               </View>
@@ -827,16 +835,21 @@ const useStyles = makeStyles((c, e) => ({
   avatarWrapper: {
     width: 90,
     height: 90,
+    marginBottom: spacing.md,
+    position: 'relative',
+  },
+  avatarInner: {
+    width: 90,
+    height: 90,
     borderRadius: 45,
     borderWidth: 3,
     borderColor: c.primary,
-    marginBottom: spacing.md,
-    position: 'relative',
+    overflow: 'hidden',
+    backgroundColor: c.surfaceMuted,
   },
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: 45,
   },
   avatarFallback: {
     alignItems: 'center',
