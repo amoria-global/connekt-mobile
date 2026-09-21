@@ -691,7 +691,8 @@ export function ClientHome() {
         return (
           p.name.toLowerCase().includes(q) ||
           (p.category && p.category.toLowerCase().includes(q)) ||
-          (p.location && p.location.toLowerCase().includes(q))
+          (p.location && p.location.toLowerCase().includes(q)) ||
+          (p.specialties && p.specialties.some((s) => s.toLowerCase().includes(q)))
         );
       })
       .slice(0, 6);
