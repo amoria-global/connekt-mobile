@@ -113,7 +113,7 @@ export function EventsList({
             opacity: pressed ? 0.85 : 1,
             transform: pressed ? [{ scale: 0.99 }] : undefined,
           })}
-          onPress={() => router.push(`/event/${item.id}` as never)}
+          onPress={() => router.push(`/(app)/event/${item.id}` as never)}
         >
           <EventCard event={item} variant={variant} onChanged={refresh} />
         </Pressable>

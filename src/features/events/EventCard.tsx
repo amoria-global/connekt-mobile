@@ -158,7 +158,7 @@ export function EventCard({
             {canGoLive ? (
               <Pressable
                 style={[styles.cta, { backgroundColor: '#7C3AED' }]}
-                onPress={() => router.push(`/event/${event.id}` as never)}
+                onPress={() => router.push(`/(app)/event/${event.id}` as never)}
               >
                 <Ionicons name="videocam" size={14} color="#fff" />
                 <Text style={styles.ctaText}>Live Stream</Text>

@@ -171,7 +171,7 @@ export default function JoinPackageScreen() {
   };
 
   return (
-    <Screen padded={false} edges={['bottom']}>
+    <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Saved group code (shown after payment returns with code) */}
         {savedCode ? (

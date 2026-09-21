@@ -71,6 +71,13 @@ export function isNeedsPasswordChange(err: unknown): err is NeedsPasswordChangeE
   );
 }
 
+function cleanMediaUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === 'null' || trimmed.includes('/null')) return undefined;
+  return trimmed;
+}
+
 function userFromResponse(res: LoginResponse, fallbackEmail: string): User {
   return {
     customerId: res.customerId ?? '',
@@ -79,7 +86,8 @@ function userFromResponse(res: LoginResponse, fallbackEmail: string): User {
     lastName: res.lastName,
     phone: res.phone,
     customerType: normalizeRole(res.customerType as string | undefined),
-    profilePicture: res.profilePicture,
+    profilePicture: cleanMediaUrl(res.profilePicture),
+    coverPicture: cleanMediaUrl(res.coverPicture),
     profileCompletionPercentage: res.profileCompletionPercentage,
   };
 }

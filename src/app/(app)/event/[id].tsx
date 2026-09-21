@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +39,16 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const { ownsEvents, isPhotographer, isCoordinator } = useRole();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getEvent(id), [id]));
+
+  // Seamless fallback: If the customer/creator endpoint rejects the event
+  // (e.g. 400 Bad Request because it's a public event, live stream, or not created
+  // by this specific account), redirect immediately to the public event screen
+  // where the full event details, pricing, tickets, and live stream player live!
+  useEffect(() => {
+    if (error && !data && id) {
+      router.replace(`/(public)/event/${id}` as never);
+    }
+  }, [error, data, id, router]);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [completionOpen, setCompletionOpen] = useState(false);
@@ -408,8 +418,7 @@ export default function EventDetailScreen() {
     return (
       <Screen>
         <View style={styles.centered}>
-          <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.muted}>{error}</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </Screen>
     );

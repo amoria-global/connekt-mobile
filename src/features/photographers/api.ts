@@ -10,11 +10,16 @@ export type Photographer = {
   name: string;
   avatar?: string;
   coverImage?: string;
+  images?: string[];
   rating?: number;
   reviewCount?: number;
+  completedJobs?: number;
   location?: string;
   category?: string;
+  specialties?: string[];
   startingPrice?: number;
+  currentStatus?: string;
+  isVerified?: boolean;
 };
 
 export type PhotographerPackage = {
@@ -48,16 +53,61 @@ function mapPhotographer(r: Raw): Photographer {
   const prices = packages.map(p => num(p.price)).filter((p): p is number => p !== undefined);
   const startingPrice = prices.length > 0 ? Math.min(...prices) : undefined;
 
+  const projects = Array.isArray(r.projects) ? r.projects : [];
+  const projectImages = projects
+    .map((p: any) =>
+      typeof p === 'string'
+        ? p
+        : str(p?.projectImage) ??
+          str(p?.imageUrl) ??
+          str(p?.images?.[0]) ??
+          str(p?.url) ??
+          str(p?.image),
+    )
+    .filter(Boolean) as string[];
+
+  const portfolio = Array.isArray(r.portfolio)
+    ? (r.portfolio.map((p: any) => (typeof p === 'string' ? p : str(p?.url) ?? str(p?.imageUrl))).filter(Boolean) as string[])
+    : [];
+
+  const coverImage = str(r.coverPicture) ?? str(r.coverImage);
+  const avatar = str(r.profilePicture) ?? str(r.avatar);
+
+  // Match web parity (knockout photographers.tsx:1675):
+  // Cover photo first, then portfolio project images, then profile picture.
+  const rawImages = [
+    coverImage,
+    ...projectImages,
+    ...portfolio,
+    avatar,
+  ].filter(
+    (u): u is string => typeof u === 'string' && !!u && !u.includes('/null') && u.trim().length > 0,
+  );
+  const images = Array.from(new Set(rawImages));
+
+  const specialtiesList = specialties
+    .map((s: any) => (typeof s === 'string' ? s : str(s?.name)))
+    .filter(Boolean) as string[];
+
+  const completedJobs = num(r.completedEvents) ?? num(r.completedJobs) ?? 0;
+  const isVerified = r.isVerified !== false;
+  const currentStatus = str(r.currentStatus) ?? 'available';
+
   return {
     id: String(r.id ?? r.slug ?? r.photographerId ?? ''),
     name: str(r.name) ?? (fullName || 'Photographer'),
-    avatar: str(r.profilePicture) ?? str(r.avatar),
-    coverImage: str(r.coverPicture) ?? str(r.coverImage),
+    avatar,
+    coverImage,
+    images: images.length > 0 ? images : (coverImage ? [coverImage] : []),
     rating: num(r.rating) ?? num(r.avgRating),
     reviewCount: num(r.reviewCount) ?? num(r.reviewsCount) ?? (Array.isArray(r.reviews) ? r.reviews.length : 0),
+    completedJobs,
     location: str(r.location) ?? str(r.address) ?? str(r.city),
     category,
+    specialties: specialtiesList,
     startingPrice,
+    currentStatus,
+    isVerified,
   };
 }
 
@@ -234,3 +284,34 @@ export async function inviteCoordinatorPhotographer(
     throw { status: 400, message: res?.message || 'Could not send invite.' };
   }
 }
+
+// ────── Booked dates (for availability calendar) ─────────────────────────
+
+export type BookedDate = {
+  date: string; // "YYYY-MM-DD"
+  isFullDay?: boolean;
+  reason?: string;
+  bookingId?: string;
+  eventDate?: string;
+  startTime?: { hour: number; minute: number } | null;
+  endTime?: { hour: number; minute: number } | null;
+};
+
+export async function getBookedDates(
+  photographerId: string,
+  from: string,
+  to: string,
+): Promise<BookedDate[]> {
+  try {
+    const res = await api.get<ApiEnvelope<any>>(
+      `/public/photographers/${encodeURIComponent(photographerId)}/booked-dates?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    );
+    const data = res?.data;
+    if (Array.isArray(data)) return data as BookedDate[];
+    if (data && Array.isArray((data as any).data)) return (data as any).data as BookedDate[];
+    return [];
+  } catch {
+    return [];
+  }
+}
+

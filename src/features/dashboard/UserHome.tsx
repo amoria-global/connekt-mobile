@@ -114,7 +114,7 @@ export function UserHome() {
   ];
 
   return (
-    <Screen padded={false} edges={['bottom']}>
+    <Screen padded={false} edges={[]}>
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}

@@ -1,101 +1,183 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Image, StyleSheet, Text, View } from 'react-native';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { Image } from 'expo-image';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import type { Photographer } from './api';
-import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
+import { PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
-export function PhotographerCard({ photographer }: { photographer: Photographer }) {
+import { CoverCarousel } from './CoverCarousel';
+
+export function PhotographerCard({
+  photographer,
+  isBookmarked = false,
+  onToggleBookmark,
+  coverHeight = 136,
+}: {
+  photographer: Photographer;
+  isBookmarked?: boolean;
+  onToggleBookmark?: () => void;
+  coverHeight?: number;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const [coverWidth, setCoverWidth] = useState(175);
+
   const initials = (photographer.name?.[0] ?? '?').toUpperCase();
-  const ratingText = photographer.rating ? photographer.rating.toFixed(1) : 'New';
+  const rating = photographer.rating ?? 0;
+  const ratingText = rating > 0 ? rating.toFixed(1) : 'New';
   const reviewsCount = photographer.reviewCount ?? 0;
-  
-  // Use a fallback cover image if none is provided
-  const coverSource = photographer.coverImage
-    ? { uri: photographer.coverImage }
-    : PHOTOGRAPHER_COVER_PLACEHOLDER;
+  const completedJobs = photographer.completedJobs ?? 0;
+  const isBooked = photographer.currentStatus === 'booked';
+  const specialties = photographer.specialties ?? [];
+
+  const carouselImages = useMemo(() => {
+    if (photographer.images && photographer.images.length > 0) {
+      return photographer.images;
+    }
+    if (photographer.coverImage) {
+      return [photographer.coverImage];
+    }
+    return [];
+  }, [photographer.images, photographer.coverImage]);
 
   return (
     <View style={styles.card}>
-      {/* Cover Image Section */}
-      <View style={styles.coverContainer}>
-        <Image source={coverSource} style={styles.coverImage} />
-        
-        {/* Top Left: Available Badge */}
-        <View style={styles.badgeTopLeft}>
-          <View style={styles.dotAvailable} />
-          <Text style={styles.textAvailable}>AVAILABLE</Text>
-        </View>
+      {/* COVER SECTION */}
+      <View
+        style={[styles.coverContainer, coverHeight != null && { height: coverHeight }]}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0) setCoverWidth(w);
+        }}
+      >
+        <CoverCarousel images={carouselImages} width={coverWidth} />
 
-        {/* Top Right: Rating Badge */}
-        <View style={styles.badgeTopRight}>
-          <Ionicons name="star" size={12} color="#FBBF24" />
-          <Text style={styles.textRating}>
-            {ratingText} <Text style={styles.textReviewsCount}>({reviewsCount})</Text>
+        {/* Top-Left: Availability Status Pill */}
+        <View style={styles.statusPill}>
+          <View style={[styles.statusDot, isBooked && styles.statusDotBooked]} />
+          <Text style={[styles.statusText, isBooked && styles.statusTextBooked]}>
+            {isBooked ? 'Booked' : 'Available'}
           </Text>
         </View>
 
-        {/* Bottom Right: Bookmark Button */}
-        <View style={styles.badgeBottomRight}>
-          <Ionicons name="bookmark-outline" size={16} color={colors.textMuted} />
-        </View>
-        
-        {/* Bottom Left: Avatar overlapping */}
+        {/* Top-Right: Rating Pill */}
+        {rating > 0 && (
+          <View style={styles.ratingPill}>
+            <Ionicons name="star" size={11} color="#F59E0B" />
+            <Text style={styles.ratingText}>
+              {ratingText}
+              {reviewsCount > 0 ? (
+                <Text style={styles.ratingCount}> ({reviewsCount})</Text>
+              ) : null}
+            </Text>
+          </View>
+        )}
+
+        {/* Top-Right Below Rating: Bookmark Action Button */}
+        <Pressable
+          style={styles.bookmarkBtn}
+          onPress={onToggleBookmark}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+            size={13}
+            color={isBookmarked ? colors.primary : colors.textMuted}
+          />
+        </Pressable>
+
+        {/* Avatar - Straddles the boundary between Cover & Body */}
         <View style={styles.avatarContainer}>
           {photographer.avatar ? (
-            <Image source={{ uri: photographer.avatar }} style={styles.avatar} />
+            <Image
+              source={{ uri: photographer.avatar }}
+              style={styles.avatar}
+              contentFit="cover"
+              transition={150}
+            />
           ) : (
             <View style={[styles.avatar, styles.avatarFallback]}>
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
           )}
-          {/* Optional verified checkmark on bottom right of avatar */}
+
+          {/* Verified Checkmark Badge */}
           <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color="#3B82F6" style={{ backgroundColor: 'white', borderRadius: 10, overflow: 'hidden' }} />
+            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
           </View>
         </View>
       </View>
 
-      {/* Details Section */}
+      {/* CARD BODY */}
       <View style={styles.detailsContainer}>
+        {/* Name & Headline */}
         <Text style={styles.name} numberOfLines={1}>
           {photographer.name}
         </Text>
-        {photographer.category ? (
-          <Text style={styles.category} numberOfLines={1}>
-            {photographer.category}
-          </Text>
-        ) : null}
-        
+
         <View style={styles.metaRow}>
+          <Text style={styles.headline} numberOfLines={1}>
+            {photographer.category || 'Photographer'}
+          </Text>
           {photographer.location ? (
-            <View style={styles.location}>
-              <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+            <>
+              <Text style={styles.metaDot}>·</Text>
+              <Ionicons name="location-sharp" size={10} color={colors.primary} />
               <Text style={styles.locationText} numberOfLines={1}>
                 {photographer.location}
               </Text>
-            </View>
+            </>
           ) : null}
-          
-          <View style={styles.priceRow}>
-            {photographer.startingPrice !== undefined ? (
-              <View style={styles.priceContainer}>
-                <Text style={styles.priceText}>
-                  From <Text style={styles.priceValue}>${photographer.startingPrice}</Text>
+        </View>
+
+        {/* Stats Strip: Completed shoots & reviews count */}
+        <View style={styles.statsStrip}>
+          <View style={styles.statItem}>
+            <Ionicons name="videocam" size={11} color={colors.primary} />
+            <Text style={styles.statNum}>{completedJobs}</Text>
+            <Text style={styles.statLabel}>shoots</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Ionicons name="chatbubble-ellipses" size={11} color={colors.primary} />
+            <Text style={styles.statNum}>{reviewsCount}</Text>
+            <Text style={styles.statLabel}>reviews</Text>
+          </View>
+        </View>
+
+        {/* Specialty Micro Chips */}
+        {specialties.length > 0 ? (
+          <View style={styles.chipsRow}>
+            {specialties.slice(0, 2).map((s, idx) => (
+              <View key={idx} style={styles.specialtyChip}>
+                <Text style={styles.specialtyChipText} numberOfLines={1}>
+                  {s}
                 </Text>
               </View>
-            ) : (
-              <View style={styles.priceContainer}>
-                <Text style={styles.priceText}>Pricing</Text>
-                <Text style={styles.priceValue}>On request</Text>
+            ))}
+            {specialties.length > 2 && (
+              <View style={[styles.specialtyChip, styles.specialtyChipMore]}>
+                <Text style={styles.specialtyChipMoreText}>
+                  +{specialties.length - 2}
+                </Text>
               </View>
             )}
-            
-            <View style={styles.ctaButton}>
-              <Text style={styles.ctaText}>Get in touch</Text>
-              <Ionicons name="arrow-forward" size={12} color="white" />
-            </View>
+          </View>
+        ) : null}
+
+        {/* Bottom CTA Row: Pricing (On Request) + "Get in touch" Button */}
+        <View style={styles.ctaRow}>
+          <View style={styles.priceWrap}>
+            <Text style={styles.priceLabel}>PRICING</Text>
+            <Text style={styles.priceValue} numberOfLines={1}>
+              {photographer.startingPrice ? `From $${photographer.startingPrice}` : 'On request'}
+            </Text>
+          </View>
+
+          <View style={styles.getInTouchBtn}>
+            <Text style={styles.getInTouchText}>Get in touch</Text>
+            <Ionicons name="arrow-forward" size={11} color="#FFFFFF" />
           </View>
         </View>
       </View>
@@ -105,175 +187,303 @@ export function PhotographerCard({ photographer }: { photographer: Photographer 
 
 const useStyles = makeStyles((c, e) => ({
   card: {
-    flex: 1,
+    width: '100%',
     backgroundColor: c.surface,
     borderRadius: radii.xl,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: c.borderSoft,
     overflow: 'hidden',
-    margin: spacing.xs, // small margin for grid gap
+    ...e(1),
   },
   coverContainer: {
-    height: 140,
+    height: 142,
     width: '100%',
     position: 'relative',
     backgroundColor: c.surfaceMuted,
+    overflow: 'hidden',
   },
   coverImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
-  badgeTopLeft: {
+  hiddenPreloadContainer: {
     position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
+    width: 1,
+    height: 1,
+    opacity: 0,
+    overflow: 'hidden',
+  },
+  hiddenPreloadImage: {
+    width: 1,
+    height: 1,
+  },
+
+  // Status Pill (Available / Booked)
+  statusPill: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: c.elevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.borderSoft,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3.5,
     borderRadius: radii.full,
-    gap: 4,
+    gap: 4.5,
+    zIndex: 2,
+    ...e(1),
   },
-  dotAvailable: {
+  statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10B981', // green
+    backgroundColor: c.success,
   },
-  textAvailable: {
+  statusDotBooked: {
+    backgroundColor: c.error,
+  },
+  statusText: {
     fontSize: 9,
-    fontWeight: '800',
-    color: '#10B981',
+    fontFamily: fonts.bold,
+    color: c.success,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  badgeTopRight: {
+  statusTextBooked: {
+    color: c.error,
+  },
+
+  // Rating Pill
+  ratingPill: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
+    top: 10,
+    right: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: c.elevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.borderSoft,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3.5,
     borderRadius: radii.full,
-    gap: 4,
+    gap: 3.5,
+    zIndex: 2,
+    ...e(1),
   },
-  textRating: {
+  ratingText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: c.text,
   },
-  textReviewsCount: {
-    fontWeight: '400',
+  ratingCount: {
+    fontFamily: fonts.regular,
     color: c.textMuted,
+    fontSize: 9.5,
   },
-  badgeBottomRight: {
+
+  // Bookmark Button on Cover
+  bookmarkBtn: {
     position: 'absolute',
-    bottom: spacing.sm,
-    right: spacing.sm,
+    top: 42,
+    right: 10,
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'white',
+    backgroundColor: c.elevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    ...e(2),
+    zIndex: 2,
+    ...e(1),
   },
+
+  // Avatar Straddling Boundary
   avatarContainer: {
     position: 'absolute',
-    bottom: -16, // Half overlap
+    bottom: -18,
     left: spacing.md,
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'white', // For the border effect
-    padding: 2,
+    backgroundColor: c.surface,
+    borderWidth: 2,
+    borderColor: c.surface,
+    padding: 2.5,
+    zIndex: 5,
+    ...e(2),
   },
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: 24,
+    borderRadius: 22,
     backgroundColor: c.surfaceMuted,
   },
   avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: c.primary,
+    backgroundColor: c.surfaceMuted,
   },
   avatarText: {
-    color: c.textOnPrimary,
-    fontSize: fontSize.md,
-    fontWeight: 'bold',
+    color: c.text,
+    fontSize: fontSize.sm,
+    fontFamily: fonts.bold,
   },
   verifiedBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: 'white',
-    borderRadius: 10,
+    bottom: -1,
+    right: -1,
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+
+  // Details
   detailsContainer: {
     padding: spacing.md,
-    paddingTop: 24, // Space for overlapping avatar
-    gap: 4,
+    paddingTop: 24,
+    gap: 3,
   },
   name: {
     fontFamily: fonts.bold,
-    fontSize: fontSize.md,
-    fontWeight: '700',
+    fontSize: 13.5,
     color: c.text,
-  },
-  category: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
-    color: c.textMuted,
+    letterSpacing: -0.2,
   },
   metaRow: {
-    flexDirection: 'column',
-    gap: 6,
-    marginTop: 4,
-  },
-  location: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
+  },
+  headline: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.textMuted,
+    maxWidth: 160,
+    flexShrink: 1,
+  },
+  metaDot: {
+    fontSize: 10,
+    color: c.borderSoft,
   },
   locationText: {
-    fontSize: fontSize.xs,
+    fontSize: 10.5,
+    fontFamily: fonts.regular,
     color: c.textMuted,
+    flex: 1,
   },
-  priceRow: {
+
+  // Stats Strip
+  statsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 2,
+    backgroundColor: c.surfaceMuted,
+    borderRadius: radii.md,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginTop: 4,
+    marginBottom: 2,
   },
-  priceContainer: {
-    flex: 1,
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  priceText: {
+  statNum: {
+    fontFamily: fonts.bold,
+    fontSize: 10.5,
+    color: c.text,
+  },
+  statLabel: {
+    fontFamily: fonts.regular,
     fontSize: 10,
     color: c.textMuted,
   },
-  priceValue: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    fontWeight: '700',
-    color: c.text,
+  statDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: c.borderSoft,
   },
-  ctaButton: {
+
+  // Specialty Chips
+  chipsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
+    flexWrap: 'wrap',
     gap: 4,
+    marginTop: 2,
   },
-  ctaText: {
-    color: 'white',
+  specialtyChip: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  specialtyChipText: {
+    fontFamily: fonts.regular,
+    fontSize: 9.5,
+    color: c.text,
+    maxWidth: 70,
+  },
+  specialtyChipMore: {
+    backgroundColor: c.tint,
+    borderColor: c.primary + '30',
+  },
+  specialtyChipMoreText: {
+    fontFamily: fonts.bold,
+    fontSize: 9.5,
+    color: c.primary,
+  },
+
+  // CTA Row: Pricing (On request) + Get in touch
+  ctaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+    gap: 6,
+  },
+  priceWrap: {
+    flexShrink: 1,
+    minWidth: 0,
+    marginRight: 4,
+  },
+  priceLabel: {
+    fontSize: 8,
+    fontFamily: fonts.bold,
+    color: c.textMuted,
+    letterSpacing: 0.5,
+  },
+  priceValue: {
+    fontFamily: fonts.bold,
     fontSize: 10,
-    fontWeight: '700',
+    color: c.text,
+  },
+  getInTouchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: c.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    flexShrink: 0,
+    ...e(1),
+  },
+  getInTouchText: {
+    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    fontSize: 10.5,
   },
 }));

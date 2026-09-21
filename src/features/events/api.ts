@@ -115,7 +115,7 @@ function mapEvent(r: RawEvent): EventItem {
     clientName,
     clientAvatar,
     packageName: str(r.packageName),
-    hasLiveStream: r.hasLiveStream === true,
+    hasLiveStream: r.hasLiveStream === true || r.hasLiveStream === 'true' || r.hasLiveStream === 1,
     // Backend returns the event hero as `eventPhoto` on every events
     // endpoint (/customer/events, /coordinator/events, /public/events).
     // The legacy `coverImage` / `thumbnail` / `coverPhoto` fallbacks
@@ -297,14 +297,17 @@ function mapPublicEvent(r: RawEvent): PublicEvent {
     streamFee: num(r.streamFee),
     streamFeeCurrencySymbol: str(r.streamFeeCurrencySymbol),
     streamFeeCurrencyAbbreviation: str(r.streamFeeCurrencyAbbreviation),
-    hasLiveStream: r.hasLiveStream === true,
+    hasLiveStream: r.hasLiveStream === true || r.hasLiveStream === 'true' || r.hasLiveStream === 1,
     streamType: (str(r.streamType) as PublicEvent['streamType']) ?? null,
     groupDiscountPercentage: num(r.groupDiscountPercentage) ?? null,
     hasInviteCode: r.hasInviteCode === true,
     liveInputId: str(r.liveInputId) ?? null,
     hlsManifestUrl: str(r.hlsManifestUrl) ?? null,
     whepUrl: str(r.whepUrl) ?? null,
-    streamStatus: str(r.streamStatus) ?? null,
+    // Stream lifecycle endpoints expose this as `connectionStatus`, while
+    // public list rows may call it `streamStatus`. Keep one normalized field
+    // so the Events explorer can reliably identify a connected broadcast.
+    streamStatus: str(r.streamStatus) ?? str(r.connectionStatus) ?? str(r.status) ?? null,
     hasPurchasedAccess: r.hasPurchasedAccess === true,
     eventPriceId: str(r.eventPriceId) ?? null,
     photographerName,
