@@ -24,21 +24,28 @@ A git push reaches nobody. Installed apps pull JavaScript from the `production` 
 
 `main` may sit on an Expo SDK newer than the natives users are running, and publishing that
 JavaScript onto older natives breaks every install. **Never publish an update from `main`.**
-As proof of the scale: `main` (SDK 57, app version 2.2.0) differs from the installed 2.1.7
-build by 41 runtime dependencies, new config plugins and renamed Android permissions.
+Whether the two agree is not a judgement call: `scripts/check-ota-compatibility.mjs`
+answers it. They disagreed by 41 runtime dependencies, new config plugins and renamed
+Android permissions between 2026-08-23 and 2026-09-23, and the gate blocked every publish
+for that month, correctly.
 
 The release line is the `production` branch. It sits on the commit the shipped store build
-was made from, plus cherry-picked JavaScript-only fixes, and it carries the gated pipeline
+was made from, plus the JavaScript the gate has cleared, and it carries the gated pipeline
 (`.github/workflows/production.yml`): verify, test, build, migrate, deploy. The migrate
 stage is `scripts/check-ota-compatibility.mjs` against `.eas/production-baseline.json`, and
 deploy publishes automatically once those stages pass on a push to `production`, with
 `[skip publish]` in a commit subject as the opt-out, plus a manual `workflow_dispatch` that
-also offers a dry run. Publish a hotfix by cherry-picking it onto `production`, never by
-publishing from here, and never by merging `main` into it.
+also offers a dry run.
 
-When a new store build ships from `main`, point `production` at that build's commit and
-refresh `.eas/production-baseline.json` (commit, app version, build number, fingerprint
-from `eas build:list`). Those three files live here too so they survive that move.
+`main` reaches `production` through `.github/workflows/promote-to-production.yml`, which
+merges it automatically once the gate passes. Never publish from `main`, and never merge
+`main` into `production` by hand to force a release past the gate.
+
+When a new store build ships from `main`, refresh `.eas/production-baseline.json` (commit,
+app version, build number, fingerprint from `eas build:list`) and let the promote workflow
+merge `main` into `production`. Do **not** reset or force-push `production` onto the
+build's commit: it carries commits `main` does not, including this pipeline itself, and a
+reset discards them silently. The full procedure is in `docs/RELEASING.md`.
 
 Verify a publish two ways, never by trusting the CLI output alone:
 
