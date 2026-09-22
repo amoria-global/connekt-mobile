@@ -554,7 +554,7 @@ export default function PublicDonateScreen() {
   };
 
   return (
-    <Screen padded={false} edges={['bottom']}>
+    <Screen padded={false} edges={[]}>
       {/* Top Bar in head — full-width rounded floating bar matching ExploreEvents & FindMyPhotos */}
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
         <View style={styles.topBarPill}>

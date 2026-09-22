@@ -1,5 +1,6 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { RefreshControl, ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
+import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
+import { RefreshControl, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,12 +9,15 @@ import BottomSheet from '@gorhom/bottom-sheet';
 import {
   bookmarkPhotographer,
   getPhotographer,
+  getBookedDates,
+  type BookedDate,
   listBookmarkedPhotographers,
   rebookPhotographer,
   reportPhotographer,
   unbookmarkPhotographer,
   type RebookInput,
 } from '@/features/photographers/api';
+import { CoverCarousel } from '@/features/photographers/CoverCarousel';
 import { listPhotographerReviews } from '@/features/reviews/api';
 import { useRole } from '@/features/auth/role';
 import { useModeration } from '@/features/moderation/useModeration';
@@ -23,10 +27,9 @@ import { Input } from '@/components/ui/Input';
 import { isApiError } from '@/store/auth';
 import { Stars } from '@/components/ui/Stars';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 
-let hasAutoShownWizard = false;
 
 function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyphMap; onPress?: () => void; style?: any }) {
   const { colors } = useTheme();
@@ -207,6 +210,7 @@ export default function PhotographerProfileScreen() {
   const reviews = useAsync(useCallback(() => listPhotographerReviews(id), [id]));
   
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const [headerWidth, setHeaderWidth] = useState(400);
 
   const [activeTab, setActiveTab] = useState('Overview');
   const tabs = [
@@ -216,16 +220,99 @@ export default function PhotographerProfileScreen() {
     { id: 'Working Experience', icon: 'briefcase' as const },
   ];
 
-  // Show bottom sheet automatically after 5 seconds
-  useEffect(() => {
-    if (!hasAutoShownWizard) {
-      const timer = setTimeout(() => {
-        bottomSheetRef.current?.expand();
-        hasAutoShownWizard = true;
-      }, 5000);
-      return () => clearTimeout(timer);
+  // Derive carousel images from photographer profile
+  const carouselImages = useMemo(() => {
+    if (data?.images && data.images.length > 0) {
+      return data.images;
     }
-  }, []);
+    if (data?.coverImage) {
+      return [data.coverImage];
+    }
+    return [];
+  }, [data?.images, data?.coverImage]);
+
+  // Booked dates & availability calendar state
+  const [bookedDates, setBookedDates] = useState<BookedDate[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    const start = new Date(calendarMonth.year, calendarMonth.month, 1);
+    const end = new Date(calendarMonth.year, calendarMonth.month + 2, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const fromStr = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+    const toStr = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+
+    let cancelled = false;
+    getBookedDates(id, fromStr, toStr)
+      .then((dates) => {
+        if (!cancelled) setBookedDates(dates);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [id, calendarMonth.year, calendarMonth.month]);
+
+  const now = new Date();
+  const isCurrentMonth =
+    calendarMonth.year === now.getFullYear() && calendarMonth.month <= now.getMonth();
+
+  const handlePrevMonth = () => {
+    if (isCurrentMonth) return;
+    setCalendarMonth(({ year, month }) =>
+      month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 }
+    );
+  };
+
+  const handleNextMonth = () => {
+    setCalendarMonth(({ year, month }) =>
+      month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 }
+    );
+  };
+
+  const calendarCells = useMemo(() => {
+    const { year, month } = calendarMonth;
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      cells.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push(d);
+    }
+    return cells;
+  }, [calendarMonth]);
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  const isDateBooked = useCallback(
+    (day: number) => {
+      const { year, month } = calendarMonth;
+      const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
+      return bookedDates.some((b) => {
+        if (!b) return false;
+        if (b.date === dateStr) return true;
+        if (b.eventDate === dateStr) return true;
+        return false;
+      });
+    },
+    [calendarMonth, bookedDates]
+  );
+
+  const handleDatePress = (day: number) => {
+    const { year, month } = calendarMonth;
+    const targetDate = new Date(year, month, day);
+    setSelectedCalendarDate(targetDate);
+    bottomSheetRef.current?.snapToIndex(0);
+  };
 
   if (loading && !data) {
     return (
@@ -250,23 +337,27 @@ export default function PhotographerProfileScreen() {
   }
 
   const initials = (data?.name?.[0] ?? '?').toUpperCase();
-  const coverSource = data?.coverImage
-    ? { uri: data.coverImage }
-    : PHOTOGRAPHER_COVER_PLACEHOLDER;
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-        {/* Cover Image & Header Overlay */}
-        <View style={styles.headerArea}>
-          <Image source={coverSource} style={styles.coverImage} />
+        {/* Cover Carousel & Header Overlay */}
+        <View
+          style={styles.headerArea}
+          onLayout={(e) => {
+            const w = e.nativeEvent.layout.width;
+            if (w > 0) setHeaderWidth(w);
+          }}
+        >
+          <CoverCarousel images={carouselImages} width={headerWidth} />
           
           <LinearGradient
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)', 'rgba(0,0,0,1)']}
-            locations={[0.2, 0.7, 1]}
+            colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.65)', 'rgba(0,0,0,0.95)']}
+            locations={[0.1, 0.65, 1]}
             style={styles.gradient}
+            pointerEvents="none"
           />
 
           {/* Floating Top Nav */}
@@ -286,15 +377,22 @@ export default function PhotographerProfileScreen() {
           {/* Profile Info Overlay */}
           <View style={styles.profileInfoContainer}>
             <View style={styles.avatarWrapper}>
-              {data?.avatar ? (
-                <Image source={{ uri: data.avatar }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarText}>{initials}</Text>
-                </View>
-              )}
+              <View style={styles.avatarInner}>
+                {data?.avatar ? (
+                  <Image
+                    source={{ uri: data.avatar }}
+                    style={styles.avatar}
+                    contentFit="cover"
+                    transition={150}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Text style={styles.avatarText}>{initials}</Text>
+                  </View>
+                )}
+              </View>
               <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={18} color="#3B82F6" style={{ backgroundColor: 'white', borderRadius: 10, overflow: 'hidden' }} />
+                <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
               </View>
             </View>
 
@@ -361,33 +459,125 @@ export default function PhotographerProfileScreen() {
                   <Text style={styles.cardHeaderEyebrow}>AVAILABLE TO BOOK</Text>
                   <Pressable 
                     style={styles.bookButton}
-                    onPress={() => bottomSheetRef.current?.expand()}
+                    onPress={() => bottomSheetRef.current?.snapToIndex(0)}
                   >
                     <Ionicons name="calendar" size={18} color="white" />
                     <Text style={styles.bookButtonText}>BOOK NOW</Text>
                   </Pressable>
                   <View style={styles.disclaimerRow}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color="#10B981" />
+                    <Ionicons name="shield-checkmark-outline" size={14} color={colors.success} />
                     <Text style={styles.disclaimerText}>No payment to inquire</Text>
                   </View>
                 </View>
 
-                {/* Availability — confirmed against the real calendar at booking
-                    time (the backend rejects a taken date), so we don't show a
-                    fabricated month here. */}
+                {/* Availability Calendar Card */}
                 <View style={styles.card}>
-                  <Text style={styles.cardHeaderEyebrow}>AVAILABILITY</Text>
-                  <Text style={styles.availabilityBody}>
-                    Pick your event date in the booking form, and we check this photographer is
-                    free for that day before you pay anything.
-                  </Text>
-                  <Pressable
-                    style={styles.availabilityBtn}
-                    onPress={() => bottomSheetRef.current?.expand()}
-                  >
-                    <Feather name="calendar" size={16} color={colors.primary} />
-                    <Text style={styles.availabilityBtnText}>Check a date &amp; book</Text>
-                  </Pressable>
+                  <View style={styles.calendarHeaderRow}>
+                    <Text style={styles.cardHeaderEyebrow}>AVAILABILITY</Text>
+                    
+                    <View style={styles.monthNav}>
+                      <Pressable 
+                        onPress={handlePrevMonth} 
+                        style={[styles.calendarArrowBtn, isCurrentMonth && styles.calendarArrowBtnDisabled]}
+                        disabled={isCurrentMonth}
+                        hitSlop={8}
+                      >
+                        <Ionicons 
+                          name="chevron-back" 
+                          size={14} 
+                          color={isCurrentMonth ? colors.textMuted : colors.text} 
+                        />
+                      </Pressable>
+                      
+                      <Text style={styles.monthTitleText}>
+                        {new Date(calendarMonth.year, calendarMonth.month).toLocaleDateString('en-US', {
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </Text>
+
+                      <Pressable 
+                        onPress={handleNextMonth} 
+                        style={styles.calendarArrowBtn}
+                        hitSlop={8}
+                      >
+                        <Ionicons name="chevron-forward" size={14} color={colors.text} />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {/* Weekday labels */}
+                  <View style={styles.weekdayRow}>
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((wd, i) => (
+                      <View key={i} style={styles.weekdayCell}>
+                        <Text style={styles.weekdayText}>{wd}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Days grid */}
+                  <View style={styles.calendarGrid}>
+                    {calendarCells.map((day, i) => {
+                      if (day === null) {
+                        return <View key={`blank-${i}`} style={styles.calendarCell} />;
+                      }
+
+                      const dateStr = `${calendarMonth.year}-${pad(calendarMonth.month + 1)}-${pad(day)}`;
+                      const isPast = dateStr < todayStr;
+                      const isToday = dateStr === todayStr;
+                      const booked = isDateBooked(day);
+                      const isSelected = selectedCalendarDate &&
+                        selectedCalendarDate.getFullYear() === calendarMonth.year &&
+                        selectedCalendarDate.getMonth() === calendarMonth.month &&
+                        selectedCalendarDate.getDate() === day;
+
+                      const isAvailable = !isPast && !booked;
+
+                      return (
+                        <View key={`day-${day}`} style={styles.calendarCell}>
+                          <Pressable
+                            disabled={!isAvailable}
+                            onPress={() => handleDatePress(day)}
+                            style={[
+                              styles.daySquare,
+                              isPast && styles.daySquarePast,
+                              isAvailable && styles.daySquareAvailable,
+                              booked && styles.daySquareBooked,
+                              isToday && styles.daySquareToday,
+                              isSelected && styles.daySquareSelected,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.dayText,
+                                isPast && styles.dayTextPast,
+                                isAvailable && styles.dayTextAvailable,
+                                booked && styles.dayTextBooked,
+                                isToday && styles.dayTextToday,
+                                isSelected && styles.dayTextSelected,
+                              ]}
+                            >
+                              {day}
+                            </Text>
+                            {isAvailable && <View style={styles.dayDotAvailable} />}
+                            {booked && <View style={styles.dayDotBooked} />}
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {/* Legend */}
+                  <View style={styles.legendRow}>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                      <Text style={styles.legendText}>Available (Tap to book)</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
+                      <Text style={styles.legendText}>Booked</Text>
+                    </View>
+                  </View>
                 </View>
               </>
             )}
@@ -436,6 +626,7 @@ export default function PhotographerProfileScreen() {
         photographerName={data?.name}
         photographerImage={data?.avatar}
         packages={data?.packages || []}
+        initialDate={selectedCalendarDate}
       />
 
       {/* Report photographer sheet */}
@@ -569,8 +760,8 @@ export default function PhotographerProfileScreen() {
 }
 
 const useStyles = makeStyles((c, e) => ({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' },
+  container: { flex: 1, backgroundColor: c.background },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
   muted: { color: c.textMuted, fontSize: fontSize.sm, marginTop: 10 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
@@ -628,7 +819,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'white',
+    backgroundColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
     ...e(3),
@@ -644,16 +835,21 @@ const useStyles = makeStyles((c, e) => ({
   avatarWrapper: {
     width: 90,
     height: 90,
-    borderRadius: 45,
-    borderWidth: 3,
-    borderColor: '#D4AF37', // Gold-ish border
     marginBottom: spacing.md,
     position: 'relative',
+  },
+  avatarInner: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: c.primary,
+    overflow: 'hidden',
+    backgroundColor: c.surfaceMuted,
   },
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: 45,
   },
   avatarFallback: {
     alignItems: 'center',
@@ -661,7 +857,7 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: c.primary,
   },
   avatarText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '800',
   },
@@ -669,13 +865,13 @@ const useStyles = makeStyles((c, e) => ({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: c.surface,
     borderRadius: 12,
   },
   name: {
     fontSize: 22,
     fontWeight: '800',
-    color: 'white',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
@@ -687,16 +883,16 @@ const useStyles = makeStyles((c, e) => ({
   },
   role: {
     fontSize: 13,
-    color: '#D1D5DB',
+    color: '#E2E8F0',
     fontWeight: '500',
   },
   dot: {
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginHorizontal: 4,
   },
   location: {
     fontSize: 13,
-    color: '#D1D5DB',
+    color: '#E2E8F0',
   },
   statsRow: {
     flexDirection: 'row',
@@ -706,11 +902,11 @@ const useStyles = makeStyles((c, e) => ({
   },
   statText: {
     fontSize: 11,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   statValue: {
     fontWeight: '700',
-    color: 'white',
+    color: '#FFFFFF',
   },
   availableBadge: {
     flexDirection: 'row',
@@ -727,10 +923,10 @@ const useStyles = makeStyles((c, e) => ({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
   },
   availableText: {
-    color: '#10B981',
+    color: c.success,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -739,6 +935,7 @@ const useStyles = makeStyles((c, e) => ({
   contentArea: {
     paddingTop: spacing.lg,
     paddingBottom: 100,
+    backgroundColor: c.background,
   },
   tabsContainer: {
     paddingHorizontal: spacing.lg,
@@ -748,14 +945,18 @@ const useStyles = makeStyles((c, e) => ({
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: radii.full,
     gap: 6,
+    ...e(1),
   },
   tabActive: {
-    backgroundColor: '#083A85',
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   tabText: {
     fontSize: 12,
@@ -763,11 +964,13 @@ const useStyles = makeStyles((c, e) => ({
     color: c.textMuted,
   },
   tabTextActive: {
-    color: 'white',
+    color: '#FFFFFF',
   },
 
   card: {
-    backgroundColor: 'white',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
     borderRadius: radii.xl,
@@ -783,7 +986,7 @@ const useStyles = makeStyles((c, e) => ({
   cardHeaderEyebrow: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#083A85',
+    color: c.primary,
     letterSpacing: 0.5,
     marginBottom: spacing.md,
   },
@@ -801,12 +1004,12 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 12,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.border,
+    borderColor: c.borderSoft,
     backgroundColor: c.surface,
   },
   availabilityBtnText: { color: c.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.sm },
   bookButton: {
-    backgroundColor: '#083A85',
+    backgroundColor: c.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -814,9 +1017,10 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.lg,
     gap: 8,
     marginBottom: spacing.md,
+    ...e(2),
   },
   bookButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -828,95 +1032,145 @@ const useStyles = makeStyles((c, e) => ({
   },
   disclaimerText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: c.textMuted,
   },
-  monthControls: {
+  calendarHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: -spacing.md,
-  },
-  monthText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: c.text,
-  },
-  calendarContainer: {
-    marginTop: 0,
-  },
-  calendarHeaderCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  monthNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   calendarArrowBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: c.borderSoft,
+    backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthTextCenter: {
-    fontSize: 14,
+  calendarArrowBtnDisabled: {
+    opacity: 0.35,
+  },
+  monthTitleText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: c.primary,
+    color: c.text,
+    minWidth: 90,
+    textAlign: 'center',
+  },
+  weekdayRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: c.borderSoft,
+    paddingBottom: 6,
+    marginBottom: 6,
+  },
+  weekdayCell: {
+    width: '14.28%',
+    alignItems: 'center',
+  },
+  weekdayText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: c.textMuted,
+    textTransform: 'uppercase',
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   calendarCell: {
-    width: '14.28%', // 100% / 7
+    width: '14.28%',
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 2,
   },
-  dayOfWeek: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
   daySquare: {
     width: '100%',
     height: '100%',
-    borderRadius: 6,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   daySquarePast: {
     backgroundColor: 'transparent',
+    opacity: 0.35,
   },
   daySquareAvailable: {
-    backgroundColor: '#10B981', // Vibrant green
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  daySquareBooked: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  daySquareToday: {
+    borderWidth: 1.5,
+    borderColor: c.primary,
   },
   daySquareSelected: {
-    borderWidth: 2,
+    backgroundColor: c.primary,
     borderColor: c.primary,
   },
   dayText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
+    color: c.text,
   },
   dayTextPast: {
-    color: '#D1D5DB',
+    color: c.textMuted,
   },
   dayTextAvailable: {
-    color: 'white',
+    color: '#047857',
+    fontWeight: '700',
+  },
+  dayTextBooked: {
+    color: '#B91C1C',
+    textDecorationLine: 'line-through',
+  },
+  dayTextToday: {
+    color: c.primary,
+    fontWeight: '800',
+  },
+  dayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  dayDotAvailable: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#10B981',
+    position: 'absolute',
+    bottom: 3,
+  },
+  dayDotBooked: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#EF4444',
+    position: 'absolute',
+    bottom: 3,
   },
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.lg,
+    justifyContent: 'space-around',
+    marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    gap: spacing.lg,
+    borderTopColor: c.borderSoft,
   },
   legendItem: {
     flexDirection: 'row',
@@ -924,14 +1178,14 @@ const useStyles = makeStyles((c, e) => ({
     gap: 6,
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   legendText: {
     fontSize: 11,
-    color: '#6B7280',
-    fontWeight: '500',
+    color: c.textMuted,
+    fontWeight: '600',
   },
   tabContent: {
     minHeight: 200,
@@ -941,9 +1195,12 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
     padding: spacing.xl,
     gap: spacing.sm,
-    backgroundColor: 'white',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
     marginHorizontal: spacing.lg,
     borderRadius: radii.xl,
+    ...e(1),
   },
   emptyText: {
     fontSize: fontSize.md,
@@ -954,7 +1211,9 @@ const useStyles = makeStyles((c, e) => ({
     gap: spacing.md,
   },
   reviewCard: {
-    backgroundColor: 'white',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
     padding: spacing.lg,
     borderRadius: radii.xl,
     ...e(1),

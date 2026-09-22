@@ -24,7 +24,7 @@ type Props = {
   style?: ViewStyle;
 };
 
-export function Screen({ children, padded = true, edges = ['top', 'bottom'], style }: Props) {
+export function Screen({ children, padded = true, edges = ['top'], style }: Props) {
   const styles = useStyles();
   const { isLarge, isXLarge } = useResponsive();
   const clampWidth = isLarge || isXLarge;

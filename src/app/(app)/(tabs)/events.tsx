@@ -1,14 +1,13 @@
-import { View } from 'react-native';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { PhotographerEventsDashboard } from '@/features/events/PhotographerEventsDashboard';
 import { OwnerEventsDashboard } from '@/features/events/OwnerEventsDashboard';
+import ExploreEventsScreen from '@/app/(public)/explore-events';
 
 export default function EventsScreen() {
   const topBarHeight = useTopBarHeight();
-  const { isPhotographer, isCoordinator, isViewer } = useRole();
+  const { isPhotographer, isCoordinator } = useRole();
 
   if (isPhotographer) {
     /*
@@ -20,37 +19,24 @@ export default function EventsScreen() {
      * Accepted chip, package badge) + the accept-booking sheet.
      */
     return (
-      <Screen padded={false} edges={['bottom']}>
+      <Screen padded={false} edges={[]}>
         <PhotographerEventsDashboard topInset={topBarHeight} />
         <TopBar />
       </Screen>
     );
   }
 
-  if (isViewer) {
+  if (isCoordinator) {
     return (
-      <Screen padded={false} edges={['bottom']}>
-        <View style={{ flex: 1, paddingTop: topBarHeight }}>
-          <EmptyState
-            icon="videocam-outline"
-            title="Discover live streams"
-            message="As a viewer, head to Live Streams from the Home screen to watch and support creators."
-          />
-        </View>
+      <Screen padded={false} edges={[]}>
+        <OwnerEventsDashboard coordinator topInset={topBarHeight} />
         <TopBar />
       </Screen>
     );
   }
 
-  // Client & Event Coordinator — the same full owner dashboard (stats,
-  // filters, search, image-led cards with Edit/Share + Manage). Its header
-  // carries its own "New event" button, so no Fab. Passing `coordinator`
-  // just switches the data source (listCoordinatorEvents vs listEvents) and
-  // the eyebrow label.
-  return (
-    <Screen padded={false} edges={['bottom']}>
-      <OwnerEventsDashboard coordinator={isCoordinator} topInset={topBarHeight} />
-      <TopBar />
-    </Screen>
-  );
+  // Client Events and the Home "Explore Events" quick action deliberately
+  // share one component and one live-viewing flow. This is also safe during
+  // session hydration, before the role is available.
+  return <ExploreEventsScreen />;
 }

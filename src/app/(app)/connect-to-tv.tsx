@@ -1,13 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { confirmTvPairing } from '@/features/tv/api';
 import { isApiError } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 /** The TV's QR encodes {"code":"AB3K9Z"} — fall back to raw text as the code. */
 function extractPairingCode(scanned: string): string {
@@ -20,6 +20,11 @@ function extractPairingCode(scanned: string): string {
   return scanned;
 }
 
+function leaveScreen(router: ReturnType<typeof useRouter>) {
+  if (router.canGoBack()) router.back();
+  else router.replace('/tv-devices' as Href);
+}
+
 export default function ConnectToTvScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -29,21 +34,24 @@ export default function ConnectToTvScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const handledRef = useRef(false);
 
-  const onScanned = useCallback(async (result: BarcodeScanningResult) => {
-    if (handledRef.current) return;
-    handledRef.current = true;
-    setStatus('connecting');
+  const onScanned = useCallback(
+    async (result: BarcodeScanningResult) => {
+      if (handledRef.current) return;
+      handledRef.current = true;
+      setStatus('connecting');
 
-    const pairingCode = extractPairingCode(result.data).trim().toUpperCase();
-    try {
-      await confirmTvPairing(pairingCode);
-      setStatus('success');
-      setTimeout(() => router.back(), 1200);
-    } catch (err) {
-      setStatus('error');
-      setMessage(isApiError(err) ? err.message : 'Could not connect to that TV.');
-    }
-  }, [router]);
+      const pairingCode = extractPairingCode(result.data).trim().toUpperCase();
+      try {
+        await confirmTvPairing(pairingCode);
+        setStatus('success');
+        setTimeout(() => leaveScreen(router), 1200);
+      } catch (err) {
+        setStatus('error');
+        setMessage(isApiError(err) ? err.message : 'Could not connect to that TV.');
+      }
+    },
+    [router],
+  );
 
   const tryAgain = () => {
     handledRef.current = false;
@@ -52,8 +60,23 @@ export default function ConnectToTvScreen() {
   };
 
   return (
-    <Screen padded={false} edges={['top']}>
-      <ScreenHeader title="Connect to TV" subtitle="Point your camera at the QR code on your TV" />
+    <Screen padded={false} edges={['top', 'bottom']}>
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={() => leaveScreen(router)}
+          hitSlop={12}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <Ionicons name="close" size={22} color={colors.text} />
+        </Pressable>
+        <View style={styles.topCopy}>
+          <Text style={styles.title}>Connect to TV</Text>
+          <Text style={styles.subtitle}>Point your camera at the QR code on your TV</Text>
+        </View>
+        <View style={styles.closeBtnSpacer} />
+      </View>
 
       {!permission ? (
         <View style={styles.center}>
@@ -63,6 +86,7 @@ export default function ConnectToTvScreen() {
         <View style={styles.center}>
           <Text style={styles.body}>Connekyt needs camera access to scan your TV's QR code.</Text>
           <Button title="Allow camera access" onPress={requestPermission} />
+          <Button title="Cancel" variant="ghost" onPress={() => leaveScreen(router)} />
         </View>
       ) : status === 'scanning' ? (
         <View style={styles.cameraWrap}>
@@ -72,6 +96,14 @@ export default function ConnectToTvScreen() {
             onBarcodeScanned={onScanned}
           />
           <View style={styles.frame} pointerEvents="none" />
+          <Pressable
+            style={({ pressed }) => [styles.cameraClose, pressed && styles.pressed]}
+            onPress={() => leaveScreen(router)}
+            accessibilityRole="button"
+            accessibilityLabel="Close scanner"
+          >
+            <Ionicons name="close" size={20} color="#fff" />
+          </Pressable>
         </View>
       ) : (
         <View style={styles.center}>
@@ -86,6 +118,7 @@ export default function ConnectToTvScreen() {
             <>
               <Text style={styles.errorText}>{message}</Text>
               <Button title="Scan again" onPress={tryAgain} />
+              <Button title="Cancel" variant="ghost" onPress={() => leaveScreen(router)} />
             </>
           )}
         </View>
@@ -95,7 +128,44 @@ export default function ConnectToTvScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.xl },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtnSpacer: { width: 40, height: 40 },
+  topCopy: { flex: 1, gap: 2, paddingTop: 6 },
+  title: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    textAlign: 'center',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    padding: spacing.xl,
+  },
   body: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center' },
   cameraWrap: { flex: 1, backgroundColor: '#000' },
   frame: {
@@ -108,6 +178,20 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.accent,
     borderRadius: radii.xl,
   },
+  cameraClose: {
+    position: 'absolute',
+    top: spacing.lg,
+    right: spacing.lg,
+    width: 40,
+    height: 40,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(15,18,23,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
   successText: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: c.success },
   errorText: { fontSize: fontSize.sm, color: c.error, textAlign: 'center' },
+  pressed: { opacity: 0.75 },
 }));

@@ -1,13 +1,6 @@
 /**
  * Maps a notification (from a push payload OR the in-app list) to the exact
- * in-app screen for the entity it's about — so "New booking" opens that
- * event, "Payment completed" opens that payment, "Album delivered" opens
- * that album, etc. Falls back to the Notifications list when there's no
- * specific target.
- *
- * The backend sets `type` + `referenceId` on every notification
- * (NotificationService): BOOKING/EVENT → event id, PAYMENT → declaration
- * id, ALBUM/MEDIA → album id, PHOTOBOOK → photobook id, MESSAGE → thread id.
+ * in-app screen for the entity it's about, matching salo-run behavior.
  */
 import type { Href } from 'expo-router';
 
@@ -16,6 +9,7 @@ export type NotificationRouteInput = {
   referenceId?: string;
   /** Push payloads may carry an explicit eventId; used before referenceId. */
   eventId?: string;
+  link?: string;
 };
 
 export function notificationTarget(n: NotificationRouteInput): Href {
@@ -26,20 +20,59 @@ export function notificationTarget(n: NotificationRouteInput): Href {
     switch (type) {
       case 'BOOKING':
       case 'EVENT':
+      case 'ASSIGNMENT':
         return `/event/${ref}` as Href;
       case 'PAYMENT':
+      case 'GIFT':
+      case 'STREAMFEE':
+      case 'TIP':
+      case 'BONUS':
         return `/payment/${ref}` as Href;
       case 'ALBUM':
       case 'MEDIA':
+      case 'GALLERY':
         return `/album/${ref}` as Href;
       case 'PHOTOBOOK':
+      case 'PHOTOBOOK_RECEIVED':
         return `/photobook/${ref}` as Href;
       case 'MESSAGE':
       case 'CHAT':
         return `/conversation/${ref}` as Href;
+      case 'PHOTOGRAPHER':
+        return `/photographer/${ref}` as Href;
+      case 'SECURITY':
+      case 'SYSTEM':
+        return '/profile' as Href;
       default:
         break;
     }
   }
-  return '/notifications' as Href;
+
+  // Graceful category-level fallbacks when no specific referenceId is provided
+  switch (type) {
+    case 'ALBUM':
+    case 'MEDIA':
+    case 'GALLERY':
+      return '/gallery' as Href;
+    case 'PAYMENT':
+    case 'GIFT':
+    case 'STREAMFEE':
+    case 'TIP':
+    case 'BONUS':
+      return '/wallet' as Href;
+    case 'BOOKING':
+    case 'EVENT':
+    case 'ASSIGNMENT':
+      return '/events' as Href;
+    case 'PHOTOGRAPHER':
+      return '/photographers' as Href;
+    case 'SECURITY':
+    case 'SYSTEM':
+      return '/profile' as Href;
+    case 'MESSAGE':
+    case 'CHAT':
+      return '/inbox' as Href;
+    default:
+      return '/notifications' as Href;
+  }
 }

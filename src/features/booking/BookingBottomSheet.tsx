@@ -1,12 +1,11 @@
-import React, { forwardRef, useMemo, useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Pressable, Alert, Platform } from 'react-native';
+import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, Pressable, Alert, Platform, Image, ActivityIndicator, Keyboard, InputAccessoryView } from 'react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { Input } from '@/components/ui/Input';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { bookingsApi } from '@/api/endpoints/bookings';
 import { useAuth, isApiError } from '@/store/auth';
@@ -18,32 +17,66 @@ export type BookingBottomSheetProps = {
   photographerName?: string;
   photographerImage?: string;
   packages?: any[];
+  initialDate?: Date | null;
   onClose?: () => void;
 };
 
 const STEPS = [
-  { id: 1, label: 'BASICS' },
-  { id: 2, label: 'SERVICES' },
-  { id: 3, label: 'DETAILS' },
-  { id: 4, label: 'PAYMENT' },
+  { id: 1, label: 'Basics' },
+  { id: 2, label: 'Packages' },
+  { id: 3, label: 'Schedule' },
+  { id: 4, label: 'Payment' },
 ];
 
+const KEYBOARD_ACCESSORY_ID = 'bookingSheetKeyboardDoneAccessory';
+
 const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, BookingBottomSheetProps> = (
-  { photographerId, photographerName, photographerImage, packages = [], onClose }, ref
+  { photographerId, photographerName, photographerImage, packages = [], initialDate, onClose }, ref
 ) => {
-  const { colors, elevation } = useTheme();
+  const { colors, elevation, isDark } = useTheme();
   const styles = useStyles();
-    const user = useAuth((s) => s.user);
-    const snapPoints = useMemo(() => ['65%', '90%'], []);
-    const [currentStep, setCurrentStep] = useState(1);
+  const user = useAuth((s) => s.user);
+  const snapPoints = useMemo(() => ['65%', '90%'], []);
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Keyboard visibility tracking & input navigation refs
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const locationInputRef = useRef<any>(null);
+  const minBudgetInputRef = useRef<any>(null);
+  const maxBudgetInputRef = useRef<any>(null);
+  const eventNameInputRef = useRef<any>(null);
+  const guestInputRef = useRef<any>(null);
+  const notesInputRef = useRef<any>(null);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
     
-    // Step 1 State
-    const [serviceType, setServiceType] = useState<'OUTDOOR' | 'STUDIO'>('OUTDOOR');
-    const [date, setDate] = useState<Date | null>(null);
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [location, setLocation] = useState('');
-    const [minBudget, setMinBudget] = useState('');
-    const [maxBudget, setMaxBudget] = useState('');
+  // Step 1 State
+  const [serviceType, setServiceType] = useState<'OUTDOOR' | 'STUDIO'>('OUTDOOR');
+  const [date, setDate] = useState<Date | null>(initialDate ?? null);
+
+  useEffect(() => {
+    if (initialDate) {
+      setDate(initialDate);
+    }
+  }, [initialDate]);
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [location, setLocation] = useState('');
+  const [minBudget, setMinBudget] = useState('');
+  const [maxBudget, setMaxBudget] = useState('');
     const TAGS = ['Live Stream', 'Photobook', 'Video Coverage', 'Drone', 'Same-Day Edits', 'Photo Booth'];
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
@@ -85,7 +118,13 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
     };
 
     const renderBackdrop = (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+        pressBehavior="close"
+      />
     );
 
     const handleBack = () => {
@@ -434,77 +473,106 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
         index={-1}
         snapPoints={snapPoints}
         enablePanDownToClose
+        enableOverDrag={false}
         backdropComponent={renderBackdrop}
         onClose={onClose}
-        handleIndicatorStyle={{ backgroundColor: colors.borderSoft, width: 40 }}
-        backgroundStyle={{ backgroundColor: 'white', borderRadius: radii.xl * 2 }}
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
+        handleIndicatorStyle={styles.sheetHandleIndicator}
+        backgroundStyle={styles.sheetBackground}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          {currentStep > 1 && !bookingSuccess && (
-            <Pressable onPress={handleBack} style={styles.backButton} hitSlop={10}>
-              <Ionicons name="arrow-back" size={20} color={colors.textMuted} />
+        {/* Compact Sheet Header */}
+        <View style={styles.sheetHeader}>
+          {currentStep > 1 && !bookingSuccess ? (
+            <Pressable onPress={handleBack} style={styles.headerIconButton} hitSlop={10} accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={18} color={colors.text} />
+            </Pressable>
+          ) : (
+            <View style={styles.headerIconSpacer} />
+          )}
+
+          <View style={styles.sheetHeaderCenter}>
+            <Text style={styles.sheetHeaderTitle} numberOfLines={1}>
+              {bookingSuccess ? 'Booking Confirmed' : photographerName ? `Book ${photographerName}` : 'Booking Request'}
+            </Text>
+            {!bookingSuccess && (
+              <Text style={styles.sheetHeaderSubtitle}>
+                Step {currentStep} of {STEPS.length} • {STEPS[currentStep - 1]?.label}
+              </Text>
+            )}
+          </View>
+
+          {isKeyboardVisible ? (
+            <Pressable onPress={() => Keyboard.dismiss()} style={styles.keyboardDismissHeaderBtn} hitSlop={10} accessibilityLabel="Dismiss keyboard">
+              <Ionicons name="checkmark" size={15} color={colors.primary} />
+              <Text style={styles.keyboardDismissHeaderText}>Done</Text>
+            </Pressable>
+          ) : (
+            <Pressable 
+              onPress={() => {
+                if (ref && typeof ref !== 'function' && 'current' in ref) ref.current?.close();
+              }} 
+              style={styles.headerIconButton}
+              hitSlop={10}
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={18} color={colors.text} />
             </Pressable>
           )}
-          <View style={styles.headerTitleContainer}>
-            <Ionicons name="calendar" size={16} color={colors.primary} />
-            <Text style={styles.headerTitle}>CONNEKYT BOOKING</Text>
-          </View>
-          <Pressable onPress={() => {
-              if (ref && typeof ref !== 'function' && 'current' in ref) ref.current?.close();
-            }} 
-            style={styles.closeButton}
-            hitSlop={10}
-          >
-            <Ionicons name="close" size={20} color={colors.textMuted} />
-          </Pressable>
         </View>
 
-        {/* Stepper */}
+        {/* Sleek Segmented Progress Bar */}
         {!bookingSuccess && (
-          <View style={styles.stepperContainer}>
-            {STEPS.map((step, index) => (
-              <React.Fragment key={step.id}>
-                <View style={styles.stepItem}>
-                  <View style={[styles.stepCircle, currentStep >= step.id && styles.stepCircleActive]}>
-                    <Text style={[styles.stepNumber, currentStep >= step.id && styles.stepNumberActive]}>
-                      {step.id}
-                    </Text>
-                  </View>
-                  <Text style={[styles.stepLabel, currentStep >= step.id && styles.stepLabelActive]}>
-                    {step.label}
-                  </Text>
-                </View>
-                {index < STEPS.length - 1 && (
-                  <View style={[styles.stepLine, currentStep > step.id && styles.stepLineActive]} />
-                )}
-              </React.Fragment>
-            ))}
+          <View style={styles.progressSegmentsRow}>
+            {STEPS.map((step) => {
+              const isCompleted = currentStep > step.id;
+              const isActive = currentStep === step.id;
+              return (
+                <Pressable
+                  key={step.id}
+                  style={[
+                    styles.progressSegment,
+                    (isCompleted || isActive) && styles.progressSegmentFilled,
+                  ]}
+                  disabled={step.id >= currentStep}
+                  onPress={() => {
+                    if (step.id < currentStep) setCurrentStep(step.id);
+                  }}
+                  accessibilityLabel={`Step ${step.id}: ${step.label}`}
+                />
+              );
+            })}
           </View>
         )}
 
-        <BottomSheetScrollView contentContainerStyle={styles.content}>
+        <BottomSheetScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
           
           {/* STEP 1: BRIEF */}
           {currentStep === 1 && (
             <View style={styles.stepContent}>
-              <Text style={styles.title}>Let's start with the basics</Text>
-              <Text style={styles.subtitle}>Where and when is your event taking place?</Text>
+              <Text style={styles.title}>Event Basics</Text>
+              <Text style={styles.subtitle}>Where and when is your shoot or event taking place?</Text>
 
               <View style={styles.serviceTypes}>
                 <Pressable 
                   style={[styles.serviceCard, serviceType === 'OUTDOOR' && styles.serviceCardActive]}
                   onPress={() => setServiceType('OUTDOOR')}
                 >
-                  <View style={styles.serviceIconContainer}>
-                    <Ionicons name="location" size={20} color={serviceType === 'OUTDOOR' ? colors.primary : colors.textMuted} />
+                  <View style={[styles.serviceIconContainer, serviceType === 'OUTDOOR' && styles.serviceIconContainerActive]}>
+                    <Ionicons name="location" size={18} color={serviceType === 'OUTDOOR' ? '#FFFFFF' : colors.primary} />
                   </View>
                   <View style={styles.serviceTextContainer}>
                     <View style={styles.serviceHeader}>
-                      <Text style={styles.serviceTitle}>Outdoor</Text>
-                      {serviceType === 'OUTDOOR' && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+                      <Text style={[styles.serviceTitle, serviceType === 'OUTDOOR' && styles.serviceTitleActive]}>Outdoor</Text>
+                      {serviceType === 'OUTDOOR' && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
                     </View>
-                    <Text style={styles.serviceDesc}>The photographer comes to your venue or event location.</Text>
+                    <Text style={styles.serviceDesc}>Photographer travels to your venue or event location.</Text>
                   </View>
                 </Pressable>
 
@@ -512,39 +580,37 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   style={[styles.serviceCard, serviceType === 'STUDIO' && styles.serviceCardActive]}
                   onPress={() => setServiceType('STUDIO')}
                 >
-                  <View style={styles.serviceIconContainer}>
-                    <Ionicons name="camera" size={20} color={serviceType === 'STUDIO' ? colors.primary : colors.textMuted} />
+                  <View style={[styles.serviceIconContainer, serviceType === 'STUDIO' && styles.serviceIconContainerActive]}>
+                    <Ionicons name="camera" size={18} color={serviceType === 'STUDIO' ? '#FFFFFF' : colors.primary} />
                   </View>
                   <View style={styles.serviceTextContainer}>
                     <View style={styles.serviceHeader}>
-                      <Text style={styles.serviceTitle}>Indoor</Text>
-                      {serviceType === 'STUDIO' && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
+                      <Text style={[styles.serviceTitle, serviceType === 'STUDIO' && styles.serviceTitleActive]}>Studio</Text>
+                      {serviceType === 'STUDIO' && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
                     </View>
-                    <Text style={styles.serviceDesc}>A photo / video shoot at the photographer's own studio.</Text>
+                    <Text style={styles.serviceDesc}>Session hosted at the photographer's studio.</Text>
                   </View>
                 </Pressable>
               </View>
 
               <View style={styles.formGroup}>
                 <Text style={styles.label}>When is your event? *</Text>
-                <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputWithIcon}>
-                  <View pointerEvents="none" style={{ width: '100%' }}>
-                    <Input 
-                      placeholder="" 
-                      value={date ? date.toLocaleDateString() : ''} 
-                      editable={false} 
-                      style={styles.inputField} 
-                    />
-                  </View>
-                  <Ionicons name="calendar-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
+                <Pressable onPress={() => setShowDatePicker(true)} style={styles.pickerSelector}>
+                  <Ionicons name="calendar-outline" size={18} color={date ? colors.primary : colors.textMuted} />
+                  <Text style={[styles.pickerSelectorText, !date && styles.pickerSelectorPlaceholder]}>
+                    {date 
+                      ? date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) 
+                      : 'Select event date'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
                 </Pressable>
                 <DateTimePickerModal
                   isVisible={showDatePicker}
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  themeVariant="light"
-                  isDarkModeEnabled={false}
-                  textColor="black"
+                  themeVariant={isDark ? 'dark' : 'light'}
+                  isDarkModeEnabled={isDark}
+                  textColor={isDark ? '#FFFFFF' : '#000000'}
                   minimumDate={new Date()}
                   onConfirm={(selectedDate) => {
                     setShowDatePicker(false);
@@ -556,34 +622,59 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Where is it taking place? *</Text>
-                <BottomSheetTextInput 
-                  style={styles.bottomSheetInput} 
-                  placeholderTextColor={colors.textMuted} 
-                  placeholder="e.g. Kigali Convention Center" 
-                  value={location} 
-                  onChangeText={setLocation} 
-                />
+                <View style={styles.inputWithIconContainer}>
+                  <Ionicons name="navigate-outline" size={18} color={colors.textMuted} style={styles.inputLeadingIcon} />
+                  <BottomSheetTextInput 
+                    ref={locationInputRef}
+                    style={styles.bottomSheetInputLeading} 
+                    placeholderTextColor={colors.textMuted} 
+                    placeholder="e.g. Kigali Convention Center" 
+                    value={location} 
+                    onChangeText={setLocation}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    onSubmitEditing={() => minBudgetInputRef.current?.focus()}
+                    blurOnSubmit={false}
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
+                  />
+                </View>
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Estimated Budget</Text>
+                <Text style={styles.label}>Estimated Budget (Optional)</Text>
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                  <BottomSheetTextInput 
-                    style={[styles.bottomSheetInput, { flex: 1 }]} 
-                    placeholder="Min Amount" 
-                    placeholderTextColor={colors.textMuted} 
-                    value={minBudget} 
-                    onChangeText={setMinBudget} 
-                    keyboardType="numeric" 
-                  />
-                  <BottomSheetTextInput 
-                    style={[styles.bottomSheetInput, { flex: 1 }]} 
-                    placeholder="Max Amount" 
-                    placeholderTextColor={colors.textMuted} 
-                    value={maxBudget} 
-                    onChangeText={setMaxBudget} 
-                    keyboardType="numeric" 
-                  />
+                  <View style={[styles.inputWithPrefixContainer, { flex: 1 }]}>
+                    <Text style={styles.currencyPrefix}>{displayCurrency}</Text>
+                    <BottomSheetTextInput 
+                      ref={minBudgetInputRef}
+                      style={styles.bottomSheetInputPrefix} 
+                      placeholder="Min" 
+                      placeholderTextColor={colors.textMuted} 
+                      value={minBudget} 
+                      onChangeText={setMinBudget} 
+                      keyboardType="number-pad"
+                      returnKeyType="next"
+                      onSubmitEditing={() => maxBudgetInputRef.current?.focus()}
+                      blurOnSubmit={false}
+                      inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
+                    />
+                  </View>
+                  <View style={[styles.inputWithPrefixContainer, { flex: 1 }]}>
+                    <Text style={styles.currencyPrefix}>{displayCurrency}</Text>
+                    <BottomSheetTextInput 
+                      ref={maxBudgetInputRef}
+                      style={styles.bottomSheetInputPrefix} 
+                      placeholder="Max" 
+                      placeholderTextColor={colors.textMuted} 
+                      value={maxBudget} 
+                      onChangeText={setMaxBudget} 
+                      keyboardType="number-pad"
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                      inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
+                    />
+                  </View>
                 </View>
               </View>
 
@@ -595,16 +686,13 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     return (
                       <Pressable 
                         key={tag} 
-                        style={[styles.tagBadge, isSelected && [styles.tagBadge, { backgroundColor: "#083A85", borderColor: "#083A85" }]]}
-                        onPress={() => {
-                          if (isSelected) {
-                            setSelectedTags(selectedTags.filter(t => t !== tag));
-                          } else {
-                            setSelectedTags([...selectedTags, tag]);
-                          }
-                        }}
+                        style={[styles.tagBadge, isSelected && styles.tagBadgeActive]}
+                        onPress={() => toggleTag(tag)}
                       >
-                        <Text style={[styles.tagText, isSelected && [styles.tagText, { color: "#FFFFFF" }]]}>{tag}</Text>
+                        {isSelected && (
+                          <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={[styles.tagText, isSelected && styles.tagTextActive]}>{tag}</Text>
                       </Pressable>
                     );
                   })}
@@ -613,7 +701,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
               <View style={styles.footer}>
                 <Pressable style={styles.continueButton} onPress={handleContinueStep1}>
-                  <Text style={styles.continueButtonText}>Continue</Text>
+                  <Text style={styles.continueButtonText}>Continue to Packages</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
             </View>
@@ -623,26 +712,25 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           {currentStep === 2 && (
             <View style={styles.stepContent}>
               <Text style={styles.title}>Select a Package</Text>
-              <Text style={styles.subtitle}>Choose the photography package that fits your needs.</Text>
+              <Text style={styles.subtitle}>Choose the photography package that fits your event.</Text>
               
-              <View style={{ marginTop: spacing.lg }}>
+              <View style={{ marginTop: spacing.sm }}>
                 {packages.length === 0 ? (
-                  <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-                    <Ionicons name="pricetags-outline" size={32} color={colors.textMuted} />
-                    <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: spacing.md }}>
-                      This photographer hasn't published any packages yet. Reach out to them directly to arrange a shoot.
+                  <View style={styles.emptyPackagesCard}>
+                    <View style={styles.emptyPackagesIconCircle}>
+                      <Ionicons name="pricetags-outline" size={32} color={colors.primary} />
+                    </View>
+                    <Text style={styles.emptyPackagesTitle}>No Pre-Set Packages</Text>
+                    <Text style={styles.emptyPackagesDesc}>
+                      This photographer hasn't published pre-set packages yet. Reach out to them directly or proceed with your custom brief.
                     </Text>
                   </View>
                 ) : null}
-                {(() => {
-                  // Only ever offer the photographer's REAL packages — a booking
-                  // needs a valid package id the backend can resolve.
-                  const displayPackages = packages;
-                  return displayPackages.map(pkg => {
+                {packages.map(pkg => {
                   const isActive = selectedPackage?.id === pkg.id;
                   
-                  const badgeColor = pkg.name?.toLowerCase().includes('gold') ? '#EAB308' : 
-                                     pkg.name?.toLowerCase().includes('silver') ? '#94A3B8' : 
+                  const badgeColor = pkg.name?.toLowerCase().includes('gold') ? '#D97706' : 
+                                     pkg.name?.toLowerCase().includes('silver') ? '#64748B' : 
                                      pkg.name?.toLowerCase().includes('bronze') ? '#B45309' : colors.primary;
 
                   return (
@@ -652,33 +740,34 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       onPress={() => setSelectedPackage(pkg)}
                     >
                       <View style={styles.packageCardHeader}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                           <View style={[styles.packageBadge, { backgroundColor: badgeColor }]}>
                             <Text style={styles.packageBadgeText}>{pkg.name}</Text>
                           </View>
                           {pkg.name?.toLowerCase().includes('live') && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Ionicons name="radio" size={12} color="#ef4444" />
-                              <Text style={{ fontSize: 11, color: '#ef4444', fontWeight: '600' }}>Live</Text>
+                            <View style={styles.liveIndicator}>
+                              <Ionicons name="radio" size={11} color="#EF4444" />
+                              <Text style={styles.liveText}>Live</Text>
                             </View>
                           )}
                         </View>
-                        <Text style={styles.packagePrice}>
-                          {pkg.currency} {pkg.price?.toLocaleString()}
-                        </Text>
+                        
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={styles.packagePrice}>
+                            {pkg.currency} {pkg.price?.toLocaleString()}
+                          </Text>
+                          <View style={[styles.packageRadioCircle, isActive && styles.packageRadioCircleActive]}>
+                            {isActive && <View style={styles.packageRadioDot} />}
+                          </View>
+                        </View>
                       </View>
 
-                      {/* What this package ACTUALLY includes. These were
-                          Math.random() calls: the client picked a package
-                          believing it came with a duration and a photo count
-                          that were invented at render time and changed on
-                          every re-render. A stat with no value is omitted
-                          rather than guessed. */}
+                      {/* Package includes stats */}
                       <View style={styles.packageStatsRow}>
                         {typeof pkg.durationHours === 'number' && pkg.durationHours > 0 && (
                           <View style={styles.packageStat}>
                             <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-                            <Text style={styles.packageStatText}>{pkg.durationHours}h</Text>
+                            <Text style={styles.packageStatText}>{pkg.durationHours}h coverage</Text>
                           </View>
                         )}
                         {typeof pkg.includedPhotos === 'number' && pkg.includedPhotos > 0 && (
@@ -698,19 +787,24 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       {pkg.hasLiveStream === true && (
                         <View style={styles.packageFeaturesRow}>
                           <View style={styles.packageFeature}>
-                            <Ionicons name="checkmark" size={14} color="#10b981" />
-                            <Text style={styles.packageFeatureText}>Live stream</Text>
+                            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                            <Text style={styles.packageFeatureText}>Live stream broadcast included</Text>
                           </View>
                         </View>
                       )}
                     </Pressable>
                   );
-                })})()}
+                })}
               </View>
 
               <View style={styles.footer}>
-                <Pressable style={styles.continueButton} onPress={handleContinueStep2}>
-                  <Text style={styles.continueButtonText}>Continue</Text>
+                <Pressable 
+                  style={[styles.continueButton, !selectedPackage && packages.length > 0 && { opacity: 0.6 }]} 
+                  onPress={handleContinueStep2}
+                  disabled={!selectedPackage && packages.length > 0}
+                >
+                  <Text style={styles.continueButtonText}>Continue to Schedule</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
             </View>
@@ -720,40 +814,47 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           {currentStep === 3 && (
             <View style={styles.stepContent}>
               <Text style={styles.title}>Schedule & Notes</Text>
-              <Text style={styles.subtitle}>Help the photographer prepare for your big day.</Text>
+              <Text style={styles.subtitle}>Help the photographer prepare for your event.</Text>
               
               <View style={styles.formGroup}>
-                <Text style={styles.label}>What should we call this event?</Text>
-                <BottomSheetTextInput 
-                  style={styles.bottomSheetInput} 
-                  placeholderTextColor={colors.textMuted} 
-                  placeholder="e.g. Sarah's Wedding" 
-                  value={eventName} 
-                  onChangeText={setEventName} 
-                />
+                <Text style={styles.label}>What should we call this event? *</Text>
+                <View style={styles.inputWithIconContainer}>
+                  <Ionicons name="bookmark-outline" size={18} color={colors.textMuted} style={styles.inputLeadingIcon} />
+                  <BottomSheetTextInput 
+                    ref={eventNameInputRef}
+                    style={styles.bottomSheetInputLeading} 
+                    placeholderTextColor={colors.textMuted} 
+                    placeholder="e.g. Sarah & Michael Wedding" 
+                    value={eventName} 
+                    onChangeText={setEventName}
+                    autoCapitalize="words"
+                    autoCorrect={true}
+                    returnKeyType="next"
+                    onSubmitEditing={() => guestInputRef.current?.focus()}
+                    blurOnSubmit={false}
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
+                  />
+                </View>
               </View>
 
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={styles.label}>When does it start? *</Text>
-                  <Pressable onPress={() => setShowStartTimePicker(true)} style={styles.inputWithIcon}>
-                    <View pointerEvents="none" style={{ width: '100%' }}>
-                      <Input 
-                        placeholder="" 
-                        value={startTime ? startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''} 
-                        editable={false} 
-                        style={[styles.inputField, { paddingLeft: 14 }]} 
-                      />
-                    </View>
+                  <Text style={styles.label}>Start Time *</Text>
+                  <Pressable onPress={() => setShowStartTimePicker(true)} style={styles.pickerSelector}>
+                    <Ionicons name="time-outline" size={18} color={startTime ? colors.primary : colors.textMuted} />
+                    <Text style={[styles.pickerSelectorText, !startTime && styles.pickerSelectorPlaceholder]}>
+                      {startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set start'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
                   </Pressable>
                   <DateTimePickerModal
                     isVisible={showStartTimePicker}
                     mode="time"
                     minuteInterval={15}
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    themeVariant="light"
-                    isDarkModeEnabled={false}
-                    textColor="black"
+                    themeVariant={isDark ? 'dark' : 'light'}
+                    isDarkModeEnabled={isDark}
+                    textColor={isDark ? '#FFFFFF' : '#000000'}
                     minimumDate={date && new Date().toDateString() === date.toDateString() ? new Date() : undefined}
                     onConfirm={(selectedTime) => {
                       setShowStartTimePicker(false);
@@ -762,26 +863,24 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     onCancel={() => setShowStartTimePicker(false)}
                   />
                 </View>
+
                 <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={styles.label}>When does it end? (Optional)</Text>
-                  <Pressable onPress={() => setShowEndTimePicker(true)} style={styles.inputWithIcon}>
-                    <View pointerEvents="none" style={{ width: '100%' }}>
-                      <Input 
-                        placeholder="" 
-                        value={endTime ? endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''} 
-                        editable={false} 
-                        style={[styles.inputField, { paddingLeft: 14 }]} 
-                      />
-                    </View>
+                  <Text style={styles.label}>End Time (Optional)</Text>
+                  <Pressable onPress={() => setShowEndTimePicker(true)} style={styles.pickerSelector}>
+                    <Ionicons name="time-outline" size={18} color={endTime ? colors.primary : colors.textMuted} />
+                    <Text style={[styles.pickerSelectorText, !endTime && styles.pickerSelectorPlaceholder]}>
+                      {endTime ? endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set end'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
                   </Pressable>
                   <DateTimePickerModal
                     isVisible={showEndTimePicker}
                     mode="time"
                     minuteInterval={15}
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    themeVariant="light"
-                    isDarkModeEnabled={false}
-                    textColor="black"
+                    themeVariant={isDark ? 'dark' : 'light'}
+                    isDarkModeEnabled={isDark}
+                    textColor={isDark ? '#FFFFFF' : '#000000'}
                     date={endTime || (startTime ? new Date(startTime.getTime() + 15 * 60000) : new Date())}
                     onConfirm={(selectedTime) => {
                       setShowEndTimePicker(false);
@@ -793,33 +892,47 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>How many people are attending? (Estimated)</Text>
-                <BottomSheetTextInput 
-                  style={styles.bottomSheetInput} 
-                  placeholderTextColor={colors.textMuted} 
-                  placeholder="e.g. 150" 
-                  value={guests} 
-                  onChangeText={setGuests} 
-                  keyboardType="numeric" 
-                />
+                <Text style={styles.label}>Estimated Guest Count (Optional)</Text>
+                <View style={styles.inputWithIconContainer}>
+                  <Ionicons name="people-outline" size={18} color={colors.textMuted} style={styles.inputLeadingIcon} />
+                  <BottomSheetTextInput 
+                    ref={guestInputRef}
+                    style={styles.bottomSheetInputLeading} 
+                    placeholderTextColor={colors.textMuted} 
+                    placeholder="e.g. 150" 
+                    value={guests} 
+                    onChangeText={setGuests} 
+                    keyboardType="number-pad" 
+                    returnKeyType="next"
+                    onSubmitEditing={() => notesInputRef.current?.focus()}
+                    blurOnSubmit={false}
+                    inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
+                  />
+                </View>
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Any special requests for the photographer?</Text>
+                <Text style={styles.label}>Special Requests / Notes</Text>
                 <BottomSheetTextInput 
+                  ref={notesInputRef}
                   style={styles.bottomSheetInputMultiline} 
                   placeholderTextColor={colors.textMuted} 
-                  placeholder="Any special requests or details..." 
+                  placeholder="Tell the photographer about shot lists, timeline, or special requirements..." 
                   value={notes} 
                   onChangeText={setNotes} 
                   multiline 
                   numberOfLines={4}
+                  textAlignVertical="top"
+                  autoCapitalize="sentences"
+                  autoCorrect={true}
+                  inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                 />
               </View>
 
               <View style={styles.footer}>
                 <Pressable style={styles.continueButton} onPress={handleContinueStep3}>
-                  <Text style={styles.continueButtonText}>Continue</Text>
+                  <Text style={styles.continueButtonText}>Review & Payment</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
             </View>
@@ -830,33 +943,33 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
             <View style={styles.stepContent}>
               {bookingSuccess ? (
                 <View style={styles.successContainer}>
-                  <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
-                    <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
-                    <Text style={styles.successTitle}>Booking Confirmed!</Text>
-                    <Text style={styles.successSubtitle}>
-                      Your booking is reserved. Payment is completed securely on connekyt.com.
-                    </Text>
+                  <View style={styles.successIconCircle}>
+                    <Ionicons name="checkmark" size={44} color="#FFFFFF" />
                   </View>
+                  <Text style={styles.successTitle}>Booking Reserved!</Text>
+                  <Text style={styles.successSubtitle}>
+                    Your event has been recorded. To secure your date, finish the payment securely on connekyt.com.
+                  </Text>
 
-                  <View style={{ backgroundColor: '#f9fafb', borderRadius: radii.xl, padding: 20, width: '100%', marginBottom: spacing.xl, borderWidth: 1, borderColor: '#e5e7eb' }}>
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 }}>Booking Summary</Text>
+                  <View style={styles.summaryCard}>
+                    <Text style={styles.summaryTitle}>Booking Summary</Text>
                     
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 14 }}>Event:</Text>
-                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{eventName}</Text>
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Event</Text>
+                      <Text style={styles.summaryValue}>{eventName}</Text>
                     </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 14 }}>Date:</Text>
-                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{date?.toLocaleDateString()}</Text>
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Date</Text>
+                      <Text style={styles.summaryValue}>{date?.toLocaleDateString()}</Text>
                     </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 14 }}>Package:</Text>
-                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{selectedPackage?.name}</Text>
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Package</Text>
+                      <Text style={styles.summaryValue}>{selectedPackage?.name}</Text>
                     </View>
-                    <View style={{ height: 1, backgroundColor: '#e5e7eb', marginVertical: 12 }} />
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>Total Amount:</Text>
-                      <Text style={{ color: colors.primary, fontSize: 20, fontWeight: '800' }}>{selectedPackage?.price} {selectedPackage?.currency}</Text>
+                    <View style={styles.summaryDivider} />
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryTotalLabel}>Total Amount</Text>
+                      <Text style={styles.summaryTotalValue}>{selectedPackage?.price?.toLocaleString()} {selectedPackage?.currency}</Text>
                     </View>
                   </View>
 
@@ -867,48 +980,49 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         onPress={handleCompletePaymentOnWeb}
                         disabled={openingCheckout}
                       >
+                        <Ionicons name="globe-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
                         <Text style={styles.continueButtonText}>
-                          {openingCheckout ? 'Opening…' : 'Complete payment on connekyt.com'}
+                          {openingCheckout ? 'Opening Checkout…' : 'Complete payment on connekyt.com'}
                         </Text>
                       </Pressable>
-                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginBottom: 16, lineHeight: 18 }}>
-                        Your booking is reserved. To secure it, finish the payment on the connekyt.com
-                        secure checkout. You can also do this later from Payments.
+                      <Text style={styles.handoffHint}>
+                        Your booking is held for you. You can also complete your payment later anytime from your Payments tab.
                       </Text>
                     </>
                   ) : (
-                    <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginBottom: 16, lineHeight: 18 }}>
-                      Your request was sent to the photographer. Once they accept, you can complete
-                      the payment on connekyt.com from the Payments screen.
+                    <Text style={styles.handoffHint}>
+                      Your request has been sent to the photographer. Once accepted, you can complete payment on connekyt.com from Payments.
                     </Text>
                   )}
 
-                  <Pressable style={[styles.continueButton, { backgroundColor: '#f3f4f6', marginBottom: 12 }]} onPress={handleDownloadProof}>
-                    <Ionicons name="download-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
-                    <Text style={[styles.continueButtonText, { color: colors.text }]}>Download Booking Proof</Text>
+                  <Pressable style={styles.secondaryButton} onPress={handleDownloadProof}>
+                    <Ionicons name="download-outline" size={18} color={colors.text} style={{ marginRight: 8 }} />
+                    <Text style={styles.secondaryButtonText}>Download Booking Proof (PDF)</Text>
                   </Pressable>
 
-                  <Pressable style={styles.continueButton} onPress={() => {
-                    if (ref && typeof ref !== 'function' && 'current' in ref) ref.current?.close();
-                    setBookingSuccess(false);
-                    setPayHandoff(null);
-                    setCurrentStep(1);
-                  }}>
-                    <Text style={styles.continueButtonText}>Done</Text>
+                  <Pressable 
+                    style={styles.doneButton} 
+                    onPress={() => {
+                      if (ref && typeof ref !== 'function' && 'current' in ref) ref.current?.close();
+                      setBookingSuccess(false);
+                      setPayHandoff(null);
+                      setCurrentStep(1);
+                    }}
+                  >
+                    <Text style={styles.doneButtonText}>Done</Text>
                   </Pressable>
                 </View>
               ) : (
                 <>
-                  <Text style={[styles.title, { textAlign: 'center' }]}>How would you like to pay?</Text>
+                  <Text style={[styles.title, { textAlign: 'center' }]}>Choose Payment Terms</Text>
+                  <Text style={[styles.subtitle, { textAlign: 'center', marginBottom: spacing.lg }]}>
+                    Choose how you want to schedule your payment.
+                  </Text>
                   
                   {(() => {
                     const basePrice = selectedPackage?.price || 0;
                     const baseCurrency = selectedPackage?.currency || 'RWF';
                     
-                    // Known pairs only. The previous version defaulted `rate`
-                    // to 1 and covered just RWF->x and USD->RWF, so a USD
-                    // package shown in EUR rendered "€150" for $150 — a
-                    // different amount of money wearing the wrong symbol.
                     const RATES: Record<string, Record<string, number>> = {
                       RWF: { USD: 1 / 1350, EUR: 1 / 1450, KES: 0.098, UGX: 2.85, TZS: 1.92 },
                       USD: { RWF: 1350 },
@@ -917,8 +1031,6 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       baseCurrency === displayCurrency
                         ? 1
                         : RATES[baseCurrency]?.[displayCurrency];
-                    // No rate for this pair: show the true price in its own
-                    // currency rather than relabelling it 1:1.
                     const shownCurrency = knownRate === undefined ? baseCurrency : displayCurrency;
                     const rate = knownRate ?? 1;
 
@@ -937,7 +1049,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
                     const CURRENCIES = [
                       { code: 'USD', name: 'US Dollar', flag: '🇺🇸' },
-                      { code: 'RWF', name: 'Rwandan franc', flag: '🇷🇼' },
+                      { code: 'RWF', name: 'Rwandan Franc', flag: '🇷🇼' },
                       { code: 'EUR', name: 'Euro', flag: '🇪🇺' },
                       { code: 'KES', name: 'Kenyan Shilling', flag: '🇰🇪' },
                       { code: 'UGX', name: 'Ugandan Shilling', flag: '🇺🇬' },
@@ -946,102 +1058,80 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
                     return (
                       <>
-                        <View style={{ alignItems: 'center', marginVertical: spacing.lg }}>
-                          <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: 4 }}>Total Amount</Text>
-                          <Text style={{ color: colors.text, fontSize: 32, fontWeight: '700' }}>
-                            {totalDisplay}
-                          </Text>
+                        <View style={styles.heroAmountCard}>
+                          <Text style={styles.heroAmountLabel}>Total Package Price</Text>
+                          <Text style={styles.heroAmountValue}>{totalDisplay}</Text>
                         </View>
 
-                        <View style={{ alignItems: 'flex-end', marginBottom: spacing.lg, zIndex: 10 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={{ color: colors.textMuted, fontSize: 13 }}>View in</Text>
-                            <Pressable 
-                              onPress={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-                              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f3f4f6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.full }}
-                            >
-                              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{displayCurrency}</Text>
-                              <Ionicons name={showCurrencyDropdown ? 'chevron-up' : 'chevron-down'} size={14} color={colors.text} />
-                            </Pressable>
-                          </View>
-                          
+                        <View style={styles.currencyToggleRow}>
+                          <Text style={styles.currencyToggleLabel}>Display currency</Text>
+                          <Pressable 
+                            onPress={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                            style={styles.currencySelectorPill}
+                          >
+                            <Text style={styles.currencySelectorPillText}>{displayCurrency}</Text>
+                            <Ionicons name={showCurrencyDropdown ? 'chevron-up' : 'chevron-down'} size={14} color={colors.text} />
+                          </Pressable>
+
                           {showCurrencyDropdown && (
-                            <View style={[{ position: 'absolute', top: 35, right: 0, backgroundColor: colors.elevated, borderRadius: radii.md, padding: 8, minWidth: 200 }, elevation(3)]}>
+                            <View style={[styles.currencyDropdownMenu, elevation(3)]}>
                               {CURRENCIES.map(c => (
                                 <Pressable 
                                   key={c.code}
-                                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 12, backgroundColor: displayCurrency === c.code ? colors.surfaceMuted : 'transparent', borderRadius: radii.sm }}
+                                  style={[styles.currencyDropdownItem, displayCurrency === c.code && styles.currencyDropdownItemActive]}
                                   onPress={() => { setDisplayCurrency(c.code as any); setShowCurrencyDropdown(false); }}
                                 >
                                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                     <Text style={{ fontSize: 16 }}>{c.flag}</Text>
-                                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>{c.code}</Text>
-                                    <Text style={{ color: colors.textMuted, fontSize: 14 }}>{c.name}</Text>
+                                    <Text style={styles.currencyCodeText}>{c.code}</Text>
+                                    <Text style={styles.currencyNameText}>{c.name}</Text>
                                   </View>
-                                  {displayCurrency === c.code && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                                  {displayCurrency === c.code && <Ionicons name="checkmark" size={16} color={colors.primary} />}
                                 </Pressable>
                               ))}
                             </View>
                           )}
                         </View>
 
-                        <View style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, zIndex: 1 }}>
+                        <View style={styles.milestonesContainer}>
                           {[
-                            { key: 'half' as const, label: 'Pay 50% Deposit Now', desc: '50% now, 50% before the event date' },
-                            { key: 'seventy' as const, label: 'Pay 70% Deposit Now', desc: '70% now, 30% before the event date' },
-                            { key: 'full' as const, label: 'Pay Full Amount Now', desc: 'Pay everything securely today' },
+                            { key: 'half' as const, label: 'Pay 50% Deposit Now', desc: '50% now, 50% before event date' },
+                            { key: 'seventy' as const, label: 'Pay 70% Deposit Now', desc: '70% now, 30% before event date' },
+                            { key: 'full' as const, label: 'Pay Full Amount Now', desc: 'Complete entire payment securely today' },
                           ].map(opt => {
                             const sel = milestoneOption === opt.key;
                             return (
                               <Pressable 
                                 key={opt.key} 
                                 onPress={() => setMilestoneOption(opt.key)} 
-                                style={{
-                                  padding: 16, 
-                                  backgroundColor: sel ? '#eff6ff' : '#f9fafb',
-                                  borderWidth: 1, 
-                                  borderColor: sel ? colors.primary : colors.borderSoft, 
-                                  borderRadius: radii.xl,
-                                  flexDirection: 'row', 
-                                  alignItems: 'center', 
-                                  gap: 12
-                                }}
+                                style={[styles.milestoneCard, sel && styles.milestoneCardActive]}
                               >
-                                <View style={{
-                                  width: 20, height: 20, borderRadius: 10,
-                                  borderWidth: 2, borderColor: sel ? colors.primary : colors.borderSoft,
-                                  alignItems: 'center', justifyContent: 'center'
-                                }}>
-                                  {sel && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />}
+                                <View style={[styles.milestoneRadioCircle, sel && styles.milestoneRadioCircleActive]}>
+                                  {sel && <View style={styles.milestoneRadioDot} />}
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{opt.label}</Text>
-                                  <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>{opt.desc}</Text>
+                                  <Text style={[styles.milestoneTitle, sel && styles.milestoneTitleActive]}>{opt.label}</Text>
+                                  <Text style={styles.milestoneDesc}>{opt.desc}</Text>
                                 </View>
                               </Pressable>
                             );
                           })}
                         </View>
 
-                        <View style={{ backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: radii.xl, padding: 16, marginBottom: 20, zIndex: 1 }}>
+                        <View style={styles.splitCard}>
                           {(() => {
                             const splits = {
                               full: [{ label: 'Full payment upfront', pct: 100 }],
-                              half: [{ label: 'Deposit (50%)', pct: 50 }, { label: 'Balance before event date (50%)', pct: 50 }],
-                              seventy: [{ label: 'Deposit (70%)', pct: 70 }, { label: 'Balance before event date (30%)', pct: 30 }],
+                              half: [{ label: 'Deposit (50%)', pct: 50 }, { label: 'Balance before event (50%)', pct: 50 }],
+                              seventy: [{ label: 'Deposit (70%)', pct: 70 }, { label: 'Balance before event (30%)', pct: 30 }],
                             };
                             return splits[milestoneOption].map((m, i, arr) => (
-                              <View key={i} style={{ 
-                                flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
-                                paddingVertical: 8, 
-                                borderBottomWidth: i < arr.length - 1 ? 1 : 0, 
-                                borderBottomColor: '#e5e7eb' 
-                              }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === 0 ? colors.primary : colors.textMuted }} />
-                                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>{m.label}</Text>
+                              <View key={i} style={[styles.splitRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  <View style={[styles.splitDot, { backgroundColor: i === 0 ? colors.primary : colors.textMuted }]} />
+                                  <Text style={styles.splitLabel}>{m.label}</Text>
                                 </View>
-                                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                                <Text style={styles.splitValue}>
                                   {formatPrice(basePrice * m.pct / 100)}
                                 </Text>
                               </View>
@@ -1052,22 +1142,20 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     );
                   })()}
 
-                  {/* No payment collection in-app — after the booking is
-                      created the payment is completed on connekyt.com. */}
-                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#eff6ff', padding: 12, borderRadius: radii.md, marginBottom: 20, zIndex: 1 }}>
-                    <Ionicons name="globe-outline" size={16} color={colors.primary} />
-                    <Text style={{ flex: 1, color: colors.primary, fontSize: 12, lineHeight: 18 }}>
-                      After you confirm, you&apos;ll complete the payment securely on connekyt.com.
+                  <View style={styles.handoffNoticeBanner}>
+                    <Ionicons name="globe-outline" size={18} color={colors.primary} />
+                    <Text style={styles.handoffNoticeText}>
+                      After you confirm, you&apos;ll complete payment securely on connekyt.com.
                     </Text>
                   </View>
 
-                  <View style={{ backgroundColor: '#f0fdf4', padding: 12, borderRadius: radii.md, marginBottom: 20 }}>
+                  <View style={styles.escrowCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Ionicons name="shield-checkmark" size={16} color="#16a34a" />
-                      <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '600' }}>Your money is protected.</Text>
+                      <Ionicons name="shield-checkmark" size={18} color="#16A34A" />
+                      <Text style={styles.escrowTitle}>Connekyt Escrow Protection</Text>
                     </View>
-                    <Text style={{ color: '#15803d', fontSize: 12, lineHeight: 18 }}>
-                      This payment is held securely by Connekyt, not paid to the photographer directly. We release it to them only after your event is delivered, so you're covered if anything goes wrong.
+                    <Text style={styles.escrowBody}>
+                      Your money is held in escrow by Connekyt, not sent directly to the photographer. We release funds only when your event is delivered.
                     </Text>
                   </View>
 
@@ -1077,7 +1165,14 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       onPress={handleConfirmBooking}
                       disabled={isSubmitting}
                     >
-                      <Text style={styles.continueButtonText}>{isSubmitting ? 'Processing…' : 'Confirm booking'}</Text>
+                      {isSubmitting ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <>
+                          <Text style={styles.continueButtonText}>Confirm Booking Request</Text>
+                          <Ionicons name="lock-closed" size={16} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                        </>
+                      )}
                     </Pressable>
                   </View>
                 </>
@@ -1086,6 +1181,23 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           )}
 
         </BottomSheetScrollView>
+
+        {/* iOS Keyboard Accessory Toolbar */}
+        {Platform.OS === 'ios' && (
+          <InputAccessoryView nativeID={KEYBOARD_ACCESSORY_ID}>
+            <View style={styles.keyboardToolbar}>
+              <View style={styles.keyboardToolbarSpacer} />
+              <Pressable
+                onPress={() => Keyboard.dismiss()}
+                style={styles.keyboardToolbarDoneButton}
+                hitSlop={10}
+                accessibilityLabel="Done editing"
+              >
+                <Text style={styles.keyboardToolbarDoneText}>Done</Text>
+              </Pressable>
+            </View>
+          </InputAccessoryView>
+        )}
       </BottomSheet>
     );
   };
@@ -1094,163 +1206,173 @@ export const BookingBottomSheet = forwardRef(BookingBottomSheetComponent);
 
 const useStyles = makeStyles((c) => ({
   bottomSheetInput: {
-    height: 52,
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: radii.md,
+    height: 48,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
     backgroundColor: c.surface,
-    paddingHorizontal: spacing.lg,
-    fontSize: fontSize.md,
+    paddingHorizontal: spacing.md,
+    fontSize: 14,
     color: c.text,
   },
   bottomSheetInputMultiline: {
-    minHeight: 80,
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: radii.md,
+    minHeight: 90,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
     backgroundColor: c.surface,
-    paddingHorizontal: spacing.lg,
-    paddingTop: 12,
-    fontSize: fontSize.md,
+    padding: spacing.md,
+    fontSize: 14,
     color: c.text,
+    textAlignVertical: 'top',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: c.borderSoft,
-    position: 'relative',
+  sheetBackground: {
+    backgroundColor: c.surface,
+    borderTopLeftRadius: radii['2xl'],
+    borderTopRightRadius: radii['2xl'],
   },
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+  sheetHandleIndicator: {
+    backgroundColor: c.borderSoft,
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 6,
   },
-  headerTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: c.primary,
-    letterSpacing: 0.5,
-  },
-  closeButton: {
-    position: 'absolute',
-    right: spacing.lg,
-    top: spacing.md,
-    backgroundColor: '#F3F4F6',
-    borderRadius: radii.full,
-    padding: 6,
-  },
-  backButton: {
-    position: 'absolute',
-    left: spacing.lg,
-    top: spacing.md,
-    backgroundColor: '#F3F4F6',
-    borderRadius: radii.full,
-    padding: 6,
-  },
-  stepperContainer: {
+  sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: c.borderSoft,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
-  stepItem: {
-    alignItems: 'center',
-    flex: 1,
-    zIndex: 1,
-  },
-  stepCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+  headerIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
-  stepCircleActive: {
-    backgroundColor: c.primary,
-    borderColor: c.primary,
+  headerIconSpacer: {
+    width: 32,
   },
-  stepNumber: {
-    fontSize: 11,
+  keyboardDismissHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    backgroundColor: c.tint,
+  },
+  keyboardDismissHeaderText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#9CA3AF',
-  },
-  stepNumberActive: {
-    color: 'white',
-  },
-  stepLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#9CA3AF',
-    textTransform: 'uppercase',
-  },
-  stepLabelActive: {
     color: c.primary,
   },
-  stepLine: {
-    position: 'absolute',
-    top: 12,
-    left: '65%',
-    width: '70%',
-    height: 2,
-    backgroundColor: '#F3F4F6',
-    zIndex: 0,
+  keyboardToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    backgroundColor: c.surface,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+    paddingHorizontal: spacing.lg,
+    height: 44,
   },
-  stepLineActive: {
+  keyboardToolbarSpacer: {
+    flex: 1,
+  },
+  keyboardToolbarDoneButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  keyboardToolbarDoneText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: c.primary,
+  },
+  sheetHeaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  sheetHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: c.text,
+  },
+  sheetHeaderSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: c.textMuted,
+    marginTop: 2,
+  },
+  progressSegmentsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  progressSegment: {
+    flex: 1,
+    height: 3.5,
+    borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
+  },
+  progressSegmentFilled: {
     backgroundColor: c.primary,
   },
   content: {
-    padding: spacing.xl,
-    paddingBottom: spacing.xl * 3,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 40,
   },
   stepContent: {
     flex: 1,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: c.text,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: c.textMuted,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
+    lineHeight: 18,
   },
   serviceTypes: {
     flexDirection: 'row',
     gap: spacing.md,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   serviceCard: {
     flex: 1,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: c.borderSoft,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     padding: spacing.md,
-    backgroundColor: 'white',
+    backgroundColor: c.surface,
   },
   serviceCardActive: {
     borderColor: c.primary,
-    backgroundColor: '#F0F5FF',
+    backgroundColor: c.tint,
   },
   serviceIconContainer: {
     width: 36,
     height: 36,
-    borderRadius: radii.full,
-    backgroundColor: '#F3F4F6',
+    borderRadius: 18,
+    backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  serviceIconContainerActive: {
+    backgroundColor: c.primary,
   },
   serviceTextContainer: {
     flex: 1,
@@ -1259,144 +1381,222 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   serviceTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: c.text,
   },
+  serviceTitleActive: {
+    color: c.primary,
+  },
   serviceDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: c.textMuted,
-    lineHeight: 16,
+    lineHeight: 15,
   },
   formGroup: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   label: {
     fontSize: 13,
     fontWeight: '700',
     color: c.text,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  inputWithIcon: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  inputField: {
-    paddingLeft: 40,
-  },
-  inputIcon: {
-    position: 'absolute',
-    left: 14,
-  },
-  budgetRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  currencySelector: {
+  pickerSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F3F4F6',
+    justifyContent: 'space-between',
+    height: 48,
     borderWidth: 1.5,
     borderColor: c.borderSoft,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing.md,
+    backgroundColor: c.surface,
   },
-  currencyText: {
+  pickerSelectorText: {
     fontSize: 14,
-    fontWeight: '600',
     color: c.text,
-  },
-  budgetInput: {
+    fontWeight: '500',
     flex: 1,
+    marginLeft: spacing.sm,
+  },
+  pickerSelectorPlaceholder: {
+    color: c.textMuted,
+  },
+  inputWithIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    backgroundColor: c.surface,
+    paddingHorizontal: spacing.md,
+    height: 48,
+  },
+  inputLeadingIcon: {
+    marginRight: spacing.sm,
+  },
+  bottomSheetInputLeading: {
+    flex: 1,
+    fontSize: 14,
+    color: c.text,
+    height: '100%',
+    paddingVertical: 0,
+  },
+  inputWithPrefixContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    backgroundColor: c.surface,
+    paddingHorizontal: spacing.md,
+    height: 48,
+  },
+  currencyPrefix: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: c.textMuted,
+    marginRight: 6,
+  },
+  bottomSheetInputPrefix: {
+    flex: 1,
+    fontSize: 14,
+    color: c.text,
+    height: '100%',
+    paddingVertical: 0,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   tagBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: '#F3F4F6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
   tagBadgeActive: {
-    backgroundColor: '#F0F5FF',
+    backgroundColor: c.primary,
     borderColor: c.primary,
   },
   tagText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: c.textMuted,
+    color: c.text,
   },
   tagTextActive: {
-    color: c.primary,
+    color: '#FFFFFF',
   },
-  footer: {
-    marginTop: spacing.xl,
-  },
-  continueButton: {
-    backgroundColor: c.primary,
-    paddingVertical: 16,
-    borderRadius: radii.lg,
+  emptyPackagesCard: {
     alignItems: 'center',
-    shadowColor: c.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  continueButtonText: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  // Step 2 & Step 4 styles
-  packageCard: {
+    padding: spacing.xl,
+    backgroundColor: c.surfaceMuted,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    borderRadius: radii.xl,
-    padding: spacing.xl,
+    marginTop: spacing.md,
+  },
+  emptyPackagesIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
-    backgroundColor: '#F9FAFB',
+  },
+  emptyPackagesTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: c.text,
+    marginBottom: 4,
+  },
+  emptyPackagesDesc: {
+    fontSize: 12,
+    color: c.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  packageCard: {
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: c.surface,
   },
   packageCardActive: {
     borderColor: c.primary,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: c.tint,
   },
   packageCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   packageBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   packageBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  liveText: {
+    fontSize: 10,
     fontWeight: '700',
-    color: 'white',
-    textTransform: 'uppercase',
+    color: '#EF4444',
   },
   packagePrice: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: c.text,
+  },
+  packageRadioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  packageRadioCircleActive: {
+    borderColor: c.primary,
+  },
+  packageRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: c.primary,
   },
   packageStatsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
-    marginBottom: spacing.md,
+    marginTop: 4,
   },
   packageStat: {
     flexDirection: 'row',
@@ -1406,12 +1606,12 @@ const useStyles = makeStyles((c) => ({
   packageStatText: {
     fontSize: 12,
     color: c.textMuted,
-    fontWeight: '500',
   },
   packageFeaturesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
+    marginTop: spacing.xs,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
   },
   packageFeature: {
     flexDirection: 'row',
@@ -1419,96 +1619,333 @@ const useStyles = makeStyles((c) => ({
     gap: 4,
   },
   packageFeatureText: {
-    fontSize: 12,
-    color: '#10b981',
+    fontSize: 11,
+    color: '#10B981',
+    fontWeight: '600',
   },
-  summaryCard: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: radii.lg,
+  heroAmountCard: {
+    backgroundColor: c.surfaceMuted,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
     padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: c.text,
-    marginBottom: 4,
-  },
-  summaryDetail: {
-    fontSize: 13,
-    color: c.textMuted,
+    alignItems: 'center',
     marginBottom: spacing.md,
   },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: spacing.md,
+  heroAmountLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: c.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
-  summaryRow: {
+  heroAmountValue: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: c.text,
+    letterSpacing: -0.5,
+  },
+  currencyToggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    position: 'relative',
+    zIndex: 10,
   },
-  summaryLabel: {
-    fontSize: 14,
+  currencyToggleLabel: {
+    fontSize: 12,
+    fontWeight: '600',
     color: c.textMuted,
   },
-  summaryValue: {
-    fontSize: 14,
-    color: c.text,
-    fontWeight: '500',
+  currencySelectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.full,
   },
-  summaryValueBold: {
-    fontSize: 15,
-    color: c.primary,
-    fontWeight: '800',
+  currencySelectorPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: c.text,
+  },
+  currencyDropdownMenu: {
+    position: 'absolute',
+    top: 38,
+    right: 0,
+    width: 220,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    paddingVertical: 4,
+    zIndex: 99,
+  },
+  currencyDropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  currencyDropdownItemActive: {
+    backgroundColor: c.surfaceMuted,
+  },
+  currencyCodeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: c.text,
+  },
+  currencyNameText: {
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  milestonesContainer: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   milestoneCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     padding: spacing.md,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: c.borderSoft,
-    borderRadius: radii.lg,
-    marginBottom: spacing.md,
+    borderRadius: radii.xl,
+    backgroundColor: c.surface,
   },
   milestoneCardActive: {
     borderColor: c.primary,
-    backgroundColor: '#F0F5FF',
+    backgroundColor: c.tint,
   },
-  milestoneText: {
-    fontSize: 14,
-    fontWeight: '600',
+  milestoneRadioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  milestoneRadioCircleActive: {
+    borderColor: c.primary,
+  },
+  milestoneRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: c.primary,
+  },
+  milestoneTitle: {
+    fontSize: 13,
+    fontWeight: '700',
     color: c.text,
   },
-  milestoneTextActive: {
+  milestoneTitleActive: {
     color: c.primary,
+  },
+  milestoneDesc: {
+    fontSize: 11,
+    color: c.textMuted,
+    marginTop: 1,
+  },
+  splitCard: {
+    backgroundColor: c.surfaceMuted,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  splitRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: c.borderSoft,
+  },
+  splitDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  splitLabel: {
+    fontSize: 12,
+    color: c.textMuted,
+    fontWeight: '500',
+  },
+  splitValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: c.text,
+  },
+  handoffNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    marginBottom: spacing.md,
+  },
+  handoffNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    color: c.primary,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  escrowCard: {
+    backgroundColor: 'rgba(22, 163, 74, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(22, 163, 74, 0.2)',
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    marginBottom: spacing.md,
+  },
+  escrowTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#16A34A',
+  },
+  escrowBody: {
+    fontSize: 11,
+    color: '#15803D',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  footer: {
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  continueButton: {
+    backgroundColor: c.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 50,
+    borderRadius: radii.lg,
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
+    marginBottom: spacing.sm,
+  },
+  secondaryButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: c.text,
+  },
+  doneButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: radii.lg,
+    backgroundColor: c.surfaceMuted,
+  },
+  doneButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: c.text,
   },
   successContainer: {
     alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  successIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+    marginBottom: spacing.lg,
   },
   successTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: c.text,
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   successSubtitle: {
-    fontSize: 15,
+    fontSize: 13,
     color: c.textMuted,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 19,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  summaryCard: {
+    width: '100%',
+    backgroundColor: c.surfaceMuted,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: c.text,
+    marginBottom: spacing.sm,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  summaryValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: c.text,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: c.borderSoft,
+    marginVertical: spacing.xs,
+  },
+  summaryTotalLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: c.text,
+  },
+  summaryTotalValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: c.primary,
+  },
+  handoffHint: {
+    fontSize: 11,
+    color: c.textMuted,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.sm,
   },
 }));
-
-const extraStyles = StyleSheet.create({
-  tagBadgeSelected: { backgroundColor: '#083A85', borderColor: '#083A85' },
-  tagTextSelected: { color: '#FFFFFF' },
-  successContent: { alignItems: 'center', justifyContent: 'center', padding: 20 },
-  successText: { fontSize: 18, fontWeight: 'bold', color: '#000', marginTop: 16 },
-});
