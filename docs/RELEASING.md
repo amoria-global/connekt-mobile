@@ -34,9 +34,10 @@ the refusal is information, not an obstacle.
 
 Put `[skip publish]` in the commit subject for documentation, CI or bookkeeping commits.
 
-Known gap: `[skip publish]` is read from the commit that lands on `production`. A promoted
-merge carries the merge subject, not yours, so a documentation-only push to `main` still
-publishes an update. It is harmless, since the bundle is unchanged, but it is noise.
+`[skip publish]` survives promotion: `promote-to-production.yml` puts the marker on the
+merge subject when every promoted non-merge commit carries it. One unmarked commit in the
+range means real JavaScript is being promoted, and the merge publishes as normal. So mark
+every commit in a documentation-only batch, or the batch publishes.
 
 ## Path B — touches natives, needs a store build
 
