@@ -1,17 +1,23 @@
 name: production
 
 # The mobile equivalent of the backend's verify -> test -> build -> migrate ->
-# deploy pipeline, with one deliberate difference: deploy never runs by itself.
+# deploy pipeline. A push to production runs every stage and then publishes,
+# the same way a push to the backend's production deploys.
 #
 # A backend deploy can be rolled back by redeploying. An OTA update cannot: it
-# reaches every installed phone on next launch, and there is no recall. So a
-# push to production runs everything up to and including the compatibility
-# gate, and stops. Publishing happens when a human starts this workflow by
-# hand (Actions -> production -> Run workflow) and types "publish".
+# reaches every installed phone on next launch, and there is no recall. The
+# compatibility gate in `migrate` is what stands in for that missing undo, and
+# `deploy` re-checks it at publish time. Put [skip publish] in the commit
+# subject for CI-only or documentation commits that should not reach phones.
+#
+# Running this workflow by hand is how a publish is rehearsed: leave the input
+# blank for a dry run that proves the credential and re-runs the gate while
+# publishing nothing, or type "publish" to ship.
 #
 # GitHub Free does not offer branch protection or required reviewers on
 # private repositories, so nothing here can enforce that production only
-# receives reviewed commits. Treat the manual trigger as the gate.
+# receives reviewed commits. The gate, and whatever is merged into production,
+# are the real controls.
 
 on:
   pull_request:
