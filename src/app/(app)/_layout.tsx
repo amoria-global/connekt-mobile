@@ -5,17 +5,14 @@ import {
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
 import { useTheme } from '@/theme';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, View } from 'react-native';
 
 export default function AppLayout() {
   const { isDark, colors: c } = useTheme();
-  const segments = useSegments() as string[];
   const router = useRouter();
-  // Tab screens are light → dark status icons; blue-header detail screens → light.
-  const inTabs = segments.includes('(tabs)');
 
   // Signed-in: register for push notifications and route taps. The (app)
   // group only mounts once authenticated, so this runs at the right time.
@@ -41,13 +38,11 @@ export default function AppLayout() {
     <View style={{ flex: 1 }}>
       <Stack
         screenOptions={{
-          // Branded blue headers, matching the top/bottom chrome.
-          // Branded blue headers. Uses the ACTIVE palette, not the static
-          // light one: dark mode brightens `primary`, which keeps the header
-          // distinct from the near-black canvas instead of merging into it.
-          headerTintColor: c.textOnPrimary, // white chevron / back
-          headerStyle: { backgroundColor: c.primary },
-          headerTitleStyle: { color: c.textOnPrimary, fontWeight: '700' },
+          // Elevated surface headers — same chrome combo as TopBar /
+          // PersistentBottomBar so light and dark stay consistent.
+          headerTintColor: c.primary,
+          headerStyle: { backgroundColor: c.elevated },
+          headerTitleStyle: { color: c.text, fontWeight: '700' },
           contentStyle: { backgroundColor: c.background },
           headerBackButtonDisplayMode: 'minimal', // chevron only, no "‹ Home" text
           headerShadowVisible: false,
@@ -74,10 +69,10 @@ export default function AppLayout() {
         <Stack.Screen name="streams" options={{ title: 'Live Streams' }} />
         <Stack.Screen name="stream/[id]" options={{ title: 'Stream' }} />
         <Stack.Screen name="stream/control/[id]" options={{ title: 'Go Live' }} />
-        <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+        <Stack.Screen name="notifications" options={{ title: 'Notifications', headerShown: false }} />
         <Stack.Screen name="find-my-photos" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />
-        <Stack.Screen name="preferences" options={{ title: 'Notifications' }} />
+        <Stack.Screen name="preferences" options={{ title: 'Preferences' }} />
         <Stack.Screen
           name="album/new"
           options={{
@@ -109,7 +104,7 @@ export default function AppLayout() {
         <Stack.Screen name="withdraw" options={{ title: 'Withdraw' }} />
         <Stack.Screen name="transactions" options={{ title: 'Transactions' }} />
         <Stack.Screen name="payroll" options={{ title: 'Payroll report' }} />
-        <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />
+        <Stack.Screen name="analytics" options={{ title: 'Analytics', headerShown: false }} />
         <Stack.Screen name="payments" options={{ title: 'Payments' }} />
         <Stack.Screen name="payment/[id]" options={{ title: 'Payment' }} />
         <Stack.Screen name="donations" options={{ title: 'Donate' }} />
@@ -117,8 +112,14 @@ export default function AppLayout() {
         <Stack.Screen name="client/[id]" options={{ title: 'Client' }} />
         <Stack.Screen name="two-factor" options={{ title: 'Two-factor' }} />
         <Stack.Screen name="tv-devices" options={{ title: 'Manage TVs' }} />
-        <Stack.Screen name="connect-to-tv" options={{ title: 'Connect to TV', presentation: 'fullScreenModal' }} />
-        <Stack.Screen name="pay-on-tv" options={{ title: 'Pay on TV', presentation: 'fullScreenModal' }} />
+        <Stack.Screen
+          name="connect-to-tv"
+          options={{ title: 'Connect to TV', presentation: 'fullScreenModal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="pay-on-tv"
+          options={{ title: 'Pay on TV', presentation: 'fullScreenModal', headerShown: false }}
+        />
         <Stack.Screen name="kyc" options={{ headerShown: false }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
         <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
@@ -135,7 +136,7 @@ export default function AppLayout() {
        * paddingBottom 100+, so the bar doesn't cover anything important.
        */}
       <PersistentBottomBar />
-      <StatusBar style={inTabs ? (isDark ? 'light' : 'dark') : 'light'} />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );
 }

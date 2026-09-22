@@ -61,7 +61,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -114,7 +114,7 @@ import {
 } from '@/features/streams/gifting/GiftOverlay';
 import { GiftTray } from '@/features/streams/gifting/GiftTray';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { liveGiftUrl, openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
+import { liveGiftUrl, openWebCheckout, streamAccessUrl, donationUrl } from '@/features/payments/webCheckout';
 import { useAsync } from '@/hooks/useAsync';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { reportContent, reportPublicChatMessage } from '@/features/moderation/api';
@@ -401,6 +401,7 @@ type LiveChatPanelProps = {
   onToggleFullscreen: () => void;
   onGift: () => void;
   showGift: boolean;
+  onDonate: () => void;
   maxListHeight: number;
   insetTop?: number;
   insetBottom?: number;
@@ -431,6 +432,7 @@ function LiveChatPanel({
   onToggleFullscreen,
   onGift,
   showGift,
+  onDonate,
   maxListHeight,
   insetTop = 0,
   insetBottom = 0,
@@ -450,25 +452,35 @@ function LiveChatPanel({
   if (layout === 'youtube') {
     return (
       <View style={chatFx.ytContainer}>
-        {/* Header bar: "Live Chat" title + collapse toggle */}
+        {/* Header: Live Chat title + collapse + fullscreen */}
         <View style={chatFx.ytHeader}>
           <View style={chatFx.ytHeaderLeft}>
             <Ionicons name="chatbubble-ellipses" size={16} color="#4F46E5" />
             <Text style={chatFx.ytHeaderTitle}>Live Chat</Text>
             <View style={chatFx.ytHeaderLiveDot} />
           </View>
-          <Pressable
-            style={chatFx.ytCollapseBtn}
-            onPress={onToggleMinimize}
-            hitSlop={8}
-            accessibilityLabel={minimized ? 'Expand chat' : 'Collapse chat'}
-          >
-            <Ionicons
-              name={minimized ? 'chevron-down' : 'chevron-up'}
-              size={18}
-              color={chatFx.ytHeaderTitle.color}
-            />
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable
+              style={chatFx.ytCollapseBtn}
+              onPress={onToggleFullscreen}
+              hitSlop={8}
+              accessibilityLabel="Full screen"
+            >
+              <Ionicons name="expand" size={16} color={chatFx.ytHeaderTitle.color} />
+            </Pressable>
+            <Pressable
+              style={chatFx.ytCollapseBtn}
+              onPress={onToggleMinimize}
+              hitSlop={8}
+              accessibilityLabel={minimized ? 'Expand chat' : 'Collapse chat'}
+            >
+              <Ionicons
+                name={minimized ? 'chevron-down' : 'chevron-up'}
+                size={18}
+                color={chatFx.ytHeaderTitle.color}
+              />
+            </Pressable>
+          </View>
         </View>
 
         {minimized ? (
@@ -631,93 +643,33 @@ function LiveChatPanel({
         ))}
       </View>
 
-      {/* Control bar: in fullscreen, top header with LIVE CHAT title.
-          In inline mode, the top is kept clear so the top-right broadcast watermark is completely visible! */}
-      {fullscreen ? (
-        <View style={chatFx.controls} pointerEvents="box-none">
-          <View style={chatFx.controlsLeft}>
-            <View style={chatFx.liveDot} />
-            <Text style={chatFx.controlsTitle}>LIVE CHAT</Text>
-          </View>
-          <View style={chatFx.controlsRight}>
-            {onToggleMute ? (
-              <Pressable
-                style={chatFx.ctrlBtn}
-                onPress={onToggleMute}
-                hitSlop={6}
-                accessibilityLabel={isMuted ? 'Unmute stream' : 'Mute stream'}
-              >
-                <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={16} color="#fff" />
-              </Pressable>
-            ) : null}
-            {showGift ? (
-              <Pressable style={chatFx.ctrlBtn} onPress={onGift} hitSlop={6}>
-                <Ionicons name="gift-outline" size={16} color="#fff" />
-              </Pressable>
-            ) : null}
-            <Pressable style={chatFx.ctrlBtn} onPress={onToggleMinimize} hitSlop={6}>
-              <Ionicons name={minimized ? 'chevron-up' : 'chevron-down'} size={18} color="#fff" />
-            </Pressable>
-            <Pressable style={chatFx.ctrlBtn} onPress={onToggleFullscreen} hitSlop={6}>
-              <Ionicons name={fullscreen ? 'contract' : 'expand'} size={15} color="#fff" />
-            </Pressable>
-          </View>
-        </View>
-      ) : (
-        <View style={chatFx.controlsEmpty} />
-      )}
+      {/* Right-side vertical controls pill — exit fullscreen at top, mute + gift + donate below */}
+      <View style={chatFx.sideControls} pointerEvents="box-none">
+        <Pressable style={chatFx.ctrlBtn} onPress={onToggleFullscreen} hitSlop={8}
+          accessibilityLabel="Exit full screen">
+          <Ionicons name="contract" size={16} color="#fff" />
+        </Pressable>
+        {onToggleMute ? (
+          <Pressable style={chatFx.ctrlBtn} onPress={onToggleMute} hitSlop={8}
+            accessibilityLabel={isMuted ? 'Unmute' : 'Mute'}>
+            <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={16} color="#fff" />
+          </Pressable>
+        ) : null}
+        {showGift ? (
+          <Pressable style={chatFx.ctrlBtn} onPress={onGift} hitSlop={8}
+            accessibilityLabel="Send a gift">
+            <Ionicons name="gift-outline" size={16} color="#fff" />
+          </Pressable>
+        ) : null}
+        <Pressable style={chatFx.ctrlBtn} onPress={onDonate} hitSlop={8}
+          accessibilityLabel="Donate">
+          <Ionicons name="heart-outline" size={16} color="#fff" />
+        </Pressable>
+      </View>
 
-      {/* Messages + reactions + composer. Collapsed to just the control bar when minimized. */}
-      {minimized ? (
-        <View style={chatFx.minimizedBarWrap}>
-          <Pressable style={chatFx.minimizedBar} onPress={onToggleMinimize} hitSlop={8}>
-            <Ionicons name="chatbubbles" size={14} color="#fff" />
-            <Text style={chatFx.minimizedBarText}>Chat</Text>
-            <Ionicons name="chevron-up" size={14} color="#fff" />
-          </Pressable>
-          {onToggleMute ? (
-            <Pressable
-              style={chatFx.ctrlBtn}
-              onPress={onToggleMute}
-              hitSlop={6}
-              accessibilityLabel={isMuted ? 'Unmute stream' : 'Mute stream'}
-            >
-              <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={16} color="#fff" />
-            </Pressable>
-          ) : null}
-          <Pressable style={chatFx.ctrlBtn} onPress={onToggleFullscreen} hitSlop={6}>
-            <Ionicons name="expand" size={15} color="#fff" />
-          </Pressable>
-        </View>
-      ) : (
-        <View style={chatFx.bottom}>
-          {!fullscreen ? (
-            <View style={chatFx.inlineControlsRow} pointerEvents="box-none">
-              <View style={chatFx.controlsRight}>
-                {onToggleMute ? (
-                  <Pressable
-                    style={chatFx.ctrlBtn}
-                    onPress={onToggleMute}
-                    hitSlop={6}
-                    accessibilityLabel={isMuted ? 'Unmute stream' : 'Mute stream'}
-                  >
-                    <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={16} color="#fff" />
-                  </Pressable>
-                ) : null}
-                {showGift ? (
-                  <Pressable style={chatFx.ctrlBtn} onPress={onGift} hitSlop={6}>
-                    <Ionicons name="gift-outline" size={16} color="#fff" />
-                  </Pressable>
-                ) : null}
-                <Pressable style={chatFx.ctrlBtn} onPress={onToggleMinimize} hitSlop={6}>
-                  <Ionicons name="chevron-down" size={18} color="#fff" />
-                </Pressable>
-                <Pressable style={chatFx.ctrlBtn} onPress={onToggleFullscreen} hitSlop={6}>
-                  <Ionicons name="expand" size={15} color="#fff" />
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
+      {/* Bottom cluster: messages + reactions + composer */}
+      <View style={chatFx.bottom}>
+        {!minimized ? (
           <ScrollView
             ref={listRef}
             style={[chatFx.list, { maxHeight: maxListHeight }]}
@@ -738,49 +690,52 @@ function LiveChatPanel({
               ))
             )}
           </ScrollView>
+        ) : null}
 
-          <View style={chatFx.reactions} pointerEvents="box-none">
-            {emojis.map((emoji) => (
-              <Pressable key={emoji} style={chatFx.reactionBtn} onPress={() => onReact(emoji)} hitSlop={6}>
-                <Text style={chatFx.reactionEmoji}>{emoji}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={chatFx.composer}>
-            <Pressable
-              style={[chatFx.iconBtn, videoSending && { opacity: 0.5 }]}
-              onPress={onVideo}
-              disabled={videoSending || sending}
-              hitSlop={6}
-            >
-              {videoSending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Ionicons name="videocam-outline" size={18} color="#fff" />
-              )}
+        <View style={chatFx.reactions} pointerEvents="box-none">
+          {emojis.map((emoji) => (
+            <Pressable key={emoji} style={chatFx.reactionBtn} onPress={() => onReact(emoji)} hitSlop={6}>
+              <Text style={chatFx.reactionEmoji}>{emoji}</Text>
             </Pressable>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={canChat ? 'Say something…' : joinHint ?? 'Verify access to chat'}
-              placeholderTextColor="rgba(255,255,255,0.6)"
-              editable={!sending}
-              style={chatFx.input}
-              returnKeyType="send"
-              onSubmitEditing={onSend}
-            />
-            <Pressable
-              style={[chatFx.sendBtn, (sending || !draft.trim()) && { opacity: 0.5 }]}
-              onPress={onSend}
-              disabled={sending || !draft.trim()}
-            >
-              {sending ? <ActivityIndicator color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
-            </Pressable>
-          </View>
-          {error ? <Text style={chatFx.error}>{error}</Text> : null}
+          ))}
         </View>
-      )}
+
+        <View style={chatFx.composer}>
+          <Pressable
+            style={[chatFx.iconBtn, videoSending && { opacity: 0.5 }]}
+            onPress={onVideo}
+            disabled={videoSending || sending}
+            hitSlop={6}
+          >
+            {videoSending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Ionicons name="videocam-outline" size={18} color="#fff" />
+            )}
+          </Pressable>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={canChat ? 'Say something…' : joinHint ?? 'Verify access to chat'}
+            placeholderTextColor="rgba(255,255,255,0.6)"
+            editable={!sending}
+            style={chatFx.input}
+            returnKeyType="send"
+            onSubmitEditing={onSend}
+          />
+          <Pressable style={chatFx.minimizeToggle} onPress={onToggleMinimize} hitSlop={8}>
+            <Ionicons name={minimized ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(255,255,255,0.7)" />
+          </Pressable>
+          <Pressable
+            style={[chatFx.sendBtn, (sending || !draft.trim()) && { opacity: 0.5 }]}
+            onPress={onSend}
+            disabled={sending || !draft.trim()}
+          >
+            {sending ? <ActivityIndicator color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
+          </Pressable>
+        </View>
+        {error ? <Text style={chatFx.error}>{error}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -892,6 +847,16 @@ export default function PublicLiveStreamScreen() {
   // blow the player + chat up to a full-screen immersive view.
   const [chatMinimized, setChatMinimized] = useState(false);
   const [chatFullscreen, setChatFullscreen] = useState(false);
+
+  // Expo Router delegates this to react-native-screens, which is already
+  // available in the client binary. Keeping it in navigation options avoids
+  // loading an optional native module while Expo Router is discovering routes.
+  const enterFullscreen = useCallback(() => {
+    setChatFullscreen(true);
+  }, []);
+  const exitFullscreen = useCallback(() => {
+    setChatFullscreen(false);
+  }, []);
   const [isMuted, setIsMuted] = useState(false);
   const [isMiniPlayer, setIsMiniPlayer] = useState(false);
   // Backend doesn't echo the anonymous viewerId per chat row, so "is this
@@ -906,6 +871,7 @@ export default function PublicLiveStreamScreen() {
   // `giftEvents`, an append-only, id-deduped list consumed by GiftOverlay
   // for banners / floaters / big-gift takeovers on EVERY platform.
   const [giftOpen, setGiftOpen] = useState(false);
+  const [giftConfirm, setGiftConfirm] = useState<GiftCatalogItem | null>(null);
   const [giftEvents, setGiftEvents] = useState<GiftEvent[]>([]);
 
   // ── Access detection (web parity: lines 595-755) ─────────────────────────
@@ -931,7 +897,7 @@ export default function PublicLiveStreamScreen() {
           // screen isn't a sensible landing page for someone who's
           // never opened the event before.
           if (!cancelled) {
-            router.replace(`/event/${id}` as unknown as Href);
+            router.replace(`/(public)/event/${id}` as unknown as Href);
           }
           return;
         }
@@ -1377,7 +1343,7 @@ export default function PublicLiveStreamScreen() {
         setAccessGranted(true);
         setConflictOpen(false);
       } else {
-        setTokenError('Access confirmed, but the stream isn’t live yet. Try again in a moment.');
+        setTokenError(null);
         setConflictOpen(false);
       }
     } catch (e) {
@@ -1467,8 +1433,25 @@ export default function PublicLiveStreamScreen() {
     setChatError(null);
     try {
       const fingerprint = await getDeviceId();
-      await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
-      sentTextsRef.current.add(msg); // mark as mine for the next poll
+      try {
+        await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+      } catch (e) {
+        // Backend rejects when the stored fingerprint doesn't match the one
+        // registered for this viewerId (e.g. after reinstall / storage wipe).
+        // Silently attempt to re-bind this device then retry once.
+        const msg2 = isApiError(e) ? e.message.toLowerCase() : '';
+        if (msg2.includes('fingerprint') || msg2.includes('mismatch') || msg2.includes('device')) {
+          const retry = await retryAnonymousDeviceAccess(id, viewerId, fingerprint);
+          if (retry.ok) {
+            await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+          } else {
+            throw e; // other device still active — surface the real error
+          }
+        } else {
+          throw e;
+        }
+      }
+      sentTextsRef.current.add(msg);
       setChatDraft('');
     } catch (e) {
       setChatError(isApiError(e) ? e.message : 'Could not send.');
@@ -1535,7 +1518,7 @@ export default function PublicLiveStreamScreen() {
 
       setVideoSending(true);
       const fingerprint = await getDeviceId();
-      await sendPublicVideoChat(id, {
+      const videoPayload = {
         viewerId,
         deviceFingerprint: fingerprint,
         video: {
@@ -1544,7 +1527,22 @@ export default function PublicLiveStreamScreen() {
           mimeType: asset.mimeType ?? 'video/mp4',
         },
         content: chatDraft.trim() || undefined,
-      });
+      };
+      try {
+        await sendPublicVideoChat(id, videoPayload);
+      } catch (e) {
+        const msg2 = isApiError(e) ? e.message.toLowerCase() : '';
+        if (msg2.includes('fingerprint') || msg2.includes('mismatch') || msg2.includes('device')) {
+          const retry = await retryAnonymousDeviceAccess(id, viewerId, fingerprint);
+          if (retry.ok) {
+            await sendPublicVideoChat(id, videoPayload);
+          } else {
+            throw e;
+          }
+        } else {
+          throw e;
+        }
+      }
       sentTextsRef.current.add(chatDraft.trim() || '[Video Message]');
       setChatDraft('');
     } catch (e) {
@@ -1554,16 +1552,37 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
-  // Gifts are PAID on the web — picking a tile in the GiftTray hands off to
-  // the web live page with that gift preselected (&gift={CODE}); the app
-  // never collects the payment. Only reachable through the gift button,
-  // which is itself gated on digitalPurchasesEnabled (showGift), but keep
-  // the guard here too.
-  const onSendGift = async (gift: GiftCatalogItem) => {
+  // Step 1 — user picks a gift in the tray → show confirmation sheet.
+  const onSendGift = (gift: GiftCatalogItem) => {
     if (!digitalPurchasesEnabled) return;
     setGiftOpen(false);
-    await openWebCheckout(liveGiftUrl(id, viewerId, gift.code));
+    setGiftConfirm(gift);
   };
+
+  // Step 2 — user confirms → open web checkout, then fire the local
+  // gift animation so they see the effect immediately on return.
+  const onConfirmGift = async () => {
+    if (!giftConfirm) return;
+    const gift = giftConfirm;
+    setGiftConfirm(null);
+    await openWebCheckout(liveGiftUrl(id, viewerId, gift.code));
+    // Fire the gift animation locally after returning from the browser.
+    setGiftEvents((prev) => [
+      ...prev.slice(-49),
+      {
+        id: `local-${Date.now()}`,
+        code: gift.code,
+        name: gift.name,
+        emoji: gift.emoji,
+        amountUsd: gift.amountUsd,
+        bigAnimation: gift.bigAnimation,
+        senderName: viewerName || 'You',
+        message: '',
+      },
+    ]);
+  };
+
+  const onDonate = () => openWebCheckout(donationUrl(id));
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -1622,7 +1641,7 @@ export default function PublicLiveStreamScreen() {
                       },
                       pressed && { opacity: 0.85 },
                     ]}
-                    onPress={() => (id ? router.push(`/event/${id}` as never) : router.back())}
+                    onPress={() => (id ? router.push(`/(public)/event/${id}` as never) : router.back())}
                     accessibilityRole="button"
                     accessibilityLabel="View Event Details"
                   >
@@ -1670,16 +1689,39 @@ export default function PublicLiveStreamScreen() {
   );
 
   return (
-    <Screen padded={false} edges={status.isLive && !isMiniPlayer ? [] : ['bottom']}>
+    <>
+      <Stack.Screen options={{ headerShown: false, orientation: chatFullscreen ? 'landscape' : 'portrait' }} />
+      <Screen padded={false} edges={[]}>
       {status.isLive && !isMiniPlayer ? (
-        // ── LIVE: YouTube style layout (Top 16:9 player, meta bar, live chat below) ──
+        // ── LIVE: YouTube style layout ──
         <View style={styles.ytRoot}>
-          {/* 1. 16:9 Player Stage pinned at top with safe-area */}
-          <View style={[styles.ytStageWrap, { paddingTop: insets.top }]}>
+          {/* Branded header stays visible above the live player. */}
+          <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
+            <View style={styles.topBarPill}>
+              <Pressable
+                onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore-events'))}
+                hitSlop={12}
+                style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <Ionicons name="chevron-back" size={24} color={colors.text} />
+              </Pressable>
+
+              <View style={styles.topBarPillCenter}>
+                <Text style={styles.topBarPillText} numberOfLines={1}>Live stream</Text>
+              </View>
+
+              <View style={styles.topBarSpacer} />
+            </View>
+          </View>
+
+          {/* 1. 16:9 Player Stage */}
+          <View style={styles.ytStageWrap}>
             <View style={styles.ytStage}>
               {manifestUrl ? (
                 chatFullscreen ? (
-                  <Pressable style={styles.fsReturn} onPress={() => setChatFullscreen(false)}>
+                  <Pressable style={styles.fsReturn} onPress={exitFullscreen}>
                     <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
                     <View style={styles.placeholderScrim} />
                     <Ionicons name="scan-outline" size={30} color="rgba(255,255,255,0.9)" />
@@ -1708,9 +1750,8 @@ export default function PublicLiveStreamScreen() {
                       </>
                     ) : status.isLive && accessGranted ? (
                       <>
-                        <Ionicons name="hourglass" size={42} color="#10b981" />
-                        <Text style={styles.placeholderHeadline}>Access confirmed</Text>
-                        <Text style={styles.placeholderText}>Waiting for the stream to start…</Text>
+                        <ActivityIndicator color="#10b981" size="large" />
+                        <Text style={styles.placeholderText}>Stream is loading…</Text>
                       </>
                     ) : status.isLive && status.isPaid ? (
                       <>
@@ -1728,31 +1769,9 @@ export default function PublicLiveStreamScreen() {
                 </>
               )}
 
-              {/* Top Controls Overlay on Video: Back, Minimize, Watermark */}
+              {/* Top Controls Overlay on Video: Back + Minimize only — left side */}
               {!chatFullscreen ? (
-                <View style={styles.ytStageTopOverlay} pointerEvents="box-none">
-                  <View style={styles.ytStageTopLeft}>
-                    <Pressable
-                      onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore-events'))}
-                      hitSlop={10}
-                      style={styles.ytStageIconBtn}
-                      accessibilityRole="button"
-                      accessibilityLabel="Exit live stream"
-                    >
-                      <Ionicons name="chevron-back" size={20} color="#fff" />
-                    </Pressable>
-                    <Pressable
-                      onPress={() => setIsMiniPlayer(true)}
-                      hitSlop={10}
-                      style={styles.ytStageIconBtn}
-                      accessibilityRole="button"
-                      accessibilityLabel="Minimize to mini-player"
-                    >
-                      <Ionicons name="chevron-down" size={20} color="#fff" />
-                    </Pressable>
-                  </View>
-                  <StreamWatermark position="top-right" />
-                </View>
+                <View style={styles.ytStageTopOverlay} pointerEvents="box-none" />
               ) : null}
 
               {/* In-video Gift Overlay */}
@@ -1774,7 +1793,7 @@ export default function PublicLiveStreamScreen() {
                 insetBottom={0}
               />
 
-              {/* Bottom Controls Overlay on Video: LIVE badge, Mute, Fullscreen */}
+              {/* Bottom Controls Overlay: LIVE badge left · mute + gift + fullscreen right */}
               {!chatFullscreen ? (
                 <View style={styles.ytStageBottomOverlay} pointerEvents="box-none">
                   <View style={styles.ytStageLiveBadge}>
@@ -1783,6 +1802,24 @@ export default function PublicLiveStreamScreen() {
                   </View>
 
                   <View style={styles.ytStageBottomRight}>
+                    {viewerId && digitalPurchasesEnabled ? (
+                      <Pressable
+                        style={styles.ytStageIconBtn}
+                        onPress={() => setGiftOpen(true)}
+                        hitSlop={8}
+                        accessibilityLabel="Send a gift"
+                      >
+                        <Ionicons name="gift-outline" size={17} color="#fff" />
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      style={styles.ytStageIconBtn}
+                      onPress={onDonate}
+                      hitSlop={8}
+                      accessibilityLabel="Donate"
+                    >
+                      <Ionicons name="heart-outline" size={17} color="#fff" />
+                    </Pressable>
                     <Pressable
                       style={styles.ytStageIconBtn}
                       onPress={() => setIsMuted((m) => !m)}
@@ -1797,7 +1834,7 @@ export default function PublicLiveStreamScreen() {
                     </Pressable>
                     <Pressable
                       style={styles.ytStageIconBtn}
-                      onPress={() => setChatFullscreen(true)}
+                      onPress={enterFullscreen}
                       hitSlop={8}
                       accessibilityLabel="Full screen cinema mode"
                     >
@@ -1823,7 +1860,7 @@ export default function PublicLiveStreamScreen() {
                 />
                 <Button title="Join stream" onPress={onJoinWithToken} loading={tokenBusy} />
                 <Pressable
-                  onPress={() => router.replace(`/event/${id}` as unknown as Href)}
+                  onPress={() => router.replace(`/(public)/event/${id}` as unknown as Href)}
                   style={{ alignItems: 'center', marginTop: 4 }}
                 >
                   <Text style={styles.linkText}>← Back to event details</Text>
@@ -1841,55 +1878,39 @@ export default function PublicLiveStreamScreen() {
 
           {/* 2. Event & Host Meta Section */}
           <View style={styles.ytMetaSection}>
-            <Text style={styles.ytEventTitle} numberOfLines={2}>
-              {eventTitle}
-            </Text>
-            <View style={styles.ytHostRow}>
-              <View style={styles.ytHostInfo}>
-                {hostImage ? (
-                  <Image source={{ uri: hostImage }} style={styles.ytHostAvatar} contentFit="cover" />
-                ) : (
-                  <View style={[styles.ytHostAvatar, styles.ytHostAvatarFallback]}>
-                    <Text style={styles.ytHostInitial}>
-                      {(hostName || eventTitle).charAt(0).toUpperCase()}
+            <View style={styles.ytMetaTop}>
+              {hostImage ? (
+                <Image source={{ uri: hostImage }} style={styles.ytHostAvatar} contentFit="cover" />
+              ) : (
+                <View style={[styles.ytHostAvatar, styles.ytHostAvatarFallback]}>
+                  <Text style={styles.ytHostInitial}>
+                    {(hostName || eventTitle).charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.ytEventTitle} numberOfLines={1}>{eventTitle}</Text>
+                <Text style={styles.ytHostName} numberOfLines={1}>
+                  {hostName ?? 'Event Host'}
+                </Text>
+              </View>
+              <View style={styles.ytMetaRight}>
+                {viewerCount > 0 ? (
+                  <View style={styles.ytViewerPill}>
+                    <View style={styles.ytViewerDot} />
+                    <Ionicons name="eye" size={11} color="#fff" />
+                    <Text style={styles.ytViewerPillText}>
+                      {viewerCount >= 1000
+                        ? `${(viewerCount / 1000).toFixed(1)}k`
+                        : viewerCount.toLocaleString()}
                     </Text>
                   </View>
-                )}
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.ytHostName} numberOfLines={1}>
-                    {hostName ?? 'Event Host'}
-                  </Text>
-                  {viewerCount > 0 ? (
-                    <View style={styles.ytViewerCountRow}>
-                      <Ionicons name="eye" size={12} color={colors.textMuted} />
-                      <Text style={styles.ytViewerCountText}>
-                        {viewerCount.toLocaleString()} watching
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.ytViewerCountText}>Live stream</Text>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.ytActionPills}>
-                {viewerId && digitalPurchasesEnabled ? (
-                  <Pressable
-                    style={styles.ytGiftPill}
-                    onPress={() => setGiftOpen(true)}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel="Send a gift"
-                  >
-                    <Ionicons name="gift" size={14} color="#fff" />
-                    <Text style={styles.ytGiftPillText}>Gift</Text>
-                  </Pressable>
                 ) : null}
               </View>
             </View>
           </View>
 
-          {/* 3. Live Chat Feed Below Video */}
+          {/* 3. Live Chat — fills remaining screen below meta */}
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.ytChatWrapper}
@@ -1914,10 +1935,11 @@ export default function PublicLiveStreamScreen() {
               minimized={chatMinimized}
               onToggleMinimize={() => setChatMinimized((m) => !m)}
               fullscreen={false}
-              onToggleFullscreen={() => setChatFullscreen(true)}
+              onToggleFullscreen={enterFullscreen}
               onGift={() => setGiftOpen(true)}
               showGift={!!viewerId && digitalPurchasesEnabled}
-              maxListHeight={Math.round(windowHeight * 0.45)}
+              onDonate={onDonate}
+              maxListHeight={Math.round(windowHeight * 0.35)}
               insetBottom={insets.bottom}
               isMuted={isMuted}
               onToggleMute={() => setIsMuted((m) => !m)}
@@ -2076,7 +2098,7 @@ export default function PublicLiveStreamScreen() {
       <Modal
         visible={chatFullscreen}
         animationType="fade"
-        onRequestClose={() => setChatFullscreen(false)}
+        onRequestClose={exitFullscreen}
         supportedOrientations={['portrait', 'landscape']}
         statusBarTranslucent
       >
@@ -2121,9 +2143,10 @@ export default function PublicLiveStreamScreen() {
               minimized={chatMinimized}
               onToggleMinimize={() => setChatMinimized((m) => !m)}
               fullscreen
-              onToggleFullscreen={() => setChatFullscreen(false)}
+              onToggleFullscreen={exitFullscreen}
               onGift={() => setGiftOpen(true)}
               showGift={!!viewerId && digitalPurchasesEnabled}
+              onDonate={onDonate}
               maxListHeight={Math.round(windowHeight * 0.4)}
               insetTop={insets.top}
               insetBottom={insets.bottom}
@@ -2149,6 +2172,20 @@ export default function PublicLiveStreamScreen() {
               insetBottom={insets.bottom}
             />
           </KeyboardAvoidingView>
+
+          {/* Gift tray + confirm sheet must live INSIDE the fullscreen
+              modal so they render above it, not behind it. */}
+          <GiftTray
+            visible={giftOpen}
+            onClose={() => setGiftOpen(false)}
+            onSendGift={onSendGift}
+          />
+          <GiftConfirmSheet
+            gift={giftConfirm}
+            visible={!!giftConfirm}
+            onClose={() => setGiftConfirm(null)}
+            onConfirm={onConfirmGift}
+          />
         </View>
       </Modal>
 
@@ -2243,6 +2280,16 @@ export default function PublicLiveStreamScreen() {
           GiftOverlay (display is not a purchase). */}
       <GiftTray visible={giftOpen} onClose={() => setGiftOpen(false)} onSendGift={onSendGift} />
 
+      {/* Gift confirmation sheet — shown after picking a gift, before
+          opening the web checkout. Gives the user a clear summary and
+          a single deliberate CTA so they know exactly what’s happening. */}
+      <GiftConfirmSheet
+        gift={giftConfirm}
+        visible={!!giftConfirm}
+        onClose={() => setGiftConfirm(null)}
+        onConfirm={onConfirmGift}
+      />
+
       {/* Report a live-chat message (long-press a message to open). */}
       <ReportSheet
         visible={!!reportChat}
@@ -2251,9 +2298,134 @@ export default function PublicLiveStreamScreen() {
         subject={reportChat?.viewerName || reportChat?.senderName || undefined}
         submit={submitChatReport}
       />
-    </Screen>
+      </Screen>
+    </>
   );
 }
+
+// ─── Gift Confirmation Sheet ──────────────────────────────────────────────
+
+function GiftConfirmSheet({
+  gift,
+  visible,
+  onClose,
+  onConfirm,
+}: {
+  gift: GiftCatalogItem | null;
+  visible: boolean;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [busy, setBusy] = useState(false);
+
+  if (!gift) return null;
+
+  const handle = async () => {
+    setBusy(true);
+    try {
+      await onConfirm();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={gcStyles.scrim} onPress={onClose} />
+      <View style={[gcStyles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+        <View style={gcStyles.handle} />
+
+        {/* Gift preview */}
+        <View style={gcStyles.preview}>
+          <Text style={gcStyles.emoji}>{gift.emoji}</Text>
+          <Text style={gcStyles.giftName}>{gift.name}</Text>
+          <Text style={gcStyles.giftPrice}>{formatGiftUsd(gift.amountUsd)}</Text>
+        </View>
+
+        {/* Info row */}
+        <View style={gcStyles.infoRow}>
+          <Ionicons name="globe-outline" size={15} color={colors.info} />
+          <Text style={gcStyles.infoText}>
+            You’ll complete this payment securely on connekyt.com. Tap the button below to continue.
+          </Text>
+        </View>
+
+        {/* CTA */}
+        <Pressable
+          style={({ pressed }) => [gcStyles.cta, pressed && { opacity: 0.85 }, busy && { opacity: 0.6 }]}
+          onPress={handle}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel={`Send ${gift.name} gift`}
+        >
+          {busy ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Ionicons name="gift" size={18} color="#fff" />
+              <Text style={gcStyles.ctaText}>Send {gift.emoji} {gift.name} · {formatGiftUsd(gift.amountUsd)}</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable onPress={onClose} hitSlop={10} style={gcStyles.cancel}>
+          <Text style={gcStyles.cancelText}>Cancel</Text>
+        </Pressable>
+      </View>
+    </Modal>
+  );
+}
+
+const gcStyles = StyleSheet.create({
+  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: {
+    backgroundColor: '#12151e',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    gap: 16,
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  preview: {
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 14,
+  },
+  emoji: { fontSize: 52 },
+  giftName: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  giftPrice: { color: '#ffd166', fontSize: 22, fontWeight: '800' },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(99,179,237,0.1)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  infoText: { flex: 1, color: '#90cdf4', fontSize: 12, lineHeight: 18 },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F20C8F',
+    borderRadius: 50,
+    paddingVertical: 15,
+  },
+  ctaText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  cancel: { alignItems: 'center', paddingVertical: 8 },
+  cancelText: { color: 'rgba(255,255,255,0.45)', fontSize: 13 },
+});
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 
@@ -2295,6 +2467,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xs + 2,
   },
   topBarPillText: {
     fontSize: fontSize.md,
@@ -2430,6 +2603,7 @@ const useStyles = makeStyles((c, e) => ({
   // YouTube 16:9 stage and meta layout
   ytRoot: {
     flex: 1,
+    flexDirection: 'column',
     backgroundColor: c.background,
   },
   ytStageWrap: {
@@ -2450,7 +2624,7 @@ const useStyles = makeStyles((c, e) => ({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 12,
     paddingTop: 10,
     zIndex: 10,
@@ -2461,12 +2635,14 @@ const useStyles = makeStyles((c, e) => ({
     gap: 8,
   },
   ytStageIconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(0,0,0,0.52)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   ytStageBottomOverlay: {
     position: 'absolute',
@@ -2506,63 +2682,53 @@ const useStyles = makeStyles((c, e) => ({
   },
   ytMetaSection: {
     paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingVertical: 10,
     backgroundColor: c.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.borderSoft,
-    gap: 6,
   },
-  ytEventTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: c.text,
-    lineHeight: 22,
-  },
-  ytHostRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  ytHostInfo: {
+  ytMetaTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    flex: 1,
-    minWidth: 0,
   },
+  ytEventTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: c.text,
+    lineHeight: 19,
+  },
+  ytHostRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
+  ytHostInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
   ytHostAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: c.surfaceMuted,
+    borderWidth: 2,
+    borderColor: c.primary,
   },
   ytHostAvatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: c.primary,
   },
-  ytHostInitial: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  ytHostName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: c.text,
-  },
-  ytViewerCountRow: {
+  ytHostInitial: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  ytHostName: { fontSize: 12, color: c.textMuted, fontWeight: '500', marginTop: 1 },
+  ytMetaRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ytViewerPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 1,
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
-  ytViewerCountText: {
-    fontSize: 11.5,
-    color: c.textMuted,
-  },
+  ytViewerDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+  ytViewerPillText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  ytViewerCountRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  ytViewerCountText: { fontSize: 11.5, color: c.textMuted },
   ytActionPills: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2584,7 +2750,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   ytChatWrapper: {
     flex: 1,
-    backgroundColor: c.background,
+    backgroundColor: c.surface,
   },
 
   // Floating Mini-Player Dock
@@ -2907,37 +3073,28 @@ const useStyles = makeStyles((c, e) => ({
 const useChatFx = makeStyles((c) => ({
   panel: {
     ...StyleSheet.absoluteFill,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: 10,
   },
 
   // Reaction bursts rise straight up from the bottom-right corner.
-  floatLayer: { position: 'absolute', left: 0, bottom: 64, top: 0, width: 90 },
+  floatLayer: { position: 'absolute', right: 56, bottom: 64, top: 0, width: 50 },
   floatEmoji: { position: 'absolute', bottom: 0, fontSize: 28 },
 
-  controls: {
-    flexDirection: 'row',
+  // Right-side vertical controls pill (fullscreen overlay)
+  sideControls: {
+    position: 'absolute',
+    right: 12,
+    top: '35%',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
   },
-  controlsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.full,
-  },
+
+  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  controlsLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#ef4444' },
-  controlsTitle: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowRadius: 3,
-  },
+  controlsTitle: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 3 },
   controlsRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ctrlBtn: {
     width: 32,
@@ -2948,6 +3105,12 @@ const useChatFx = makeStyles((c) => ({
     justifyContent: 'center',
   },
 
+  minimizeToggle: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   controlsEmpty: { height: 1 },
   inlineControlsRow: {
     flexDirection: 'row',
@@ -3095,44 +3258,52 @@ const useChatFx = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 11,
+    backgroundColor: c.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.borderSoft,
   },
   ytHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
   },
   ytHeaderTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: c.text,
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   ytHeaderLiveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#ef4444',
   },
   ytCollapseBtn: {
-    padding: 4,
-  },
-  ytCollapsedTeaser: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  ytCollapsedTeaser: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
   ytCollapsedText: {
-    fontSize: 12.5,
+    fontSize: 13,
     color: c.textMuted,
     fontWeight: '600',
   },
   ytBody: {
     flex: 1,
     position: 'relative',
+    backgroundColor: c.background,
   },
   ytFloatLayer: {
     position: 'absolute',
@@ -3141,46 +3312,47 @@ const useChatFx = makeStyles((c) => ({
     top: 0,
     width: 60,
     zIndex: 20,
+    pointerEvents: 'none',
   },
   ytList: {
     flex: 1,
     width: '100%',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
   ytListContent: {
     flexGrow: 1,
     justifyContent: 'flex-end',
-    paddingVertical: 8,
-    gap: 8,
+    paddingVertical: 10,
+    gap: 2,
   },
   ytEmpty: {
     color: c.textMuted,
-    fontSize: 12.5,
+    fontSize: 13,
     fontStyle: 'italic',
     textAlign: 'center',
-    marginVertical: 16,
+    marginVertical: 24,
   },
-  ytRow: {
-    width: '100%',
-  },
+  ytRow: { width: '100%' },
   ytRowPressable: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 10,
   },
   ytGiftRow: {
     backgroundColor: 'rgba(242,12,143,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(242,12,143,0.25)',
-    padding: 8,
+    padding: 10,
+    borderRadius: 10,
+    marginVertical: 2,
   },
   ytAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: c.surfaceMuted,
   },
   ytAvatarFallback: {
@@ -3188,125 +3360,95 @@ const useChatFx = makeStyles((c) => ({
     justifyContent: 'center',
     backgroundColor: c.primary,
   },
-  ytAvatarInitial: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  ytMsgCol: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  ytNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ytAuthorName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: c.primary,
-  },
-  ytAuthorOwn: {
-    color: '#fbbf24',
-  },
+  ytAvatarInitial: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  ytMsgCol: { flex: 1, minWidth: 0, gap: 2 },
+  ytNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ytAuthorName: { fontSize: 12.5, fontWeight: '700', color: c.primary },
+  ytAuthorOwn: { color: '#f59e0b' },
   ytYouBadge: {
-    backgroundColor: 'rgba(251,191,36,0.2)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    backgroundColor: 'rgba(245,158,11,0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.35)',
   },
-  ytYouBadgeText: {
-    color: '#fbbf24',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  ytMsgText: {
-    color: c.text,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  ytGiftContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  ytGiftEmoji: {
-    fontSize: 18,
-  },
-  ytGiftDesc: {
-    fontSize: 12.5,
-    color: c.text,
-  },
-  ytGiftAmount: {
-    color: '#f59e0b',
-    fontWeight: '800',
-  },
+  ytYouBadgeText: { color: '#f59e0b', fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
+  ytMsgText: { color: c.text, fontSize: 13.5, lineHeight: 19 },
+  ytGiftContent: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  ytGiftEmoji: { fontSize: 20 },
+  ytGiftDesc: { fontSize: 13, color: c.text, fontWeight: '600' },
+  ytGiftAmount: { color: '#f59e0b', fontWeight: '800' },
+
   ytReactionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 6,
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.borderSoft,
     backgroundColor: c.surface,
   },
   ytReactionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: c.borderSoft,
   },
-  ytReactionEmoji: {
-    fontSize: 18,
-  },
+  ytReactionEmoji: { fontSize: 20 },
+
   ytComposer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingTop: 10,
+    paddingBottom: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.borderSoft,
     backgroundColor: c.surface,
   },
   ytIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  ytInput: {
-    flex: 1,
-    backgroundColor: c.surfaceMuted,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
-    color: c.text,
-    fontSize: 13.5,
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
+  ytInput: {
+    flex: 1,
+    backgroundColor: c.background,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    color: c.text,
+    fontSize: 14,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    minHeight: 40,
+  },
   ytSendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ytErrorText: {
     color: c.error,
-    fontSize: 11,
+    fontSize: 12,
     paddingHorizontal: 14,
-    paddingBottom: 4,
+    paddingBottom: 6,
+    fontWeight: '500',
   },
 }));
 

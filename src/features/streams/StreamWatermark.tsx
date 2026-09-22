@@ -17,84 +17,51 @@
  */
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logoBase64 } from '@/utils/logoBase64';
 
 export function StreamWatermark({
-  position = 'top-right',
-  offset,
+  opacity = 0.20,
 }: {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   offset?: { top?: number; right?: number; bottom?: number; left?: number };
+  opacity?: number;
 }) {
-  const insets = useSafeAreaInsets();
-  const defaultTop = Math.max(14, (insets?.top || 0) + 10);
-  const defaultBottom = Math.max(14, (insets?.bottom || 0) + 10);
-  const defaultLeft = Math.max(14, (insets?.left || 0) + 14);
-  const defaultRight = Math.max(14, (insets?.right || 0) + 14);
-
-  const corner = {
-    ...(position.startsWith('top') ? { top: offset?.top ?? defaultTop } : { bottom: offset?.bottom ?? defaultBottom }),
-    ...(position.endsWith('left') ? { left: offset?.left ?? defaultLeft } : { right: offset?.right ?? defaultRight }),
-  } as const;
-
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.top]}>
-      {/* Layer 1 — faint full-frame diagonal wordmark (muted). */}
-      <View style={styles.centerWrap} pointerEvents="none">
-        <Text style={styles.diagonal} numberOfLines={1}>
-          AMORIA CONNEKYT
-        </Text>
-      </View>
-
-      {/* Layer 2 — muted corner bug on top-right: logo icon + logo wordmark */}
-      <View style={[styles.bug, corner]} pointerEvents="none">
-        <Image source={{ uri: logoBase64 }} style={styles.logo} contentFit="contain" />
-        <Text style={styles.bugText} numberOfLines={1}>
-          AMORIA CONNEKYT
-        </Text>
+      {/* Centered clean brand watermark: Logo with "CONNEKYT" underneath */}
+      <View style={[styles.center, { opacity }]} pointerEvents="none">
+        <Image source={{ uri: logoBase64 }} style={styles.centerLogo} contentFit="contain" />
+        <Text style={styles.centerLabel}>CONNEKYT</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Always on top of the player surface.
   top: { zIndex: 999, elevation: 999 },
-  centerWrap: {
-    ...StyleSheet.absoluteFill,
+  center: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    gap: 8,
   },
-  diagonal: {
-    color: '#fff',
-    opacity: 0.07,
-    fontSize: 44,
-    fontWeight: '900',
-    letterSpacing: 3,
-    transform: [{ rotate: '-22deg' }],
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 10,
+  centerLogo: {
+    width: 46,
+    height: 46,
   },
-  // Burned-in corner bug (logo icon + logo text) — muted subtle broadcast bug
-  bug: {
-    position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    opacity: 0.40,
-  },
-  logo: { width: 18, height: 18 },
-  bugText: {
-    color: '#fff',
-    fontSize: 11,
+  centerLabel: {
+    color: '#ffffff',
+    fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 1.1,
-    textShadowColor: 'rgba(0,0,0,0.95)',
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 5,
+    textShadowRadius: 4,
   },
 });
 

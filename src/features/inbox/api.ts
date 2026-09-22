@@ -4,16 +4,13 @@
  * The conversations endpoint returns a list of conversations with a
  * `participants` array; the OTHER participant's id is the recipient
  * id used to load history (/chat/messages/{recipientId}) and send
- * new messages (multipart POST to /chat/send with senderId,
- * recipientId, content).
- *
- * The mobile API used to call `/chat/conversations/{id}/messages` and
- * `POST /chat/messages` — neither exists on the backend, which is why
- * opening any conversation showed an empty thread and Send did nothing.
+ * new messages (multipart POST to /chat/send with recipientId, content, senderId).
  */
 import { api } from '@/api/client';
 import { env } from '@/config/env';
+import { listPhotographers } from '@/features/photographers/api';
 import { storage, StorageKeys } from '@/services/storage';
+import { useAuth } from '@/store/auth';
 import type { ApiEnvelope, ApiError, ID } from '@/types';
 
 export type Conversation = {
@@ -30,65 +27,192 @@ export type Conversation = {
   isOnline?: boolean;
 };
 
+export type ChatContact = {
+  id: string;
+  name: string;
+  avatar?: string;
+  category?: string;
+  isBooked?: boolean;
+  isVerified?: boolean;
+};
+
 type Raw = Record<string, unknown>;
 
 function str(v: unknown): string | undefined {
-  return typeof v === 'string' && v.length > 0 ? v : undefined;
+  return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
 }
+
 function num(v: unknown): number {
   return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
 }
 
+/** Normalize avatar and attachment image URLs (web parity). */
+export function normalizeChatImageUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === 'null' || trimmed.includes('/null')) return undefined;
+
+  const backendRoot = env.apiBaseUrl.replace(/\/api\/remote\/?$/, '');
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    const OLD_IP = 'http://197.243.24.101';
+    if (trimmed.startsWith(OLD_IP)) {
+      return trimmed.replace(OLD_IP, backendRoot);
+    }
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `${backendRoot}${trimmed}`;
+  }
+
+  return `${backendRoot}/uploads/profile/photos/${trimmed}`;
+}
+
+/** Synchronous self ID check from in-memory Zustand auth store. */
+export function getSelfIdSync(): string | undefined {
+  const storeUser = useAuth.getState().user as any;
+  if (storeUser?.customerId) return String(storeUser.customerId);
+  if (storeUser?.id) return String(storeUser.id);
+  const storeSession = useAuth.getState().session as any;
+  if (storeSession?.user?.customerId) return String(storeSession.user.customerId);
+  if (storeSession?.user?.id) return String(storeSession.user.id);
+  if (storeSession?.customerId) return String(storeSession.customerId);
+  return undefined;
+}
+
 /**
- * Pick the other participant. The conversations DTO sends back BOTH
- * participants (self + partner). Mobile loads the signed-in user's id
- * from the persisted session to filter out the self side.
+ * Returns the current authenticated user's ID. Checks Zustand store first,
+ * then falls back to persisted session storage.
  */
-function pickPartner(participants: Raw[], selfId?: string): Raw | undefined {
-  if (!participants.length) return undefined;
-  if (!selfId) return participants[0];
-  return participants.find((p) => String(p.id ?? '') !== selfId) ?? participants[0];
-}
-
-function mapConversation(r: Raw, selfId?: string): Conversation {
-  const participants = Array.isArray(r.participants) ? (r.participants as Raw[]) : [];
-  const partner = pickPartner(participants, selfId) ?? {};
-  const partnerId = String(partner.id ?? '');
-
-  const last = (r.lastMessage ?? {}) as Raw;
-  const lastMessage = str(last.content) ?? str(r.lastMessageText) ?? str(last.text) ?? str(last.body);
-
-  return {
-    id: partnerId || String(r.id ?? ''),
-    conversationId: str(r.id),
-    partnerId,
-    name: str(partner.name) ?? str(r.title) ?? str(r.name) ?? 'Conversation',
-    lastMessage,
-    unreadCount: num(r.unreadCount),
-    avatar: str(partner.image) ?? str(partner.profilePicture) ?? str(r.avatar),
-    timestamp: str(last.createdAt) ?? str(r.updatedAt) ?? str(last.timestamp) ?? str(r.lastMessageAt),
-    isOnline: partner.isOnline === true,
-  };
-}
-
-async function getSelfId(): Promise<string | undefined> {
+export async function getSelfId(): Promise<string | undefined> {
+  const syncId = getSelfIdSync();
+  if (syncId) return syncId;
   try {
     const raw = await storage.get(StorageKeys.session);
     if (!raw) return undefined;
-    const session = JSON.parse(raw) as { user?: { customerId?: string } };
-    return session.user?.customerId;
+    const session = JSON.parse(raw) as any;
+    return (
+      session?.user?.customerId ??
+      session?.user?.id ??
+      session?.customerId ??
+      session?.id ??
+      undefined
+    );
   } catch {
     return undefined;
   }
 }
 
+/**
+ * Pick the other participant. In backend ChatService.java:
+ * conv.setId(contact.getId());
+ * conv.setParticipants(List.of(meParticipant, fromCustomer(contact)));
+ *
+ * The partner is the participant whose ID matches conv.id OR does NOT match selfId.
+ */
+function pickPartner(participants: Raw[], selfId?: string, convId?: string): Raw | undefined {
+  if (!participants.length) return undefined;
+
+  const cleanSelfId = selfId ? selfId.toLowerCase().trim() : undefined;
+  const cleanConvId = convId ? convId.toLowerCase().trim() : undefined;
+
+  // 1. Match by conversation ID (in backend ChatService, conv.id is contact.id)
+  if (cleanConvId) {
+    const matching = participants.find(
+      (p) => String(p.id ?? '').toLowerCase().trim() === cleanConvId
+    );
+    if (matching) return matching;
+  }
+
+  // 2. If selfId is known, return the participant that is NOT self
+  if (cleanSelfId) {
+    const other = participants.find(
+      (p) => String(p.id ?? '').toLowerCase().trim() !== cleanSelfId
+    );
+    if (other) return other;
+  }
+
+  // 3. Fallback: if there are 2 participants, index 1 is contact, index 0 is me
+  if (participants.length > 1) {
+    return participants[1];
+  }
+
+  return participants[0];
+}
+
+function mapConversation(r: Raw, selfId?: string): Conversation {
+  const convIdStr = str(r.id);
+  const participants = Array.isArray(r.participants) ? (r.participants as Raw[]) : [];
+  const partner = pickPartner(participants, selfId, convIdStr) ?? {};
+
+  // Partner ID is the contact participant ID, or r.partnerId, or convId
+  const partnerId =
+    str(partner.id) ??
+    str(r.partnerId) ??
+    convIdStr ??
+    '';
+
+  const last = (r.lastMessage ?? {}) as Raw;
+  const lastMessage =
+    str(last.content) ??
+    str(r.lastMessageContent) ??
+    str(r.lastMessageText) ??
+    str(last.text) ??
+    str(last.body) ??
+    str(r.lastMessage);
+
+  const rawImage =
+    str(partner.image) ??
+    str(partner.profilePicture) ??
+    str(r.partnerImage) ??
+    str(r.image) ??
+    str(r.avatar);
+
+  const avatar = normalizeChatImageUrl(rawImage);
+
+  const rawName =
+    str(partner.name) ??
+    str(r.partnerName) ??
+    str(r.name) ??
+    str(r.title) ??
+    'Creator';
+
+  const timestamp =
+    str(last.createdAt) ??
+    str(r.lastMessageAt) ??
+    str(r.updatedAt) ??
+    str(last.timestamp) ??
+    str(r.createdAt);
+
+  return {
+    id: partnerId,
+    conversationId: convIdStr,
+    partnerId,
+    name: rawName,
+    lastMessage,
+    unreadCount: num(r.unreadCount),
+    avatar,
+    timestamp,
+    isOnline: partner.isOnline === true || r.isOnline === true,
+  };
+}
+
 export async function listConversations(): Promise<Conversation[]> {
   const [selfId, res] = await Promise.all([
     getSelfId(),
-    api.get<ApiEnvelope<Raw[]>>('/chat/conversations'),
+    api.get<ApiEnvelope<Raw[]> | Raw[]>('/chat/conversations'),
   ]);
-  const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map((r) => mapConversation(r, selfId)).filter((c) => c.partnerId);
+
+  const rawList: Raw[] = Array.isArray(res)
+    ? res
+    : Array.isArray((res as any)?.data)
+      ? (res as any).data
+      : [];
+
+  return rawList
+    .map((r) => mapConversation(r, selfId))
+    .filter((c) => !!c.id && !!c.partnerId);
 }
 
 export type Message = {
@@ -103,11 +227,15 @@ export type Message = {
 
 function mapMessage(r: Raw, selfId?: string): Message {
   const senderId = str(r.senderId);
+  const cleanSelfId = selfId ? selfId.toLowerCase().trim() : undefined;
+  const cleanSenderId = senderId ? senderId.toLowerCase().trim() : undefined;
+  const isMine = !!cleanSelfId && !!cleanSenderId && cleanSenderId === cleanSelfId;
+
   return {
     id: String(r.id ?? r.messageId ?? ''),
     text: str(r.content) ?? str(r.text) ?? str(r.body) ?? '',
     senderId,
-    isMine: !!selfId && !!senderId && senderId === selfId,
+    isMine,
     isRead: r.isRead === true,
     timestamp: str(r.createdAt) ?? str(r.timestamp) ?? str(r.sentAt),
   };
@@ -115,45 +243,54 @@ function mapMessage(r: Raw, selfId?: string): Message {
 
 /**
  * Loads chat history with a partner. The route parameter is the OTHER
- * person's customerId — the conversation id is NOT what the backend
- * expects here, despite the previous mobile call shape.
+ * person's customerId.
  */
 export async function listMessages(partnerId: string): Promise<Message[]> {
   const [selfId, res] = await Promise.all([
     getSelfId(),
-    api.get<ApiEnvelope<Raw[]>>(`/chat/messages/${encodeURIComponent(partnerId)}`),
+    api.get<ApiEnvelope<Raw[]> | Raw[]>(`/chat/messages/${encodeURIComponent(partnerId)}`),
   ]);
-  const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map((r) => mapMessage(r, selfId)).filter((m) => m.id);
+
+  const rawList: Raw[] = Array.isArray(res)
+    ? res
+    : Array.isArray((res as any)?.data)
+      ? (res as any).data
+      : [];
+
+  return rawList.map((r) => mapMessage(r, selfId)).filter((m) => !!m.id);
 }
 
 /**
  * Send a chat message (web parity: POST /chat/send, multipart with
- * senderId, recipientId, content). The previous JSON POST to
- * /chat/messages 404'd, which is why Send did nothing.
+ * recipientId, content, senderId).
  */
-export async function sendMessage(partnerId: string, text: string): Promise<void> {
-  const senderId = await getSelfId();
-  if (!senderId) throw { status: 401, message: 'Not signed in' };
+export async function sendMessage(partnerId: string, text: string): Promise<Raw | null> {
+  const senderId = (await getSelfId()) || getSelfIdSync();
   const form = new FormData();
-  form.append('senderId', senderId);
+  if (senderId) {
+    form.append('senderId', senderId);
+  }
   form.append('recipientId', partnerId);
   form.append('content', text);
-  const res = await api.post<{ action?: number; message?: string }>('/chat/send', form);
-  // A refusal (blocked, restricted content, recipient gone) arrives as HTTP
-  // 200 with action:0. Swallowing it made the message disappear from the
-  // thread with no error — the screen has error handling that never ran.
-  if (res?.action !== 1) {
+
+  const res = await api.post<{ action?: number; message?: string; data?: Raw }>('/chat/send', form);
+
+  if (res && typeof res.action === 'number' && res.action !== 1) {
     throw {
       status: 400,
-      message: res?.message || 'Message not sent. Please try again.',
+      message: res.message || 'Message not sent. Please try again.',
     } satisfies ApiError;
   }
+  return res?.data ?? null;
 }
 
 /** Mark all messages from a partner as read. */
 export async function markConversationRead(partnerId: string): Promise<void> {
-  await api.patch(`/chat/messages/${encodeURIComponent(partnerId)}/read`);
+  try {
+    await api.patch(`/chat/messages/${encodeURIComponent(partnerId)}/read`);
+  } catch {
+    // Non-critical background sync
+  }
 }
 
 /** Unread badge count for the bottom tab / topbar bell. */
@@ -165,6 +302,78 @@ export async function getUnreadCount(): Promise<number> {
   } catch {
     return 0;
   }
+}
+
+/**
+ * Fetch contacts for New Message composer (web parity: /customer/photographers or
+ * /coordinator/photographers + public photographers directory).
+ * Returns real creators with valid backend UUIDs.
+ */
+export async function listChatContacts(userRole?: string): Promise<ChatContact[]> {
+  const isCoordinator = userRole?.toLowerCase().includes('coordinator');
+  const bookedEndpoint = isCoordinator
+    ? '/coordinator/photographers'
+    : '/customer/photographers';
+
+  const [bookedRes, publicPros] = await Promise.allSettled([
+    api.get<ApiEnvelope<Raw[]> | Raw[]>(bookedEndpoint),
+    listPhotographers(),
+  ]);
+
+  const contacts: ChatContact[] = [];
+  const seenIds = new Set<string>();
+
+  // 1. Booked photographers (primary contacts with established relationships)
+  if (bookedRes.status === 'fulfilled' && bookedRes.value) {
+    const val = bookedRes.value;
+    const list = Array.isArray(val)
+      ? val
+      : Array.isArray((val as any)?.data?.content)
+        ? (val as any).data.content
+        : Array.isArray((val as any)?.data)
+          ? (val as any).data
+          : [];
+
+    for (const p of list) {
+      const id = String(p.id ?? '');
+      if (id && !seenIds.has(id.toLowerCase())) {
+        seenIds.add(id.toLowerCase());
+        const fullName = `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim();
+        contacts.push({
+          id,
+          name: fullName || str(p.name) || 'Booked Creator',
+          avatar: normalizeChatImageUrl(str(p.profileImage) ?? str(p.profilePicture) ?? str(p.image)),
+          category:
+            str(p.speciality) ??
+            str(p.category) ??
+            (Array.isArray(p.specializations) ? p.specializations[0] : undefined) ??
+            'Booked Photographer',
+          isBooked: true,
+          isVerified: p.isVerified === true,
+        });
+      }
+    }
+  }
+
+  // 2. Public photographers directory (to message any creator on the platform)
+  if (publicPros.status === 'fulfilled' && Array.isArray(publicPros.value)) {
+    for (const p of publicPros.value) {
+      const id = String(p.id ?? '');
+      if (id && !seenIds.has(id.toLowerCase())) {
+        seenIds.add(id.toLowerCase());
+        contacts.push({
+          id,
+          name: p.name || 'Creator',
+          avatar: normalizeChatImageUrl(p.avatar),
+          category: p.category || (p.specialties && p.specialties[0]) || 'Photography',
+          isBooked: false,
+          isVerified: p.isVerified,
+        });
+      }
+    }
+  }
+
+  return contacts;
 }
 
 // Expose env so other callers (websocket subscription) can reuse the base URL.

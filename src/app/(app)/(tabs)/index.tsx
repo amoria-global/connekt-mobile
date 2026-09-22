@@ -415,7 +415,7 @@ export default function HomeScreen() {
   if (isPhotographer) return <PhotographerHome />;
 
   return (
-    <Screen padded={false} edges={['bottom']}>
+    <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}>
         <KycBanner />
         {showsDashboard ? (

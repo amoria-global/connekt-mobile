@@ -2,31 +2,34 @@ import { Pressable, Text } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { useAuth } from '@/store/auth';
 import { useTheme } from '@/theme';
 
 /** Guest-accessible screens (no login required). */
 export default function PublicLayout() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const status = useAuth((s) => s.status);
+  const fallback = status === 'authenticated' ? '/(tabs)' : '/login';
 
   const renderBackToLogin = (tintColor?: string) => (
     <Pressable
-      onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
+      onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback as any))}
       hitSlop={12}
       style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingRight: 8 }}
       accessibilityRole="button"
-      accessibilityLabel="Back to sign in"
+      accessibilityLabel={status === 'authenticated' ? 'Back' : 'Back to sign in'}
     >
-      <Ionicons name="chevron-back" size={22} color={tintColor || colors.textOnPrimary} />
-      <Text style={{ color: tintColor || colors.textOnPrimary, fontSize: 14, fontWeight: '700', marginLeft: -2 }}>
-        Sign in
+      <Ionicons name="chevron-back" size={22} color={tintColor || colors.primary} />
+      <Text style={{ color: tintColor || colors.primary, fontSize: 14, fontWeight: '700', marginLeft: -2 }}>
+        {status === 'authenticated' ? 'Back' : 'Sign in'}
       </Text>
     </Pressable>
   );
 
   const renderBackOnly = (tintColor?: string) => (
     <Pressable
-      onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
+      onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback as any))}
       hitSlop={12}
       style={({ pressed }) => [{
         padding: 6,
@@ -38,7 +41,7 @@ export default function PublicLayout() {
       accessibilityRole="button"
       accessibilityLabel="Go back"
     >
-      <Ionicons name="chevron-back" size={24} color={tintColor || colors.textOnPrimary} />
+      <Ionicons name="chevron-back" size={24} color={tintColor || colors.primary} />
     </Pressable>
   );
 
@@ -46,12 +49,13 @@ export default function PublicLayout() {
     <>
       <Stack
         screenOptions={{
-          headerTintColor: colors.textOnPrimary,
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleStyle: { color: colors.textOnPrimary, fontWeight: '700' },
+          headerTintColor: colors.primary,
+          headerStyle: { backgroundColor: colors.elevated },
+          headerTitleStyle: { color: colors.text, fontWeight: '700' },
           headerBackButtonDisplayMode: 'minimal',
           headerShadowVisible: false,
           contentStyle: { backgroundColor: colors.background },
+          headerLeft: () => renderBackOnly(),
         }}
       >
         <Stack.Screen
@@ -68,7 +72,12 @@ export default function PublicLayout() {
         />
         <Stack.Screen name="events/join" options={{ title: 'Join event' }} />
         <Stack.Screen name="events/pay" options={{ title: 'Payment' }} />
-        <Stack.Screen name="events/live-stream" options={{ title: 'Live stream' }} />
+        <Stack.Screen
+          name="events/live-stream"
+          options={{
+            headerShown: false,
+          }}
+        />
         <Stack.Screen
           name="donate"
           options={{

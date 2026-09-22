@@ -8,17 +8,46 @@ import type { ApiEnvelope, ApiError } from '@/types';
 
 export type WalletPot = { key: string; label: string; amount: number };
 
-export type Wallet = {
-  total: number;
+export interface WalletDTO {
+  id: string;
+  customerId?: string;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  customerType?: string;
+  balanceAvailable: number;
+  balanceBooking: number;
+  balanceTips: number;
+  balanceBonuses: number;
+  balanceGifts: number;
+  balanceStreamFees: number;
+  balanceDonations: number;
+  balanceAdRevenue: number;
+  balancePhotoPurchase: number;
+  heldForDelivery: number;
+  deliveryHeldAmount?: number;
+  surveyHeldAmount?: number;
+  pendingAmount: number;
+  blockedAmount: number;
+  totalWithdrawn: number;
+  totalRefunded: number;
+  clientSpent: number;
+  status: 'ACTIVE' | 'SUSPENDED' | 'CLOSED' | string;
+  suspensionReason?: string | null;
+  suspendedAt?: string | null;
   currency: string;
   pots: WalletPot[];
-};
+  total: number;
+}
+
+export type Wallet = WalletDTO;
 
 type RawWallet = Record<string, unknown>;
 
 function num(v: unknown): number {
   return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
 }
+
+const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 
 /** Known balance fields → friendly labels. */
 const POT_LABELS: Record<string, string> = {
@@ -35,11 +64,9 @@ const POT_LABELS: Record<string, string> = {
   heldForDelivery: 'Held for delivery',
 };
 
-export async function getWallet(): Promise<Wallet> {
+export async function getWallet(): Promise<WalletDTO> {
   const res = await api.get<ApiEnvelope<RawWallet>>('/wallet/me');
-  // A failed fetch answers HTTP 200 with action:0 and no data. Parsing it
-  // rendered a confident "0.00" balance, which on a money screen reads as
-  // "your money is gone" rather than "we could not load this".
+  // A failed fetch answers HTTP 200 with action:0 and no data.
   if (res?.action !== 1) {
     throw {
       status: 400,
@@ -52,13 +79,6 @@ export async function getWallet(): Promise<Wallet> {
     .map(([key, label]) => ({ key, label, amount: num(d[key]) }))
     .filter((p) => p.amount !== 0);
 
-  // Backend keeps `balanceAvailable` as the user-spendable total.
-  //
-  // The fallback deliberately excludes `pendingAmount` and `heldForDelivery`:
-  // those are explicitly NOT spendable, and summing every pot advertised money
-  // the photographer cannot withdraw. `||` also treated a legitimate 0 as
-  // "missing" and fell through, so a genuinely empty wallet could display the
-  // pending pot as though it were available.
   const spendable = pots.filter(
     (p) => p.key !== 'pendingAmount' && p.key !== 'heldForDelivery',
   );
@@ -69,16 +89,41 @@ export async function getWallet(): Promise<Wallet> {
         ? d.totalBalance
         : spendable.reduce((sum, p) => sum + p.amount, 0);
 
-  // Wallet endpoint never returns a top-level currency — every pot is
-  // stored in USD by backend convention (see WalletService). Defaulting
-  // to USD here means the wallet screen reads "USD 0" instead of bare
-  // "0" with no symbol at all.
   const currency =
     (typeof d.currency === 'string' && d.currency) ||
     (typeof d.currencyCode === 'string' && d.currencyCode) ||
     'USD';
 
-  return { total, currency, pots };
+  return {
+    id: str(d.id) || 'me',
+    customerId: str(d.customerId),
+    customerName: str(d.customerName) ?? null,
+    customerEmail: str(d.customerEmail) ?? null,
+    customerType: str(d.customerType),
+    balanceAvailable: num(d.balanceAvailable),
+    balanceBooking: num(d.balanceBooking),
+    balanceTips: num(d.balanceTips),
+    balanceBonuses: num(d.balanceBonuses),
+    balanceGifts: num(d.balanceGifts),
+    balanceStreamFees: num(d.balanceStreamFees),
+    balanceDonations: num(d.balanceDonations),
+    balanceAdRevenue: num(d.balanceAdRevenue),
+    balancePhotoPurchase: num(d.balancePhotoPurchase),
+    heldForDelivery: num(d.heldForDelivery),
+    deliveryHeldAmount: num(d.deliveryHeldAmount),
+    surveyHeldAmount: num(d.surveyHeldAmount),
+    pendingAmount: num(d.pendingAmount),
+    blockedAmount: num(d.blockedAmount),
+    totalWithdrawn: num(d.totalWithdrawn),
+    totalRefunded: num(d.totalRefunded),
+    clientSpent: num(d.clientSpent),
+    status: (str(d.status) || 'ACTIVE').toUpperCase(),
+    suspensionReason: str(d.suspensionReason) ?? null,
+    suspendedAt: str(d.suspendedAt) ?? null,
+    currency,
+    pots,
+    total,
+  };
 }
 
 // --- Wallet movements (transaction history) ------------------------------
@@ -88,12 +133,14 @@ export type Movement = {
   category?: string;
   direction: 'in' | 'out';
   amount: number;
+  originalAmount?: number;
+  originalCurrency?: string;
   currency?: string;
   description?: string;
   createdAt?: string;
+  sourceType?: string;
+  sourceId?: string;
 };
-
-const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 
 /** Unwraps a Spring Page (`data.content`) or a plain array. */
 function pageContent(data: unknown): Record<string, unknown>[] {
@@ -102,18 +149,27 @@ function pageContent(data: unknown): Record<string, unknown>[] {
   return Array.isArray(c) ? (c as Record<string, unknown>[]) : [];
 }
 
-export async function listWalletMovements(): Promise<Movement[]> {
-  const res = await api.get<ApiEnvelope<unknown>>('/wallet/me/movements?page=0&size=50');
+export async function listWalletMovements(page = 0, size = 50): Promise<Movement[]> {
+  const res = await api.get<ApiEnvelope<unknown>>(
+    `/wallet/me/movements?page=${page}&size=${size}`,
+  );
   return pageContent(res?.data).map((r) => {
     const dir = (str(r.direction) ?? '').toLowerCase();
+    const cat = str(r.category) ?? str(r.sourceType) ?? 'BALANCE';
+    const amt = num(r.amount) || num(r.amountUsd) || num(r.originalAmount);
+    const origAmt = num(r.originalAmount);
     return {
       id: String(r.id ?? ''),
-      category: str(r.category) ?? str(r.sourceType),
-      direction: /credit|in|deposit/.test(dir) ? 'in' : 'out',
-      amount: num(r.originalAmount) || num(r.amountUsd),
-      currency: str(r.originalCurrency),
+      category: cat,
+      direction: /credit|^in$|deposit/.test(dir) ? 'in' : 'out',
+      amount: amt,
+      originalAmount: origAmt || undefined,
+      originalCurrency: str(r.originalCurrency) || str(r.currency) || undefined,
+      currency: str(r.currency) || str(r.originalCurrency) || 'USD',
       description: str(r.description),
       createdAt: str(r.createdAt),
+      sourceType: str(r.sourceType),
+      sourceId: str(r.sourceId),
     } satisfies Movement;
   }).filter((m) => m.id);
 }
