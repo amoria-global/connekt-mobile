@@ -58,6 +58,18 @@
     "production": {
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "production",
+        "releaseStatus": "completed"
+      },
+      "ios": {
+        "appleId": "moses.mirarayi@icloud.com",
+        "ascAppId": "6811336076",
+        "appleTeamId": "Z34A347245"
+      }
+    },
+    "internal": {
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal",
         "releaseStatus": "draft"
       },
