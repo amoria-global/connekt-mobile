@@ -2,6 +2,7 @@
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { withdrawalMethodsPath } from '../paymentAccounts/model';
+import { withdrawNamespace } from '../withdrawals/model';
 
 /**
  * CONN-TEST-4 for mobile: every backend path the auth and KYC clients call
@@ -116,6 +117,36 @@ describe('mobile payment accounts against the backend contract', () => {
     expect(paths).toContain('GET /api/remote/withdrawals/xentripay/providers');
     expect(paths).toContain('POST /api/remote/withdrawals/xentripay/validate-account-details');
     expect(calls.filter((c) => !matches(c))).toEqual([]);
+  });
+});
+
+/**
+ * The withdraw flow. The old screen posted to /api/remote/withdrawals, which
+ * the backend has never had; these would have caught it.
+ */
+describe('mobile withdraw flow against the backend contract', () => {
+  const ROLES = ['Photographer', 'Coordinator', 'Client', 'User', undefined] as const;
+
+  it.each(ROLES)('every withdraw call exists for role %s', (role) => {
+    const ns = '/api/remote/' + withdrawNamespace(role);
+    const wanted: Call[] = [
+      { method: 'GET', path: `${ns}/withdrawable-sources`, source: 'sources' },
+      { method: 'POST', path: `${ns}/withdraw/initiate`, source: 'initiate' },
+      { method: 'POST', path: `${ns}/withdraw/verify`, source: 'verify' },
+      { method: 'POST', path: `${ns}/withdraw/resend-otp`, source: 'resend' },
+    ];
+    expect(wanted.filter((c) => !matches(c))).toEqual([]);
+  });
+
+  it('the currency rates exist, and the client never calls the payout endpoint', () => {
+    // Paths starting with a template hole are the per-role ones checked above.
+    const literal = callsIn('src/features/withdrawals/api.ts').filter((c) => !c.path.startsWith('/api/remote/X'));
+    expect(literal.map((c) => `${c.method} ${c.path}`)).toContain('GET /api/remote/public/currencies/rates');
+    expect(literal.filter((c) => !matches(c))).toEqual([]);
+    // A verified withdrawal is PENDING_APPROVAL and /xentripay/process refuses it.
+    const src = readFileSync(path.join(ROOT, 'src/features/withdrawals/api.ts'), 'utf8');
+    expect(src).not.toContain('xentripay/process');
+    expect(src).not.toMatch(/'\/withdrawals'/);
   });
 });
 
