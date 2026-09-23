@@ -102,6 +102,7 @@ export default function AppLayout() {
         <Stack.Screen name="photobook/new" options={{ title: 'New photobook', presentation: 'modal' }} />
         <Stack.Screen name="wallet/movements" options={{ title: 'Wallet movements' }} />
         <Stack.Screen name="withdraw" options={{ title: 'Withdraw' }} />
+        <Stack.Screen name="payment-accounts" options={{ title: 'Payment accounts' }} />
         <Stack.Screen name="transactions" options={{ title: 'Transactions' }} />
         <Stack.Screen name="payroll" options={{ title: 'Payroll report' }} />
         <Stack.Screen name="analytics" options={{ title: 'Analytics', headerShown: false }} />

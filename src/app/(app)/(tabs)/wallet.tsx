@@ -111,6 +111,7 @@ export default function WalletScreen() {
     { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
     { label: 'Wallet movements', icon: 'list-outline', href: '/wallet/movements' as Href },
     { label: 'Payments', icon: 'card-outline', href: '/payments' as Href },
+    { label: 'Payment accounts', icon: 'wallet-outline', href: '/payment-accounts' as Href },
     ...(isPhotographer
       ? [{ label: 'Payroll report', icon: 'bar-chart-outline' as const, href: '/payroll' as Href }]
       : []),
