@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import type { Photographer } from './api';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
+
+import { VerifiedAvatar } from '@/components/ui/VerifiedAvatar';
 
 import { CoverCarousel } from './CoverCarousel';
 
@@ -23,7 +24,6 @@ export function PhotographerCard({
   const { colors } = useTheme();
   const [coverWidth, setCoverWidth] = useState(175);
 
-  const initials = (photographer.name?.[0] ?? '?').toUpperCase();
   const rating = photographer.rating ?? 0;
   const ratingText = rating > 0 ? rating.toFixed(1) : 'New';
   const reviewsCount = photographer.reviewCount ?? 0;
@@ -89,29 +89,13 @@ export function PhotographerCard({
       </View>
 
       {/* Avatar - Straddles the boundary between Cover & Body */}
-      <View
-        style={[
-          styles.avatarContainer,
-          { top: (coverHeight ?? 136) - 24 },
-        ]}
-      >
-        {photographer.avatar ? (
-          <Image
-            source={{ uri: photographer.avatar }}
-            style={styles.avatar}
-            contentFit="cover"
-            transition={150}
-          />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-        )}
-
-        {/* Verified Checkmark Badge */}
-        <View style={styles.verifiedBadge}>
-          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-        </View>
+      <View style={[styles.avatarContainer, { top: (coverHeight ?? 136) - 24 }]}>
+        <VerifiedAvatar
+          uri={photographer.avatar}
+          name={photographer.name}
+          size={48}
+          verified={photographer.isVerified !== false}
+        />
       </View>
 
       {/* CARD BODY */}
@@ -305,46 +289,12 @@ const useStyles = makeStyles((c, e) => ({
     ...e(1),
   },
 
-  // Avatar Straddling Boundary
+  // Avatar Straddling Boundary. Ring, seal and fallback live in VerifiedAvatar.
   avatarContainer: {
     position: 'absolute',
     left: spacing.md,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: c.surface,
-    borderWidth: 2,
-    borderColor: c.surface,
-    padding: 2.5,
     zIndex: 10,
-    ...e(2),
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 22,
-    backgroundColor: c.surfaceMuted,
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.surfaceMuted,
-  },
-  avatarText: {
-    color: c.text,
-    fontSize: fontSize.sm,
-    fontFamily: fonts.bold,
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    backgroundColor: c.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    elevation: 10,
   },
 
   // Details
