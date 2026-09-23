@@ -1,15 +1,15 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { StatusPill } from '@/components/ui/StatusPill';
-import {
-  listWithdrawalMethods,
-  listWithdrawals,
-  requestWithdrawal,
-} from '@/features/withdrawals/api';
+import { useRole } from '@/features/auth/role';
+import { listPaymentAccounts } from '@/features/paymentAccounts/api';
+import { maskAccountNumber } from '@/features/paymentAccounts/model';
+import { listWithdrawals, requestWithdrawal } from '@/features/withdrawals/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
@@ -17,13 +17,33 @@ import { formatDate, formatMoney } from '@/utils/format';
 export default function WithdrawScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
-  const methods = useAsync(useCallback(() => listWithdrawalMethods(), []));
+  const router = useRouter();
+  const { role } = useRole();
+  // Same namespace the web uses per role; this used to always read the
+  // photographer path, so coordinators never saw their saved accounts.
+  const methods = useAsync(useCallback(() => listPaymentAccounts(role), [role]));
   const history = useAsync(useCallback(() => listWithdrawals(), []));
 
   const [amount, setAmount] = useState('');
   const [methodId, setMethodId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Coming back from Payment accounts must show the account just added.
+  const refreshMethods = methods.refresh;
+  useFocusEffect(
+    useCallback(() => {
+      refreshMethods();
+    }, [refreshMethods]),
+  );
+
+  // Until the user picks one, the default account is selected, as in the web
+  // withdraw modal.
+  const accounts = methods.data ?? [];
+  const selectedId =
+    methodId && accounts.some((m) => m.id === methodId)
+      ? methodId
+      : (accounts.find((m) => m.isDefault)?.id ?? accounts[0]?.id ?? null);
 
   const onSubmit = async () => {
     setError(null);
@@ -32,13 +52,13 @@ export default function WithdrawScreen() {
       setError('Enter a valid amount.');
       return;
     }
-    if (!methodId) {
+    if (!selectedId) {
       setError('Select a payout method.');
       return;
     }
     setSubmitting(true);
     try {
-      await requestWithdrawal({ amount: value, withdrawalMethodId: methodId });
+      await requestWithdrawal({ amount: value, withdrawalMethodId: selectedId });
       setAmount('');
       Alert.alert('Requested', 'Your withdrawal request has been submitted.');
       await history.refresh();
@@ -60,27 +80,36 @@ export default function WithdrawScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payout method</Text>
-          {methods.loading ? (
+          {methods.loading && !methods.data ? (
             <ActivityIndicator color={colors.primary} />
           ) : methods.data?.length ? (
             methods.data.map((m) => (
               <Pressable
                 key={m.id}
                 onPress={() => setMethodId(m.id)}
-                style={[styles.method, methodId === m.id && styles.methodActive]}
+                style={[styles.method, selectedId === m.id && styles.methodActive]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.methodName}>{m.name}</Text>
-                  {m.accountNumber ? <Text style={styles.methodAcc}>{m.accountNumber}</Text> : null}
+                  <Text style={styles.methodName}>{m.label}</Text>
+                  <Text style={styles.methodAcc}>
+                    {[maskAccountNumber(m.accountNumber), m.accountName].filter(Boolean).join(' · ')}
+                  </Text>
                 </View>
-                {methodId === m.id ? <Text style={styles.check}>✓</Text> : null}
+                {selectedId === m.id ? <Text style={styles.check}>✓</Text> : null}
               </Pressable>
             ))
           ) : (
-            <Text style={styles.muted}>
-              No payout methods saved. Add one on the web app first.
-            </Text>
+            <Text style={styles.muted}>No payout accounts saved yet.</Text>
           )}
+          <Pressable
+            style={({ pressed }) => [styles.manage, pressed && { opacity: 0.7 }]}
+            onPress={() => router.push('/payment-accounts' as Href)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.manageText}>
+              {methods.data?.length ? 'Manage payment accounts' : '+ Add a payment account'}
+            </Text>
+          </Pressable>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -125,6 +154,8 @@ const useStyles = makeStyles((c) => ({
   methodActive: { borderColor: c.primary, backgroundColor: c.infoBg },
   methodName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
   methodAcc: { fontSize: fontSize.sm, color: c.textMuted },
+  manage: { alignSelf: 'flex-start', paddingVertical: spacing.xs, minHeight: 32, justifyContent: 'center' },
+  manageText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   check: { color: c.primary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   historyRow: {
     flexDirection: 'row',
