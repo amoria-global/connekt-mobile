@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
+import { withdrawalMethodsPath } from '../paymentAccounts/model';
 
 /**
  * CONN-TEST-4 for mobile: every backend path the auth and KYC clients call
@@ -84,7 +85,41 @@ describe('mobile auth + KYC requests against the backend contract', () => {
       expect(matches(c)).toBe(true);
     }
   });
+});
 
+/**
+ * Payment accounts (withdrawal methods). The paths are built per role by
+ * withdrawalMethodsPath, so the extractor above cannot see them; resolve them
+ * for every role here and check each verb the screen uses. The mobile withdraw
+ * screen used to read the photographer path for every role.
+ */
+describe('mobile payment accounts against the backend contract', () => {
+  const ROLES = ['Photographer', 'Coordinator', 'Client', 'User', 'Viewer', undefined] as const;
+  const withId = (p: string) => `${p}/00000000-0000-0000-0000-000000000000`;
+
+  it.each(ROLES)('every withdrawal-methods call exists for role %s', (role) => {
+    const base = '/api/remote' + withdrawalMethodsPath(role);
+    const wanted: Call[] = [
+      { method: 'GET', path: base, source: 'list' },
+      { method: 'POST', path: base, source: 'add' },
+      { method: 'PUT', path: withId(base), source: 'set default' },
+      { method: 'DELETE', path: withId(base), source: 'remove' },
+    ];
+    expect(wanted.filter((c) => !matches(c))).toEqual([]);
+  });
+
+  it('the provider list and the name lookup exist', () => {
+    // The withdrawal-methods calls start with a template hole and are checked
+    // per role above; keep the literal xentripay ones.
+    const calls = callsIn('src/features/paymentAccounts/api.ts').filter((c) => c.path.includes('/xentripay/'));
+    const paths = calls.map((c) => `${c.method} ${c.path}`);
+    expect(paths).toContain('GET /api/remote/withdrawals/xentripay/providers');
+    expect(paths).toContain('POST /api/remote/withdrawals/xentripay/validate-account-details');
+    expect(calls.filter((c) => !matches(c))).toEqual([]);
+  });
+});
+
+describe('contract copy', () => {
   // Jest has no it.skipIf, so gate with a plain conditional: this only runs on
   // a machine with the monorepo layout, and is a no-op in CI where the backend
   // is a different repository.

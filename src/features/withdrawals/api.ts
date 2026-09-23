@@ -1,6 +1,6 @@
 /**
- * Withdrawals (/api/remote/withdrawals) and saved payout methods
- * (/api/remote/photographer/withdrawal-methods).
+ * Withdrawals (/api/remote/withdrawals). Saved payout accounts live in
+ * features/paymentAccounts.
  */
 import { api } from '@/api/client';
 import type { ApiError, ApiEnvelope, ID } from '@/types';
@@ -11,12 +11,6 @@ export type Withdrawal = {
   currency?: string;
   status?: string;
   requestedAt?: string;
-};
-
-export type WithdrawalMethod = {
-  id: ID;
-  name: string;
-  accountNumber?: string;
 };
 
 type Raw = Record<string, unknown>;
@@ -38,24 +32,10 @@ function mapWithdrawal(r: Raw): Withdrawal {
   };
 }
 
-function mapMethod(r: Raw): WithdrawalMethod {
-  return {
-    id: String(r.id ?? ''),
-    name: str(r.name) ?? str(r.bankName) ?? 'Account',
-    accountNumber: str(r.accountNumber),
-  };
-}
-
 export async function listWithdrawals(): Promise<Withdrawal[]> {
   const res = await api.get<ApiEnvelope<Raw[]>>('/withdrawals');
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map(mapWithdrawal).filter((w) => w.id);
-}
-
-export async function listWithdrawalMethods(): Promise<WithdrawalMethod[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>('/photographer/withdrawal-methods');
-  const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapMethod).filter((m) => m.id);
 }
 
 export async function requestWithdrawal(input: {
