@@ -517,6 +517,12 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/notifications' as Href)}
               />
               <MenuRow
+                icon="card-outline"
+                label="Payment accounts"
+                hint="Mobile money & bank for withdrawals"
+                onPress={() => router.push('/payment-accounts' as Href)}
+              />
+              <MenuRow
                 icon="lock-closed-outline"
                 label="Two-factor authentication"
                 hint="Extra sign-in security"
