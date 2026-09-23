@@ -117,6 +117,35 @@ export async function takeSelfie(): Promise<PickedImage | null> {
 }
 
 /**
+ * Front-camera selfie as a JPEG data URL, for endpoints that take the image
+ * inline in JSON (withdrawal face verification) rather than as multipart.
+ * Same permission handling and web fallback as takeSelfie.
+ */
+export async function takeSelfieDataUrl(): Promise<{ uri: string; dataUrl: string } | null> {
+  let res: ImagePicker.ImagePickerResult;
+  if (Platform.OS === 'web') {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return null;
+    res = await ImagePicker.launchImageLibraryAsync({ quality: 0.5, mediaTypes: ['images'], base64: true });
+  } else {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      if (perm.canAskAgain === false) promptOpenSettings('camera');
+      return null;
+    }
+    res = await ImagePicker.launchCameraAsync({
+      quality: 0.5,
+      mediaTypes: ['images'],
+      cameraType: ImagePicker.CameraType.front,
+      base64: true,
+    });
+  }
+  const asset = res.canceled ? undefined : res.assets?.[0];
+  if (!asset?.base64) return null;
+  return { uri: asset.uri, dataUrl: `data:image/jpeg;base64,${asset.base64}` };
+}
+
+/**
  * Launches the camera straight to the rear-facing lens for document capture.
  */
 export async function takeDocumentPhoto(): Promise<PickedImage | null> {
