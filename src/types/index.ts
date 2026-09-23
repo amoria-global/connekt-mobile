@@ -18,6 +18,11 @@ export type ApiError = {
   status: number;
   message: string;
   fieldErrors?: Record<string, string>;
+  /**
+   * The parsed JSON body of a non-2xx response. Some refusals carry flags
+   * beside the message (withdraw initiate answers 400 with kycRequired: true).
+   */
+  body?: Record<string, unknown>;
 };
 
 export type ID = string;
