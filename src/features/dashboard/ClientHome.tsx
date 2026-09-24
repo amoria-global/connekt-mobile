@@ -92,65 +92,6 @@ const CATEGORY_CHIPS = [
   { label: 'Corporate', icon: 'briefcase-outline' as const, color: '#64748B' },
 ];
 
-const SHOWCASE_PHOTOGRAPHERS: Photographer[] = [
-  {
-    id: 'showcase-1',
-    name: 'Aura Studio',
-    category: 'Weddings & Celebrations',
-    rating: 4.9,
-    reviewCount: 38,
-    completedJobs: 45,
-    specialties: ['Weddings', 'Portraits', 'Bridal'],
-    currentStatus: 'available',
-    location: 'Kigali, Rwanda',
-    startingPrice: 120,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-    coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=500',
-    images: [
-      'https://images.unsplash.com/photo-1519741497674-611481863552?w=500',
-      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500',
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500',
-    ],
-  },
-  {
-    id: 'showcase-2',
-    name: 'Apex Visuals',
-    category: 'Portraits & Lifestyle',
-    rating: 5.0,
-    reviewCount: 52,
-    completedJobs: 68,
-    specialties: ['Editorial', 'Studio', 'Fashion'],
-    currentStatus: 'available',
-    location: 'Kigali, Rwanda',
-    startingPrice: 85,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    coverImage: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500',
-    images: [
-      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500',
-      'https://images.unsplash.com/photo-1519741497674-611481863552?w=500',
-    ],
-  },
-  {
-    id: 'showcase-3',
-    name: 'Lumina Media',
-    category: 'Corporate & Events',
-    rating: 4.8,
-    reviewCount: 29,
-    completedJobs: 34,
-    specialties: ['Corporate', 'Live Events', 'Conferences'],
-    currentStatus: 'available',
-    location: 'Kigali, Rwanda',
-    startingPrice: 150,
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
-    coverImage: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500',
-    images: [
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500',
-      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500',
-    ],
-  },
-];
-
 type BookingRowItem = {
   id: string;
   title: string;
@@ -161,59 +102,6 @@ type BookingRowItem = {
   statusType: 'LIVE' | 'PAID' | 'BOOKED';
   isLive: boolean;
 };
-
-const SHOWCASE_BOOKINGS: BookingRowItem[] = [
-  {
-    id: 'showcase-b1',
-    title: 'Kigali Fashion Week Gala',
-    category: 'Live Stream',
-    photographerName: 'Lumina Media',
-    eventDate: 'Today',
-    price: 35,
-    statusType: 'LIVE',
-    isLive: true,
-  },
-  {
-    id: 'showcase-b2',
-    title: 'Diane & Eric Wedding',
-    category: 'Wedding Ceremony',
-    photographerName: 'Aura Studio',
-    eventDate: 'Oct 18',
-    price: 350,
-    statusType: 'PAID',
-    isLive: false,
-  },
-  {
-    id: 'showcase-b3',
-    title: 'Studio Portrait Session',
-    category: 'Editorial Portraits',
-    photographerName: 'Apex Visuals',
-    eventDate: 'Oct 24',
-    price: 120,
-    statusType: 'BOOKED',
-    isLive: false,
-  },
-  {
-    id: 'showcase-b4',
-    title: 'Africa Tech Keynote',
-    category: 'Corporate Event',
-    photographerName: 'Lumina Media',
-    eventDate: 'Nov 02',
-    price: 250,
-    statusType: 'PAID',
-    isLive: false,
-  },
-  {
-    id: 'showcase-b5',
-    title: 'Golden Jubilee Celebration',
-    category: 'Celebration',
-    photographerName: 'Aura Studio',
-    eventDate: 'Nov 15',
-    price: 180,
-    statusType: 'BOOKED',
-    isLive: false,
-  },
-];
 
 type ClientActivityItem = {
   id: string;
@@ -227,57 +115,6 @@ type ClientActivityItem = {
   actionText: string;
   route: string;
 };
-
-const SHOWCASE_ACTIVITIES: ClientActivityItem[] = [
-  {
-    id: 'act-1',
-    type: 'GALLERY_DELIVERED',
-    title: 'High-Res Album Delivered',
-    message: 'Aura Studio uploaded 48 edited photos to your vault',
-    timeAgo: '15m ago',
-    icon: 'images',
-    iconColor: '#10B981',
-    iconBg: 'rgba(16, 185, 129, 0.12)',
-    actionText: 'View Photos',
-    route: '/gallery',
-  },
-  {
-    id: 'act-2',
-    type: 'STREAM_LIVE',
-    title: 'Live Stream Broadcasting',
-    message: 'Lumina Media started live coverage of Kigali Fashion Gala',
-    timeAgo: 'Live now',
-    icon: 'videocam',
-    iconColor: '#EF4444',
-    iconBg: 'rgba(239, 68, 68, 0.12)',
-    actionText: 'Watch Live',
-    route: '/explore-events',
-  },
-  {
-    id: 'act-3',
-    type: 'PAYMENT_ESCROW',
-    title: 'Escrow Payment Secured',
-    message: 'Deposit of $350 verified for Diane & Eric Wedding',
-    timeAgo: '2h ago',
-    icon: 'shield-checkmark',
-    iconColor: '#083A85',
-    iconBg: 'rgba(8, 58, 133, 0.12)',
-    actionText: 'Receipt',
-    route: '/events',
-  },
-  {
-    id: 'act-4',
-    type: 'BOOKING_CONFIRMED',
-    title: 'Booking Confirmed',
-    message: 'Apex Visuals accepted your Studio Portrait Session for Oct 24',
-    timeAgo: 'Yesterday',
-    icon: 'calendar',
-    iconColor: '#8B5CF6',
-    iconBg: 'rgba(139, 92, 246, 0.12)',
-    actionText: 'Details',
-    route: '/events',
-  },
-];
 
 type FeedUnifiedItem =
   | { kind: 'booking'; data: BookingRowItem }
@@ -582,9 +419,6 @@ export function ClientHome() {
       }
       return next;
     });
-    if (id.startsWith('showcase-')) {
-      return;
-    }
     setBookmarkLoading((prev) => ({ ...prev, [id]: true }));
     try {
       if (isBookmarked) {
@@ -627,8 +461,7 @@ export function ClientHome() {
   };
 
   const photographerList = useMemo(() => {
-    const apiList = photographers.data ?? [];
-    return apiList.length > 0 ? apiList : SHOWCASE_PHOTOGRAPHERS;
+    return photographers.data ?? [];
   }, [photographers.data]);
 
   const featuredCardWidth = responsive.isLarge ? 270 : 236;
@@ -816,7 +649,7 @@ export function ClientHome() {
         });
     }
 
-    return SHOWCASE_BOOKINGS;
+    return [];
   }, [events.data]);
 
   const activityList: ClientActivityItem[] = useMemo(() => {
@@ -824,7 +657,7 @@ export function ClientHome() {
     if (apiData.length > 0) {
       return apiData.map(mapApiActivity);
     }
-    return SHOWCASE_ACTIVITIES;
+    return [];
   }, [recentActivities.data]);
 
   const displayedFeedItems: FeedUnifiedItem[] = useMemo(() => {
@@ -1807,43 +1640,61 @@ export function ClientHome() {
           </Pressable>
         </View>
 
-        <ScrollView
-          ref={featuredRailRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.photographersRail}
-          snapToInterval={featuredCardWidth + spacing.md}
-          snapToAlignment="start"
-          decelerationRate="fast"
-          onScrollBeginDrag={onRailScrollBeginDrag}
-          onMomentumScrollEnd={onRailScrollEnd}
-          onScrollEndDrag={onRailScrollEnd}
-        >
-          {featuredList.map((p) => (
+        {photographers.loading ? (
+          <View style={styles.photographersEmptyCard}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.photographersEmptySub}>Loading featured talent...</Text>
+          </View>
+        ) : featuredList.length === 0 ? (
+          <View style={styles.photographersEmptyCard}>
+            <Ionicons name="camera-outline" size={28} color={colors.textMuted} />
+            <Text style={styles.photographersEmptyTitle}>No Photographers Available</Text>
+            <Text style={styles.photographersEmptySub}>
+              Discover vetted talent and book your next photography session
+            </Text>
             <Pressable
-              key={p.id}
-              style={({ pressed }) => [
-                styles.featuredPhotogCardWrap,
-                { width: featuredCardWidth },
-                pressed && styles.cardPressed,
-              ]}
-              onPress={() => {
-                if (p.id.startsWith('showcase-')) {
-                  router.push('/photographers' as never);
-                } else {
-                  router.push(`/photographer/${p.id}` as never);
-                }
-              }}
+              style={styles.photographersEmptyAction}
+              onPress={() => router.push('/photographers' as never)}
             >
-              <PhotographerCard
-                photographer={p}
-                coverHeight={130}
-                isBookmarked={bookmarkedIds.has(p.id)}
-                onToggleBookmark={() => handleToggleBookmark(p.id)}
-              />
+              <Text style={styles.photographersEmptyActionText}>Browse Talent</Text>
+              <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
             </Pressable>
-          ))}
-        </ScrollView>
+          </View>
+        ) : (
+          <ScrollView
+            ref={featuredRailRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photographersRail}
+            snapToInterval={featuredCardWidth + spacing.md}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            onScrollBeginDrag={onRailScrollBeginDrag}
+            onMomentumScrollEnd={onRailScrollEnd}
+            onScrollEndDrag={onRailScrollEnd}
+          >
+            {featuredList.map((p) => (
+              <Pressable
+                key={p.id}
+                style={({ pressed }) => [
+                  styles.featuredPhotogCardWrap,
+                  { width: featuredCardWidth },
+                  pressed && styles.cardPressed,
+                ]}
+                onPress={() => {
+                  router.push(`/photographer/${p.id}` as never);
+                }}
+              >
+                <PhotographerCard
+                  photographer={p}
+                  coverHeight={130}
+                  isBookmarked={bookmarkedIds.has(p.id)}
+                  onToggleBookmark={() => handleToggleBookmark(p.id)}
+                />
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Recent Bookings & Activity Hub */}
         <View style={styles.sectionHeader}>
@@ -1957,9 +1808,7 @@ export function ClientHome() {
                       pressed && styles.feedRowPressed,
                     ]}
                     onPress={() => {
-                      if (b.id.startsWith('showcase-')) {
-                        router.push('/events' as never);
-                      } else if (b.isLive) {
+                      if (b.isLive) {
                         router.push(`/(public)/events/live-stream?id=${b.id}` as never);
                       } else {
                         router.push(`/(public)/event/${b.id}` as never);
@@ -2949,6 +2798,46 @@ const useStyles = makeStyles((c, e) => ({
   },
   featuredPhotogCardWrap: {
     flexShrink: 0,
+  },
+  photographersEmptyCard: {
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
+    ...e(1),
+  },
+  photographersEmptyTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: c.text,
+    marginTop: 4,
+  },
+  photographersEmptySub: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: c.textMuted,
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  photographersEmptyAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: c.primary,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    marginTop: 6,
+  },
+  photographersEmptyActionText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: '#FFFFFF',
   },
 
   // Commercial Activity & Bookings Hub
