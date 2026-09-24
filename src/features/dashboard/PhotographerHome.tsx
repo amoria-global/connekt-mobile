@@ -47,6 +47,7 @@ import {
   getPhotographerRecentTransactions,
 } from '@/features/analytics/api';
 import { listPhotographerEvents } from '@/features/events/api';
+import { listPhotographerReviews } from '@/features/reviews/api';
 import { getWallet } from '@/features/wallet/api';
 import { formatDate, formatMoney } from '@/utils/format';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
@@ -166,9 +167,21 @@ export function PhotographerHome() {
   const clients = useAsync(useCallback(() => getPhotographerClients(6), []));
   const transactions = useAsync(useCallback(() => getPhotographerRecentTransactions(4), []));
   const wallet = useAsync(useCallback(() => getWallet(), []));
+  const photographerId = user?.customerId ? String(user.customerId) : undefined;
+  const reviews = useAsync(
+    useCallback(
+      () => (photographerId ? listPhotographerReviews(photographerId) : Promise.resolve([])),
+      [photographerId],
+    ),
+  );
 
   const refreshing =
-    analytics.loading || events.loading || clients.loading || transactions.loading || wallet.loading;
+    analytics.loading ||
+    events.loading ||
+    clients.loading ||
+    transactions.loading ||
+    wallet.loading ||
+    reviews.loading;
 
   const onRefresh = () => {
     analytics.refresh();
@@ -176,6 +189,7 @@ export function PhotographerHome() {
     clients.refresh();
     transactions.refresh();
     wallet.refresh();
+    reviews.refresh();
   };
 
   const a = analytics.data;
@@ -305,17 +319,73 @@ export function PhotographerHome() {
   const strokeWidth = 12;
   const circumference = 2 * Math.PI * chartRadius; // ≈ 301.59
 
-  const ratingValue = a?.averageRating ? a.averageRating : 4.9;
+  const reviewsList = reviews.data ?? [];
+  const reviewsCount = reviewsList.length;
 
-  // Performance slice data: 5-Star Reviews, 4-Star Reviews, On-Time Shoots, Repeat Clients
+  // Real rating: prefer analytics.averageRating if > 0, else compute from reviews list
+  const ratingValue = useMemo(() => {
+    if (a?.averageRating && a.averageRating > 0) return a.averageRating;
+    if (reviewsList.length > 0) {
+      const sum = reviewsList.reduce((acc, r) => acc + (r.rating || 0), 0);
+      return sum / reviewsList.length;
+    }
+    return 0;
+  }, [a?.averageRating, reviewsList]);
+
+  // Performance slice data: derived from real reviews or authentic delivery metrics
   const chartSlices = useMemo(() => {
     let cumulative = 0;
+
+    // 1. If reviews exist in database, display authentic review distribution
+    if (reviewsCount > 0) {
+      const fiveStar = reviewsList.filter((r) => r.rating >= 4.75).length;
+      const fourStar = reviewsList.filter((r) => r.rating >= 3.75 && r.rating < 4.75).length;
+      const threeStar = reviewsList.filter((r) => r.rating >= 2.75 && r.rating < 3.75).length;
+      const other = Math.max(0, reviewsCount - fiveStar - fourStar - threeStar);
+
+      const f5 = fiveStar / reviewsCount;
+      const f4 = fourStar / reviewsCount;
+      const f3 = threeStar / reviewsCount;
+      const fOther = other / reviewsCount;
+
+      const slices = [
+        { label: '5★ Reviews', fraction: f5, pct: `${Math.round(f5 * 100)}%`, color: '#10B981', note: `${fiveStar} shoot${fiveStar === 1 ? '' : 's'}` },
+        { label: '4★ Reviews', fraction: f4, pct: `${Math.round(f4 * 100)}%`, color: '#0EA5E9', note: `${fourStar} shoot${fourStar === 1 ? '' : 's'}` },
+        { label: '3★ Reviews', fraction: f3, pct: `${Math.round(f3 * 100)}%`, color: '#F59E0B', note: `${threeStar} shoot${threeStar === 1 ? '' : 's'}` },
+        { label: '<3★ Reviews', fraction: fOther, pct: `${Math.round(fOther * 100)}%`, color: '#EF4444', note: `${other} shoot${other === 1 ? '' : 's'}` },
+      ].filter((s) => s.fraction > 0);
+
+      return slices.map((s) => {
+        const length = Math.max(0, s.fraction * circumference - 3);
+        const offset = -cumulative * circumference;
+        cumulative += s.fraction;
+        return {
+          ...s,
+          strokeDasharray: `${length} ${circumference}`,
+          strokeDashoffset: offset,
+        };
+      });
+    }
+
+    // 2. If no reviews yet, display authentic studio operational delivery from database
+    const completed = a?.completedEvents ?? 0;
+    const clientsCount = a?.totalClients ?? 0;
+    const photosCount = a?.totalPhotosUploaded ?? 0;
+    const totalOps = completed + clientsCount + (photosCount > 0 ? 1 : 0);
+
+    if (totalOps === 0) {
+      return [];
+    }
+
+    const fCompleted = completed / totalOps;
+    const fClients = clientsCount / totalOps;
+    const fPhotos = (photosCount > 0 ? 1 : 0) / totalOps;
+
     const slices = [
-      { label: '5★ Reviews', fraction: 0.82, pct: '82%', color: '#10B981', note: 'Outstanding' },
-      { label: '4★ Reviews', fraction: 0.12, pct: '12%', color: '#0EA5E9', note: 'Very Good' },
-      { label: 'On-Time', fraction: 0.04, pct: '100%', color: '#F20C8F', note: 'Prompt Shoots' },
-      { label: 'Repeat Clients', fraction: 0.02, pct: '92%', color: '#F59E0B', note: 'Loyal Clients' },
-    ];
+      { label: 'Completed Shoots', fraction: fCompleted, pct: `${Math.round(fCompleted * 100)}%`, color: '#10B981', note: `${completed} shoots` },
+      { label: 'Clients Served', fraction: fClients, pct: `${Math.round(fClients * 100)}%`, color: '#0EA5E9', note: `${clientsCount} clients` },
+      { label: 'Photos Uploaded', fraction: fPhotos, pct: `${Math.round(fPhotos * 100)}%`, color: '#F20C8F', note: `${photosCount} photos` },
+    ].filter((s) => s.fraction > 0);
 
     return slices.map((s) => {
       const length = Math.max(0, s.fraction * circumference - 3);
@@ -327,7 +397,7 @@ export function PhotographerHome() {
         strokeDashoffset: offset,
       };
     });
-  }, [circumference]);
+  }, [circumference, reviewsCount, reviewsList, a?.completedEvents, a?.totalClients, a?.totalPhotosUploaded]);
 
   return (
     <Screen padded={false} edges={[]}>
@@ -598,43 +668,75 @@ export function PhotographerHome() {
 
                 {/* Donut Center Overlay */}
                 <View style={styles.donutCenterOverlay} pointerEvents="none">
-                  <Text style={styles.donutCenterScore}>
-                    {ratingValue.toFixed(1)}
-                  </Text>
-                  <View style={styles.donutStarsRow}>
-                    {[1, 2, 3, 4, 5].map((st) => (
-                      <Ionicons key={st} name="star" size={9.5} color="#F59E0B" />
-                    ))}
-                  </View>
-                  <Text style={styles.donutCenterSub}>98% Score</Text>
+                  {ratingValue > 0 ? (
+                    <>
+                      <Text style={styles.donutCenterScore}>
+                        {ratingValue.toFixed(1)}
+                      </Text>
+                      <View style={styles.donutStarsRow}>
+                        {[1, 2, 3, 4, 5].map((st) => (
+                          <Ionicons
+                            key={st}
+                            name={st <= Math.round(ratingValue) ? 'star' : 'star-outline'}
+                            size={9.5}
+                            color="#F59E0B"
+                          />
+                        ))}
+                      </View>
+                      <Text style={styles.donutCenterSub}>
+                        {reviewsCount > 0
+                          ? `${reviewsCount} Review${reviewsCount === 1 ? '' : 's'}`
+                          : 'Verified'}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={13} color="#F20C8F" />
+                      <Text style={[styles.donutCenterScore, { fontSize: 14, lineHeight: 17 }]}>
+                        {completedShoots > 0 ? `${completedShoots}` : 'New'}
+                      </Text>
+                      <Text style={styles.donutCenterSub}>
+                        {completedShoots > 0 ? 'Shoots' : 'Creator'}
+                      </Text>
+                    </>
+                  )}
                 </View>
               </View>
 
               {/* Right: Legend Breakdown */}
               <View style={styles.donutLegendCol}>
-                {chartSlices.map((item) => (
-                  <View key={item.label} style={styles.legendRow}>
-                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                    <View style={styles.legendTextWrap}>
-                      <Text style={styles.legendLabel} numberOfLines={1}>
-                        {item.label}
-                      </Text>
-                      <Text style={styles.legendNote} numberOfLines={1}>
-                        {item.note}
+                {chartSlices.length > 0 ? (
+                  chartSlices.map((item) => (
+                    <View key={item.label} style={styles.legendRow}>
+                      <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                      <View style={styles.legendTextWrap}>
+                        <Text style={styles.legendLabel} numberOfLines={1}>
+                          {item.label}
+                        </Text>
+                        <Text style={styles.legendNote} numberOfLines={1}>
+                          {item.note}
+                        </Text>
+                      </View>
+                      <Text style={[styles.legendPct, { color: item.color }]}>
+                        {item.pct}
                       </Text>
                     </View>
-                    <Text style={[styles.legendPct, { color: item.color }]}>
-                      {item.pct}
+                  ))
+                ) : (
+                  <View style={{ gap: 4 }}>
+                    <Text style={styles.legendLabel}>Awaiting Reviews</Text>
+                    <Text style={styles.legendNote}>
+                      Client feedback and verified ratings will appear here as your completed bookings are reviewed.
                     </Text>
                   </View>
-                ))}
+                )}
               </View>
             </View>
 
-            {/* Bottom 3-Metric Performance Strip */}
+            {/* Bottom 4-Metric Performance Strip */}
             <View style={styles.performanceStrip}>
               <View style={styles.performanceItem}>
-                <Text style={styles.performanceNumber}>
+                <Text style={styles.performanceNumber} numberOfLines={1}>
                   {completedShoots}
                 </Text>
                 <Text style={styles.performanceLabel}>Completed</Text>
@@ -643,7 +745,7 @@ export function PhotographerHome() {
               <View style={styles.performanceDivider} />
 
               <View style={styles.performanceItem}>
-                <Text style={styles.performanceNumber}>
+                <Text style={styles.performanceNumber} numberOfLines={1}>
                   {a?.totalPhotosUploaded ?? 0}
                 </Text>
                 <Text style={styles.performanceLabel}>Photos Uploaded</Text>
@@ -652,16 +754,16 @@ export function PhotographerHome() {
               <View style={styles.performanceDivider} />
 
               <View style={styles.performanceItem}>
-                <Text style={styles.performanceNumber}>
-                  100%
+                <Text style={styles.performanceNumber} numberOfLines={1}>
+                  {a?.totalBookings ?? a?.totalEvents ?? completedShoots}
                 </Text>
-                <Text style={styles.performanceLabel}>On-Time Rate</Text>
+                <Text style={styles.performanceLabel}>Bookings</Text>
               </View>
 
               <View style={styles.performanceDivider} />
 
               <View style={styles.performanceItem}>
-                <Text style={styles.performanceNumber}>
+                <Text style={styles.performanceNumber} numberOfLines={1}>
                   {currentClients}
                 </Text>
                 <Text style={styles.performanceLabel}>Clients</Text>

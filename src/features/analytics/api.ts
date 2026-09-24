@@ -181,7 +181,7 @@ function defaultPhotographerAnalytics(): PhotographerAnalytics {
     totalTips: 0,
     pendingPayments: 0,
     bonuses: 0,
-    averageRating: 5,
+    averageRating: 0,
     totalPhotosUploaded: 0,
     unreadNotifications: 0,
   };
