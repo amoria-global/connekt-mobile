@@ -345,6 +345,7 @@ export default function LoginScreen() {
                     style={StyleSheet.absoluteFill}
                     resizeMode="cover"
                   />
+                  <GuestCardVideo source={FIND_PHOTOS_VIDEO} />
                   <LinearGradient
                     colors={["rgba(8,20,44,0.25)", "rgba(8,20,44,0.92)"]}
                     style={StyleSheet.absoluteFill}
@@ -386,7 +387,7 @@ export default function LoginScreen() {
                   accessibilityLabel="Explore public events and live streams"
                 >
                   <Image
-                    source={require("../../../assets/images/live.png")}
+                    source={LIVE_IMAGE}
                     style={StyleSheet.absoluteFill}
                     resizeMode="cover"
                   />
@@ -448,6 +449,10 @@ function GuestCardVideo({ source }: { source: number }) {
     p.audioMixingMode = 'mixWithOthers';
     p.play();
   });
+
+  useEffect(() => {
+    player.play();
+  }, [player]);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
