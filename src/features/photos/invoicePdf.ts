@@ -327,7 +327,7 @@ export function buildPhotoInvoiceHtml(data: PhotoInvoiceData): string {
             Web: <a href="https://connekyt.com">connekyt.com</a>
           </div>
           <div>
-            70% of proceeds go directly to the photographer(s).
+            Thank you for supporting creative photographers on Connekyt.
           </div>
         </div>
       </body>

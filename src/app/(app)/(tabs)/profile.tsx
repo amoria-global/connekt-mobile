@@ -38,6 +38,7 @@ import {
 } from '@/features/profile/api';
 import { pickFromLibrary } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
+import { useAppUpdates } from '@/features/updates';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type ProfileTab = 'details' | 'settings' | 'account';
@@ -82,6 +83,29 @@ export default function ProfileScreen() {
   const coverUri = user?.coverPicture;
   const kycStatus = user?.kycStatus;
   const isVerified = kycStatus === 'APPROVED';
+  const {
+    updateReady,
+    isChecking: isCheckingUpdate,
+    isDownloading: isDownloadingUpdate,
+    currentVersion,
+    checkForUpdates,
+    openModal: openUpdateModal,
+  } = useAppUpdates();
+
+  const handleCheckUpdate = async () => {
+    if (updateReady) {
+      openUpdateModal();
+      return;
+    }
+    const result = await checkForUpdates(true);
+    if (!result.ready && !result.available) {
+      Alert.alert(
+        'Connekyt Updates',
+        result.message || `You are using the latest version of Connekyt (v${currentVersion}).`,
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   // Sync profile & live KYC status whenever this tab is focused
   useFocusEffect(
@@ -517,6 +541,12 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/notifications' as Href)}
               />
               <MenuRow
+                icon="card-outline"
+                label="Payment accounts"
+                hint="Mobile money & bank for withdrawals"
+                onPress={() => router.push('/payment-accounts' as Href)}
+              />
+              <MenuRow
                 icon="lock-closed-outline"
                 label="Two-factor authentication"
                 hint="Extra sign-in security"
@@ -578,6 +608,41 @@ export default function ProfileScreen() {
                     <Text style={styles.verifyActionLink}>
                       {kycStatus === 'PENDING' ? 'Pending' : 'Verify'}
                     </Text>
+                  )}
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </View>
+              </Pressable>
+
+              {/* App Update row */}
+              <Pressable
+                style={styles.menuItemRow}
+                onPress={handleCheckUpdate}
+                disabled={isCheckingUpdate || isDownloadingUpdate}
+              >
+                <View style={styles.menuItemLeft}>
+                  <Ionicons name="cloud-download-outline" size={20} color={colors.primary} />
+                  <View>
+                    <Text style={styles.menuItemLabel}>App update</Text>
+                    <Text style={styles.menuItemHint}>
+                      {updateReady
+                        ? 'Update ready · Tap to restart'
+                        : isCheckingUpdate
+                        ? 'Checking for updates…'
+                        : isDownloadingUpdate
+                        ? 'Downloading update…'
+                        : `v${currentVersion} · Up to date`}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.menuItemRight}>
+                  {updateReady ? (
+                    <View style={styles.updateBadgeReady}>
+                      <Text style={styles.updateBadgeReadyText}>Restart</Text>
+                    </View>
+                  ) : isCheckingUpdate || isDownloadingUpdate ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text style={styles.verifyActionLink}>Check</Text>
                   )}
                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </View>
@@ -1011,6 +1076,17 @@ const useStyles = makeStyles((c) => ({
     fontFamily: fonts.bold,
     fontSize: 12,
     color: c.primary,
+  },
+  updateBadgeReady: {
+    backgroundColor: c.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  updateBadgeReadyText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: '#fff',
   },
   deleteLinkRow: {
     paddingVertical: 12,

@@ -42,6 +42,7 @@ import { KycBanner } from '@/features/kyc/KycBanner';
 import { UserHome } from '@/features/dashboard/UserHome';
 import { ClientHome } from '@/features/dashboard/ClientHome';
 import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
+import { CoordinatorHome } from '@/features/dashboard/CoordinatorHome';
 import {
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
@@ -408,11 +409,12 @@ export default function HomeScreen() {
   const hasFailedPayments = pending.some((p) => p.status === 'failed');
 
   // ── Render ────────────────────────────────────────────────────────────
-  // The `User`, `Client`, and `Photographer` roles have specialized,
+  // The `User`, `Client`, `Photographer`, and `Coordinator` roles have specialized,
   // role-tailored homes rather than the generic business analytics dashboard.
   if (isUser) return <UserHome />;
   if (isClient) return <ClientHome />;
   if (isPhotographer) return <PhotographerHome />;
+  if (isCoordinator) return <CoordinatorHome />;
 
   return (
     <Screen padded={false} edges={[]}>

@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
@@ -53,6 +53,7 @@ export default function WalletScreen() {
   const styles = useStyles();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
+  const insets = useSafeAreaInsets();
 
   const { isPhotographer, isCoordinator, role } = useRole();
   const user = useAuth((s) => s.user);
@@ -60,6 +61,7 @@ export default function WalletScreen() {
 
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedItem, setSelectedItem] = useState<MoneyItem | null>(null);
+  const [balanceHidden, setBalanceHidden] = useState(true);
 
   // Parallel fetch: wallet summary + recent wallet movements (matching salo-run)
   const fetchData = useCallback(async () => {
@@ -111,6 +113,7 @@ export default function WalletScreen() {
     { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
     { label: 'Wallet movements', icon: 'list-outline', href: '/wallet/movements' as Href },
     { label: 'Payments', icon: 'card-outline', href: '/payments' as Href },
+    { label: 'Payment accounts', icon: 'wallet-outline', href: '/payment-accounts' as Href },
     ...(isPhotographer
       ? [{ label: 'Payroll report', icon: 'bar-chart-outline' as const, href: '/payroll' as Href }]
       : []),
@@ -151,15 +154,34 @@ export default function WalletScreen() {
                 <Text style={styles.eyebrow}>MONEY</Text>
                 <Text style={styles.title}>My wallet</Text>
               </View>
-              {canWithdraw ? (
+              <View style={styles.headerActions}>
                 <Pressable
-                  style={({ pressed }) => [styles.headerWithdrawBtn, pressed && { opacity: 0.85 }]}
-                  onPress={() => router.push('/withdraw' as Href)}
+                  style={styles.privacyToggleBtn}
+                  onPress={() => setBalanceHidden((v) => !v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={balanceHidden ? 'Show balances' : 'Hide balances'}
                 >
-                  <Ionicons name="cash-outline" size={15} color="#fff" />
-                  <Text style={styles.headerWithdrawText}>Withdraw</Text>
+                  <Ionicons
+                    name={balanceHidden ? 'eye-outline' : 'eye-off-outline'}
+                    size={15}
+                    color={colors.textMuted}
+                  />
+                  <Text style={styles.privacyToggleText}>
+                    {balanceHidden ? 'Show' : 'Hide'}
+                  </Text>
                 </Pressable>
-              ) : null}
+
+                {canWithdraw ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.headerWithdrawBtn, pressed && { opacity: 0.85 }]}
+                    onPress={() => router.push('/withdraw' as Href)}
+                  >
+                    <Ionicons name="cash-outline" size={15} color="#fff" />
+                    <Text style={styles.headerWithdrawText}>Withdraw</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
             <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
@@ -181,33 +203,29 @@ export default function WalletScreen() {
             </View>
           ) : null}
 
-          {/* MoneyHero Card (Connekyt brand gradient with hero figure & chips) */}
+          {/* MoneyHero Card (Clean solid card — no gradients) */}
           {stats && (
-            <LinearGradient
-              colors={['#083A85', '#0a4da8', '#1654b8']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroCard}
-            >
-              {/* Glowing background circles for depth */}
-              <View style={styles.heroGlowPink} />
-              <View style={styles.heroGlowWhite} />
-
+            <View style={styles.heroCard}>
               <View style={styles.heroContent}>
                 <View style={styles.heroLabelPill}>
-                  <Ionicons name="wallet-outline" size={12} color="#ffffff" />
+                  <Ionicons name="wallet-outline" size={13} color={colors.primary} />
                   <Text style={styles.heroLabelText}>{stats.hero.label}</Text>
                 </View>
 
                 <Text style={styles.heroAmount}>
-                  {formatMoney(stats.hero.value, data?.wallet.currency)}
+                  {balanceHidden
+                    ? `${data?.wallet?.currency ? data.wallet.currency + ' ' : '$ '}••••••`
+                    : formatMoney(stats.hero.value, data?.wallet.currency)}
                 </Text>
 
                 {stats.pendingChip && stats.pendingChip.value > 0 ? (
                   <View style={styles.pendingChip}>
-                    <Ionicons name="time-outline" size={12} color="#FCD34D" />
+                    <Ionicons name="time-outline" size={12} color="#92400E" />
                     <Text style={styles.pendingChipText}>
-                      {stats.pendingChip.label}: {formatMoney(stats.pendingChip.value, data?.wallet.currency)}
+                      {stats.pendingChip.label}:{' '}
+                      {balanceHidden
+                        ? '••••'
+                        : formatMoney(stats.pendingChip.value, data?.wallet.currency)}
                     </Text>
                   </View>
                 ) : null}
@@ -219,22 +237,22 @@ export default function WalletScreen() {
                       stats.status === 'SUSPENDED' ? styles.statusSuspended : styles.statusBlocked,
                     ]}
                   >
-                    <Ionicons name="shield-outline" size={12} color="#FCD34D" />
+                    <Ionicons name="shield-outline" size={12} color="#92400E" />
                     <Text style={styles.statusChipText}>Wallet {stats.status.toLowerCase()}</Text>
                   </View>
                 ) : null}
 
                 {canWithdraw ? (
                   <Pressable
-                    style={({ pressed }) => [styles.heroWithdrawBtn, pressed && { opacity: 0.9 }]}
+                    style={({ pressed }) => [styles.heroWithdrawBtn, pressed && { opacity: 0.88 }]}
                     onPress={() => router.push('/withdraw' as Href)}
                   >
-                    <Ionicons name="cash-outline" size={16} color="#083A85" />
+                    <Ionicons name="cash-outline" size={15} color="#ffffff" />
                     <Text style={styles.heroWithdrawText}>Withdraw funds</Text>
                   </Pressable>
                 ) : null}
               </View>
-            </LinearGradient>
+            </View>
           )}
 
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
@@ -252,12 +270,11 @@ export default function WalletScreen() {
                   const p = PALETTE[card.color] ?? PALETTE.neutral;
                   return (
                     <View key={card.label} style={styles.potCard}>
-                      <View style={[styles.potAccent, { backgroundColor: p.bar }]} />
                       <View style={styles.potHeader}>
                         <View style={[styles.potIconWrap, { backgroundColor: p.tint }]}>
                           <Ionicons
                             name={p.icon as keyof typeof Ionicons.glyphMap}
-                            size={14}
+                            size={15}
                             color={p.bar}
                           />
                         </View>
@@ -265,8 +282,10 @@ export default function WalletScreen() {
                           {card.label}
                         </Text>
                       </View>
-                      <Text style={[styles.potAmount, { color: p.bar }]}>
-                        {formatMoney(card.value, data?.wallet.currency)}
+                      <Text style={styles.potAmount}>
+                        {balanceHidden
+                          ? '••••'
+                          : formatMoney(card.value, data?.wallet.currency)}
                       </Text>
                     </View>
                   );
@@ -326,20 +345,25 @@ export default function WalletScreen() {
                 </Text>
               </View>
             ) : (
-              <View style={styles.activityList}>
+              <View style={styles.activityCardGroup}>
                 {activityItems.map((item, idx) => {
                   const palette = COLOR_MAP[item.color] ?? COLOR_MAP.neutral;
                   const isIn = item.direction === 'in';
                   const sign = isIn ? '+' : '−';
                   const amountColor = isIn ? '#10B981' : colors.text;
                   const timeStr = formatRelativeTime(item.timestamp);
+                  const isLast = idx === activityItems.length - 1;
+
+                  const displayAmount = balanceHidden
+                    ? `${sign}$ ••••`
+                    : `${sign}${formatMoney(item.amount, item.originalCurrency || data?.wallet.currency)}`;
 
                   return (
                     <Pressable
                       key={item.id}
                       style={({ pressed }) => [
                         styles.activityRow,
-                        idx > 0 && styles.activityBorderTop,
+                        !isLast && styles.activityRowDivider,
                         pressed && styles.activityRowPressed,
                       ]}
                       onPress={() => setSelectedItem(item)}
@@ -379,11 +403,12 @@ export default function WalletScreen() {
                         </View>
                       </View>
 
-                      {/* Amount */}
-                      <View style={styles.activityAmountWrap}>
+                      {/* Amount & Chevron */}
+                      <View style={styles.activityRightCol}>
                         <Text style={[styles.activityAmount, { color: amountColor }]}>
-                          {sign}{formatMoney(item.amount, item.originalCurrency || data?.wallet.currency)}
+                          {displayAmount}
                         </Text>
+                        <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                       </View>
                     </Pressable>
                   );
@@ -397,7 +422,11 @@ export default function WalletScreen() {
             {links.map((l, i) => (
               <Pressable
                 key={l.label}
-                style={[styles.menuRow, i > 0 && styles.menuBorderTop]}
+                style={({ pressed }) => [
+                  styles.menuRow,
+                  i < links.length - 1 && styles.menuRowDivider,
+                  pressed && styles.menuRowPressed,
+                ]}
                 onPress={() => router.push(l.href)}
               >
                 <View style={styles.menuIcon}>
@@ -411,15 +440,21 @@ export default function WalletScreen() {
         </ScrollView>
       )}
 
-      {/* Activity Item Detail Modal */}
+      {/* Activity Item Detail Bottom Sheet */}
       <Modal
         visible={Boolean(selectedItem)}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setSelectedItem(null)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setSelectedItem(null)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedItem(null)} />
+        <View style={styles.modalSheetOverlay} pointerEvents="box-none">
+          <View
+            style={[
+              styles.modalSheet,
+              { paddingBottom: Math.max(insets.bottom + 16, 28) },
+            ]}
+          >
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
@@ -530,15 +565,15 @@ export default function WalletScreen() {
 
                 {/* Dismiss Action */}
                 <Pressable
-                  style={styles.modalDoneBtn}
+                  style={({ pressed }) => [styles.modalDoneBtn, pressed && { opacity: 0.9 }]}
                   onPress={() => setSelectedItem(null)}
                 >
                   <Text style={styles.modalDoneBtnText}>Done</Text>
                 </Pressable>
               </View>
             )}
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       <TopBar />
@@ -582,6 +617,24 @@ const useStyles = makeStyles((c) => ({
   },
   title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5 },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  privacyToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    height: 36,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  privacyToggleText: { fontFamily: fonts.bold, fontSize: 12, color: c.textMuted },
   headerWithdrawBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -590,7 +643,6 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 14,
     height: 36,
     borderRadius: radii.full,
-    marginTop: 4,
   },
   headerWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
 
@@ -608,62 +660,43 @@ const useStyles = makeStyles((c) => ({
   suspensionTitle: { fontFamily: fonts.bold, fontSize: 13, color: '#92400E' },
   suspensionDate: { fontFamily: fonts.regular, fontSize: 11, color: '#B45309' },
 
-  // Hero Card
+  // Hero Card (Clean solid card — no gradients)
   heroCard: {
+    backgroundColor: c.surface,
     borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
     padding: spacing.xl,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  heroGlowPink: {
-    position: 'absolute',
-    top: -60,
-    right: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(242,12,143,0.22)',
-  },
-  heroGlowWhite: {
-    position: 'absolute',
-    bottom: -80,
-    left: -60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   heroContent: {
     alignItems: 'center',
     textAlign: 'center',
     gap: 8,
-    position: 'relative',
-    zIndex: 1,
   },
   heroLabelPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: c.infoBg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.20)',
+    borderColor: c.borderSoft,
   },
   heroLabelText: {
     fontFamily: fonts.bold,
-    color: '#ffffff',
+    color: c.primary,
     fontSize: 11,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   heroAmount: {
     fontFamily: fonts.bold,
-    color: '#ffffff',
-    fontSize: 36,
+    color: c.text,
+    fontSize: 38,
     letterSpacing: -0.8,
-    lineHeight: 44,
+    lineHeight: 46,
     marginTop: 2,
   },
   pendingChip: {
@@ -673,12 +706,12 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(245, 158, 11, 0.20)',
+    backgroundColor: '#FEF3C7',
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.45)',
+    borderColor: '#FDE68A',
     marginTop: 2,
   },
-  pendingChipText: { fontFamily: fonts.bold, fontSize: 12, color: '#FCD34D' },
+  pendingChipText: { fontFamily: fonts.bold, fontSize: 12, color: '#92400E' },
   statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -689,19 +722,19 @@ const useStyles = makeStyles((c) => ({
     marginTop: 4,
   },
   statusSuspended: {
-    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    backgroundColor: '#FEF3C7',
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.45)',
+    borderColor: '#FDE68A',
   },
   statusBlocked: {
-    backgroundColor: 'rgba(220, 38, 38, 0.22)',
+    backgroundColor: '#FEE2E2',
     borderWidth: 1,
-    borderColor: 'rgba(220, 38, 38, 0.45)',
+    borderColor: '#FECACA',
   },
   statusChipText: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: '#FCD34D',
+    color: '#92400E',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -709,13 +742,13 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 18,
-    height: 38,
-    borderRadius: radii.md,
+    backgroundColor: c.primary,
+    paddingHorizontal: 20,
+    height: 40,
+    borderRadius: radii.full,
     marginTop: 8,
   },
-  heroWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: '#083A85' },
+  heroWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: '#ffffff' },
 
   // Breakdown StatCards
   sectionBlock: { gap: spacing.sm },
@@ -725,20 +758,18 @@ const useStyles = makeStyles((c) => ({
     width: '47%',
     flexGrow: 1,
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    padding: spacing.md,
-    paddingTop: 14,
+    padding: spacing.lg,
     overflow: 'hidden',
-    gap: 6,
+    gap: 8,
   },
-  potAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   potHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   potIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 7,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -750,7 +781,7 @@ const useStyles = makeStyles((c) => ({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  potAmount: { fontFamily: fonts.bold, fontSize: 20, letterSpacing: -0.3 },
+  potAmount: { fontFamily: fonts.bold, fontSize: 20, color: c.text, letterSpacing: -0.3 },
 
   // Activity Feed
   sectionHeaderRow: {
@@ -801,9 +832,16 @@ const useStyles = makeStyles((c) => ({
     textAlign: 'center',
   },
 
+  activityCardGroup: {
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    overflow: 'hidden',
+  },
   activityList: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.borderSoft,
     overflow: 'hidden',
@@ -811,21 +849,22 @@ const useStyles = makeStyles((c) => ({
   activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   activityRowPressed: { backgroundColor: c.infoBg },
+  activityRowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSoft },
   activityBorderTop: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   directionCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  activityBody: { flex: 1, minWidth: 0, gap: 2 },
+  activityBody: { flex: 1, minWidth: 0, gap: 3 },
   activityTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   activityTitle: {
     flexShrink: 1,
@@ -834,8 +873,8 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   tagBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
     borderRadius: radii.full,
     alignSelf: 'center',
   },
@@ -854,27 +893,31 @@ const useStyles = makeStyles((c) => ({
   },
   activityBullet: { fontSize: 11, color: c.textMuted },
   activityTime: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
+  activityRightCol: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   activityAmountWrap: { flexShrink: 0, alignItems: 'flex-end' },
   activityAmount: { fontFamily: fonts.bold, fontSize: 15, letterSpacing: -0.2 },
 
   // Quick Links
   menuCard: {
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.borderSoft,
     paddingHorizontal: spacing.lg,
+    overflow: 'hidden',
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.lg,
+    paddingVertical: 14,
   },
+  menuRowPressed: { backgroundColor: c.infoBg },
+  menuRowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSoft },
   menuBorderTop: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   menuIcon: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     backgroundColor: c.infoBg,
     alignItems: 'center',
@@ -882,10 +925,13 @@ const useStyles = makeStyles((c) => ({
   },
   menuLabel: { flex: 1, fontFamily: fonts.bold, fontSize: 15, color: c.text },
 
-  // Detail Modal
-  modalOverlay: {
+  // Detail Bottom Sheet Modal
+  modalBackdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  modalSheetOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
@@ -893,17 +939,16 @@ const useStyles = makeStyles((c) => ({
     borderTopLeftRadius: radii['2xl'],
     borderTopRightRadius: radii['2xl'],
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxl,
     paddingTop: spacing.md,
     gap: spacing.md,
   },
   modalHandle: {
-    width: 36,
+    width: 38,
     height: 4,
     borderRadius: 2,
     backgroundColor: c.borderSoft,
     alignSelf: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   modalHeader: {
     flexDirection: 'row',
