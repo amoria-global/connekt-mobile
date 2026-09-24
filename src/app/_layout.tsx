@@ -11,7 +11,7 @@ import {
 } from '@expo-google-fonts/pragati-narrow';
 import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
-import { UpdateBanner } from '@/features/updates/UpdateBanner';
+import { UpdateBanner, UpdatePromptModal } from '@/features/updates';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import { colors, useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
 
@@ -183,7 +183,8 @@ export default function RootLayout() {
               <Stack.Screen name="(app)" />
             </Stack>
           )}
-          {/* OTA update prompt — appears once a downloaded update is ready. */}
+          {/* OTA in-app update prompt modal & banner */}
+          <UpdatePromptModal />
           <UpdateBanner />
           {/* Screens are theme-aware now, so the status bar follows suit:
               light icons on dark surfaces, dark icons on light ones. */}

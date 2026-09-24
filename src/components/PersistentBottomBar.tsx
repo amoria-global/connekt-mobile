@@ -138,7 +138,8 @@ export function PersistentBottomBar() {
     keyboardVisible ||
     segments.includes('kyc') ||
     segments.includes('connect-to-tv') ||
-    segments.includes('pay-on-tv')
+    segments.includes('pay-on-tv') ||
+    segments.includes('stream')
   ) {
     return <MoreSheet visible={moreOpen} onClose={() => setMoreOpen(false)} />;
   }

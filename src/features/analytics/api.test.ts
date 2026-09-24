@@ -5,7 +5,10 @@ import {
   getCustomerPerformance,
   getCustomerPendingPayments,
   getPhotographerAnalytics,
+  getPhotographerRecentTransactions,
   getCoordinatorAnalytics,
+  cleanTransactionTitle,
+  cleanTransactionStatus,
 } from './api';
 
 jest.mock('@/api/client', () => ({
@@ -143,4 +146,52 @@ describe('Analytics API Client', () => {
     expect(result.totalEvents).toBe(42);
     expect(result.totalPhotographers).toBe(18);
   });
+
+  describe('cleanTransactionTitle and cleanTransactionStatus', () => {
+    it('strips milestone percentages like (50%), 50%, (70%), (100%) cleanly', () => {
+      expect(cleanTransactionTitle('Wedding Shoot (50%)')).toBe('Wedding Shoot');
+      expect(cleanTransactionTitle('Milestone 1 - 50%')).toBe('Milestone 1');
+      expect(cleanTransactionTitle('50% Deposit')).toBe('Deposit');
+      expect(cleanTransactionTitle('Balance before event (50%)')).toBe('Balance before event');
+      expect(cleanTransactionTitle('(100%)')).toBe('Event');
+      expect(cleanTransactionTitle('Corporate Gala')).toBe('Corporate Gala');
+    });
+
+    it('strips percentages from transaction statuses', () => {
+      expect(cleanTransactionStatus('PAID (50%)')).toBe('PAID');
+      expect(cleanTransactionStatus('Pending 50%')).toBe('Pending');
+      expect(cleanTransactionStatus('COMPLETED')).toBe('COMPLETED');
+    });
+
+    it('sanitizes recent transactions fetched from API', async () => {
+      (api.get as jest.Mock).mockResolvedValueOnce({
+        action: 1,
+        data: [
+          {
+            id: 'txn-1',
+            eventTitle: 'Golden Wedding (50%)',
+            amountInUsd: 400,
+            status: 'COMPLETED (50%)',
+            createdAt: '2025-06-01T12:00:00Z',
+          },
+          {
+            id: 'txn-2',
+            eventName: 'Milestone 2 - 50%',
+            amount: 250,
+            status: 'PAID',
+            createdAt: '2025-06-02T12:00:00Z',
+          },
+        ],
+      });
+
+      const txns = await getPhotographerRecentTransactions(2);
+      expect(api.get).toHaveBeenCalledWith('/photographer/transactions?page=0&size=2');
+      expect(txns).toHaveLength(2);
+      expect(txns[0].eventName).toBe('Golden Wedding');
+      expect(txns[0].status).toBe('COMPLETED');
+      expect(txns[1].eventName).toBe('Milestone 2');
+      expect(txns[1].status).toBe('PAID');
+    });
+  });
 });
+

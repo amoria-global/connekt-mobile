@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
+import { cleanTransactionTitle } from '@/features/analytics/api';
 import { listWalletMovements, type Movement } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -33,6 +34,8 @@ function Row({ movement }: { movement: Movement }) {
   const { colors } = useTheme();
   const styles = useStyles();
   const inbound = movement.direction === 'in';
+  const rawTitle = movement.description || movement.category || 'Transaction';
+  const cleanTitle = cleanTransactionTitle(rawTitle);
   return (
     <View style={styles.row}>
       <View style={[styles.icon, { backgroundColor: inbound ? colors.successBg : colors.errorBg }]}>
@@ -42,7 +45,7 @@ function Row({ movement }: { movement: Movement }) {
       </View>
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
-          {movement.description || movement.category || 'Transaction'}
+          {cleanTitle}
         </Text>
         {movement.createdAt ? <Text style={styles.date}>{formatDate(movement.createdAt)}</Text> : null}
       </View>

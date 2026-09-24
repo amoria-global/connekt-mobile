@@ -623,7 +623,7 @@ export function PhotoCheckoutSheet({
                 </Pressable>
 
                 <Text style={styles.footNote}>
-                  Payments are processed via XentriPay / PawaPay. 70% goes directly to the photographer.
+                  Payments are securely processed via XentriPay / PawaPay. Instant download upon completion.
                 </Text>
               </>
             )}

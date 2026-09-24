@@ -38,6 +38,7 @@ export default function KycScreen() {
       loading={loading}
       error={error}
       defaultName={[user?.firstName, user?.lastName].filter(Boolean).join(' ')}
+      defaultPhone={user?.phone}
       onRefresh={refresh}
       onExit={exit}
       onOpenWeb={openWeb}
