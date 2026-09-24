@@ -489,11 +489,12 @@ export function MultipleDonutOverviewCard({
               {/* Start Entrance Value Markers (48, 36, 16) stacked vertically at top */}
               {/* Outer Ring Value (48) */}
               <SvgText
-                x={CENTER_X - 14}
-                y={CENTER_Y - R_OUTER + 5}
+                x={CENTER_X - 16}
+                y={CENTER_Y - R_OUTER + 4}
                 fill={ringData.outer.color}
-                fontSize="12.5"
+                fontSize="11"
                 fontWeight="bold"
+                fontFamily={fonts.bold}
                 textAnchor="end"
               >
                 {ringData.outer.pct}
@@ -501,11 +502,12 @@ export function MultipleDonutOverviewCard({
 
               {/* Middle Ring Value (36) */}
               <SvgText
-                x={CENTER_X - 14}
-                y={CENTER_Y - R_MIDDLE + 5}
+                x={CENTER_X - 16}
+                y={CENTER_Y - R_MIDDLE + 4}
                 fill={ringData.middle.color}
-                fontSize="12.5"
+                fontSize="11"
                 fontWeight="bold"
+                fontFamily={fonts.bold}
                 textAnchor="end"
               >
                 {ringData.middle.pct}
@@ -513,11 +515,12 @@ export function MultipleDonutOverviewCard({
 
               {/* Inner Ring Value (16) */}
               <SvgText
-                x={CENTER_X - 14}
-                y={CENTER_Y - R_INNER + 5}
+                x={CENTER_X - 16}
+                y={CENTER_Y - R_INNER + 4}
                 fill={ringData.inner.color}
-                fontSize="12.5"
+                fontSize="11"
                 fontWeight="bold"
+                fontFamily={fonts.bold}
                 textAnchor="end"
               >
                 {ringData.inner.pct}
@@ -527,13 +530,17 @@ export function MultipleDonutOverviewCard({
             {/* Donut Center Overlay (Large 48% + 283 Sold) */}
             <View style={styles.donutCenterOverlay} pointerEvents="none">
               <View style={styles.centerNumberRow}>
-                <Text style={[styles.centerBigNumber, { color: centerDisplay.color }]}>
+                <Text
+                  style={[styles.centerBigNumber, { color: centerDisplay.color }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {centerDisplay.number}
                 </Text>
                 <Text style={styles.centerPercentSign}>{centerDisplay.unit}</Text>
               </View>
-              <Text style={styles.centerSubLabel}>{centerDisplay.subLabel}</Text>
-              <Text style={styles.centerAmountLabel}>{centerDisplay.amount}</Text>
+              <Text style={styles.centerSubLabel} numberOfLines={1}>{centerDisplay.subLabel}</Text>
+              <Text style={styles.centerAmountLabel} numberOfLines={1}>{centerDisplay.amount}</Text>
             </View>
           </View>
         </View>
@@ -848,11 +855,15 @@ const useStyles = makeStyles((c, e) => ({
   },
   donutCenterOverlay: {
     position: 'absolute',
+    left: 92,
+    top: 79,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    width: 140,
-    left: 78,
-    top: 75,
+    paddingHorizontal: 6,
+    gap: 1,
   },
   centerNumberRow: {
     flexDirection: 'row',
@@ -861,30 +872,34 @@ const useStyles = makeStyles((c, e) => ({
   },
   centerBigNumber: {
     fontFamily: fonts.bold,
-    fontSize: 52,
+    fontSize: 32,
     color: c.text,
-    letterSpacing: -1,
-    lineHeight: 56,
+    letterSpacing: -0.5,
+    lineHeight: 36,
+    textAlign: 'center',
   },
   centerPercentSign: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 16,
     color: c.textMuted,
-    marginTop: 4,
-    marginLeft: 2,
+    marginTop: 2,
+    marginLeft: 1,
+    lineHeight: 18,
   },
   centerSubLabel: {
     fontFamily: fonts.bold,
-    fontSize: 13.5,
+    fontSize: 10.5,
     color: c.textSoft,
-    letterSpacing: 0.3,
-    marginTop: 2,
+    letterSpacing: 0.2,
+    lineHeight: 13,
+    textAlign: 'center',
   },
   centerAmountLabel: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: 10,
     color: c.textMuted,
-    marginTop: 2,
+    lineHeight: 12,
+    textAlign: 'center',
   },
 
   // ── Bottom Legend Capsules ────────────────────────────────────────────
@@ -1008,12 +1023,16 @@ const useStyles = makeStyles((c, e) => ({
   pieRatingNumber: {
     fontFamily: fonts.bold,
     fontSize: 22,
+    lineHeight: 25,
     color: '#F59E0B',
+    textAlign: 'center',
   },
   pieRatingMax: {
     fontFamily: fonts.regular,
     fontSize: 10,
+    lineHeight: 12,
     color: c.textMuted,
+    textAlign: 'center',
   },
   pieScoreCol: {
     flex: 1,

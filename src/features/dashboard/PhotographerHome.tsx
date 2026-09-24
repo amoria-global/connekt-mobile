@@ -1601,20 +1601,26 @@ const useStyles = makeStyles((c, e) => ({
   },
   donutCenterOverlay: {
     position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 1.5,
+    gap: 2,
   },
   donutCenterScore: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 20,
     color: c.text,
     letterSpacing: -0.5,
-    lineHeight: 24,
+    lineHeight: 22,
+    textAlign: 'center',
   },
   donutStarsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 1.5,
   },
   donutCenterSub: {
@@ -1622,6 +1628,7 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: 8.5,
     color: '#10B981',
     letterSpacing: 0.2,
+    textAlign: 'center',
   },
 
   donutLegendCol: {
