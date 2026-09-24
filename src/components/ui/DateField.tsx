@@ -12,6 +12,8 @@ export type DateFieldProps = {
   error?: string;
   placeholder?: string;
   minimumDate?: Date;
+  maximumDate?: Date;
+  initialPickerDate?: Date;
 };
 
 function toYMD(d: Date): string {
@@ -27,15 +29,25 @@ function fromYMD(s?: string): Date | null {
 const pretty = (d: Date) =>
   d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
-export function DateField({ label, value, onChange, error, placeholder = 'Select a date', minimumDate }: DateFieldProps) {
+export function DateField({
+  label,
+  value,
+  onChange,
+  error,
+  placeholder = 'Select a date',
+  minimumDate,
+  maximumDate,
+  initialPickerDate,
+}: DateFieldProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const date = fromYMD(value);
   const [show, setShow] = useState(false);
-  const [temp, setTemp] = useState<Date>(date ?? new Date());
+  const defaultDate = initialPickerDate ?? (maximumDate && maximumDate < new Date() ? maximumDate : new Date());
+  const [temp, setTemp] = useState<Date>(date ?? defaultDate);
 
   const open = () => {
-    setTemp(date ?? new Date());
+    setTemp(date ?? defaultDate);
     setShow(true);
   };
 
@@ -51,10 +63,11 @@ export function DateField({ label, value, onChange, error, placeholder = 'Select
       {/* Android shows a native dialog directly. */}
       {Platform.OS === 'android' && show ? (
         <DateTimePicker
-          value={date ?? new Date()}
+          value={date ?? defaultDate}
           mode="date"
           display="default"
           minimumDate={minimumDate}
+          maximumDate={maximumDate}
           onChange={(e: DateTimePickerEvent, d?: Date) => {
             setShow(false);
             if (e.type === 'set' && d) onChange(toYMD(d));
@@ -87,6 +100,7 @@ export function DateField({ label, value, onChange, error, placeholder = 'Select
                 mode="date"
                 display="spinner"
                 minimumDate={minimumDate}
+                maximumDate={maximumDate}
                 textColor={colors.text}
                 onChange={(_e: DateTimePickerEvent, d?: Date) => {
                   if (d) setTemp(d);
