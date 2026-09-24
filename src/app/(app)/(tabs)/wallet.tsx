@@ -576,7 +576,6 @@ export default function WalletScreen() {
         </View>
       </Modal>
 
-
       <TopBar />
     </Screen>
   );
