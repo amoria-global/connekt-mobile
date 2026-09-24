@@ -45,7 +45,6 @@ import {
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
-import { WithdrawBottomSheet } from '@/features/withdrawals/WithdrawBottomSheet';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -63,7 +62,6 @@ export default function WalletScreen() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedItem, setSelectedItem] = useState<MoneyItem | null>(null);
   const [balanceHidden, setBalanceHidden] = useState(true);
-  const [showWithdrawSheet, setShowWithdrawSheet] = useState(false);
 
   // Parallel fetch: wallet summary + recent wallet movements (matching salo-run)
   const fetchData = useCallback(async () => {
@@ -177,7 +175,7 @@ export default function WalletScreen() {
                 {canWithdraw ? (
                   <Pressable
                     style={({ pressed }) => [styles.headerWithdrawBtn, pressed && { opacity: 0.85 }]}
-                    onPress={() => setShowWithdrawSheet(true)}
+                    onPress={() => router.push('/withdraw' as Href)}
                   >
                     <Ionicons name="cash-outline" size={15} color="#fff" />
                     <Text style={styles.headerWithdrawText}>Withdraw</Text>
@@ -247,7 +245,7 @@ export default function WalletScreen() {
                 {canWithdraw ? (
                   <Pressable
                     style={({ pressed }) => [styles.heroWithdrawBtn, pressed && { opacity: 0.88 }]}
-                    onPress={() => setShowWithdrawSheet(true)}
+                    onPress={() => router.push('/withdraw' as Href)}
                   >
                     <Ionicons name="cash-outline" size={15} color="#ffffff" />
                     <Text style={styles.heroWithdrawText}>Withdraw funds</Text>
@@ -578,14 +576,6 @@ export default function WalletScreen() {
         </View>
       </Modal>
 
-      {/* Withdraw Bottom Sheet */}
-      <WithdrawBottomSheet
-        visible={showWithdrawSheet}
-        onClose={() => setShowWithdrawSheet(false)}
-        onSuccess={refresh}
-        availableBalance={stats?.hero?.value ?? 0}
-        currency={data?.wallet?.currency ?? 'USD'}
-      />
 
       <TopBar />
     </Screen>
