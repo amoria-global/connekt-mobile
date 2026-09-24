@@ -28,6 +28,11 @@ says what is kept. `src/features/privacy/faceDataConsent.test.ts` fails when:
 - a consent text stops naming Amazon Web Services,
 - a new API module starts sending a selfie or face image.
 
+The same test runs inside every store build. `scripts/check-store-policy.mjs`
+is the `eas-build-post-install` hook, so an EAS build (cloud or `--local`) of
+the production, production-apk or preview profile stops before compiling if a
+store-policy test fails. Run it yourself with `yarn check:store-policy`.
+
 ## Before adding or changing anything that touches a face
 
 1. Update the table above.
