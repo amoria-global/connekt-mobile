@@ -41,6 +41,7 @@ import {
   type WithdrawSource,
 } from '@/features/withdrawals/model';
 import { useAsync } from '@/hooks/useAsync';
+import { ensureWithdrawalFaceConsent } from '@/features/privacy/consent';
 import { takeSelfieDataUrl } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
@@ -174,6 +175,7 @@ export default function WithdrawScreen() {
 
   const onCaptureSelfie = async () => {
     setVerifyError(null);
+    if (!(await ensureWithdrawalFaceConsent())) return;
     try {
       const shot = await takeSelfieDataUrl();
       if (shot) setSelfie(shot);
