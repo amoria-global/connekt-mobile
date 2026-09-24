@@ -1,6 +1,5 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { RefreshControl, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +25,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { isApiError } from '@/store/auth';
 import { Stars } from '@/components/ui/Stars';
+import { VerifiedAvatar } from '@/components/ui/VerifiedAvatar';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
@@ -336,7 +336,6 @@ export default function PhotographerProfileScreen() {
     );
   }
 
-  const initials = (data?.name?.[0] ?? '?').toUpperCase();
 
   return (
     <View style={styles.container}>
@@ -376,25 +375,13 @@ export default function PhotographerProfileScreen() {
 
           {/* Profile Info Overlay */}
           <View style={styles.profileInfoContainer}>
-            <View style={styles.avatarWrapper}>
-              <View style={styles.avatarInner}>
-                {data?.avatar ? (
-                  <Image
-                    source={{ uri: data.avatar }}
-                    style={styles.avatar}
-                    contentFit="cover"
-                    transition={150}
-                  />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarFallback]}>
-                    <Text style={styles.avatarText}>{initials}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-              </View>
-            </View>
+            <VerifiedAvatar
+              uri={data?.avatar}
+              name={data?.name}
+              size={90}
+              verified={data?.isVerified !== false}
+              style={styles.avatarWrapper}
+            />
 
             <Text style={styles.name}>{data?.name}</Text>
             
@@ -832,41 +819,9 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
+  // Ring, seal and fallback live in VerifiedAvatar, shared with the card.
   avatarWrapper: {
-    width: 90,
-    height: 90,
     marginBottom: spacing.md,
-    position: 'relative',
-  },
-  avatarInner: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 3,
-    borderColor: c.primary,
-    overflow: 'hidden',
-    backgroundColor: c.surfaceMuted,
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.primary,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: c.surface,
-    borderRadius: 12,
   },
   name: {
     fontSize: 22,

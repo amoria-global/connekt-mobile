@@ -17,7 +17,7 @@
  *
  * Type is Pragati Narrow throughout, matching the web brand.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,12 +34,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
-import { colors, spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
 import {
   acceptEventBooking,
@@ -49,13 +49,51 @@ import {
 import type { EventItem } from './types';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
+const PAGE_SIZE = 8;
+
+export type EventSortOption = 'newest' | 'oldest' | 'date_asc' | 'title_asc';
+
+export const SORT_OPTIONS: {
+  key: EventSortOption;
+  label: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  {
+    key: 'newest',
+    label: 'Newest created first',
+    description: 'Recently booked or created events appear first',
+    icon: 'sparkles-outline',
+  },
+  {
+    key: 'oldest',
+    label: 'Oldest created first',
+    description: 'Earliest booked or created events first',
+    icon: 'time-outline',
+  },
+  {
+    key: 'date_asc',
+    label: 'Event date (Upcoming first)',
+    description: 'Scheduled event date & time in chronological order',
+    icon: 'calendar-outline',
+  },
+  {
+    key: 'title_asc',
+    label: 'Title (A–Z)',
+    description: 'Alphabetical order by event name',
+    icon: 'text-outline',
+  },
+];
 
 type ViewTab = 'events' | 'albums' | 'photobooks' | 'content';
-type EventFilter = 'all' | 'upcoming' | 'ongoing' | 'completed';
+type EventFilter = 'all' | 'pending' | 'upcoming' | 'ongoing' | 'completed';
 type PhotogStatus = 'pending' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
 
 /** Collapse the many backend status strings into the web's 5 buckets. */
 function statusOf(e: EventItem): PhotogStatus {
+  if ((e.bookingStatus ?? '').toUpperCase() === 'PENDING') {
+    return 'pending';
+  }
   switch ((e.status ?? '').toUpperCase()) {
     case 'PENDING':
     case 'PROPOSED':
@@ -121,22 +159,19 @@ const VIEW_TABS: { key: ViewTab; label: string; icon: keyof typeof Ionicons.glyp
   { key: 'content', label: 'Content', icon: 'newspaper', route: '/content-albums' as Href },
 ];
 
-const STAT_META = [
-  { key: 'all', label: 'Total Events', accent: '#083A85', icon: 'calendar' },
-  { key: 'upcoming', label: 'Upcoming', accent: '#F59E0B', icon: 'hourglass' },
-  { key: 'ongoing', label: 'Ongoing', accent: '#3B82F6', icon: 'radio' },
-  { key: 'completed', label: 'Completed', accent: '#10B981', icon: 'checkmark-circle' },
-] as const;
-
 export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: number }) {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
 
+  const listRef = useRef<FlatList<EventItem>>(null);
   const [view, setView] = useState<ViewTab>('events');
   const [filter, setFilter] = useState<EventFilter>('all');
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<EventSortOption>('newest');
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [acceptTarget, setAcceptTarget] = useState<EventItem | null>(null);
   const [declineTarget, setDeclineTarget] = useState<EventItem | null>(null);
   const [declineReason, setDeclineReason] = useState('');
@@ -145,15 +180,23 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   const events = data ?? [];
 
   const counts = useMemo(() => {
-    const c = { all: events.length, upcoming: 0, ongoing: 0, completed: 0 };
+    const c = { all: events.length, pending: 0, upcoming: 0, ongoing: 0, completed: 0 };
     for (const e of events) {
       const s = statusOf(e);
-      if (s === 'upcoming') c.upcoming += 1;
+      if (s === 'pending') c.pending += 1;
+      else if (s === 'upcoming') c.upcoming += 1;
       else if (s === 'ongoing') c.ongoing += 1;
       else if (s === 'completed') c.completed += 1;
     }
     return c;
   }, [events]);
+
+  const [page, setPage] = useState(1);
+
+  // Reset to first page when filtering, searching or sorting
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, sortBy]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -168,6 +211,53 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
       );
     });
   }, [events, filter, search]);
+
+  const sortedAndFiltered = useMemo(() => {
+    const list = [...filtered];
+    switch (sortBy) {
+      case 'newest':
+        return list.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+      case 'oldest':
+        return list.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeA - timeB;
+        });
+      case 'date_asc':
+        return list.sort((a, b) => {
+          const parseTime = (item: EventItem) => {
+            if (!item.eventDate) return 0;
+            const dateStr = item.eventDate.includes('T')
+              ? item.eventDate
+              : `${item.eventDate}T${item.startTime || '00:00'}:00`;
+            const t = new Date(dateStr).getTime();
+            return Number.isNaN(t) ? new Date(item.eventDate).getTime() || 0 : t;
+          };
+          return parseTime(a) - parseTime(b);
+        });
+      case 'title_asc':
+        return list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      default:
+        return list;
+    }
+  }, [filtered, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedAndFiltered.length / PAGE_SIZE));
+
+  const pagedEvents = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return sortedAndFiltered.slice(start, start + PAGE_SIZE);
+  }, [sortedAndFiltered, page]);
+
+  const goToPage = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === page) return;
+    setPage(newPage);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
 
   const onAcceptConfirmed = async (e: EventItem) => {
     setBusyId(e.id);
@@ -221,15 +311,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   };
 
   const header = (
-    <View style={{ paddingTop: topInset + spacing.md }}>
-      {/* Title block */}
-      <Text style={styles.eyebrow}>LIBRARY</Text>
-      <Text style={styles.h1}>Events &amp; albums</Text>
-      <Text style={styles.subtitle}>
-        Manage your assigned events, live streams, and event lifecycle.
-      </Text>
-
-      {/* View toggle */}
+    <View style={{ paddingTop: topInset + spacing.xs, gap: spacing.sm }}>
+      {/* Quick action view tabs: Events, Albums, Photobooks, Content */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -252,30 +335,6 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
 
       {view === 'events' ? (
         <>
-          {/* Stat strip */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.statStrip}
-          >
-            {STAT_META.map((s) => (
-              <View key={s.key} style={styles.statCard}>
-                <LinearGradient
-                  colors={[s.accent, '#F20C8F']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.statAccent}
-                />
-                <View style={[styles.statIcon, { backgroundColor: `${s.accent}1A`, borderColor: `${s.accent}33` }]}>
-                  <Ionicons name={s.icon} size={16} color={s.accent} />
-                </View>
-                <View style={{ minWidth: 0 }}>
-                  <Text style={styles.statLabel}>{s.label}</Text>
-                  <Text style={styles.statValue}>{counts[s.key]}</Text>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
 
           {/* Filter pills */}
           <ScrollView
@@ -283,8 +342,14 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterRow}
           >
-            {(['all', 'upcoming', 'ongoing', 'completed'] as const).map((f) => {
+            {(['all', 'pending', 'upcoming', 'ongoing', 'completed'] as const).map((f) => {
               const active = filter === f;
+              const label =
+                f === 'all'
+                  ? 'All'
+                  : f === 'pending'
+                  ? 'Pending'
+                  : f.charAt(0).toUpperCase() + f.slice(1);
               return (
                 <Pressable
                   key={f}
@@ -292,7 +357,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                   style={[styles.filterPill, active && styles.filterPillActive]}
                 >
                   <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                    {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+                    {label}
                   </Text>
                   <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
                     <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
@@ -304,23 +369,42 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             })}
           </ScrollView>
 
-          {/* Search */}
-          <View style={styles.search}>
-            <Ionicons name="search" size={16} color={colors.textMuted} />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search events…"
-              placeholderTextColor={colors.textMuted}
-              style={styles.searchInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {search ? (
-              <Pressable onPress={() => setSearch('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-              </Pressable>
-            ) : null}
+          {/* Search & Sort Row */}
+          <View style={styles.searchRow}>
+            <View style={styles.search}>
+              <Ionicons name="search" size={16} color={colors.textMuted} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search events…"
+                placeholderTextColor={colors.textMuted}
+                style={styles.searchInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {search ? (
+                <Pressable onPress={() => setSearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            <Pressable
+              style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
+              onPress={() => setSortSheetOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Sort events"
+            >
+              <Ionicons
+                name="swap-vertical"
+                size={16}
+                color={sortBy !== 'newest' ? '#fff' : colors.text}
+              />
+              <Text style={[styles.sortBtnText, sortBy !== 'newest' && styles.sortBtnTextActive]}>
+                Sort
+              </Text>
+              {sortBy !== 'newest' && <View style={styles.sortActiveDot} />}
+            </Pressable>
           </View>
         </>
       ) : null}
@@ -328,10 +412,15 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   );
 
   return (
-    <>
+    <View style={styles.container}>
       <FlatList
-        data={filtered}
+        ref={listRef}
+        key="photographer-events-grid"
+        data={pagedEvents}
         keyExtractor={(e) => e.id}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListHeaderComponent={header}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
@@ -346,6 +435,67 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             onCreateAlbum={() => onCreateAlbum(item)}
           />
         )}
+        ListFooterComponent={
+          sortedAndFiltered.length > 0 ? (
+            <View style={styles.paginationFooter}>
+              <View style={styles.pagerBar}>
+                <Pressable
+                  style={[styles.pagerBtn, page <= 1 && styles.pagerBtnDisabled]}
+                  onPress={() => goToPage(page - 1)}
+                  disabled={page <= 1}
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous page"
+                >
+                  <Ionicons
+                    name="chevron-back"
+                    size={16}
+                    color={page <= 1 ? colors.textMuted : colors.text}
+                  />
+                  <Text
+                    style={[
+                      styles.pagerBtnText,
+                      page <= 1 && styles.pagerBtnTextDisabled,
+                    ]}
+                  >
+                    Previous
+                  </Text>
+                </Pressable>
+
+                <View style={styles.pagerIndicator}>
+                  <Text style={styles.pagerIndicatorText}>
+                    Page <Text style={styles.pagerIndicatorBold}>{page}</Text> of{' '}
+                    <Text style={styles.pagerIndicatorBold}>{totalPages}</Text>
+                  </Text>
+                  <Text style={styles.pagerTotalText}>
+                    ({sortedAndFiltered.length} {sortedAndFiltered.length === 1 ? 'event' : 'events'})
+                  </Text>
+                </View>
+
+                <Pressable
+                  style={[styles.pagerBtn, page >= totalPages && styles.pagerBtnDisabled]}
+                  onPress={() => goToPage(page + 1)}
+                  disabled={page >= totalPages}
+                  accessibilityRole="button"
+                  accessibilityLabel="Next page"
+                >
+                  <Text
+                    style={[
+                      styles.pagerBtnText,
+                      page >= totalPages && styles.pagerBtnTextDisabled,
+                    ]}
+                  >
+                    Next
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={page >= totalPages ? colors.textMuted : colors.text}
+                  />
+                </Pressable>
+              </View>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
@@ -369,6 +519,20 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         }
       />
 
+      {/* Floating Action Button — Create New Event */}
+      <Pressable
+        style={[
+          styles.fab,
+          { bottom: Math.max(insets.bottom + 84, 96) },
+        ]}
+        onPress={() => router.push('/event/new' as Href)}
+        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+        accessibilityRole="button"
+        accessibilityLabel="Create new event"
+      >
+        <Ionicons name="add" size={32} color="#fff" />
+      </Pressable>
+
       <AcceptBookingSheet
         event={acceptTarget}
         busy={busyId === acceptTarget?.id}
@@ -387,7 +551,85 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         }}
         onConfirm={() => declineTarget && onDeclineConfirmed(declineTarget)}
       />
-    </>
+
+      {/* Sort Options Bottom Sheet */}
+      <Modal
+        visible={sortSheetOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSortSheetOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
+          <Pressable
+            style={[
+              styles.sortSheet,
+              { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.sheetHandle} />
+            <View style={styles.sortSheetHeader}>
+              <View>
+                <Text style={styles.sortSheetTitle}>Sort Events</Text>
+                <Text style={styles.sortSheetSubtitle}>Choose an order for your event list</Text>
+              </View>
+              <Pressable
+                onPress={() => setSortSheetOpen(false)}
+                hitSlop={8}
+                style={styles.sortSheetCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.sortOptionsList}>
+              {SORT_OPTIONS.map((opt) => {
+                const active = sortBy === opt.key;
+                return (
+                  <Pressable
+                    key={opt.key}
+                    style={[styles.sortOptionItem, active && styles.sortOptionItemActive]}
+                    onPress={() => {
+                      setSortBy(opt.key);
+                      setSortSheetOpen(false);
+                    }}
+                  >
+                    <View
+                      style={[
+                        styles.sortOptionIconBox,
+                        active && styles.sortOptionIconBoxActive,
+                      ]}
+                    >
+                      <Ionicons
+                        name={opt.icon}
+                        size={18}
+                        color={active ? '#fff' : colors.primary}
+                      />
+                    </View>
+                    <View style={styles.sortOptionTextCol}>
+                      <Text
+                        style={[
+                          styles.sortOptionLabel,
+                          active && styles.sortOptionLabelActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                      <Text style={styles.sortOptionDesc}>{opt.description}</Text>
+                    </View>
+                    {active ? (
+                      <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                    ) : (
+                      <View style={styles.sortOptionRadio} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
@@ -432,11 +674,8 @@ function PhotographerEventCard({
         contentFit="cover"
         transition={200}
       />
-      <LinearGradient
-        colors={['rgba(4,10,26,0.55)', 'rgba(4,10,26,0.15)', 'rgba(4,10,26,0.88)']}
-        locations={[0, 0.42, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+      {/* Solid dark scrim overlay (no gradients) */}
+      <View style={styles.cardScrim} />
 
       {/* Top row: date + status (left), stream (right) */}
       <View style={styles.cardTop}>
@@ -565,10 +804,16 @@ function AcceptBookingSheet({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={styles.sheetHandle} />
           <View style={styles.sheetIcon}>
             <Ionicons name="checkmark" size={30} color="#fff" />
           </View>
@@ -642,10 +887,16 @@ function DeclineBookingSheet({
   onConfirm: () => void;
 }) {
   const styles = useStyles();
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
-        <Pressable style={styles.declineSheet} onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          style={[styles.declineSheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={styles.sheetHandle} />
           <Text style={styles.declineTitle}>Decline booking</Text>
           <Text style={styles.declineHint}>
             Share a short reason so {event?.clientName || 'the client'} knows why you&apos;re not taking
@@ -680,20 +931,35 @@ function SheetMeta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
 }
 
 const useStyles = makeStyles((c) => ({
-  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.lg },
+  container: { flex: 1 },
+  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
+  columnWrapper: { gap: spacing.md },
+
+  // Floating Action Button (New Event — big circular + without text)
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.primary,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 20,
+  },
+  fabText: {
+    display: 'none',
+  },
 
   // Header
-  eyebrow: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: c.accent,
-    letterSpacing: 1.2,
-    marginBottom: 2,
-  },
-  h1: { fontFamily: fonts.bold, fontSize: 30, color: c.text, letterSpacing: -0.5 },
-  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, marginTop: 2, lineHeight: 20 },
-
-  viewTabs: { gap: 6, paddingVertical: spacing.md },
+  viewTabs: { gap: 6, paddingVertical: spacing.xs },
   viewTab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -708,33 +974,6 @@ const useStyles = makeStyles((c) => ({
   viewTabActive: { backgroundColor: c.primary, borderColor: c.primary },
   viewTabText: { fontFamily: fonts.bold, fontSize: 14, color: c.textMuted },
   viewTabTextActive: { color: '#fff' },
-
-  // Stats
-  statStrip: { gap: 10, paddingBottom: spacing.md },
-  statCard: {
-    width: 168,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 14,
-    paddingTop: 16,
-    borderRadius: radii.lg,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    overflow: 'hidden',
-  },
-  statAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  statIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  statLabel: { fontFamily: fonts.regular, fontSize: 13, color: c.textMuted },
-  statValue: { fontFamily: fonts.bold, fontSize: 24, color: c.text, lineHeight: 26 },
 
   // Filters
   filterRow: { gap: 8, paddingBottom: spacing.md },
@@ -762,8 +1001,15 @@ const useStyles = makeStyles((c) => ({
   filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.primary },
   filterBadgeTextActive: { color: '#fff' },
 
-  // Search
+  // Search & Sort Row
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: spacing.xs,
+  },
   search: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -773,86 +1019,132 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    marginBottom: spacing.xs,
+  },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  sortBtnActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  sortBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: c.text,
+  },
+  sortBtnTextActive: {
+    color: '#fff',
+  },
+  sortActiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
   searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: c.text, padding: 0 },
 
-  // Card
+  // Card (2-column responsive)
   card: {
-    height: 300,
+    flex: 1,
+    minHeight: 260,
     borderRadius: radii.xl,
     overflow: 'hidden',
-    backgroundColor: '#0B1B34',
+    backgroundColor: '#071224',
+    borderWidth: 1,
+    borderColor: c.borderSoft,
     justifyContent: 'space-between',
+  },
+  cardScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(5, 12, 28, 0.45)',
   },
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    padding: spacing.md,
+    padding: spacing.sm,
+    gap: 4,
   },
-  topLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  topLeft: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, flexWrap: 'wrap' },
   datePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 3,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
     borderRadius: radii.full,
   },
-  datePillText: { fontFamily: fonts.bold, fontSize: 12, color: '#fff' },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.full },
-  statusPillText: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.4 },
+  datePillText: { fontFamily: fonts.bold, fontSize: 10.5, color: '#fff' },
+  statusPill: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: radii.full },
+  statusPillText: { fontFamily: fonts.bold, fontSize: 9.5, letterSpacing: 0.3 },
   streamPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 3,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     borderRadius: radii.full,
   },
-  streamPillText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff', letterSpacing: 0.4 },
+  streamPillText: { fontFamily: fonts.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 },
 
-  cardBottom: { padding: spacing.md, gap: 6 },
-  cardTitle: { fontFamily: fonts.bold, fontSize: 20, color: '#fff', letterSpacing: -0.3 },
-  locRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  locText: { fontFamily: fonts.regular, fontSize: 13, color: 'rgba(255,255,255,0.85)', flex: 1 },
+  cardBottom: {
+    backgroundColor: 'rgba(3, 8, 20, 0.85)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    padding: spacing.sm,
+    gap: 4,
+  },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 14.5, color: '#fff', letterSpacing: -0.2, lineHeight: 18 },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  locText: { fontFamily: fonts.regular, fontSize: 11, color: 'rgba(255,255,255,0.85)', flex: 1 },
 
   clientRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4,
+    marginTop: 2,
   },
-  clientLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
-  avatar: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)' },
+  clientLeft: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
+  avatar: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
   avatarFallback: { backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
-  clientName: { fontFamily: fonts.regular, fontSize: 13, color: 'rgba(255,255,255,0.9)', flexShrink: 1 },
+  avatarInitial: { fontFamily: fonts.bold, fontSize: 9.5, color: '#fff' },
+  clientName: { fontFamily: fonts.regular, fontSize: 11, color: 'rgba(255,255,255,0.9)', flexShrink: 1 },
   timePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 3,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
     borderRadius: radii.full,
   },
-  timeText: { fontFamily: fonts.bold, fontSize: 12, color: 'rgba(255,255,255,0.95)' },
+  timeText: { fontFamily: fonts.bold, fontSize: 10, color: 'rgba(255,255,255,0.95)' },
 
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   actBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radii.md,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radii.sm,
   },
-  actText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
+  actText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff' },
   actBusy: { opacity: 0.6 },
   actAccept: { backgroundColor: '#10B981', flex: 1 },
   actDeny: { backgroundColor: '#EF4444', flex: 1 },
@@ -863,16 +1155,24 @@ const useStyles = makeStyles((c) => ({
     marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     backgroundColor: c.primary,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: radii.md,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.sm,
   },
-  pkgText: { fontFamily: fonts.bold, fontSize: 12, color: '#fff' },
+  pkgText: { fontFamily: fonts.bold, fontSize: 10.5, color: '#fff' },
 
   // Accept sheet
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,26,0.6)', justifyContent: 'flex-end' },
+  sheetHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: radii.full,
+    backgroundColor: c.borderSoft,
+    alignSelf: 'center',
+    marginBottom: spacing.sm,
+  },
   sheet: {
     backgroundColor: c.surface,
     borderTopLeftRadius: radii.xl,
@@ -950,4 +1250,149 @@ const useStyles = makeStyles((c) => ({
   declineTitle: { fontFamily: fonts.bold, fontSize: 20, color: c.text },
   declineHint: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, lineHeight: 20 },
   declineInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
+
+  // Pagination footer & pager bar
+  paginationFooter: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pagerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: 'stretch',
+  },
+  pagerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceMuted,
+  },
+  pagerBtnDisabled: {
+    opacity: 0.35,
+  },
+  pagerBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: c.text,
+  },
+  pagerBtnTextDisabled: {
+    color: c.textMuted,
+  },
+  pagerIndicator: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pagerIndicatorText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: c.textSoft,
+  },
+  pagerIndicatorBold: {
+    fontFamily: fonts.bold,
+    color: c.text,
+  },
+  pagerTotalText: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.textMuted,
+    marginTop: 2,
+  },
+
+  // Sort Sheet
+  sortSheet: {
+    backgroundColor: c.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  sortSheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: spacing.xs,
+  },
+  sortSheetTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    color: c.text,
+  },
+  sortSheetSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: c.textMuted,
+    marginTop: 2,
+  },
+  sortSheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sortOptionsList: {
+    gap: spacing.sm,
+  },
+  sortOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    gap: spacing.md,
+    backgroundColor: c.background,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  sortOptionItemActive: {
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+  },
+  sortOptionIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sortOptionIconBoxActive: {
+    backgroundColor: c.primary,
+  },
+  sortOptionTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  sortOptionLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: c.text,
+  },
+  sortOptionLabelActive: {
+    color: c.primary,
+  },
+  sortOptionDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  sortOptionRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+  },
 }));

@@ -12,8 +12,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, G, Path } from 'react-native-svg';
 import {
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
@@ -47,8 +48,9 @@ import {
   getPhotographerPerformance,
   getPhotographerRecentTransactions,
   getPhotographerTrends,
+  cleanTransactionTitle,
+  cleanTransactionStatus,
 } from '@/features/analytics/api';
-import { useAuth } from '@/store/auth';
 import { useRole } from '@/features/auth/role';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -56,86 +58,15 @@ import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
 
-// ── Salo-run Time of Day & Dynamic Greetings ────────────────────────────────
-const getTimeOfDay = (): 'morning' | 'afternoon' | 'evening' | 'night' => {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return 'morning';
-  if (hour >= 12 && hour < 17) return 'afternoon';
-  if (hour >= 17 && hour < 21) return 'evening';
-  return 'night';
-};
-
-const GREETINGS: Record<'morning' | 'afternoon' | 'evening' | 'night', string[]> = {
-  morning: [
-    'Good Morning',
-    'Rise and Shine',
-    'Beautiful Morning',
-    'Lovely Morning',
-    'Wonderful Morning',
-    'Great Morning',
-    'Happy Morning',
-    'Blessed Morning',
-  ],
-  afternoon: [
-    'Good Afternoon',
-    'Lovely Afternoon',
-    'Beautiful Afternoon',
-    'Wonderful Afternoon',
-    'Great Afternoon',
-    'Happy Afternoon',
-    'Blessed Afternoon',
-    'Amazing Afternoon',
-  ],
-  evening: [
-    'Good Evening',
-    'Lovely Evening',
-    'Beautiful Evening',
-    'Wonderful Evening',
-    'Great Evening',
-    'Happy Evening',
-    'Peaceful Evening',
-    'Relaxing Evening',
-  ],
-  night: [
-    'Good Night',
-    'Peaceful Night',
-    'Lovely Night',
-    'Beautiful Night',
-    'Wonderful Night',
-    'Quiet Night',
-    'Restful Night',
-    'Starry Night',
-  ],
-};
-
-const getRoleTagline = (
-  role: 'client' | 'photographer' | 'coordinator',
-  timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night',
-): string => {
-  if (role === 'photographer') {
-    switch (timeOfDay) {
-      case 'morning': return 'Ready to capture some beautiful moments today?';
-      case 'afternoon': return 'Keep up the great work! Your clients love what you do.';
-      case 'evening': return 'What a day! Time to review those amazing shots.';
-      default: return 'Burning the midnight oil? Your dedication is inspiring!';
-    }
-  }
-  if (role === 'coordinator') {
-    switch (timeOfDay) {
-      case 'morning': return 'Ready to manage your upcoming events?';
-      case 'afternoon': return 'Perfect time to check your live stream earnings!';
-      case 'evening': return "Time to review today's event performance!";
-      default: return 'Late night planning? Your events dashboard awaits!';
-    }
-  }
-  // Client
-  switch (timeOfDay) {
-    case 'morning': return 'Ready to discover amazing photographers for your next event?';
-    case 'afternoon': return 'Perfect time to browse through your galleries!';
-    case 'evening': return "Time to relive today's beautiful moments!";
-    default: return 'Late night browsing? Your galleries await!';
-  }
-};
+const DEFAULT_DAYS = [
+  { day: 'Sun', value1: 0, value2: 0 },
+  { day: 'Mon', value1: 0, value2: 0 },
+  { day: 'Tue', value1: 0, value2: 0 },
+  { day: 'Wed', value1: 0, value2: 0 },
+  { day: 'Thu', value1: 0, value2: 0 },
+  { day: 'Fri', value1: 0, value2: 0 },
+  { day: 'Sat', value1: 0, value2: 0 },
+];
 
 const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -146,11 +77,10 @@ const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
 
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();
 
-  const user = useAuth((s) => s.user);
   const { isClient, isCoordinator, isPhotographer } = useRole();
   const wallet = useAsync(useCallback(() => getWallet(), []));
   const currency = wallet.data?.currency;
@@ -159,20 +89,6 @@ export default function AnalyticsScreen() {
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [customApplied, setCustomApplied] = useState(false);
-
-  // Time-of-day greeting (salo-run parity)
-  const timeOfDay = useMemo(() => getTimeOfDay(), []);
-  const greeting = useMemo(() => {
-    const list = GREETINGS[timeOfDay];
-    return list[0];
-  }, [timeOfDay]);
-
-  const activeRoleKey: 'client' | 'photographer' | 'coordinator' = isPhotographer
-    ? 'photographer'
-    : isCoordinator
-      ? 'coordinator'
-      : 'client';
-  const tagline = useMemo(() => getRoleTagline(activeRoleKey, timeOfDay), [activeRoleKey, timeOfDay]);
 
   // ── Client state ─────────────────────────────────────────────────────────
   const [clientData, setClientData] = useState<CustomerAnalytics | null>(null);
@@ -280,8 +196,34 @@ export default function AnalyticsScreen() {
     return 'last week';
   }, [period, customFrom, customTo]);
 
-  // ── Salo-run StatCards Definition ──────────────────────────────────────────
-  const statCards = useMemo(() => {
+  // Active performance data for chart
+  const activePerf = isClient
+    ? clientPerf
+    : isCoordinator
+      ? coordPerf
+      : isPhotographer
+        ? photogPerf
+        : [];
+
+type StatCardItem = {
+  title: string;
+  value: string;
+  percentage?: string;
+  trend?: 'up' | 'down';
+  iconName: any;
+  accentColor: string;
+  href?: string;
+  chartType?: 'histogram' | 'donut';
+  histogramData?: number[];
+  donutData?: {
+    value: number;
+    total: number;
+    color?: string;
+  };
+};
+
+  // ── Salo-run StatCards Definition with Embedded Mini-Charts ─────────────────
+  const statCards: StatCardItem[] = useMemo(() => {
     if (isClient) {
       return [
         {
@@ -290,7 +232,9 @@ export default function AnalyticsScreen() {
           percentage: trends.totalSpent?.percentage,
           trend: trends.totalSpent?.direction ?? 'up',
           iconName: 'wallet-outline' as const,
-          accentColor: '#083A85',
+          accentColor: colors.primary,
+          chartType: 'histogram' as const,
+          histogramData: activePerf.map((p) => (p.value1 || 0) + (p.value2 || 0)),
         },
         {
           title: 'Pending',
@@ -298,8 +242,14 @@ export default function AnalyticsScreen() {
           percentage: trends.pending?.percentage,
           trend: trends.pending?.direction ?? 'up',
           iconName: 'time-outline' as const,
-          accentColor: '#F59E0B',
+          accentColor: colors.warning,
           href: '/payments',
+          chartType: 'donut' as const,
+          donutData: {
+            value: clientData?.pendingAmount || 0,
+            total: (clientData?.totalSpent || 0) + (clientData?.pendingAmount || 0),
+            color: colors.warning,
+          },
         },
         {
           title: 'Bookings',
@@ -307,8 +257,10 @@ export default function AnalyticsScreen() {
           percentage: trends.events?.percentage,
           trend: trends.events?.direction ?? 'up',
           iconName: 'people-outline' as const,
-          accentColor: '#3B82F6',
+          accentColor: colors.primary,
           href: '/(app)/(tabs)/events',
+          chartType: 'histogram' as const,
+          histogramData: activePerf.map((p) => p.value1 || 0),
         },
         {
           title: 'Gifts',
@@ -316,7 +268,13 @@ export default function AnalyticsScreen() {
           percentage: trends.gifts?.percentage,
           trend: trends.gifts?.direction ?? 'up',
           iconName: 'gift-outline' as const,
-          accentColor: '#10B981',
+          accentColor: colors.accent,
+          chartType: 'donut' as const,
+          donutData: {
+            value: clientData?.gifts || 0,
+            total: (clientData?.totalSpent || 0) + (clientData?.gifts || 0),
+            color: colors.accent,
+          },
         },
         {
           title: 'Favorites',
@@ -324,7 +282,7 @@ export default function AnalyticsScreen() {
           percentage: trends.photographers?.percentage,
           trend: trends.photographers?.direction ?? 'up',
           iconName: 'star-outline' as const,
-          accentColor: '#8B5CF6',
+          accentColor: colors.accent,
           href: '/photographers',
         },
       ];
@@ -338,7 +296,9 @@ export default function AnalyticsScreen() {
           percentage: trends.totalRevenue?.percentage,
           trend: trends.totalRevenue?.direction ?? 'up',
           iconName: 'cash-outline' as const,
-          accentColor: '#083A85',
+          accentColor: colors.primary,
+          chartType: 'histogram' as const,
+          histogramData: activePerf.map((p) => (p.value1 || 0) + (p.value2 || 0)),
         },
         {
           title: 'Pending',
@@ -346,8 +306,14 @@ export default function AnalyticsScreen() {
           percentage: trends.totalPending?.percentage,
           trend: trends.totalPending?.direction ?? 'up',
           iconName: 'time-outline' as const,
-          accentColor: '#F59E0B',
+          accentColor: colors.warning,
           href: '/payments',
+          chartType: 'donut' as const,
+          donutData: {
+            value: coordData?.totalPending || 0,
+            total: (coordData?.totalRevenue || 0) + (coordData?.totalPending || 0),
+            color: colors.warning,
+          },
         },
         {
           title: 'Events',
@@ -355,8 +321,10 @@ export default function AnalyticsScreen() {
           percentage: trends.totalEvents?.percentage,
           trend: trends.totalEvents?.direction ?? 'up',
           iconName: 'calendar-outline' as const,
-          accentColor: '#3B82F6',
+          accentColor: colors.primary,
           href: '/(app)/(tabs)/events',
+          chartType: 'histogram' as const,
+          histogramData: activePerf.map((p) => p.value1 || 0),
         },
         {
           title: 'Total Paid',
@@ -364,7 +332,13 @@ export default function AnalyticsScreen() {
           percentage: trends.totalPaid?.percentage,
           trend: trends.totalPaid?.direction ?? 'up',
           iconName: 'card-outline' as const,
-          accentColor: '#10B981',
+          accentColor: colors.success,
+          chartType: 'donut' as const,
+          donutData: {
+            value: coordData?.totalPaid || 0,
+            total: coordData?.totalRevenue || 0,
+            color: colors.success,
+          },
         },
         {
           title: 'Photographers',
@@ -372,7 +346,7 @@ export default function AnalyticsScreen() {
           percentage: trends.totalPhotographers?.percentage,
           trend: trends.totalPhotographers?.direction ?? 'up',
           iconName: 'camera-outline' as const,
-          accentColor: '#8B5CF6',
+          accentColor: colors.accent,
           href: '/photographers',
         },
       ];
@@ -383,59 +357,203 @@ export default function AnalyticsScreen() {
         {
           title: 'Total Earnings',
           value: formatMoney(photogData?.totalEarnings || 0, currency),
-          percentage: trends.totalEarnings?.percentage,
-          trend: trends.totalEarnings?.direction ?? 'up',
           iconName: 'cash-outline' as const,
-          accentColor: '#083A85',
+          accentColor: colors.primary,
           href: '/(app)/(tabs)/wallet',
+          chartType: 'histogram' as const,
+          histogramData: activePerf.map((p) => (p.value1 || 0) + (p.value2 || 0)),
         },
         {
           title: 'Pending',
           value: formatMoney(photogData?.pendingPayments || 0, currency),
-          percentage: trends.pending?.percentage,
-          trend: trends.pending?.direction ?? 'up',
           iconName: 'time-outline' as const,
-          accentColor: '#F59E0B',
+          accentColor: colors.warning,
+          chartType: 'donut' as const,
+          donutData: {
+            value: photogData?.pendingPayments || 0,
+            total: (photogData?.totalEarnings || 0) + (photogData?.pendingPayments || 0),
+            color: colors.warning,
+          },
         },
         {
           title: 'Clients',
           value: String(photogData?.totalClients || 0),
-          percentage: trends.clients?.percentage,
-          trend: trends.clients?.direction ?? 'up',
           iconName: 'people-outline' as const,
-          accentColor: '#3B82F6',
+          accentColor: colors.primary,
           href: '/clients',
+          chartType: 'histogram' as const,
+          histogramData: activePerf.map((p) => p.value1 || 0),
         },
         {
           title: 'Bonuses',
           value: formatMoney(photogData?.bonuses || 0, currency),
-          percentage: trends.bonuses?.percentage,
-          trend: trends.bonuses?.direction ?? 'up',
           iconName: 'gift-outline' as const,
-          accentColor: '#10B981',
+          accentColor: colors.accent,
+          chartType: 'donut' as const,
+          donutData: {
+            value: photogData?.bonuses || 0,
+            total: (photogData?.totalEarnings || 0) + (photogData?.bonuses || 0),
+            color: colors.accent,
+          },
         },
         {
           title: 'Rating',
           value: `${(photogData?.averageRating ?? 5).toFixed(1)}/5`,
-          percentage: trends.rating?.percentage,
-          trend: trends.rating?.direction ?? 'up',
           iconName: 'star-outline' as const,
-          accentColor: '#8B5CF6',
+          accentColor: colors.accent,
         },
       ];
     }
 
     return [];
-  }, [isClient, isCoordinator, isPhotographer, clientData, coordData, photogData, trends, currency]);
+  }, [isClient, isCoordinator, isPhotographer, clientData, coordData, photogData, trends, currency, activePerf, colors.primary, colors.warning, colors.accent, colors.success]);
 
-  // Active performance data for chart
-  const activePerf = isClient
-    ? clientPerf
-    : isCoordinator
-      ? coordPerf
-      : isPhotographer
-        ? photogPerf
-        : [];
+
+
+  // Donut chart breakdown data (Exact real backend data - No fake mock fallbacks)
+  const donutData = useMemo(() => {
+    if (isClient) {
+      const completed = clientData?.completedEvents ?? 0;
+      const upcoming = clientData?.upcomingEvents ?? 0;
+      const cancelled = clientData?.cancelledEvents ?? 0;
+      const other = Math.max((clientData?.totalEvents ?? 0) - completed - upcoming - cancelled, 0);
+      const totalEventsCount = clientData?.totalEvents ?? (completed + upcoming + cancelled);
+      return {
+        title: 'Events Allocation',
+        subtitle: 'Distribution by booking lifecycle',
+        centerValue: String(totalEventsCount),
+        centerLabel: 'EVENTS',
+        segments: [
+          {
+            label: 'Completed',
+            value: completed,
+            color: colors.success,
+            formatted: `${completed} events`,
+          },
+          {
+            label: 'Upcoming',
+            value: upcoming,
+            color: colors.primary,
+            formatted: `${upcoming} events`,
+          },
+          {
+            label: 'Cancelled / Other',
+            value: cancelled + other,
+            color: colors.accent,
+            formatted: `${cancelled + other} events`,
+          },
+        ],
+      };
+    }
+
+    if (isCoordinator) {
+      const rev = coordData?.totalRevenue ?? 0;
+      const paid = coordData?.totalPaid ?? 0;
+      const pending = coordData?.totalPending ?? 0;
+      return {
+        title: 'Financial Allocation',
+        subtitle: 'Cashflow & revenue breakdown',
+        centerValue: formatMoney(rev, currency),
+        centerLabel: 'VOLUME',
+        segments: [
+          {
+            label: 'Gross Revenue',
+            value: rev,
+            color: colors.primary,
+            formatted: formatMoney(rev, currency),
+          },
+          {
+            label: 'Paid Out',
+            value: paid,
+            color: colors.success,
+            formatted: formatMoney(paid, currency),
+          },
+          {
+            label: 'Pending Escrow',
+            value: pending,
+            color: colors.warning,
+            formatted: formatMoney(pending, currency),
+          },
+        ],
+      };
+    }
+
+    // Photographer
+    const earnings = photogData?.totalEarnings ?? 0;
+    const tips = photogData?.totalTips ?? 0;
+    const bonuses = photogData?.bonuses ?? 0;
+    const totalEarned = earnings + tips + bonuses;
+    return {
+      title: 'Earnings Composition',
+      subtitle: 'Income distribution across streams',
+      centerValue: formatMoney(totalEarned, currency),
+      centerLabel: 'EARNED',
+      segments: [
+        {
+          label: 'Shoot Earnings',
+          value: earnings,
+          color: colors.primary,
+          formatted: formatMoney(earnings, currency),
+        },
+        {
+          label: 'Tips & Gratuity',
+          value: tips,
+          color: colors.success,
+          formatted: formatMoney(tips, currency),
+        },
+        {
+          label: 'Bonuses',
+          value: bonuses,
+          color: colors.accent,
+          formatted: formatMoney(bonuses, currency),
+        },
+      ],
+    };
+  }, [isClient, isCoordinator, isPhotographer, clientData, coordData, photogData, currency, colors]);
+
+  // Horizontal ratio bar data (Exact real backend data - No fake mock fallbacks)
+  const ratioData = useMemo(() => {
+    if (isClient) {
+      const photos = clientData?.totalPhotos ?? 0;
+      const videos = clientData?.totalVideos ?? 0;
+      const bookmarks = clientData?.bookmarkedPhotographers ?? 0;
+      return {
+        title: 'Media & Asset Portfolio',
+        segments: [
+          { label: 'Photos', value: photos, color: colors.primary },
+          { label: 'Videos', value: videos, color: colors.accent },
+          { label: 'Saved Creators', value: bookmarks, color: colors.warning },
+        ],
+      };
+    }
+
+    if (isCoordinator) {
+      const photogs = coordData?.totalPhotographers ?? 0;
+      const customers = coordData?.totalCustomers ?? 0;
+      const streams = coordData?.activeStreams ?? 0;
+      return {
+        title: 'Network & Service Share',
+        segments: [
+          { label: 'Photographers', value: photogs, color: colors.primary },
+          { label: 'Clients', value: customers, color: colors.accent },
+          { label: 'Live Streams', value: streams, color: colors.warning },
+        ],
+      };
+    }
+
+    // Photographer
+    const completed = photogData?.completedEvents ?? 0;
+    const upcoming = photogData?.upcomingEvents ?? 0;
+    const clients = photogData?.totalClients ?? 0;
+    return {
+      title: 'Shoots & Client Ratios',
+      segments: [
+        { label: 'Completed', value: completed, color: colors.primary },
+        { label: 'Upcoming', value: upcoming, color: colors.accent },
+        { label: 'Active Clients', value: clients, color: colors.warning },
+      ],
+    };
+  }, [isClient, isCoordinator, isPhotographer, clientData, coordData, photogData, colors]);
 
   // Active pending payments (for Client and Coordinator)
   const pendingPaymentsList = isClient
@@ -460,6 +578,7 @@ export default function AnalyticsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
       {/* ── Single Clean Top Bar (No duplicate chevron or title) ─────────── */}
       <View style={styles.topBar}>
@@ -481,7 +600,7 @@ export default function AnalyticsScreen() {
           accessibilityLabel="Refresh"
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#083A85" />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <Ionicons name="refresh-outline" size={20} color={colors.text} />
           )}
@@ -489,108 +608,20 @@ export default function AnalyticsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 24) + 20 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#083A85"
-            colors={['#083A85', '#F20C8F']}
+            tintColor={colors.primary}
+            colors={[colors.primary, colors.accent]}
           />
         }
       >
-        {/* ── Salo-run Hero Section ───────────────────────────────────────── */}
-        <View style={styles.heroWrapper}>
-          {/* 3px Top Accent Bar with Brand Gradient */}
-          <LinearGradient
-            colors={['#083A85', '#F20C8F']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.heroTopBar}
-          />
-
-          <View style={styles.heroBody}>
-            <View style={styles.heroTagRow}>
-              <Text style={styles.heroTag}>YOUR DASHBOARD</Text>
-            </View>
-
-            <Text style={styles.heroGreeting}>
-              {greeting},{' '}
-              <Text style={styles.heroName}>{user?.firstName || user?.lastName || 'there'}</Text>
-            </Text>
-
-            <Text style={styles.heroTagline}>{tagline}</Text>
-
-            {/* Hero mini-stats card (Exact salo-run hero-stats-card) */}
-            <View style={styles.heroMiniStatsCard}>
-              {isClient && (
-                <>
-                  <HeroMiniStatItem
-                    label="SPENT"
-                    value={formatMoney(clientData?.totalSpent || 0, currency)}
-                    color="#083A85"
-                  />
-                  <View style={styles.heroStatDivider} />
-                  <HeroMiniStatItem
-                    label="BOOKINGS"
-                    value={String(clientData?.totalBookings || 0)}
-                    color="#F20C8F"
-                  />
-                  <View style={styles.heroStatDivider} />
-                  <HeroMiniStatItem
-                    label="PHOTOS"
-                    value={String(clientData?.totalPhotos || 0)}
-                    color="#10B981"
-                  />
-                </>
-              )}
-              {isPhotographer && (
-                <>
-                  <HeroMiniStatItem
-                    label="EARNINGS"
-                    value={formatMoney(photogData?.totalEarnings || 0, currency)}
-                    color="#083A85"
-                  />
-                  <View style={styles.heroStatDivider} />
-                  <HeroMiniStatItem
-                    label="CLIENTS"
-                    value={String(photogData?.totalClients || 0)}
-                    color="#F20C8F"
-                  />
-                  <View style={styles.heroStatDivider} />
-                  <HeroMiniStatItem
-                    label="RATING"
-                    value={`${(photogData?.averageRating ?? 5).toFixed(1)}/5`}
-                    color="#10B981"
-                  />
-                </>
-              )}
-              {isCoordinator && (
-                <>
-                  <HeroMiniStatItem
-                    label="REVENUE"
-                    value={formatMoney(coordData?.totalRevenue || 0, currency)}
-                    color="#083A85"
-                  />
-                  <View style={styles.heroStatDivider} />
-                  <HeroMiniStatItem
-                    label="EVENTS"
-                    value={String(coordData?.totalEvents || 0)}
-                    color="#F20C8F"
-                  />
-                  <View style={styles.heroStatDivider} />
-                  <HeroMiniStatItem
-                    label="ROSTER"
-                    value={String(coordData?.totalPhotographers || 0)}
-                    color="#10B981"
-                  />
-                </>
-              )}
-            </View>
-          </View>
-        </View>
-
         {/* ── Segmented Timeframe Filter Tabs (salo-run .ck-tabs) ─────────── */}
         <View style={styles.filterTabsContainer}>
           {PERIOD_TABS.map((tab) => {
@@ -661,7 +692,8 @@ export default function AnalyticsScreen() {
           </View>
         )}
 
-        {/* ── Salo-run StatCards Grid (Top 3px Accent + Squircle Icons) ───── */}
+
+        {/* ── StatCards Grid (Clean Unified Cards) ───── */}
         <View style={styles.statCardsGrid}>
           {statCards.map((card, idx) => (
             <SaloStatCard
@@ -675,6 +707,9 @@ export default function AnalyticsScreen() {
               accentColor={card.accentColor}
               href={card.href}
               onPress={card.href ? () => router.push(card.href as never) : undefined}
+              chartType={card.chartType}
+              histogramData={card.histogramData}
+              donutData={card.donutData}
             />
           ))}
         </View>
@@ -698,27 +733,22 @@ export default function AnalyticsScreen() {
                   <Ionicons
                     name="alert-circle"
                     size={20}
-                    color={hasFailedPayments ? '#DC2626' : '#D97706'}
+                    color={hasFailedPayments ? colors.error : colors.warning}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
                     style={[
                       styles.pendingAlertTitle,
-                      { color: hasFailedPayments ? '#DC2626' : '#D97706' },
+                      { color: hasFailedPayments ? colors.error : colors.warning },
                     ]}
                   >
                     {hasFailedPayments ? 'Payment Action Required' : 'Pending Payments'}
                   </Text>
-                  <Text
-                    style={[
-                      styles.pendingAlertSubtitle,
-                      { color: hasFailedPayments ? '#991B1B' : '#92400E' },
-                    ]}
-                  >
+                  <Text style={styles.pendingAlertSubtitle}>
                     You have {pendingPaymentsList.length} payment
                     {pendingPaymentsList.length > 1 ? 's' : ''} totaling{' '}
-                    <Text style={{ fontWeight: '700' }}>
+                    <Text style={{ fontWeight: '700', color: colors.text }}>
                       {formatMoney(totalPendingAmount, currency)}
                     </Text>{' '}
                     that need attention
@@ -730,7 +760,7 @@ export default function AnalyticsScreen() {
                 style={styles.pendingViewAllLink}
               >
                 <Text style={styles.pendingViewAllText}>View All</Text>
-                <Ionicons name="chevron-forward" size={14} color="#083A85" />
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
               </Pressable>
             </View>
 
@@ -752,7 +782,7 @@ export default function AnalyticsScreen() {
                           style={styles.pendingCardAvatarImg}
                         />
                       ) : (
-                        <Ionicons name="person" size={18} color="#9CA3AF" />
+                        <Ionicons name="person" size={18} color={colors.textMuted} />
                       )}
                     </View>
                     <View style={styles.pendingCardDetails}>
@@ -779,7 +809,7 @@ export default function AnalyticsScreen() {
                       <Text
                         style={[
                           styles.pendingCardAmount,
-                          { color: isFailed ? '#DC2626' : '#083A85' },
+                          { color: isFailed ? colors.error : colors.primary },
                         ]}
                       >
                         {formatMoney(dueAmount, currency)}
@@ -788,13 +818,13 @@ export default function AnalyticsScreen() {
                         onPress={() => handlePayNow(payment)}
                         style={[
                           styles.pendingPayBtn,
-                          { backgroundColor: isFailed ? '#DC2626' : '#083A85' },
+                          { backgroundColor: isFailed ? colors.error : colors.primary },
                         ]}
                       >
                         <Ionicons
                           name={isFailed ? 'refresh-outline' : 'card-outline'}
                           size={13}
-                          color="#FFFFFF"
+                          color={colors.textOnPrimary}
                         />
                         <Text style={styles.pendingPayBtnText}>
                           {isFailed ? 'Retry' : 'Pay Now'}
@@ -808,10 +838,35 @@ export default function AnalyticsScreen() {
           </View>
         )}
 
-        {/* ── Salo-run Performance Chart (Dual-bar Sun-Sat + Scale) ─────────── */}
+        {/* ── Diverse Shapes Analytics Charts ─────────────────────────────── */}
+        {/* Shape 1: Curved Wave Spline Area Chart */}
+        <View style={styles.sectionCard}>
+          <TrendCurveChart data={activePerf} height={160} />
+        </View>
+
+        {/* Shape 2: Concentric Circular Donut Ring Chart */}
+        <View style={styles.sectionCard}>
+          <DonutBreakdownChart
+            title={donutData.title}
+            subtitle={donutData.subtitle}
+            segments={donutData.segments}
+            centerValue={donutData.centerValue}
+            centerLabel={donutData.centerLabel}
+          />
+        </View>
+
+        {/* Shape 3: Vertical Dual-Column Bar Chart */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionCardTitle}>Performance</Text>
           <SaloPerformanceChart data={activePerf} height={180} />
+        </View>
+
+        {/* Shape 4: Horizontal Proportion Ribbon Bar */}
+        <View style={styles.sectionCard}>
+          <HorizontalRatioBar
+            title={ratioData.title}
+            segments={ratioData.segments}
+          />
         </View>
 
         {/* ── CLIENT Specific Lists ───────────────────────────────────────── */}
@@ -1002,48 +1057,126 @@ export default function AnalyticsScreen() {
   );
 }
 
-// ── Hero Mini-Stat Item ───────────────────────────────────────────────────────
-function HeroMiniStatItem({
-  label,
-  value,
+
+
+// ── Card Micro-Histogram Component ───────────────────────────────────────────
+function CardHistogramChart({
+  data,
   color,
+  height = 22,
 }: {
-  label: string;
-  value: string;
+  data: number[];
   color: string;
+  height?: number;
 }) {
+  const { colors } = useTheme();
+  const points = data.length > 0 ? data : [0, 0, 0, 0, 0, 0, 0];
+  const max = Math.max(...points, 0);
+
   return (
-    <View style={itemStyles.container}>
-      <Text style={itemStyles.label}>{label}</Text>
-      <Text style={[itemStyles.value, { color }]} numberOfLines={1}>
-        {value}
-      </Text>
+    <View style={cardHistoStyles.container}>
+      <View style={[cardHistoStyles.barsRow, { height }]}>
+        {points.map((val, idx) => {
+          const isNonZero = val > 0;
+          const pct = max > 0 ? Math.max((val / max) * 100, 16) : 22;
+          const isLatest = idx === points.length - 1;
+          return (
+            <View key={idx} style={cardHistoStyles.barCol}>
+              <View
+                style={[
+                  cardHistoStyles.barFill,
+                  {
+                    height: `${pct}%`,
+                    backgroundColor: isNonZero ? color : colors.borderSoft,
+                    opacity: isNonZero ? (isLatest ? 1 : 0.7) : 0.6,
+                  },
+                ]}
+              />
+            </View>
+          );
+        })}
+      </View>
+      <View style={[cardHistoStyles.baseline, { backgroundColor: colors.borderSoft }]} />
     </View>
   );
 }
 
-const itemStyles = StyleSheet.create({
+const cardHistoStyles = StyleSheet.create({
   container: {
+    width: '100%',
+    marginVertical: 4,
+  },
+  barsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 3,
+  },
+  barCol: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 6,
+    height: '100%',
+    justifyContent: 'flex-end',
   },
-  label: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#797D86',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+  barFill: {
+    width: '100%',
+    borderRadius: 3,
   },
-  value: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-    marginTop: 4,
-    lineHeight: 18,
+  baseline: {
+    height: 1,
+    width: '100%',
+    marginTop: 2,
+    opacity: 0.6,
   },
 });
+
+// ── Card Micro-Donut Component ────────────────────────────────────────────────
+function CardMicroDonut({
+  value,
+  total,
+  color,
+  size = 32,
+}: {
+  value: number;
+  total: number;
+  color: string;
+  size?: number;
+}) {
+  const { colors, isDark } = useTheme();
+  const strokeWidth = 3.5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const pct = total > 0 ? Math.min(Math.max(value / total, 0), 1) : 0;
+  const strokeDashoffset = circumference * (1 - pct);
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={isDark ? 'rgba(255,255,255,0.15)' : colors.borderSoft}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {pct > 0 && (
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeDasharray={`${circumference} ${circumference}`}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            fill="none"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        )}
+      </Svg>
+    </View>
+  );
+}
 
 // ── Salo-run StatCard Component ──────────────────────────────────────────────
 function SaloStatCard({
@@ -1053,9 +1186,12 @@ function SaloStatCard({
   timeframe,
   iconName,
   trend = 'up',
-  accentColor = '#083A85',
+  accentColor,
   href,
   onPress,
+  chartType,
+  histogramData,
+  donutData,
 }: {
   title: string;
   value: string;
@@ -1066,8 +1202,13 @@ function SaloStatCard({
   accentColor?: string;
   href?: string;
   onPress?: () => void;
+  chartType?: 'histogram' | 'donut';
+  histogramData?: number[];
+  donutData?: { value: number; total: number; color?: string };
 }) {
+  const { colors } = useTheme();
   const isUp = trend === 'up';
+  const effectiveAccent = accentColor || colors.primary;
 
   return (
     <Pressable
@@ -1075,29 +1216,50 @@ function SaloStatCard({
       disabled={!onPress}
       style={({ pressed }) => [
         cardStyles.card,
-        { borderTopColor: accentColor },
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.borderSoft,
+        },
         pressed && cardStyles.cardPressed,
       ]}
     >
-      {/* Top row: Title + Brand Tint Squircle Icon */}
+      {/* Top row: Title + Brand Tint Squircle Icon (or Micro-Donut) */}
       <View style={cardStyles.headerRow}>
-        <Text style={cardStyles.title} numberOfLines={1}>
+        <Text style={[cardStyles.title, { color: colors.textMuted }]} numberOfLines={1}>
           {title}
         </Text>
-        <LinearGradient
-          colors={['rgba(8,58,133,0.08)', 'rgba(242,12,143,0.06)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={cardStyles.iconSquircle}
-        >
-          <Ionicons name={iconName} size={17} color={accentColor} />
-        </LinearGradient>
+        {chartType === 'donut' && donutData ? (
+          <CardMicroDonut
+            value={donutData.value}
+            total={donutData.total}
+            color={donutData.color || effectiveAccent}
+          />
+        ) : (
+          <View
+            style={[
+              cardStyles.iconSquircle,
+              { backgroundColor: colors.surfaceMuted },
+            ]}
+          >
+            <Ionicons name={iconName} size={17} color={effectiveAccent} />
+          </View>
+        )}
       </View>
 
       {/* Main Stat Value */}
-      <Text style={cardStyles.value} numberOfLines={1}>
+      <Text
+        style={[cardStyles.value, { color: colors.text }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {value}
       </Text>
+
+      {/* Embedded Histogram Chart (when chartType is histogram) */}
+      {chartType === 'histogram' && histogramData && (
+        <CardHistogramChart data={histogramData} color={effectiveAccent} />
+      )}
 
       {/* Bottom row: Trend Pill + Timeframe + optional link arrow */}
       <View style={cardStyles.footerRow}>
@@ -1106,25 +1268,25 @@ function SaloStatCard({
             <View
               style={[
                 cardStyles.trendPill,
-                { backgroundColor: isUp ? '#ECFDF5' : '#FEF2F2' },
+                { backgroundColor: isUp ? colors.successBg : colors.errorBg },
               ]}
             >
               <Ionicons
                 name={isUp ? 'arrow-up' : 'arrow-down'}
                 size={10}
-                color={isUp ? '#065F46' : '#991B1B'}
+                color={isUp ? colors.success : colors.error}
               />
               <Text
                 style={[
                   cardStyles.trendText,
-                  { color: isUp ? '#065F46' : '#991B1B' },
+                  { color: isUp ? colors.success : colors.error },
                 ]}
               >
                 {isUp ? '+' : ''}
                 {percentage}
               </Text>
             </View>
-            <Text style={cardStyles.timeframeText} numberOfLines={1}>
+            <Text style={[cardStyles.timeframeText, { color: colors.textMuted }]} numberOfLines={1}>
               vs {timeframe}
             </Text>
           </View>
@@ -1133,8 +1295,8 @@ function SaloStatCard({
         )}
 
         {href && (
-          <View style={cardStyles.arrowCircle}>
-            <Ionicons name="arrow-forward" size={11} color="#083A85" />
+          <View style={[cardStyles.arrowCircle, { backgroundColor: colors.surfaceMuted }]}>
+            <Ionicons name="arrow-forward" size={11} color={colors.primary} />
           </View>
         )}
       </View>
@@ -1144,20 +1306,14 @@ function SaloStatCard({
 
 const cardStyles = StyleSheet.create({
   card: {
-    width: '48%',
+    flexBasis: '47%',
     flexGrow: 1,
-    backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    padding: 14,
-    borderTopWidth: 3,
+    padding: 13,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-    marginBottom: 8,
+    minHeight: 126,
+    justifyContent: 'space-between',
+    marginBottom: 2,
   },
   cardPressed: {
     opacity: 0.85,
@@ -1167,12 +1323,11 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   title: {
     fontSize: 12.5,
     fontWeight: '600',
-    color: '#64748B',
     flex: 1,
   },
   iconSquircle: {
@@ -1184,12 +1339,11 @@ const cardStyles = StyleSheet.create({
     marginLeft: 6,
   },
   value: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.4,
-    color: '#0F172A',
-    lineHeight: 25,
-    marginBottom: 10,
+    lineHeight: 24,
+    marginBottom: 8,
   },
   footerRow: {
     flexDirection: 'row',
@@ -1217,29 +1371,629 @@ const cardStyles = StyleSheet.create({
   },
   timeframeText: {
     fontSize: 10,
-    color: '#94A3B8',
     flexShrink: 1,
   },
   arrowCircle: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(8,58,133,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 });
 
-// ── Salo-run Performance Chart Component (Dual-bar Sun-Sat + Scale) ─────────
-const DEFAULT_DAYS = [
-  { day: 'Sun', value1: 0, value2: 0 },
-  { day: 'Mon', value1: 0, value2: 0 },
-  { day: 'Tue', value1: 0, value2: 0 },
-  { day: 'Wed', value1: 0, value2: 0 },
-  { day: 'Thu', value1: 0, value2: 0 },
-  { day: 'Fri', value1: 0, value2: 0 },
-  { day: 'Sat', value1: 0, value2: 0 },
-];
+// ── 1. Wave Spline Curve Chart (Organic Fluid Shape) ─────────────────────────
+function TrendCurveChart({
+  data,
+  height = 155,
+}: {
+  data: PerformancePoint[];
+  height?: number;
+}) {
+  const { colors } = useTheme();
+  const [layoutWidth, setLayoutWidth] = useState(320);
+
+  const chartData = useMemo(() => {
+    if (data.length === 7) return data;
+    if (data.length > 0) {
+      return DEFAULT_DAYS.map((def) => {
+        const found = data.find((d) => d.day.toLowerCase().startsWith(def.day.toLowerCase()));
+        return found || def;
+      });
+    }
+    return DEFAULT_DAYS;
+  }, [data]);
+
+  const points = useMemo(() => {
+    const rawValues = chartData.map((d) => (d.value1 || 0) + (d.value2 || 0));
+    const isAllZero = rawValues.every((v) => v === 0);
+    const maxVal = Math.max(...rawValues, 10);
+    const plotWidth = Math.max(layoutWidth - 40, 240);
+    const plotHeight = height - 42;
+    const step = plotWidth / (chartData.length - 1 || 1);
+
+    const coords = rawValues.map((v, i) => {
+      const x = 20 + i * step;
+      const y = plotHeight + 10 - (v / maxVal) * (plotHeight - 15);
+      return { x, y, value: v, day: chartData[i].day };
+    });
+
+    let peakIdx = 0;
+    rawValues.forEach((v, i) => {
+      if (v > rawValues[peakIdx]) peakIdx = i;
+    });
+
+    return {
+      coords,
+      maxVal,
+      isAllZero,
+      peak: isAllZero ? null : coords[peakIdx],
+      plotHeight,
+      baseY: plotHeight + 10,
+    };
+  }, [chartData, layoutWidth, height]);
+
+  const curvePath = useMemo(() => {
+    if (points.isAllZero) return '';
+    const pts = points.coords;
+    if (pts.length < 2) return '';
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i];
+      const p1 = pts[i + 1];
+      const midX = (p0.x + p1.x) / 2;
+      d += ` C ${midX} ${p0.y}, ${midX} ${p1.y}, ${p1.x} ${p1.y}`;
+    }
+    return d;
+  }, [points.coords, points.isAllZero]);
+
+  const areaPath = useMemo(() => {
+    if (points.isAllZero || !curvePath || points.coords.length < 2) return '';
+    const firstX = points.coords[0].x;
+    const lastX = points.coords[points.coords.length - 1].x;
+    return `${curvePath} L ${lastX} ${points.baseY} L ${firstX} ${points.baseY} Z`;
+  }, [curvePath, points.coords, points.baseY, points.isAllZero]);
+
+  return (
+    <View
+      style={trendStyles.container}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0 && Math.abs(w - layoutWidth) > 5) setLayoutWidth(w);
+      }}
+    >
+      <View style={trendStyles.headerRow}>
+        <View>
+          <Text style={[trendStyles.headline, { color: colors.text }]}>Trajectory & Flow</Text>
+          <Text style={[trendStyles.subheadline, { color: colors.textMuted }]}>
+            Continuous progression curve
+          </Text>
+        </View>
+        {points.isAllZero ? (
+          <View
+            style={[
+              trendStyles.peakPill,
+              {
+                backgroundColor: colors.surfaceMuted,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+              },
+            ]}
+          >
+            <Ionicons name="time-outline" size={12} color={colors.textMuted} />
+            <Text style={[trendStyles.peakPillText, { color: colors.textMuted }]}>
+              No activity yet
+            </Text>
+          </View>
+        ) : points.peak ? (
+          <View style={[trendStyles.peakPill, { backgroundColor: colors.tintAccent }]}>
+            <Ionicons name="trending-up" size={12} color={colors.accent} />
+            <Text style={[trendStyles.peakPillText, { color: colors.accent }]}>
+              Peak: {points.peak.day}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={{ height, width: '100%', position: 'relative' }}>
+        <Svg width="100%" height={height}>
+          {/* Reference gridlines */}
+          {[0.25, 0.5, 0.75, 1].map((pct, idx) => {
+            const gy = 10 + (points.plotHeight - 15) * (1 - pct);
+            return (
+              <Path
+                key={idx}
+                d={`M 15 ${gy} L ${layoutWidth - 15} ${gy}`}
+                stroke={colors.borderSoft}
+                strokeWidth={1}
+                strokeDasharray="4 4"
+              />
+            );
+          })}
+
+          {/* If all values are zero, show clean baseline with day circular dots */}
+          {points.isAllZero ? (
+            <G>
+              <Path
+                d={`M 15 ${points.baseY} L ${layoutWidth - 15} ${points.baseY}`}
+                stroke={colors.primary}
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                opacity={0.4}
+              />
+              {points.coords.map((pt, idx) => (
+                <Circle
+                  key={idx}
+                  cx={pt.x}
+                  cy={points.baseY}
+                  r={3.5}
+                  fill={colors.surface}
+                  stroke={colors.primary}
+                  strokeWidth={2}
+                  opacity={0.65}
+                />
+              ))}
+            </G>
+          ) : (
+            <>
+              {/* Solid subtle area wash (no multi-stop gradients) */}
+              {areaPath ? <Path d={areaPath} fill={colors.primary} fillOpacity={0.1} /> : null}
+
+              {/* Smooth line */}
+              {curvePath ? (
+                <Path
+                  d={curvePath}
+                  fill="none"
+                  stroke={colors.primary}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                />
+              ) : null}
+
+              {/* Peak point indicator */}
+              {points.peak && (
+                <G>
+                  <Circle
+                    cx={points.peak.x}
+                    cy={points.peak.y}
+                    r={7}
+                    fill={colors.accent}
+                    opacity={0.3}
+                  />
+                  <Circle cx={points.peak.x} cy={points.peak.y} r={4.5} fill={colors.accent} />
+                  <Circle cx={points.peak.x} cy={points.peak.y} r={2} fill="#FFFFFF" />
+                </G>
+              )}
+            </>
+          )}
+        </Svg>
+
+        {/* Empty state informative overlay badge */}
+        {points.isAllZero && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: '32%',
+              left: 0,
+              right: 0,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 20,
+                backgroundColor: colors.surfaceMuted,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+              }}
+            >
+              <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
+              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
+                0 activity recorded for this period
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* X-axis day labels */}
+      <View style={trendStyles.xAxisRow}>
+        {points.coords.map((pt, idx) => (
+          <Text
+            key={idx}
+            style={[
+              trendStyles.xDayLabel,
+              { color: !points.isAllZero && pt.day === points.peak?.day ? colors.accent : colors.textMuted },
+            ]}
+          >
+            {pt.day.slice(0, 3)}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const trendStyles = StyleSheet.create({
+  container: {
+    width: '100%',
+    paddingTop: 4,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  headline: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  subheadline: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  peakPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+  },
+  peakPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  xAxisRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginTop: 6,
+  },
+  xDayLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+});
+
+// ── 2. Concentric Donut Breakdown Chart (Circular Shape) ──────────────────────
+export type DonutSegment = {
+  label: string;
+  value: number;
+  color: string;
+  formatted?: string;
+};
+
+function DonutBreakdownChart({
+  title,
+  subtitle,
+  segments,
+  centerLabel,
+  centerValue,
+}: {
+  title: string;
+  subtitle?: string;
+  segments: DonutSegment[];
+  centerLabel?: string;
+  centerValue?: string;
+}) {
+  const { colors, isDark } = useTheme();
+
+  const realTotal = useMemo(
+    () => segments.reduce((sum, s) => sum + Math.max(s.value, 0), 0),
+    [segments],
+  );
+
+  const rings = useMemo(() => {
+    const baseRadius = 58;
+    const ringSpacing = 14;
+    return segments.slice(0, 3).map((seg, idx) => {
+      const r = baseRadius - idx * ringSpacing;
+      const circumference = 2 * Math.PI * r;
+      const pct = realTotal > 0 ? Math.min(Math.max(seg.value / realTotal, 0), 1) : 0;
+      const strokeDashoffset = circumference * (1 - pct);
+      const percentageDisplay = realTotal > 0 ? `${Math.round((seg.value / realTotal) * 100)}%` : '—';
+      return {
+        ...seg,
+        r,
+        circumference,
+        strokeDashoffset,
+        pctDisplay: percentageDisplay,
+      };
+    });
+  }, [segments, realTotal]);
+
+  return (
+    <View style={donutStyles.container}>
+      <View style={donutStyles.headerRow}>
+        <Text style={[donutStyles.title, { color: colors.text }]}>{title}</Text>
+        {subtitle ? (
+          <Text style={[donutStyles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text>
+        ) : null}
+      </View>
+
+      <View style={donutStyles.contentRow}>
+        {/* Left: Circular Donut Ring Graphic */}
+        <View style={donutStyles.chartWrapper}>
+          <Svg width={140} height={140} viewBox="0 0 140 140">
+            {rings.map((ring, idx) => (
+              <G key={`track-${idx}`}>
+                {/* Background track (always clearly visible in both light & dark mode) */}
+                <Circle
+                  cx={70}
+                  cy={70}
+                  r={ring.r}
+                  stroke={isDark ? 'rgba(255,255,255,0.18)' : colors.borderSoft}
+                  strokeWidth={9}
+                  fill="none"
+                />
+                {/* Foreground arc (rendered if realTotal > 0 and ring.value > 0) */}
+                {realTotal > 0 && ring.value > 0 && (
+                  <Circle
+                    cx={70}
+                    cy={70}
+                    r={ring.r}
+                    stroke={ring.color}
+                    strokeWidth={9}
+                    strokeDasharray={`${ring.circumference} ${ring.circumference}`}
+                    strokeDashoffset={ring.strokeDashoffset}
+                    strokeLinecap="round"
+                    fill="none"
+                    transform="rotate(-90 70 70)"
+                  />
+                )}
+              </G>
+            ))}
+          </Svg>
+
+          {/* Center Badge */}
+          <View style={donutStyles.centerBadge}>
+            <Text
+              style={[donutStyles.centerValueText, { color: colors.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              {centerValue || String(realTotal)}
+            </Text>
+            <Text style={[donutStyles.centerLabelText, { color: colors.textMuted }]}>
+              {realTotal > 0 ? (centerLabel || 'TOTAL') : 'NO DATA'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Right: Legend Breakdown Rows */}
+        <View style={donutStyles.legendCol}>
+          {rings.map((ring, idx) => (
+            <View key={idx} style={donutStyles.legendItem}>
+              <View style={[donutStyles.legendDot, { backgroundColor: ring.color }]} />
+              <View style={donutStyles.legendInfo}>
+                <Text style={[donutStyles.legendLabel, { color: colors.text }]} numberOfLines={1}>
+                  {ring.label}
+                </Text>
+                <Text style={[donutStyles.legendSub, { color: colors.textMuted }]}>
+                  {ring.formatted || ring.value}
+                </Text>
+              </View>
+              <View style={[donutStyles.pctBadge, { backgroundColor: colors.surfaceMuted }]}>
+                <Text style={[donutStyles.pctText, { color: ring.color }]}>
+                  {ring.pctDisplay}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Clear indicator when no data exists */}
+      {realTotal === 0 && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            marginTop: 10,
+            paddingVertical: 5,
+            paddingHorizontal: 10,
+            backgroundColor: colors.surfaceMuted,
+            borderRadius: 8,
+          }}
+        >
+          <Ionicons name="information-circle-outline" size={13} color={colors.textMuted} />
+          <Text style={{ fontSize: 11, color: colors.textMuted }}>
+            0 allocation events recorded for this timeframe
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const donutStyles = StyleSheet.create({
+  container: {
+    width: '100%',
+  },
+  headerRow: {
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  subtitle: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  chartWrapper: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  centerBadge: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 68,
+    height: 68,
+  },
+  centerValueText: {
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  centerLabelText: {
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginTop: 1,
+  },
+  legendCol: {
+    flex: 1,
+    gap: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  legendLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  legendSub: {
+    fontSize: 10.5,
+    marginTop: 1,
+  },
+  pctBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pctText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+});
+
+// ── 3. Horizontal Ratio Ribbon Bar (Horizontal Strip Shape) ──────────────────
+function HorizontalRatioBar({
+  title,
+  segments,
+}: {
+  title: string;
+  segments: { label: string; value: number; color: string }[];
+}) {
+  const { colors } = useTheme();
+  const realTotal = useMemo(
+    () => segments.reduce((s, x) => s + Math.max(x.value, 0), 0),
+    [segments],
+  );
+
+  return (
+    <View style={ratioStyles.container}>
+      <Text style={[ratioStyles.title, { color: colors.text }]}>{title}</Text>
+      <View style={[ratioStyles.barTrack, { backgroundColor: colors.surfaceMuted }]}>
+        {realTotal === 0 ? (
+          <View style={{ flex: 1, height: '100%', backgroundColor: colors.borderSoft, opacity: 0.3 }} />
+        ) : (
+          segments.map((seg, idx) => {
+            const flex = Math.max(seg.value, 0.01);
+            return (
+              <View
+                key={idx}
+                style={{
+                  flex,
+                  backgroundColor: seg.color,
+                  height: '100%',
+                }}
+              />
+            );
+          })
+        )}
+      </View>
+      <View style={ratioStyles.legendRow}>
+        {segments.map((seg, idx) => {
+          const pct = realTotal > 0 ? Math.round((Math.max(seg.value, 0) / realTotal) * 100) : 0;
+          return (
+            <View key={idx} style={ratioStyles.legendItem}>
+              <View style={[ratioStyles.dot, { backgroundColor: seg.color }]} />
+              <Text style={[ratioStyles.labelText, { color: colors.textMuted }]}>
+                {seg.label}{realTotal > 0 ? ` (${pct}%)` : ''}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const ratioStyles = StyleSheet.create({
+  container: {
+    width: '100%',
+    paddingTop: 2,
+  },
+  title: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  barTrack: {
+    height: 10,
+    borderRadius: 5,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  labelText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+});
+
+// ── 4. Salo-run Performance Chart Component (Dual-bar Sun-Sat + Scale) ───────
 
 function SaloPerformanceChart({
   data,
@@ -1248,6 +2002,10 @@ function SaloPerformanceChart({
   data: PerformancePoint[];
   height?: number;
 }) {
+  const { colors } = useTheme();
+  const bar1Color = colors.primary;
+  const bar2Color = colors.accent;
+
   const chartData = useMemo(() => {
     if (data.length === 7) return data;
     if (data.length > 0) {
@@ -1262,7 +2020,7 @@ function SaloPerformanceChart({
 
   const allValues = chartData.flatMap((d) => [d.value1, d.value2]);
   const maxValue = Math.max(...allValues, 0);
-  const roundedMax = Math.ceil(maxValue / 50) * 50 || 200;
+  const roundedMax = maxValue > 0 ? Math.ceil(maxValue / 50) * 50 : 100;
   const scale = (height - 30) / roundedMax;
   const yAxisLabels = [roundedMax, roundedMax * 0.75, roundedMax * 0.5, roundedMax * 0.25, 0];
 
@@ -1272,7 +2030,7 @@ function SaloPerformanceChart({
         {/* Left Y-axis scale labels */}
         <View style={[perfStyles.yAxis, { height: height - 20 }]}>
           {yAxisLabels.map((lbl, idx) => (
-            <Text key={idx} style={perfStyles.yAxisLabel}>
+            <Text key={idx} style={[perfStyles.yAxisLabel, { color: colors.textMuted }]}>
               {Math.round(lbl)}
             </Text>
           ))}
@@ -1283,37 +2041,81 @@ function SaloPerformanceChart({
           {/* Horizontal gridlines */}
           <View style={perfStyles.gridLinesWrapper}>
             {yAxisLabels.map((_, idx) => (
-              <View key={idx} style={perfStyles.gridLine} />
+              <View key={idx} style={[perfStyles.gridLine, { backgroundColor: colors.borderSoft }]} />
             ))}
           </View>
 
           {/* 7 day columns */}
           <View style={[perfStyles.barsContainer, { height: height - 20 }]}>
             {chartData.map((item, idx) => {
-              const h1 = Math.max(item.value1 * scale, item.value1 > 0 ? 4 : 2);
-              const h2 = Math.max(item.value2 * scale, item.value2 > 0 ? 4 : 2);
+              const isZero = maxValue === 0;
+              const h1 = isZero ? 6 : Math.max(item.value1 * scale, item.value1 > 0 ? 4 : 2);
+              const h2 = isZero ? 6 : Math.max(item.value2 * scale, item.value2 > 0 ? 4 : 2);
               return (
                 <View key={idx} style={perfStyles.dayCol}>
                   <View style={perfStyles.barPair}>
-                    {/* Current V1 Bar (Blue gradient) */}
-                    <LinearGradient
-                      colors={['#3B82F6', '#93C5FD']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={[perfStyles.bar, { height: h1 }]}
+                    {/* Primary V1 Bar (Brand Blue) */}
+                    <View
+                      style={[
+                        perfStyles.bar,
+                        {
+                          height: h1,
+                          backgroundColor: bar1Color,
+                          opacity: isZero ? 0.35 : 1,
+                        },
+                      ]}
                     />
-                    {/* Current V2 Bar (Amber gradient) */}
-                    <LinearGradient
-                      colors={['#F59E0B', '#FDE68A']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={[perfStyles.bar, { height: h2 }]}
+                    {/* Secondary V2 Bar (Signature Accent Pink) */}
+                    <View
+                      style={[
+                        perfStyles.bar,
+                        {
+                          height: h2,
+                          backgroundColor: bar2Color,
+                          opacity: isZero ? 0.35 : 1,
+                        },
+                      ]}
                     />
                   </View>
                 </View>
               );
             })}
           </View>
+
+          {/* Empty state informative overlay badge */}
+          {maxValue === 0 && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  backgroundColor: colors.surfaceMuted,
+                  borderWidth: 1,
+                  borderColor: colors.borderSoft,
+                }}
+              >
+                <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
+                  0 performance recorded for this period
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
       </View>
 
@@ -1322,28 +2124,22 @@ function SaloPerformanceChart({
         <View style={{ width: 34 }} />
         <View style={perfStyles.xAxisLabels}>
           {chartData.map((item, idx) => (
-            <Text key={idx} style={perfStyles.xDayLabel}>
+            <Text key={idx} style={[perfStyles.xDayLabel, { color: colors.textMuted }]}>
               {item.day.slice(0, 3)}
             </Text>
           ))}
         </View>
       </View>
 
-      {/* Legend below chart (salo-run PerformanceChart) */}
-      <View style={perfStyles.legendRow}>
+      {/* Legend below chart (Solid Brand Color Dot Badges) */}
+      <View style={[perfStyles.legendRow, { borderTopColor: colors.borderSoft }]}>
         <View style={perfStyles.legendItem}>
-          <LinearGradient
-            colors={['#3B82F6', '#93C5FD']}
-            style={perfStyles.legendDot}
-          />
-          <Text style={perfStyles.legendText}>Current V1</Text>
+          <View style={[perfStyles.legendDot, { backgroundColor: bar1Color }]} />
+          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>Current V1</Text>
         </View>
         <View style={perfStyles.legendItem}>
-          <LinearGradient
-            colors={['#F59E0B', '#FDE68A']}
-            style={perfStyles.legendDot}
-          />
-          <Text style={perfStyles.legendText}>Current V2</Text>
+          <View style={[perfStyles.legendDot, { backgroundColor: bar2Color }]} />
+          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>Current V2</Text>
         </View>
       </View>
     </View>
@@ -1363,7 +2159,6 @@ const perfStyles = StyleSheet.create({
   },
   yAxisLabel: {
     fontSize: 10,
-    color: '#94A3B8',
     fontWeight: '600',
   },
   plotArea: {
@@ -1382,7 +2177,6 @@ const perfStyles = StyleSheet.create({
   gridLine: {
     width: '100%',
     height: 1,
-    backgroundColor: '#F1F5F9',
   },
   barsContainer: {
     flexDirection: 'row',
@@ -1420,7 +2214,6 @@ const perfStyles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
   },
   legendRow: {
     flexDirection: 'row',
@@ -1429,7 +2222,6 @@ const perfStyles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
   },
   legendItem: {
     flexDirection: 'row',
@@ -1444,7 +2236,6 @@ const perfStyles = StyleSheet.create({
   legendText: {
     fontSize: 11.5,
     fontWeight: '500',
-    color: '#64748B',
   },
 });
 
@@ -1462,16 +2253,18 @@ function PhotographerItemRow({
   status?: string;
   onPress?: () => void;
 }) {
+  const { colors } = useTheme();
+
   const getStatusStyle = (s?: string) => {
     switch (s) {
       case 'In Progress':
-        return { bg: '#FCE7F3', text: '#DB2777' };
+        return { bg: colors.tintAccent, text: colors.accent };
       case 'Completed':
-        return { bg: '#D1FAE5', text: '#059669' };
+        return { bg: colors.successBg, text: colors.success };
       case 'Pending':
-        return { bg: '#FEF3C7', text: '#D97706' };
+        return { bg: colors.warningBg, text: colors.warning };
       default:
-        return { bg: '#DBEAFE', text: '#2563EB' };
+        return { bg: colors.infoBg, text: colors.info };
     }
   };
 
@@ -1480,20 +2273,24 @@ function PhotographerItemRow({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [rowStyles.row, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        rowStyles.row,
+        { borderBottomColor: colors.borderSoft },
+        pressed && { opacity: 0.7 },
+      ]}
     >
-      <View style={rowStyles.avatarBox}>
+      <View style={[rowStyles.avatarBox, { backgroundColor: colors.surfaceMuted }]}>
         {avatar ? (
           <RNImage source={{ uri: avatar }} style={rowStyles.avatarImg} />
         ) : (
-          <Ionicons name="person" size={18} color="#9CA3AF" />
+          <Ionicons name="person" size={18} color={colors.textMuted} />
         )}
       </View>
       <View style={rowStyles.infoCol}>
-        <Text style={rowStyles.name} numberOfLines={1}>
+        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={rowStyles.sub} numberOfLines={1}>
+        <Text style={[rowStyles.sub, { color: colors.textMuted }]} numberOfLines={1}>
           {event}
         </Text>
       </View>
@@ -1504,7 +2301,7 @@ function PhotographerItemRow({
           </Text>
         </View>
       )}
-      <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
     </Pressable>
   );
 }
@@ -1518,18 +2315,19 @@ function ActivityItemRow({
   title: string;
   createdAt?: string;
 }) {
+  const { colors } = useTheme();
   const label = type ? type.charAt(0).toUpperCase() + type.slice(1).toLowerCase() : 'Activity';
   return (
-    <View style={rowStyles.row}>
-      <View style={rowStyles.activityDot} />
+    <View style={[rowStyles.row, { borderBottomColor: colors.borderSoft }]}>
+      <View style={[rowStyles.activityDot, { backgroundColor: colors.accent }]} />
       <View style={rowStyles.infoCol}>
-        <Text style={rowStyles.activityLabel}>{label}</Text>
-        <Text style={rowStyles.name} numberOfLines={2}>
+        <Text style={[rowStyles.activityLabel, { color: colors.accent }]}>{label}</Text>
+        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={2}>
           {title}
         </Text>
       </View>
       {createdAt ? (
-        <Text style={rowStyles.meta}>{formatDate(createdAt)}</Text>
+        <Text style={[rowStyles.meta, { color: colors.textMuted }]}>{formatDate(createdAt)}</Text>
       ) : null}
     </View>
   );
@@ -1548,32 +2346,42 @@ function PaymentItemRow({
   avatar?: string;
   subtitle?: string;
 }) {
+  const { colors } = useTheme();
   const isFailed = type.toUpperCase() === 'FAILED';
+  const cleanName = cleanTransactionTitle(name) || name || 'Payment';
+  const cleanSubtitle = subtitle ? cleanTransactionTitle(subtitle) : undefined;
+  const cleanType = cleanTransactionStatus(type) || type;
+
   return (
-    <View style={rowStyles.row}>
-      <View style={rowStyles.avatarBox}>
+    <View style={[rowStyles.row, { borderBottomColor: colors.borderSoft }]}>
+      <View style={[rowStyles.avatarBox, { backgroundColor: colors.surfaceMuted }]}>
         {avatar ? (
           <RNImage source={{ uri: avatar }} style={rowStyles.avatarImg} />
         ) : (
-          <Text style={rowStyles.avatarInitial}>
-            {name.charAt(0).toUpperCase()}
+          <Text style={[rowStyles.avatarInitial, { color: colors.textMuted }]}>
+            {cleanName.charAt(0).toUpperCase()}
           </Text>
         )}
       </View>
       <View style={rowStyles.infoCol}>
-        <Text style={rowStyles.name} numberOfLines={1}>
-          {name}
+        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={1}>
+          {cleanName}
         </Text>
         <Text
           style={[
             rowStyles.sub,
-            { color: isFailed ? '#DC2626' : '#64748B' },
+            { color: isFailed ? colors.error : colors.textMuted },
           ]}
         >
-          {subtitle || type}
+          {cleanSubtitle || cleanType}
         </Text>
       </View>
-      <Text style={[rowStyles.amount, { color: isFailed ? '#DC2626' : '#083A85' }]}>
+      <Text
+        style={[
+          rowStyles.amount,
+          { color: isFailed ? colors.error : colors.primary },
+        ]}
+      >
         {amount}
       </Text>
     </View>
@@ -1587,13 +2395,11 @@ const rowStyles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   avatarBox: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1605,7 +2411,6 @@ const rowStyles = StyleSheet.create({
   avatarInitial: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#64748B',
   },
   infoCol: {
     flex: 1,
@@ -1614,12 +2419,10 @@ const rowStyles = StyleSheet.create({
   name: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
     lineHeight: 18,
   },
   sub: {
     fontSize: 12,
-    color: '#64748B',
     marginTop: 2,
   },
   statusBadge: {
@@ -1635,19 +2438,16 @@ const rowStyles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#F20C8F',
   },
   activityLabel: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#F20C8F',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   meta: {
     fontSize: 11,
-    color: '#94A3B8',
   },
   amount: {
     fontSize: 14,
@@ -1657,10 +2457,10 @@ const rowStyles = StyleSheet.create({
 });
 
 // ── Screen Styles ─────────────────────────────────────────────────────────────
-const useStyles = makeStyles((c) => ({
+const useStyles = makeStyles((c, e) => ({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.background,
   },
   topBar: {
     flexDirection: 'row',
@@ -1668,17 +2468,17 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: c.borderSoft,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.surfaceMuted,
   },
   topBarTitle: {
     fontSize: fontSize.lg,
@@ -1686,109 +2486,45 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   refreshBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.surfaceMuted,
   },
   scrollContent: {
     padding: spacing.md,
     gap: spacing.md,
   },
 
-  // Hero Card (salo-run .dashboard-hero)
-  heroWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  heroTopBar: {
-    height: 3,
-    width: '100%',
-  },
-  heroBody: {
-    padding: 16,
-  },
-  heroTagRow: {
-    marginBottom: 6,
-  },
-  heroTag: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#F20C8F',
-    letterSpacing: 1,
-  },
-  heroGreeting: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-    color: '#0F172A',
-    lineHeight: 26,
-  },
-  heroName: {
-    color: '#F20C8F',
-  },
-  heroTagline: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 6,
-    lineHeight: 18,
-  },
-  heroMiniStatsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingVertical: 10,
-    marginTop: 16,
-  },
-  heroStatDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: '#E2E8F0',
-  },
+
 
   // Segmented Timeframe Filter Tabs (salo-run .ck-tabs)
   filterTabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: c.surfaceMuted,
     borderRadius: 10,
     padding: 3,
     gap: 3,
   },
   filterTab: {
     flex: 1,
-    paddingVertical: 7,
+    paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
   },
   filterTabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: c.card,
+    ...e(1),
   },
   filterTabText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: c.textMuted,
   },
   filterTabTextActive: {
-    color: '#083A85',
+    color: c.primary,
     fontWeight: '700',
   },
 
@@ -1797,11 +2533,11 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: c.card,
+    borderRadius: radii.md,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderSoft,
   },
   customDateInputGroup: {
     flex: 1,
@@ -1810,20 +2546,20 @@ const useStyles = makeStyles((c) => ({
   customDateLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: c.textMuted,
   },
   customDateInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderSoft,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 6,
     fontSize: 12,
-    color: '#0F172A',
+    color: c.text,
   },
   customApplyBtn: {
-    backgroundColor: '#F20C8F',
+    backgroundColor: c.accent,
     borderRadius: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -1831,10 +2567,11 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
   },
   customApplyBtnDisabled: {
-    backgroundColor: '#CBD5E1',
+    backgroundColor: c.borderSoft,
+    opacity: 0.6,
   },
   customApplyBtnText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1843,7 +2580,7 @@ const useStyles = makeStyles((c) => ({
   statCardsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 10,
   },
 
   // Pending Payments Alert (salo-run .mobile-pending-payments)
@@ -1853,12 +2590,12 @@ const useStyles = makeStyles((c) => ({
     padding: 14,
   },
   pendingAlertWarning: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#FDE68A',
+    backgroundColor: c.warningBg,
+    borderColor: c.borderSoft,
   },
   pendingAlertFailed: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: c.errorBg,
+    borderColor: c.borderSoft,
   },
   pendingAlertHeader: {
     flexDirection: 'row',
@@ -1881,10 +2618,10 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
   },
   pendingIconWarning: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: c.warningBg,
   },
   pendingIconFailed: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: c.errorBg,
   },
   pendingAlertTitle: {
     fontSize: 14,
@@ -1894,6 +2631,7 @@ const useStyles = makeStyles((c) => ({
     fontSize: 12,
     marginTop: 2,
     lineHeight: 16,
+    color: c.textSoft,
   },
   pendingViewAllLink: {
     flexDirection: 'row',
@@ -1904,7 +2642,7 @@ const useStyles = makeStyles((c) => ({
   pendingViewAllText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#083A85',
+    color: c.primary,
   },
   pendingCardsScroll: {
     gap: 10,
@@ -1913,11 +2651,11 @@ const useStyles = makeStyles((c) => ({
   pendingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.card,
     borderRadius: 10,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderSoft,
     gap: 10,
     minWidth: 260,
   },
@@ -1925,7 +2663,7 @@ const useStyles = makeStyles((c) => ({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1946,34 +2684,34 @@ const useStyles = makeStyles((c) => ({
   pendingCardName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: c.text,
     flexShrink: 1,
   },
   pendingStatusBadgeFailed: {
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 4,
+    backgroundColor: c.errorBg,
+    paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
   },
   pendingStatusBadgeTextFailed: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#DC2626',
+    color: c.error,
   },
   pendingStatusBadgePartial: {
-    backgroundColor: '#DBEAFE',
-    paddingHorizontal: 4,
+    backgroundColor: c.infoBg,
+    paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
   },
   pendingStatusBadgeTextPartial: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#2563EB',
+    color: c.info,
   },
   pendingCardEvent: {
     fontSize: 11.5,
-    color: '#64748B',
+    color: c.textMuted,
     marginTop: 2,
   },
   pendingCardActionCol: {
@@ -1995,27 +2733,23 @@ const useStyles = makeStyles((c) => ({
   pendingPayBtnText: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   // Section Cards
   sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: c.card,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderSoft,
     padding: 14,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
+    ...e(1),
   },
   sectionCardTitle: {
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: -0.2,
-    color: '#0F172A',
+    color: c.text,
     marginBottom: 10,
   },
   sectionCardHeaderRow: {
@@ -2027,7 +2761,7 @@ const useStyles = makeStyles((c) => ({
   sectionCardSeeAll: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#083A85',
+    color: c.primary,
   },
   listCardBody: {
     gap: 2,

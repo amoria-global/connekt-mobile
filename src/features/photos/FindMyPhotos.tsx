@@ -1123,11 +1123,10 @@ export function FindMyPhotos() {
             />
           </View>
 
-          {/* Progress bar + percentage counting to 100% */}
+          {/* Progress bar */}
           <View style={styles.progressBarTrack}>
             <View style={[styles.progressBarFill, { width: `${Math.min(100, Math.max(0, scanProgress))}%` }]} />
           </View>
-          <Text style={styles.progressPercentText}>{Math.round(scanProgress)}%</Text>
 
           <Text style={styles.scanningTitle}>
             {scanProgress < 25

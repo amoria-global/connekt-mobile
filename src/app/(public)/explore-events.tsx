@@ -72,7 +72,41 @@ import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { canShowDigitalPrice } from '@/features/payments/policy';
 
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 8;
+
+export type EventSortOption = 'newest' | 'oldest' | 'date_asc' | 'title_asc';
+
+export const SORT_OPTIONS: {
+  key: EventSortOption;
+  label: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  {
+    key: 'newest',
+    label: 'Newest created first',
+    description: 'Recently booked or created events appear first',
+    icon: 'sparkles-outline',
+  },
+  {
+    key: 'oldest',
+    label: 'Oldest created first',
+    description: 'Earliest booked or created events first',
+    icon: 'time-outline',
+  },
+  {
+    key: 'date_asc',
+    label: 'Event date (Upcoming first)',
+    description: 'Scheduled event date & time in chronological order',
+    icon: 'calendar-outline',
+  },
+  {
+    key: 'title_asc',
+    label: 'Title (A–Z)',
+    description: 'Alphabetical order by event name',
+    icon: 'text-outline',
+  },
+];
 // No colon: `storage` is expo-secure-store on device, whose keys may only
 // contain alphanumerics, '.', '-' and '_'. 'connekyt:savedEvents' made every
 // read and write reject, and both call sites swallow the error — so saved
@@ -215,10 +249,13 @@ export default function ExploreEventsScreen() {
     date?: string;
   }>();
 
+  const listRef = useRef<FlatList<PublicEvent>>(null);
   const [tab, setTab] = useState<PublicEventsTab>(() => tabFromStatusParam(params.status));
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchTerm, setSearchTerm] = useState(''); // debounced for the API
+  const [sortBy, setSortBy] = useState<EventSortOption>('newest');
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [category, setCategory] = useState<string>(params.category ?? 'all');
   const [location, setLocation] = useState<string>(params.location ?? 'all');
   const [dateRange, setDateRange] = useState<DateRange>(
@@ -264,8 +301,28 @@ export default function ExploreEventsScreen() {
   // Fetch events whenever the resolved filter set changes.
   const [data, setData] = useState<PublicEvent[]>([]);
   const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const sortConfig = useMemo(() => {
+    switch (sortBy) {
+      case 'newest':
+        return { column: 'createdAt', direction: 'desc' as const };
+      case 'oldest':
+        return { column: 'createdAt', direction: 'asc' as const };
+      case 'date_asc':
+        return { column: 'eventDate', direction: 'asc' as const };
+      case 'title_asc':
+        return { column: 'title', direction: 'asc' as const };
+    }
+  }, [sortBy]);
+
+  const goToPage = (nextPage: number) => {
+    const valid = Math.max(1, Math.min(totalPages, nextPage));
+    setPage(valid);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
 
   // Only the newest request may write results: switching tab or typing a
   // search used to let a slow earlier response land last and repaint the list
@@ -284,8 +341,8 @@ export default function ExploreEventsScreen() {
         // status. Load the live pool broadly, then use streamStatus and the
         // stream URLs to decide which cards are actually live.
         size: tab === 'live' ? 50 : PAGE_SIZE,
-        sortColumn: 'eventDate',
-        sortDirection: tab === 'completed' ? 'desc' : 'asc',
+        sortColumn: sortConfig.column,
+        sortDirection: tab === 'completed' ? 'desc' : sortConfig.direction,
         category: category !== 'all' ? category : undefined,
         location: location !== 'all' ? location : undefined,
         status: tab === 'live' ? undefined : TAB_TO_STATUS[tab],
@@ -302,8 +359,8 @@ export default function ExploreEventsScreen() {
         const fallbackRes = await listPublicEventsDetailed({
           page: 0,
           size: 50,
-          sortColumn: 'eventDate',
-          sortDirection: tab === 'completed' ? 'desc' : 'asc',
+          sortColumn: sortConfig.column,
+          sortDirection: tab === 'completed' ? 'desc' : sortConfig.direction,
           category: category !== 'all' ? category : undefined,
           location: location !== 'all' ? location : undefined,
           search: searchTerm || undefined,
@@ -323,35 +380,68 @@ export default function ExploreEventsScreen() {
             filtered = filterByDateRange(filtered, dateRange);
           }
 
+          switch (sortBy) {
+            case 'newest':
+              filtered.sort((a, b) => {
+                const ta = a.eventDate ? Date.parse(a.eventDate) : 0;
+                const tb = b.eventDate ? Date.parse(b.eventDate) : 0;
+                return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta);
+              });
+              break;
+            case 'oldest':
+              filtered.sort((a, b) => {
+                const ta = a.eventDate ? Date.parse(a.eventDate) : 0;
+                const tb = b.eventDate ? Date.parse(b.eventDate) : 0;
+                return (Number.isNaN(ta) ? 0 : ta) - (Number.isNaN(tb) ? 0 : tb);
+              });
+              break;
+            case 'date_asc':
+              filtered.sort((a, b) => {
+                const ta = a.eventDate ? Date.parse(a.eventDate) : 0;
+                const tb = b.eventDate ? Date.parse(b.eventDate) : 0;
+                return (Number.isNaN(ta) ? 0 : ta) - (Number.isNaN(tb) ? 0 : tb);
+              });
+              break;
+            case 'title_asc':
+              filtered.sort((a, b) => a.title.localeCompare(b.title));
+              break;
+          }
+
+          const start = (page - 1) * PAGE_SIZE;
+          const paged = filtered.slice(start, start + PAGE_SIZE);
+
           res = {
             ...fallbackRes,
-            content: filtered,
+            content: paged,
             totalElements: filtered.length,
-            totalPages: Math.ceil(filtered.length / PAGE_SIZE) || 1,
+            totalPages: Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
           };
         }
       }
 
       if (tab === 'live') {
         const liveContent = res.content.filter((event) => isEventLive(event, liveStreamIds));
+        const start = (page - 1) * PAGE_SIZE;
+        const pagedLive = liveContent.slice(start, start + PAGE_SIZE);
         res = {
           ...res,
-          content: liveContent,
+          content: pagedLive,
           totalElements: liveContent.length,
-          totalPages: Math.ceil(liveContent.length / PAGE_SIZE) || 1,
+          totalPages: Math.max(1, Math.ceil(liveContent.length / PAGE_SIZE)),
         };
       }
 
       if (!isCurrent()) return;
       setData(res.content);
-      setTotalPages(res.totalPages);
+      setTotalPages(Math.max(1, res.totalPages));
+      setTotalElements(res.totalElements ?? res.content.length);
     } catch (e) {
       if (!isCurrent()) return;
       setError(isApiError(e) ? e.message : 'Could not load events. Pull to retry.');
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [page, tab, category, location, dateRange, searchTerm, liveStreamIds]);
+  }, [page, tab, category, location, dateRange, searchTerm, liveStreamIds, sortConfig, sortBy]);
 
   // Any change to the filters starts a new result set, so go back to its
   // first page. Searching from page 3 used to keep page 3 against a result
@@ -359,7 +449,7 @@ export default function ExploreEventsScreen() {
   // pager hides itself when there is nothing to page through — no way back.
   useEffect(() => {
     setPage(1);
-  }, [tab, category, location, dateRange, searchTerm]);
+  }, [tab, category, location, dateRange, searchTerm, sortBy]);
 
   useEffect(() => {
     fetchEvents();
@@ -749,38 +839,53 @@ export default function ExploreEventsScreen() {
       </View>
 
       <View style={styles.controls}>
-        <View style={[styles.searchWrap, searchFocused && styles.searchWrapFocused]}>
-          <Ionicons name="search" size={17} color={searchFocused ? colors.primary : colors.textMuted} />
-          <TextInput
-            value={search}
-            onChangeText={(text) => {
-              setSearch(text);
-              if (!searchFocused) setSearchFocused(true);
-            }}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
-            placeholder="Search events, venues, categories…"
-            placeholderTextColor={colors.textMuted}
-            style={styles.searchInput}
-            returnKeyType="search"
-            onSubmitEditing={() => {
-              setSearchFocused(false);
-              Keyboard.dismiss();
-            }}
-          />
-          {search ? (
-            <Pressable
-              onPress={() => {
-                setSearch('');
-                setPage(1);
+        <View style={styles.searchRow}>
+          <View style={[styles.searchWrap, searchFocused && styles.searchWrapFocused]}>
+            <Ionicons name="search" size={17} color={searchFocused ? colors.primary : colors.textMuted} />
+            <TextInput
+              value={search}
+              onChangeText={(text) => {
+                setSearch(text);
+                if (!searchFocused) setSearchFocused(true);
               }}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Clear search"
-            >
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </Pressable>
-          ) : null}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
+              placeholder="Search events, venues, categories…"
+              placeholderTextColor={colors.textMuted}
+              style={styles.searchInput}
+              returnKeyType="search"
+              onSubmitEditing={() => {
+                setSearchFocused(false);
+                Keyboard.dismiss();
+              }}
+            />
+            {search ? (
+              <Pressable
+                onPress={() => {
+                  setSearch('');
+                  setPage(1);
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <Pressable
+            style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
+            onPress={() => setSortSheetOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Sort events"
+          >
+            <Ionicons
+              name="funnel-outline"
+              size={17}
+              color={sortBy !== 'newest' ? colors.primary : colors.textMuted}
+            />
+          </Pressable>
         </View>
 
         {/* Global Search Autocomplete Suggestions */}
@@ -895,31 +1000,53 @@ export default function ExploreEventsScreen() {
   );
 
   const footer =
-    totalPages > 1 ? (
-      <View style={styles.pager}>
-        <Pressable
-          style={[styles.pagerBtn, page === 1 && styles.pagerBtnDisabled]}
-          onPress={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-        >
-          <Ionicons name="chevron-back" size={16} color={page === 1 ? colors.textMuted : colors.primary} />
-          <Text style={[styles.pagerBtnText, page === 1 && styles.pagerBtnTextDisabled]}>Prev</Text>
-        </Pressable>
-        <Text style={styles.pagerInfo}>
-          Page {page} of {totalPages}
-        </Text>
-        <Pressable
-          style={[styles.pagerBtn, page >= totalPages && styles.pagerBtnDisabled]}
-          onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
-          disabled={page >= totalPages}
-        >
-          <Text style={[styles.pagerBtnText, page >= totalPages && styles.pagerBtnTextDisabled]}>Next</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={page >= totalPages ? colors.textMuted : colors.primary}
-          />
-        </Pressable>
+    data.length > 0 || totalElements > 0 ? (
+      <View style={styles.paginationFooter}>
+        <View style={styles.pagerBar}>
+          <Pressable
+            style={[styles.pagerBtn, page <= 1 && styles.pagerBtnDisabled]}
+            onPress={() => goToPage(page - 1)}
+            disabled={page <= 1}
+            accessibilityRole="button"
+            accessibilityLabel="Previous page"
+          >
+            <Ionicons
+              name="chevron-back"
+              size={16}
+              color={page <= 1 ? colors.textMuted : colors.text}
+            />
+            <Text style={[styles.pagerBtnText, page <= 1 && styles.pagerBtnTextDisabled]}>
+              Previous
+            </Text>
+          </Pressable>
+
+          <View style={styles.pagerIndicator}>
+            <Text style={styles.pagerIndicatorText}>
+              Page <Text style={styles.pagerIndicatorBold}>{page}</Text> of{' '}
+              <Text style={styles.pagerIndicatorBold}>{Math.max(1, totalPages)}</Text>
+            </Text>
+            <Text style={styles.pagerTotalText}>
+              ({totalElements || data.length} {(totalElements || data.length) === 1 ? 'event' : 'events'})
+            </Text>
+          </View>
+
+          <Pressable
+            style={[styles.pagerBtn, page >= totalPages && styles.pagerBtnDisabled]}
+            onPress={() => goToPage(page + 1)}
+            disabled={page >= totalPages}
+            accessibilityRole="button"
+            accessibilityLabel="Next page"
+          >
+            <Text style={[styles.pagerBtnText, page >= totalPages && styles.pagerBtnTextDisabled]}>
+              Next
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={page >= totalPages ? colors.textMuted : colors.text}
+            />
+          </Pressable>
+        </View>
       </View>
     ) : null;
 
@@ -938,7 +1065,11 @@ export default function ExploreEventsScreen() {
     <Screen padded={false} edges={[]}>
       {renderTopBar()}
       <FlatList
+        key="explore-events-grid-2"
+        ref={listRef}
         data={data}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
         keyExtractor={(e) => e.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -998,6 +1129,84 @@ export default function ExploreEventsScreen() {
           )
         }
       />
+
+      {/* Sort Options Bottom Sheet */}
+      <Modal
+        visible={sortSheetOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSortSheetOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
+          <Pressable
+            style={[
+              styles.sortSheet,
+              { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.sheetHandle} />
+            <View style={styles.sortSheetHeader}>
+              <View>
+                <Text style={styles.sortSheetTitle}>Sort Events</Text>
+                <Text style={styles.sortSheetSubtitle}>Choose an order for exploring events</Text>
+              </View>
+              <Pressable
+                onPress={() => setSortSheetOpen(false)}
+                hitSlop={8}
+                style={styles.sortSheetCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.sortOptionsList}>
+              {SORT_OPTIONS.map((opt) => {
+                const active = sortBy === opt.key;
+                return (
+                  <Pressable
+                    key={opt.key}
+                    style={[styles.sortOptionItem, active && styles.sortOptionItemActive]}
+                    onPress={() => {
+                      setSortBy(opt.key);
+                      setSortSheetOpen(false);
+                    }}
+                  >
+                    <View
+                      style={[
+                        styles.sortOptionIconBox,
+                        active && styles.sortOptionIconBoxActive,
+                      ]}
+                    >
+                      <Ionicons
+                        name={opt.icon}
+                        size={18}
+                        color={active ? '#fff' : colors.primary}
+                      />
+                    </View>
+                    <View style={styles.sortOptionTextCol}>
+                      <Text
+                        style={[
+                          styles.sortOptionLabel,
+                          active && styles.sortOptionLabelActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                      <Text style={styles.sortOptionDesc}>{opt.description}</Text>
+                    </View>
+                    {active ? (
+                      <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                    ) : (
+                      <View style={styles.sortOptionRadio} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -1297,8 +1506,9 @@ function FilterChip({
 
 const useStyles = makeStyles((c, e) => ({
   // Containers
-  listContent: { paddingBottom: 120, gap: spacing.md, flexGrow: 1 },
-  cardWrap: { paddingHorizontal: spacing.xl },
+  listContent: { paddingBottom: 120, flexGrow: 1 },
+  columnWrapper: { paddingHorizontal: spacing.xl, gap: spacing.md },
+  cardWrap: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyWrap: { paddingTop: spacing['2xl'], paddingHorizontal: spacing.xl, alignItems: 'center', gap: spacing.md },
   errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
@@ -1489,7 +1699,13 @@ const useStyles = makeStyles((c, e) => ({
 
   // Controls (search + filters)
   controls: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, gap: spacing.sm },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   searchWrap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -1505,6 +1721,21 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: c.primary,
     backgroundColor: c.surface,
     ...e(2),
+  },
+  sortBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...e(1),
+  },
+  sortBtnActive: {
+    borderColor: c.primary,
+    backgroundColor: c.infoBg,
   },
   searchInput: { flex: 1, color: c.text, fontSize: fontSize.sm, padding: 0 },
 
@@ -1701,48 +1932,46 @@ const useStyles = makeStyles((c, e) => ({
 
   // Ended & Live Event Card Section
   cardEndedSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: spacing.xs + 2,
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 4,
+    marginTop: 4,
   },
   cardActionSection: {
-    marginTop: spacing.xs + 2,
+    marginTop: 4,
   },
   viewCardBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     borderRadius: radii.full,
     borderWidth: 1.5,
     borderColor: c.primary,
     backgroundColor: c.tint,
-    paddingVertical: 9,
-    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
   },
   viewCardBtnText: {
     color: c.primary,
-    fontSize: 12.5,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
   },
   findPhotosCardBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     borderRadius: radii.full,
     backgroundColor: c.primary,
-    paddingVertical: 9,
-    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     ...e(1),
   },
   findPhotosBtnText: {
     color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
   },
@@ -1750,16 +1979,16 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     borderRadius: radii.full,
     backgroundColor: c.accent,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.md,
+    paddingVertical: 6.5,
+    paddingHorizontal: 8,
     ...e(1),
   },
   watchLiveBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
   },
@@ -1767,17 +1996,17 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     borderRadius: radii.full,
     borderWidth: 1.5,
     borderColor: c.borderSoft,
     backgroundColor: c.surfaceMuted,
-    paddingVertical: 9,
-    paddingHorizontal: spacing.md,
+    paddingVertical: 6.5,
+    paddingHorizontal: 8,
   },
   viewCardFullBtnText: {
     color: c.text,
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: fontWeight.semibold,
     letterSpacing: 0.2,
   },
@@ -1802,9 +2031,11 @@ const useStyles = makeStyles((c, e) => ({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: c.borderSoft,
+    flex: 1,
+    justifyContent: 'space-between',
   },
   cardPressed: { opacity: 0.92 },
-  cardMedia: { width: '100%', height: 180, position: 'relative', backgroundColor: c.surfaceMuted },
+  cardMedia: { width: '100%', height: 130, position: 'relative', backgroundColor: c.surfaceMuted },
   cardArt: { width: '100%', height: '100%' },
   cardScrim: {
     position: 'absolute',
@@ -1815,9 +2046,9 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
 
-  cardTl: { position: 'absolute', top: spacing.md, left: spacing.md },
+  cardTl: { position: 'absolute', top: spacing.xs, left: spacing.xs },
   cardDate: {
-    width: 46,
+    width: 36,
     backgroundColor: '#fff',
     borderRadius: radii.sm,
     overflow: 'hidden',
@@ -1825,109 +2056,229 @@ const useStyles = makeStyles((c, e) => ({
   },
   cardDateMo: {
     width: '100%',
-    paddingVertical: 3,
+    paddingVertical: 2,
     backgroundColor: c.primary,
     color: '#fff',
-    fontSize: 10,
+    fontSize: 8.5,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
     textAlign: 'center',
   },
   cardDateDay: {
     color: c.text,
-    fontSize: fontSize.lg,
+    fontSize: 12,
     fontWeight: fontWeight.extrabold,
-    paddingVertical: 2,
+    paddingVertical: 1,
   },
 
   cardTr: {
     position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
+    top: spacing.xs,
+    right: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
     borderRadius: radii.sm,
   },
-  statusText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
+  statusText: { color: '#fff', fontSize: 8.5, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
   statusUpcoming: { backgroundColor: c.primary },
   statusLive: { backgroundColor: c.accent },
   statusEnded: { backgroundColor: '#6A6D76' },
-  pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  pulseDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
   bookmark: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bookmarkSaved: { backgroundColor: c.surface },
 
-  cardMeta: { padding: spacing.md, gap: 6 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardVenue: { flex: 1, color: c.textMuted, fontSize: fontSize.xs },
-  cardTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold, lineHeight: 22 },
+  cardMeta: { padding: spacing.sm, gap: 4, flex: 1, justifyContent: 'space-between' },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  cardVenue: { flex: 1, color: c.textMuted, fontSize: 11 },
+  cardTitle: { color: c.text, fontSize: 13, fontWeight: fontWeight.bold, lineHeight: 17 },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.xs,
-    gap: spacing.sm,
+    marginTop: 2,
+    gap: 4,
+    flexWrap: 'wrap',
   },
-  orgChip: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  orgChip: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 80 },
   orgAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: c.surfaceMuted,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   orgAvatarImg: { width: '100%', height: '100%' },
-  orgInitial: { color: c.textSoft, fontSize: 11, fontWeight: fontWeight.bold },
-  orgName: { flex: 1, color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  orgInitial: { color: c.textSoft, fontSize: 9, fontWeight: fontWeight.bold },
+  orgName: { flex: 1, color: c.textSoft, fontSize: 10.5, fontWeight: fontWeight.semibold },
   priceChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: c.infoBg,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
     borderRadius: radii.full,
   },
-  priceText: { color: c.primary, fontSize: fontSize.xs },
+  priceText: { color: c.primary, fontSize: 10 },
   priceNum: { fontWeight: fontWeight.bold },
 
   // Pagination
-  pager: {
+  paginationFooter: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl + 40,
+  },
+  pagerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    backgroundColor: c.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   pagerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
     gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.primary,
-    backgroundColor: c.surface,
   },
-  pagerBtnDisabled: { borderColor: c.borderSoft, backgroundColor: c.surfaceMuted },
-  pagerBtnText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  pagerBtnTextDisabled: { color: c.textMuted },
-  pagerInfo: { color: c.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  pagerBtnDisabled: {
+    opacity: 0.35,
+  },
+  pagerBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: c.text,
+  },
+  pagerBtnTextDisabled: {
+    color: c.textMuted,
+  },
+  pagerIndicator: {
+    alignItems: 'center',
+  },
+  pagerIndicatorText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+  },
+  pagerIndicatorBold: {
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  pagerTotalText: {
+    fontSize: 10,
+    color: c.textMuted,
+    marginTop: 1,
+  },
+
+  // Sort sheet
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'flex-end',
+  },
+  sortSheet: {
+    backgroundColor: c.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: c.borderSoft,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  sortSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  sortSheetTitle: {
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.md,
+    color: c.text,
+  },
+  sortSheetSubtitle: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    marginTop: 2,
+  },
+  sortSheetCloseBtn: {
+    padding: spacing.xs,
+  },
+  sortOptionsList: {
+    gap: spacing.xs,
+  },
+  sortOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+  },
+  sortOptionItemActive: {
+    backgroundColor: c.infoBg,
+  },
+  sortOptionIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.sm,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sortOptionIconBoxActive: {
+    backgroundColor: c.primary,
+  },
+  sortOptionTextCol: {
+    flex: 1,
+  },
+  sortOptionLabel: {
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.sm,
+    color: c.text,
+  },
+  sortOptionLabelActive: {
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  sortOptionDesc: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    marginTop: 1,
+  },
+  sortOptionRadio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+  },
 }));

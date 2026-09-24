@@ -255,7 +255,12 @@ async function doRefresh(): Promise<RefreshOutcome> {
 function normalizeError(status: number, payload: unknown): ApiError {
   if (payload && typeof payload === 'object' && 'message' in payload) {
     const p = payload as { message?: string; fieldErrors?: Record<string, string> };
-    return { status, message: p.message ?? 'Request failed', fieldErrors: p.fieldErrors };
+    return {
+      status,
+      message: p.message ?? 'Request failed',
+      fieldErrors: p.fieldErrors,
+      body: payload as Record<string, unknown>,
+    };
   }
   return { status, message: typeof payload === 'string' ? payload : 'Request failed' };
 }

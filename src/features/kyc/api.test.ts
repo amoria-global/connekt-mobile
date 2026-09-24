@@ -31,6 +31,8 @@ describe('KYC API Client', () => {
             createdAt: '2026-09-16 12:00:00',
             documentType: 'NATIONAL_ID',
             fullLegalName: 'Jane Doe',
+            dob: '1995-05-15',
+            phone: '+250788123456',
           },
         },
       });
@@ -40,6 +42,8 @@ describe('KYC API Client', () => {
       expect(res.submittedAt).toBe('2026-09-16 12:00:00');
       expect(res.documentType).toBe('NATIONAL_ID');
       expect(res.fullLegalName).toBe('Jane Doe');
+      expect(res.dob).toBe('1995-05-15');
+      expect(res.phone).toBe('+250788123456');
       expect(api.get).toHaveBeenCalledWith('/customer/kyc/status');
     });
 
@@ -96,6 +100,8 @@ describe('KYC API Client', () => {
       const payload: KycSubmissionPayload = {
         fullLegalName: 'Johnathan Doe',
         gender: 'Male',
+        dob: '1990-01-01',
+        phone: '+250788123456',
         locationAddress: '123 Main St',
         documentType: 'NATIONAL_ID',
         challengeToken: 'tok_123',
