@@ -226,7 +226,7 @@ export async function createEventAlbum(input: {
   title: string;
   description?: string;
   category?: string;
-  images: PickedImage[];
+  images?: PickedImage[];
 }): Promise<AlbumCreateResult> {
   const res = await postAlbum('/photographer/albums', {
     title: input.title.trim(),
@@ -234,7 +234,9 @@ export async function createEventAlbum(input: {
     category: input.category,
     eventId: input.eventId,
   });
-  await addAlbumImages(res.id, input.images);
+  if (input.images && input.images.length > 0) {
+    await addAlbumImages(res.id, input.images);
+  }
   return res;
 }
 
@@ -246,7 +248,7 @@ export async function createPaidAlbum(input: {
   date?: string;
   pricePerImage: string;
   currencyId: string;
-  images: PickedImage[];
+  images?: PickedImage[];
 }): Promise<AlbumCreateResult> {
   const res = await postAlbum('/photographer/albums/paid', {
     title: input.title.trim(),
@@ -257,7 +259,9 @@ export async function createPaidAlbum(input: {
     pricePerImage: input.pricePerImage,
     currencyId: input.currencyId,
   });
-  await addAlbumImages(res.id, input.images);
+  if (input.images && input.images.length > 0) {
+    await addAlbumImages(res.id, input.images);
+  }
   return res;
 }
 
@@ -271,7 +275,7 @@ export async function createFreeAlbum(input: {
   maxFreeDownloads?: string;
   pricePerExtraImage?: string;
   currencyId?: string;
-  images: PickedImage[];
+  images?: PickedImage[];
 }): Promise<AlbumCreateResult> {
   const fields: Record<string, string | undefined> = {
     title: input.title.trim(),
@@ -294,7 +298,9 @@ export async function createFreeAlbum(input: {
   } catch {
     /* the album still exists; the photographer can resend from detail */
   }
-  await addAlbumImages(res.id, input.images);
+  if (input.images && input.images.length > 0) {
+    await addAlbumImages(res.id, input.images);
+  }
   return res;
 }
 

@@ -67,8 +67,8 @@ export default function AppLayout() {
         <Stack.Screen name="packages" options={{ title: 'My Packages' }} />
         <Stack.Screen name="package/new" options={{ title: 'New package', presentation: 'modal' }} />
         <Stack.Screen name="streams" options={{ title: 'Live Streams' }} />
-        <Stack.Screen name="stream/[id]" options={{ title: 'Stream' }} />
-        <Stack.Screen name="stream/control/[id]" options={{ title: 'Go Live' }} />
+        <Stack.Screen name="stream/[id]" options={{ title: 'Stream', headerShown: false }} />
+        <Stack.Screen name="stream/control/[id]" options={{ title: 'Go Live', headerShown: false }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications', headerShown: false }} />
         <Stack.Screen name="find-my-photos" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />
@@ -83,7 +83,7 @@ export default function AppLayout() {
             sheetCornerRadius: 24,
           }}
         />
-        <Stack.Screen name="album/[id]" options={{ title: 'Album' }} />
+        <Stack.Screen name="album/[id]" options={{ title: 'Album', headerShown: false }} />
         <Stack.Screen name="gallery" options={{ title: 'Gallery' }} />
         <Stack.Screen name="bookings" options={{ title: 'Bookings' }} />
         <Stack.Screen name="content-albums" options={{ title: 'Content Albums' }} />
@@ -91,15 +91,12 @@ export default function AppLayout() {
           name="content-album/new"
           options={{
             title: 'New content album',
-            presentation: 'formSheet',
-            sheetAllowedDetents: [0.8, 1],
-            sheetGrabberVisible: true,
-            sheetCornerRadius: 24,
+            headerShown: false,
           }}
         />
         <Stack.Screen name="photobooks" options={{ title: 'Photobooks' }} />
-        <Stack.Screen name="photobook/[id]" options={{ title: 'Photobook' }} />
-        <Stack.Screen name="photobook/new" options={{ title: 'New photobook', presentation: 'modal' }} />
+        <Stack.Screen name="photobook/[id]" options={{ title: 'Photobook', headerShown: false }} />
+        <Stack.Screen name="photobook/new" options={{ title: 'New photobook', headerShown: false }} />
         <Stack.Screen name="wallet/movements" options={{ title: 'Wallet movements' }} />
         <Stack.Screen name="withdraw" options={{ title: 'Withdraw' }} />
         <Stack.Screen name="payment-accounts" options={{ title: 'Payment accounts' }} />

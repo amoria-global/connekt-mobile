@@ -44,6 +44,8 @@ export type KycState = {
   rejectionReason?: string;
   documentType?: string;
   fullLegalName?: string;
+  dob?: string;
+  phone?: string;
 };
 
 export type DocumentTypeOption = 'NATIONAL_ID' | 'PASSPORT' | 'DRIVER_LICENSE';
@@ -51,6 +53,8 @@ export type DocumentTypeOption = 'NATIONAL_ID' | 'PASSPORT' | 'DRIVER_LICENSE';
 export type KycSubmissionPayload = {
   fullLegalName: string;
   gender: string;
+  dob?: string;
+  phone?: string;
   locationAddress?: string;
   documentType: DocumentTypeOption;
   challengeToken: string;
@@ -89,6 +93,8 @@ export async function getKyc(): Promise<KycState> {
     rejectionReason: str(sub.reviewComment) ?? str(d.rejectionReason) ?? str(d.rejection_reason),
     documentType: str(sub.documentType) ?? str(d.documentType),
     fullLegalName: str(sub.fullLegalName) ?? str(d.fullLegalName),
+    dob: str(sub.dob) ?? str(sub.dateOfBirth) ?? str(d.dob) ?? str(d.dateOfBirth),
+    phone: str(sub.phone) ?? str(sub.phoneNumber) ?? str(d.phone) ?? str(d.phoneNumber),
   };
 }
 
@@ -107,6 +113,14 @@ export async function submitKyc(payload: KycSubmissionPayload): Promise<KycSubmi
   const form = new FormData();
   form.append('fullLegalName', payload.fullLegalName.trim());
   form.append('gender', payload.gender);
+  if (payload.dob?.trim()) {
+    form.append('dob', payload.dob.trim());
+    form.append('dateOfBirth', payload.dob.trim());
+  }
+  if (payload.phone?.trim()) {
+    form.append('phone', payload.phone.trim());
+    form.append('phoneNumber', payload.phone.trim());
+  }
   if (payload.locationAddress?.trim()) {
     form.append('locationAddress', payload.locationAddress.trim());
   }

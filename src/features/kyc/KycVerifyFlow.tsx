@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
@@ -20,13 +20,16 @@ import {
 import { BrandPill } from '@/components/topbar/BrandPill';
 import { NotificationButton } from '@/components/topbar/NotificationButton';
 import { Button } from '@/components/ui/Button';
+import { DateField } from '@/components/ui/DateField';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { listNotifications } from '@/features/notifications/api';
 import { ensureKycConsent } from '@/features/privacy/consent';
 import { useAsync } from '@/hooks/useAsync';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { formatInternational, parsePhone, validateNsn } from '@/lib/phoneKit';
 import {
   pickFromLibrary,
   takeDocumentPhoto,
@@ -67,6 +70,8 @@ export type KycVerifyFlowProps = {
   error: string | null;
   /** Prefills the legal name when the server has none on file. */
   defaultName?: string;
+  defaultPhone?: string;
+  defaultDob?: string;
   onRefresh: () => void | Promise<void>;
   onExit: () => void;
   onOpenWeb?: () => Promise<void>;
@@ -138,11 +143,26 @@ const DOCUMENT_LABEL: Record<DocumentTypeOption, string> = {
 
 const GENDERS = ['Male', 'Female', 'Other'] as const;
 
+function getAgeFromDob(dobString: string): number | null {
+  if (!dobString) return null;
+  const birth = new Date(`${dobString}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 export function KycVerifyFlow({
   kyc,
   loading,
   error,
   defaultName,
+  defaultPhone,
+  defaultDob,
   onRefresh,
   onExit,
   onOpenWeb: _onOpenWeb,
@@ -169,7 +189,27 @@ export function KycVerifyFlow({
     kyc?.fullLegalName ?? defaultName ?? '',
   );
   const [gender, setGender] = useState('');
+  const [dob, setDob] = useState(kyc?.dob ?? defaultDob ?? '');
+  const phoneSeed = useMemo(
+    () => parsePhone(kyc?.phone ?? defaultPhone ?? '', 'RW'),
+    [kyc?.phone, defaultPhone],
+  );
+  const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
   const [locationAddress, setLocationAddress] = useState('');
+
+  const maxDobDate = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d;
+  }, []);
+  const minDobDate = useMemo(() => new Date(1920, 0, 1), []);
+  const initialDobPickerDate = useMemo(() => new Date(2000, 0, 1), []);
+
+  const isPhoneValid = phoneValue
+    ? phoneValue.isValid
+    : phoneSeed.country && phoneSeed.nsn
+      ? validateNsn(phoneSeed.country, phoneSeed.nsn).isValid
+      : false;
 
   useEffect(() => {
     if (kyc?.status === 'APPROVED' || kyc?.status === 'PENDING') {
@@ -183,7 +223,10 @@ export function KycVerifyFlow({
     if (!fullLegalName && (kyc?.fullLegalName || defaultName)) {
       setFullLegalName(kyc?.fullLegalName ?? defaultName ?? '');
     }
-  }, [kyc?.fullLegalName, defaultName, fullLegalName]);
+    if (!dob && (kyc?.dob || defaultDob)) {
+      setDob(kyc?.dob ?? defaultDob ?? '');
+    }
+  }, [kyc?.fullLegalName, defaultName, fullLegalName, kyc?.dob, defaultDob, dob]);
 
   // Step 2 — live camera & real-person liveness verification
   const [selfie, setSelfie] = useState<PickedImage | null>(null);
@@ -408,8 +451,19 @@ export function KycVerifyFlow({
 
   const continueFrom = async (step: Step) => {
     if (step === 1) {
-      if (fullLegalName.trim().length < 2) return setStepError('Enter your full legal name.');
+      if (fullLegalName.trim().length < 2) return setStepError('Enter your full legal name as printed on your ID.');
       if (!gender) return setStepError('Select your gender.');
+      if (!dob) return setStepError('Please select your date of birth.');
+      const age = getAgeFromDob(dob);
+      if (age === null || age < 0) {
+        return setStepError('Please enter a valid date of birth.');
+      }
+      if (age < 18) {
+        return setStepError('You must be at least 18 years old to complete verification.');
+      }
+      if (!isPhoneValid) {
+        return setStepError('Please enter a valid phone number.');
+      }
       if (!(await ensureKycConsent())) return;
       go(2);
       // Mint the token as the selfie step opens. An earlier failure is not
@@ -532,10 +586,18 @@ export function KycVerifyFlow({
     }
 
     // 3. Submit payload
+    const resolvedPhone =
+      phoneValue?.e164 ||
+      (phoneSeed.country && phoneSeed.nsn
+        ? formatInternational(phoneSeed.country, phoneSeed.nsn)
+        : defaultPhone || undefined);
+
     try {
       const result = await submit({
         fullLegalName: fullLegalName.trim(),
         gender,
+        dob: dob.trim() || undefined,
+        phone: resolvedPhone,
         locationAddress: locationAddress.trim() || undefined,
         documentType,
         challengeToken: token,
@@ -628,6 +690,8 @@ export function KycVerifyFlow({
         {kyc?.fullLegalName ? (
           <View style={{ width: '100%', marginTop: spacing.md, padding: spacing.md, backgroundColor: colors.card, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }}>
             <ReviewRow label="Legal name" value={kyc.fullLegalName} />
+            {kyc.dob ? <ReviewRow label="Date of birth" value={formatDate(kyc.dob) || kyc.dob} /> : null}
+            {kyc.phone ? <ReviewRow label="Phone" value={kyc.phone} /> : null}
             {kyc.documentType ? (
               <ReviewRow
                 label="Document"
@@ -696,6 +760,33 @@ export function KycVerifyFlow({
             ))}
           </View>
         </View>
+
+        <View>
+          <DateField
+            label="Date of birth"
+            value={dob}
+            onChange={(v) => {
+              setDob(v);
+              setStepError(null);
+            }}
+            placeholder="Select date of birth"
+            maximumDate={maxDobDate}
+            minimumDate={minDobDate}
+            initialPickerDate={initialDobPickerDate}
+          />
+          <Text style={styles.helper}>You must be at least 18 years old to verify.</Text>
+        </View>
+
+        <PhoneInput
+          key={`${phoneSeed.country?.iso2 ?? 'RW'}-${phoneSeed.nsn}`}
+          label="Phone number"
+          defaultIso2={phoneSeed.country?.iso2 ?? 'RW'}
+          initialNsn={phoneSeed.nsn}
+          onChange={(val) => {
+            setPhoneValue(val);
+            setStepError(null);
+          }}
+        />
 
         <Input
           label="Home address (optional)"
@@ -813,6 +904,16 @@ export function KycVerifyFlow({
           <SectionHead title="Details" onEdit={() => go(1)} disabled={submitting} />
           <ReviewRow label="Legal name" value={fullLegalName.trim()} />
           <ReviewRow label="Gender" value={gender} />
+          {dob ? <ReviewRow label="Date of birth" value={formatDate(dob) || dob} /> : null}
+          <ReviewRow
+            label="Phone"
+            value={
+              phoneValue?.e164 ||
+              (phoneSeed.country && phoneSeed.nsn
+                ? formatInternational(phoneSeed.country, phoneSeed.nsn)
+                : defaultPhone || '—')
+            }
+          />
           {locationAddress.trim() ? <ReviewRow label="Address" value={locationAddress.trim()} /> : null}
           <ReviewRow label="Document" value={DOCUMENT_LABEL[documentType]} />
         </View>

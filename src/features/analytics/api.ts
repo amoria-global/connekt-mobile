@@ -590,6 +590,23 @@ export type RecentTransaction = {
   createdAt?: string;
 };
 
+export function cleanTransactionTitle(raw?: string): string {
+  if (!raw) return 'Event';
+  return raw
+    .replace(/\s*\(?\d+(\.\d+)?%\)?/gi, '')
+    .replace(/\s*-\s*$/, '')
+    .replace(/^\s*-\s*/, '')
+    .trim() || 'Event';
+}
+
+export function cleanTransactionStatus(raw?: string): string {
+  if (!raw) return 'Pending';
+  return raw
+    .replace(/\s*\(?\d+(\.\d+)?%\)?/gi, '')
+    .replace(/\s*-\s*$/, '')
+    .trim() || 'Pending';
+}
+
 export async function getPhotographerRecentTransactions(size = 5): Promise<RecentTransaction[]> {
   const res = await api.get<ApiEnvelope<Raw[]>>(`/photographer/transactions?page=0&size=${size}`);
   const raw = res?.data;
@@ -598,11 +615,16 @@ export async function getPhotographerRecentTransactions(size = 5): Promise<Recen
     : Array.isArray((raw as any)?.content)
       ? (raw as any).content
       : [];
-  return items.map((r) => ({
-    id: String(r.id ?? ''),
-    eventName: str(r.eventTitle) ?? str(r.eventName) ?? 'Event',
-    amount: num(r.amountInUsd) ?? num(r.amount) ?? 0,
-    status: str(r.status) ?? 'Pending',
-    createdAt: str(r.createdAt),
-  })).filter((t) => t.id);
+  return items.map((r) => {
+    const rawTitle = str(r.eventTitle) ?? str(r.eventName) ?? str(r.description) ?? 'Event';
+    const rawStatus = str(r.status) ?? 'Pending';
+    return {
+      id: String(r.id ?? ''),
+      eventName: cleanTransactionTitle(rawTitle),
+      amount: num(r.amountInUsd) ?? num(r.amount) ?? 0,
+      status: cleanTransactionStatus(rawStatus),
+      createdAt: str(r.createdAt),
+    };
+  }).filter((t) => t.id);
 }
+

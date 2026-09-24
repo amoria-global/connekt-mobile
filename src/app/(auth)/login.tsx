@@ -25,8 +25,12 @@ import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import type { CustomerType } from '@/features/auth/types';
 import { parsePhone } from '@/lib/phoneKit';
 import { isApiError, useAuth } from '@/store/auth';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+
+const FIND_PHOTOS_VIDEO = require('../../../assets/images/screen3.mp4');
+const LIVE_IMAGE = require('../../../assets/images/live.png');
 
 const schema = z.object({
   // Still accepts an email OR a phone number — phone-only accounts (registered
@@ -287,11 +291,7 @@ export default function LoginScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Find my photos with AI facial recognition"
                 >
-                  <Image
-                    source={require('../../../assets/images/scan.png')}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
-                  />
+                  <GuestCardVideo source={FIND_PHOTOS_VIDEO} />
                   <LinearGradient
                     colors={['rgba(8,20,44,0.25)', 'rgba(8,20,44,0.92)']}
                     style={StyleSheet.absoluteFill}
@@ -329,7 +329,7 @@ export default function LoginScreen() {
                   accessibilityLabel="Explore public events and live streams"
                 >
                   <Image
-                    source={require('../../../assets/images/live.png')}
+                    source={LIVE_IMAGE}
                     style={StyleSheet.absoluteFill}
                     resizeMode="cover"
                   />
@@ -376,6 +376,27 @@ export default function LoginScreen() {
         onSelectRole={onSelectRole}
       />
     </Screen>
+  );
+}
+
+/** Looping, muted background video for guest cards that won't interrupt device audio. */
+function GuestCardVideo({ source }: { source: number }) {
+  const player = useVideoPlayer(source, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.audioMixingMode = 'mixWithOthers';
+    p.play();
+  });
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <VideoView
+        player={player}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        nativeControls={false}
+      />
+    </View>
   );
 }
 
