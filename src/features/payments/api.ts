@@ -108,6 +108,102 @@ export async function listPayments(role?: PaymentsRole): Promise<PaymentRecord[]
   return pageContent(res?.data).map(mapPaymentRecord).filter((p) => p.id);
 }
 
+export type StreamingPayment = {
+  id: string;
+  eventTitle: string;
+  viewerName: string;
+  viewerEmail?: string;
+  date?: string;
+  amount: number;
+  currency: string;
+  method?: string;
+  status: string;
+};
+
+export type StreamingRevenueResult = {
+  totalStreamingRevenue: number;
+  payments: StreamingPayment[];
+};
+
+export type GiftPayment = {
+  id: string;
+  eventTitle: string;
+  amount: number;
+  netAmount: number;
+  currency: string;
+  giftMessage?: string | null;
+  customerPhone?: string;
+  method?: string;
+  status: string;
+  date?: string;
+};
+
+export async function listStreamingPayments(): Promise<StreamingRevenueResult> {
+  const res = await api.get<ApiEnvelope<unknown> & { totalStreamingRevenue?: number }>(
+    '/coordinator/payments/streaming',
+  );
+  const items = pageContent(res?.data);
+  const payments: StreamingPayment[] = items.map((p) => ({
+    id: String(p.id ?? ''),
+    eventTitle: str(p.eventTitle) ?? str(p.description) ?? 'Live Stream',
+    viewerName: str(p.viewerName) ?? 'Unknown Viewer',
+    viewerEmail: str(p.viewerEmail),
+    date: str(p.createdAt) ?? str(p.date),
+    amount: typeof p.amount === 'number' ? p.amount : 0,
+    currency: str(p.currencyAbbreviation) ?? str(p.currency) ?? 'RWF',
+    method: str(p.paymentMethod) ?? str(p.method) ?? '-',
+    status: (str(p.status) ?? 'pending').toLowerCase(),
+  }));
+
+  const totalStreamingRevenue =
+    typeof res?.totalStreamingRevenue === 'number'
+      ? res.totalStreamingRevenue
+      : payments
+          .filter((p) => p.status === 'completed')
+          .reduce((sum, p) => sum + p.amount, 0);
+
+  return { totalStreamingRevenue, payments };
+}
+
+export async function listGiftPayments(): Promise<GiftPayment[]> {
+  const res = await api.get<ApiEnvelope<unknown>>(
+    '/coordinator/payments?type=GIFT&page=0&size=100',
+  );
+  const items = pageContent(res?.data);
+  return items.map((p) => {
+    const rawAmt =
+      typeof p.amount === 'number'
+        ? p.amount
+        : typeof p.amountInUsd === 'number'
+          ? p.amountInUsd
+          : 0;
+    const rawNet =
+      typeof p.withdrawableAmount === 'number'
+        ? p.withdrawableAmount
+        : typeof p.netAmount === 'number'
+          ? p.netAmount
+          : rawAmt * 0.65;
+    return {
+      id: String(p.id ?? ''),
+      eventTitle: str(p.eventTitle) ?? 'Live Stream',
+      amount: rawAmt,
+      netAmount: rawNet,
+      currency: str(p.currencyAbbreviation) ?? str(p.currency) ?? 'RWF',
+      giftMessage: str(p.giftMessage) ?? null,
+      customerPhone:
+        str(p.senderName) ??
+        str(p.viewerName) ??
+        str(p.customerPhone) ??
+        str(p.viewerEmail) ??
+        '',
+      method: str(p.paymentMethod) ?? '-',
+      status: (str(p.status) ?? 'pending').toLowerCase(),
+      date: str(p.paymentCompletedAt) ?? str(p.dueDate) ?? str(p.createdAt),
+    };
+  });
+}
+
+
 export type PaymentDetail = PaymentRecord & {
   paymentType?: string;
   photographerName?: string;

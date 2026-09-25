@@ -1,5 +1,10 @@
 import { api } from '@/api/client';
-import { getPayment, PAYMENT_NOT_FOUND_MESSAGE } from './api';
+import {
+  getPayment,
+  listStreamingPayments,
+  listGiftPayments,
+  PAYMENT_NOT_FOUND_MESSAGE,
+} from './api';
 
 jest.mock('@/api/client', () => ({ api: { post: jest.fn(), get: jest.fn() } }));
 
@@ -48,3 +53,79 @@ describe('getPayment', () => {
     await expect(getPayment('d4', 'Coordinator')).rejects.toBe(offline);
   });
 });
+
+describe('listStreamingPayments', () => {
+  it('calls /coordinator/payments/streaming and normalizes stream fee items', async () => {
+    get.mockResolvedValue({
+      action: 1,
+      totalStreamingRevenue: 5000,
+      data: [
+        {
+          id: 's1',
+          eventTitle: 'Concert Live',
+          viewerName: 'Alice',
+          viewerEmail: 'alice@example.com',
+          amount: 2500,
+          currencyAbbreviation: 'RWF',
+          paymentMethod: 'MOMO',
+          status: 'COMPLETED',
+          createdAt: '2026-09-25T10:00:00Z',
+        },
+      ],
+    });
+
+    const res = await listStreamingPayments();
+    expect(get).toHaveBeenCalledWith('/coordinator/payments/streaming');
+    expect(res.totalStreamingRevenue).toBe(5000);
+    expect(res.payments).toHaveLength(1);
+    expect(res.payments[0]).toEqual({
+      id: 's1',
+      eventTitle: 'Concert Live',
+      viewerName: 'Alice',
+      viewerEmail: 'alice@example.com',
+      date: '2026-09-25T10:00:00Z',
+      amount: 2500,
+      currency: 'RWF',
+      method: 'MOMO',
+      status: 'completed',
+    });
+  });
+});
+
+describe('listGiftPayments', () => {
+  it('calls /coordinator/payments?type=GIFT and computes 65% net withdrawable amount', async () => {
+    get.mockResolvedValue({
+      action: 1,
+      data: [
+        {
+          id: 'g1',
+          eventTitle: 'Wedding Stream',
+          amount: 10000,
+          currencyAbbreviation: 'RWF',
+          giftMessage: 'Congrats!',
+          senderName: 'Bob',
+          paymentMethod: 'CARD',
+          status: 'COMPLETED',
+          paymentCompletedAt: '2026-09-25T12:00:00Z',
+        },
+      ],
+    });
+
+    const gifts = await listGiftPayments();
+    expect(get).toHaveBeenCalledWith('/coordinator/payments?type=GIFT&page=0&size=100');
+    expect(gifts).toHaveLength(1);
+    expect(gifts[0]).toEqual({
+      id: 'g1',
+      eventTitle: 'Wedding Stream',
+      amount: 10000,
+      netAmount: 6500,
+      currency: 'RWF',
+      giftMessage: 'Congrats!',
+      customerPhone: 'Bob',
+      method: 'CARD',
+      status: 'completed',
+      date: '2026-09-25T12:00:00Z',
+    });
+  });
+});
+

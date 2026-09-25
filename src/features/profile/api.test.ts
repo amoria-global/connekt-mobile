@@ -1,4 +1,5 @@
-import { normalizeMediaUrl } from './api';
+import { api } from '@/api/client';
+import { normalizeMediaUrl, updateCoordinatorProfile } from './api';
 
 describe('normalizeMediaUrl', () => {
   it('rejects empty and /null paths', () => {
@@ -22,3 +23,32 @@ describe('normalizeMediaUrl', () => {
     );
   });
 });
+
+describe('coordinator profile api', () => {
+  it('PUT /coordinator/profile with json payload', async () => {
+    const put = jest.spyOn(api, 'put').mockResolvedValue({ action: 1, message: 'Updated' });
+
+    await updateCoordinatorProfile({
+      firstName: 'Jane',
+      lastName: 'Doe',
+      phone: '250788123456',
+      organizationName: 'Kigali Events',
+      businessType: 'Production',
+      businessAddress: 'KG 9 Ave',
+      website: 'https://kigalievents.rw',
+      taxId: '10992233',
+    });
+
+    expect(put).toHaveBeenCalledWith('/coordinator/profile', {
+      firstName: 'Jane',
+      lastName: 'Doe',
+      phone: '250788123456',
+      organizationName: 'Kigali Events',
+      businessType: 'Production',
+      businessAddress: 'KG 9 Ave',
+      website: 'https://kigalievents.rw',
+      taxId: '10992233',
+    });
+  });
+});
+
