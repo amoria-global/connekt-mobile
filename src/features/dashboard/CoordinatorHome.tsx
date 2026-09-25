@@ -456,7 +456,6 @@ export function CoordinatorHome() {
         {/* ── 4. Coordinator 3-Metric Mini-Stats Snapshot Card ────────────────── */}
         {!isSearchActive && (
           <View style={styles.snapshotCard}>
-            <View style={styles.snapshotTopAccent} />
             <View style={styles.snapshotBody}>
               <Pressable
                 style={styles.snapshotItem}
@@ -558,7 +557,6 @@ export function CoordinatorHome() {
         {/* ── Infographic Breakdown KPI Cards ────────────────────────────── */}
         <View style={styles.kpiGrid}>
           {kpiCards.map((k) => {
-            const isWaveActive = selectedWaveMetric === k.key;
             const dir = k.trend;
             const trendColor = dir === 'up' ? '#10B981' : '#EF4444';
             return (
@@ -567,7 +565,6 @@ export function CoordinatorHome() {
                 style={({ pressed }) => [
                   styles.kpiCard,
                   responsive.isLarge && styles.kpiCardLarge,
-                  isWaveActive && styles.kpiCardWaveActive,
                   pressed && styles.cardPressed,
                 ]}
                 onPress={() => setSelectedWaveMetric(k.key)}
@@ -578,44 +575,23 @@ export function CoordinatorHome() {
                   <View style={[styles.kpiIconWrap, { backgroundColor: `${k.accent}15` }]}>
                     <Ionicons name={k.icon} size={16} color={k.accent} />
                   </View>
-                  <View style={styles.kpiTopRight}>
-                    {isWaveActive ? (
-                      <View style={[styles.waveActivePill, { borderColor: `${k.accent}60` }]}>
-                        <View style={[styles.waveActiveDot, { backgroundColor: k.accent }]} />
-                        <Text style={[styles.waveActiveText, { color: k.accent }]}>WAVE</Text>
-                      </View>
-                    ) : null}
-                    {k.percentage ? (
-                      <View style={styles.kpiTrendBadge}>
-                        <Ionicons
-                          name={dir === 'up' ? 'trending-up' : 'trending-down'}
-                          size={11}
-                          color={trendColor}
-                        />
-                        <Text style={[styles.kpiTrendText, { color: trendColor }]}>
-                          {k.percentage}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
+                  {k.percentage ? (
+                    <View style={styles.kpiTrendBadge}>
+                      <Ionicons
+                        name={dir === 'up' ? 'trending-up' : 'trending-down'}
+                        size={11}
+                        color={trendColor}
+                      />
+                      <Text style={[styles.kpiTrendText, { color: trendColor }]}>
+                        {k.percentage}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
 
                 <Text style={styles.kpiValue} numberOfLines={1}>
                   {k.value}
                 </Text>
-
-                {/* Infographic Energy Progress Bar */}
-                <View style={styles.kpiGaugeTrack}>
-                  <View
-                    style={[
-                      styles.kpiGaugeFill,
-                      {
-                        width: `${Math.round(k.progress * 100)}%`,
-                        backgroundColor: k.accent,
-                      },
-                    ]}
-                  />
-                </View>
 
                 <View style={styles.kpiFooter}>
                   <View style={{ flex: 1 }}>
@@ -1047,12 +1023,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    overflow: 'hidden',
     ...e(1),
-  },
-  snapshotTopAccent: {
-    height: 3,
-    backgroundColor: c.primary,
   },
   snapshotBody: {
     flexDirection: 'row',
@@ -1200,46 +1171,15 @@ const useStyles = makeStyles((c, e) => ({
   kpiCardLarge: {
     width: '31%',
   },
-  kpiCardWaveActive: {
-    borderColor: '#00E5FF',
-    backgroundColor: c.surface,
-    ...e(3),
-  },
   kpiTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 2,
   },
-  kpiTopRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  waveActivePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-  },
-  waveActiveDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
-  waveActiveText: {
-    fontFamily: fonts.bold,
-    fontSize: 8.5,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.4,
-  },
   kpiIconWrap: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1251,26 +1191,15 @@ const useStyles = makeStyles((c, e) => ({
   },
   kpiTrendText: {
     fontFamily: fonts.bold,
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
   },
   kpiValue: {
     fontFamily: fonts.bold,
-    fontSize: 17.5,
+    fontSize: 18,
     fontWeight: fontWeight.extrabold,
     color: c.text,
     letterSpacing: -0.3,
-  },
-  kpiGaugeTrack: {
-    height: 3.5,
-    backgroundColor: c.surfaceMuted,
-    borderRadius: radii.full,
-    overflow: 'hidden',
-    marginVertical: 3,
-  },
-  kpiGaugeFill: {
-    height: '100%',
-    borderRadius: radii.full,
   },
   kpiFooter: {
     flexDirection: 'row',
