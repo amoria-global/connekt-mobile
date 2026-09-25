@@ -66,7 +66,6 @@ export default function ProfileScreen() {
   const logout = useAuth((s) => s.logout);
   const updateUser = useAuth((s) => s.updateUser);
   const { isCoordinator, isPhotographer, role: customerRole } = useRole();
-  const isOwner = isCoordinator || isPhotographer;
 
   const [coverUploading, setCoverUploading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -226,12 +225,12 @@ export default function ProfileScreen() {
       { key: 'gallery', icon: 'images-outline' as const, label: 'Gallery', href: '/gallery' as Href },
       { key: 'tv', icon: 'tv-outline' as const, label: 'TV Screens', href: '/tv-devices' as Href },
       { key: 'analytics', icon: 'bar-chart-outline' as const, label: 'Analytics', href: '/analytics' as Href },
-      ...(isOwner
-        ? [{ key: 'team', icon: 'people-outline' as const, label: 'Team', href: '/team' as Href }]
+      ...(isPhotographer
+        ? [{ key: 'collaborate', icon: 'people-outline' as const, label: 'Collaborate', href: '/collaborate' as Href }]
         : []),
       { key: 'security', icon: 'lock-closed-outline' as const, label: 'Security', href: '/two-factor' as Href },
     ],
-    [isOwner],
+    [isPhotographer],
   );
 
   return (
@@ -562,12 +561,12 @@ export default function ProfileScreen() {
                 label="Blocked accounts"
                 onPress={() => router.push('/blocked-accounts' as Href)}
               />
-              {isOwner && (
+              {isPhotographer && (
                 <MenuRow
                   icon="people-circle-outline"
-                  label="Team management"
-                  hint="Members & permissions"
-                  onPress={() => router.push('/team' as Href)}
+                  label="Collaborate"
+                  hint="Albums you share with photographers"
+                  onPress={() => router.push('/collaborate' as Href)}
                 />
               )}
               <MenuRow
