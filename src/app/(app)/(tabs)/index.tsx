@@ -39,7 +39,6 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { KycBanner } from '@/features/kyc/KycBanner';
-import { UserHome } from '@/features/dashboard/UserHome';
 import { ClientHome } from '@/features/dashboard/ClientHome';
 import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
 import { CoordinatorHome } from '@/features/dashboard/CoordinatorHome';
@@ -174,7 +173,7 @@ export default function HomeScreen() {
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [payNowOpen, setPayNowOpen] = useState(false);
   const [payNowPayment, setPayNowPayment] = useState<PendingPayment | null>(null);
-  const { role, isClient, isCoordinator, isPhotographer, isViewer, isUser } = useRole();
+  const { role, isClient, isCoordinator, isPhotographer, isViewer } = useRole();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const name = user?.firstName || 'there';
@@ -411,7 +410,6 @@ export default function HomeScreen() {
   // ── Render ────────────────────────────────────────────────────────────
   // The `User`, `Client`, `Photographer`, and `Coordinator` roles have specialized,
   // role-tailored homes rather than the generic business analytics dashboard.
-  if (isUser) return <UserHome />;
   if (isClient) return <ClientHome />;
   if (isPhotographer) return <PhotographerHome />;
   if (isCoordinator) return <CoordinatorHome />;
