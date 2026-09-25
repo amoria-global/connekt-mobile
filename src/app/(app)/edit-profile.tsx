@@ -18,10 +18,12 @@ import { Screen } from '@/components/ui/Screen';
 import { onlyDigits, parsePhone, type ParsedPhone } from '@/lib/phoneKit';
 import {
   fetchProfile,
+  updateCoordinatorProfile,
   updateCoverPicture,
   updateProfile,
   updateProfilePicture,
 } from '@/features/profile/api';
+import { useRole } from '@/features/auth/role';
 import { pickFromLibrary } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -44,6 +46,7 @@ export default function EditProfileScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const { isCoordinator } = useRole();
   const user = useAuth((s) => s.user);
   const updateUser = useAuth((s) => s.updateUser);
   const customerRole = user?.customerType;
@@ -52,6 +55,14 @@ export default function EditProfileScreen() {
   const [lastName, setLastName] = useState(user?.lastName ?? '');
   const [phoneSeed, setPhoneSeed] = useState(() => seedPhone(user?.phone ?? ''));
   const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
+
+  // Coordinator specific business fields (parity with salo-run)
+  const [organizationName, setOrganizationName] = useState('');
+  const [businessType, setBusinessType] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [website, setWebsite] = useState('');
+  const [taxId, setTaxId] = useState('');
+
   // Optimistic overrides while a pick/upload is in flight. Display falls
   // back to the live auth session so a cover set on the Profile tab shows
   // here immediately (useState alone only captured the mount snapshot).
@@ -71,7 +82,7 @@ export default function EditProfileScreen() {
       let cancelled = false;
       (async () => {
         try {
-          const profile = await fetchProfile();
+          const profile = await fetchProfile(isCoordinator ? 'coordinator' : undefined);
           if (cancelled) return;
           const patch: Parameters<typeof updateUser>[0] = {};
           if (profile.firstName != null) {
@@ -85,6 +96,23 @@ export default function EditProfileScreen() {
           if (profile.phone != null) {
             patch.phone = profile.phone;
             setPhoneSeed(seedPhone(profile.phone));
+          }
+          if (profile.organizationName != null) {
+            setOrganizationName(profile.organizationName);
+          }
+          if (profile.businessType != null) {
+            setBusinessType(profile.businessType);
+          }
+          if (profile.businessAddress != null) {
+            setBusinessAddress(profile.businessAddress);
+          } else if (profile.address != null) {
+            setBusinessAddress(profile.address);
+          }
+          if (profile.website != null) {
+            setWebsite(profile.website);
+          }
+          if (profile.taxId != null) {
+            setTaxId(profile.taxId);
           }
           if (profile.profilePicture) {
             patch.profilePicture = profile.profilePicture;
@@ -105,7 +133,7 @@ export default function EditProfileScreen() {
       return () => {
         cancelled = true;
       };
-    }, [updateUser]),
+    }, [updateUser, isCoordinator]),
   );
 
   const onPickAvatar = async () => {
@@ -158,7 +186,21 @@ export default function EditProfileScreen() {
     const phoneDigits = phoneValue?.digits ?? '';
     setSaving(true);
     try {
-      await updateProfile({ firstName, lastName, phone: phoneDigits });
+      if (isCoordinator) {
+        await updateCoordinatorProfile({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phoneDigits || undefined,
+          address: businessAddress.trim() || undefined,
+          businessAddress: businessAddress.trim() || undefined,
+          organizationName: organizationName.trim() || undefined,
+          businessType: businessType.trim() || undefined,
+          taxId: taxId.trim() || undefined,
+          website: website.trim() || undefined,
+        });
+      } else {
+        await updateProfile({ firstName, lastName, phone: phoneDigits });
+      }
       updateUser({ firstName: firstName.trim(), lastName: lastName.trim(), phone: phoneDigits });
       router.back();
     } catch (err) {
@@ -218,6 +260,47 @@ export default function EditProfileScreen() {
               onChange={setPhoneValue}
             />
 
+            {isCoordinator ? (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Organization & Business</Text>
+                  <Text style={styles.sectionSubtitle}>Details shown on events and coordinator profile.</Text>
+                </View>
+                <Input
+                  label="Organization / Company name"
+                  value={organizationName}
+                  onChangeText={setOrganizationName}
+                  placeholder="e.g. Kigali Events Ltd"
+                />
+                <Input
+                  label="Business type"
+                  value={businessType}
+                  onChangeText={setBusinessType}
+                  placeholder="e.g. Event Management / Production"
+                />
+                <Input
+                  label="Business address"
+                  value={businessAddress}
+                  onChangeText={setBusinessAddress}
+                  placeholder="e.g. KG 9 Ave, Nyarugenge, Kigali"
+                />
+                <Input
+                  label="Website"
+                  value={website}
+                  onChangeText={setWebsite}
+                  placeholder="https://example.com"
+                  autoCapitalize="none"
+                />
+                <Input
+                  label="Tax ID / TIN (Optional)"
+                  value={taxId}
+                  onChangeText={setTaxId}
+                  placeholder="e.g. 102345678"
+                  autoCapitalize="none"
+                />
+              </>
+            ) : null}
+
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Button title="Save changes" onPress={onSave} loading={saving} />
@@ -264,5 +347,8 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.background,
   },
   form: { gap: spacing.lg },
+  sectionHeader: { marginTop: spacing.md, gap: 2 },
+  sectionTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  sectionSubtitle: { fontSize: fontSize.xs, color: c.textMuted },
   error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 }));

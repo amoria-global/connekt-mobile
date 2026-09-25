@@ -38,6 +38,10 @@ export type ProfileSnapshot = {
   reviewsCount?: number;
   acceptanceRate?: number;
   organizationName?: string;
+  businessType?: string;
+  taxId?: string;
+  businessAddress?: string;
+  website?: string;
   specialty?: string;
   about?: string;
 };
@@ -112,6 +116,12 @@ function snapshotFromData(data: Record<string, unknown>): ProfileSnapshot {
       typeof data.acceptanceRate === 'number' ? data.acceptanceRate : undefined,
     organizationName:
       typeof data.organizationName === 'string' ? data.organizationName : undefined,
+    businessType:
+      typeof data.businessType === 'string' ? data.businessType : undefined,
+    taxId: typeof data.taxId === 'string' ? data.taxId : undefined,
+    businessAddress:
+      typeof data.businessAddress === 'string' ? data.businessAddress : undefined,
+    website: typeof data.website === 'string' ? data.website : undefined,
     specialty: typeof data.specialty === 'string' ? data.specialty : undefined,
     about: typeof data.about === 'string' ? data.about : undefined,
   };
@@ -180,6 +190,25 @@ export async function updateProfile(input: ProfileUpdate): Promise<void> {
     `/customer/profile?${qs.toString()}`,
     undefined,
   );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not update your profile.' } satisfies ApiError;
+  }
+}
+
+export type CoordinatorProfileUpdate = {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  address?: string;
+  organizationName?: string;
+  businessType?: string;
+  taxId?: string;
+  businessAddress?: string;
+  website?: string;
+};
+
+export async function updateCoordinatorProfile(input: CoordinatorProfileUpdate): Promise<void> {
+  const res = await api.put<{ action?: number; message?: string }>('/coordinator/profile', input);
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not update your profile.' } satisfies ApiError;
   }

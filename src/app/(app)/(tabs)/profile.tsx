@@ -16,7 +16,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
   Alert,
@@ -251,16 +250,12 @@ export default function ProfileScreen() {
                 transition={200}
               />
             ) : (
-              <LinearGradient
-                colors={['#0a1f44', '#083a85']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
+              <View
+                style={[StyleSheet.absoluteFill, { backgroundColor: '#083a85' }]}
               />
             )}
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.35)']}
-              style={styles.coverScrim}
+            <View
+              style={[styles.coverScrim, { backgroundColor: 'rgba(0,0,0,0.18)' }]}
             />
 
             {/* Change cover photo button */}
