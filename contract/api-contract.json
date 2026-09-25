@@ -5182,8 +5182,13 @@
   }, {
     "method" : "DELETE",
     "path" : "/api/remote/photographer/collab/members/{membershipId}",
-    "controller" : "AlbumCollaborationController#revoke",
+    "controller" : "AlbumCollaborationController#removeCollaborator",
     "pathVariables" : [ "membershipId" ]
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/photographer/collab/links/{inviteId}",
+    "controller" : "AlbumCollaborationController#cancelInvite",
+    "pathVariables" : [ "inviteId" ]
   }, {
     "method" : "POST",
     "path" : "/api/remote/photographer/collab/submissions/review",

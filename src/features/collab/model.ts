@@ -6,7 +6,7 @@
 type Raw = Record<string, unknown>;
 
 export type SubmissionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-export type InviteState = 'OPEN' | 'OWNER' | 'ALREADY_MEMBER' | 'USED' | 'REVOKED' | 'EXPIRED';
+export type InviteState = 'OPEN' | 'OWNER' | 'ALREADY_MEMBER' | 'REMOVED' | 'REVOKED' | 'EXPIRED';
 
 export type Person = { id: string; name: string; avatar?: string };
 
@@ -24,7 +24,16 @@ export type JoinedAlbum = CollabAlbum & {
   joinedAt?: string;
   counts: { pending: number; approved: number; rejected: number };
 };
-export type Invite = { id: string; token: string; link: string; note?: string; expiresAt: string; createdAt?: string };
+export type Invite = {
+  id: string;
+  token: string;
+  link: string;
+  note?: string;
+  expiresAt: string;
+  createdAt?: string;
+  /** Photographers who joined through this link and are still collaborating. */
+  joinedCount: number;
+};
 export type Collaborator = Person & { membershipId: string; joinedAt?: string };
 export type Submission = {
   id: string;
@@ -52,7 +61,7 @@ const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0
 const list = (v: unknown) => (Array.isArray(v) ? (v as Raw[]) : []);
 
 const STATUSES: SubmissionStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
-const STATES: InviteState[] = ['OPEN', 'OWNER', 'ALREADY_MEMBER', 'USED', 'REVOKED', 'EXPIRED'];
+const STATES: InviteState[] = ['OPEN', 'OWNER', 'ALREADY_MEMBER', 'REMOVED', 'REVOKED', 'EXPIRED'];
 
 export function mapPerson(r: unknown): Person {
   const p = (r ?? {}) as Raw;
@@ -91,6 +100,7 @@ export function mapInvite(r: Raw): Invite {
     note: str(r.note),
     expiresAt: String(r.expiresAt ?? ''),
     createdAt: str(r.createdAt),
+    joinedCount: num(r.joinedCount),
   };
 }
 

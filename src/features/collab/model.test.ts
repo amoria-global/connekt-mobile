@@ -28,6 +28,11 @@ describe('who can collaborate', () => {
 });
 
 describe('mapping', () => {
+  it('reads how many photographers joined through a link', () => {
+    const d = mapOwnedDetail({ invites: [{ id: 'i', token: 't', link: 'l', expiresAt: 'x', joinedCount: 7 }] });
+    expect(d.invites[0].joinedCount).toBe(7);
+  });
+
   it('treats an unknown submission status as waiting, never as added', () => {
     expect(mapSubmission({ id: '1', status: 'SOMETHING_NEW' }).status).toBe('PENDING');
     expect(mapSubmission({ id: '1', status: 'APPROVED' }).status).toBe('APPROVED');

@@ -52,9 +52,14 @@ export async function createInvite(albumId: string, note?: string): Promise<Invi
   return mapInvite((d.invite ?? {}) as Raw);
 }
 
-/** Cancels an unused invite link, or removes a collaborator from the album. */
-export async function revokeMembership(membershipId: string): Promise<void> {
-  data(await api.delete<ApiEnvelope<Raw>>(`${BASE}/members/${id(membershipId)}`), 'Could not update collaborators.');
+/** Removes a collaborator from the album. */
+export async function removeCollaborator(membershipId: string): Promise<void> {
+  data(await api.delete<ApiEnvelope<Raw>>(`${BASE}/members/${id(membershipId)}`), 'Could not remove this collaborator.');
+}
+
+/** Cancels an invite link. Photographers who already joined through it stay. */
+export async function cancelInvite(inviteId: string): Promise<void> {
+  data(await api.delete<ApiEnvelope<Raw>>(`${BASE}/links/${id(inviteId)}`), 'Could not cancel this link.');
 }
 
 export async function reviewSubmissions(
