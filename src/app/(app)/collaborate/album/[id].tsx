@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
-import { createInvite, getOwnedAlbum, reviewSubmissions, revokeMembership } from '@/features/collab/api';
+import { cancelInvite, createInvite, getOwnedAlbum, removeCollaborator, reviewSubmissions } from '@/features/collab/api';
 import { AlbumCover, PersonRow, StatusChip } from '@/features/collab/components';
 import { daysLeft, timeAgo, type Collaborator, type OwnedAlbumDetail, type Submission } from '@/features/collab/model';
 import { isApiError } from '@/store/auth';
@@ -114,14 +114,14 @@ export default function OwnerAlbumScreen() {
     Share.share({ message: `Join my album "${data?.album.title}" on Connekyt and submit your photos: ${link}` });
   };
 
-  const revoke = (membershipId: string, title: string, message: string, confirm: string) => {
+  const confirmThen = (title: string, message: string, confirm: string, action: () => Promise<void>) => {
     Alert.alert(title, message, [
       { text: 'Keep', style: 'cancel' },
       {
         text: confirm,
         style: 'destructive',
         onPress: async () => {
-          try { await revokeMembership(membershipId); await load(); } catch (e) {
+          try { await action(); await load(); } catch (e) {
             Alert.alert('Could not update collaborators', isApiError(e) ? e.message : 'Please try again.');
           }
         },
@@ -129,8 +129,9 @@ export default function OwnerAlbumScreen() {
     ]);
   };
 
-  const removeCollaborator = (c: Collaborator) => revoke(c.membershipId, `Remove ${c.name}?`,
-    'They will no longer be able to submit photos to this album. Photos they already submitted stay in your review queue.', 'Remove');
+  const askRemove = (c: Collaborator) => confirmThen(`Remove ${c.name}?`,
+    'They will no longer be able to submit photos to this album. Photos they already submitted stay in your review queue. To bring them back, send them a new link.',
+    'Remove', () => removeCollaborator(c.membershipId));
 
   if (!data) {
     return (
@@ -207,28 +208,31 @@ export default function OwnerAlbumScreen() {
                 <View style={styles.flex}>
                   <PersonRow person={c} caption={`Joined ${timeAgo(c.joinedAt)} · ${submittedBy.get(c.id) ?? 0} photos`} />
                 </View>
-                <Pressable onPress={() => removeCollaborator(c)} hitSlop={8} accessibilityRole="button"
+                <Pressable onPress={() => askRemove(c)} hitSlop={8} accessibilityRole="button"
                   accessibilityLabel={`Remove ${c.name}`}>
                   <Text style={styles.danger}>Remove</Text>
                 </Pressable>
               </View>
             ))}
 
-            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Invite links not used yet</Text>
+            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Open invite links</Text>
             {invites.length === 0 ? (
-              <Text style={styles.muted}>None. Each link works for one photographer, so create one per person.</Text>
+              <Text style={styles.muted}>None. One link can bring in as many photographers as you send it to.</Text>
             ) : invites.map((inv) => (
               <View key={inv.id} style={styles.row}>
                 <Ionicons name="link-outline" size={20} color={colors.primary} />
                 <View style={styles.flex}>
                   <Text style={styles.rowTitle} numberOfLines={1}>{inv.note || 'Invite link'}</Text>
-                  <Text style={styles.muted}>{daysLeft(inv.expiresAt)}</Text>
+                  <Text style={styles.muted}>
+                    {inv.joinedCount} joined · {daysLeft(inv.expiresAt)}
+                  </Text>
                 </View>
                 <Pressable onPress={() => shareLink(inv.link)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share invite link">
                   <Text style={styles.link}>Share</Text>
                 </Pressable>
                 <Pressable hitSlop={8} accessibilityRole="button" accessibilityLabel="Cancel invite link"
-                  onPress={() => revoke(inv.id, 'Cancel this link?', 'Whoever has it will no longer be able to join.', 'Cancel link')}>
+                  onPress={() => confirmThen('Cancel this link?',
+                    'Nobody else can join with it. Photographers who already joined stay.', 'Cancel link', () => cancelInvite(inv.id))}>
                   <Text style={styles.danger}>Cancel</Text>
                 </Pressable>
               </View>

@@ -14,7 +14,7 @@ import { Screen } from '@/components/ui/Screen';
 import { getJoinedAlbum, leaveAlbum, submitPhoto, withdrawSubmission } from '@/features/collab/api';
 import { AlbumCover, PersonRow, StatusChip } from '@/features/collab/components';
 import { timeAgo, type JoinedAlbumDetail, type SubmissionStatus } from '@/features/collab/model';
-import { pickMultipleFromLibrary } from '@/services/imagePicker';
+import { pickOriginalPhotos } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
 
@@ -64,7 +64,13 @@ export default function JoinedAlbumScreen() {
 
   const addPhotos = async () => {
     if (!id || uploading) return;
-    const picked = await pickMultipleFromLibrary(50);
+    // Originals, not the compressed copies other screens upload: this is
+    // delivery work another photographer puts in their album.
+    const { photos: picked, skipped } = await pickOriginalPhotos(50);
+    if (skipped.length > 0) {
+      Alert.alert(`${skipped.length} photo${skipped.length === 1 ? '' : 's'} left out`,
+        skipped.slice(0, 5).map((s) => `${s.name}: ${s.reason}`).join('\n'));
+    }
     if (picked.length === 0) return;
     let done = 0;
     let failed = 0;
@@ -150,7 +156,10 @@ export default function JoinedAlbumScreen() {
 
         <View style={styles.uploadCard}>
           <Text style={styles.uploadTitle}>Submit your photos</Text>
-          <Text style={styles.muted}>{owner.name} decides what goes into the album. You can withdraw a photo until it is reviewed.</Text>
+          <Text style={styles.muted}>
+            Sent at full quality. JPEG, PNG or WebP, up to 20 MB each, at least Full HD. {owner.name} decides what goes
+            into the album, and you can withdraw a photo until it is reviewed.
+          </Text>
           <Button title={uploading ? `Submitting ${progress!.done + progress!.failed + 1} of ${progress!.total}…` : 'Add photos'}
             onPress={addPhotos} loading={uploading} />
           {progress && (
