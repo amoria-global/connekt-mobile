@@ -64,8 +64,10 @@ export default function PaymentDetailScreen() {
     return (
       <Screen>
         <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
+          <Ionicons name="receipt-outline" size={40} color={colors.textMuted} />
+          <Text style={styles.errorTitle}>Could not open this payment</Text>
           <Text style={styles.muted}>{error}</Text>
+          <Button title="Try again" variant="ghost" onPress={refresh} />
         </View>
       </Screen>
     );
@@ -126,7 +128,8 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
 }
 
 const useStyles = makeStyles((c) => ({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingHorizontal: spacing.xl },
+  errorTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.semibold, textAlign: 'center' },
   muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   scroll: { padding: spacing.xl, gap: spacing.xl },
   amountCard: {
