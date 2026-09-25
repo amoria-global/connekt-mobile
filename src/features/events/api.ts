@@ -216,9 +216,18 @@ export async function listPhotographerEvents(): Promise<EventItem[]> {
   return sortByCreatedDesc(unwrapList(res?.data).map(mapEvent).filter((e) => e.id));
 }
 
-export async function getEvent(id: string): Promise<EventItem> {
-  const res = await api.get<ApiEnvelope<RawEvent>>(`/customer/events/${encodeURIComponent(id)}`);
-  return mapEvent((res?.data ?? {}) as RawEvent);
+export async function getEvent(id: string, asCoordinator = false): Promise<EventItem> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  try {
+    const res = await api.get<ApiEnvelope<RawEvent>>(`${base}/${encodeURIComponent(id)}`);
+    return mapEvent((res?.data ?? {}) as RawEvent);
+  } catch (err) {
+    if (asCoordinator) {
+      const fallbackRes = await api.get<ApiEnvelope<RawEvent>>(`/customer/events/${encodeURIComponent(id)}`);
+      return mapEvent((fallbackRes?.data ?? {}) as RawEvent);
+    }
+    throw err;
+  }
 }
 
 // --- Public (no login required) ------------------------------------------
@@ -371,8 +380,9 @@ export async function getPublicEventDetailed(id: string): Promise<PublicEvent> {
  * `eventTags`, `priceCurrency`, `maxGuests`, …). Photographer/package IDs are
  * only sent when they are valid UUIDs, to avoid backend "id must not be null".
  */
-export async function createEvent(input: CreateEventInput): Promise<EventItem> {
-  const res = await api.post<ApiEnvelope<RawEvent>>('/customer/events/book', buildEventPayload(input));
+export async function createEvent(input: CreateEventInput, asCoordinator = false): Promise<EventItem> {
+  const base = asCoordinator ? '/coordinator/events/book' : '/customer/events/book';
+  const res = await api.post<ApiEnvelope<RawEvent>>(base, buildEventPayload(input));
   if (res.action !== 1) {
     throw {
       status: 400,
@@ -385,10 +395,11 @@ export async function createEvent(input: CreateEventInput): Promise<EventItem> {
   return mapEvent(ev);
 }
 
-/** Updates an event (web parity: PUT /customer/events/{id}). */
-export async function updateEvent(id: string, input: CreateEventInput): Promise<EventItem> {
+/** Updates an event (web parity: PUT /coordinator/events/{id} or /customer/events/{id}). */
+export async function updateEvent(id: string, input: CreateEventInput, asCoordinator = false): Promise<EventItem> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
   const res = await api.put<ApiEnvelope<RawEvent>>(
-    `/customer/events/${encodeURIComponent(id)}`,
+    `${base}/${encodeURIComponent(id)}`,
     buildEventPayload(input),
   );
   if (res.action !== 1) {
@@ -406,11 +417,12 @@ export async function updateEvent(id: string, input: CreateEventInput): Promise<
  * success, and the event stayed unpublishable (and therefore invisible on the
  * public site) with nothing shown to the user.
  */
-export async function uploadEventPhoto(eventId: string, image: PickedImage): Promise<void> {
+export async function uploadEventPhoto(eventId: string, image: PickedImage, asCoordinator = false): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
   const form = new FormData();
   await appendFile(form, 'file', image);
   const res = await api.post<ApiEnvelope<unknown>>(
-    `/customer/events/${encodeURIComponent(eventId)}/photo`,
+    `${base}/${encodeURIComponent(eventId)}/photo`,
     form,
   );
   if (res?.action !== 1) {

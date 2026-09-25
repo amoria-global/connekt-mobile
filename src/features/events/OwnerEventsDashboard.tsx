@@ -15,7 +15,7 @@
  * Shares the visual language + Pragati Narrow type of the photographer
  * "Events & albums" dashboard.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -126,9 +126,11 @@ const WORKSPACE_TABS: { key: string; label: string; icon: keyof typeof Ionicons.
 export function OwnerEventsDashboard({
   coordinator = false,
   topInset = 0,
+  initialSearch = '',
 }: {
   coordinator?: boolean;
   topInset?: number;
+  initialSearch?: string;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -140,10 +142,17 @@ export function OwnerEventsDashboard({
   );
 
   const [filter, setFilter] = useState<Filter>('all');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [sortBy, setSortBy] = useState<EventSortOption>('newest');
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (initialSearch) {
+      setSearch(initialSearch);
+      setPage(1);
+    }
+  }, [initialSearch]);
 
   const events = data ?? [];
   const today = startOfToday();
@@ -197,7 +206,8 @@ export function OwnerEventsDashboard({
       return (
         e.title.toLowerCase().includes(q) ||
         (e.location ?? '').toLowerCase().includes(q) ||
-        (e.photographerName ?? '').toLowerCase().includes(q)
+        (e.photographerName ?? '').toLowerCase().includes(q) ||
+        (e.category ?? '').toLowerCase().includes(q)
       );
     });
   }, [events, filter, search, today]);

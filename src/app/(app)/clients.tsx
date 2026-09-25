@@ -7,6 +7,7 @@ import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { listClients } from '@/features/clients/api';
 import { useAsync } from '@/hooks/useAsync';
+import { useRole } from '@/features/auth/role';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
@@ -14,7 +15,10 @@ export default function ClientsScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listClients(), []));
+  const { isCoordinator } = useRole();
+  const { data, loading, error, refresh } = useAsync(
+    useCallback(() => listClients(isCoordinator), [isCoordinator]),
+  );
 
   return (
     <Screen padded={false}>
@@ -24,7 +28,7 @@ export default function ClientsScreen() {
         error={error}
         onRefresh={refresh}
         title="Clients"
-        subtitle="People who have booked you"
+        subtitle={isCoordinator ? 'Clients across your events & productions' : 'People who have booked you'}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => {
           const initials = (item.name[0] ?? '?').toUpperCase();

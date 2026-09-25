@@ -10,6 +10,7 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
+import { useRole } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney } from '@/utils/format';
@@ -19,7 +20,10 @@ export default function ClientDetailScreen() {
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data, loading, error } = useAsync(useCallback(() => getClient(id), [id]));
+  const { isCoordinator } = useRole();
+  const { data, loading, error } = useAsync(
+    useCallback(() => getClient(id, isCoordinator), [id, isCoordinator]),
+  );
 
   const [favorite, setFavorite] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
