@@ -51,6 +51,7 @@ import { getWallet } from '@/features/wallet/api';
 import { formatDate, formatMoney } from '@/utils/format';
 import { useResponsive } from '@/hooks/useResponsive';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
 
 const CATEGORY_CHIPS = [
   { label: 'All', icon: 'sparkles' as const, color: '#083A85' },
@@ -107,6 +108,7 @@ export function CoordinatorHome() {
 
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
+  const [selectedWaveMetric, setSelectedWaveMetric] = useState<MetricKey>('totalRevenue');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
@@ -173,51 +175,61 @@ export function CoordinatorHome() {
   const todayFormatted = getTodayFormatted();
   const periodLabel = period === 'today' ? 'yesterday' : period === 'month' ? 'last month' : 'last week';
 
-  // Salo-run 5 Coordinator KPI Cards
+  // Infographic 5 Coordinator KPI Cards (with Pinterest wave alignment & progress gauges)
   const kpiCards = [
     {
+      key: 'totalRevenue' as MetricKey,
       title: 'Total Revenue',
       value: formatMoney(a?.totalRevenue || 0, currency),
       percentage: trends.totalRevenue?.percentage,
       trend: trends.totalRevenue?.direction ?? 'up',
       icon: 'cash-outline' as const,
-      accent: '#083A85',
+      accent: '#00E5FF',
+      progress: Math.min(1, Math.max(0.15, (a?.totalRevenue || 0) / 10000)),
       href: '/wallet',
     },
     {
-      title: 'Pending',
+      key: 'totalPending' as MetricKey,
+      title: 'Pending Invoices',
       value: formatMoney(a?.totalPending || 0, currency),
       percentage: trends.totalPending?.percentage,
       trend: trends.totalPending?.direction ?? 'up',
       icon: 'time-outline' as const,
       accent: '#F59E0B',
+      progress: Math.min(1, Math.max(0.1, (a?.totalPending || 0) / 5000)),
       href: '/wallet',
     },
     {
+      key: 'totalEvents' as MetricKey,
       title: 'Events Managed',
       value: String(a?.totalEvents || 0),
       percentage: trends.totalEvents?.percentage,
       trend: trends.totalEvents?.direction ?? 'up',
       icon: 'calendar-outline' as const,
-      accent: '#3B82F6',
+      accent: '#38BDF8',
+      progress: Math.min(1, Math.max(0.15, (a?.totalEvents || 0) / 20)),
       href: '/events',
     },
     {
+      key: 'totalCustomers' as MetricKey,
       title: 'Total Clients',
       value: String(a?.totalCustomers || 0),
       percentage: trends.totalCustomers?.percentage,
       trend: trends.totalCustomers?.direction ?? 'up',
       icon: 'people-outline' as const,
       accent: '#10B981',
+      progress: Math.min(1, Math.max(0.15, (a?.totalCustomers || 0) / 30)),
       href: '/clients',
     },
     {
+      key: 'totalPhotographers' as MetricKey,
       title: 'Photographers',
       value: String(a?.totalPhotographers || 0),
       percentage: trends.totalPhotographers?.percentage,
       trend: trends.totalPhotographers?.direction ?? 'up',
       icon: 'camera-outline' as const,
-      accent: '#8B5CF6',
+      accent: '#A855F7',
+      progress: Math.min(1, Math.max(0.15, (a?.totalPhotographers || 0) / 15)),
       href: '/photographers',
     },
   ];
@@ -524,67 +536,103 @@ export function CoordinatorHome() {
           </View>
         ) : null}
 
-        {/* ── Period Filter Tabs ──────────────────────────────────────────── */}
-        <View style={styles.periodRow}>
+        {/* ── Performance & Metrics Infographic Section ───────────────────── */}
+        <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>PERFORMANCE &amp; METRICS</Text>
-          <View style={styles.periodTabs}>
-            {PERIOD_TABS.map((t) => {
-              const active = period === t.value;
-              return (
-                <Pressable
-                  key={t.value}
-                  onPress={() => setPeriod(t.value)}
-                  style={[styles.periodTab, active && styles.periodTabActive]}
-                >
-                  <Text style={[styles.periodTabText, active && styles.periodTabTextActive]}>
-                    {t.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Text style={styles.sectionSubtitle}>
+            Wave trajectory &amp; production performance analytics
+          </Text>
         </View>
 
-        {/* ── Salo-run 5 Coordinator KPI Cards ────────────────────────────── */}
+        {/* ── Pinterest Wave Energy Infographic Hero Card ────────────────── */}
+        <PerformanceWaveCard
+          analytics={a}
+          trends={trends}
+          period={period}
+          onPeriodChange={setPeriod}
+          currency={currency}
+          selectedMetric={selectedWaveMetric}
+          onSelectMetric={setSelectedWaveMetric}
+        />
+
+        {/* ── Infographic Breakdown KPI Cards ────────────────────────────── */}
         <View style={styles.kpiGrid}>
           {kpiCards.map((k) => {
+            const isWaveActive = selectedWaveMetric === k.key;
             const dir = k.trend;
             const trendColor = dir === 'up' ? '#10B981' : '#EF4444';
             return (
               <Pressable
-                key={k.title}
+                key={k.key}
                 style={({ pressed }) => [
                   styles.kpiCard,
                   responsive.isLarge && styles.kpiCardLarge,
+                  isWaveActive && styles.kpiCardWaveActive,
                   pressed && styles.cardPressed,
                 ]}
-                onPress={() => router.push(k.href as Href)}
+                onPress={() => setSelectedWaveMetric(k.key)}
                 accessibilityRole="button"
                 accessibilityLabel={`${k.title}: ${k.value}`}
               >
                 <View style={styles.kpiTopRow}>
                   <View style={[styles.kpiIconWrap, { backgroundColor: `${k.accent}15` }]}>
-                    <Ionicons name={k.icon} size={17} color={k.accent} />
+                    <Ionicons name={k.icon} size={16} color={k.accent} />
                   </View>
-                  {k.percentage ? (
-                    <View style={styles.kpiTrendBadge}>
-                      <Ionicons
-                        name={dir === 'up' ? 'trending-up' : 'trending-down'}
-                        size={12}
-                        color={trendColor}
-                      />
-                      <Text style={[styles.kpiTrendText, { color: trendColor }]}>
-                        {k.percentage}
-                      </Text>
-                    </View>
-                  ) : null}
+                  <View style={styles.kpiTopRight}>
+                    {isWaveActive ? (
+                      <View style={[styles.waveActivePill, { borderColor: `${k.accent}60` }]}>
+                        <View style={[styles.waveActiveDot, { backgroundColor: k.accent }]} />
+                        <Text style={[styles.waveActiveText, { color: k.accent }]}>WAVE</Text>
+                      </View>
+                    ) : null}
+                    {k.percentage ? (
+                      <View style={styles.kpiTrendBadge}>
+                        <Ionicons
+                          name={dir === 'up' ? 'trending-up' : 'trending-down'}
+                          size={11}
+                          color={trendColor}
+                        />
+                        <Text style={[styles.kpiTrendText, { color: trendColor }]}>
+                          {k.percentage}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
+
                 <Text style={styles.kpiValue} numberOfLines={1}>
                   {k.value}
                 </Text>
+
+                {/* Infographic Energy Progress Bar */}
+                <View style={styles.kpiGaugeTrack}>
+                  <View
+                    style={[
+                      styles.kpiGaugeFill,
+                      {
+                        width: `${Math.round(k.progress * 100)}%`,
+                        backgroundColor: k.accent,
+                      },
+                    ]}
+                  />
+                </View>
+
                 <View style={styles.kpiFooter}>
-                  <Text style={styles.kpiTitle}>{k.title}</Text>
-                  <Text style={styles.kpiSub}>vs {periodLabel}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.kpiTitle} numberOfLines={1}>
+                      {k.title}
+                    </Text>
+                    <Text style={styles.kpiSub}>vs {periodLabel}</Text>
+                  </View>
+                  <Pressable
+                    style={styles.kpiNavBtn}
+                    onPress={() => router.push(k.href as Href)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${k.title}`}
+                  >
+                    <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
+                  </Pressable>
                 </View>
               </Pressable>
             );
@@ -1152,15 +1200,46 @@ const useStyles = makeStyles((c, e) => ({
   kpiCardLarge: {
     width: '31%',
   },
+  kpiCardWaveActive: {
+    borderColor: '#00E5FF',
+    backgroundColor: c.surface,
+    ...e(3),
+  },
   kpiTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 2,
   },
+  kpiTopRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  waveActivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+  },
+  waveActiveDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  waveActiveText: {
+    fontFamily: fonts.bold,
+    fontSize: 8.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.4,
+  },
   kpiIconWrap: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1172,30 +1251,49 @@ const useStyles = makeStyles((c, e) => ({
   },
   kpiTrendText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: fontWeight.bold,
   },
   kpiValue: {
     fontFamily: fonts.bold,
-    fontSize: 18,
+    fontSize: 17.5,
     fontWeight: fontWeight.extrabold,
     color: c.text,
     letterSpacing: -0.3,
   },
+  kpiGaugeTrack: {
+    height: 3.5,
+    backgroundColor: c.surfaceMuted,
+    borderRadius: radii.full,
+    overflow: 'hidden',
+    marginVertical: 3,
+  },
+  kpiGaugeFill: {
+    height: '100%',
+    borderRadius: radii.full,
+  },
   kpiFooter: {
-    flexDirection: 'column',
-    gap: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 4,
+    marginTop: 1,
   },
   kpiTitle: {
     fontFamily: fonts.bold,
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: fontWeight.bold,
     color: c.textSoft,
   },
   kpiSub: {
     fontFamily: fonts.regular,
-    fontSize: 10,
+    fontSize: 9.5,
     color: c.textMuted,
+  },
+  kpiNavBtn: {
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // ── Upcoming Events Section ────────────────────────────────────────────
