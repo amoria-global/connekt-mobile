@@ -58,15 +58,6 @@ const OWNER_TABS: Tab[] = [
   { key: 'more', label: 'More', href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal', isMore: true, match: [] },
 ];
 
-// The consumer `User` role:
-const USER_TABS: Tab[] = [
-  { key: 'home', label: 'Home', href: '/(tabs)' as Href, icon: 'home-outline', iconFocused: 'home', match: ['index', '(tabs)'] },
-  { key: 'streams', label: 'Streams', href: '/streams' as Href, icon: 'videocam-outline', iconFocused: 'videocam', match: ['streams', 'stream', 'event', 'events'] },
-  { key: 'photos', label: 'Photos', href: '/gallery' as Href, icon: 'images-outline', iconFocused: 'images', match: ['gallery', 'album', 'photobooks', 'find-my-photos'] },
-  { key: 'payments', label: 'Payments', href: '/payments' as Href, icon: 'card-outline', iconFocused: 'card', match: ['payments', 'payment', 'transactions'] },
-  { key: 'more', label: 'More', href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal', isMore: true, match: [] },
-];
-
 export type MoreGridItem = {
   id: string;
   label: string;
@@ -98,7 +89,6 @@ export function PersistentBottomBar() {
   const segments = useSegments() as string[];
   const [moreOpen, setMoreOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const { isUser } = useRole();
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -115,7 +105,7 @@ export function PersistentBottomBar() {
     };
   }, []);
 
-  const tabs = isUser ? USER_TABS : OWNER_TABS;
+  const tabs = OWNER_TABS;
 
   const activeKey = useMemo<string>(() => {
     const tabsIdx = segments.indexOf('(tabs)');
@@ -216,7 +206,7 @@ export function MoreSheet({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const logout = useAuth((s) => s.logout);
-  const { role, isCoordinator, isPhotographer, isUser } = useRole();
+  const { role, isCoordinator, isPhotographer } = useRole();
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -269,18 +259,16 @@ export function MoreSheet({
       href: '/profile' as Href,
     });
 
-    // 2. Streams (Client & Coordinator in salo-run; User already has it in bottom tab)
-    if (!isUser) {
-      list.push({
-        id: 'streams',
-        label: 'Streams',
-        icon: 'videocam-outline',
-        href: '/streams' as Href,
-      });
-    }
+    // 2. Streams (Client & Coordinator in salo-run)
+    list.push({
+      id: 'streams',
+      label: 'Streams',
+      icon: 'videocam-outline',
+      href: '/streams' as Href,
+    });
 
-    // 3. Gallery / My Photos (Client & Coordinator in salo-run; User already has it in bottom tab)
-    if (!isUser && !isPhotographer) {
+    // 3. Gallery / My Photos (Client & Coordinator in salo-run)
+    if (!isPhotographer) {
       list.push({
         id: 'gallery',
         label: 'Gallery',
@@ -289,17 +277,7 @@ export function MoreSheet({
       });
     }
 
-    // 4. Bookings (User in salo-run Watch group: "My Bookings"; Owners have Events in bottom tab)
-    if (isUser) {
-      list.push({
-        id: 'bookings',
-        label: 'Bookings',
-        icon: 'calendar-outline',
-        href: '/bookings' as Href,
-      });
-    }
-
-    // 5. Photographers (Client, Coordinator, User in salo-run)
+    // 5. Photographers (Client, Coordinator in salo-run)
     if (!isPhotographer) {
       list.push({
         id: 'photographers',
@@ -320,17 +298,15 @@ export function MoreSheet({
     }
 
     // 7. Team (Photographer, Client, Coordinator in salo-run Team group)
-    if (!isUser) {
-      list.push({
-        id: 'team',
-        label: 'Team',
-        icon: 'people-circle-outline',
-        href: '/team' as Href,
-      });
-    }
+    list.push({
+      id: 'team',
+      label: 'Team',
+      icon: 'people-circle-outline',
+      href: '/team' as Href,
+    });
 
-    // 8. Payments (Client, Coordinator in salo-run Money group; User already has it in bottom tab)
-    if (!isUser && !isPhotographer) {
+    // 8. Payments (Client, Coordinator in salo-run Money group)
+    if (!isPhotographer) {
       list.push({
         id: 'payments',
         label: 'Payments',
@@ -384,7 +360,7 @@ export function MoreSheet({
     });
 
     return list;
-  }, [isCoordinator, isPhotographer, isUser, unreadCount, handleLogout]);
+  }, [isCoordinator, isPhotographer, unreadCount, handleLogout]);
 
   // Filter shortcuts by search query
   const displayedItems = useMemo(() => {

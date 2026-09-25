@@ -45,7 +45,6 @@ type ProfileTab = 'details' | 'settings' | 'account';
 
 function roleLabel(type?: string) {
   if (!type) return null;
-  if (type === 'User') return 'Guest Member';
   if (type === 'Coordinator' || type === 'event-coordinator') return 'Event Coordinator';
   return type;
 }

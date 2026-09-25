@@ -58,7 +58,6 @@ export type NotificationsRole =
   | 'Photographer'
   | 'Coordinator'
   | 'Viewer'
-  | 'User'
   | 'photographer'
   | 'coordinator'
   | 'event-coordinator'
