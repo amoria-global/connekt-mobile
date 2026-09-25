@@ -5167,6 +5167,63 @@
     }
   }, {
     "method" : "GET",
+    "path" : "/api/remote/photographer/collab/albums",
+    "controller" : "AlbumCollaborationController#ownedAlbums"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/albums/{albumId}",
+    "controller" : "AlbumCollaborationController#ownedAlbum",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/albums/{albumId}/invites",
+    "controller" : "AlbumCollaborationController#createInvite",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/photographer/collab/members/{membershipId}",
+    "controller" : "AlbumCollaborationController#revoke",
+    "pathVariables" : [ "membershipId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/submissions/review",
+    "controller" : "AlbumCollaborationController#review"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/invites/{token}",
+    "controller" : "AlbumCollaborationController#previewInvite",
+    "pathVariables" : [ "token" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/invites/{token}/accept",
+    "controller" : "AlbumCollaborationController#acceptInvite",
+    "pathVariables" : [ "token" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/joined",
+    "controller" : "AlbumCollaborationController#joinedAlbums"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/joined/{albumId}",
+    "controller" : "AlbumCollaborationController#joinedAlbum",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/joined/{albumId}/submissions",
+    "controller" : "AlbumCollaborationController#submit",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/photographer/collab/submissions/{submissionId}",
+    "controller" : "AlbumCollaborationController#withdraw",
+    "pathVariables" : [ "submissionId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/joined/{albumId}/leave",
+    "controller" : "AlbumCollaborationController#leave",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/photographer/albums",
     "controller" : "PhotographerAlbumController#getAlbums"
   }, {
@@ -6850,67 +6907,25 @@
     "path" : "/api/remote/team/me/permissions",
     "controller" : "TeamController#mePermissions"
   }, {
-    "method" : "GET",
+    "method" : "ANY",
     "path" : "/api/remote/team/permissions",
-    "controller" : "TeamController#listPermissions"
+    "controller" : "TeamController#retired"
   }, {
-    "method" : "GET",
+    "method" : "ANY",
     "path" : "/api/remote/team/roles",
-    "controller" : "TeamController#listRoles"
+    "controller" : "TeamController#retired"
   }, {
-    "method" : "POST",
-    "path" : "/api/remote/team/roles",
-    "controller" : "TeamController#createRole",
-    "body" : {
-      "type" : "Map"
-    }
+    "method" : "ANY",
+    "path" : "/api/remote/team/roles/**",
+    "controller" : "TeamController#retired"
   }, {
-    "method" : "DELETE",
-    "path" : "/api/remote/team/roles/{roleId}",
-    "controller" : "TeamController#deleteRole",
-    "pathVariables" : [ "roleId" ]
-  }, {
-    "method" : "PUT",
-    "path" : "/api/remote/team/roles/{roleId}",
-    "controller" : "TeamController#updateRole",
-    "body" : {
-      "type" : "Map"
-    },
-    "pathVariables" : [ "roleId" ]
-  }, {
-    "method" : "GET",
+    "method" : "ANY",
     "path" : "/api/remote/team/users",
-    "controller" : "TeamController#listMembers"
+    "controller" : "TeamController#retired"
   }, {
-    "method" : "POST",
-    "path" : "/api/remote/team/users",
-    "controller" : "TeamController#inviteMember",
-    "body" : {
-      "type" : "Map"
-    }
-  }, {
-    "method" : "DELETE",
-    "path" : "/api/remote/team/users/{memberId}",
-    "controller" : "TeamController#removeMember",
-    "pathVariables" : [ "memberId" ]
-  }, {
-    "method" : "PUT",
-    "path" : "/api/remote/team/users/{memberId}",
-    "controller" : "TeamController#updateMember",
-    "body" : {
-      "type" : "Map"
-    },
-    "pathVariables" : [ "memberId" ]
-  }, {
-    "method" : "POST",
-    "path" : "/api/remote/team/users/{memberId}/activate",
-    "controller" : "TeamController#activateMember",
-    "pathVariables" : [ "memberId" ]
-  }, {
-    "method" : "POST",
-    "path" : "/api/remote/team/users/{memberId}/deactivate",
-    "controller" : "TeamController#deactivateMember",
-    "pathVariables" : [ "memberId" ]
+    "method" : "ANY",
+    "path" : "/api/remote/team/users/**",
+    "controller" : "TeamController#retired"
   }, {
     "method" : "GET",
     "path" : "/api/remote/tv/catalog/categories",
