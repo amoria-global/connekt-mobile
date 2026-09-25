@@ -38,7 +38,9 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { ownsEvents, isPhotographer, isCoordinator } = useRole();
-  const { data, loading, error, refresh } = useAsync(useCallback(() => getEvent(id), [id]));
+  const { data, loading, error, refresh } = useAsync(
+    useCallback(() => getEvent(id, isCoordinator), [id, isCoordinator]),
+  );
 
   // Seamless fallback: If the customer/creator endpoint rejects the event
   // (e.g. 400 Bad Request because it's a public event, live stream, or not created

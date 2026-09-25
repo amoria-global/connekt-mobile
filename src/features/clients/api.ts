@@ -36,7 +36,53 @@ function mapClient(r: Raw): ClientItem {
   };
 }
 
-export async function listClients(): Promise<ClientItem[]> {
+export async function listClients(isCoordinator = false): Promise<ClientItem[]> {
+  if (isCoordinator) {
+    try {
+      const res = await api.get<ApiEnvelope<unknown>>('/coordinator/bookings');
+      const d = res?.data;
+      const arr = Array.isArray(d)
+        ? (d as Raw[])
+        : Array.isArray((d as { content?: unknown })?.content)
+          ? ((d as { content: Raw[] }).content)
+          : [];
+      if (arr.length > 0) {
+        return arr.map(mapClient).filter((c) => c.id);
+      }
+    } catch {
+      // Fall through to events derivation
+    }
+    try {
+      const res = await api.get<ApiEnvelope<unknown>>('/coordinator/events?page=0&size=100');
+      const d = res?.data;
+      const arr = Array.isArray(d)
+        ? (d as Raw[])
+        : Array.isArray((d as { content?: unknown })?.content)
+          ? ((d as { content: Raw[] }).content)
+          : [];
+      const clientMap = new Map<string, ClientItem>();
+      for (const r of arr) {
+        const name = str(r.clientName) ?? str(r.customerName) ?? str(r.organizer);
+        const id = String(r.customerId ?? r.clientId ?? name ?? '');
+        if (name && id) {
+          if (!clientMap.has(id)) {
+            clientMap.set(id, {
+              id,
+              name,
+              avatar: str(r.clientAvatar) ?? str(r.customerAvatar),
+              bookings: 1,
+            });
+          } else {
+            const c = clientMap.get(id)!;
+            c.bookings = (c.bookings ?? 0) + 1;
+          }
+        }
+      }
+      return Array.from(clientMap.values());
+    } catch {
+      return [];
+    }
+  }
   const res = await api.get<ApiEnvelope<unknown>>('/photographer/clients');
   const d = res?.data;
   const arr = Array.isArray(d)
@@ -74,7 +120,40 @@ export type ClientDetail = ClientItem & {
   events: { id: string; title: string; date?: string; status?: string }[];
 };
 
-export async function getClient(id: string): Promise<ClientDetail> {
+export async function getClient(id: string, isCoordinator = false): Promise<ClientDetail> {
+  if (isCoordinator) {
+    try {
+      const res = await api.get<ApiEnvelope<unknown>>(`/coordinator/events?page=0&size=100`);
+      const d = res?.data;
+      const arr = Array.isArray(d)
+        ? (d as Raw[])
+        : Array.isArray((d as { content?: unknown })?.content)
+          ? ((d as { content: Raw[] }).content)
+          : [];
+      const matched = arr.filter((e) => {
+        const cid = String(e.customerId ?? e.clientId ?? e.clientName ?? e.organizer ?? '');
+        return cid === id || str(e.clientName) === id;
+      });
+      const first = matched[0] || {};
+      const name = str(first.clientName) ?? str(first.customerName) ?? str(first.organizer) ?? id;
+      return {
+        id,
+        name,
+        avatar: str(first.clientAvatar) ?? str(first.customerAvatar),
+        bookings: matched.length,
+        events: matched
+          .map((e) => ({
+            id: String(e.id ?? ''),
+            title: str(e.title) ?? str(e.name) ?? 'Event',
+            date: str(e.eventDate) ?? str(e.date),
+            status: str(e.status),
+          }))
+          .filter((e) => e.id),
+      };
+    } catch {
+      // Fallback below
+    }
+  }
   const res = await api.get<ApiEnvelope<Raw>>(`/photographer/clients/${encodeURIComponent(id)}`);
   const d = (res?.data ?? {}) as Raw;
   const rawEvents = Array.isArray(d.events) ? (d.events as Raw[]) : [];

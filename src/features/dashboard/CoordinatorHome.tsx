@@ -285,7 +285,10 @@ export function CoordinatorHome() {
                 onBlur={() => setIsSearchFocused(false)}
                 onSubmitEditing={() => {
                   if (searchQuery.trim()) {
-                    router.push('/events' as never);
+                    router.push({
+                      pathname: '/events',
+                      params: { q: searchQuery.trim() },
+                    } as never);
                   }
                 }}
                 returnKeyType="search"
@@ -314,7 +317,10 @@ export function CoordinatorHome() {
                     key={c.label}
                     onPress={() => {
                       setSelectedCategory(c.label);
-                      router.push('/events' as never);
+                      router.push({
+                        pathname: '/events',
+                        params: c.label === 'All' ? {} : { category: c.label },
+                      } as never);
                     }}
                     style={({ pressed }) => [
                       styles.chip,

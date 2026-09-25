@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
@@ -8,6 +9,8 @@ import ExploreEventsScreen from '@/app/(public)/explore-events';
 export default function EventsScreen() {
   const topBarHeight = useTopBarHeight();
   const { isPhotographer, isCoordinator } = useRole();
+  const params = useLocalSearchParams<{ q?: string; category?: string }>();
+  const initialSearch = (params.q || params.category || '').trim();
 
   if (isPhotographer) {
     /*
@@ -29,7 +32,7 @@ export default function EventsScreen() {
   if (isCoordinator) {
     return (
       <Screen padded={false} edges={[]}>
-        <OwnerEventsDashboard coordinator topInset={topBarHeight} />
+        <OwnerEventsDashboard coordinator initialSearch={initialSearch} topInset={topBarHeight} />
         <TopBar />
       </Screen>
     );

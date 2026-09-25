@@ -33,6 +33,7 @@ import {
 import { useAsync } from '@/hooks/useAsync';
 import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
+import { useRole } from '@/features/auth/role';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
@@ -72,6 +73,7 @@ export default function NewEventScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const { isCoordinator } = useRole();
   const user = useAuth((s) => s.user);
   const params = useLocalSearchParams<{
     photographerId?: string;
@@ -146,7 +148,7 @@ export default function NewEventScreen() {
     let active = true;
     (async () => {
       try {
-        const ev = await getEvent(params.editId!);
+        const ev = await getEvent(params.editId!, isCoordinator);
         if (!active) return;
         setExistingCover(ev.coverImage ?? null);
         // Pull every editable field from the server, not just title/
@@ -285,10 +287,10 @@ export default function NewEventScreen() {
     try {
       // --- Edit path -----------------------------------------------------
       if (isEditing && params.editId) {
-        await updateEvent(params.editId, input);
+        await updateEvent(params.editId, input, isCoordinator);
         if (cover) {
           try {
-            await uploadEventPhoto(params.editId, cover);
+            await uploadEventPhoto(params.editId, cover, isCoordinator);
           } catch {
             // non-fatal
           }
@@ -298,7 +300,7 @@ export default function NewEventScreen() {
       }
 
       // --- Create / book path -------------------------------------------
-      const event = await createEvent(input);
+      const event = await createEvent(input, isCoordinator);
 
       // The event exists at this point, so a failed cover isn't fatal — but it
       // must be said out loud. An event without a cover cannot be published,
@@ -307,7 +309,7 @@ export default function NewEventScreen() {
       // they had no way to discover.
       let coverFailed: string | null = null;
       try {
-        await uploadEventPhoto(event.id, cover!);
+        await uploadEventPhoto(event.id, cover!, isCoordinator);
       } catch (e) {
         coverFailed = isApiError(e) ? e.message : 'The cover photo could not be uploaded.';
       }
