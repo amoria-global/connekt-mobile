@@ -9,7 +9,7 @@
  *   3. Editorial date header & dynamic time-of-day greeting.
  *   4. Salo-run Coordinator Hero: 3px brand accent line, embedded 3-metric mini-stats snapshot (Revenue, Events, Photographers).
  *   5. Tactile quick search bar & production category chips.
- *   6. 2x2 Bento Action Hub (New Event, Team Management, Photographers, Live Streams).
+ *   6. 2x2 Bento Action Hub (New Event, Gallery, Photographers, Live Streams).
  *   7. Period filter tabs (Today / This week / This month) with live trends.
  *   8. Salo-run 5 KPI Cards Grid (Revenue, Pending, Events, Clients, Photographers).
  *   9. Pending payments alert banner with PayNowSheet integration.
@@ -20,14 +20,17 @@ import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
@@ -151,6 +154,20 @@ export function CoordinatorHome() {
     });
   }, [eventList, todayIso]);
 
+  const matchingEvents = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return eventList.filter(
+      (e) =>
+        (e.title ?? '').toLowerCase().includes(q) ||
+        (e.location ?? '').toLowerCase().includes(q) ||
+        (e.photographerName ?? '').toLowerCase().includes(q) ||
+        (e.category ?? '').toLowerCase().includes(q),
+    );
+  }, [eventList, searchQuery]);
+
+  const isSearchActive = searchQuery.trim().length > 0;
+
   const greeting = getTimeGreeting();
   const tagline = getTimeTagline();
   const todayFormatted = getTodayFormatted();
@@ -217,231 +234,256 @@ export function CoordinatorHome() {
         {/* Prominent KYC Banner */}
         <KycBanner />
 
-        {/* ── Salo-run Coordinator Hero Section ───────────────────────────── */}
-        <View style={styles.heroCard}>
-          {/* Top 3px Brand Accent Line */}
-          <View style={styles.heroTopAccent} />
-
-          <View style={styles.heroBody}>
-            {/* Editorial Date & Role Eyebrow */}
-            <View style={styles.heroEyebrowRow}>
-              <View style={styles.heroBadge}>
-                <Ionicons name="sparkles" size={11} color={colors.primary} />
-                <Text style={styles.heroBadgeText}>EVENT COORDINATOR</Text>
-              </View>
-              <View style={styles.datePill}>
-                <Ionicons name="calendar-outline" size={11} color={colors.textMuted} />
-                <Text style={styles.datePillText}>{todayFormatted}</Text>
-              </View>
+        {/* ── 1. Coordinator Header ───────────────────────────────────────── */}
+        <View style={styles.header}>
+          <View style={styles.headerEyebrowRow}>
+            <View style={styles.roleBadge}>
+              <Ionicons name="sparkles" size={11} color={colors.primary} />
+              <Text style={styles.roleBadgeText}>EVENT COORDINATOR</Text>
             </View>
-
-            {/* Greeting & Name Heading */}
-            <Text style={styles.heroGreeting}>
-              {greeting},{' '}
-              <Text style={styles.heroName}>{name}</Text> 🎯
-            </Text>
-            <Text style={styles.heroTagline}>{tagline}</Text>
-
-            {/* Salo-run Coordinator 3-Metric Mini-Stats Snapshot */}
-            <View style={styles.heroMiniStatsCard}>
-              <View style={styles.heroStatItem}>
-                <Text style={styles.heroStatLabel}>REVENUE</Text>
-                <Text style={[styles.heroStatValue, { color: '#083A85' }]}>
-                  {formatMoney(a?.totalRevenue || 0, currency)}
-                </Text>
-              </View>
-              <View style={styles.heroStatDivider} />
-              <View style={styles.heroStatItem}>
-                <Text style={styles.heroStatLabel}>EVENTS</Text>
-                <Text style={[styles.heroStatValue, { color: '#F20C8F' }]}>
-                  {String(a?.totalEvents || 0)}
-                </Text>
-              </View>
-              <View style={styles.heroStatDivider} />
-              <View style={styles.heroStatItem}>
-                <Text style={styles.heroStatLabel}>PHOTOGRAPHERS</Text>
-                <Text style={[styles.heroStatValue, { color: '#10B981' }]}>
-                  {String(a?.totalPhotographers || 0)}
-                </Text>
-              </View>
-            </View>
-
-            {/* Quick Search Events & Productions Bar */}
-            <View
-              style={[
-                styles.searchBar,
-                isSearchFocused && styles.searchBarFocused,
-              ]}
-            >
-              <Ionicons name="search" size={16} color={colors.textMuted} />
-              <TextInput
-                ref={searchInputRef}
-                style={styles.searchInput}
-                placeholder="Search events, productions, venues..."
-                placeholderTextColor={colors.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                onSubmitEditing={() => {
-                  if (searchQuery.trim()) {
-                    router.push({
-                      pathname: '/events',
-                      params: { q: searchQuery.trim() },
-                    } as never);
-                  }
-                }}
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 && (
-                <Pressable
-                  onPress={() => setSearchQuery('')}
-                  hitSlop={8}
-                  style={styles.searchClearBtn}
-                >
-                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                </Pressable>
-              )}
-            </View>
-
-            {/* Production Category Selector Chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryChips}
-            >
-              {CATEGORY_CHIPS.map((c) => {
-                const active = selectedCategory === c.label;
-                return (
-                  <Pressable
-                    key={c.label}
-                    onPress={() => {
-                      setSelectedCategory(c.label);
-                      router.push({
-                        pathname: '/events',
-                        params: c.label === 'All' ? {} : { category: c.label },
-                      } as never);
-                    }}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      active && styles.chipActive,
-                      pressed && styles.chipPressed,
-                    ]}
-                  >
-                    <Ionicons
-                      name={c.icon}
-                      size={12}
-                      color={active ? '#FFFFFF' : colors.textMuted}
-                    />
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                      {c.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <View style={styles.headerDot} />
+            <Text style={styles.headerDate}>{todayFormatted}</Text>
           </View>
+          <Text style={styles.headerTitle}>
+            {greeting},{' '}
+            <Text style={styles.headerName}>{name}</Text>
+          </Text>
+          <Text style={styles.headerSubtitle}>{tagline}</Text>
         </View>
 
-        {/* ── 2x2 Bento Action Hub ────────────────────────────────────────── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>WORKSPACE HUB</Text>
-          <Text style={styles.sectionSubtitle}>Quick management tools for your events</Text>
-        </View>
-
-        <View style={styles.bentoGrid}>
-          {/* Card 1: New Event */}
+        {/* ── 2. High-Impact Quick Action Hero Bar ──────────────────────── */}
+        <View style={styles.quickActionBar}>
+          {/* Primary Action: Create Event */}
           <Pressable
-            style={({ pressed }) => [
-              styles.bentoCard,
-              responsive.isLarge && styles.bentoCardLarge,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => router.push('/event/new' as Href)}
+            style={({ pressed }) => [styles.quickActionPrimaryBtn, pressed && styles.btnPressed]}
+            onPress={() => router.push('/event/new' as never)}
             accessibilityRole="button"
             accessibilityLabel="Create a new event"
           >
-            <View style={styles.bentoTopRow}>
-              <View style={[styles.bentoIconBox, { backgroundColor: '#F20C8F15', borderColor: '#F20C8F30' }]}>
-                <Ionicons name="add-circle" size={20} color="#F20C8F" />
-              </View>
-              <View style={[styles.bentoBadge, { backgroundColor: '#F20C8F15', borderColor: '#F20C8F30' }]}>
-                <Text style={[styles.bentoBadgeText, { color: '#F20C8F' }]}>CREATE</Text>
-              </View>
-            </View>
-            <Text style={styles.bentoCardTitle}>New Event</Text>
-            <Text style={styles.bentoCardDesc}>Launch a new production, booking, or session</Text>
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.quickActionPrimaryBtnText}>Create Event</Text>
           </Pressable>
 
-          {/* Card 2: Gallery */}
+          {/* Secondary Action: Gallery (the Team it replaced was retired for album collaboration) */}
           <Pressable
-            style={({ pressed }) => [
-              styles.bentoCard,
-              responsive.isLarge && styles.bentoCardLarge,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => router.push('/gallery' as Href)}
+            style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
+            onPress={() => router.push('/gallery' as never)}
             accessibilityRole="button"
-            accessibilityLabel="Open your event albums"
+            accessibilityLabel="Gallery"
           >
-            <View style={styles.bentoTopRow}>
-              <View style={[styles.bentoIconBox, { backgroundColor: '#3B82F615', borderColor: '#3B82F630' }]}>
-                <Ionicons name="images" size={20} color="#3B82F6" />
-              </View>
-              <View style={[styles.bentoBadge, { backgroundColor: '#3B82F615', borderColor: '#3B82F630' }]}>
-                <Text style={[styles.bentoBadgeText, { color: '#3B82F6' }]}>ALBUMS</Text>
-              </View>
-            </View>
-            <Text style={styles.bentoCardTitle}>Gallery</Text>
-            <Text style={styles.bentoCardDesc}>Browse the photos delivered for your events</Text>
+            <Ionicons name="images-outline" size={15} color={colors.primary} />
+            <Text style={styles.quickActionSecondaryBtnText}>Gallery</Text>
           </Pressable>
 
-          {/* Card 3: Photographers */}
+          {/* Tertiary Action: Photographers */}
           <Pressable
-            style={({ pressed }) => [
-              styles.bentoCard,
-              responsive.isLarge && styles.bentoCardLarge,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => router.push('/photographers' as Href)}
+            style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
+            onPress={() => router.push('/photographers' as never)}
             accessibilityRole="button"
-            accessibilityLabel="Browse and invite photographers"
+            accessibilityLabel="Talent & Photographers"
           >
-            <View style={styles.bentoTopRow}>
-              <View style={[styles.bentoIconBox, { backgroundColor: '#8B5CF615', borderColor: '#8B5CF630' }]}>
-                <Ionicons name="camera" size={20} color="#8B5CF6" />
-              </View>
-              <View style={[styles.bentoBadge, { backgroundColor: '#8B5CF615', borderColor: '#8B5CF630' }]}>
-                <Text style={[styles.bentoBadgeText, { color: '#8B5CF6' }]}>TALENT</Text>
-              </View>
-            </View>
-            <Text style={styles.bentoCardTitle}>Photographers</Text>
-            <Text style={styles.bentoCardDesc}>Find and book verified photographers</Text>
+            <Ionicons name="camera-outline" size={15} color={colors.primary} />
+            <Text style={styles.quickActionSecondaryBtnText}>Talent</Text>
           </Pressable>
 
-          {/* Card 4: Live Streams */}
+          {/* Live Action: Live Streams */}
           <Pressable
-            style={({ pressed }) => [
-              styles.bentoCard,
-              responsive.isLarge && styles.bentoCardLarge,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => router.push('/streams' as Href)}
+            style={({ pressed }) => [styles.quickActionLiveBtn, pressed && styles.btnPressed]}
+            onPress={() => router.push('/streams' as never)}
             accessibilityRole="button"
-            accessibilityLabel="Live streams"
+            accessibilityLabel="Live Streams"
           >
-            <View style={styles.bentoTopRow}>
-              <View style={[styles.bentoIconBox, { backgroundColor: '#EF444415', borderColor: '#EF444430' }]}>
-                <Ionicons name="videocam" size={20} color="#EF4444" />
-              </View>
-              <View style={[styles.bentoBadge, { backgroundColor: '#EF444415', borderColor: '#EF444430' }]}>
-                <Text style={[styles.bentoBadgeText, { color: '#EF4444' }]}>LIVE</Text>
-              </View>
-            </View>
-            <Text style={styles.bentoCardTitle}>Live Streams</Text>
-            <Text style={styles.bentoCardDesc}>Broadcast events and view active viewer streams</Text>
+            <Ionicons name="videocam" size={14} color="#EF4444" />
+            <Text style={styles.quickActionLiveBtnText}>Live</Text>
           </Pressable>
         </View>
+
+        {/* ── 3. Search & Production Category Section ──────────────────── */}
+        <View style={styles.searchSection}>
+          <View
+            style={[
+              styles.searchBar,
+              isSearchFocused && {
+                borderColor: colors.primary,
+                backgroundColor: colors.surface,
+              },
+            ]}
+          >
+            <Ionicons
+              name="search"
+              size={17}
+              color={isSearchFocused ? colors.primary : colors.textMuted}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              ref={searchInputRef}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search events, productions, venues..."
+              placeholderTextColor={colors.textMuted}
+              style={styles.searchInput}
+              returnKeyType="search"
+              onSubmitEditing={() => {
+                if (searchQuery.trim()) {
+                  router.push({
+                    pathname: '/events',
+                    params: { q: searchQuery.trim() },
+                  } as never);
+                } else {
+                  Keyboard.dismiss();
+                }
+              }}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable
+                onPress={() => setSearchQuery('')}
+                hitSlop={10}
+                style={styles.clearButton}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
+                <Ionicons name="close-circle" size={17} color={colors.textMuted} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Category Chips Carousel */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryChips}
+          >
+            {CATEGORY_CHIPS.map((c) => {
+              const active = selectedCategory === c.label;
+              return (
+                <Pressable
+                  key={c.label}
+                  onPress={() => {
+                    setSelectedCategory(c.label);
+                    router.push({
+                      pathname: '/events',
+                      params: c.label === 'All' ? {} : { category: c.label },
+                    } as never);
+                  }}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    active && styles.chipActive,
+                    pressed && styles.chipPressed,
+                  ]}
+                >
+                  <Ionicons
+                    name={c.icon}
+                    size={12}
+                    color={active ? '#FFFFFF' : colors.textMuted}
+                  />
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {c.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Real-time search matches if search query is active */}
+        {isSearchActive ? (
+          <View style={styles.searchResultsBox}>
+            <View style={styles.searchResultsHeader}>
+              <Text style={styles.searchResultsTitle}>
+                Search Results for "{searchQuery.trim()}"
+              </Text>
+              <Pressable onPress={() => setSearchQuery('')}>
+                <Text style={styles.searchResultsClearText}>Clear</Text>
+              </Pressable>
+            </View>
+
+            {matchingEvents.length === 0 ? (
+              <View style={styles.noSearchMatches}>
+                <Ionicons name="search-outline" size={24} color={colors.textMuted} />
+                <Text style={styles.noSearchMatchesText}>
+                  No events found matching "{searchQuery.trim()}"
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.matchingSection}>
+                <Text style={styles.matchingSectionLabel}>MATCHING PRODUCTIONS</Text>
+                {matchingEvents.slice(0, 4).map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={({ pressed }) => [styles.searchMatchRow, pressed && styles.cardPressed]}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      router.push(`/event/${item.id}` as never);
+                    }}
+                  >
+                    <View style={styles.searchMatchIcon}>
+                      <Ionicons name="calendar-outline" size={15} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+                      <Text style={styles.searchMatchTitle} numberOfLines={1}>
+                        {item.title || 'Event Production'}
+                      </Text>
+                      <Text style={styles.searchMatchSub} numberOfLines={1}>
+                        {[item.category, item.clientName || item.photographerName, formatDate(item.eventDate), item.location]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                    </View>
+                    <StatusPill status={item.status || 'UPCOMING'} />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        {/* ── 4. Coordinator 3-Metric Mini-Stats Snapshot Card ────────────────── */}
+        {!isSearchActive && (
+          <View style={styles.snapshotCard}>
+            <View style={styles.snapshotTopAccent} />
+            <View style={styles.snapshotBody}>
+              <Pressable
+                style={styles.snapshotItem}
+                onPress={() => router.push('/wallet' as never)}
+                accessibilityRole="button"
+                accessibilityLabel="View revenue in wallet"
+              >
+                <Text style={styles.snapshotLabel}>REVENUE</Text>
+                <Text style={[styles.snapshotValue, { color: '#083A85' }]}>
+                  {formatMoney(a?.totalRevenue || 0, currency)}
+                </Text>
+              </Pressable>
+              <View style={styles.snapshotDivider} />
+              <Pressable
+                style={styles.snapshotItem}
+                onPress={() => router.push('/events' as never)}
+                accessibilityRole="button"
+                accessibilityLabel="View events"
+              >
+                <Text style={styles.snapshotLabel}>EVENTS</Text>
+                <Text style={[styles.snapshotValue, { color: '#F20C8F' }]}>
+                  {String(a?.totalEvents || 0)}
+                </Text>
+              </Pressable>
+              <View style={styles.snapshotDivider} />
+              <Pressable
+                style={styles.snapshotItem}
+                onPress={() => router.push('/photographers' as never)}
+                accessibilityRole="button"
+                accessibilityLabel="View photographers"
+              >
+                <Text style={styles.snapshotLabel}>PHOTOGRAPHERS</Text>
+                <Text style={[styles.snapshotValue, { color: '#10B981' }]}>
+                  {String(a?.totalPhotographers || 0)}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* ── Pending Payments Alert (if any) ─────────────────────────────── */}
         {pendingList.length > 0 ? (
@@ -687,32 +729,19 @@ const useStyles = makeStyles((c, e) => ({
     gap: spacing.lg,
   },
 
-  // ── Coordinator Hero Card ──────────────────────────────────────────────
-  heroCard: {
-    backgroundColor: c.surface,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    overflow: 'hidden',
-    ...e(2),
+  // ── 1. Coordinator Header ───────────────────────────────────────────────
+  header: {
+    gap: 4,
   },
-  heroTopAccent: {
-    height: 3,
-    backgroundColor: c.primary,
-  },
-  heroBody: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  heroEyebrowRow: {
+  headerEyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
   },
-  heroBadge: {
+  roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4.5,
     backgroundColor: c.tint,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -720,110 +749,138 @@ const useStyles = makeStyles((c, e) => ({
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
-  heroBadgeText: {
+  roleBadgeText: {
     fontFamily: fonts.bold,
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: fontWeight.bold,
     color: c.primary,
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
-  datePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: c.surfaceMuted,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
+  headerDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: c.textMuted,
   },
-  datePillText: {
+  headerDate: {
     fontFamily: fonts.bold,
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
     color: c.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
-  heroGreeting: {
+  headerTitle: {
     fontFamily: fonts.bold,
-    fontSize: fontSize['2xl'],
+    fontSize: 24,
     fontWeight: fontWeight.extrabold,
     color: c.text,
     letterSpacing: -0.4,
-    lineHeight: 30,
   },
-  heroName: {
+  headerName: {
     color: c.primary,
   },
-  heroTagline: {
+  headerSubtitle: {
     fontFamily: fonts.regular,
-    fontSize: fontSize.sm,
-    color: c.textSoft,
-    lineHeight: 19,
-    marginTop: -4,
+    fontSize: 13,
+    color: c.textMuted,
+    lineHeight: 18,
   },
 
-  // Hero 3-Metric Mini-Stats
-  heroMiniStatsCard: {
+  // ── 2. High-Impact Quick Action Hero Bar ────────────────────────────────
+  quickActionBar: {
     flexDirection: 'row',
-    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickActionPrimaryBtn: {
+    flex: 1.35,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 42,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    backgroundColor: c.primary,
+    ...e(2),
+  },
+  quickActionPrimaryBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  quickActionSecondaryBtn: {
+    flex: 0.95,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    height: 42,
+    borderRadius: radii.lg,
+    backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    ...e(1),
   },
-  heroStatItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  heroStatLabel: {
+  quickActionSecondaryBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: fontWeight.bold,
-    color: c.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: 2,
-    textTransform: 'uppercase',
+    color: c.text,
   },
-  heroStatValue: {
+  quickActionLiveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4.5,
+    height: 42,
+    paddingHorizontal: 12,
+    borderRadius: radii.lg,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  quickActionLiveBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 15,
-    fontWeight: fontWeight.extrabold,
+    fontSize: 12,
+    fontWeight: fontWeight.bold,
+    color: '#EF4444',
   },
-  heroStatDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: c.borderSoft,
+  btnPressed: {
+    opacity: 0.75,
   },
 
-  // Hero Search Bar
+  // ── 3. Search Section & Category Chips ──────────────────────────────────
+  searchSection: {
+    marginTop: spacing.xs,
+    gap: 8,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
     backgroundColor: c.surfaceMuted,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     paddingHorizontal: spacing.md,
     height: 44,
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
-  searchBarFocused: {
-    borderColor: c.primary,
-    backgroundColor: c.surface,
+  searchIcon: {
+    marginRight: spacing.sm,
   },
   searchInput: {
     flex: 1,
+    height: '100%',
     fontFamily: fonts.regular,
-    fontSize: fontSize.sm,
+    fontSize: 13,
     color: c.text,
-    padding: 0,
+    paddingVertical: 0,
   },
-  searchClearBtn: {
-    padding: 2,
+  clearButton: {
+    padding: 4,
+    marginLeft: 4,
   },
-
-  // Category Selector Chips
   categoryChips: {
     gap: spacing.xs,
     paddingVertical: 2,
@@ -856,6 +913,130 @@ const useStyles = makeStyles((c, e) => ({
     color: '#FFFFFF',
   },
 
+  // ── Real-time Search Results Box ────────────────────────────────────────
+  searchResultsBox: {
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    gap: 10,
+    ...e(2),
+  },
+  searchResultsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+  },
+  searchResultsTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  searchResultsClearText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  noSearchMatches: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    gap: 6,
+  },
+  noSearchMatchesText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: c.textMuted,
+    textAlign: 'center',
+  },
+  matchingSection: {
+    gap: 6,
+  },
+  matchingSectionLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 9.5,
+    fontWeight: fontWeight.bold,
+    color: c.textMuted,
+    letterSpacing: 0.5,
+  },
+  searchMatchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.surfaceMuted,
+    borderRadius: radii.md,
+    padding: 9,
+    gap: 9,
+  },
+  searchMatchIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchMatchTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 12.5,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  searchMatchSub: {
+    fontFamily: fonts.regular,
+    fontSize: 10.5,
+    color: c.textMuted,
+  },
+
+  // ── 4. Coordinator 3-Metric Mini-Stats Snapshot Card ───────────────────
+  snapshotCard: {
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    overflow: 'hidden',
+    ...e(1),
+  },
+  snapshotTopAccent: {
+    height: 3,
+    backgroundColor: c.primary,
+  },
+  snapshotBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  snapshotItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  snapshotLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
+    color: c.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  snapshotValue: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    fontWeight: fontWeight.extrabold,
+  },
+  snapshotDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: c.borderSoft,
+  },
+
   // ── Section Header ─────────────────────────────────────────────────────
   sectionHeader: {
     gap: 2,
@@ -873,64 +1054,6 @@ const useStyles = makeStyles((c, e) => ({
     fontFamily: fonts.regular,
     fontSize: fontSize.xs,
     color: c.textSoft,
-  },
-
-  // ── 2x2 Bento Action Hub ───────────────────────────────────────────────
-  bentoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  bentoCard: {
-    width: '47.5%',
-    backgroundColor: c.surface,
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    gap: 6,
-    ...e(1),
-  },
-  bentoCardLarge: {
-    width: '23%',
-  },
-  bentoTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  bentoIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  bentoBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    borderWidth: 1,
-  },
-  bentoBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.5,
-  },
-  bentoCardTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    fontWeight: fontWeight.bold,
-    color: c.text,
-  },
-  bentoCardDesc: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: c.textMuted,
-    lineHeight: 15,
   },
 
   // ── Pending Payments Alert ─────────────────────────────────────────────
