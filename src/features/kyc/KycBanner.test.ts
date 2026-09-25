@@ -26,8 +26,9 @@ describe('getKycBannerConfig', () => {
     expect(config.badge).toBe('Optional');
   });
 
-  it('marks KYC as Optional for User role when not submitted', () => {
-    const config = getKycBannerConfig(undefined, 'User', lightPalette);
+  it('marks KYC as Optional for a Client with no status yet', () => {
+    // Was the User role's case; User is now Client.
+    const config = getKycBannerConfig(undefined, 'Client', lightPalette);
     expect(config.visible).toBe(true);
     expect(config.badge).toBe('Optional');
   });

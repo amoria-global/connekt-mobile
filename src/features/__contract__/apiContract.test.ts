@@ -95,7 +95,7 @@ describe('mobile auth + KYC requests against the backend contract', () => {
  * screen used to read the photographer path for every role.
  */
 describe('mobile payment accounts against the backend contract', () => {
-  const ROLES = ['Photographer', 'Coordinator', 'Client', 'User', 'Viewer', undefined] as const;
+  const ROLES = ['Photographer', 'Coordinator', 'Client', 'Viewer', undefined] as const;
   const withId = (p: string) => `${p}/00000000-0000-0000-0000-000000000000`;
 
   it.each(ROLES)('every withdrawal-methods call exists for role %s', (role) => {
@@ -125,7 +125,7 @@ describe('mobile payment accounts against the backend contract', () => {
  * the backend has never had; these would have caught it.
  */
 describe('mobile withdraw flow against the backend contract', () => {
-  const ROLES = ['Photographer', 'Coordinator', 'Client', 'User', undefined] as const;
+  const ROLES = ['Photographer', 'Coordinator', 'Client', undefined] as const;
 
   it.each(ROLES)('every withdraw call exists for role %s', (role) => {
     const ns = '/api/remote/' + withdrawNamespace(role);

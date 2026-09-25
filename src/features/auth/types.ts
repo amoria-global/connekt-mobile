@@ -7,7 +7,7 @@ import type { ID } from '@/types';
  * photographers, manage & pay pending payments). It is deliberately not offered
  * on the web sign-up.
  */
-export type CustomerType = 'Photographer' | 'Client' | 'Coordinator' | 'Viewer' | 'User';
+export type CustomerType = 'Photographer' | 'Client' | 'Coordinator' | 'Viewer';
 
 export type User = {
   customerId: ID;
