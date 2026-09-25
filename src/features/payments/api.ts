@@ -6,7 +6,7 @@
  * the gateway payload can vary by environment.
  */
 import { api } from '@/api/client';
-import type { ApiEnvelope } from '@/types';
+import type { ApiEnvelope, ApiError } from '@/types';
 
 export type PaymentInput = {
   amount: number;
@@ -116,11 +116,28 @@ export type PaymentDetail = PaymentRecord & {
   description?: string;
 };
 
-/** Full detail for one payment (web parity: GET /{role}/payments/{id}). */
+export const PAYMENT_NOT_FOUND_MESSAGE =
+  'This payment is no longer available. It may have been cancelled or it belongs to another account.';
+
+/**
+ * Full detail for one payment (web parity: GET /{role}/payments/{id}).
+ *
+ * Coordinators reach this from notifications too ("Payment Failed" on a guest's
+ * gift to their event), which the backend only started serving in
+ * CoordinatorController#getPaymentById. A 404 used to reach the screen as
+ * Spring's raw "No static resource api/remote/..." text, so any 404 is shown as
+ * a plain sentence instead.
+ */
 export async function getPayment(id: string, role?: PaymentsRole): Promise<PaymentDetail> {
-  const res = await api.get<ApiEnvelope<Raw>>(
-    `${paymentsBase(role)}/${encodeURIComponent(id)}`,
-  );
+  let res: ApiEnvelope<Raw> | undefined;
+  try {
+    res = await api.get<ApiEnvelope<Raw>>(`${paymentsBase(role)}/${encodeURIComponent(id)}`);
+  } catch (e) {
+    if (e && typeof e === 'object' && (e as ApiError).status === 404) {
+      throw { ...(e as ApiError), message: PAYMENT_NOT_FOUND_MESSAGE } satisfies ApiError;
+    }
+    throw e;
+  }
   const r = (res?.data ?? {}) as Raw;
   const n = (v: unknown) => (typeof v === 'number' ? v : undefined);
   return {
