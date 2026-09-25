@@ -297,13 +297,15 @@ export function MoreSheet({
       });
     }
 
-    // 7. Team (Photographer, Client, Coordinator in salo-run Team group)
-    list.push({
-      id: 'team',
-      label: 'Team',
-      icon: 'people-circle-outline',
-      href: '/team' as Href,
-    });
+    // 7. Collaborate (Photographer only, salo-run Work group)
+    if (isPhotographer) {
+      list.push({
+        id: 'collaborate',
+        label: 'Collaborate',
+        icon: 'people-circle-outline',
+        href: '/collaborate' as Href,
+      });
+    }
 
     // 8. Payments (Client, Coordinator in salo-run Money group)
     if (!isPhotographer) {

@@ -118,7 +118,6 @@ const STAT_META = [
 
 const WORKSPACE_TABS: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; route?: Href }[] = [
   { key: 'events', label: 'Events', icon: 'calendar-outline' as const },
-  { key: 'team', label: 'Team', icon: 'people-circle-outline' as const, route: '/team' as Href },
   { key: 'photographers', label: 'Photographers', icon: 'camera-outline' as const, route: '/photographers' as Href },
   { key: 'geo-pricing', label: 'Geo Pricing', icon: 'globe-outline' as const, route: '/event/geo-pricing' as Href },
 ];
