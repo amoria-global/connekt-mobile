@@ -178,7 +178,8 @@ describe('mobile album collaboration against the backend contract', () => {
     expect(paths).toContain('POST /api/remote/photographer/collab/submissions/review');
     expect(paths).toContain('POST /api/remote/photographer/collab/invites/X/accept');
     expect(paths).toContain('POST /api/remote/photographer/collab/joined/X/submissions');
-    expect(paths.length).toBe(12);
+    expect(paths).toContain('DELETE /api/remote/photographer/collab/links/X');
+    expect(paths.length).toBe(13);
   });
 
   it('every collaboration path exists on the backend', () => {

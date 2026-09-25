@@ -16,9 +16,9 @@ import type { InvitePreview } from '@/features/collab/model';
 import { isApiError } from '@/store/auth';
 import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
 
-const BLOCKED: Record<string, { icon: 'person-outline' | 'link-outline' | 'ban-outline' | 'time-outline'; title: string; message: string }> = {
-  OWNER: { icon: 'person-outline', title: 'This is your own album', message: 'Send this link to the photographer you want to invite. It works for one person.' },
-  USED: { icon: 'link-outline', title: 'This link was already used', message: 'Each invite link admits one photographer. Ask the album owner for a new one.' },
+const BLOCKED: Record<string, { icon: 'person-outline' | 'person-remove-outline' | 'ban-outline' | 'time-outline'; title: string; message: string }> = {
+  OWNER: { icon: 'person-outline', title: 'This is your own album', message: 'Send this link to the photographers you want to invite. Any number of them can join with it.' },
+  REMOVED: { icon: 'person-remove-outline', title: 'You were removed from this album', message: 'The album owner removed you after this link was made. Ask them for a new link to rejoin.' },
   REVOKED: { icon: 'ban-outline', title: 'This link was cancelled', message: 'The album owner cancelled it. Ask them for a new one if you should still join.' },
   EXPIRED: { icon: 'time-outline', title: 'This link has expired', message: 'Invite links last 14 days. Ask the album owner for a new one.' },
 };
