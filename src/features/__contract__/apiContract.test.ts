@@ -38,8 +38,8 @@ type Call = { method: string; path: string; source: string };
 
 const VERB: Record<string, string> = { get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' };
 
-function callsIn(relFile: string): Call[] {
-  const src = readFileSync(path.join(ROOT, relFile), 'utf8');
+function callsIn(relFile: string, rewrite: (src: string) => string = (src) => src): Call[] {
+  const src = rewrite(readFileSync(path.join(ROOT, relFile), 'utf8'));
   const calls: Call[] = [];
   // api.get('...'), api.post(`...`, body), etc. First argument only.
   // (?:<[^()]*>)? allows nested generics like <ApiEnvelope<Raw>> before the (.
@@ -161,4 +161,32 @@ describe('contract copy', () => {
       expect(readFileSync(CONTRACT, 'utf8') === readFileSync(backendContract, 'utf8')).toBe(true);
     },
   );
+});
+
+/**
+ * Album collaboration replaced the Team. Its client builds every path on a
+ * BASE constant, so substitute it before extracting. Both the owner side
+ * (review, invite, remove) and the collaborator side (join, submit, leave)
+ * must hit routes the backend has.
+ */
+describe('mobile album collaboration against the backend contract', () => {
+  const calls = callsIn('src/features/collab/api.ts', (src) => src.replace(/\$\{BASE\}/g, '/photographer/collab'));
+
+  it('finds both sides of the workflow', () => {
+    const paths = calls.map((c) => `${c.method} ${c.path}`);
+    expect(paths).toContain('POST /api/remote/photographer/collab/albums/X/invites');
+    expect(paths).toContain('POST /api/remote/photographer/collab/submissions/review');
+    expect(paths).toContain('POST /api/remote/photographer/collab/invites/X/accept');
+    expect(paths).toContain('POST /api/remote/photographer/collab/joined/X/submissions');
+    expect(paths.length).toBe(12);
+  });
+
+  it('every collaboration path exists on the backend', () => {
+    expect(calls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
+
+  it('nothing calls the retired Team management routes', () => {
+    expect(existsSync(path.join(ROOT, 'src/features/teams'))).toBe(false);
+    expect(existsSync(path.join(ROOT, 'src/app/(app)/team'))).toBe(false);
+  });
 });

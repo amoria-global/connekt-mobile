@@ -121,11 +121,10 @@ export default function AppLayout() {
         <Stack.Screen name="kyc" options={{ headerShown: false }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
         <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
-        <Stack.Screen name="team/index" options={{ title: 'Team' }} />
-        <Stack.Screen name="team/invite" options={{ title: 'Invite member', presentation: 'modal' }} />
-        <Stack.Screen name="team/roles" options={{ title: 'Roles & permissions' }} />
-        <Stack.Screen name="team/role/[id]" options={{ title: 'Role' }} />
-        <Stack.Screen name="team/member/[id]" options={{ title: 'Member' }} />
+        <Stack.Screen name="collaborate/index" options={{ title: 'Collaborate' }} />
+        <Stack.Screen name="collaborate/album/[id]" options={{ title: 'Album' }} />
+        <Stack.Screen name="collaborate/joined/[id]" options={{ title: 'Album' }} />
+        <Stack.Screen name="collaborate/join/[token]" options={{ title: 'Join album' }} />
       </Stack>
       {/*
        * Persistent bottom bar across every (app) route. The bar lives

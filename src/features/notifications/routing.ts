@@ -3,6 +3,7 @@
  * in-app screen for the entity it's about, matching salo-run behavior.
  */
 import type { Href } from 'expo-router';
+import { collabRouteFromLink } from '../collab/model';
 
 export type NotificationRouteInput = {
   type?: string;
@@ -13,6 +14,11 @@ export type NotificationRouteInput = {
 };
 
 export function notificationTarget(n: NotificationRouteInput): Href {
+  // Album collaboration notifications name their screen in the link, and
+  // their referenceId is a dedup key rather than an album id.
+  const collab = collabRouteFromLink(n.link);
+  if (collab) return collab as Href;
+
   const type = (n.type ?? '').toUpperCase();
   const ref = n.eventId || n.referenceId;
 

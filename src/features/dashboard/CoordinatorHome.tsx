@@ -373,27 +373,27 @@ export function CoordinatorHome() {
             <Text style={styles.bentoCardDesc}>Launch a new production, booking, or session</Text>
           </Pressable>
 
-          {/* Card 2: Team Management */}
+          {/* Card 2: Gallery */}
           <Pressable
             style={({ pressed }) => [
               styles.bentoCard,
               responsive.isLarge && styles.bentoCardLarge,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => router.push('/team' as Href)}
+            onPress={() => router.push('/gallery' as Href)}
             accessibilityRole="button"
-            accessibilityLabel="Manage team members and roles"
+            accessibilityLabel="Open your event albums"
           >
             <View style={styles.bentoTopRow}>
               <View style={[styles.bentoIconBox, { backgroundColor: '#3B82F615', borderColor: '#3B82F630' }]}>
-                <Ionicons name="people-circle" size={20} color="#3B82F6" />
+                <Ionicons name="images" size={20} color="#3B82F6" />
               </View>
               <View style={[styles.bentoBadge, { backgroundColor: '#3B82F615', borderColor: '#3B82F630' }]}>
-                <Text style={[styles.bentoBadgeText, { color: '#3B82F6' }]}>TEAM</Text>
+                <Text style={[styles.bentoBadgeText, { color: '#3B82F6' }]}>ALBUMS</Text>
               </View>
             </View>
-            <Text style={styles.bentoCardTitle}>Manage Team</Text>
-            <Text style={styles.bentoCardDesc}>Organize crew, staff members, and custom roles</Text>
+            <Text style={styles.bentoCardTitle}>Gallery</Text>
+            <Text style={styles.bentoCardDesc}>Browse the photos delivered for your events</Text>
           </Pressable>
 
           {/* Card 3: Photographers */}
@@ -416,7 +416,7 @@ export function CoordinatorHome() {
               </View>
             </View>
             <Text style={styles.bentoCardTitle}>Photographers</Text>
-            <Text style={styles.bentoCardDesc}>Assign verified creators and invite your team</Text>
+            <Text style={styles.bentoCardDesc}>Find and book verified photographers</Text>
           </Pressable>
 
           {/* Card 4: Live Streams */}
