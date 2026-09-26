@@ -4268,6 +4268,18 @@
       "name" : "gender",
       "required" : true
     }, {
+      "name" : "dob",
+      "required" : false
+    }, {
+      "name" : "dateOfBirth",
+      "required" : false
+    }, {
+      "name" : "phone",
+      "required" : false
+    }, {
+      "name" : "phoneNumber",
+      "required" : false
+    }, {
       "name" : "locationAddress",
       "required" : false
     }, {

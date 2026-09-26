@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Image } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as ScreenCapture from 'expo-screen-capture';
-import { downloadAsync, cacheDirectory } from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
+import {
+  preventScreenCapture,
+  allowScreenCapture,
+  enableAppSwitcherProtection,
+  disableAppSwitcherProtection,
+  addScreenshotListener,
+} from '@/utils/screenCapture';
 import {
   ActivityIndicator,
   Alert,
@@ -423,21 +426,21 @@ export function FindMyPhotos() {
     );
 
     if (hasPhotos) {
-      ScreenCapture.preventScreenCaptureAsync('find-my-photos').catch(() => {});
+      preventScreenCapture('find-my-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.enableAppSwitcherProtectionAsync(0.8).catch(() => {});
+        enableAppSwitcherProtection(0.8);
       }
     } else {
-      ScreenCapture.allowScreenCaptureAsync('find-my-photos').catch(() => {});
+      allowScreenCapture('find-my-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+        disableAppSwitcherProtection();
       }
     }
 
     return () => {
-      ScreenCapture.allowScreenCaptureAsync('find-my-photos').catch(() => {});
+      allowScreenCapture('find-my-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+        disableAppSwitcherProtection();
       }
     };
   }, [faceResults, albumPhotos, freePhotos, previewPhoto]);
@@ -452,21 +455,16 @@ export function FindMyPhotos() {
     );
     if (!hasPhotos) return;
 
-    let sub: { remove: () => void } | undefined;
-    try {
-      sub = ScreenCapture.addScreenshotListener(() => {
-        Alert.alert(
-          'Screenshot Restricted',
-          'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
-          [{ text: 'OK' }]
-        );
-      });
-    } catch {
-      // Ignored if unsupported in environment
-    }
+    const sub = addScreenshotListener(() => {
+      Alert.alert(
+        'Screenshot Restricted',
+        'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
+        [{ text: 'OK' }]
+      );
+    });
 
     return () => {
-      sub?.remove();
+      sub.remove();
     };
   }, [faceResults, albumPhotos, freePhotos, previewPhoto]);
 
