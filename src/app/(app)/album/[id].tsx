@@ -69,11 +69,11 @@ export default function AlbumDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { isPhotographer } = useRole();
+  const { role, isPhotographer } = useRole();
   const { width } = useWindowDimensions();
 
   const { data, loading, error, refresh } = useAsync(
-    useCallback(() => getAlbum(id, isPhotographer), [id, isPhotographer]),
+    useCallback(() => getAlbum(id, role ?? isPhotographer), [id, role, isPhotographer]),
   );
 
   const [unlocking, setUnlocking] = useState(false);
@@ -248,8 +248,10 @@ export default function AlbumDetailScreen() {
     return reportContent('PHOTO', reportImageId, reason, desc);
   };
 
-  const gap = 2;
-  const cell = (width - gap * (gridCols - 1)) / gridCols;
+  const gap = 8;
+  const gridPadding = spacing.lg;
+  const gridWidth = width - gridPadding * 2;
+  const cell = Math.floor((gridWidth - gap * (gridCols - 1)) / gridCols);
 
   const onUnlock = async () => {
     if (!digitalPurchasesEnabled) return;
@@ -342,13 +344,56 @@ export default function AlbumDetailScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Modern Top App Bar */}
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 6, 16) }]}>
+        <Pressable
+          style={styles.navCircleBtn}
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={20} color={colors.text} />
+        </Pressable>
+
+        <Text style={styles.topBarTitle} numberOfLines={1}>
+          {data?.name || 'Album'}
+        </Text>
+
+        <View style={styles.topBarActions}>
+          <Pressable
+            style={styles.navCircleBtn}
+            onPress={onShareAlbum}
+            hitSlop={8}
+            accessibilityLabel="Share album"
+          >
+            <Ionicons name="share-outline" size={18} color={colors.text} />
+          </Pressable>
+
+          {isPhotographer ? (
+            <Pressable
+              style={styles.navCircleBtn}
+              onPress={() => setMoreSheetOpen(true)}
+              hitSlop={8}
+              accessibilityLabel="More album options"
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.text} />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+
       <FlatList
         key={gridCols}
         data={locked ? [] : images}
         keyExtractor={(img) => img.id}
         numColumns={gridCols}
         columnWrapperStyle={{ gap }}
-        contentContainerStyle={styles.list}
+        ItemSeparatorComponent={() => <View style={{ height: gap }} />}
+        contentContainerStyle={[
+          styles.list,
+          { paddingHorizontal: gridPadding },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -361,64 +406,17 @@ export default function AlbumDetailScreen() {
         keyboardDismissMode="on-drag"
         ListHeaderComponent={
           <View style={styles.header}>
-            {/* Cinematic Hero Cover Banner */}
-            <View style={[styles.heroBanner, { height: 260 + insets.top }]}>
-              {coverUrl ? (
+            {/* Cover Showcase Card (if a cover image exists) */}
+            {coverUrl ? (
+              <View style={styles.coverCard}>
                 <Image
                   source={{ uri: coverUrl }}
                   style={StyleSheet.absoluteFill}
                   contentFit="cover"
                   transition={250}
                 />
-              ) : (
-                <View style={[StyleSheet.absoluteFill, styles.heroFallback]}>
-                  <View style={styles.heroFallbackAperture}>
-                    <Ionicons name="camera" size={38} color="rgba(255,255,255,0.4)" />
-                  </View>
-                  <Text style={styles.heroFallbackText}>Photo Collection</Text>
-                </View>
-              )}
-
-              {/* Scrim Overlay */}
-              <View style={styles.heroScrim} />
-
-              {/* Top Navigation Row */}
-              <View style={[styles.heroNav, { paddingTop: Math.max(insets.top + 6, 16) }]}>
-                <Pressable
-                  style={styles.heroNavCircle}
-                  onPress={() => router.back()}
-                  hitSlop={8}
-                  accessibilityLabel="Back"
-                >
-                  <Ionicons name="chevron-back" size={20} color="#fff" />
-                </Pressable>
-
-                <View style={styles.heroNavActions}>
-                  <Pressable
-                    style={styles.heroNavCircle}
-                    onPress={onShareAlbum}
-                    hitSlop={8}
-                    accessibilityLabel="Share album"
-                  >
-                    <Ionicons name="share-outline" size={18} color="#fff" />
-                  </Pressable>
-
-                  {isPhotographer ? (
-                    <Pressable
-                      style={styles.heroNavCircle}
-                      onPress={() => setMoreSheetOpen(true)}
-                      hitSlop={8}
-                      accessibilityLabel="More album options"
-                    >
-                      <Ionicons name="ellipsis-horizontal" size={18} color="#fff" />
-                    </Pressable>
-                  ) : null}
-                </View>
-              </View>
-
-              {/* Hero Bottom Info */}
-              <View style={styles.heroBottom}>
-                <View style={styles.badgeRow}>
+                <View style={styles.coverScrim} />
+                <View style={styles.coverBadgeRow}>
                   <View
                     style={[
                       styles.kindBadge,
@@ -451,36 +449,87 @@ export default function AlbumDetailScreen() {
                     </View>
                   ) : null}
                 </View>
+              </View>
+            ) : null}
 
-                <Text style={styles.heroTitle} numberOfLines={2}>
-                  {data?.name}
-                </Text>
+            {/* Album Header Title & Metadata */}
+            <View style={styles.titleSection}>
+              <Text style={styles.albumTitle} numberOfLines={2}>
+                {data?.name || 'Album Collection'}
+              </Text>
 
-                <View style={styles.heroMetaRow}>
-                  <Text style={styles.heroMetaText}>
+              <View style={styles.metaChipsRow}>
+                {!coverUrl ? (
+                  <View
+                    style={[
+                      styles.kindBadge,
+                      isContent
+                        ? styles.kindContent
+                        : isEventKind
+                        ? styles.kindEvent
+                        : isPaidKind
+                        ? styles.kindPaid
+                        : isFreeKind
+                        ? styles.kindFree
+                        : styles.kindDefault,
+                    ]}
+                  >
+                    <Text style={styles.kindText}>{badgeLabel}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.metaChip}>
+                  <Ionicons name="images-outline" size={13} color={colors.primary} />
+                  <Text style={styles.metaChipText}>
                     {data?.photoCount != null
                       ? `${data.photoCount} photo${data.photoCount === 1 ? '' : 's'}`
                       : `${images.length} photos`}
                   </Text>
-
-                  {data?.categoryLabel || data?.kind ? (
-                    <>
-                      <Text style={styles.heroMetaDot}>·</Text>
-                      <Text style={styles.heroMetaText}>
-                        {data?.categoryLabel || data?.kind}
-                      </Text>
-                    </>
-                  ) : null}
-
-                  {data?.photographer ? (
-                    <>
-                      <Text style={styles.heroMetaDot}>·</Text>
-                      <Text style={styles.heroMetaText}>{data.photographer}</Text>
-                    </>
-                  ) : null}
                 </View>
+
+                {data?.categoryLabel || data?.kind ? (
+                  <View style={styles.metaChip}>
+                    <Ionicons name="pricetag-outline" size={12} color={colors.textMuted} />
+                    <Text style={styles.metaChipText}>
+                      {data?.categoryLabel || data?.kind}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {data?.locked ? (
+                  <View style={[styles.metaChip, styles.metaChipLocked]}>
+                    <Ionicons name="lock-closed" size={12} color="#D97706" />
+                    <Text style={[styles.metaChipText, { color: '#D97706' }]}>Locked</Text>
+                  </View>
+                ) : null}
               </View>
             </View>
+
+            {/* Photographer Card (Salo-run Web Parity) */}
+            {data?.photographer ? (
+              <View style={styles.photographerCard}>
+                <View style={styles.photographerAvatar}>
+                  {data.photographerAvatar ? (
+                    <Image
+                      source={{ uri: data.photographerAvatar }}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <Ionicons name="person" size={18} color={colors.primary} />
+                  )}
+                </View>
+                <View style={styles.photographerInfo}>
+                  <Text style={styles.photographerName} numberOfLines={1}>
+                    {data.photographer}
+                  </Text>
+                  <Text style={styles.photographerRole}>Photographer</Text>
+                </View>
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                </View>
+              </View>
+            ) : null}
 
             {/* Content Approval Note */}
             {isContent && approval ? (
@@ -561,11 +610,11 @@ export default function AlbumDetailScreen() {
                 <View style={styles.lockedIconBox}>
                   <Ionicons name="lock-closed" size={26} color={colors.primary} />
                 </View>
-                <Text style={styles.lockedTitle}>This album is archived</Text>
+                <Text style={styles.lockedTitle}>This album is locked</Text>
                 {digitalPurchasesEnabled ? (
                   <>
                     <Text style={styles.lockedMsg}>
-                      Unlock to restore and download all photos.
+                      Unlock this album to view and download all high-resolution photos.
                     </Text>
                     <Button
                       title={
@@ -585,7 +634,7 @@ export default function AlbumDetailScreen() {
               </View>
             ) : null}
 
-            {/* Section Header with Hairline Toggle */}
+            {/* Section Header with 3-col / 2-col Toggle */}
             {!locked && images.length > 0 ? (
               <View style={styles.photosSectionHead}>
                 <View style={styles.photosCountGroup}>
@@ -613,7 +662,7 @@ export default function AlbumDetailScreen() {
                     style={[styles.gridToggleItem, gridCols === 2 && styles.gridToggleItemActive]}
                     onPress={() => setGridCols(2)}
                     hitSlop={6}
-                    accessibilityLabel="2-column editorial view"
+                    accessibilityLabel="2-column large view"
                   >
                     <Ionicons
                       name="square"
@@ -631,8 +680,11 @@ export default function AlbumDetailScreen() {
             style={[styles.photoCell, { width: cell, height: cell }]}
             onPress={() => setActivePhoto(item)}
             onLongPress={() => onLongPressPhoto(item.id)}
-            android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
+            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
           >
+            <View style={styles.photoPlaceholder} pointerEvents="none">
+              <Ionicons name="camera-outline" size={20} color={colors.textMuted} />
+            </View>
             <Image
               source={{ uri: item.url }}
               style={StyleSheet.absoluteFill}
@@ -960,6 +1012,41 @@ export default function AlbumDetailScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    backgroundColor: c.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+    zIndex: 10,
+  },
+  navCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: c.elevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  topBarTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    color: c.text,
+    marginHorizontal: spacing.sm,
+  },
+  topBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+
   loadingNav: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
@@ -988,94 +1075,116 @@ const useStyles = makeStyles((c) => ({
   },
   retryBtnText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
 
-  list: { paddingBottom: 60 },
-  header: { gap: spacing.md, marginBottom: spacing.sm },
+  list: { paddingBottom: 60, paddingTop: spacing.md },
+  header: { gap: spacing.md, marginBottom: spacing.md },
 
-  // Hero Cover Banner
-  heroBanner: {
-    width: '100%',
-    backgroundColor: '#071224',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-  },
-  heroFallback: {
-    backgroundColor: '#0B162C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  heroFallbackAperture: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Cover Card
+  coverCard: {
+    height: 180,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
+    backgroundColor: c.surfaceMuted,
+    position: 'relative',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: c.borderSoft,
   },
-  heroFallbackText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  heroScrim: {
+  coverScrim: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(5, 12, 28, 0.45)',
+    height: 80,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  heroNav: {
+  coverBadgeRow: {
+    position: 'absolute',
+    left: spacing.md,
+    bottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    zIndex: 2,
+    gap: 6,
+    flexWrap: 'wrap',
   },
-  heroNavActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+
+  // Title & Metadata Section
+  titleSection: {
+    gap: spacing.xs,
   },
-  heroNavCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroBottom: {
-    zIndex: 2,
-    gap: 5,
-  },
-  heroTitle: {
+  albumTitle: {
     fontFamily: fonts.bold,
-    fontSize: 24,
-    color: '#fff',
+    fontSize: 22,
+    color: c.text,
     letterSpacing: -0.5,
+    lineHeight: 28,
   },
-  heroMetaRow: {
+  metaChipsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
+    marginTop: 2,
   },
-  heroMetaDot: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: c.surface,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
   },
-  heroMetaText: {
+  metaChipText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    color: c.textSoft,
+  },
+  metaChipLocked: {
+    borderColor: 'rgba(217, 119, 6, 0.4)',
+    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+  },
+
+  // Photographer Card
+  photographerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.surface,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    gap: spacing.md,
+  },
+  photographerAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: c.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  photographerInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  photographerName: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: c.text,
+  },
+  photographerRole: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  verifiedBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Kind badges
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   kindBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -1104,7 +1213,6 @@ const useStyles = makeStyles((c) => ({
 
   // Content approval note
   approvalCard: {
-    marginHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
@@ -1118,7 +1226,6 @@ const useStyles = makeStyles((c) => ({
 
   // Executive Action Strip
   actionStrip: {
-    marginHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -1161,7 +1268,6 @@ const useStyles = makeStyles((c) => ({
 
   // Compact Face Chip
   compactFaceChip: {
-    marginHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -1193,7 +1299,6 @@ const useStyles = makeStyles((c) => ({
 
   // Locked card
   lockedCard: {
-    marginHorizontal: spacing.lg,
     alignItems: 'center',
     gap: spacing.sm,
     backgroundColor: c.surface,
@@ -1224,7 +1329,6 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: spacing.lg,
     marginTop: spacing.xs,
     paddingBottom: 2,
   },
@@ -1270,12 +1374,25 @@ const useStyles = makeStyles((c) => ({
   // Photo grid cell
   photoCell: {
     backgroundColor: c.surfaceMuted,
+    borderRadius: radii.md,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  photoPlaceholder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.45,
   },
 
   // Empty state
   emptyContainer: {
-    marginHorizontal: spacing.lg,
     marginTop: spacing.md,
     padding: spacing.xl,
     borderRadius: radii.lg,
