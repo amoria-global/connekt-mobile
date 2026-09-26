@@ -492,6 +492,28 @@
     } ]
   }, {
     "method" : "GET",
+    "path" : "/admin/refunds",
+    "controller" : "AdminRefundController#listJson",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/admin/refunds/all",
+    "controller" : "AdminRefundController#listJson",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
     "path" : "/admin/refunds/export/excel",
     "controller" : "AdminRefundController#exportRefundsExcel",
     "params" : [ {
@@ -515,6 +537,13 @@
   }, {
     "method" : "POST",
     "path" : "/admin/refunds/initiate",
+    "controller" : "AdminRefundController#initiateRefund",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/admin/refunds/issue",
     "controller" : "AdminRefundController#initiateRefund",
     "body" : {
       "type" : "Map"
@@ -1459,12 +1488,62 @@
     "controller" : "AdminContactMessageApiController#getContactMessages"
   }, {
     "method" : "GET",
+    "path" : "/api/admin/content-approval",
+    "controller" : "AdminContentApprovalApiController#list",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/content-approval/review",
+    "controller" : "AdminContentApprovalApiController#reviewWithBodyId",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/content-approval/{id}",
+    "controller" : "AdminContentApprovalApiController#detail",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/content-approval/{id}/approve",
+    "controller" : "AdminContentApprovalApiController#approve",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/content-approval/{id}/reject",
+    "controller" : "AdminContentApprovalApiController#reject",
+    "body" : {
+      "type" : "RejectRequest",
+      "properties" : [ "reason" ]
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/content-approval/{id}/review",
+    "controller" : "AdminContentApprovalApiController#review",
+    "body" : {
+      "type" : "ReviewRequest",
+      "properties" : [ "reason", "status" ]
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
     "path" : "/api/admin/content-approvals",
     "controller" : "AdminContentApprovalApiController#list",
     "params" : [ {
       "name" : "status",
       "required" : false
     } ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/content-approvals/review",
+    "controller" : "AdminContentApprovalApiController#reviewWithBodyId",
+    "body" : {
+      "type" : "Map"
+    }
   }, {
     "method" : "GET",
     "path" : "/api/admin/content-approvals/{id}",
@@ -1482,6 +1561,15 @@
     "body" : {
       "type" : "RejectRequest",
       "properties" : [ "reason" ]
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/content-approvals/{id}/review",
+    "controller" : "AdminContentApprovalApiController#review",
+    "body" : {
+      "type" : "ReviewRequest",
+      "properties" : [ "reason", "status" ]
     },
     "pathVariables" : [ "id" ]
   }, {
@@ -1542,6 +1630,15 @@
       "properties" : [ "comment", "status" ]
     },
     "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/customers/toggle-lock/{id}",
+    "controller" : "CustomerAdminApiController#toggleLockStatus",
+    "pathVariables" : [ "id" ],
+    "params" : [ {
+      "name" : "lock",
+      "required" : false
+    } ]
   }, {
     "method" : "GET",
     "path" : "/api/admin/customers/viewers",
@@ -1796,15 +1893,47 @@
       "required" : false
     } ]
   }, {
+    "method" : "POST",
+    "path" : "/api/admin/kyc/approve",
+    "controller" : "AdminKycApiController#approveKycBody",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/kyc/reject",
+    "controller" : "AdminKycApiController#rejectKycBody",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
     "method" : "GET",
     "path" : "/api/admin/kyc/{id}",
     "controller" : "AdminKycApiController#getKycDetail",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/kyc/{id}/approve",
+    "controller" : "AdminKycApiController#approveKyc",
+    "body" : {
+      "type" : "KycReviewRequest",
+      "properties" : [ "comment", "status" ]
+    },
     "pathVariables" : [ "id" ]
   }, {
     "method" : "GET",
     "path" : "/api/admin/kyc/{id}/file/{type}",
     "controller" : "AdminKycApiController#getKycFile",
     "pathVariables" : [ "id", "type" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/kyc/{id}/reject",
+    "controller" : "AdminKycApiController#rejectKyc",
+    "body" : {
+      "type" : "KycReviewRequest",
+      "properties" : [ "comment", "status" ]
+    },
+    "pathVariables" : [ "id" ]
   }, {
     "method" : "POST",
     "path" : "/api/admin/kyc/{id}/review",
@@ -1898,6 +2027,82 @@
     "method" : "GET",
     "path" : "/api/admin/photobooks/all",
     "controller" : "AdminPhotobookApiController#getPhotobooks"
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/refunds",
+    "controller" : "AdminRefundController#index",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/refunds",
+    "controller" : "AdminRefundController#listJson",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/refunds/all",
+    "controller" : "AdminRefundController#listJson",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/refunds/export/excel",
+    "controller" : "AdminRefundController#exportRefundsExcel",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/refunds/export/pdf",
+    "controller" : "AdminRefundController#exportRefundsPdf",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/refunds/initiate",
+    "controller" : "AdminRefundController#initiateRefund",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/refunds/issue",
+    "controller" : "AdminRefundController#initiateRefund",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/refunds/retry",
+    "controller" : "AdminRefundController#retryRefund",
+    "body" : {
+      "type" : "Map"
+    }
   }, {
     "method" : "GET",
     "path" : "/api/admin/reviews/all",
@@ -2009,6 +2214,11 @@
     "method" : "GET",
     "path" : "/api/admin/streams/all",
     "controller" : "AdminStreamApiController#getStreams"
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/streams/{id}/terminate",
+    "controller" : "AdminStreamApiController#terminateStream",
+    "pathVariables" : [ "id" ]
   }, {
     "method" : "GET",
     "path" : "/api/admin/streams/{streamId}/chats",
@@ -2195,6 +2405,22 @@
       "required" : false
     } ]
   }, {
+    "method" : "POST",
+    "path" : "/api/admin/withdrawal-approvals/approve",
+    "controller" : "AdminWithdrawalApprovalApiController#approve",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/withdrawal-approvals/reject",
+    "controller" : "AdminWithdrawalApprovalApiController#reject",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "id" ]
+  }, {
     "method" : "GET",
     "path" : "/api/admin/withdrawal-approvals/{id}",
     "controller" : "AdminWithdrawalApprovalApiController#detail",
@@ -2203,20 +2429,67 @@
     "method" : "POST",
     "path" : "/api/admin/withdrawal-approvals/{id}/approve",
     "controller" : "AdminWithdrawalApprovalApiController#approve",
+    "body" : {
+      "type" : "Map"
+    },
     "pathVariables" : [ "id" ]
   }, {
     "method" : "POST",
     "path" : "/api/admin/withdrawal-approvals/{id}/reject",
     "controller" : "AdminWithdrawalApprovalApiController#reject",
     "body" : {
-      "type" : "RejectRequest",
-      "properties" : [ "reason" ]
+      "type" : "Map"
     },
     "pathVariables" : [ "id" ]
   }, {
     "method" : "GET",
+    "path" : "/api/admin/withdrawals",
+    "controller" : "AdminWithdrawalApiController#list",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
     "path" : "/api/admin/withdrawals/all",
     "controller" : "AdminWithdrawalApiController#getWithdrawals"
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/withdrawals/approve",
+    "controller" : "AdminWithdrawalApiController#approve",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/withdrawals/reject",
+    "controller" : "AdminWithdrawalApiController#reject",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/withdrawals/{id}",
+    "controller" : "AdminWithdrawalApiController#detail",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/withdrawals/{id}/approve",
+    "controller" : "AdminWithdrawalApiController#approve",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/withdrawals/{id}/reject",
+    "controller" : "AdminWithdrawalApiController#reject",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "id" ]
   }, {
     "method" : "GET",
     "path" : "/api/public/content/album-by-slug/{slug}",
@@ -2884,6 +3157,25 @@
     } ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/coordinator/clients",
+    "controller" : "CoordinatorController#getCoordinatorClients",
+    "params" : [ {
+      "name" : "page",
+      "required" : false
+    }, {
+      "name" : "size",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/coordinator/clients/{clientId}",
+    "controller" : "CoordinatorController#getCoordinatorClientDetail",
+    "pathVariables" : [ "clientId" ]
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/coordinator/events",
     "controller" : "CoordinatorController#listEvents",
     "params" : [ {
@@ -3080,6 +3372,16 @@
       "name" : "size",
       "required" : false
     } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/coordinator/payments/{declarationId}",
+    "controller" : "CoordinatorController#getPaymentById",
+    "pathVariables" : [ "id", "declarationId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/coordinator/payments/{id}",
+    "controller" : "CoordinatorController#getPaymentById",
+    "pathVariables" : [ "id", "declarationId" ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/coordinator/photobook",
@@ -4289,20 +4591,22 @@
     "method" : "POST",
     "path" : "/api/remote/customer/profile/cover-picture",
     "controller" : "CustomerProfileController#updateCoverPicture",
-    "parts" : [ {
+    "params" : [ {
       "name" : "coverPicture",
       "required" : true,
       "file" : true
-    } ]
+    } ],
+    "consumes" : [ "multipart/form-data" ]
   }, {
     "method" : "POST",
     "path" : "/api/remote/customer/profile/profile-picture",
     "controller" : "CustomerProfileController#updateProfilePicture",
-    "parts" : [ {
+    "params" : [ {
       "name" : "profilePicture",
       "required" : true,
       "file" : true
-    } ]
+    } ],
+    "consumes" : [ "multipart/form-data" ]
   }, {
     "method" : "PUT",
     "path" : "/api/remote/customer/profile/withdrawal-verification-method",
@@ -5167,68 +5471,6 @@
     }
   }, {
     "method" : "GET",
-    "path" : "/api/remote/photographer/collab/albums",
-    "controller" : "AlbumCollaborationController#ownedAlbums"
-  }, {
-    "method" : "GET",
-    "path" : "/api/remote/photographer/collab/albums/{albumId}",
-    "controller" : "AlbumCollaborationController#ownedAlbum",
-    "pathVariables" : [ "albumId" ]
-  }, {
-    "method" : "POST",
-    "path" : "/api/remote/photographer/collab/albums/{albumId}/invites",
-    "controller" : "AlbumCollaborationController#createInvite",
-    "pathVariables" : [ "albumId" ]
-  }, {
-    "method" : "DELETE",
-    "path" : "/api/remote/photographer/collab/members/{membershipId}",
-    "controller" : "AlbumCollaborationController#removeCollaborator",
-    "pathVariables" : [ "membershipId" ]
-  }, {
-    "method" : "DELETE",
-    "path" : "/api/remote/photographer/collab/links/{inviteId}",
-    "controller" : "AlbumCollaborationController#cancelInvite",
-    "pathVariables" : [ "inviteId" ]
-  }, {
-    "method" : "POST",
-    "path" : "/api/remote/photographer/collab/submissions/review",
-    "controller" : "AlbumCollaborationController#review"
-  }, {
-    "method" : "GET",
-    "path" : "/api/remote/photographer/collab/invites/{token}",
-    "controller" : "AlbumCollaborationController#previewInvite",
-    "pathVariables" : [ "token" ]
-  }, {
-    "method" : "POST",
-    "path" : "/api/remote/photographer/collab/invites/{token}/accept",
-    "controller" : "AlbumCollaborationController#acceptInvite",
-    "pathVariables" : [ "token" ]
-  }, {
-    "method" : "GET",
-    "path" : "/api/remote/photographer/collab/joined",
-    "controller" : "AlbumCollaborationController#joinedAlbums"
-  }, {
-    "method" : "GET",
-    "path" : "/api/remote/photographer/collab/joined/{albumId}",
-    "controller" : "AlbumCollaborationController#joinedAlbum",
-    "pathVariables" : [ "albumId" ]
-  }, {
-    "method" : "POST",
-    "path" : "/api/remote/photographer/collab/joined/{albumId}/submissions",
-    "controller" : "AlbumCollaborationController#submit",
-    "pathVariables" : [ "albumId" ]
-  }, {
-    "method" : "DELETE",
-    "path" : "/api/remote/photographer/collab/submissions/{submissionId}",
-    "controller" : "AlbumCollaborationController#withdraw",
-    "pathVariables" : [ "submissionId" ]
-  }, {
-    "method" : "POST",
-    "path" : "/api/remote/photographer/collab/joined/{albumId}/leave",
-    "controller" : "AlbumCollaborationController#leave",
-    "pathVariables" : [ "albumId" ]
-  }, {
-    "method" : "GET",
     "path" : "/api/remote/photographer/albums",
     "controller" : "PhotographerAlbumController#getAlbums"
   }, {
@@ -5486,6 +5728,88 @@
     "controller" : "PhotographerDashboardController#removeClient",
     "pathVariables" : [ "clientId" ]
   }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/clients/{clientId}",
+    "controller" : "PhotographerDashboardController#getClientDetail",
+    "pathVariables" : [ "clientId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/albums",
+    "controller" : "AlbumCollaborationController#ownedAlbums"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/albums/{albumId}",
+    "controller" : "AlbumCollaborationController#ownedAlbum",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/albums/{albumId}/invites",
+    "controller" : "AlbumCollaborationController#createInvite",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/invites/{token}",
+    "controller" : "AlbumCollaborationController#previewInvite",
+    "pathVariables" : [ "token" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/invites/{token}/accept",
+    "controller" : "AlbumCollaborationController#acceptInvite",
+    "pathVariables" : [ "token" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/joined",
+    "controller" : "AlbumCollaborationController#joinedAlbums"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/collab/joined/{albumId}",
+    "controller" : "AlbumCollaborationController#joinedAlbum",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/joined/{albumId}/leave",
+    "controller" : "AlbumCollaborationController#leave",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/joined/{albumId}/submissions",
+    "controller" : "AlbumCollaborationController#submit",
+    "pathVariables" : [ "albumId" ],
+    "params" : [ {
+      "name" : "file",
+      "required" : true,
+      "file" : true
+    }, {
+      "name" : "caption",
+      "required" : false
+    } ],
+    "consumes" : [ "multipart/form-data" ]
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/photographer/collab/links/{inviteId}",
+    "controller" : "AlbumCollaborationController#cancelInvite",
+    "pathVariables" : [ "inviteId" ]
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/photographer/collab/members/{membershipId}",
+    "controller" : "AlbumCollaborationController#removeCollaborator",
+    "pathVariables" : [ "membershipId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/collab/submissions/review",
+    "controller" : "AlbumCollaborationController#review",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/photographer/collab/submissions/{submissionId}",
+    "controller" : "AlbumCollaborationController#withdraw",
+    "pathVariables" : [ "submissionId" ]
+  }, {
     "method" : "POST",
     "path" : "/api/remote/photographer/delete-add-project-portfolio/{projectId}",
     "controller" : "PhotographerRemoteController#addProjectPortfolio",
@@ -5676,6 +6000,28 @@
       "type" : "PhotographerPackageRequestDTO",
       "properties" : [ "currencyId", "deliveryDays", "description", "durationHours", "extraPhotoPrice", "extraVideoPrice", "features", "hasLiveStream", "includedPhotos", "includedVideos", "isActive", "packageName", "photobookPhotos", "price", "priceUnit", "serviceType" ]
     },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/payments",
+    "controller" : "PhotographerDashboardController#getPhotographerPayments",
+    "params" : [ {
+      "name" : "page",
+      "required" : false
+    }, {
+      "name" : "size",
+      "required" : false
+    }, {
+      "name" : "status",
+      "required" : false
+    }, {
+      "name" : "search",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/payments/{id}",
+    "controller" : "PhotographerDashboardController#getPhotographerPaymentDetail",
     "pathVariables" : [ "id" ]
   }, {
     "method" : "GET",
@@ -6908,6 +7254,14 @@
       "required" : false
     } ]
   }, {
+    "method" : "POST",
+    "path" : "/api/remote/streams/{eventId}/tip",
+    "controller" : "StreamInteractionController#tipStream",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "eventId" ]
+  }, {
     "method" : "GET",
     "path" : "/api/remote/team/me/permissions",
     "controller" : "TeamController#mePermissions"
@@ -7279,6 +7633,47 @@
       "name" : "confirmPassword",
       "required" : true
     } ]
+  }, {
+    "method" : "POST",
+    "path" : "/streams/{eventId}/block",
+    "controller" : "StreamInteractionController#blockUserInStream",
+    "pathVariables" : [ "eventId" ],
+    "params" : [ {
+      "name" : "blockedUserId",
+      "required" : true
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/streams/{eventId}/ratings",
+    "controller" : "StreamInteractionController#rateStream",
+    "pathVariables" : [ "eventId" ],
+    "params" : [ {
+      "name" : "rating",
+      "required" : true
+    }, {
+      "name" : "comment",
+      "required" : false
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/streams/{eventId}/reports",
+    "controller" : "StreamInteractionController#reportStreamIssue",
+    "pathVariables" : [ "eventId" ],
+    "params" : [ {
+      "name" : "issueType",
+      "required" : true
+    }, {
+      "name" : "description",
+      "required" : false
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/streams/{eventId}/tip",
+    "controller" : "StreamInteractionController#tipStream",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "eventId" ]
   }, {
     "method" : "GET",
     "path" : "/uploads/**",

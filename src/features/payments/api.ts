@@ -81,9 +81,7 @@ export type PaymentsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer';
  */
 function paymentsBase(role: PaymentsRole | undefined): string {
   if (role === 'Coordinator') return '/coordinator/payments';
-  // Photographer / Viewer don't have their own payment-history endpoint
-  // exposed yet; they fall through to the customer path which the
-  // backend serves with role-appropriate filters.
+  if (role === 'Photographer') return '/photographer/payments';
   return '/customer/payments';
 }
 
