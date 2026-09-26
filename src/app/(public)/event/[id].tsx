@@ -617,7 +617,11 @@ export default function PublicEventDetailScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scroll, showStickyBar && { paddingBottom: 140 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, showStickyBar && { paddingBottom: 140 }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* ── Hero: cover ─────────────────────────── */}
         <View style={styles.heroWrap}>
           <Image

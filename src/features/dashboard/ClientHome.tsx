@@ -80,12 +80,12 @@ const POPULAR_STYLES = [
 
 const CATEGORY_CHIPS = [
   { label: 'All', icon: 'apps-outline' as const, color: '#083A85' },
-  { label: 'Live Streams', icon: 'videocam' as const, color: '#EF4444', isLive: true },
-  { label: 'Weddings', icon: 'heart' as const, color: '#F20C8F' },
-  { label: 'Portraits', icon: 'person' as const, color: '#3B82F6' },
-  { label: 'Events', icon: 'calendar' as const, color: '#0EA5E9' },
-  { label: 'Birthdays', icon: 'gift' as const, color: '#F59E0B' },
-  { label: 'Studio', icon: 'camera' as const, color: '#10B981' },
+  { label: 'Live Streams', icon: 'videocam-outline' as const, color: '#EF4444', isLive: true },
+  { label: 'Wedding', icon: 'heart-outline' as const, color: '#F20C8F' },
+  { label: 'Portraits', icon: 'person-outline' as const, color: '#3B82F6' },
+  { label: 'Events', icon: 'calendar-outline' as const, color: '#0EA5E9' },
+  { label: 'Birthday', icon: 'gift-outline' as const, color: '#F59E0B' },
+  { label: 'Studio', icon: 'camera-outline' as const, color: '#10B981' },
   { label: 'Fashion', icon: 'shirt-outline' as const, color: '#8B5CF6' },
   { label: 'Graduation', icon: 'school-outline' as const, color: '#EC4899' },
   { label: 'Family', icon: 'people-outline' as const, color: '#14B8A6' },

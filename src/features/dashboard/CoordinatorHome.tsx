@@ -53,13 +53,16 @@ import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } fro
 import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
 
 const CATEGORY_CHIPS = [
-  { label: 'All', icon: 'sparkles' as const, color: '#083A85' },
-  { label: 'Weddings', icon: 'heart' as const, color: '#F20C8F' },
+  { label: 'All', icon: 'apps-outline' as const, color: '#083A85' },
+  { label: 'Wedding', icon: 'heart-outline' as const, color: '#F20C8F' },
   { label: 'Corporate', icon: 'briefcase-outline' as const, color: '#3B82F6' },
-  { label: 'Festivals', icon: 'musical-notes' as const, color: '#0EA5E9' },
-  { label: 'Conferences', icon: 'people-outline' as const, color: '#8B5CF6' },
-  { label: 'Sports', icon: 'football-outline' as const, color: '#10B981' },
-  { label: 'Parties', icon: 'balloon-outline' as const, color: '#EC4899' },
+  { label: 'Birthday', icon: 'gift-outline' as const, color: '#F59E0B' },
+  { label: 'Concert', icon: 'musical-notes-outline' as const, color: '#0EA5E9' },
+  { label: 'Conference', icon: 'easel-outline' as const, color: '#8B5CF6' },
+  { label: 'Sports', icon: 'trophy-outline' as const, color: '#10B981' },
+  { label: 'Graduation', icon: 'school-outline' as const, color: '#EC4899' },
+  { label: 'Fashion', icon: 'shirt-outline' as const, color: '#6366F1' },
+  { label: 'Entertainment', icon: 'film-outline' as const, color: '#14B8A6' },
 ];
 
 const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
@@ -180,6 +183,9 @@ export function CoordinatorHome() {
     <Screen padded={false} edges={[]}>
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.sm }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={true}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
@@ -277,14 +283,14 @@ export function CoordinatorHome() {
               placeholderTextColor={colors.textMuted}
               style={styles.searchInput}
               returnKeyType="search"
+              blurOnSubmit={true}
               onSubmitEditing={() => {
+                Keyboard.dismiss();
                 if (searchQuery.trim()) {
                   router.push({
                     pathname: '/events',
                     params: { q: searchQuery.trim() },
                   } as never);
-                } else {
-                  Keyboard.dismiss();
                 }
               }}
               onFocus={() => setIsSearchFocused(true)}
@@ -294,7 +300,10 @@ export function CoordinatorHome() {
             />
             {searchQuery.length > 0 && (
               <Pressable
-                onPress={() => setSearchQuery('')}
+                onPress={() => {
+                  setSearchQuery('');
+                  Keyboard.dismiss();
+                }}
                 hitSlop={10}
                 style={styles.clearButton}
                 accessibilityRole="button"
@@ -309,6 +318,7 @@ export function CoordinatorHome() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.categoryChips}
           >
             {CATEGORY_CHIPS.map((c) => {
@@ -350,7 +360,12 @@ export function CoordinatorHome() {
               <Text style={styles.searchResultsTitle}>
                 Search Results for "{searchQuery.trim()}"
               </Text>
-              <Pressable onPress={() => setSearchQuery('')}>
+              <Pressable
+                onPress={() => {
+                  setSearchQuery('');
+                  Keyboard.dismiss();
+                }}
+              >
                 <Text style={styles.searchResultsClearText}>Clear</Text>
               </Pressable>
             </View>

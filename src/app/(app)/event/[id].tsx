@@ -407,7 +407,7 @@ export default function EventDetailScreen() {
 
   if (loading && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -417,7 +417,7 @@ export default function EventDetailScreen() {
 
   if (error && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -468,11 +468,17 @@ export default function EventDetailScreen() {
   const money = fmtMoney(ev?.price, ev?.currency);
 
   return (
-    <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <Screen padded={false} edges={[]}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Title */}
-        <Text style={styles.eyebrow}>EVENT DETAILS</Text>
-        <Text style={styles.title}>{ev?.title}</Text>
+        <View style={styles.titleWrap}>
+          <Text style={styles.eyebrow}>EVENT DETAILS</Text>
+          <Text style={styles.title}>{ev?.title}</Text>
+        </View>
 
         {/* Hero image with status pills */}
         <View style={styles.hero}>
@@ -959,10 +965,16 @@ function ProgressStepper({ currentIndex }: { currentIndex: number }) {
 const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
+  scroll: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 120,
+    gap: spacing.lg,
+  },
 
+  titleWrap: { gap: 2 },
   eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
-  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5, marginTop: 2 },
+  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5 },
 
   hero: {
     height: 210,
