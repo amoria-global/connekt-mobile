@@ -12,7 +12,7 @@ export default function TransactionsScreen() {
   const { data, loading, error, refresh } = useAsync(useCallback(() => listWalletMovements(), []));
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <DataList
         data={data}
         loading={loading}

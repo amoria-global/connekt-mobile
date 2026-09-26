@@ -144,14 +144,14 @@ export default function PaymentsScreen() {
 
   const onOpenPayNow = (item: PaymentRecord) => {
     setPaySheetPayment({
-      id: item.id,
+      id: item.declarationId || item.id,
       eventName: item.title,
       photographerName: 'Event Booking',
       amount: item.amount ?? 0,
       paidAmount: 0,
       dueDate: item.createdAt ?? '',
       status: 'pending',
-      paymentType: 'BOOKING_DECLARATION',
+      paymentType: item.paymentType || 'BOOKING_DECLARATION',
     });
   };
 
@@ -216,7 +216,7 @@ export default function PaymentsScreen() {
       {section === 'events' ? (
         <>
           <View style={styles.totalCard}>
-            <Text style={styles.totalLabel}>TOTAL SPENDING</Text>
+            <Text style={styles.totalLabel}>{isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING'}</Text>
             <Text style={styles.totalValue}>{formatMoney(stats.total, currency)}</Text>
             <View style={styles.totalSplit}>
               <View style={styles.totalSplitCell}>
@@ -333,7 +333,7 @@ export default function PaymentsScreen() {
   );
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       {section === 'events' ? (
         <FlatList
           data={filteredPayments}

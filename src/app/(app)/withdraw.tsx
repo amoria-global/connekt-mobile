@@ -235,7 +235,7 @@ export default function WithdrawScreen() {
     const tone = ok ? colors.success : kyc ? colors.warning : colors.error;
     const toneBg = ok ? colors.successBg : kyc ? colors.warningBg : colors.errorBg;
     return (
-      <Screen padded={false}>
+      <Screen padded={false} edges={[]}>
         <View style={styles.result}>
           <View style={[styles.resultIcon, { backgroundColor: toneBg }]}>
             <Ionicons
@@ -283,7 +283,7 @@ export default function WithdrawScreen() {
     const copy = verificationCopy(verification);
     const fee = verification.fee;
     return (
-      <Screen padded={false}>
+      <Screen padded={false} edges={[]}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <ScreenHeader title={copy.title} subtitle={copy.body} />
           <View style={styles.body}>
@@ -354,7 +354,7 @@ export default function WithdrawScreen() {
   // ── Form ───────────────────────────────────────────────────────────────
   const loading = (sources.loading && !sources.data) || (accounts.loading && !accounts.data);
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <ScreenHeader title="Withdraw" subtitle="Send your earnings to your mobile money or bank account." />
         <View style={styles.body}>

@@ -51,6 +51,8 @@ export async function initiatePayment(input: PaymentInput): Promise<InitiatedPay
 
 export type PaymentRecord = {
   id: string;
+  declarationId?: string;
+  paymentType?: string;
   title: string;
   amount?: number;
   currency?: string;
@@ -86,8 +88,11 @@ function paymentsBase(role: PaymentsRole | undefined): string {
 }
 
 function mapPaymentRecord(r: Raw): PaymentRecord {
+  const declarationId = str(r.declarationId) ?? str(r.paymentDeclarationId);
   return {
-    id: String(r.id ?? r.declarationId ?? ''),
+    id: String(declarationId ?? r.id ?? ''),
+    declarationId,
+    paymentType: str(r.paymentType) ?? str(r.type),
     title: str(r.eventName) ?? str(r.eventTitle) ?? str(r.title) ?? str(r.description) ?? 'Payment',
     amount:
       (typeof r.amount === 'number' ? r.amount : undefined) ??
@@ -236,8 +241,10 @@ export async function getPayment(id: string, role?: PaymentsRole): Promise<Payme
   }
   const r = (res?.data ?? {}) as Raw;
   const n = (v: unknown) => (typeof v === 'number' ? v : undefined);
+  const declarationId = str(r.declarationId) ?? str(r.paymentDeclarationId);
   return {
     id: String(r.id ?? id),
+    declarationId,
     title: str(r.eventName) ?? str(r.eventTitle) ?? str(r.title) ?? str(r.description) ?? 'Payment',
     amount: n(r.amount) ?? n(r.amountDue) ?? n(r.totalAmount),
     currency: str(r.currency) ?? str(r.currencyCode) ?? str(r.currencyAbbreviation),
