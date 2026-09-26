@@ -2,8 +2,9 @@ import { useEffect } from 'react';
 import { Stack, useRootNavigationState, useRouter, useSegments, type Href } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
   PragatiNarrow_400Regular,
@@ -13,7 +14,15 @@ import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdateBanner, UpdatePromptModal } from '@/features/updates';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
-import { colors, useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
+import { useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
+import { AppPreloader } from '@/components/ui/AppPreloader';
+
+// Keep native splash screen visible while fonts and auth bootstrap resolve
+SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.setOptions({
+  duration: 400,
+  fade: true,
+});
 
 /**
  * Default every `<Text>` and `<TextInput>` to Pragati Narrow so the
@@ -142,7 +151,6 @@ function useProtectedRoute() {
 }
 
 export default function RootLayout() {
-  const { colors } = useTheme();
   const status = useAuth((s) => s.status);
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
@@ -151,10 +159,19 @@ export default function RootLayout() {
     PragatiNarrow_700Bold,
   });
 
+  const isAppReady = Boolean(fontsLoaded && status !== 'idle' && status !== 'loading');
+
   useEffect(() => {
     bootstrap();
     loadOnboarding();
   }, [bootstrap, loadOnboarding]);
+
+  // Hide the native splash screen as soon as auth bootstrap and fonts are loaded
+  useEffect(() => {
+    if (isAppReady) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isAppReady]);
 
   // Apply the global Pragati Narrow default ONCE the Google Font has
   // loaded — applying earlier would print the family name as text since
@@ -171,10 +188,8 @@ export default function RootLayout() {
       <NavigationChrome>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          {status === 'idle' || status === 'loading' || !fontsLoaded ? (
-            <View style={styles.splash}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
+          {!isAppReady ? (
+            <AppPreloader fontsLoaded={fontsLoaded} />
           ) : (
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(onboarding)" />
@@ -223,11 +238,3 @@ function ThemedStatusBar() {
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
 }
 
-const styles = {
-  splash: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-} as const;
