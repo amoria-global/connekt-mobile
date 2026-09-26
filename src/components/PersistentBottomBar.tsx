@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments, type Href } from 'expo-router';
 import {
   Alert,
+  Animated,
+  Dimensions,
   Keyboard,
   Modal,
   Platform,
@@ -38,6 +40,9 @@ import { isApiError, useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const BAR_CONTENT_HEIGHT = 60;
+const INDICATOR_WIDTH = 48;
+const INDICATOR_HEIGHT = 30;
+const INDICATOR_TOP = Math.round((BAR_CONTENT_HEIGHT - 46) / 2);
 
 type Tab = {
   key: string;
@@ -81,6 +86,73 @@ export type MoreCardSection = MoreGridSection;
 export type MoreCardGroup = MoreGridSection;
 
 
+type TabButtonProps = {
+  tab: Tab;
+  isFocused: boolean;
+  onPress: () => void;
+  width: number;
+  badgeCount?: number;
+};
+
+function TabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const [focusAnim] = useState(() => new Animated.Value(isFocused ? 1 : 0));
+
+  useEffect(() => {
+    Animated.spring(focusAnim, {
+      toValue: isFocused ? 1 : 0,
+      tension: 68,
+      friction: 9,
+      useNativeDriver: true,
+    }).start();
+  }, [isFocused, focusAnim]);
+
+  const iconScale = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.12],
+  });
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.tab, { width }]}
+      accessibilityRole="button"
+      accessibilityState={isFocused ? { selected: true } : {}}
+      accessibilityLabel={tab.label}
+    >
+      <View style={styles.iconWrap}>
+        <Animated.View
+          style={{
+            transform: [{ scale: iconScale }],
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons
+            name={isFocused ? tab.iconFocused : tab.icon}
+            size={20}
+            color={isFocused ? colors.textOnPrimary : colors.textMuted}
+          />
+        </Animated.View>
+        {badgeCount != null && badgeCount > 0 ? (
+          <View style={styles.badgeDot} />
+        ) : null}
+      </View>
+
+      <Text
+        style={[
+          styles.label,
+          { color: isFocused ? colors.primary : colors.textMuted },
+        ]}
+        numberOfLines={1}
+      >
+        {tab.label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export function PersistentBottomBar() {
   const { colors, isDark } = useTheme();
   const styles = useStyles();
@@ -89,6 +161,13 @@ export function PersistentBottomBar() {
   const segments = useSegments() as string[];
   const [moreOpen, setMoreOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  const { role, isPhotographer } = useRole();
+  const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
+  const unreadCount = useMemo(
+    () => notifications?.filter((n) => !n.read).length ?? 0,
+    [notifications],
+  );
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -126,6 +205,65 @@ export function PersistentBottomBar() {
 
   const isTabScreen = segments.includes('(tabs)');
 
+  const activeIndex = useMemo(() => {
+    if (moreOpen) {
+      const moreIdx = tabs.findIndex((t) => t.isMore);
+      return moreIdx !== -1 ? moreIdx : 4;
+    }
+    const idx = tabs.findIndex((t) => t.key === activeKey);
+    return idx !== -1 ? idx : 0;
+  }, [activeKey, moreOpen, tabs]);
+
+  const initialWidth = useMemo(() => Dimensions.get('window').width, []);
+  const [barWidth, setBarWidth] = useState(initialWidth);
+  const tabWidth = barWidth / tabs.length;
+
+  const [bubbleX] = useState(
+    () =>
+      new Animated.Value(
+        activeIndex * (initialWidth / tabs.length) +
+          (initialWidth / tabs.length - INDICATOR_WIDTH) / 2,
+      ),
+  );
+
+  const [stretchAnim] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (tabWidth <= 0) return;
+    const targetX = activeIndex * tabWidth + (tabWidth - INDICATOR_WIDTH) / 2;
+
+    Animated.parallel([
+      Animated.spring(bubbleX, {
+        toValue: targetX,
+        tension: 68,
+        friction: 9,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(stretchAnim, {
+          toValue: 1,
+          duration: 120,
+          useNativeDriver: true,
+        }),
+        Animated.spring(stretchAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [activeIndex, tabWidth, bubbleX, stretchAnim]);
+
+  const stretchScaleX = stretchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.18],
+  });
+  const stretchScaleY = stretchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.86],
+  });
+
   if (
     keyboardVisible ||
     !isTabScreen ||
@@ -155,9 +293,35 @@ export function PersistentBottomBar() {
           <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.elevated }]} />
         )}
 
-        <View style={styles.tabRow}>
-          {tabs.map((tab) => {
-            const isFocused = tab.key === activeKey;
+        <View
+          style={styles.tabRow}
+          onLayout={(e) => {
+            const w = e.nativeEvent.layout.width;
+            if (w > 0 && Math.abs(w - barWidth) > 1) {
+              setBarWidth(w);
+            }
+          }}
+        >
+          {/* Animated Sliding Indicator with squash & stretch physics */}
+          {tabWidth > 0 && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.activeIndicator,
+                {
+                  transform: [
+                    { translateX: bubbleX },
+                    { scaleX: stretchScaleX },
+                    { scaleY: stretchScaleY },
+                  ],
+                },
+              ]}
+            />
+          )}
+
+          {/* Interactive Tab Buttons */}
+          {tabs.map((tab, idx) => {
+            const isFocused = idx === activeIndex;
             const onPress = () => {
               if (tab.isMore) {
                 setMoreOpen(true);
@@ -165,28 +329,16 @@ export function PersistentBottomBar() {
               }
               router.push(tab.href);
             };
-            const iconColor = isFocused ? colors.textOnPrimary : colors.textMuted;
-            const labelColor = isFocused ? colors.primary : colors.textMuted;
+
             return (
-              <Pressable
+              <TabButton
                 key={tab.key}
-                accessibilityRole="button"
-                accessibilityLabel={tab.label}
-                accessibilityState={isFocused ? { selected: true } : {}}
+                tab={tab}
+                isFocused={isFocused}
                 onPress={onPress}
-                style={styles.tab}
-              >
-                <View style={[styles.iconChip, isFocused && styles.iconChipFocused]}>
-                  <Ionicons
-                    name={isFocused ? tab.iconFocused : tab.icon}
-                    size={20}
-                    color={iconColor}
-                  />
-                </View>
-                <Text style={[styles.label, { color: labelColor }]} numberOfLines={1}>
-                  {tab.label}
-                </Text>
-              </Pressable>
+                width={tabWidth}
+                badgeCount={tab.isMore && unreadCount > 0 ? unreadCount : undefined}
+              />
             );
           })}
         </View>
@@ -209,7 +361,7 @@ export function MoreSheet({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const logout = useAuth((s) => s.logout);
-  const { role, isCoordinator, isPhotographer } = useRole();
+  const { role, isPhotographer } = useRole();
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -229,7 +381,7 @@ export function MoreSheet({
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out of your Connekyt account?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -248,7 +400,7 @@ export function MoreSheet({
         },
       },
     ]);
-  };
+  }, [logout, onClose, router]);
 
   // Verified items matching salo-run web sidebar navigation
   const allItems: MoreGridItem[] = useMemo(() => {
@@ -365,7 +517,7 @@ export function MoreSheet({
     });
 
     return list;
-  }, [isCoordinator, isPhotographer, unreadCount, handleLogout]);
+  }, [isPhotographer, unreadCount, handleLogout]);
 
   // Filter shortcuts by search query
   const displayedItems = useMemo(() => {
@@ -474,37 +626,97 @@ export function MoreSheet({
 }
 
 const useStyles = makeStyles((c) => ({
-  tabBar: {
-    backgroundColor: c.elevated,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.border,
-    paddingTop: 6,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
+  floatingWrapper: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    alignItems: 'center',
+    zIndex: 99,
   },
-  tabRow: {
+  barContainer: {
+    width: '100%',
+    maxWidth: 440,
     height: BAR_CONTENT_HEIGHT,
+    position: 'relative',
+    shadowColor: c.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+  capsuleBackground: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: BAR_CONTENT_HEIGHT / 2,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  tabButtonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 4,
+    height: BAR_CONTENT_HEIGHT,
+    paddingHorizontal: BAR_PADDING_H,
   },
-  tab: {
+  tabButton: {
+    height: BAR_CONTENT_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  tabIconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  tabLabel: {
+    position: 'absolute',
+    bottom: 6,
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  bubbleIndicator: {
+    position: 'absolute',
+    top: -(BUBBLE_SIZE - BAR_CONTENT_HEIGHT) / 2,
+    width: BUBBLE_SIZE,
+    height: BUBBLE_SIZE,
+    borderRadius: BUBBLE_SIZE / 2,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    overflow: 'hidden',
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bubbleGradient: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    height: '100%',
+    position: 'relative',
   },
-  iconChip: {
-    width: 46,
-    height: 30,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+  bubbleGlassHighlight: {
+    position: 'absolute',
+    top: 2,
+    left: 8,
+    right: 8,
+    height: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
-  iconChipFocused: { backgroundColor: c.accent },
-  label: { fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.3 },
+  badgeDot: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: c.accent,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
 
   backdrop: { flex: 1, backgroundColor: c.scrim },
   sheet: {

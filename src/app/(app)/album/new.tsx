@@ -230,7 +230,7 @@ export default function NewAlbumScreen() {
   };
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <ScrollView
         contentContainerStyle={[
           styles.scroll,

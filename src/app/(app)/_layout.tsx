@@ -77,6 +77,7 @@ export default function AppLayout() {
           name="album/new"
           options={{
             title: 'New album',
+            headerShown: false,
             presentation: 'formSheet',
             sheetAllowedDetents: [0.7, 1],
             sheetGrabberVisible: true,

@@ -23,6 +23,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  RefreshControl,
   Share,
   StyleSheet,
   Text,
@@ -269,8 +270,18 @@ export default function AlbumDetailScreen() {
 
   if (loading && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <Stack.Screen options={{ headerShown: false }} />
+        <View style={[styles.loadingNav, { paddingTop: Math.max(insets.top + 6, 16) }]}>
+          <Pressable
+            style={styles.loadingBackBtn}
+            onPress={() => router.back()}
+            hitSlop={8}
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
+          </Pressable>
+        </View>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.muted}>Loading album…</Text>
@@ -281,8 +292,18 @@ export default function AlbumDetailScreen() {
 
   if (error && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <Stack.Screen options={{ headerShown: false }} />
+        <View style={[styles.loadingNav, { paddingTop: Math.max(insets.top + 6, 16) }]}>
+          <Pressable
+            style={styles.loadingBackBtn}
+            onPress={() => router.back()}
+            hitSlop={8}
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
+          </Pressable>
+        </View>
         <View style={styles.center}>
           <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
           <Text style={styles.errorTitle}>Couldn&apos;t load album</Text>
@@ -319,7 +340,7 @@ export default function AlbumDetailScreen() {
   const coverUrl = data?.coverPhoto || images[0]?.url;
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <Stack.Screen options={{ headerShown: false }} />
       <FlatList
         key={gridCols}
@@ -328,6 +349,16 @@ export default function AlbumDetailScreen() {
         numColumns={gridCols}
         columnWrapperStyle={{ gap }}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         ListHeaderComponent={
           <View style={styles.header}>
             {/* Cinematic Hero Cover Banner */}
@@ -929,6 +960,22 @@ export default function AlbumDetailScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
+  loadingNav: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: c.elevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: c.border,
+  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   errorTitle: { fontFamily: fonts.bold, fontSize: 18, color: c.text },
