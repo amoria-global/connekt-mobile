@@ -222,7 +222,7 @@ export function PerformanceWaveCard({
 
   const trendData = trends[activeMetric];
   const trendDir = trendData?.direction ?? 'up';
-  const trendPct = trendData?.percentage ?? '+14.2%';
+  const trendPct = trendData?.percentage;
 
   // Generate the 6 data points with heights matching the organic wave shape from the reference pin
   // In reference pin:
@@ -319,29 +319,31 @@ export function PerformanceWaveCard({
           </View>
           <View style={styles.headlineRow}>
             <Text style={styles.headlineValue}>{formattedHeadline}</Text>
-            <View
-              style={[
-                styles.trendChip,
-                {
-                  backgroundColor:
-                    trendDir === 'up' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                },
-              ]}
-            >
-              <Ionicons
-                name={trendDir === 'up' ? 'trending-up' : 'trending-down'}
-                size={12}
-                color={trendDir === 'up' ? '#10B981' : '#EF4444'}
-              />
-              <Text
+            {trendPct ? (
+              <View
                 style={[
-                  styles.trendChipText,
-                  { color: trendDir === 'up' ? '#10B981' : '#EF4444' },
+                  styles.trendChip,
+                  {
+                    backgroundColor:
+                      trendDir === 'up' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  },
                 ]}
               >
-                {trendPct}
-              </Text>
-            </View>
+                <Ionicons
+                  name={trendDir === 'up' ? 'trending-up' : 'trending-down'}
+                  size={12}
+                  color={trendDir === 'up' ? '#10B981' : '#EF4444'}
+                />
+                <Text
+                  style={[
+                    styles.trendChipText,
+                    { color: trendDir === 'up' ? '#10B981' : '#EF4444' },
+                  ]}
+                >
+                  {trendPct}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
