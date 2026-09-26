@@ -238,7 +238,7 @@ export async function getCoordinatorAnalytics(): Promise<CoordinatorAnalytics> {
 
 // ────── Trends (% change per stat for the selected period) ────────────────
 
-export type Trend = { percentage: string; direction: 'up' | 'down' };
+export type Trend = { percentage: string; direction: 'up' | 'down'; value?: number };
 export type TrendsMap = Record<string, Trend>;
 
 export type AnalyticsPeriod = 'today' | 'week' | 'month' | 'custom';
@@ -260,11 +260,32 @@ function mapTrends(raw: Raw | undefined | null): TrendsMap {
     if (!value || typeof value !== 'object') continue;
     const v = value as Raw;
     const pct = num(v.changePercent);
-    out[key] = {
+    const val = num(v.value);
+    const item: Trend = {
       percentage: pct != null ? `${Math.abs(pct).toFixed(1)}%` : '0%',
       direction: v.trend === 'down' ? 'down' : 'up',
+      ...(val != null ? { value: val } : {}),
     };
+    out[key] = item;
   }
+
+  // Cross-alias keys so both short ('events') and full ('totalEvents') are accessible
+  if (out.pending && !out.totalPending) out.totalPending = out.pending;
+  if (out.totalPending && !out.pending) out.pending = out.totalPending;
+
+  if (out.events && !out.totalEvents) out.totalEvents = out.events;
+  if (out.totalEvents && !out.events) out.events = out.totalEvents;
+
+  if (out.photographers && !out.totalPhotographers) out.totalPhotographers = out.photographers;
+  if (out.totalPhotographers && !out.photographers) out.photographers = out.totalPhotographers;
+
+  if (out.totalRevenue && !out.revenue) out.revenue = out.totalRevenue;
+  if (out.revenue && !out.totalRevenue) out.totalRevenue = out.revenue;
+
+  if (out.clients && !out.totalCustomers) out.totalCustomers = out.clients;
+  if (out.customers && !out.totalCustomers) out.totalCustomers = out.customers;
+  if (out.totalCustomers && !out.clients) out.clients = out.totalCustomers;
+
   return out;
 }
 

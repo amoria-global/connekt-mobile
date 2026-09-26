@@ -39,6 +39,7 @@ import {
   getCoordinatorAnalytics,
   getCoordinatorPendingPayments,
   getCoordinatorTrends,
+  getCoordinatorPerformance,
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
   type PendingPayment,
@@ -119,6 +120,7 @@ export function CoordinatorHome() {
   const pending = useAsync(useCallback(() => getCoordinatorPendingPayments(), []));
   const wallet = useAsync(useCallback(() => getWallet(), []));
   const trendsState = useAsync(useCallback(() => getCoordinatorTrends(period), [period]));
+  const perfState = useAsync(useCallback(() => getCoordinatorPerformance(period), [period]));
 
   const trends: TrendsMap = useMemo(() => trendsState.data ?? {}, [trendsState.data]);
 
@@ -127,7 +129,8 @@ export function CoordinatorHome() {
     events.loading ||
     pending.loading ||
     wallet.loading ||
-    trendsState.loading;
+    trendsState.loading ||
+    perfState.loading;
 
   const onRefresh = () => {
     analytics.refresh();
@@ -135,6 +138,7 @@ export function CoordinatorHome() {
     pending.refresh();
     wallet.refresh();
     trendsState.refresh();
+    perfState.refresh();
   };
 
   const a: CoordinatorAnalytics | null = analytics.data;
@@ -490,6 +494,7 @@ export function CoordinatorHome() {
           currency={currency}
           selectedMetric={selectedWaveMetric}
           onSelectMetric={setSelectedWaveMetric}
+          performanceData={perfState.data}
         />
 
 

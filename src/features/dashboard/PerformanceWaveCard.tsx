@@ -40,6 +40,7 @@ import { formatMoney } from '@/utils/format';
 import type {
   AnalyticsPeriod,
   CoordinatorAnalytics,
+  PerformancePoint,
   TrendsMap,
 } from '@/features/analytics/api';
 
@@ -58,6 +59,7 @@ export interface PerformanceWaveCardProps {
   currency?: string;
   selectedMetric?: MetricKey;
   onSelectMetric?: (key: MetricKey) => void;
+  performanceData?: PerformancePoint[] | null;
 }
 
 interface DataPoint {
@@ -165,6 +167,7 @@ export function PerformanceWaveCard({
   currency = 'USD',
   selectedMetric: externalSelectedMetric,
   onSelectMetric,
+  performanceData,
 }: PerformanceWaveCardProps) {
   const { colors } = useTheme();
   const [internalMetric, setInternalMetric] = useState<MetricKey>('totalRevenue');
@@ -188,19 +191,44 @@ export function PerformanceWaveCard({
   // X Coordinates for the 6 points (evenly distributed from x=24 to x=316)
   const X_COORDS = useMemo(() => [24, 82, 140, 198, 256, 316], []);
 
-  // Compute 6 temporal date labels based on period (format like 11/10, 12/10, 13/10, 14/10 in reference)
+  // Compute 6 temporal date labels based on period or real performance data
   const dateLabels = useMemo(() => {
+    if (performanceData && performanceData.length > 0) {
+      if (performanceData.length === 6) {
+        return performanceData.map((p) => p.day);
+      }
+      if (performanceData.length === 7) {
+        return [
+          performanceData[0]?.day ?? '',
+          performanceData[1]?.day ?? '',
+          performanceData[2]?.day ?? '',
+          performanceData[3]?.day ?? '',
+          performanceData[4]?.day ?? '',
+          performanceData[6]?.day ?? '',
+        ];
+      }
+      if (performanceData.length === 4) {
+        return [
+          performanceData[0]?.day ?? 'W1',
+          performanceData[1]?.day ?? 'W2',
+          performanceData[2]?.day ?? 'W3',
+          performanceData[3]?.day ?? 'W4',
+          'Current',
+          'End',
+        ];
+      }
+    }
+
     const now = new Date();
     if (period === 'today') {
-      return ['08:00', '11:00', '14:00', '17:00', '20:00', '23:00'];
+      return ['12AM', '4AM', '8AM', '12PM', '4PM', '8PM'];
     }
     if (period === 'month') {
-      // 6 interval points across the month
       const m = now.getMonth() + 1;
       const mStr = m < 10 ? `0${m}` : `${m}`;
       return [`01/${mStr}`, `06/${mStr}`, `12/${mStr}`, `18/${mStr}`, `24/${mStr}`, `30/${mStr}`];
     }
-    // Default: 6 days leading to current day (similar to 11/10 .. 16/10 in reference)
+    // Default: 6 days leading to current day
     const labels: string[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now);
@@ -212,23 +240,56 @@ export function PerformanceWaveCard({
       labels.push(`${dayStr}/${monthStr}`);
     }
     return labels;
-  }, [period]);
+  }, [period, performanceData]);
 
-  // Extract raw metric value and trend
-  const totalValue = useMemo(() => {
-    if (!analytics) return 0;
-    return analytics[activeMetric] ?? 0;
-  }, [analytics, activeMetric]);
+  // Extract trend data for active metric (with fallback key aliases)
+  const trendData = useMemo(() => {
+    if (!trends) return undefined;
+    if (trends[activeMetric]) return trends[activeMetric];
+    if (activeMetric === 'totalEvents') return trends.events;
+    if (activeMetric === 'totalPending') return trends.pending;
+    if (activeMetric === 'totalPhotographers') return trends.photographers;
+    if (activeMetric === 'totalCustomers') return trends.clients || trends.customers;
+    if (activeMetric === 'totalRevenue') return trends.revenue;
+    return undefined;
+  }, [trends, activeMetric]);
 
-  const trendData = trends[activeMetric];
   const trendDir = trendData?.direction ?? 'up';
   const trendPct = trendData?.percentage;
 
-  // Generate the 6 data points with heights matching the organic wave shape from the reference pin
-  // In reference pin:
-  // p0 is at baseline (0), p1 rises slightly, p2 peaks up, p3 dips to the active beacon (60),
-  // p4 dips further, p5 rises to small crest and dips to baseline (0).
+  // Extract raw metric value: use the period-specific trend value if returned from API,
+  // falling back to analytics snapshot if not set.
+  const totalValue = useMemo(() => {
+    if (trendData?.value != null) {
+      return trendData.value;
+    }
+    if (!analytics) return 0;
+    return analytics[activeMetric] ?? 0;
+  }, [trendData?.value, analytics, activeMetric]);
+
+  // Generate the 6 data points with heights matching the organic wave shape or real performance data
   const points: DataPoint[] = useMemo(() => {
+    const hasPerfData =
+      performanceData &&
+      performanceData.length > 0 &&
+      (activeMetric === 'totalRevenue' || activeMetric === 'totalEvents');
+
+    let perfValues: number[] | null = null;
+    if (hasPerfData && performanceData) {
+      const rawVals = performanceData.map((p) =>
+        activeMetric === 'totalRevenue' ? p.value1 : p.value2,
+      );
+      if (rawVals.some((v) => v > 0)) {
+        if (rawVals.length === 6) {
+          perfValues = rawVals;
+        } else if (rawVals.length === 7) {
+          perfValues = [rawVals[0], rawVals[1], rawVals[2], rawVals[3], rawVals[4], rawVals[6]];
+        } else if (rawVals.length === 4) {
+          perfValues = [0, rawVals[0], rawVals[1], rawVals[2], rawVals[3], rawVals[3]];
+        }
+      }
+    }
+
     // Relative altitude ratios [0..1] reflecting the reference curve trajectory
     const relativeRatios =
       totalValue === 0
@@ -237,12 +298,19 @@ export function PerformanceWaveCard({
           ? [0, 0.38, 0.82, 0.62, 0.45, 0.2]
           : [0.65, 0.8, 0.5, 0.4, 0.25, 0.1];
 
+    const maxPerf = perfValues ? Math.max(...perfValues, 1) : 0;
+
     // Compute display values
     return X_COORDS.map((x, idx) => {
-      const ratio = relativeRatios[idx];
-      const pointVal = Math.round(totalValue * (ratio || 0.1));
-      // Map ratio (0 to 1) to y coordinate (CHART_BOTTOM down to CHART_TOP)
-      const y = CHART_BOTTOM - ratio * CHART_HEIGHT;
+      let ratio = relativeRatios[idx];
+      let pointVal = Math.round(totalValue * (ratio || 0.1));
+
+      if (perfValues && perfValues[idx] !== undefined) {
+        pointVal = perfValues[idx];
+        ratio = Math.min(1, Math.max(0.05, pointVal / maxPerf));
+      }
+
+      const y = totalValue === 0 ? CHART_BOTTOM : CHART_BOTTOM - ratio * CHART_HEIGHT;
 
       let displayValue = '';
       if (idx === 0 || idx === 5) {
@@ -270,6 +338,8 @@ export function PerformanceWaveCard({
     meta.isMoney,
     currency,
     dateLabels,
+    performanceData,
+    activeMetric,
   ]);
 
   // Trend line curve path (white line in reference)
@@ -313,9 +383,7 @@ export function PerformanceWaveCard({
         <View style={styles.headerLeft}>
           <View style={styles.eyebrowRow}>
             <View style={[styles.glowingDot, { backgroundColor: meta.color }]} />
-            <Text style={styles.eyebrowText}>
-              {meta.title} — ({meta.unit.toUpperCase()})
-            </Text>
+            <Text style={styles.eyebrowText}>{meta.title}</Text>
           </View>
           <View style={styles.headlineRow}>
             <Text style={styles.headlineValue}>{formattedHeadline}</Text>
