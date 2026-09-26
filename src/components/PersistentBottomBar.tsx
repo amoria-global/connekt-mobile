@@ -124,8 +124,11 @@ export function PersistentBottomBar() {
     return 'home';
   }, [segments, tabs]);
 
+  const isTabScreen = segments.includes('(tabs)');
+
   if (
     keyboardVisible ||
+    !isTabScreen ||
     segments.includes('kyc') ||
     segments.includes('connect-to-tv') ||
     segments.includes('pay-on-tv') ||
