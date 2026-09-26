@@ -191,3 +191,31 @@ describe('mobile album collaboration against the backend contract', () => {
     expect(existsSync(path.join(ROOT, 'src/app/(app)/team'))).toBe(false);
   });
 });
+
+/**
+ * Dedicated role endpoints: Photographer Payments, Coordinator Clients,
+ * and single-item detail routes.
+ */
+describe('dedicated role endpoints against the backend contract', () => {
+  it('every role-specific payment endpoint exists on the backend', () => {
+    const paymentCalls = [
+      { method: 'GET', path: '/api/remote/customer/payments', source: 'payments' },
+      { method: 'GET', path: '/api/remote/customer/payments/X', source: 'payments' },
+      { method: 'GET', path: '/api/remote/coordinator/payments', source: 'payments' },
+      { method: 'GET', path: '/api/remote/coordinator/payments/X', source: 'payments' },
+      { method: 'GET', path: '/api/remote/photographer/payments', source: 'payments' },
+      { method: 'GET', path: '/api/remote/photographer/payments/X', source: 'payments' },
+    ];
+    expect(paymentCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
+
+  it('every client CRM endpoint exists for both Photographers and Coordinators', () => {
+    const clientCalls = [
+      { method: 'GET', path: '/api/remote/photographer/clients', source: 'clients' },
+      { method: 'GET', path: '/api/remote/photographer/clients/X', source: 'clients' },
+      { method: 'GET', path: '/api/remote/coordinator/clients', source: 'clients' },
+      { method: 'GET', path: '/api/remote/coordinator/clients/X', source: 'clients' },
+    ];
+    expect(clientCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
+});

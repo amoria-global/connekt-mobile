@@ -1,4 +1,3 @@
-import { PersistentBottomBar } from '@/components/PersistentBottomBar';
 import {
     addNotificationResponseListener,
     registerForPushNotifications,
@@ -127,13 +126,6 @@ export default function AppLayout() {
         <Stack.Screen name="collaborate/joined/[id]" options={{ title: 'Album' }} />
         <Stack.Screen name="collaborate/join/[token]" options={{ title: 'Join album' }} />
       </Stack>
-      {/*
-       * Persistent bottom bar across every (app) route. The bar lives
-       * *below* the Stack so it overlays each screen content. Detail
-       * screens already pad their ScrollView contentContainerStyle with
-       * paddingBottom 100+, so the bar doesn't cover anything important.
-       */}
-      <PersistentBottomBar />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );
