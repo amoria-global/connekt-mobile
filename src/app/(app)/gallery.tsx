@@ -79,7 +79,7 @@ export default function GalleryScreen() {
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isPhotographer } = useRole();
+  const { role, isPhotographer } = useRole();
 
   const [filter, setFilter] = useState<AlbumFilter>('all');
   const [search, setSearch] = useState('');
@@ -88,7 +88,7 @@ export default function GalleryScreen() {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
 
   const { data, loading, error, refresh } = useAsync(
-    useCallback(() => listAlbums(isPhotographer), [isPhotographer]),
+    useCallback(() => listAlbums(role ?? isPhotographer), [role, isPhotographer]),
   );
 
   const albums = data ?? [];

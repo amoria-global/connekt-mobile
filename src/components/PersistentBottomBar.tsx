@@ -16,6 +16,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments, type Href } from 'expo-router';
 import {
@@ -39,10 +40,9 @@ import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
-const BAR_CONTENT_HEIGHT = 60;
-const INDICATOR_WIDTH = 48;
-const INDICATOR_HEIGHT = 30;
-const INDICATOR_TOP = Math.round((BAR_CONTENT_HEIGHT - 46) / 2);
+const BAR_CONTENT_HEIGHT = 58;
+const BUBBLE_SIZE = 68;
+const BAR_PADDING_H = 6;
 
 type Tab = {
   key: string;
@@ -96,7 +96,6 @@ type TabButtonProps = {
 
 function TabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
   const styles = useStyles();
-  const { colors } = useTheme();
   const [focusAnim] = useState(() => new Animated.Value(isFocused ? 1 : 0));
 
   useEffect(() => {
@@ -108,53 +107,73 @@ function TabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProp
     }).start();
   }, [isFocused, focusAnim]);
 
+  const iconTranslateY = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -3],
+  });
+
   const iconScale = focusAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.12],
+    outputRange: [1, 1.1],
+  });
+
+  const iconOpacity = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.68, 1],
+  });
+
+  const labelOpacity = focusAnim;
+
+  const labelTranslateY = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [6, 0],
   });
 
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.tab, { width }]}
+      style={[styles.tabButton, { width }]}
       accessibilityRole="button"
       accessibilityState={isFocused ? { selected: true } : {}}
       accessibilityLabel={tab.label}
     >
-      <View style={styles.iconWrap}>
-        <Animated.View
-          style={{
-            transform: [{ scale: iconScale }],
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons
-            name={isFocused ? tab.iconFocused : tab.icon}
-            size={20}
-            color={isFocused ? colors.textOnPrimary : colors.textMuted}
-          />
-        </Animated.View>
-        {badgeCount != null && badgeCount > 0 ? (
-          <View style={styles.badgeDot} />
-        ) : null}
-      </View>
-
-      <Text
+      <Animated.View
         style={[
-          styles.label,
-          { color: isFocused ? colors.primary : colors.textMuted },
+          styles.tabIconWrap,
+          {
+            opacity: iconOpacity,
+            transform: [{ translateY: iconTranslateY }, { scale: iconScale }],
+          },
+        ]}
+      >
+        <Ionicons
+          name={isFocused ? tab.iconFocused : tab.icon}
+          size={22}
+          color="#FFFFFF"
+        />
+        {badgeCount != null && badgeCount > 0 ? (
+          <View style={[styles.badgeDot, isFocused && styles.badgeDotFocused]} />
+        ) : null}
+      </Animated.View>
+
+      <Animated.Text
+        style={[
+          styles.tabLabel,
+          {
+            opacity: labelOpacity,
+            transform: [{ translateY: labelTranslateY }],
+          },
         ]}
         numberOfLines={1}
       >
         {tab.label}
-      </Text>
+      </Animated.Text>
     </Pressable>
   );
 }
 
 export function PersistentBottomBar() {
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -162,7 +181,7 @@ export function PersistentBottomBar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
-  const { role, isPhotographer } = useRole();
+  const { role } = useRole();
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
   const unreadCount = useMemo(
     () => notifications?.filter((n) => !n.read).length ?? 0,
@@ -214,15 +233,20 @@ export function PersistentBottomBar() {
     return idx !== -1 ? idx : 0;
   }, [activeKey, moreOpen, tabs]);
 
-  const initialWidth = useMemo(() => Dimensions.get('window').width, []);
+  const initialWidth = useMemo(() => {
+    const sw = Dimensions.get('window').width;
+    return Math.min(sw - 32, 440);
+  }, []);
+
   const [barWidth, setBarWidth] = useState(initialWidth);
-  const tabWidth = barWidth / tabs.length;
+  const tabWidth = Math.max((barWidth - BAR_PADDING_H * 2) / tabs.length, 0);
 
   const [bubbleX] = useState(
     () =>
       new Animated.Value(
-        activeIndex * (initialWidth / tabs.length) +
-          (initialWidth / tabs.length - INDICATOR_WIDTH) / 2,
+        BAR_PADDING_H +
+          activeIndex * ((initialWidth - BAR_PADDING_H * 2) / tabs.length) +
+          (((initialWidth - BAR_PADDING_H * 2) / tabs.length) - BUBBLE_SIZE) / 2,
       ),
   );
 
@@ -230,7 +254,7 @@ export function PersistentBottomBar() {
 
   useEffect(() => {
     if (tabWidth <= 0) return;
-    const targetX = activeIndex * tabWidth + (tabWidth - INDICATOR_WIDTH) / 2;
+    const targetX = BAR_PADDING_H + activeIndex * tabWidth + (tabWidth - BUBBLE_SIZE) / 2;
 
     Animated.parallel([
       Animated.spring(bubbleX, {
@@ -257,12 +281,20 @@ export function PersistentBottomBar() {
 
   const stretchScaleX = stretchAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.18],
+    outputRange: [1, 1.15],
   });
   const stretchScaleY = stretchAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 0.86],
+    outputRange: [1, 0.88],
   });
+
+  const pillGradient: [string, string] = isDark
+    ? ['#162B55', '#0A152E']
+    : ['#083A85', '#062D6B'];
+
+  const bubbleGradient: [string, string] = isDark
+    ? ['#FF3B9E', '#D90B7E']
+    : ['#FF2A9D', '#F20C8F'];
 
   if (
     keyboardVisible ||
@@ -277,24 +309,12 @@ export function PersistentBottomBar() {
 
   return (
     <>
-      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 6) }]}>
-        {Platform.OS === 'ios' ? (
-          <>
-            <BlurView
-              tint={isDark ? 'dark' : 'light'}
-              intensity={48}
-              style={StyleSheet.absoluteFill}
-            />
-            <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: colors.elevated, opacity: 0.88 }]}
-            />
-          </>
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.elevated }]} />
-        )}
-
+      <View
+        pointerEvents="box-none"
+        style={[styles.floatingWrapper, { bottom: Math.max(insets.bottom, 12) }]}
+      >
         <View
-          style={styles.tabRow}
+          style={styles.barContainer}
           onLayout={(e) => {
             const w = e.nativeEvent.layout.width;
             if (w > 0 && Math.abs(w - barWidth) > 1) {
@@ -302,12 +322,29 @@ export function PersistentBottomBar() {
             }
           }}
         >
-          {/* Animated Sliding Indicator with squash & stretch physics */}
+          {/* Capsule Background */}
+          <View style={styles.capsuleBackground}>
+            {Platform.OS === 'ios' && (
+              <BlurView
+                tint={isDark ? 'dark' : 'light'}
+                intensity={35}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+            <LinearGradient
+              colors={pillGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+
+          {/* Animated Bubble Indicator */}
           {tabWidth > 0 && (
             <Animated.View
               pointerEvents="none"
               style={[
-                styles.activeIndicator,
+                styles.bubbleIndicator,
                 {
                   transform: [
                     { translateX: bubbleX },
@@ -316,31 +353,42 @@ export function PersistentBottomBar() {
                   ],
                 },
               ]}
-            />
+            >
+              <LinearGradient
+                colors={bubbleGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bubbleGradient}
+              >
+                <View style={styles.bubbleGlassHighlight} />
+              </LinearGradient>
+            </Animated.View>
           )}
 
           {/* Interactive Tab Buttons */}
-          {tabs.map((tab, idx) => {
-            const isFocused = idx === activeIndex;
-            const onPress = () => {
-              if (tab.isMore) {
-                setMoreOpen(true);
-                return;
-              }
-              router.push(tab.href);
-            };
+          <View style={styles.tabButtonsRow}>
+            {tabs.map((tab, idx) => {
+              const isFocused = idx === activeIndex;
+              const onPress = () => {
+                if (tab.isMore) {
+                  setMoreOpen(true);
+                  return;
+                }
+                router.push(tab.href);
+              };
 
-            return (
-              <TabButton
-                key={tab.key}
-                tab={tab}
-                isFocused={isFocused}
-                onPress={onPress}
-                width={tabWidth}
-                badgeCount={tab.isMore && unreadCount > 0 ? unreadCount : undefined}
-              />
-            );
-          })}
+              return (
+                <TabButton
+                  key={tab.key}
+                  tab={tab}
+                  isFocused={isFocused}
+                  onPress={onPress}
+                  width={tabWidth}
+                  badgeCount={tab.isMore && unreadCount > 0 ? unreadCount : undefined}
+                />
+              );
+            })}
+          </View>
         </View>
       </View>
 
@@ -686,10 +734,10 @@ const useStyles = makeStyles((c) => ({
     borderColor: 'rgba(255, 255, 255, 0.45)',
     overflow: 'hidden',
     zIndex: 1,
-    shadowColor: '#000',
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
     elevation: 8,
   },
   bubbleGradient: {
@@ -716,6 +764,10 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.accent,
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
+  },
+  badgeDotFocused: {
+    backgroundColor: '#FFFFFF',
+    borderColor: c.accent,
   },
 
   backdrop: { flex: 1, backgroundColor: c.scrim },
