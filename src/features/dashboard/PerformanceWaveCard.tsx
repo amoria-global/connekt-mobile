@@ -110,8 +110,8 @@ export const METRICS_META: Record<
     isMoney: false,
   },
   totalPhotographers: {
-    title: 'PHOTOGRAPHERS (TALENT)',
-    shortTitle: 'Talent',
+    title: 'PHOTOGRAPHERS',
+    shortTitle: 'Photographers',
     unit: 'Creators',
     icon: 'camera-outline',
     color: '#A855F7',

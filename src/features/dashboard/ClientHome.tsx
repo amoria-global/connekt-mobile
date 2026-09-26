@@ -964,7 +964,7 @@ export function ClientHome() {
               <View style={styles.editorialCtaRow}>
                 <View style={styles.editorialCtaBtn}>
                   <Ionicons name="camera" size={13} color="#083A85" />
-                  <Text style={styles.editorialCtaBtnText}>Browse Talent</Text>
+                  <Text style={styles.editorialCtaBtnText}>Browse Photographers</Text>
                 </View>
                 <View style={styles.editorialExploreChip}>
                   <Text style={styles.editorialExploreChipText}>Top Rated 2026</Text>
@@ -1197,7 +1197,7 @@ export function ClientHome() {
                   <Ionicons name="search-outline" size={28} color={colors.textMuted} />
                   <Text style={styles.suggestionEmptyTitle}>No matching results</Text>
                   <Text style={styles.suggestionEmptySub}>
-                    We couldn't find any talent or events matching "{searchQuery}". Try browsing by
+                    We couldn't find any photographers or events matching "{searchQuery}". Try browsing by
                     popular categories below.
                   </Text>
                 </View>
@@ -1643,20 +1643,20 @@ export function ClientHome() {
         {photographers.loading ? (
           <View style={styles.photographersEmptyCard}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.photographersEmptySub}>Loading featured talent...</Text>
+            <Text style={styles.photographersEmptySub}>Loading featured photographers...</Text>
           </View>
         ) : featuredList.length === 0 ? (
           <View style={styles.photographersEmptyCard}>
             <Ionicons name="camera-outline" size={28} color={colors.textMuted} />
             <Text style={styles.photographersEmptyTitle}>No Photographers Available</Text>
             <Text style={styles.photographersEmptySub}>
-              Discover vetted talent and book your next photography session
+              Discover vetted photographers and book your next photography session
             </Text>
             <Pressable
               style={styles.photographersEmptyAction}
               onPress={() => router.push('/photographers' as never)}
             >
-              <Text style={styles.photographersEmptyActionText}>Browse Talent</Text>
+              <Text style={styles.photographersEmptyActionText}>Browse Photographers</Text>
               <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
             </Pressable>
           </View>

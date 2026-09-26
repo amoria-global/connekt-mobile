@@ -240,10 +240,12 @@ export function CoordinatorHome() {
             style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
             onPress={() => router.push('/photographers' as never)}
             accessibilityRole="button"
-            accessibilityLabel="Talent & Photographers"
+            accessibilityLabel="Photographers"
           >
             <Ionicons name="camera-outline" size={15} color={colors.primary} />
-            <Text style={styles.quickActionSecondaryBtnText}>Talent</Text>
+            <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1}>
+              Photographers
+            </Text>
           </Pressable>
 
           {/* Live Action: Live Streams */}
@@ -733,12 +735,13 @@ const useStyles = makeStyles((c, e) => ({
     letterSpacing: 0.2,
   },
   quickActionSecondaryBtn: {
-    flex: 0.95,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 4,
     height: 42,
+    paddingHorizontal: 4,
     borderRadius: radii.lg,
     backgroundColor: c.surface,
     borderWidth: 1,
@@ -747,7 +750,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   quickActionSecondaryBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: fontWeight.bold,
     color: c.text,
   },
