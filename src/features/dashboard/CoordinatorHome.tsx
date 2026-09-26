@@ -9,11 +9,10 @@
  *   3. Editorial date header & dynamic time-of-day greeting.
  *   4. Salo-run Coordinator Hero: 3px brand accent line, embedded 3-metric mini-stats snapshot (Revenue, Events, Photographers).
  *   5. Tactile quick search bar & production category chips.
- *   6. 2x2 Bento Action Hub (New Event, Gallery, Photographers, Live Streams).
- *   7. Period filter tabs (Today / This week / This month) with live trends.
- *   8. Salo-run 5 KPI Cards Grid (Revenue, Pending, Events, Clients, Photographers).
- *   9. Pending payments alert banner with PayNowSheet integration.
- *  10. Upcoming productions & events list with status pills and quick manage navigation.
+ *   6. Bento Action Hub (Create Event, Gallery, Photographers, Live Streams).
+ *   7. Performance & Metrics Hero: Organic wave energy card with period tabs and live metric trends.
+ *   8. Pending payments alert banner with PayNowSheet integration.
+ *   9. Upcoming productions & events list with status pills and quick manage navigation.
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
@@ -49,7 +48,6 @@ import { listCoordinatorEvents } from '@/features/events/api';
 import type { EventItem } from '@/features/events/types';
 import { getWallet } from '@/features/wallet/api';
 import { formatDate, formatMoney } from '@/utils/format';
-import { useResponsive } from '@/hooks/useResponsive';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
 
@@ -101,7 +99,6 @@ export function CoordinatorHome() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
-  const responsive = useResponsive();
   const topBarHeight = useTopBarHeight();
   const user = useAuth((s) => s.user);
   const name = user?.firstName || user?.organizationName || 'Coordinator';
@@ -173,66 +170,7 @@ export function CoordinatorHome() {
   const greeting = getTimeGreeting();
   const tagline = getTimeTagline();
   const todayFormatted = getTodayFormatted();
-  const periodLabel = period === 'today' ? 'yesterday' : period === 'month' ? 'last month' : 'last week';
 
-  // Infographic 5 Coordinator KPI Cards (with Pinterest wave alignment & progress gauges)
-  const kpiCards = [
-    {
-      key: 'totalRevenue' as MetricKey,
-      title: 'Total Revenue',
-      value: formatMoney(a?.totalRevenue || 0, currency),
-      percentage: trends.totalRevenue?.percentage,
-      trend: trends.totalRevenue?.direction ?? 'up',
-      icon: 'cash-outline' as const,
-      accent: '#00E5FF',
-      progress: Math.min(1, Math.max(0.15, (a?.totalRevenue || 0) / 10000)),
-      href: '/wallet',
-    },
-    {
-      key: 'totalPending' as MetricKey,
-      title: 'Pending Invoices',
-      value: formatMoney(a?.totalPending || 0, currency),
-      percentage: trends.totalPending?.percentage,
-      trend: trends.totalPending?.direction ?? 'up',
-      icon: 'time-outline' as const,
-      accent: '#F59E0B',
-      progress: Math.min(1, Math.max(0.1, (a?.totalPending || 0) / 5000)),
-      href: '/wallet',
-    },
-    {
-      key: 'totalEvents' as MetricKey,
-      title: 'Events Managed',
-      value: String(a?.totalEvents || 0),
-      percentage: trends.totalEvents?.percentage,
-      trend: trends.totalEvents?.direction ?? 'up',
-      icon: 'calendar-outline' as const,
-      accent: '#38BDF8',
-      progress: Math.min(1, Math.max(0.15, (a?.totalEvents || 0) / 20)),
-      href: '/events',
-    },
-    {
-      key: 'totalCustomers' as MetricKey,
-      title: 'Total Clients',
-      value: String(a?.totalCustomers || 0),
-      percentage: trends.totalCustomers?.percentage,
-      trend: trends.totalCustomers?.direction ?? 'up',
-      icon: 'people-outline' as const,
-      accent: '#10B981',
-      progress: Math.min(1, Math.max(0.15, (a?.totalCustomers || 0) / 30)),
-      href: '/clients',
-    },
-    {
-      key: 'totalPhotographers' as MetricKey,
-      title: 'Photographers',
-      value: String(a?.totalPhotographers || 0),
-      percentage: trends.totalPhotographers?.percentage,
-      trend: trends.totalPhotographers?.direction ?? 'up',
-      icon: 'camera-outline' as const,
-      accent: '#A855F7',
-      progress: Math.min(1, Math.max(0.15, (a?.totalPhotographers || 0) / 15)),
-      href: '/photographers',
-    },
-  ];
 
   return (
     <Screen padded={false} edges={[]}>
@@ -554,66 +492,6 @@ export function CoordinatorHome() {
           onSelectMetric={setSelectedWaveMetric}
         />
 
-        {/* ── Infographic Breakdown KPI Cards ────────────────────────────── */}
-        <View style={styles.kpiGrid}>
-          {kpiCards.map((k) => {
-            const dir = k.trend;
-            const trendColor = dir === 'up' ? '#10B981' : '#EF4444';
-            return (
-              <Pressable
-                key={k.key}
-                style={({ pressed }) => [
-                  styles.kpiCard,
-                  responsive.isLarge && styles.kpiCardLarge,
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={() => setSelectedWaveMetric(k.key)}
-                accessibilityRole="button"
-                accessibilityLabel={`${k.title}: ${k.value}`}
-              >
-                <View style={styles.kpiTopRow}>
-                  <View style={[styles.kpiIconWrap, { backgroundColor: `${k.accent}15` }]}>
-                    <Ionicons name={k.icon} size={16} color={k.accent} />
-                  </View>
-                  {k.percentage ? (
-                    <View style={styles.kpiTrendBadge}>
-                      <Ionicons
-                        name={dir === 'up' ? 'trending-up' : 'trending-down'}
-                        size={11}
-                        color={trendColor}
-                      />
-                      <Text style={[styles.kpiTrendText, { color: trendColor }]}>
-                        {k.percentage}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                <Text style={styles.kpiValue} numberOfLines={1}>
-                  {k.value}
-                </Text>
-
-                <View style={styles.kpiFooter}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.kpiTitle} numberOfLines={1}>
-                      {k.title}
-                    </Text>
-                    <Text style={styles.kpiSub}>vs {periodLabel}</Text>
-                  </View>
-                  <Pressable
-                    style={styles.kpiNavBtn}
-                    onPress={() => router.push(k.href as Href)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open ${k.title}`}
-                  >
-                    <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
-                  </Pressable>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
 
         {/* ── Upcoming Productions & Events ───────────────────────────────── */}
         <View style={styles.eventsSectionHeader}>
@@ -1151,78 +1029,6 @@ const useStyles = makeStyles((c, e) => ({
   },
   periodTabTextActive: {
     color: '#FFFFFF',
-  },
-
-  kpiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  kpiCard: {
-    width: '47.5%',
-    backgroundColor: c.surface,
-    borderRadius: radii.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    gap: 4,
-    ...e(1),
-  },
-  kpiCardLarge: {
-    width: '31%',
-  },
-  kpiTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  kpiIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  kpiTrendBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  kpiTrendText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-  },
-  kpiValue: {
-    fontFamily: fonts.bold,
-    fontSize: 18,
-    fontWeight: fontWeight.extrabold,
-    color: c.text,
-    letterSpacing: -0.3,
-  },
-  kpiFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 4,
-    marginTop: 1,
-  },
-  kpiTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 11.5,
-    fontWeight: fontWeight.bold,
-    color: c.textSoft,
-  },
-  kpiSub: {
-    fontFamily: fonts.regular,
-    fontSize: 9.5,
-    color: c.textMuted,
-  },
-  kpiNavBtn: {
-    padding: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   // ── Upcoming Events Section ────────────────────────────────────────────
