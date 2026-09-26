@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
@@ -36,7 +36,8 @@ export default function PaymentDetailScreen() {
     if (!id || opening) return;
     setOpening(true);
     try {
-      const url = await mintHandoffUrl('BOOKING_DECLARATION', { declarationId: id });
+      const declId = data?.declarationId || id;
+      const url = await mintHandoffUrl('BOOKING_DECLARATION', { declarationId: declId });
       await openWebCheckout(url);
       // Re-fetch after the browser closes so a settled payment shows as paid.
       await refresh();
@@ -52,7 +53,7 @@ export default function PaymentDetailScreen() {
 
   if (loading && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -62,7 +63,7 @@ export default function PaymentDetailScreen() {
 
   if (error && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <View style={styles.center}>
           <Ionicons name="receipt-outline" size={40} color={colors.textMuted} />
           <Text style={styles.errorTitle}>Could not open this payment</Text>
@@ -74,8 +75,13 @@ export default function PaymentDetailScreen() {
   }
 
   return (
-    <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <Screen padded={false} edges={[]}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
+        }
+      >
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>{data?.title}</Text>
           <Text style={styles.amount}>{data?.amount != null ? formatMoney(data.amount, data.currency) : '—'}</Text>

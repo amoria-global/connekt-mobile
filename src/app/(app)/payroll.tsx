@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { getPayrollReport } from '@/features/wallet/api';
@@ -11,11 +11,11 @@ import { formatDate, formatMoney } from '@/utils/format';
 export default function PayrollScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
-  const { data, loading, error } = useAsync(useCallback(() => getPayrollReport(), []));
+  const { data, loading, error, refresh } = useAsync(useCallback(() => getPayrollReport(), []));
 
   if (loading && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -25,7 +25,7 @@ export default function PayrollScreen() {
 
   if (error && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <View style={styles.center}>
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
           <Text style={styles.muted}>{error}</Text>
@@ -37,8 +37,13 @@ export default function PayrollScreen() {
   const cur = data?.currency;
 
   return (
-    <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <Screen padded={false} edges={[]}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
+        }
+      >
         <View style={styles.cards}>
           <Stat label="Total" value={formatMoney(data?.total ?? 0, cur)} tint={colors.primary} />
           <Stat label="Paid" value={formatMoney(data?.paid ?? 0, cur)} tint={colors.success} />
