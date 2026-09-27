@@ -5,14 +5,14 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { fonts, fontSize, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fonts, fontSize, makeStyles, spacing, useTheme } from '@/theme';
 
 const LOGO = require('../../../assets/images/logo.png');
 const SPLASH_VIDEO = require('../../../assets/splash.mp4');
@@ -55,22 +55,49 @@ export interface AppPreloaderProps {
  * Branded preloader / splash screen shown while the root layout bootstraps
  * authentication state, loads Google Fonts, and verifies onboarding status.
  *
- * Uses assets/splash.mp4 with audioMixingMode='mixWithOthers' and muted=true.
- * This guarantees that when a user opens the app while listening to music
- * (Spotify, Apple Music, podcasts, YouTube Music, etc.), the music continues
- * playing without being paused, muted, or ducked.
+ * Adaptive Theme Behavior:
+ * - Light Mode: Plays full-screen `assets/splash.mp4` with `audioMixingMode='mixWithOthers'`
+ *   and `muted=true` so that music playing in other apps (Spotify, Apple Music, etc.)
+ *   continues playing without interruption.
+ * - Dark Mode: Renders a deep `#0E1117` branded canvas with gradient wash and glowing
+ *   logo so dark-mode users are not flashed with white at night.
  */
 export function AppPreloader({ fontsLoaded = false, message }: AppPreloaderProps) {
   const styles = useStyles();
   const { colors, gradients, isDark } = useTheme();
-  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
 
   // Sliding indeterminate loading bar
   const [slideAnim] = useState(() => new Animated.Value(0));
+  // Dark mode gentle breathing pulse animation on logo
+  const [scaleAnim] = useState(() => new Animated.Value(1));
 
   // Initialize expo-video with non-interrupting audio settings
   const player = useVideoPlayer(SPLASH_VIDEO, configurePreloaderPlayer);
+
+  useEffect(() => {
+    if (isDark && !reduceMotion) {
+      const pulseLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 1.05,
+            duration: 1100,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 0.97,
+            duration: 1100,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulseLoop.start();
+      return () => pulseLoop.stop();
+    }
+  }, [isDark, reduceMotion, scaleAnim]);
 
   useEffect(() => {
     if (reduceMotion) {
@@ -105,45 +132,38 @@ export function AppPreloader({ fontsLoaded = false, message }: AppPreloaderProps
     outputRange: [-PRELOADER_BAR_WIDTH, PRELOADER_TRACK_WIDTH],
   });
 
-  const videoCardWidth = Math.min(width - 48, 340);
-  const videoCardHeight = Math.round(videoCardWidth * (464 / 832));
+  const showVideo = !isDark && !reduceMotion;
 
   return (
     <View
-      style={styles.container}
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? colors.background : '#FFFFFF' },
+      ]}
       accessibilityRole="progressbar"
       accessibilityLabel="Loading Connekyt"
       accessible={true}
     >
-      <LinearGradient
-        colors={[...gradients.wash]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={styles.wash}
-        pointerEvents="none"
-      />
+      {isDark ? (
+        <LinearGradient
+          colors={[...gradients.wash]}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={styles.wash}
+          pointerEvents="none"
+        />
+      ) : null}
 
-      <View style={styles.center}>
-        {!reduceMotion ? (
-          <View
-            style={[
-              styles.videoFrame,
-              {
-                width: videoCardWidth,
-                height: videoCardHeight,
-                borderColor: isDark ? colors.border : 'transparent',
-              },
-            ]}
-          >
-            <VideoView
-              player={player}
-              style={styles.video}
-              contentFit="contain"
-              nativeControls={false}
-            />
-          </View>
-        ) : (
-          <View style={styles.staticWrap}>
+      {showVideo ? (
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="contain"
+          nativeControls={false}
+        />
+      ) : (
+        <View style={styles.staticWrap}>
+          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <Image
               source={LOGO}
               style={styles.mark}
@@ -151,29 +171,33 @@ export function AppPreloader({ fontsLoaded = false, message }: AppPreloaderProps
               transition={0}
               accessible={false}
             />
-            <View style={styles.copy}>
-              <Text
-                style={[
-                  styles.wordmark,
-                  fontsLoaded ? { fontFamily: fonts.bold } : { fontWeight: '700' },
-                ]}
-              >
-                Amoria Connekyt.
-              </Text>
-              <Text
-                style={[
-                  styles.tagline,
-                  fontsLoaded ? { fontFamily: fonts.regular } : undefined,
-                ]}
-              >
-                Capture life, Own the moment
-              </Text>
-            </View>
+          </Animated.View>
+          <View style={styles.copy}>
+            <Text
+              style={[
+                styles.wordmark,
+                { color: isDark ? colors.text : '#0F1217' },
+                fontsLoaded ? { fontFamily: fonts.bold } : { fontWeight: '700' },
+              ]}
+            >
+              Amoria Connekyt.
+            </Text>
+            <Text
+              style={[
+                styles.tagline,
+                { color: isDark ? colors.textMuted : '#6A6D76' },
+                fontsLoaded ? { fontFamily: fonts.regular } : undefined,
+              ]}
+            >
+              Capture life, Own the moment
+            </Text>
           </View>
-        )}
+        </View>
+      )}
 
-        {/* Sleek branded progress track */}
-        <View style={styles.track}>
+      {/* Sleek branded progress track at the bottom */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.xl }]}>
+        <View style={[styles.track, { backgroundColor: isDark ? colors.border : '#E6E7EC' }]}>
           <Animated.View
             style={[
               styles.bar,
@@ -189,6 +213,7 @@ export function AppPreloader({ fontsLoaded = false, message }: AppPreloaderProps
           <Text
             style={[
               styles.message,
+              { color: isDark ? colors.textMuted : '#6A6D76' },
               fontsLoaded ? { fontFamily: fonts.regular } : undefined,
             ]}
           >
@@ -209,29 +234,8 @@ const useStyles = makeStyles((c) => ({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: c.background,
   },
   wash: StyleSheet.absoluteFill,
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.lg,
-  },
-  videoFrame: {
-    borderRadius: radii.xl,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    shadowColor: c.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 3,
-  },
-  video: {
-    width: '100%',
-    height: '100%',
-  },
   staticWrap: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -248,21 +252,24 @@ const useStyles = makeStyles((c) => ({
   wordmark: {
     fontSize: 24,
     letterSpacing: -0.3,
-    color: c.text,
     textAlign: 'center',
   },
   tagline: {
     fontSize: fontSize.sm,
-    color: c.textMuted,
     textAlign: 'center',
+  },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
   },
   track: {
     width: PRELOADER_TRACK_WIDTH,
     height: 4,
     borderRadius: 999,
-    backgroundColor: c.borderSoft,
     overflow: 'hidden',
-    marginTop: spacing.xs,
   },
   bar: {
     width: PRELOADER_BAR_WIDTH,
@@ -271,7 +278,6 @@ const useStyles = makeStyles((c) => ({
   },
   message: {
     fontSize: fontSize.xs,
-    color: c.textMuted,
     textAlign: 'center',
     marginTop: spacing.xs,
   },
