@@ -193,8 +193,19 @@ export async function joinStream(id: string): Promise<string | undefined> {
   return str(d.hlsManifestUrl) ?? str(d.playbackUrl);
 }
 
-export async function tipStream(id: string, amount: number): Promise<void> {
-  await api.post(`/streams/${encodeURIComponent(id)}/tip`, { amount });
+export type TipStreamPayload = {
+  amount: number;
+  currency?: string;
+  provider?: string;
+  phone?: string;
+};
+
+export async function tipStream(
+  id: string,
+  payload: number | TipStreamPayload,
+): Promise<void> {
+  const body = typeof payload === 'number' ? { amount: payload } : payload;
+  await api.post(`/streams/${encodeURIComponent(id)}/tip`, body);
 }
 
 // ────── Public stream access (guest / anonymous viewer flow) ──────────────

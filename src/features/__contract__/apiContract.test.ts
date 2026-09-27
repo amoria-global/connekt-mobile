@@ -218,4 +218,11 @@ describe('dedicated role endpoints against the backend contract', () => {
     ];
     expect(clientCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
   });
+
+  it('in-stream tipping route exists on the backend', () => {
+    const tipCalls = [
+      { method: 'POST', path: '/api/remote/streams/X/tip', source: 'streams' },
+    ];
+    expect(tipCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
 });
