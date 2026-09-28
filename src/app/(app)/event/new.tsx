@@ -34,6 +34,15 @@ import { useAsync } from '@/hooks/useAsync';
 import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { useRole } from '@/features/auth/role';
+import { listCurrencies, type Currency } from '@/features/reference/api';
+import {
+  deleteGeoPrice,
+  getGeoPricing,
+  upsertGeoPrice,
+  type GeoPriceRule,
+  type GeoScope,
+} from '@/features/geopricing/api';
+import { CONTINENTS, COUNTRIES, continentLabel, countryLabel } from '@/features/geopricing/regions';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
@@ -99,6 +108,28 @@ export default function NewEventScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [escrow, setEscrow] = useState<'50' | '70' | '100'>('50');
+
+  // Currencies & Geo-pricing (Coordinator role parity)
+  const currencies = useAsync(useCallback(() => listCurrencies(), []));
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(params.currency || 'RWF');
+  const [currencyId, setCurrencyId] = useState<string>('');
+
+  type FormGeoRule = {
+    id?: string;
+    scopeType: GeoScope;
+    scopeValue: string;
+    price: number;
+    currencyId?: string;
+    currencyCode?: string;
+  };
+  const [geoRules, setGeoRules] = useState<FormGeoRule[]>([]);
+  const [deletedGeoRuleIds, setDeletedGeoRuleIds] = useState<string[]>([]);
+  const [geoScope, setGeoScope] = useState<GeoScope>('CONTINENT');
+  const [geoScopeValue, setGeoScopeValue] = useState<string>('');
+  const [geoPriceInput, setGeoPriceInput] = useState<string>('');
+  const [geoCurrencyId, setGeoCurrencyId] = useState<string>('');
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [showGeoPricing, setShowGeoPricing] = useState<boolean>(true);
 
   // In-form photographer + package assignment (skipped when arriving via a booking link)
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -171,6 +202,9 @@ export default function NewEventScreen() {
             ev.organizer ?? `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
           description: ev.description ?? '',
         });
+        if (ev.currency) {
+          setSelectedCurrency(ev.currency);
+        }
         if (ev.tags?.length) setTags(ev.tags);
         if (ev.eventVisibility === 'PRIVATE' || ev.eventVisibility === 'PUBLIC') {
           setVisibility(ev.eventVisibility);
@@ -186,6 +220,27 @@ export default function NewEventScreen() {
         ) {
           setShowMore(true);
         }
+
+        // Fetch existing geo-pricing rules if coordinator
+        if (isCoordinator && params.editId) {
+          try {
+            const geoConfig = await getGeoPricing(params.editId);
+            if (active && geoConfig?.rules) {
+              setGeoRules(
+                geoConfig.rules.map((r) => ({
+                  id: r.id,
+                  scopeType: r.scopeType,
+                  scopeValue: r.scopeValue,
+                  price: r.price,
+                  currencyId: r.currencyId,
+                  currencyCode: r.currencyAbbreviation,
+                })),
+              );
+            }
+          } catch {
+            // Non-fatal, geo pricing might not be configured
+          }
+        }
       } catch {
         // leave the form empty; the user can still edit
       }
@@ -194,7 +249,7 @@ export default function NewEventScreen() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.editId]);
+  }, [params.editId, isCoordinator]);
 
   const pickCover = async () => {
     const img = await pickFromLibrary();
@@ -233,6 +288,53 @@ export default function NewEventScreen() {
 
   const hasPackage = !!params.packageId || !!selPackage;
 
+  const currenciesList: { id: string; code: string; name?: string }[] =
+    currencies.data && currencies.data.length > 0
+      ? currencies.data
+      : [
+          { id: 'cur-rwf', code: 'RWF' },
+          { id: 'cur-usd', code: 'USD' },
+          { id: 'cur-eur', code: 'EUR' },
+        ];
+
+  const addGeoRule = () => {
+    setGeoError(null);
+    if (!geoScopeValue) {
+      setGeoError(`Please select a ${geoScope === 'CONTINENT' ? 'continent' : 'country'}.`);
+      return;
+    }
+    const p = parseFloat(geoPriceInput);
+    if (!geoPriceInput || Number.isNaN(p) || p < 0) {
+      setGeoError('Please enter a valid price (0 or greater).');
+      return;
+    }
+    if (geoRules.some((r) => r.scopeType === geoScope && r.scopeValue === geoScopeValue)) {
+      const locName = geoScope === 'CONTINENT' ? continentLabel(geoScopeValue) : countryLabel(geoScopeValue);
+      setGeoError(`A price rule for ${locName} already exists.`);
+      return;
+    }
+
+    const cur = currenciesList.find((c) => (geoCurrencyId ? c.id === geoCurrencyId : c.code === selectedCurrency));
+    const newRule: FormGeoRule = {
+      scopeType: geoScope,
+      scopeValue: geoScopeValue,
+      price: p,
+      currencyId: cur?.id,
+      currencyCode: cur?.code || selectedCurrency,
+    };
+    setGeoRules((prev) => [...prev, newRule]);
+    setGeoPriceInput('');
+    setGeoScopeValue('');
+  };
+
+  const removeGeoRule = (index: number) => {
+    const rule = geoRules[index];
+    if (rule?.id) {
+      setDeletedGeoRuleIds((prev) => [...prev, rule.id!]);
+    }
+    setGeoRules((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
     // A cover photo is required to create; on edit the existing one is kept.
@@ -244,14 +346,16 @@ export default function NewEventScreen() {
     const priceNum = values.price ? Number(values.price.replace(/[^\d]/g, '')) : 0;
     // A private event is self-streamed and paid — it must charge at least the
     // minimum. Public events may be free, but a non-zero fee still can't be
-    // below the minimum.
-    if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
-      setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} RWF.`);
-      return;
-    }
-    if (priceNum > 0 && priceNum < MIN_RWF) {
-      setServerError(`Live stream access fee must be at least ${MIN_RWF} RWF.`);
-      return;
+    // below the minimum. Non-coordinators ("the rest") have digital purchases disabled.
+    if (!isCoordinator) {
+      if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
+        setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} RWF.`);
+        return;
+      }
+      if (priceNum > 0 && priceNum < MIN_RWF) {
+        setServerError(`Live stream access fee must be at least ${MIN_RWF} RWF.`);
+        return;
+      }
     }
 
     const location = [values.venueName, values.address, values.city, values.country]
@@ -275,7 +379,7 @@ export default function NewEventScreen() {
       // The "Live stream fee" field IS the stream fee (viewer paywall). Booking
       // events (amount param) carry no stream fee of their own.
       streamFee: priceNum || undefined,
-      currency: params.currency,
+      currency: isCoordinator ? selectedCurrency : params.currency,
       maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
       eventVisibility: visibility,
       tags: tags.length ? tags : undefined,
@@ -295,12 +399,49 @@ export default function NewEventScreen() {
             // non-fatal
           }
         }
+        if (isCoordinator) {
+          for (const rule of geoRules) {
+            try {
+              await upsertGeoPrice(params.editId, {
+                scopeType: rule.scopeType,
+                scopeValue: rule.scopeValue,
+                price: rule.price,
+                currencyId: rule.currencyId,
+              });
+            } catch (err) {
+              console.warn('Could not save geo price rule:', err);
+            }
+          }
+          for (const ruleId of deletedGeoRuleIds) {
+            try {
+              await deleteGeoPrice(params.editId, ruleId);
+            } catch (err) {
+              console.warn('Could not delete geo price rule:', err);
+            }
+          }
+        }
         router.replace(`/event/${params.editId}`);
         return;
       }
 
       // --- Create / book path -------------------------------------------
       const event = await createEvent(input, isCoordinator);
+
+      // Persist coordinator geo-pricing rules if configured
+      if (isCoordinator && event.id) {
+        for (const rule of geoRules) {
+          try {
+            await upsertGeoPrice(event.id, {
+              scopeType: rule.scopeType,
+              scopeValue: rule.scopeValue,
+              price: rule.price,
+              currencyId: rule.currencyId,
+            });
+          } catch (err) {
+            console.warn('Could not save geo price rule:', err);
+          }
+        }
+      }
 
       // The event exists at this point, so a failed cover isn't fatal — but it
       // must be said out loud. An event without a cover cannot be published,
@@ -460,6 +601,259 @@ export default function NewEventScreen() {
               </View>
             </View>
 
+            {/* Coordinator: Pricing & Stream Fee (Prominently displayed) */}
+            {isCoordinator ? (
+              <View style={styles.coordinatorSection}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionIconBadge}>
+                    <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={styles.sectionHeading}>Event Pricing & Stream Fee</Text>
+                    <Text style={styles.sectionSubheading}>
+                      Set default attendee live stream entry fee (0 for free stream)
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.row}>
+                  <View style={styles.rowItem}>
+                    <Controller
+                      control={control}
+                      name="price"
+                      render={({ field: { onChange, onBlur, value } }) => (
+                        <Input
+                          label="Default Price"
+                          placeholder="0"
+                          keyboardType="number-pad"
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                        />
+                      )}
+                    />
+                  </View>
+
+                  <View style={styles.rowItem}>
+                    <Text style={styles.fieldLabel}>Currency</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.currencyChipsScroll}
+                    >
+                      {currenciesList.map((c) => {
+                        const active = selectedCurrency === c.code;
+                        return (
+                          <Pressable
+                            key={c.code}
+                            onPress={() => {
+                              setSelectedCurrency(c.code);
+                              setCurrencyId(c.id);
+                            }}
+                            style={[styles.chip, active && styles.chipActive]}
+                          >
+                            <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                              {c.code}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Coordinator: Geo-pricing Rules */}
+            {isCoordinator ? (
+              <View style={styles.coordinatorSection}>
+                <Pressable
+                  style={styles.sectionHeaderRow}
+                  onPress={() => setShowGeoPricing((v) => !v)}
+                >
+                  <View style={styles.sectionIconBadge}>
+                    <Ionicons name="earth" size={18} color={colors.primary} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={styles.sectionHeading}>Location-based Geo-pricing</Text>
+                    <Text style={styles.sectionSubheading}>
+                      Override stream price based on viewer continent or country
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={showGeoPricing ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={colors.primary}
+                  />
+                </Pressable>
+
+                {showGeoPricing ? (
+                  <View style={styles.geoBody}>
+                    <Text style={styles.geoIntroText}>
+                      Viewers from countries or continents with rules will pay their regional price. All other locations pay the default price.
+                    </Text>
+
+                    {/* Scope Selector */}
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Price by</Text>
+                      <Segmented
+                        value={geoScope}
+                        onChange={(v) => {
+                          setGeoScope(v as GeoScope);
+                          setGeoScopeValue('');
+                        }}
+                        options={[
+                          { label: 'Continent', value: 'CONTINENT' },
+                          { label: 'Country', value: 'COUNTRY' },
+                        ]}
+                      />
+                    </View>
+
+                    {/* Region Selector */}
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>
+                        Select {geoScope === 'CONTINENT' ? 'Continent' : 'Country'}
+                      </Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.regionScroll}
+                      >
+                        {(geoScope === 'CONTINENT' ? CONTINENTS : COUNTRIES).map((item) => {
+                          const active = geoScopeValue === item.code;
+                          return (
+                            <Pressable
+                              key={item.code}
+                              onPress={() => setGeoScopeValue(item.code)}
+                              style={[styles.regionChip, active && styles.regionChipActive]}
+                            >
+                              <Text
+                                style={[
+                                  styles.regionChipText,
+                                  active && styles.regionChipTextActive,
+                                ]}
+                              >
+                                {item.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+
+                    {/* Price and Currency for this region */}
+                    <View style={styles.row}>
+                      <View style={styles.rowItem}>
+                        <Input
+                          label="Regional Price"
+                          placeholder="0.00"
+                          keyboardType="decimal-pad"
+                          value={geoPriceInput}
+                          onChangeText={setGeoPriceInput}
+                        />
+                      </View>
+                      <View style={styles.rowItem}>
+                        <Text style={styles.fieldLabel}>Currency</Text>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.currencyChipsScroll}
+                        >
+                          {currenciesList.map((c) => {
+                            const active = (geoCurrencyId ? geoCurrencyId === c.id : selectedCurrency === c.code);
+                            return (
+                              <Pressable
+                                key={c.code}
+                                onPress={() => setGeoCurrencyId(c.id)}
+                                style={[styles.chip, active && styles.chipActive]}
+                              >
+                                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                                  {c.code}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    </View>
+
+                    {geoError ? <Text style={styles.errText}>{geoError}</Text> : null}
+
+                    <Button
+                      title="Add Location Price"
+                      variant="outline"
+                      onPress={addGeoRule}
+                    />
+
+                    {/* Active Rules List */}
+                    {geoRules.length > 0 ? (
+                      <View style={styles.rulesList}>
+                        <Text style={styles.rulesListHeader}>
+                          Active Location Prices ({geoRules.length})
+                        </Text>
+                        {geoRules.map((rule, idx) => (
+                          <View
+                            key={`${rule.scopeType}-${rule.scopeValue}-${idx}`}
+                            style={styles.ruleItem}
+                          >
+                            <View style={styles.ruleBadge}>
+                              <Ionicons
+                                name={
+                                  rule.scopeType === 'CONTINENT'
+                                    ? 'globe-outline'
+                                    : 'flag-outline'
+                                }
+                                size={14}
+                                color={colors.primary}
+                              />
+                            </View>
+                            <View style={styles.flex}>
+                              <Text style={styles.ruleLocationText}>
+                                {rule.scopeType === 'CONTINENT'
+                                  ? continentLabel(rule.scopeValue)
+                                  : countryLabel(rule.scopeValue)}
+                              </Text>
+                              <Text style={styles.ruleScopeText}>
+                                {rule.scopeType === 'CONTINENT' ? 'Continent' : 'Country'}
+                              </Text>
+                            </View>
+                            <Text style={styles.rulePriceText}>
+                              {rule.price} {rule.currencyCode || selectedCurrency}
+                            </Text>
+                            <Pressable
+                              onPress={() => removeGeoRule(idx)}
+                              hitSlop={8}
+                              style={styles.ruleDeleteBtn}
+                            >
+                              <Ionicons name="trash-outline" size={18} color={colors.error} />
+                            </Pressable>
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.noRulesText}>
+                        No geo-prices configured yet. Viewers from all regions will pay the default price.
+                      </Text>
+                    )}
+
+                    {isEditing && params.editId ? (
+                      <Pressable
+                        style={styles.openDedicatedGeoBtn}
+                        onPress={() =>
+                          router.push(`/event/geo-pricing?eventId=${params.editId}` as never)
+                        }
+                      >
+                        <Ionicons name="open-outline" size={16} color={colors.primary} />
+                        <Text style={styles.openDedicatedGeoText}>
+                          Open full Geo-pricing manager
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
             {/* Visibility drives the whole model, so it's always visible. */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Who covers this event?</Text>
@@ -478,7 +872,7 @@ export default function NewEventScreen() {
               </Text>
             </View>
 
-            {visibility === 'PRIVATE' ? (
+            {!isCoordinator && visibility === 'PRIVATE' ? (
               <Controller
                 control={control}
                 name="price"
@@ -523,16 +917,8 @@ export default function NewEventScreen() {
                   </View>
                 </View>
 
-                {/* Price + max guests. The private stream fee is entered above,
-                    so this fee field is only for public events. */}
+                {/* Max guests */}
                 <View style={styles.row}>
-                  {visibility === 'PUBLIC' ? (
-                    <View style={styles.rowItem}>
-                      <Controller control={control} name="price" render={({ field: { onChange, onBlur, value } }) => (
-                        <Input label="Live stream fee (RWF)" placeholder="0" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
-                      )} />
-                    </View>
-                  ) : null}
                   <View style={styles.rowItem}>
                     <Controller control={control} name="maxGuests" render={({ field: { onChange, onBlur, value } }) => (
                       <Input label="Max guests" placeholder="0" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
@@ -781,4 +1167,145 @@ const useStyles = makeStyles((c) => ({
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSoft },
   pickerName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
   pickerSub: { fontSize: fontSize.sm, color: c.textMuted },
+
+  coordinatorSection: {
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  sectionIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeading: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  sectionSubheading: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  currencyChipsScroll: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  geoBody: {
+    gap: spacing.md,
+    marginTop: spacing.xs,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.borderSoft,
+  },
+  geoIntroText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    lineHeight: 17,
+  },
+  regionScroll: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  regionChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.surfaceMuted,
+  },
+  regionChipActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  regionChipText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: c.textSoft,
+  },
+  regionChipTextActive: {
+    color: c.textOnPrimary,
+  },
+  rulesList: {
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  rulesListHeader: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.textSoft,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceMuted,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  ruleBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.sm,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ruleLocationText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: c.text,
+  },
+  ruleScopeText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+  },
+  rulePriceText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  ruleDeleteBtn: {
+    padding: spacing.xs,
+  },
+  noRulesText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: spacing.sm,
+  },
+  openDedicatedGeoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  openDedicatedGeoText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: c.primary,
+  },
 }));
