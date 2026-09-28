@@ -15,7 +15,8 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { fonts, fontSize, makeStyles, spacing, useTheme } from '@/theme';
 
 const LOGO = require('../../../assets/images/logo.png');
-const SPLASH_VIDEO = require('../../../assets/splash.mp4');
+const SPLASH_LIGHT = require('../../../assets/splash.mp4');
+const SPLASH_DARK = require('../../../assets/splash-dark.mp4');
 
 export const PRELOADER_TRACK_WIDTH = 140;
 export const PRELOADER_BAR_WIDTH = 46;
@@ -75,8 +76,9 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
   // Dark mode gentle breathing pulse animation on logo (used only if reduceMotion is on)
   const [scaleAnim] = useState(() => new Animated.Value(1));
 
-  // Initialize expo-video with non-interrupting audio settings
-  const player = useVideoPlayer(SPLASH_VIDEO, configurePreloaderPlayer);
+  // Initialize expo-video with theme-matched video source and non-interrupting audio
+  const videoSource = isDark ? SPLASH_DARK : SPLASH_LIGHT;
+  const player = useVideoPlayer(videoSource, configurePreloaderPlayer);
 
   // Auto-advance after video duration (~4.5s) if an onFinish callback was provided
   useEffect(() => {
@@ -148,7 +150,7 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
     <Pressable
       style={[
         styles.container,
-        { backgroundColor: '#FFFFFF' },
+        { backgroundColor: isDark ? '#0E1117' : '#FFFFFF' },
       ]}
       onPress={onFinish}
       accessibilityRole="progressbar"
@@ -223,7 +225,7 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
         ) : null}
       </View>
 
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </Pressable>
   );
 }

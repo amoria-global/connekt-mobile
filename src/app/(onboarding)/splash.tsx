@@ -9,13 +9,15 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { fonts, fontSize, makeStyles, spacing, useTheme } from '@/theme';
 
 const LOGO = require('../../../assets/images/logo.png');
-const SPLASH_VIDEO = require('../../../assets/splash.mp4');
+const SPLASH_LIGHT = require('../../../assets/splash.mp4');
+const SPLASH_DARK = require('../../../assets/splash-dark.mp4');
 
 /**
  * Brand splash.
  *
- * Plays full-screen `assets/splash.mp4` with `audioMixingMode='mixWithOthers'`
- * and `muted=true` so external audio (Spotify, etc.) is never interrupted.
+ * Plays full-screen video (`splash.mp4` in light mode, `splash-dark.mp4` in dark mode)
+ * with `audioMixingMode='mixWithOthers'` and `muted=true` so external audio (Spotify, etc.)
+ * is never interrupted.
  */
 
 /** Full video playback duration (5 seconds). */
@@ -37,11 +39,12 @@ export default function SplashScreen() {
     router.replace('/welcome');
   }, [router]);
 
-  // Configure non-interrupting video player with expo-video for light mode.
+  // Configure non-interrupting video player with expo-video.
   // CRITICAL: audioMixingMode = 'mixWithOthers' prevents AVAudioSession (iOS)
   // and AudioManager (Android) from requesting exclusive audio focus or activating
   // an interrupting session.
-  const player = useVideoPlayer(SPLASH_VIDEO, (p) => {
+  const videoSource = isDark ? SPLASH_DARK : SPLASH_LIGHT;
+  const player = useVideoPlayer(videoSource, (p) => {
     p.loop = false;
     p.muted = true;
     p.audioMixingMode = 'mixWithOthers';
@@ -86,7 +89,7 @@ export default function SplashScreen() {
     <Pressable
       style={[
         styles.container,
-        { backgroundColor: '#FFFFFF' },
+        { backgroundColor: isDark ? '#0E1117' : '#FFFFFF' },
       ]}
       onPress={advance}
       accessibilityRole="button"
@@ -111,10 +114,10 @@ export default function SplashScreen() {
             />
           </Animated.View>
           <View style={styles.copy}>
-            <Text style={[styles.wordmark, { color: '#0F1217' }]}>
+            <Text style={[styles.wordmark, { color: isDark ? '#FFFFFF' : '#0F1217' }]}>
               Amoria Connekyt.
             </Text>
-            <Text style={[styles.tagline, { color: '#6A6D76' }]}>
+            <Text style={[styles.tagline, { color: isDark ? '#A0A3AD' : '#6A6D76' }]}>
               Capture life, Own the moment
             </Text>
           </View>
@@ -125,7 +128,7 @@ export default function SplashScreen() {
         <View style={styles.rule} />
       </View>
 
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </Pressable>
   );
 }
