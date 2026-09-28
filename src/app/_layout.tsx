@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRootNavigationState, useRouter, useSegments, type Href } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
@@ -159,19 +159,18 @@ export default function RootLayout() {
     PragatiNarrow_700Bold,
   });
 
-  const isAppReady = Boolean(fontsLoaded && status !== 'idle' && status !== 'loading');
+  const [preloaderDone, setPreloaderDone] = useState(false);
 
   useEffect(() => {
     bootstrap();
     loadOnboarding();
   }, [bootstrap, loadOnboarding]);
 
-  // Hide the native splash screen as soon as auth bootstrap and fonts are loaded
+  // Hide the native static splash screen immediately so the full-screen video
+  // preloader is revealed and plays from the very first frame
   useEffect(() => {
-    if (isAppReady) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [isAppReady]);
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   // Apply the global Pragati Narrow default ONCE the Google Font has
   // loaded — applying earlier would print the family name as text since
@@ -181,6 +180,15 @@ export default function RootLayout() {
     applyDefaultFont();
   }, [fontsLoaded]);
 
+  // The app transitions into navigation once auth bootstraps, fonts load,
+  // and the video preloader completes its presentation (or user taps to advance)
+  const isAppReady = Boolean(
+    fontsLoaded &&
+    status !== 'idle' &&
+    status !== 'loading' &&
+    preloaderDone
+  );
+
   useProtectedRoute();
 
   return (
@@ -189,7 +197,10 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           {!isAppReady ? (
-            <AppPreloader fontsLoaded={fontsLoaded} />
+            <AppPreloader
+              fontsLoaded={fontsLoaded}
+              onFinish={() => setPreloaderDone(true)}
+            />
           ) : (
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(onboarding)" />
