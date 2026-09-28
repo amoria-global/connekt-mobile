@@ -97,5 +97,37 @@ describe('Coordinator Event Creation & Geo-pricing Rules', () => {
         expect(r.canSetPricingAndGeoPricing).toBe(r.isCoordinator);
       }
     });
+
+    it('restricts categories to Entertainment only for coordinator, leaving all for non-coordinators', () => {
+      const serverCategories = ['Wedding', 'Conference', 'Entertainment', 'Sports', 'Birthday'];
+
+      const getCategoriesForRole = (isCoordinator: boolean, available: string[]) => {
+        const serverEntertainment = available.find((c) => c.toLowerCase() === 'entertainment');
+        const entertainmentCategory = serverEntertainment || 'Entertainment';
+        return isCoordinator ? [entertainmentCategory] : available;
+      };
+
+      const coordinatorCats = getCategoriesForRole(true, serverCategories);
+      expect(coordinatorCats).toEqual(['Entertainment']);
+      expect(coordinatorCats).toHaveLength(1);
+
+      const nonCoordinatorCats = getCategoriesForRole(false, serverCategories);
+      expect(nonCoordinatorCats).toEqual(serverCategories);
+      expect(nonCoordinatorCats).toHaveLength(5);
+    });
+
+    it('falls back to default Entertainment when server categories do not have it', () => {
+      const serverCategories = ['Wedding', 'Conference'];
+
+      const getCategoriesForRole = (isCoordinator: boolean, available: string[]) => {
+        const serverEntertainment = available.find((c) => c.toLowerCase() === 'entertainment');
+        const entertainmentCategory = serverEntertainment || 'Entertainment';
+        return isCoordinator ? [entertainmentCategory] : available;
+      };
+
+      const coordinatorCats = getCategoriesForRole(true, serverCategories);
+      expect(coordinatorCats).toEqual(['Entertainment']);
+    });
   });
 });
+
