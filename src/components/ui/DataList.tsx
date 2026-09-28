@@ -28,6 +28,8 @@ type Props<T> = {
   subtitle?: string;
   /** Optional element rendered under the title (e.g. a filter control). */
   headerExtra?: ReactElement;
+  /** Optional element rendered at the bottom of the list (e.g. pagination controls). */
+  footer?: ReactElement;
   /** Extra top padding so content clears a floating top bar. */
   topInset?: number;
 };
@@ -45,6 +47,7 @@ export function DataList<T>({
   title,
   subtitle,
   headerExtra,
+  footer,
   topInset = 0,
 }: Props<T>): ReactElement {
   const styles = useStyles();
@@ -104,6 +107,7 @@ export function DataList<T>({
         />
       }
       ListEmptyComponent={<EmptyState icon={emptyIcon} title={emptyTitle} message={emptyMessage} />}
+      ListFooterComponent={footer}
     />
   );
 }

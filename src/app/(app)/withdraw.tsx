@@ -9,7 +9,7 @@
  *   failed   the backend's reason, with a way into KYC when that is it
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
@@ -42,9 +42,11 @@ import {
 } from '@/features/withdrawals/model';
 import { useAsync } from '@/hooks/useAsync';
 import { ensureWithdrawalFaceConsent } from '@/features/privacy/consent';
+import { listWalletMovements, type Movement } from '@/features/wallet/api';
 import { takeSelfieDataUrl } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { formatDate, formatMoney } from '@/utils/format';
 
 type Step = 'form' | 'verify' | 'done' | 'failed';
 type Donation = { mode: 'unset' } | { mode: 'skip' } | { mode: 'preset'; value: number } | { mode: 'custom'; text: string };
@@ -60,6 +62,7 @@ export default function WithdrawScreen() {
   const sources = useAsync(useCallback(() => listWithdrawableSources(role), [role]));
   const accounts = useAsync(useCallback(() => listPaymentAccounts(role), [role]));
   const currencies = useAsync(useCallback(() => getDisplayCurrencies(), []));
+  const movements = useAsync(useCallback(() => listWalletMovements(0, 50), []));
 
   // Coming back from Payment accounts must show the account just added.
   const refreshAccounts = accounts.refresh;
@@ -122,6 +125,39 @@ export default function WithdrawScreen() {
       { label: 'Max', value: available },
     ].filter((q) => q.value > 0);
   }, [available, currency.decimals]);
+
+  // Activity feed state & pagination
+  const [activityFilter, setActivityFilter] = useState<'all' | 'withdrawals' | 'credits'>('all');
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityPage, setActivityPage] = useState(1);
+  const ACTIVITY_PAGE_SIZE = 5;
+
+  useEffect(() => {
+    setActivityPage(1);
+  }, [activityFilter, activitySearch]);
+
+  const filteredMovements = useMemo(() => {
+    const items = movements.data ?? [];
+    return items.filter((m) => {
+      if (activityFilter === 'withdrawals' && m.direction !== 'out') return false;
+      if (activityFilter === 'credits' && m.direction !== 'in') return false;
+      if (activitySearch.trim()) {
+        const q = activitySearch.trim().toLowerCase();
+        const matchTitle = (m.description ?? '').toLowerCase().includes(q);
+        const matchCat = (m.category ?? '').toLowerCase().includes(q);
+        const matchAmt = String(m.amount).includes(q);
+        if (!matchTitle && !matchCat && !matchAmt) return false;
+      }
+      return true;
+    });
+  }, [movements.data, activityFilter, activitySearch]);
+
+  const totalActivityPages = Math.max(1, Math.ceil(filteredMovements.length / ACTIVITY_PAGE_SIZE));
+  const safeActivityPage = Math.min(activityPage, totalActivityPages);
+  const paginatedMovements = useMemo(() => {
+    const start = (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE;
+    return filteredMovements.slice(start, start + ACTIVITY_PAGE_SIZE);
+  }, [filteredMovements, safeActivityPage]);
 
   const resetVerification = () => {
     setVerification(null);
@@ -549,6 +585,190 @@ export default function WithdrawScreen() {
               <Text style={styles.footnote}>
                 You will confirm with a code or a selfie next. Withdrawals are reviewed before they are paid out.
               </Text>
+
+              {/* Activity Section */}
+              <View style={styles.activitySection}>
+                <View style={styles.activityHeaderRow}>
+                  <View style={styles.activityTitleWrap}>
+                    <Ionicons name="receipt-outline" size={18} color={colors.primary} />
+                    <Text style={styles.activitySectionTitle}>Recent Activity</Text>
+                  </View>
+                  <Pressable onPress={() => router.push('/transactions' as Href)} hitSlop={8}>
+                    <Text style={styles.seeAllText}>View all</Text>
+                  </Pressable>
+                </View>
+
+                {/* Filter Pills */}
+                <View style={styles.activityFilterRow}>
+                  {(
+                    [
+                      { label: 'All', value: 'all' },
+                      { label: 'Withdrawals', value: 'withdrawals' },
+                      { label: 'Credits', value: 'credits' },
+                    ] as const
+                  ).map((f) => {
+                    const isSelected = activityFilter === f.value;
+                    return (
+                      <Pressable
+                        key={f.value}
+                        onPress={() => setActivityFilter(f.value)}
+                        style={[styles.activityFilterPill, isSelected && styles.activityFilterPillActive]}
+                      >
+                        <Text
+                          style={[
+                            styles.activityFilterPillText,
+                            isSelected && styles.activityFilterPillTextActive,
+                          ]}
+                        >
+                          {f.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {/* Search */}
+                <View style={styles.activitySearchWrap}>
+                  <Ionicons name="search-outline" size={15} color={colors.textMuted} />
+                  <TextInput
+                    style={styles.activitySearchInput}
+                    placeholder="Search activity..."
+                    placeholderTextColor={colors.textMuted}
+                    value={activitySearch}
+                    onChangeText={setActivitySearch}
+                  />
+                  {activitySearch ? (
+                    <Pressable onPress={() => setActivitySearch('')} hitSlop={6}>
+                      <Ionicons name="close-circle" size={15} color={colors.textMuted} />
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {/* List / Empty State */}
+                {movements.loading && !movements.data ? (
+                  <View style={styles.activityLoading}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                ) : filteredMovements.length === 0 ? (
+                  <View style={styles.activityEmptyBox}>
+                    <Ionicons name="swap-vertical-outline" size={24} color={colors.textMuted} />
+                    <Text style={styles.activityEmptyText}>
+                      {activitySearch ? 'No matching activity found' : 'No activity recorded yet'}
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.activityList}>
+                      {paginatedMovements.map((item, idx) => {
+                        const isIn = item.direction === 'in';
+                        const sign = isIn ? '+' : '−';
+                        const isLast = idx === paginatedMovements.length - 1;
+                        return (
+                          <View
+                            key={item.id}
+                            style={[styles.activityRow, !isLast && styles.activityRowDivider]}
+                          >
+                            <View
+                              style={[
+                                styles.activityIcon,
+                                { backgroundColor: isIn ? colors.successBg : colors.errorBg },
+                              ]}
+                            >
+                              <Ionicons
+                                name={isIn ? 'arrow-down' : 'arrow-up'}
+                                size={15}
+                                color={isIn ? colors.success : colors.error}
+                              />
+                            </View>
+                            <View style={styles.activityInfo}>
+                              <Text style={styles.activityTitle} numberOfLines={1}>
+                                {item.description || item.category || (isIn ? 'Credit' : 'Withdrawal')}
+                              </Text>
+                              {item.createdAt ? (
+                                <Text style={styles.activityMeta}>{formatDate(item.createdAt)}</Text>
+                              ) : null}
+                            </View>
+                            <Text
+                              style={[
+                                styles.activityAmount,
+                                { color: isIn ? colors.success : colors.text },
+                              ]}
+                            >
+                              {sign} {formatMoney(item.amount, item.currency)}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+
+                    {/* Pagination Bar */}
+                    <View style={styles.paginationRow}>
+                      <Text style={styles.paginationInfo}>
+                        Showing {(safeActivityPage - 1) * ACTIVITY_PAGE_SIZE + 1}–
+                        {Math.min(safeActivityPage * ACTIVITY_PAGE_SIZE, filteredMovements.length)} of{' '}
+                        {filteredMovements.length}
+                      </Text>
+                      {totalActivityPages > 1 ? (
+                        <View style={styles.paginationButtons}>
+                          <Pressable
+                            onPress={() => setActivityPage((p) => Math.max(1, p - 1))}
+                            disabled={safeActivityPage <= 1}
+                            style={[
+                              styles.pageNavBtn,
+                              safeActivityPage <= 1 && styles.pageNavBtnDisabled,
+                            ]}
+                            hitSlop={6}
+                          >
+                            <Ionicons
+                              name="chevron-back"
+                              size={14}
+                              color={safeActivityPage <= 1 ? colors.textMuted : colors.text}
+                            />
+                            <Text
+                              style={[
+                                styles.pageNavBtnText,
+                                safeActivityPage <= 1 && styles.pageNavBtnTextDisabled,
+                              ]}
+                            >
+                              Prev
+                            </Text>
+                          </Pressable>
+
+                          <View style={styles.pageIndicatorPill}>
+                            <Text style={styles.pageIndicatorText}>
+                              {safeActivityPage} / {totalActivityPages}
+                            </Text>
+                          </View>
+
+                          <Pressable
+                            onPress={() => setActivityPage((p) => Math.min(totalActivityPages, p + 1))}
+                            disabled={safeActivityPage >= totalActivityPages}
+                            style={[
+                              styles.pageNavBtn,
+                              safeActivityPage >= totalActivityPages && styles.pageNavBtnDisabled,
+                            ]}
+                            hitSlop={6}
+                          >
+                            <Text
+                              style={[
+                                styles.pageNavBtnText,
+                                safeActivityPage >= totalActivityPages && styles.pageNavBtnTextDisabled,
+                              ]}
+                            >
+                              Next
+                            </Text>
+                            <Ionicons
+                              name="chevron-forward"
+                              size={14}
+                              color={safeActivityPage >= totalActivityPages ? colors.textMuted : colors.text}
+                            />
+                          </Pressable>
+                        </View>
+                      ) : null}
+                    </View>
+                  </>
+                )}
+              </View>
             </>
           )}
         </View>
@@ -720,4 +940,193 @@ const useStyles = makeStyles((c) => ({
   resultTitle: { fontFamily: fonts.bold, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text, textAlign: 'center' },
   resultText: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', lineHeight: 21, maxWidth: 340 },
   resultActions: { alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.lg },
+
+  // Activity Feed & Pagination
+  activitySection: {
+    marginTop: spacing.xl,
+    gap: spacing.md,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+  },
+  activityHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  activityTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activitySectionTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.md,
+    color: c.text,
+  },
+  seeAllText: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.xs,
+    color: c.primary,
+  },
+  activityFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activityFilterPill: {
+    paddingHorizontal: 12,
+    height: 30,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityFilterPillActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  activityFilterPillText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  activityFilterPillTextActive: {
+    color: '#ffffff',
+  },
+  activitySearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: c.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    paddingHorizontal: spacing.sm,
+    height: 38,
+  },
+  activitySearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: c.text,
+    paddingVertical: 0,
+  },
+  activityLoading: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityEmptyBox: {
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    padding: spacing.lg,
+    alignItems: 'center',
+    gap: 6,
+  },
+  activityEmptyText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: c.textMuted,
+  },
+  activityList: {
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    overflow: 'hidden',
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+  },
+  activityRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+  },
+  activityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  activityInfo: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  activityTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: c.text,
+  },
+  activityMeta: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  activityAmount: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    flexShrink: 0,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    gap: 8,
+  },
+  paginationInfo: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  paginationButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pageNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  pageNavBtnDisabled: {
+    opacity: 0.4,
+  },
+  pageNavBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: c.text,
+  },
+  pageNavBtnTextDisabled: {
+    color: c.textMuted,
+  },
+  pageIndicatorPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radii.md,
+    backgroundColor: c.tint,
+  },
+  pageIndicatorText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: c.primary,
+  },
 }));
