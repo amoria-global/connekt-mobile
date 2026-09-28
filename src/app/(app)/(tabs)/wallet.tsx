@@ -281,6 +281,30 @@ export default function WalletScreen() {
             </View>
           )}
 
+          {/* Quick Links Menu (Top placement for instant access without scrolling) */}
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionTitle}>Quick links</Text>
+            <View style={styles.menuCard}>
+              {links.map((l, i) => (
+                <Pressable
+                  key={l.label}
+                  style={({ pressed }) => [
+                    styles.menuRow,
+                    i < links.length - 1 && styles.menuRowDivider,
+                    pressed && styles.menuRowPressed,
+                  ]}
+                  onPress={() => router.push(l.href)}
+                >
+                  <View style={styles.menuIcon}>
+                    <Ionicons name={l.icon} size={18} color={colors.primary} />
+                  </View>
+                  <Text style={styles.menuLabel}>{l.label}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
           {visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
@@ -550,27 +574,6 @@ export default function WalletScreen() {
                 </View>
               </>
             )}
-          </View>
-
-          {/* Quick Links Menu */}
-          <View style={styles.menuCard}>
-            {links.map((l, i) => (
-              <Pressable
-                key={l.label}
-                style={({ pressed }) => [
-                  styles.menuRow,
-                  i < links.length - 1 && styles.menuRowDivider,
-                  pressed && styles.menuRowPressed,
-                ]}
-                onPress={() => router.push(l.href)}
-              >
-                <View style={styles.menuIcon}>
-                  <Ionicons name={l.icon} size={18} color={colors.primary} />
-                </View>
-                <Text style={styles.menuLabel}>{l.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </Pressable>
-            ))}
           </View>
         </ScrollView>
       )}
