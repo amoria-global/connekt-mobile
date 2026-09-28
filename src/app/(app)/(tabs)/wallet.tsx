@@ -123,18 +123,6 @@ export default function WalletScreen() {
     return filteredActivityItems.slice(start, start + PAGE_SIZE);
   }, [filteredActivityItems, safePage]);
 
-  const firstName = user?.firstName || data?.wallet?.customerName?.split(' ')[0];
-  const greetingPrefix = firstName ? `${firstName}, your` : 'Your';
-
-  let subtitle = `${greetingPrefix} balance, payments and receipts.`;
-  if (dashboardRole === 'photographer') {
-    subtitle = `${greetingPrefix} earnings, tips, bonuses, and withdrawal history.`;
-  } else if (dashboardRole === 'client') {
-    subtitle = `${greetingPrefix} payments, tips, and refund history.`;
-  } else if (dashboardRole === 'event-coordinator') {
-    subtitle = `${greetingPrefix} event payments, stream revenue, and balance.`;
-  }
-
   const links: Link[] = [
     { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
     { label: 'Wallet movements', icon: 'list-outline', href: '/wallet/movements' as Href },
@@ -173,45 +161,6 @@ export default function WalletScreen() {
             />
           }
         >
-          {/* Header */}
-          <View style={styles.headerBlock}>
-            <View style={styles.headerRow}>
-              <View style={styles.headerTitles}>
-                <Text style={styles.eyebrow}>MONEY</Text>
-                <Text style={styles.title}>My wallet</Text>
-              </View>
-              <View style={styles.headerActions}>
-                <Pressable
-                  style={styles.privacyToggleBtn}
-                  onPress={() => setBalanceHidden((v) => !v)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={balanceHidden ? 'Show balances' : 'Hide balances'}
-                >
-                  <Ionicons
-                    name={balanceHidden ? 'eye-outline' : 'eye-off-outline'}
-                    size={15}
-                    color={colors.textMuted}
-                  />
-                  <Text style={styles.privacyToggleText}>
-                    {balanceHidden ? 'Show' : 'Hide'}
-                  </Text>
-                </Pressable>
-
-                {canWithdraw ? (
-                  <Pressable
-                    style={({ pressed }) => [styles.headerWithdrawBtn, pressed && { opacity: 0.85 }]}
-                    onPress={() => router.push('/withdraw' as Href)}
-                  >
-                    <Ionicons name="cash-outline" size={15} color="#fff" />
-                    <Text style={styles.headerWithdrawText}>Withdraw</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-          </View>
-
           {/* Suspension warning banner (salo-run parity) */}
           {data?.wallet?.status === 'SUSPENDED' || data?.wallet?.suspensionReason ? (
             <View style={styles.suspensionBanner}>
@@ -229,13 +178,32 @@ export default function WalletScreen() {
             </View>
           ) : null}
 
-          {/* MoneyHero Card (Clean solid card — no gradients) */}
+          {/* MoneyHero Card (Clean solid card — single authoritative wallet header) */}
           {stats && (
             <View style={styles.heroCard}>
               <View style={styles.heroContent}>
-                <View style={styles.heroLabelPill}>
-                  <Ionicons name="wallet-outline" size={13} color={colors.primary} />
-                  <Text style={styles.heroLabelText}>{stats.hero.label}</Text>
+                <View style={styles.heroTopRow}>
+                  <View style={styles.heroLabelPill}>
+                    <Ionicons name="wallet-outline" size={13} color={colors.primary} />
+                    <Text style={styles.heroLabelText}>{stats.hero.label}</Text>
+                  </View>
+
+                  <Pressable
+                    style={styles.privacyToggleBtn}
+                    onPress={() => setBalanceHidden((v) => !v)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={balanceHidden ? 'Show balances' : 'Hide balances'}
+                  >
+                    <Ionicons
+                      name={balanceHidden ? 'eye-outline' : 'eye-off-outline'}
+                      size={14}
+                      color={colors.textMuted}
+                    />
+                    <Text style={styles.privacyToggleText}>
+                      {balanceHidden ? 'Show' : 'Hide'}
+                    </Text>
+                  </Pressable>
                 </View>
 
                 <Text style={styles.heroAmount}>
@@ -738,51 +706,24 @@ const useStyles = makeStyles((c) => ({
   retryBtnText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.lg },
 
-  headerBlock: { gap: 4 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  headerTitles: { flex: 1 },
-  eyebrow: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: '#F20C8F',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5 },
-  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
-  headerActions: {
+  heroTopRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
+    justifyContent: 'space-between',
   },
   privacyToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 11,
-    height: 36,
+    height: 32,
     borderRadius: radii.full,
-    backgroundColor: c.surface,
+    backgroundColor: c.background,
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
-  privacyToggleText: { fontFamily: fonts.bold, fontSize: 12, color: c.textMuted },
-  headerWithdrawBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: c.primary,
-    paddingHorizontal: 14,
-    height: 36,
-    borderRadius: radii.full,
-  },
-  headerWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
+  privacyToggleText: { fontFamily: fonts.bold, fontSize: 11, color: c.textMuted },
 
   suspensionBanner: {
     flexDirection: 'row',
