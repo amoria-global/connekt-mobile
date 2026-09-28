@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import {
   Animated,
   Easing,
+  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,32 +49,41 @@ export interface AppPreloaderProps {
   fontsLoaded?: boolean;
   /** Optional message or status shown beneath the brand tagline. */
   message?: string;
+  /**
+   * Optional callback invoked when preloader video playback duration completes
+   * or when the user taps the screen to advance.
+   */
+  onFinish?: () => void;
 }
 
 /**
  * Branded preloader / splash screen shown while the root layout bootstraps
  * authentication state, loads Google Fonts, and verifies onboarding status.
  *
- * Adaptive Theme Behavior:
- * - Light Mode: Plays full-screen `assets/splash.mp4` with `audioMixingMode='mixWithOthers'`
- *   and `muted=true` so that music playing in other apps (Spotify, Apple Music, etc.)
- *   continues playing without interruption.
- * - Dark Mode: Renders a deep `#0E1117` branded canvas with gradient wash and glowing
- *   logo so dark-mode users are not flashed with white at night.
+ * Plays full-screen `assets/splash.mp4` with `audioMixingMode='mixWithOthers'`
+ * and `muted=true` so that music playing in other apps (Spotify, Apple Music, etc.)
+ * continues playing without interruption.
  */
-export function AppPreloader({ fontsLoaded = false, message }: AppPreloaderProps) {
+export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPreloaderProps) {
   const styles = useStyles();
-  const { colors, gradients, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
 
   // Sliding indeterminate loading bar
   const [slideAnim] = useState(() => new Animated.Value(0));
-  // Dark mode gentle breathing pulse animation on logo
+  // Dark mode gentle breathing pulse animation on logo (used only if reduceMotion is on)
   const [scaleAnim] = useState(() => new Animated.Value(1));
 
   // Initialize expo-video with non-interrupting audio settings
   const player = useVideoPlayer(SPLASH_VIDEO, configurePreloaderPlayer);
+
+  // Auto-advance after video duration (~4.5s) if an onFinish callback was provided
+  useEffect(() => {
+    if (!onFinish) return;
+    const timer = setTimeout(onFinish, reduceMotion ? 600 : 4500);
+    return () => clearTimeout(timer);
+  }, [onFinish, reduceMotion]);
 
   useEffect(() => {
     if (isDark && !reduceMotion) {
@@ -132,28 +141,20 @@ export function AppPreloader({ fontsLoaded = false, message }: AppPreloaderProps
     outputRange: [-PRELOADER_BAR_WIDTH, PRELOADER_TRACK_WIDTH],
   });
 
-  const showVideo = !isDark && !reduceMotion;
+  // Always show video unless user enabled reduce-motion accessibility setting
+  const showVideo = !reduceMotion;
 
   return (
-    <View
+    <Pressable
       style={[
         styles.container,
-        { backgroundColor: isDark ? colors.background : '#FFFFFF' },
+        { backgroundColor: '#FFFFFF' },
       ]}
+      onPress={onFinish}
       accessibilityRole="progressbar"
-      accessibilityLabel="Loading Connekyt"
+      accessibilityLabel="Amoria Connekyt. Tap to continue"
       accessible={true}
     >
-      {isDark ? (
-        <LinearGradient
-          colors={[...gradients.wash]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={styles.wash}
-          pointerEvents="none"
-        />
-      ) : null}
-
       {showVideo ? (
         <VideoView
           player={player}
@@ -222,8 +223,8 @@ export function AppPreloader({ fontsLoaded = false, message }: AppPreloaderProps
         ) : null}
       </View>
 
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-    </View>
+      <StatusBar style="dark" />
+    </Pressable>
   );
 }
 

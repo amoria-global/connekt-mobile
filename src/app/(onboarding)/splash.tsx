@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,11 +14,8 @@ const SPLASH_VIDEO = require('../../../assets/splash.mp4');
 /**
  * Brand splash.
  *
- * Adaptive Theme Behavior:
- * - Light Mode: Plays full-screen `assets/splash.mp4` with `audioMixingMode='mixWithOthers'`
- *   and `muted=true` so external audio (Spotify, etc.) is never interrupted.
- * - Dark Mode: Renders the themed dark `#0E1117` branded screen with gradient wash,
- *   pulsing logo mark, and light text so dark-mode users are not blinded by white at night.
+ * Plays full-screen `assets/splash.mp4` with `audioMixingMode='mixWithOthers'`
+ * and `muted=true` so external audio (Spotify, etc.) is never interrupted.
  */
 
 /** Full video playback duration (5 seconds). */
@@ -29,7 +25,7 @@ const HOLD_MS_REDUCED = 600;
 
 export default function SplashScreen() {
   const styles = useStyles();
-  const { colors, gradients, isDark } = useTheme();
+  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -83,28 +79,19 @@ export default function SplashScreen() {
     return () => clearTimeout(timer);
   }, [advance, reduceMotion]);
 
-  const showVideo = !isDark && !reduceMotion;
+  // Always show video unless user enabled reduce-motion accessibility setting
+  const showVideo = !reduceMotion;
 
   return (
     <Pressable
       style={[
         styles.container,
-        { backgroundColor: isDark ? colors.background : '#FFFFFF' },
+        { backgroundColor: '#FFFFFF' },
       ]}
       onPress={advance}
       accessibilityRole="button"
       accessibilityLabel="Amoria Connekyt. Tap to continue"
     >
-      {isDark ? (
-        <LinearGradient
-          colors={[...gradients.wash]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={styles.wash}
-          pointerEvents="none"
-        />
-      ) : null}
-
       {showVideo ? (
         <VideoView
           player={player}
@@ -124,10 +111,10 @@ export default function SplashScreen() {
             />
           </Animated.View>
           <View style={styles.copy}>
-            <Text style={[styles.wordmark, { color: isDark ? colors.text : '#0F1217' }]}>
+            <Text style={[styles.wordmark, { color: '#0F1217' }]}>
               Amoria Connekyt.
             </Text>
-            <Text style={[styles.tagline, { color: isDark ? colors.textMuted : '#6A6D76' }]}>
+            <Text style={[styles.tagline, { color: '#6A6D76' }]}>
               Capture life, Own the moment
             </Text>
           </View>
@@ -138,8 +125,7 @@ export default function SplashScreen() {
         <View style={styles.rule} />
       </View>
 
-      {/* Dynamic status bar: white icons in dark mode, dark icons on white in light mode */}
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
     </Pressable>
   );
 }
