@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -76,16 +76,37 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
   // Dark mode gentle breathing pulse animation on logo (used only if reduceMotion is on)
   const [scaleAnim] = useState(() => new Animated.Value(1));
 
+  // Smooth fade-out animation when transitioning into the app
+  const [fadeAnim] = useState(() => new Animated.Value(1));
+  const dismissed = useRef(false);
+
   // Initialize expo-video with theme-matched video source and non-interrupting audio
   const videoSource = isDark ? SPLASH_DARK : SPLASH_LIGHT;
   const player = useVideoPlayer(videoSource, configurePreloaderPlayer);
 
-  // Auto-advance after video duration (~4.5s) if an onFinish callback was provided
+  const handleFinish = useCallback(() => {
+    if (dismissed.current) return;
+    dismissed.current = true;
+    if (reduceMotion) {
+      onFinish?.();
+      return;
+    }
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 350,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      onFinish?.();
+    });
+  }, [fadeAnim, onFinish, reduceMotion]);
+
+  // Settle at 3.2s (when full brand animation finishes) and smoothly fade out
   useEffect(() => {
     if (!onFinish) return;
-    const timer = setTimeout(onFinish, reduceMotion ? 600 : 4500);
+    const timer = setTimeout(handleFinish, reduceMotion ? 500 : 3200);
     return () => clearTimeout(timer);
-  }, [onFinish, reduceMotion]);
+  }, [handleFinish, onFinish, reduceMotion]);
 
   useEffect(() => {
     if (isDark && !reduceMotion) {
@@ -147,92 +168,97 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
   const showVideo = !reduceMotion;
 
   return (
-    <Pressable
-      style={[
-        styles.container,
-        { backgroundColor: isDark ? '#0E1117' : '#FFFFFF' },
-      ]}
-      onPress={onFinish}
-      accessibilityRole="progressbar"
-      accessibilityLabel="Amoria Connekyt. Tap to continue"
-      accessible={true}
-    >
-      {showVideo ? (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFill}
-          contentFit="contain"
-          nativeControls={false}
-        />
-      ) : (
-        <View style={styles.staticWrap}>
-          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-            <Image
-              source={LOGO}
-              style={styles.mark}
-              contentFit="contain"
-              transition={0}
-              accessible={false}
-            />
-          </Animated.View>
-          <View style={styles.copy}>
-            <Text
+    <Animated.View style={[styles.wrapper, { opacity: fadeAnim }]}>
+      <Pressable
+        style={[
+          styles.container,
+          { backgroundColor: isDark ? '#0E1117' : '#FFFFFF' },
+        ]}
+        onPress={handleFinish}
+        accessibilityRole="progressbar"
+        accessibilityLabel="Amoria Connekyt. Tap to continue"
+        accessible={true}
+      >
+        {showVideo ? (
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+            nativeControls={false}
+          />
+        ) : (
+          <View style={styles.staticWrap}>
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+              <Image
+                source={LOGO}
+                style={styles.mark}
+                contentFit="contain"
+                transition={0}
+                accessible={false}
+              />
+            </Animated.View>
+            <View style={styles.copy}>
+              <Text
+                style={[
+                  styles.wordmark,
+                  { color: isDark ? colors.text : '#0F1217' },
+                  fontsLoaded ? { fontFamily: fonts.bold } : { fontWeight: '700' },
+                ]}
+              >
+                Amoria Connekyt.
+              </Text>
+              <Text
+                style={[
+                  styles.tagline,
+                  { color: isDark ? colors.textMuted : '#6A6D76' },
+                  fontsLoaded ? { fontFamily: fonts.regular } : undefined,
+                ]}
+              >
+                Capture life, Own the moment
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Sleek branded progress track at the bottom */}
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.xl }]}>
+          <View style={[styles.track, { backgroundColor: isDark ? colors.border : '#E6E7EC' }]}>
+            <Animated.View
               style={[
-                styles.wordmark,
-                { color: isDark ? colors.text : '#0F1217' },
-                fontsLoaded ? { fontFamily: fonts.bold } : { fontWeight: '700' },
+                styles.bar,
+                {
+                  backgroundColor: colors.accent,
+                  transform: [{ translateX: barTranslateX }],
+                },
               ]}
-            >
-              Amoria Connekyt.
-            </Text>
+            />
+          </View>
+
+          {message ? (
             <Text
               style={[
-                styles.tagline,
+                styles.message,
                 { color: isDark ? colors.textMuted : '#6A6D76' },
                 fontsLoaded ? { fontFamily: fonts.regular } : undefined,
               ]}
             >
-              Capture life, Own the moment
+              {message}
             </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Sleek branded progress track at the bottom */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.xl }]}>
-        <View style={[styles.track, { backgroundColor: isDark ? colors.border : '#E6E7EC' }]}>
-          <Animated.View
-            style={[
-              styles.bar,
-              {
-                backgroundColor: colors.accent,
-                transform: [{ translateX: barTranslateX }],
-              },
-            ]}
-          />
+          ) : null}
         </View>
 
-        {message ? (
-          <Text
-            style={[
-              styles.message,
-              { color: isDark ? colors.textMuted : '#6A6D76' },
-              fontsLoaded ? { fontFamily: fonts.regular } : undefined,
-            ]}
-          >
-            {message}
-          </Text>
-        ) : null}
-      </View>
-
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-    </Pressable>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </Pressable>
+    </Animated.View>
   );
 }
 
 export default AppPreloader;
 
 const useStyles = makeStyles((c) => ({
+  wrapper: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     alignItems: 'center',

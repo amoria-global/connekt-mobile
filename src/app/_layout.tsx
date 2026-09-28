@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Stack, useRootNavigationState, useRouter, useSegments, type Href } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -141,9 +141,9 @@ function useProtectedRoute() {
       return;
     }
 
-    // Unauthenticated: show onboarding first, then auth — but allow (public).
+    // Unauthenticated: show onboarding intro slides, then auth — but allow (public).
     if (!seen) {
-      if (!inOnboarding && !inPublic) router.replace('/splash');
+      if (!inOnboarding && !inPublic) router.replace('/welcome');
     } else if (!inAuthGroup && !inPublic) {
       router.replace('/login');
     }
@@ -151,7 +151,6 @@ function useProtectedRoute() {
 }
 
 export default function RootLayout() {
-  const status = useAuth((s) => s.status);
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
   const [fontsLoaded] = useFonts({
@@ -180,14 +179,7 @@ export default function RootLayout() {
     applyDefaultFont();
   }, [fontsLoaded]);
 
-  // The app transitions into navigation once auth bootstraps, fonts load,
-  // and the video preloader completes its presentation (or user taps to advance)
-  const isAppReady = Boolean(
-    fontsLoaded &&
-    status !== 'idle' &&
-    status !== 'loading' &&
-    preloaderDone
-  );
+
 
   useProtectedRoute();
 
@@ -196,19 +188,20 @@ export default function RootLayout() {
       <NavigationChrome>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          {!isAppReady ? (
-            <AppPreloader
-              fontsLoaded={fontsLoaded}
-              onFinish={() => setPreloaderDone(true)}
-            />
-          ) : (
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(onboarding)" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(public)" />
-              <Stack.Screen name="(app)" />
-            </Stack>
-          )}
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(public)" />
+            <Stack.Screen name="(app)" />
+          </Stack>
+          {!preloaderDone ? (
+            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+              <AppPreloader
+                fontsLoaded={fontsLoaded}
+                onFinish={() => setPreloaderDone(true)}
+              />
+            </View>
+          ) : null}
           {/* OTA in-app update prompt modal & banner */}
           <UpdatePromptModal />
           <UpdateBanner />
