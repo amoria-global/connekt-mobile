@@ -5,7 +5,7 @@
  * over a continent price, which wins over the event's default. Anywhere you
  * don't set a price, viewers pay the event's default.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -15,6 +15,8 @@ import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useAsync } from '@/hooks/useAsync';
 import { listCurrencies, type Currency } from '@/features/reference/api';
+import { useRole } from '@/features/auth/role';
+import { listCoordinatorEvents } from '@/features/events/api';
 import {
   deleteGeoPrice,
   deletePackageGeoPrice,
@@ -32,13 +34,36 @@ export default function GeoPricingScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const { eventId, packageId } = useLocalSearchParams<{ eventId?: string; packageId?: string }>();
+  const { isCoordinator } = useRole();
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
+
+  const eventsAsync = useAsync(
+    useCallback(
+      () => (isCoordinator && !packageId ? listCoordinatorEvents() : Promise.resolve([])),
+      [isCoordinator, packageId],
+    ),
+  );
+
+  // Auto-select first event if none specified
+  useEffect(() => {
+    if (!selectedEventId && !packageId && eventsAsync.data && eventsAsync.data.length > 0) {
+      setSelectedEventId(eventsAsync.data[0].id);
+    }
+  }, [eventsAsync.data, selectedEventId, packageId]);
+
   // One screen prices either an event's stream or a photographer package.
   const isPackage = !!packageId;
-  const targetId = String(packageId ?? eventId);
+  const activeTargetId = isPackage ? String(packageId) : String(selectedEventId ?? eventId ?? '');
+
   const config = useAsync(
     useCallback(
-      () => (isPackage ? getPackageGeoPricing(targetId) : getGeoPricing(targetId)),
-      [isPackage, targetId],
+      () => {
+        if (!activeTargetId || activeTargetId === 'undefined') {
+          return Promise.resolve({ defaultPrice: null, rules: [] });
+        }
+        return isPackage ? getPackageGeoPricing(activeTargetId) : getGeoPricing(activeTargetId);
+      },
+      [isPackage, activeTargetId],
     ),
   );
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
@@ -80,7 +105,7 @@ export default function GeoPricingScreen() {
         price: p,
         currencyId: effectiveCurrencyId || undefined,
       };
-      await (isPackage ? upsertPackageGeoPrice(targetId, payload) : upsertGeoPrice(targetId, payload));
+      await (isPackage ? upsertPackageGeoPrice(activeTargetId, payload) : upsertGeoPrice(activeTargetId, payload));
       reset();
       config.refresh();
     } catch (e) {
@@ -98,7 +123,7 @@ export default function GeoPricingScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await (isPackage ? deletePackageGeoPrice(targetId, rule.id) : deleteGeoPrice(targetId, rule.id));
+            await (isPackage ? deletePackageGeoPrice(activeTargetId, rule.id) : deleteGeoPrice(activeTargetId, rule.id));
             config.refresh();
           } catch {
             Alert.alert('Error', 'Could not remove the price.');
@@ -112,6 +137,32 @@ export default function GeoPricingScreen() {
     <Screen padded={false}>
       <ScreenHeader title="Geo pricing" />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {eventsAsync.data && eventsAsync.data.length > 0 && !packageId ? (
+          <View style={styles.eventPickerCard}>
+            <Text style={styles.eventPickerLabel}>Select Event to Price:</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.eventPickerScroll}
+            >
+              {eventsAsync.data.map((ev) => {
+                const active = activeTargetId === ev.id;
+                return (
+                  <Pressable
+                    key={ev.id}
+                    onPress={() => setSelectedEventId(ev.id)}
+                    style={[styles.eventChip, active && styles.eventChipActive]}
+                  >
+                    <Text style={[styles.eventChipText, active && styles.eventChipTextActive]}>
+                      {ev.title}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+
         <View style={styles.introCard}>
           <Ionicons name="earth" size={20} color={colors.primary} />
           <Text style={styles.introText}>
@@ -281,4 +332,45 @@ const useStyles = makeStyles((c) => ({
 
   fieldLabel: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.textMuted },
   error: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.error },
+
+  eventPickerCard: {
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  eventPickerLabel: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    textTransform: 'uppercase',
+  },
+  eventPickerScroll: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  eventChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surfaceMuted,
+  },
+  eventChipActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  eventChipText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: c.text,
+  },
+  eventChipTextActive: {
+    color: '#fff',
+    fontFamily: fonts.bold,
+  },
 }));
