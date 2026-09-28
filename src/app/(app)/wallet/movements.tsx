@@ -7,11 +7,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { cleanTransactionTitle } from '@/features/analytics/api';
 import { listWalletMovements, type Movement } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -164,8 +162,6 @@ export default function WalletMovementsScreen() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <Stack.Screen options={{ title: '', headerTitle: '' }} />
-      <ScreenHeader title="Wallet movements" subtitle="Every credit and debit on your wallet" />
       <DataList<Movement>
         data={paginatedData}
         loading={loading}
