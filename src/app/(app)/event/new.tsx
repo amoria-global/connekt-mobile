@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -42,7 +42,15 @@ import {
   type GeoPriceRule,
   type GeoScope,
 } from '@/features/geopricing/api';
-import { CONTINENTS, COUNTRIES, continentLabel, countryLabel } from '@/features/geopricing/regions';
+import {
+  CONTINENTS,
+  COUNTRIES,
+  ALL_REGIONS,
+  continentLabel,
+  countryLabel,
+  regionLabel,
+  type GeoRegionItem,
+} from '@/features/geopricing/regions';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
@@ -124,8 +132,10 @@ export default function NewEventScreen() {
   };
   const [geoRules, setGeoRules] = useState<FormGeoRule[]>([]);
   const [deletedGeoRuleIds, setDeletedGeoRuleIds] = useState<string[]>([]);
-  const [geoScope, setGeoScope] = useState<GeoScope>('CONTINENT');
-  const [geoScopeValue, setGeoScopeValue] = useState<string>('');
+  type GeoFilterTab = 'ALL' | 'CONTINENT' | 'COUNTRY';
+  const [geoFilterTab, setGeoFilterTab] = useState<GeoFilterTab>('ALL');
+  const [geoSearchQuery, setGeoSearchQuery] = useState<string>('');
+  const [selectedGeoLocations, setSelectedGeoLocations] = useState<GeoRegionItem[]>([]);
   const [geoPriceInput, setGeoPriceInput] = useState<string>('');
   const [geoCurrencyId, setGeoCurrencyId] = useState<string>('');
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -309,10 +319,63 @@ export default function NewEventScreen() {
           { id: 'cur-eur', code: 'EUR' },
         ];
 
-  const addGeoRule = () => {
+  const toggleGeoLocation = (item: GeoRegionItem) => {
     setGeoError(null);
-    if (!geoScopeValue) {
-      setGeoError(`Please select a ${geoScope === 'CONTINENT' ? 'continent' : 'country'}.`);
+    setSelectedGeoLocations((prev) => {
+      const exists = prev.some((x) => x.scopeType === item.scopeType && x.code === item.code);
+      if (exists) {
+        return prev.filter((x) => !(x.scopeType === item.scopeType && x.code === item.code));
+      }
+      return [...prev, item];
+    });
+  };
+
+  const removeSelectedGeoLocation = (item: GeoRegionItem) => {
+    setSelectedGeoLocations((prev) =>
+      prev.filter((x) => !(x.scopeType === item.scopeType && x.code === item.code)),
+    );
+  };
+
+  const clearSelectedGeoLocations = () => {
+    setSelectedGeoLocations([]);
+    setGeoError(null);
+  };
+
+  const filteredGeoRegions: GeoRegionItem[] = useMemo(() => {
+    const q = geoSearchQuery.trim().toLowerCase();
+    let list: GeoRegionItem[] = [];
+    if (geoFilterTab === 'CONTINENT') {
+      list = CONTINENTS.map((c) => ({ scopeType: 'CONTINENT' as const, code: c.code, label: c.label }));
+    } else if (geoFilterTab === 'COUNTRY') {
+      list = COUNTRIES.map((c) => ({ scopeType: 'COUNTRY' as const, code: c.code, label: c.label }));
+    } else {
+      list = ALL_REGIONS;
+    }
+    if (!q) return list;
+    return list.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q) ||
+        (item.scopeType === 'CONTINENT' ? 'continent' : 'country').includes(q),
+    );
+  }, [geoFilterTab, geoSearchQuery]);
+
+  const selectAllMatching = () => {
+    setSelectedGeoLocations((prev) => {
+      const merged = [...prev];
+      for (const item of filteredGeoRegions) {
+        if (!merged.some((m) => m.scopeType === item.scopeType && m.code === item.code)) {
+          merged.push(item);
+        }
+      }
+      return merged;
+    });
+  };
+
+  const addGeoRules = () => {
+    setGeoError(null);
+    if (selectedGeoLocations.length === 0) {
+      setGeoError('Please select at least one continent or country.');
       return;
     }
     const p = parseFloat(geoPriceInput);
@@ -320,23 +383,40 @@ export default function NewEventScreen() {
       setGeoError('Please enter a valid price (0 or greater).');
       return;
     }
-    if (geoRules.some((r) => r.scopeType === geoScope && r.scopeValue === geoScopeValue)) {
-      const locName = geoScope === 'CONTINENT' ? continentLabel(geoScopeValue) : countryLabel(geoScopeValue);
-      setGeoError(`A price rule for ${locName} already exists.`);
-      return;
-    }
 
     const cur = currenciesList.find((c) => (geoCurrencyId ? c.id === geoCurrencyId : c.code === selectedCurrency));
-    const newRule: FormGeoRule = {
-      scopeType: geoScope,
-      scopeValue: geoScopeValue,
-      price: p,
-      currencyId: cur?.id,
-      currencyCode: cur?.code || selectedCurrency,
-    };
-    setGeoRules((prev) => [...prev, newRule]);
+    const effectiveCurrencyCode = cur?.code || selectedCurrency;
+    const effectiveCurrencyId = cur?.id;
+
+    setGeoRules((prev) => {
+      const next = [...prev];
+      for (const loc of selectedGeoLocations) {
+        const existingIdx = next.findIndex(
+          (r) => r.scopeType === loc.scopeType && r.scopeValue === loc.code,
+        );
+        if (existingIdx >= 0) {
+          next[existingIdx] = {
+            ...next[existingIdx],
+            price: p,
+            currencyId: effectiveCurrencyId,
+            currencyCode: effectiveCurrencyCode,
+          };
+        } else {
+          next.push({
+            scopeType: loc.scopeType,
+            scopeValue: loc.code,
+            price: p,
+            currencyId: effectiveCurrencyId,
+            currencyCode: effectiveCurrencyCode,
+          });
+        }
+      }
+      return next;
+    });
+
+    setSelectedGeoLocations([]);
     setGeoPriceInput('');
-    setGeoScopeValue('');
+    setGeoSearchQuery('');
   };
 
   const removeGeoRule = (index: number) => {
@@ -345,6 +425,27 @@ export default function NewEventScreen() {
       setDeletedGeoRuleIds((prev) => [...prev, rule.id!]);
     }
     setGeoRules((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const clearAllGeoRules = () => {
+    Alert.alert(
+      'Remove all location prices?',
+      'Are you sure you want to remove all custom location prices? Viewers will pay the default stream price.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove all',
+          style: 'destructive',
+          onPress: () => {
+            const existingWithId = geoRules.filter((r) => r.id).map((r) => r.id!);
+            if (existingWithId.length) {
+              setDeletedGeoRuleIds((prev) => [...prev, ...existingWithId]);
+            }
+            setGeoRules([]);
+          },
+        },
+      ],
+    );
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -722,59 +823,191 @@ export default function NewEventScreen() {
                       Viewers from countries or continents with rules will pay their regional price. All other locations pay the default price.
                     </Text>
 
-                    {/* Scope Selector */}
+                    {/* Filter Tabs & Search */}
                     <View style={styles.fieldGroup}>
-                      <Text style={styles.fieldLabel}>Price by</Text>
-                      <Segmented
-                        value={geoScope}
-                        onChange={(v) => {
-                          setGeoScope(v as GeoScope);
-                          setGeoScopeValue('');
-                        }}
-                        options={[
-                          { label: 'Continent', value: 'CONTINENT' },
-                          { label: 'Country', value: 'COUNTRY' },
-                        ]}
-                      />
-                    </View>
-
-                    {/* Region Selector */}
-                    <View style={styles.fieldGroup}>
-                      <Text style={styles.fieldLabel}>
-                        Select {geoScope === 'CONTINENT' ? 'Continent' : 'Country'}
-                      </Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.regionScroll}
-                      >
-                        {(geoScope === 'CONTINENT' ? CONTINENTS : COUNTRIES).map((item) => {
-                          const active = geoScopeValue === item.code;
-                          return (
+                      <View style={styles.geoFilterHeader}>
+                        <Text style={styles.fieldLabel}>Select Locations</Text>
+                        <View style={styles.geoTabsRow}>
+                          {(['ALL', 'CONTINENT', 'COUNTRY'] as const).map((tab) => (
                             <Pressable
-                              key={item.code}
-                              onPress={() => setGeoScopeValue(item.code)}
-                              style={[styles.regionChip, active && styles.regionChipActive]}
+                              key={tab}
+                              onPress={() => setGeoFilterTab(tab)}
+                              style={[
+                                styles.geoFilterTab,
+                                geoFilterTab === tab && styles.geoFilterTabActive,
+                              ]}
                             >
                               <Text
                                 style={[
-                                  styles.regionChipText,
-                                  active && styles.regionChipTextActive,
+                                  styles.geoFilterTabText,
+                                  geoFilterTab === tab && styles.geoFilterTabTextActive,
                                 ]}
                               >
-                                {item.label}
+                                {tab === 'ALL'
+                                  ? 'All'
+                                  : tab === 'CONTINENT'
+                                    ? 'Continents'
+                                    : 'Countries'}
                               </Text>
                             </Pressable>
-                          );
-                        })}
-                      </ScrollView>
+                          ))}
+                        </View>
+                      </View>
+
+                      {/* Search Bar */}
+                      <Input
+                        placeholder="Search continent or country (e.g. Africa, Rwanda, UK)..."
+                        value={geoSearchQuery}
+                        onChangeText={setGeoSearchQuery}
+                        leftElement={
+                          <Ionicons
+                            name="search-outline"
+                            size={18}
+                            color={colors.textMuted}
+                            style={{ marginLeft: spacing.sm, marginRight: spacing.xs }}
+                          />
+                        }
+                      />
+
+                      {/* Selected Locations Tray */}
+                      {selectedGeoLocations.length > 0 ? (
+                        <View style={styles.selectedLocationsTray}>
+                          <View style={styles.selectedLocationsHeader}>
+                            <Text style={styles.selectedLocationsCount}>
+                              Selected ({selectedGeoLocations.length}):
+                            </Text>
+                            <Pressable onPress={clearSelectedGeoLocations} hitSlop={6}>
+                              <Text style={styles.clearSelectionLink}>Clear all</Text>
+                            </Pressable>
+                          </View>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.selectedChipsScroll}
+                          >
+                            {selectedGeoLocations.map((item) => (
+                              <Pressable
+                                key={`${item.scopeType}-${item.code}`}
+                                onPress={() => removeSelectedGeoLocation(item)}
+                                style={styles.selectedTrayChip}
+                              >
+                                <Ionicons
+                                  name={
+                                    item.scopeType === 'CONTINENT'
+                                      ? 'globe-outline'
+                                      : 'flag-outline'
+                                  }
+                                  size={13}
+                                  color={colors.primary}
+                                />
+                                <Text style={styles.selectedTrayChipText}>
+                                  {item.label} ({item.scopeType === 'CONTINENT' ? 'Continent' : 'Country'})
+                                </Text>
+                                <Ionicons
+                                  name="close-circle"
+                                  size={15}
+                                  color={colors.textMuted}
+                                />
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      ) : null}
+
+                      {/* Locations Options */}
+                      <View style={styles.locationsListContainer}>
+                        <View style={styles.locationsListHeaderRow}>
+                          <Text style={styles.locationsAvailableText}>
+                            {filteredGeoRegions.length} available
+                          </Text>
+                          {filteredGeoRegions.length > 1 && filteredGeoRegions.length <= 15 ? (
+                            <Pressable onPress={selectAllMatching} hitSlop={6}>
+                              <Text style={styles.selectAllLink}>Select all shown</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
+
+                        <ScrollView
+                          style={styles.locationsScrollArea}
+                          contentContainerStyle={styles.locationsWrap}
+                          nestedScrollEnabled
+                          keyboardShouldPersistTaps="handled"
+                        >
+                          {filteredGeoRegions.map((item) => {
+                            const isSelected = selectedGeoLocations.some(
+                              (x) => x.scopeType === item.scopeType && x.code === item.code,
+                            );
+                            const hasExistingRule = geoRules.some(
+                              (r) => r.scopeType === item.scopeType && r.scopeValue === item.code,
+                            );
+                            return (
+                              <Pressable
+                                key={`${item.scopeType}-${item.code}`}
+                                onPress={() => toggleGeoLocation(item)}
+                                style={[
+                                  styles.geoItemChip,
+                                  isSelected && styles.geoItemChipSelected,
+                                  hasExistingRule && !isSelected && styles.geoItemChipHasRule,
+                                ]}
+                              >
+                                <Ionicons
+                                  name={
+                                    isSelected
+                                      ? 'checkmark-circle'
+                                      : item.scopeType === 'CONTINENT'
+                                        ? 'globe-outline'
+                                        : 'flag-outline'
+                                  }
+                                  size={14}
+                                  color={
+                                    isSelected
+                                      ? colors.textOnPrimary
+                                      : hasExistingRule
+                                        ? colors.primary
+                                        : colors.textMuted
+                                  }
+                                />
+                                <Text
+                                  style={[
+                                    styles.geoItemChipText,
+                                    isSelected && styles.geoItemChipTextSelected,
+                                  ]}
+                                >
+                                  {item.label}
+                                </Text>
+                                {geoFilterTab === 'ALL' ? (
+                                  <Text
+                                    style={[
+                                      styles.geoItemScopeBadge,
+                                      isSelected && styles.geoItemScopeBadgeSelected,
+                                    ]}
+                                  >
+                                    {item.scopeType === 'CONTINENT' ? 'Cont' : 'Ctry'}
+                                  </Text>
+                                ) : null}
+                              </Pressable>
+                            );
+                          })}
+                          {filteredGeoRegions.length === 0 ? (
+                            <Text style={styles.noMatchText}>
+                              No regions match "{geoSearchQuery}".
+                            </Text>
+                          ) : null}
+                        </ScrollView>
+                      </View>
                     </View>
 
                     {/* Price and Currency for this region */}
                     <View style={styles.row}>
                       <View style={styles.rowItem}>
                         <Input
-                          label="Regional Price"
+                          label={
+                            selectedGeoLocations.length > 1
+                              ? `Price for ${selectedGeoLocations.length} locations`
+                              : selectedGeoLocations.length === 1
+                                ? `Price for ${selectedGeoLocations[0].label}`
+                                : 'Regional Price'
+                          }
                           placeholder="0.00"
                           keyboardType="decimal-pad"
                           value={geoPriceInput}
@@ -809,17 +1042,28 @@ export default function NewEventScreen() {
                     {geoError ? <Text style={styles.errText}>{geoError}</Text> : null}
 
                     <Button
-                      title="Add Location Price"
+                      title={
+                        selectedGeoLocations.length > 1
+                          ? `Apply Price (${geoPriceInput || '0'} ${currenciesList.find((c) => (geoCurrencyId ? c.id === geoCurrencyId : c.code === selectedCurrency))?.code || selectedCurrency}) to ${selectedGeoLocations.length} Locations`
+                          : selectedGeoLocations.length === 1
+                            ? `Add Price for ${selectedGeoLocations[0].label}`
+                            : 'Add Location Price'
+                      }
                       variant="outline"
-                      onPress={addGeoRule}
+                      onPress={addGeoRules}
                     />
 
                     {/* Active Rules List */}
                     {geoRules.length > 0 ? (
                       <View style={styles.rulesList}>
-                        <Text style={styles.rulesListHeader}>
-                          Active Location Prices ({geoRules.length})
-                        </Text>
+                        <View style={styles.rulesListHeaderRow}>
+                          <Text style={styles.rulesListHeader}>
+                            Active Location Prices ({geoRules.length})
+                          </Text>
+                          <Pressable onPress={clearAllGeoRules} hitSlop={6}>
+                            <Text style={styles.clearAllRulesText}>Remove all</Text>
+                          </Pressable>
+                        </View>
                         {geoRules.map((rule, idx) => (
                           <View
                             key={`${rule.scopeType}-${rule.scopeValue}-${idx}`}
@@ -838,9 +1082,7 @@ export default function NewEventScreen() {
                             </View>
                             <View style={styles.flex}>
                               <Text style={styles.ruleLocationText}>
-                                {rule.scopeType === 'CONTINENT'
-                                  ? continentLabel(rule.scopeValue)
-                                  : countryLabel(rule.scopeValue)}
+                                {regionLabel(rule.scopeType, rule.scopeValue)}
                               </Text>
                               <Text style={styles.ruleScopeText}>
                                 {rule.scopeType === 'CONTINENT' ? 'Continent' : 'Country'}
@@ -1246,41 +1488,185 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
     lineHeight: 17,
   },
-  regionScroll: {
+  geoFilterHeader: {
     flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: 4,
   },
-  regionChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.full,
+  geoTabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  geoFilterTab: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surfaceMuted,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
   },
-  regionChipActive: {
+  geoFilterTabActive: {
     backgroundColor: c.primary,
     borderColor: c.primary,
   },
-  regionChipText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+  geoFilterTabText: {
+    fontSize: 11,
+    fontWeight: fontWeight.medium,
     color: c.textSoft,
   },
-  regionChipTextActive: {
+  geoFilterTabTextActive: {
     color: c.textOnPrimary,
+    fontWeight: fontWeight.bold,
+  },
+  selectedLocationsTray: {
+    backgroundColor: c.surfaceMuted,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  selectedLocationsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectedLocationsCount: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  clearSelectionLink: {
+    fontSize: fontSize.xs,
+    color: c.primary,
+    fontWeight: fontWeight.semibold,
+  },
+  selectedChipsScroll: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingVertical: 2,
+  },
+  selectedTrayChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.primary,
+  },
+  selectedTrayChipText: {
+    fontSize: fontSize.xs,
+    color: c.text,
+    fontWeight: fontWeight.semibold,
+  },
+  locationsListContainer: {
+    gap: 4,
+    marginTop: 2,
+  },
+  locationsListHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  locationsAvailableText: {
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  selectAllLink: {
+    fontSize: 11,
+    color: c.primary,
+    fontWeight: fontWeight.semibold,
+  },
+  locationsScrollArea: {
+    maxHeight: 180,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surfaceMuted,
+    padding: spacing.sm,
+  },
+  locationsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  geoItemChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.surface,
+  },
+  geoItemChipSelected: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  geoItemChipHasRule: {
+    borderColor: c.primary,
+    borderStyle: 'dashed',
+  },
+  geoItemChipText: {
+    fontSize: fontSize.xs,
+    color: c.textSoft,
+    fontWeight: fontWeight.medium,
+  },
+  geoItemChipTextSelected: {
+    color: c.textOnPrimary,
+    fontWeight: fontWeight.bold,
+  },
+  geoItemScopeBadge: {
+    fontSize: 9,
+    color: c.textMuted,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderRadius: 3,
+    backgroundColor: c.surfaceMuted,
+    textTransform: 'uppercase',
+  },
+  geoItemScopeBadgeSelected: {
+    color: c.textOnPrimary,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  noMatchText: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    fontStyle: 'italic',
+    paddingVertical: spacing.sm,
+    textAlign: 'center',
+    width: '100%',
   },
   rulesList: {
     gap: spacing.xs,
     marginTop: spacing.sm,
+  },
+  rulesListHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
   },
   rulesListHeader: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     color: c.textSoft,
     textTransform: 'uppercase',
-    marginBottom: spacing.xs,
+  },
+  clearAllRulesText: {
+    fontSize: fontSize.xs,
+    color: c.error,
+    fontWeight: fontWeight.semibold,
   },
   ruleItem: {
     flexDirection: 'row',
