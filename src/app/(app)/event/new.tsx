@@ -148,12 +148,13 @@ export default function NewEventScreen() {
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       title: '',
-      category: '',
+      category: isCoordinator ? 'Entertainment' : '',
       eventDate: '',
       startTime: '',
       endTime: '',
@@ -167,6 +168,17 @@ export default function NewEventScreen() {
       description: '',
     },
   });
+
+  const serverEntertainment = (categories.data ?? []).find(
+    (c) => c.toLowerCase() === 'entertainment',
+  );
+  const entertainmentCategory = serverEntertainment || 'Entertainment';
+
+  useEffect(() => {
+    if (isCoordinator && !params.editId) {
+      setValue('category', entertainmentCategory);
+    }
+  }, [isCoordinator, params.editId, entertainmentCategory, setValue]);
 
   // Prefill when editing an existing event.
   const hhmm = (t?: string) => {
@@ -486,7 +498,7 @@ export default function NewEventScreen() {
   };
 
   const busy = isSubmitting;
-  const cats = categories.data ?? [];
+  const cats = isCoordinator ? [entertainmentCategory] : (categories.data ?? []);
 
   return (
     <Screen padded={false}>
@@ -541,7 +553,24 @@ export default function NewEventScreen() {
             {/* Category */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Category</Text>
-              {categories.loading && !categories.data ? (
+              {isCoordinator ? (
+                <Controller
+                  control={control}
+                  name="category"
+                  render={({ field: { value, onChange } }) => (
+                    <View style={styles.chips}>
+                      <Pressable
+                        onPress={() => onChange(entertainmentCategory)}
+                        style={[styles.chip, styles.chipActive]}
+                      >
+                        <Text style={[styles.chipText, styles.chipTextActive]}>
+                          {entertainmentCategory}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                />
+              ) : categories.loading && !categories.data ? (
                 <ActivityIndicator color={colors.primary} style={styles.alignStart} />
               ) : cats.length ? (
                 <Controller
