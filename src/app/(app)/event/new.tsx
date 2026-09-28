@@ -1136,11 +1136,19 @@ export default function NewEventScreen() {
                   { label: 'I stream it myself', value: 'PRIVATE' },
                 ]}
               />
-              <Text style={styles.visibilityHint}>
-                {visibility === 'PRIVATE'
-                  ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee of at least 100 RWF.'
-                  : 'A photographer covers your event and streams it. Published events appear on connekyt.com.'}
-              </Text>
+              <View style={styles.visibilityHintBox}>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={15}
+                  color={colors.success}
+                  style={styles.visibilityHintIcon}
+                />
+                <Text style={styles.visibilityHint}>
+                  {visibility === 'PRIVATE'
+                    ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee of at least 100 RWF.'
+                    : 'A photographer covers your event and streams it. Published events appear on connekyt.com.'}
+                </Text>
+              </View>
             </View>
 
             {!isCoordinator && visibility === 'PRIVATE' ? (
@@ -1387,8 +1395,29 @@ const useStyles = makeStyles((c) => ({
 
   fieldGroup: { gap: spacing.xs },
   fieldLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
-  visibilityHint: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 18, marginTop: 2 },
   hint: { fontSize: fontSize.xs, color: c.textMuted },
+  visibilityHintBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    backgroundColor: c.successBg,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: c.success + '25',
+  },
+  visibilityHintIcon: {
+    marginTop: 2,
+  },
+  visibilityHint: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    color: c.success,
+    lineHeight: 18,
+    fontWeight: fontWeight.medium,
+  },
   errText: { fontSize: fontSize.xs, color: c.error },
   alignStart: { alignSelf: 'flex-start' },
 
