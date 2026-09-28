@@ -101,10 +101,10 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
     });
   }, [fadeAnim, onFinish, reduceMotion]);
 
-  // Settle at 3.2s (when full brand animation finishes) and smoothly fade out
+  // Settle at 3.5s (when full brand animation finishes) and smoothly fade out
   useEffect(() => {
     if (!onFinish) return;
-    const timer = setTimeout(handleFinish, reduceMotion ? 500 : 3200);
+    const timer = setTimeout(handleFinish, reduceMotion ? 500 : 3500);
     return () => clearTimeout(timer);
   }, [handleFinish, onFinish, reduceMotion]);
 
