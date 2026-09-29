@@ -11,6 +11,8 @@ import { bookingsApi } from '@/api/endpoints/bookings';
 import { useAuth, isApiError } from '@/store/auth';
 import { logoBase64 } from '@/utils/logoBase64';
 import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { formatPrice as formatSelectedPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 export type BookingBottomSheetProps = {
   photographerId?: string;
@@ -109,7 +111,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
     useEffect(() => {
       if (selectedPackage?.currency) {
-        setDisplayCurrency(selectedPackage.currency as any);
+        // Start in the currency picked in the top-bar selector; the pill below can still override it.
+        setDisplayCurrency(useCurrency.getState().currency);
       }
     }, [selectedPackage?.currency]);
 
@@ -754,7 +757,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                           <Text style={styles.packagePrice}>
-                            {pkg.currency} {pkg.price?.toLocaleString()}
+                            {formatSelectedPrice(pkg.price, pkg.currency)}
                           </Text>
                           <View style={[styles.packageRadioCircle, isActive && styles.packageRadioCircleActive]}>
                             {isActive && <View style={styles.packageRadioDot} />}
@@ -969,7 +972,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     <View style={styles.summaryDivider} />
                     <View style={styles.summaryRow}>
                       <Text style={styles.summaryTotalLabel}>Total Amount</Text>
-                      <Text style={styles.summaryTotalValue}>{selectedPackage?.price?.toLocaleString()} {selectedPackage?.currency}</Text>
+                      <Text style={styles.summaryTotalValue}>{formatSelectedPrice(selectedPackage?.price, selectedPackage?.currency)}</Text>
                     </View>
                   </View>
 

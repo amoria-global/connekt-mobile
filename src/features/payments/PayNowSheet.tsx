@@ -22,7 +22,7 @@ import { type PendingPayment } from '@/features/analytics/api';
 import { isApiError } from '@/store/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 
 export function PayNowSheet({
   payment,
@@ -88,7 +88,7 @@ export function PayNowSheet({
                 {payment.eventName}
               </Text>
               <Text style={styles.summarySub}>{payment.photographerName}</Text>
-              <Text style={styles.summaryAmount}>{formatMoney(due, currencyHint)}</Text>
+              <Text style={styles.summaryAmount}>{formatPrice(due, currencyHint)}</Text>
             </View>
 
             <View style={styles.webHint}>

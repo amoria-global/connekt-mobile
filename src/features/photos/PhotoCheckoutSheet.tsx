@@ -52,6 +52,7 @@ import {
 } from '@/features/photos/api';
 import { generateAndSharePhotoInvoice } from './invoicePdf';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { formatPrice } from '@/utils/format';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CARD_GRACE_MS = 180_000; // 3 min grace window for card 3DS / entry
@@ -448,8 +449,7 @@ export function PhotoCheckoutSheet({
             <View style={styles.summary}>
               <Text style={styles.summaryLabel}>AMOUNT TO PAY</Text>
               <Text style={styles.summaryAmount}>
-                {currencySym}
-                {total.toFixed(2)}
+                {formatPrice(total, currencySym || undefined)}
               </Text>
               <Text style={styles.summarySub}>
                 {photoCount} photo{photoCount === 1 ? '' : 's'} from {photographerCount} photographer
@@ -617,8 +617,7 @@ export function PhotoCheckoutSheet({
                     color={!canPay ? colors.textMuted : colors.textOnPrimary}
                   />
                   <Text style={[styles.payBtnText, !canPay && styles.payBtnTextDisabled]}>
-                    {isCard ? 'Proceed to Pay' : 'Pay Now'} · {currencySym}
-                    {total.toFixed(2)}
+                    {isCard ? 'Proceed to Pay' : 'Pay Now'} · {formatPrice(total, currencySym || undefined)}
                   </Text>
                 </Pressable>
 
