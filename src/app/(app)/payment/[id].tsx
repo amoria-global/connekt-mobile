@@ -13,8 +13,11 @@ import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 export default function PaymentDetailScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();

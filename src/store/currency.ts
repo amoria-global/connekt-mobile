@@ -6,6 +6,7 @@
  */
 import { create } from 'zustand';
 import { api } from '@/api/client';
+import { useAuth } from '@/store/auth';
 import { storage, StorageKeys } from '@/services/storage';
 
 export type CurrencyCode = 'USD' | 'RWF' | 'EUR' | 'KES' | 'UGX' | 'TZS';
@@ -65,7 +66,28 @@ type CurrencyState = {
   setCurrency: (code: CurrencyCode) => void;
   /** Read the saved choice and fetch live rates. Safe to call more than once. */
   load: () => Promise<void>;
+  /**
+   * Reconcile with the account's saved currency (shared with the web dashboard).
+   * The account's value wins; if it has none yet, this device's choice is saved to it.
+   */
+  syncWithAccount: () => Promise<void>;
 };
+
+const ACCOUNT_PATH = '/customer/profile/display-currency';
+type AccountEnvelope = { action?: number; data?: { currency?: string | null } };
+
+function isSupported(code: unknown): code is CurrencyCode {
+  return typeof code === 'string' && DEFAULT_CURRENCIES.some((c) => c.code === code);
+}
+
+async function saveToAccount(code: CurrencyCode) {
+  if (useAuth.getState().status !== 'authenticated') return;
+  try {
+    await api.put<AccountEnvelope>(ACCOUNT_PATH, { currency: code });
+  } catch {
+    // Offline or not yet deployed: the device keeps the choice and the next sync retries.
+  }
+}
 
 type RatesEnvelope = {
   data?: Record<string, { rateToUsd?: number | string; symbol?: string; name?: string }>;
@@ -78,12 +100,31 @@ export const useCurrency = create<CurrencyState>((set, get) => ({
   setCurrency: (code) => {
     set({ currency: code });
     storage.set(StorageKeys.displayCurrency, code).catch(() => {});
+    saveToAccount(code);
+  },
+
+  syncWithAccount: async () => {
+    try {
+      const res = await api.get<AccountEnvelope>(ACCOUNT_PATH);
+      if (res?.action === 0) return;
+      const remote = res?.data?.currency;
+      if (isSupported(remote)) {
+        if (remote !== get().currency) {
+          set({ currency: remote });
+          storage.set(StorageKeys.displayCurrency, remote).catch(() => {});
+        }
+      } else {
+        await saveToAccount(get().currency);
+      }
+    } catch {
+      // Keep the device's choice; the next sign-in retries.
+    }
   },
 
   load: async () => {
     const saved = await storage.get(StorageKeys.displayCurrency).catch(() => null);
-    if (saved && DEFAULT_CURRENCIES.some((c) => c.code === saved)) {
-      set({ currency: saved as CurrencyCode });
+    if (isSupported(saved)) {
+      set({ currency: saved });
     }
     try {
       const res = await api.get<RatesEnvelope>('/public/currencies/rates', { skipAuth: true });

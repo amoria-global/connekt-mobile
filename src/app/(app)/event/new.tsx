@@ -52,7 +52,8 @@ import {
   type GeoRegionItem,
 } from '@/features/geopricing/regions';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatMoney, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 /**
  * Required → optional split mirrors the web event form: title /
@@ -87,6 +88,8 @@ type FormValues = z.infer<typeof schema>;
 const MIN_RWF = 100;
 
 export default function NewEventScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -615,7 +618,7 @@ export default function NewEventScreen() {
             <View style={styles.banner}>
               <Text style={styles.bannerLabel}>Booking</Text>
               <Text style={styles.bannerName}>{params.photographerName ?? 'Photographer'}</Text>
-              {amount ? <Text style={styles.bannerPrice}>{formatMoney(amount, params.currency)}</Text> : null}
+              {amount ? <Text style={styles.bannerPrice}>{formatPrice(amount, params.currency)}</Text> : null}
             </View>
           ) : (
             <Text style={styles.title}>{isEditing ? 'Edit event' : 'New event'}</Text>
@@ -1245,7 +1248,7 @@ export default function NewEventScreen() {
                           {selPackage ? (
                             <Text style={styles.assignSub}>
                               {selPackage.name}
-                              {selPackage.price != null ? ` · ${formatMoney(selPackage.price, selPackage.currency)}` : ''}
+                              {selPackage.price != null ? ` · ${formatPrice(selPackage.price, selPackage.currency)}` : ''}
                             </Text>
                           ) : (
                             <Text style={styles.assignSub}>No package selected</Text>
@@ -1369,7 +1372,7 @@ export default function NewEventScreen() {
                   >
                     <View style={styles.flex}>
                       <Text style={styles.pickerName}>{item.name}</Text>
-                      {item.price != null ? <Text style={styles.pickerSub}>{formatMoney(item.price, item.currency)}</Text> : null}
+                      {item.price != null ? <Text style={styles.pickerSub}>{formatPrice(item.price, item.currency)}</Text> : null}
                     </View>
                     <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                   </Pressable>

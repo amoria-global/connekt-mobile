@@ -37,6 +37,7 @@ import Svg, {
 } from 'react-native-svg';
 import { fonts, fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 import type {
   AnalyticsPeriod,
   CoordinatorAnalytics,
@@ -169,6 +170,8 @@ export function PerformanceWaveCard({
   onSelectMetric,
   performanceData,
 }: PerformanceWaveCardProps) {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const [internalMetric, setInternalMetric] = useState<MetricKey>('totalRevenue');
   const [activeIndex, setActiveIndex] = useState<number>(3); // Matches 14/10 index in reference image

@@ -10,8 +10,11 @@ import { useAsync } from '@/hooks/useAsync';
 import { useRole } from '@/features/auth/role';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 export default function ClientsScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();

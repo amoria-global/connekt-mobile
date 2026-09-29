@@ -26,12 +26,15 @@ import { submitReview } from '@/features/reviews/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { formatDate } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
+import { useCurrency } from '@/store/currency';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 
 export default function EventDetailScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -812,8 +815,7 @@ function fmtShortDate(iso?: string): string {
 
 function fmtMoney(amount?: number, currency?: string): string {
   if (amount == null || Number.isNaN(amount)) return '';
-  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency ? `${currency} ` : '';
-  return `${sym}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatPrice(amount, currency);
 }
 
 function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {

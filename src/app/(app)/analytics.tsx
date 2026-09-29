@@ -57,6 +57,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 const DEFAULT_DAYS = [
   { day: 'Sun', value1: 0, value2: 0 },
@@ -76,6 +77,8 @@ const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
 ];
 
 export default function AnalyticsScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const styles = useStyles();

@@ -66,8 +66,9 @@ import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatDate } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { useCurrency } from '@/store/currency';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -119,9 +120,9 @@ function priceLabel(e: {
   // went. "Ticketed" keeps the useful half. Free stays visible.
   if (paid && !canShowDigitalPrice(false)) return { label: '', amount: 'Ticketed' };
   if (e.streamFee && e.streamFee > 0)
-    return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
+    return { label: 'From', amount: formatPrice(e.streamFee, code) };
   if (e.price && e.price > 0)
-    return { label: 'From', amount: `${code} ${e.price.toLocaleString()}` };
+    return { label: 'From', amount: formatPrice(e.price, code) };
   return { label: '', amount: 'Free' };
 }
 
@@ -162,7 +163,7 @@ function buildCta(
   // Undefined where digital prices are gated off, so the disabled ticket CTA
   // below carries no figure the user cannot act on.
   const price = canShowDigitalPrice(!isPaid)
-    ? `${(e.price || e.streamFee || 0).toLocaleString()} ${e.streamFeeCurrencyAbbreviation || 'RWF'}`
+    ? formatPrice(e.price || e.streamFee || 0, e.streamFeeCurrencyAbbreviation || 'RWF')
     : undefined;
   if (isCancelled)
     return { label: 'Event cancelled', icon: 'close-circle', tone: 'cancelled', disabled: true };
@@ -248,6 +249,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function PublicEventDetailScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();

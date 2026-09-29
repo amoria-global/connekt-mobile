@@ -37,6 +37,7 @@ import type { PendingPayment } from '@/features/analytics/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 type Filter = 'all' | 'paid' | 'pending' | 'failed';
 type Section = 'events' | 'streaming' | 'gifts';
@@ -55,6 +56,8 @@ const STATUS_TONE: Record<Exclude<Filter, 'all'>, { bg: string; fg: string; labe
 };
 
 export default function PaymentsScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();

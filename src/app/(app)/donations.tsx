@@ -16,11 +16,14 @@ import { getDonationTiers, listDonations, type Donation } from '@/features/donat
 import { donationUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 const FALLBACK_TIERS = [1000, 5000, 10000, 25000];
 
 export default function DonationsScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const history = useAsync(useCallback(() => listDonations(), []));
@@ -95,7 +98,7 @@ function DonationRow({ donation }: { donation: Donation }) {
         </Text>
         {donation.createdAt ? <Text style={styles.rowDate}>{formatDate(donation.createdAt)}</Text> : null}
       </View>
-      <Text style={styles.rowAmount}>{formatMoney(donation.amount, donation.currency)}</Text>
+      <Text style={styles.rowAmount}>{formatPrice(donation.amount, donation.currency)}</Text>
     </View>
   );
 }

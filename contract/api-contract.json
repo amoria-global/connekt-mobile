@@ -4610,6 +4610,17 @@
     } ],
     "consumes" : [ "multipart/form-data" ]
   }, {
+    "method" : "GET",
+    "path" : "/api/remote/customer/profile/display-currency",
+    "controller" : "CustomerProfileController#getDisplayCurrency"
+  }, {
+    "method" : "PUT",
+    "path" : "/api/remote/customer/profile/display-currency",
+    "controller" : "CustomerProfileController#setDisplayCurrency",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
     "method" : "POST",
     "path" : "/api/remote/customer/profile/profile-picture",
     "controller" : "CustomerProfileController#updateProfilePicture",

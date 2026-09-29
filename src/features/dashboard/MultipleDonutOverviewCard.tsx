@@ -26,6 +26,7 @@ import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { fonts, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import type { PhotographerAnalytics } from '@/features/analytics/api';
+import { useCurrency } from '@/store/currency';
 
 export type TimeframeKey = 'today' | 'week' | 'month' | 'all';
 
@@ -68,6 +69,8 @@ export function MultipleDonutOverviewCard({
   subtitle,
   showActionsRow = false,
 }: Props) {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors, isDark } = useTheme();
   const styles = useStyles();
   const [viewMode, setViewMode] = useState<ViewMode>('donut');
