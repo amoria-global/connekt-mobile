@@ -1,5 +1,11 @@
 import type { Movement, WalletDTO } from './api';
-import { formatWalletMovement, selectWalletStats } from './moneyView';
+import {
+  formatWalletMovement,
+  getDirectionFilters,
+  isVisibleToRole,
+  matchesDirectionFilter,
+  selectWalletStats,
+} from './moneyView';
 
 // A photographer's wallet showed $0.00 available beside Stream bonus $11.40, Album
 // sales $0.33 and Donations $3.40, and a row "Booking earnings -$18,000.00". The
@@ -52,5 +58,31 @@ describe('a debit on the booking balance', () => {
   it('shows an appended data-correction credit as a correction, not as earnings', () => {
     const fix: Movement = { ...debit, direction: 'in', sourceType: 'DATA_CORRECTION' };
     expect(formatWalletMovement(fix, 'photographer')?.title).toBe('Balance correction');
+  });
+});
+
+// Photographers only receive money, so a "Money out" tab listing "Stream purchase" and
+// "Booking fee" rows read to them as spending.
+describe('wallet list filters for a photographer', () => {
+  const mv = (category: string, direction: 'in' | 'out'): Movement => ({
+    id: category + direction, category, direction, amount: 1, createdAt: '2026-06-24T00:00:00Z',
+  });
+
+  it('offer Earnings and Withdrawals instead of Money out', () => {
+    expect(getDirectionFilters('photographer').map((f) => f.label)).toEqual(['All', 'Earnings (+)', 'Withdrawals']);
+    expect(getDirectionFilters('client').map((f) => f.label)).toEqual(['All', 'Money in (+)', 'Money out (−)']);
+  });
+
+  it('Withdrawals shows only withdrawals, not their own purchases or fees', () => {
+    expect(matchesDirectionFilter(mv('WITHDRAWAL', 'out'), 'withdrawals')).toBe(true);
+    expect(matchesDirectionFilter(mv('CLIENT_SPEND', 'out'), 'withdrawals')).toBe(false);
+    expect(matchesDirectionFilter(mv('BALANCE', 'out'), 'withdrawals')).toBe(false);
+  });
+
+  it('hide the platform fee marker and their own client spend, as the wallet page does', () => {
+    expect(isVisibleToRole(mv('CLIENT_SPEND', 'out'), 'photographer')).toBe(false);
+    expect(isVisibleToRole(mv('PLATFORM_FEE', 'out'), 'photographer')).toBe(false);
+    expect(isVisibleToRole(mv('TIPS', 'in'), 'photographer')).toBe(true);
+    expect(isVisibleToRole(mv('CLIENT_SPEND', 'out'), 'client')).toBe(true);
   });
 });

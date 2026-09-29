@@ -37,10 +37,13 @@ import {
   selectWalletStats,
   formatWalletMovement,
   getFilterTags,
+  getDirectionFilters,
+  matchesDirectionFilter,
   PALETTE,
   COLOR_MAP,
   formatRelativeTime,
   type DashboardRole,
+  type DirectionFilter,
   type MoneyItem,
 } from '@/features/wallet/moneyView';
 import { useAsync } from '@/hooks/useAsync';
@@ -65,7 +68,7 @@ export default function WalletScreen() {
   const canWithdraw = isPhotographer || isCoordinator;
 
   const [activeFilter, setActiveFilter] = useState('All');
-  const [directionFilter, setDirectionFilter] = useState<'all' | 'in' | 'out'>('all');
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
   const [activitySearch, setActivitySearch] = useState('');
   const [activityPage, setActivityPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<MoneyItem | null>(null);
@@ -106,7 +109,7 @@ export default function WalletScreen() {
       const item = formatWalletMovement(m, dashboardRole);
       if (!item) continue;
       if (activeFilter !== 'All' && item.tag !== activeFilter) continue;
-      if (directionFilter !== 'all' && item.direction !== directionFilter) continue;
+      if (!matchesDirectionFilter({ direction: item.direction, category: item.sourceType }, directionFilter)) continue;
       if (q) {
         const match =
           item.title.toLowerCase().includes(q) ||
@@ -338,13 +341,7 @@ export default function WalletScreen() {
 
             {/* Direction Filter Pills */}
             <View style={styles.directionFilterRow}>
-              {(
-                [
-                  { label: 'All', value: 'all' },
-                  { label: 'Money in (+)', value: 'in' },
-                  { label: 'Money out (−)', value: 'out' },
-                ] as const
-              ).map((d) => {
+              {getDirectionFilters(dashboardRole).map((d) => {
                 const isSelected = directionFilter === d.value;
                 return (
                   <Pressable
