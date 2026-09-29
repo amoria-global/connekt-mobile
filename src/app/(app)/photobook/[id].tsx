@@ -38,7 +38,8 @@ import { getPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
   PUBLISHED: { label: 'Published · Live', bg: '#D1FAE5', fg: '#047857' },
@@ -48,6 +49,8 @@ const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
 };
 
 export default function PhotobookDetailScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
@@ -280,7 +283,7 @@ export default function PhotobookDetailScreen() {
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.payTitle}>Extra Photos Available</Text>
                   <Text style={styles.paySubtitle}>
-                    {data.extraPhotosCount ?? 0} additional photos · {formatMoney(data.extraPhotosAmount)}
+                    {data.extraPhotosCount ?? 0} additional photos · {formatPrice(data.extraPhotosAmount)}
                   </Text>
                 </View>
                 {payBusy ? (

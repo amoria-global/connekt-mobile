@@ -39,7 +39,7 @@ import {
 } from '@/features/notifications/api';
 import { notificationTarget } from '@/features/notifications/routing';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { formatMoney, formatRelativeTime } from '@/utils/format';
+import { formatPrice, formatRelativeTime } from '@/utils/format';
 
 type FilterOption = 'all' | 'unread' | 'booking' | 'payment_group' | 'album' | 'security';
 type DateGroup = 'Today' | 'Yesterday' | 'This Week' | 'Earlier';
@@ -489,7 +489,7 @@ export default function NotificationsScreen() {
                       {/* Amount pill if monetary */}
                       {item.amount ? (
                         <View style={styles.amountPill}>
-                          <Text style={styles.amountPillText}>+{formatMoney(item.amount)}</Text>
+                          <Text style={styles.amountPillText}>+{formatPrice(item.amount)}</Text>
                         </View>
                       ) : null}
                     </View>

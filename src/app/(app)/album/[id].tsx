@@ -54,7 +54,8 @@ import { pickMultipleFromLibrary } from '@/services/imagePicker';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> = {
   DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
@@ -64,6 +65,8 @@ const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> =
 };
 
 export default function AlbumDetailScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
@@ -619,7 +622,7 @@ export default function AlbumDetailScreen() {
                     <Button
                       title={
                         data?.archiveFee
-                          ? `Unlock for ${formatMoney(data.archiveFee, data.archiveCurrency)}`
+                          ? `Unlock for ${formatPrice(data.archiveFee, data.archiveCurrency)}`
                           : 'Unlock on web'
                       }
                       onPress={onUnlock}

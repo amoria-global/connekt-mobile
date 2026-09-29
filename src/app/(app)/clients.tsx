@@ -9,7 +9,7 @@ import { listClients } from '@/features/clients/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useRole } from '@/features/auth/role';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 
 export default function ClientsScreen() {
   const { colors } = useTheme();
@@ -60,7 +60,7 @@ export default function ClientsScreen() {
                 ) : null}
               </View>
               {item.totalSpent != null ? (
-                <Text style={styles.spent}>{formatMoney(item.totalSpent, item.currency)}</Text>
+                <Text style={styles.spent}>{formatPrice(item.totalSpent, item.currency)}</Text>
               ) : null}
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </Pressable>

@@ -56,7 +56,7 @@ import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 
 const DEFAULT_DAYS = [
   { day: 'Sun', value1: 0, value2: 0 },
@@ -228,7 +228,7 @@ type StatCardItem = {
       return [
         {
           title: 'Total Spent',
-          value: formatMoney(clientData?.totalSpent || 0, currency),
+          value: formatPrice(clientData?.totalSpent || 0, currency),
           percentage: trends.totalSpent?.percentage,
           trend: trends.totalSpent?.direction ?? 'up',
           iconName: 'wallet-outline' as const,
@@ -238,7 +238,7 @@ type StatCardItem = {
         },
         {
           title: 'Pending',
-          value: formatMoney(clientData?.pendingAmount || 0, currency),
+          value: formatPrice(clientData?.pendingAmount || 0, currency),
           percentage: trends.pending?.percentage,
           trend: trends.pending?.direction ?? 'up',
           iconName: 'time-outline' as const,
@@ -264,7 +264,7 @@ type StatCardItem = {
         },
         {
           title: 'Gifts',
-          value: formatMoney(clientData?.gifts || 0, currency),
+          value: formatPrice(clientData?.gifts || 0, currency),
           percentage: trends.gifts?.percentage,
           trend: trends.gifts?.direction ?? 'up',
           iconName: 'gift-outline' as const,
@@ -292,7 +292,7 @@ type StatCardItem = {
       return [
         {
           title: 'Total Revenue',
-          value: formatMoney(coordData?.totalRevenue || 0, currency),
+          value: formatPrice(coordData?.totalRevenue || 0, currency),
           percentage: trends.totalRevenue?.percentage,
           trend: trends.totalRevenue?.direction ?? 'up',
           iconName: 'cash-outline' as const,
@@ -302,7 +302,7 @@ type StatCardItem = {
         },
         {
           title: 'Pending',
-          value: formatMoney(coordData?.totalPending || 0, currency),
+          value: formatPrice(coordData?.totalPending || 0, currency),
           percentage: trends.totalPending?.percentage,
           trend: trends.totalPending?.direction ?? 'up',
           iconName: 'time-outline' as const,
@@ -328,7 +328,7 @@ type StatCardItem = {
         },
         {
           title: 'Total Paid',
-          value: formatMoney(coordData?.totalPaid || 0, currency),
+          value: formatPrice(coordData?.totalPaid || 0, currency),
           percentage: trends.totalPaid?.percentage,
           trend: trends.totalPaid?.direction ?? 'up',
           iconName: 'card-outline' as const,
@@ -356,7 +356,7 @@ type StatCardItem = {
       return [
         {
           title: 'Total Earnings',
-          value: formatMoney(photogData?.totalEarnings || 0, currency),
+          value: formatPrice(photogData?.totalEarnings || 0, currency),
           iconName: 'cash-outline' as const,
           accentColor: colors.primary,
           href: '/wallet',
@@ -365,7 +365,7 @@ type StatCardItem = {
         },
         {
           title: 'Pending',
-          value: formatMoney(photogData?.pendingPayments || 0, currency),
+          value: formatPrice(photogData?.pendingPayments || 0, currency),
           iconName: 'time-outline' as const,
           accentColor: colors.warning,
           chartType: 'donut' as const,
@@ -386,7 +386,7 @@ type StatCardItem = {
         },
         {
           title: 'Bonuses',
-          value: formatMoney(photogData?.bonuses || 0, currency),
+          value: formatPrice(photogData?.bonuses || 0, currency),
           iconName: 'gift-outline' as const,
           accentColor: colors.accent,
           chartType: 'donut' as const,
@@ -453,26 +453,26 @@ type StatCardItem = {
       return {
         title: 'Financial Allocation',
         subtitle: 'Cashflow & revenue breakdown',
-        centerValue: formatMoney(rev, currency),
+        centerValue: formatPrice(rev, currency),
         centerLabel: 'VOLUME',
         segments: [
           {
             label: 'Gross Revenue',
             value: rev,
             color: colors.primary,
-            formatted: formatMoney(rev, currency),
+            formatted: formatPrice(rev, currency),
           },
           {
             label: 'Paid Out',
             value: paid,
             color: colors.success,
-            formatted: formatMoney(paid, currency),
+            formatted: formatPrice(paid, currency),
           },
           {
             label: 'Pending Escrow',
             value: pending,
             color: colors.warning,
-            formatted: formatMoney(pending, currency),
+            formatted: formatPrice(pending, currency),
           },
         ],
       };
@@ -486,26 +486,26 @@ type StatCardItem = {
     return {
       title: 'Earnings Composition',
       subtitle: 'Income distribution across streams',
-      centerValue: formatMoney(totalEarned, currency),
+      centerValue: formatPrice(totalEarned, currency),
       centerLabel: 'EARNED',
       segments: [
         {
           label: 'Shoot Earnings',
           value: earnings,
           color: colors.primary,
-          formatted: formatMoney(earnings, currency),
+          formatted: formatPrice(earnings, currency),
         },
         {
           label: 'Tips & Gratuity',
           value: tips,
           color: colors.success,
-          formatted: formatMoney(tips, currency),
+          formatted: formatPrice(tips, currency),
         },
         {
           label: 'Bonuses',
           value: bonuses,
           color: colors.accent,
-          formatted: formatMoney(bonuses, currency),
+          formatted: formatPrice(bonuses, currency),
         },
       ],
     };
@@ -749,7 +749,7 @@ type StatCardItem = {
                     You have {pendingPaymentsList.length} payment
                     {pendingPaymentsList.length > 1 ? 's' : ''} totaling{' '}
                     <Text style={{ fontWeight: '700', color: colors.text }}>
-                      {formatMoney(totalPendingAmount, currency)}
+                      {formatPrice(totalPendingAmount, currency)}
                     </Text>{' '}
                     that need attention
                   </Text>
@@ -812,7 +812,7 @@ type StatCardItem = {
                           { color: isFailed ? colors.error : colors.primary },
                         ]}
                       >
-                        {formatMoney(dueAmount, currency)}
+                        {formatPrice(dueAmount, currency)}
                       </Text>
                       <Pressable
                         onPress={() => handlePayNow(payment)}
@@ -929,7 +929,7 @@ type StatCardItem = {
                       key={pay.id}
                       name={pay.name}
                       type={pay.type}
-                      amount={formatMoney(pay.amount, currency)}
+                      amount={formatPrice(pay.amount, currency)}
                       avatar={pay.avatar}
                     />
                   ))}
@@ -986,7 +986,7 @@ type StatCardItem = {
                       key={t.id}
                       name={t.eventName}
                       type={t.status}
-                      amount={formatMoney(t.amount, currency)}
+                      amount={formatPrice(t.amount, currency)}
                       subtitle={t.createdAt ? formatDate(t.createdAt) : undefined}
                     />
                   ))}

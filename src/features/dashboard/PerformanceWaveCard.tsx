@@ -36,7 +36,7 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg';
 import { fonts, fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 import type {
   AnalyticsPeriod,
   CoordinatorAnalytics,
@@ -316,7 +316,7 @@ export function PerformanceWaveCard({
       if (idx === 0 || idx === 5) {
         displayValue = '0';
       } else if (meta.isMoney) {
-        displayValue = formatMoney(pointVal, currency);
+        displayValue = formatPrice(pointVal, currency);
       } else {
         displayValue = String(pointVal);
       }
@@ -373,7 +373,7 @@ export function PerformanceWaveCard({
 
   // Formatted active metric headline
   const formattedHeadline = meta.isMoney
-    ? formatMoney(totalValue, currency)
+    ? formatPrice(totalValue, currency)
     : `${totalValue} ${meta.unit}`;
 
   return (

@@ -40,7 +40,7 @@ import { acceptBooking, listBookings, rejectBooking, type Booking } from '@/feat
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 
 export default function BookingsScreen() {
   const { colors } = useTheme();
@@ -162,7 +162,7 @@ export default function BookingsScreen() {
                 {b.proposedPrice != null ? (
                   <Row
                     icon="cash-outline"
-                    text={`Proposed ${formatMoney(b.proposedPrice, b.currency)}`}
+                    text={`Proposed ${formatPrice(b.proposedPrice, b.currency)}`}
                   />
                 ) : null}
 

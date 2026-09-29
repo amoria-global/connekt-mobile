@@ -13,7 +13,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useRole } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 
 export default function ClientDetailScreen() {
   const { colors } = useTheme();
@@ -174,7 +174,7 @@ export default function ClientDetailScreen() {
         <View style={styles.stats}>
           <Stat label="Bookings" value={String(data?.bookings ?? data?.events.length ?? 0)} />
           {data?.totalSpent != null ? (
-            <Stat label="Total spent" value={formatMoney(data.totalSpent, data.currency)} />
+            <Stat label="Total spent" value={formatPrice(data.totalSpent, data.currency)} />
           ) : null}
         </View>
 

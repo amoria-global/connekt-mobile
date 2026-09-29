@@ -1,4 +1,6 @@
-/** Small, dependency-free formatting helpers. */
+import { convertAndFormat, useCurrency } from '@/store/currency';
+
+/** Small formatting helpers. */
 
 /** Format an ISO date string as e.g. "Mon, 3 Jun 2026". Returns '' on bad input. */
 export function formatDate(iso?: string): string {
@@ -37,4 +39,17 @@ export function formatMoney(amount?: number, currency = ''): string {
   if (amount == null || Number.isNaN(amount)) return `${currency} 0`.trim();
   const formatted = amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return `${currency} ${formatted}`.trim();
+}
+
+/**
+ * Like formatMoney, but shown in the currency picked in the top-bar selector,
+ * the way web's formatPrice does. `from` is the currency `amount` is
+ * denominated in (omitted means USD). An unknown `from` falls back to
+ * formatMoney so the amount is never relabelled. Screens that must stay
+ * reactive call useCurrency() so they re-render when the selection changes.
+ */
+export function formatPrice(amount?: number, from?: string): string {
+  if (amount == null || Number.isNaN(amount)) return formatMoney(amount, from);
+  const { currency, currencies } = useCurrency.getState();
+  return convertAndFormat(amount, from, currency, currencies) ?? formatMoney(amount, from);
 }
