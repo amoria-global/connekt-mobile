@@ -243,6 +243,10 @@ export function formatWalletMovement(m: Movement, role: DashboardRole): MoneyIte
     title = cat.replace(/_/g, ' ').toLowerCase();
     title = title.charAt(0).toUpperCase() + title.slice(1);
   }
+  // A debit on a photographer's booking balance is a deduction, not earnings.
+  if (role === 'photographer' && cat === 'BALANCE' && direction === 'out') {
+    title = 'Balance deduction';
+  }
 
   const subtitle = m.description || undefined;
 
@@ -279,19 +283,22 @@ export function selectWalletStats(w: WalletDTO, role: DashboardRole): WalletStat
   const status = w.status || 'ACTIVE';
 
   if (role === 'photographer') {
-    const totalEarnings = w.balanceAvailable;
+    // The cards are the breakdown of balanceAvailable, so they add up to the hero.
+    // A "Total earnings" card only repeated the hero (it is the withdrawable
+    // balance, not lifetime earnings). In escrow and Total withdrawn are not part of it.
     const inEscrow = w.heldForDelivery || w.deliveryHeldAmount || 0;
 
     return {
       hero: { label: 'Available to withdraw', value: w.balanceAvailable },
       cards: [
-        { label: 'Total earnings', value: totalEarnings, color: 'green', hidden: false },
+        { label: 'Booking earnings', value: w.balanceBooking, color: 'green', hidden: w.balanceBooking === 0 },
         { label: 'Tips', value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
         { label: 'Bonuses', value: w.balanceBonuses, color: 'amber', hidden: w.balanceBonuses === 0 },
         { label: 'Stream bonus', value: w.balanceStreamFees, color: 'blue', hidden: w.balanceStreamFees === 0 },
         { label: 'Album sales', value: w.balancePhotoPurchase, color: 'blue', hidden: w.balancePhotoPurchase === 0 },
         { label: 'Gifts', value: w.balanceGifts, color: 'purple', hidden: w.balanceGifts === 0 },
         { label: 'Donations', value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
+        { label: 'Ad revenue', value: w.balanceAdRevenue, color: 'blue', hidden: !w.balanceAdRevenue },
         { label: 'In escrow', value: inEscrow, color: 'amber', hidden: inEscrow === 0 },
         { label: 'Total withdrawn', value: w.totalWithdrawn, color: 'neutral', hidden: w.totalWithdrawn === 0 },
       ],
