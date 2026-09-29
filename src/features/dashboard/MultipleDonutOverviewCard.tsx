@@ -24,7 +24,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { fonts, makeStyles, radii, spacing, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 import type { PhotographerAnalytics } from '@/features/analytics/api';
 
 export type TimeframeKey = 'today' | 'week' | 'month' | 'all';
@@ -151,7 +151,7 @@ export function MultipleDonutOverviewCard({
         key: 'inner' as const,
         pct: p3,
         label: 'Tips & Bonuses',
-        countLabel: rewards > 0 ? formatMoney(rewards, currency) : `${totalClients} Client${totalClients === 1 ? '' : 's'}`,
+        countLabel: rewards > 0 ? formatPrice(rewards, currency) : `${totalClients} Client${totalClients === 1 ? '' : 's'}`,
         amount: rewards,
         color: colorInner,
         dimColor: isDark ? 'rgba(45, 212, 191, 0.28)' : 'rgba(13, 148, 136, 0.22)',
@@ -169,7 +169,7 @@ export function MultipleDonutOverviewCard({
         number: `${ringData.outer.pct}`,
         unit: '%',
         subLabel: ringData.outer.countLabel,
-        amount: balanceHidden ? '••••••' : formatMoney(ringData.outer.amount, currency),
+        amount: balanceHidden ? '••••••' : formatPrice(ringData.outer.amount, currency),
         color: ringData.outer.color,
       };
     }
@@ -178,7 +178,7 @@ export function MultipleDonutOverviewCard({
         number: `${ringData.middle.pct}`,
         unit: '%',
         subLabel: ringData.middle.countLabel,
-        amount: balanceHidden ? '••••••' : formatMoney(ringData.middle.amount, currency),
+        amount: balanceHidden ? '••••••' : formatPrice(ringData.middle.amount, currency),
         color: ringData.middle.color,
       };
     }
@@ -187,7 +187,7 @@ export function MultipleDonutOverviewCard({
         number: `${ringData.inner.pct}`,
         unit: '%',
         subLabel: ringData.inner.countLabel,
-        amount: balanceHidden ? '••••••' : formatMoney(ringData.inner.amount, currency),
+        amount: balanceHidden ? '••••••' : formatPrice(ringData.inner.amount, currency),
         color: ringData.inner.color,
       };
     }
@@ -197,7 +197,7 @@ export function MultipleDonutOverviewCard({
       number: isComparisonMode ? `${goalPct}` : `${ringData.outer.pct}`,
       unit: '%',
       subLabel: isComparisonMode ? 'Goal Progress' : ringData.outer.countLabel,
-      amount: balanceHidden ? '••••••' : formatMoney(totalEarnings, currency),
+      amount: balanceHidden ? '••••••' : formatPrice(totalEarnings, currency),
       color: colors.text,
     };
   }, [selectedRing, ringData, balanceHidden, totalEarnings, currency, isComparisonMode, targetEarnings, colors.text]);
@@ -630,7 +630,7 @@ export function MultipleDonutOverviewCard({
             <View style={styles.barItemTop}>
               <Text style={styles.barLabel}>{ringData.outer.label}</Text>
               <Text style={[styles.barValue, { color: ringData.outer.color }]}>
-                {ringData.outer.pct}% · {balanceHidden ? '••••' : formatMoney(ringData.outer.amount, currency)}
+                {ringData.outer.pct}% · {balanceHidden ? '••••' : formatPrice(ringData.outer.amount, currency)}
               </Text>
             </View>
             <View style={styles.barTrack}>
@@ -647,7 +647,7 @@ export function MultipleDonutOverviewCard({
             <View style={styles.barItemTop}>
               <Text style={styles.barLabel}>{ringData.middle.label}</Text>
               <Text style={[styles.barValue, { color: ringData.middle.color }]}>
-                {ringData.middle.pct}% · {balanceHidden ? '••••' : formatMoney(ringData.middle.amount, currency)}
+                {ringData.middle.pct}% · {balanceHidden ? '••••' : formatPrice(ringData.middle.amount, currency)}
               </Text>
             </View>
             <View style={styles.barTrack}>
@@ -664,7 +664,7 @@ export function MultipleDonutOverviewCard({
             <View style={styles.barItemTop}>
               <Text style={styles.barLabel}>{ringData.inner.label}</Text>
               <Text style={[styles.barValue, { color: ringData.inner.color }]}>
-                {ringData.inner.pct}% · {balanceHidden ? '••••' : formatMoney(ringData.inner.amount, currency)}
+                {ringData.inner.pct}% · {balanceHidden ? '••••' : formatPrice(ringData.inner.amount, currency)}
               </Text>
             </View>
             <View style={styles.barTrack}>
@@ -689,7 +689,7 @@ export function MultipleDonutOverviewCard({
           >
             <Text style={styles.trendCardLabel}>Total Earnings</Text>
             <Text style={styles.trendCardValue}>
-              {balanceHidden ? '••••••' : formatMoney(totalEarnings, currency)}
+              {balanceHidden ? '••••••' : formatPrice(totalEarnings, currency)}
             </Text>
             <Text style={[styles.trendCardSub, { color: isDark ? '#4ADE80' : '#059669' }]}>
               {isComparisonMode
@@ -727,7 +727,7 @@ export function MultipleDonutOverviewCard({
           >
             <Text style={styles.trendCardLabel}>Tips & Bonuses</Text>
             <Text style={styles.trendCardValue}>
-              {balanceHidden ? '••••••' : formatMoney(totalTips + bonuses, currency)}
+              {balanceHidden ? '••••••' : formatPrice(totalTips + bonuses, currency)}
             </Text>
             <Text style={[styles.trendCardSub, { color: isDark ? '#2DD4BF' : '#0D9488' }]}>Rewards tally</Text>
           </Pressable>

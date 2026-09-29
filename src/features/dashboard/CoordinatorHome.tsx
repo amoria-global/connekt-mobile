@@ -48,7 +48,8 @@ import {
 import { listCoordinatorEvents } from '@/features/events/api';
 import type { EventItem } from '@/features/events/types';
 import { getWallet } from '@/features/wallet/api';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
 
@@ -100,6 +101,8 @@ function getTodayFormatted(): string {
 }
 
 export function CoordinatorHome() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -424,7 +427,7 @@ export function CoordinatorHome() {
               >
                 <Text style={styles.snapshotLabel}>REVENUE</Text>
                 <Text style={[styles.snapshotValue, { color: '#083A85' }]}>
-                  {formatMoney(a?.totalRevenue || 0, currency)}
+                  {formatPrice(a?.totalRevenue || 0, currency)}
                 </Text>
               </Pressable>
               <View style={styles.snapshotDivider} />
@@ -473,7 +476,7 @@ export function CoordinatorHome() {
                 <Text style={styles.pendingSub}>
                   {pendingList.length} payment{pendingList.length === 1 ? '' : 's'} totaling{' '}
                   <Text style={{ fontWeight: fontWeight.bold, color: colors.text }}>
-                    {formatMoney(totalPendingAmount, currency)}
+                    {formatPrice(totalPendingAmount, currency)}
                   </Text>
                 </Text>
               </View>

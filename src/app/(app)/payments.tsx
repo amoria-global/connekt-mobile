@@ -36,7 +36,7 @@ import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import type { PendingPayment } from '@/features/analytics/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 
 type Filter = 'all' | 'paid' | 'pending' | 'failed';
 type Section = 'events' | 'streaming' | 'gifts';
@@ -217,16 +217,16 @@ export default function PaymentsScreen() {
         <>
           <View style={styles.totalCard}>
             <Text style={styles.totalLabel}>{isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING'}</Text>
-            <Text style={styles.totalValue}>{formatMoney(stats.total, currency)}</Text>
+            <Text style={styles.totalValue}>{formatPrice(stats.total, currency)}</Text>
             <View style={styles.totalSplit}>
               <View style={styles.totalSplitCell}>
                 <Text style={styles.totalSplitLabel}>Paid</Text>
-                <Text style={styles.totalSplitValue}>{formatMoney(stats.paid, currency)}</Text>
+                <Text style={styles.totalSplitValue}>{formatPrice(stats.paid, currency)}</Text>
               </View>
               <View style={styles.totalDivider} />
               <View style={styles.totalSplitCell}>
                 <Text style={styles.totalSplitLabel}>Pending</Text>
-                <Text style={styles.totalSplitValue}>{formatMoney(stats.pending, currency)}</Text>
+                <Text style={styles.totalSplitValue}>{formatPrice(stats.pending, currency)}</Text>
               </View>
             </View>
           </View>
@@ -236,7 +236,7 @@ export default function PaymentsScreen() {
               <Ionicons name="alert-circle" size={20} color="#D97706" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.pendingAlertTitle}>
-                  {formatMoney(stats.pending, currency)} in pending payments
+                  {formatPrice(stats.pending, currency)} in pending payments
                 </Text>
                 <Text style={styles.pendingAlertSub}>
                   Complete payments to avoid booking cancellations.
@@ -297,7 +297,7 @@ export default function PaymentsScreen() {
           <View style={styles.streamDivider} />
           <View style={styles.streamCardBottom}>
             <Text style={styles.streamBottomLabel}>Total Stream Revenue</Text>
-            <Text style={styles.streamBottomValue}>{formatMoney(totalStreamingRevenue, 'RWF')}</Text>
+            <Text style={styles.streamBottomValue}>{formatPrice(totalStreamingRevenue, 'RWF')}</Text>
           </View>
         </View>
       ) : null}
@@ -325,7 +325,7 @@ export default function PaymentsScreen() {
           <View style={styles.giftDivider} />
           <View style={styles.giftCardBottom}>
             <Text style={styles.giftBottomLabel}>Total Gift Revenue</Text>
-            <Text style={styles.giftBottomValue}>{formatMoney(totalGiftRevenue, 'RWF')}</Text>
+            <Text style={styles.giftBottomValue}>{formatPrice(totalGiftRevenue, 'RWF')}</Text>
           </View>
         </View>
       ) : null}
@@ -374,7 +374,7 @@ export default function PaymentsScreen() {
                 <View style={styles.rowRight}>
                   {item.amount != null ? (
                     <Text style={styles.rowAmount}>
-                      {formatMoney(item.amount, item.currency)}
+                      {formatPrice(item.amount, item.currency)}
                     </Text>
                   ) : null}
 
@@ -479,7 +479,7 @@ export default function PaymentsScreen() {
                     </Text>
                   </View>
                   <Text style={styles.streamRowAmount}>
-                    {formatMoney(item.amount, item.currency)}
+                    {formatPrice(item.amount, item.currency)}
                   </Text>
                 </View>
 
@@ -544,7 +544,7 @@ export default function PaymentsScreen() {
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 2 }}>
                     <Text style={styles.giftNetAmount}>
-                      {formatMoney(item.netAmount, item.currency)}
+                      {formatPrice(item.netAmount, item.currency)}
                     </Text>
                     <View style={[styles.statusChip, { backgroundColor: statusTone.bg }]}>
                       <Text style={[styles.statusChipText, { color: statusTone.fg }]}>

@@ -8,7 +8,7 @@
  */
 import { api } from '@/api/client';
 import type { ApiEnvelope } from '@/types';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 
 export type AnalyticsStat = { key: string; label: string; value: string };
 
@@ -60,7 +60,7 @@ export async function getAnalytics(role: AnalyticsRole, currency?: string): Prom
     stats.push({
       key,
       label: meta.label,
-      value: meta.money ? formatMoney(value, currency) : String(value),
+      value: meta.money ? formatPrice(value, currency) : String(value),
     });
   }
   return stats;

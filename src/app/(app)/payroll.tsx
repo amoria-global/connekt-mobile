@@ -6,7 +6,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { getPayrollReport } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 
 export default function PayrollScreen() {
   const { colors } = useTheme();
@@ -45,9 +45,9 @@ export default function PayrollScreen() {
         }
       >
         <View style={styles.cards}>
-          <Stat label="Total" value={formatMoney(data?.total ?? 0, cur)} tint={colors.primary} />
-          <Stat label="Paid" value={formatMoney(data?.paid ?? 0, cur)} tint={colors.success} />
-          <Stat label="Pending" value={formatMoney(data?.pending ?? 0, cur)} tint={colors.warning} />
+          <Stat label="Total" value={formatPrice(data?.total ?? 0, cur)} tint={colors.primary} />
+          <Stat label="Paid" value={formatPrice(data?.paid ?? 0, cur)} tint={colors.success} />
+          <Stat label="Pending" value={formatPrice(data?.pending ?? 0, cur)} tint={colors.warning} />
         </View>
 
         <Text style={styles.sectionTitle}>Transactions</Text>
@@ -61,7 +61,7 @@ export default function PayrollScreen() {
                 {e.date ? <Text style={styles.rowDate}>{formatDate(e.date)}</Text> : null}
               </View>
               <View style={styles.rowRight}>
-                <Text style={styles.rowAmount}>{formatMoney(e.amount, cur)}</Text>
+                <Text style={styles.rowAmount}>{formatPrice(e.amount, cur)}</Text>
                 {e.status ? <StatusPill status={e.status} /> : null}
               </View>
             </View>

@@ -5,7 +5,7 @@ import { DataList } from '@/components/ui/DataList';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 import { acceptBooking, listBookings, rejectBooking, type Booking } from './api';
 
 type Props = { title?: string; subtitle?: string; topInset?: number };
@@ -71,7 +71,7 @@ export function BookingsList({ title, subtitle, topInset }: Props) {
           {item.clientName ? <Text style={styles.meta}>Client: {item.clientName}</Text> : null}
           {item.eventDate ? <Text style={styles.meta}>{formatDate(item.eventDate)}</Text> : null}
           {item.proposedPrice != null ? (
-            <Text style={styles.price}>{formatMoney(item.proposedPrice, item.currency)}</Text>
+            <Text style={styles.price}>{formatPrice(item.proposedPrice, item.currency)}</Text>
           ) : null}
 
           {isPending(item.status) ? (

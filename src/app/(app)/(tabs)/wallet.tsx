@@ -45,11 +45,14 @@ import {
 } from '@/features/wallet/moneyView';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
 export default function WalletScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -209,7 +212,7 @@ export default function WalletScreen() {
                 <Text style={styles.heroAmount}>
                   {balanceHidden
                     ? `${data?.wallet?.currency ? data.wallet.currency + ' ' : '$ '}••••••`
-                    : formatMoney(stats.hero.value, data?.wallet.currency)}
+                    : formatPrice(stats.hero.value, data?.wallet.currency)}
                 </Text>
 
                 {stats.pendingChip && stats.pendingChip.value > 0 ? (
@@ -219,7 +222,7 @@ export default function WalletScreen() {
                       {stats.pendingChip.label}:{' '}
                       {balanceHidden
                         ? '••••'
-                        : formatMoney(stats.pendingChip.value, data?.wallet.currency)}
+                        : formatPrice(stats.pendingChip.value, data?.wallet.currency)}
                     </Text>
                   </View>
                 ) : null}
@@ -303,7 +306,7 @@ export default function WalletScreen() {
                       <Text style={styles.potAmount}>
                         {balanceHidden
                           ? '••••'
-                          : formatMoney(card.value, data?.wallet.currency)}
+                          : formatPrice(card.value, data?.wallet.currency)}
                       </Text>
                     </View>
                   );
@@ -423,7 +426,7 @@ export default function WalletScreen() {
 
                     const displayAmount = balanceHidden
                       ? `${sign}$ ••••`
-                      : `${sign}${formatMoney(item.amount, item.originalCurrency || data?.wallet.currency)}`;
+                      : `${sign}${formatPrice(item.amount, item.originalCurrency || data?.wallet.currency)}`;
 
                     return (
                       <Pressable
@@ -585,7 +588,7 @@ export default function WalletScreen() {
                     ]}
                   >
                     {selectedItem.direction === 'in' ? '+' : '−'}
-                    {formatMoney(selectedItem.amount, selectedItem.originalCurrency || data?.wallet.currency)}
+                    {formatPrice(selectedItem.amount, selectedItem.originalCurrency || data?.wallet.currency)}
                   </Text>
                   <Text style={styles.modalHeroTitle}>{selectedItem.title}</Text>
                 </View>

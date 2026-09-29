@@ -10,6 +10,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
 import { spacing, radii, makeStyles, useTheme } from '@/theme';
 import { BrandPill } from './BrandPill';
+import { CurrencyButton } from './CurrencyButton';
 import { NotificationButton } from './NotificationButton';
 import { ProfileButton } from './ProfileButton';
 
@@ -74,7 +75,8 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
         ) : (
           <ProfileButton user={user} onPress={() => router.push('/profile')} />
         )}
-        <BrandPill />
+        <BrandPill style={styles.brand} />
+        <CurrencyButton />
         <NotificationButton hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
       </View>
     </View>
@@ -113,4 +115,6 @@ const useStyles = makeStyles((c, e) => ({
     ...e(2),
   },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
+  // Tighter padding so the pill still fits beside the currency chip on narrow phones.
+  brand: { paddingHorizontal: spacing.md },
 }));

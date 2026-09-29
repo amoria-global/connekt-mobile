@@ -73,7 +73,8 @@ import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 // ────── Greetings (web parity: pages/client/home.tsx:64-114) ──────────────
 
@@ -167,6 +168,8 @@ const PERIOD_LABEL: Record<AnalyticsPeriod, string> = {
 };
 
 export default function HomeScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors, gradients } = useTheme();
   const styles = useStyles();
   const user = useAuth((s) => s.user);
@@ -344,21 +347,21 @@ export default function HomeScreen() {
   const heroStats = useMemo(() => {
     if (isClient && analyticsClient) {
       return [
-        { label: 'Spent', value: formatMoney(analyticsClient.totalSpent, wallet.data?.currency), tone: colors.primary },
+        { label: 'Spent', value: formatPrice(analyticsClient.totalSpent, wallet.data?.currency), tone: colors.primary },
         { label: 'Bookings', value: String(analyticsClient.totalBookings), tone: colors.accent },
         { label: 'Photos', value: String(analyticsClient.totalPhotos), tone: '#10B981' },
       ];
     }
     if (isCoordinator && analyticsCoord) {
       return [
-        { label: 'Revenue', value: formatMoney(analyticsCoord.totalRevenue, wallet.data?.currency), tone: colors.primary },
+        { label: 'Revenue', value: formatPrice(analyticsCoord.totalRevenue, wallet.data?.currency), tone: colors.primary },
         { label: 'Events', value: String(analyticsCoord.totalEvents), tone: colors.accent },
         { label: 'Photographers', value: String(analyticsCoord.totalPhotographers), tone: '#10B981' },
       ];
     }
     if (isPhotographer && analyticsPhotog) {
       return [
-        { label: 'Earnings', value: formatMoney(analyticsPhotog.totalEarnings, wallet.data?.currency), tone: colors.primary },
+        { label: 'Earnings', value: formatPrice(analyticsPhotog.totalEarnings, wallet.data?.currency), tone: colors.primary },
         { label: 'Clients', value: String(analyticsPhotog.totalClients), tone: colors.accent },
         { label: 'Photos', value: String(analyticsPhotog.totalPhotosUploaded), tone: '#10B981' },
       ];
@@ -369,17 +372,17 @@ export default function HomeScreen() {
   const kpis = useMemo(() => {
     if (isClient && analyticsClient) {
       return [
-        kpi('Total Spent', formatMoney(analyticsClient.totalSpent, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalSpent),
-        kpi('Pending', formatMoney(analyticsClient.pendingAmount, wallet.data?.currency), 'time-outline', '#F59E0B', trends.pending),
+        kpi('Total Spent', formatPrice(analyticsClient.totalSpent, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalSpent),
+        kpi('Pending', formatPrice(analyticsClient.pendingAmount, wallet.data?.currency), 'time-outline', '#F59E0B', trends.pending),
         kpi('Bookings', String(analyticsClient.totalBookings), 'people-outline', '#3B82F6', trends.events, '/events'),
-        kpi('Gifts', formatMoney(analyticsClient.gifts, wallet.data?.currency), 'gift-outline', '#10B981', trends.gifts),
+        kpi('Gifts', formatPrice(analyticsClient.gifts, wallet.data?.currency), 'gift-outline', '#10B981', trends.gifts),
         kpi('Favorites', String(analyticsClient.bookmarkedPhotographers), 'star-outline', '#8B5CF6', trends.photographers, '/photographers'),
       ];
     }
     if (isCoordinator && analyticsCoord) {
       return [
-        kpi('Revenue', formatMoney(analyticsCoord.totalRevenue, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalRevenue),
-        kpi('Pending', formatMoney(analyticsCoord.totalPending, wallet.data?.currency), 'time-outline', '#F59E0B', trends.totalPending),
+        kpi('Revenue', formatPrice(analyticsCoord.totalRevenue, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalRevenue),
+        kpi('Pending', formatPrice(analyticsCoord.totalPending, wallet.data?.currency), 'time-outline', '#F59E0B', trends.totalPending),
         kpi('Events', String(analyticsCoord.totalEvents), 'calendar-outline', '#3B82F6', trends.totalEvents, '/events'),
         kpi('Clients', String(analyticsCoord.totalCustomers), 'people-outline', '#10B981', trends.totalCustomers),
         kpi('Photographers', String(analyticsCoord.totalPhotographers), 'camera-outline', '#8B5CF6', trends.totalPhotographers, '/photographers'),
@@ -387,10 +390,10 @@ export default function HomeScreen() {
     }
     if (isPhotographer && analyticsPhotog) {
       return [
-        kpi('Total Earnings', formatMoney(analyticsPhotog.totalEarnings, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalEarnings, '/transactions'),
-        kpi('Pending', formatMoney(analyticsPhotog.pendingPayments, wallet.data?.currency), 'time-outline', '#F59E0B', trends.pending, '/transactions'),
+        kpi('Total Earnings', formatPrice(analyticsPhotog.totalEarnings, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalEarnings, '/transactions'),
+        kpi('Pending', formatPrice(analyticsPhotog.pendingPayments, wallet.data?.currency), 'time-outline', '#F59E0B', trends.pending, '/transactions'),
         kpi('Total clients', String(analyticsPhotog.totalClients), 'people-outline', '#3B82F6', trends.clients, '/clients'),
-        kpi('Bonuses', formatMoney(analyticsPhotog.bonuses, wallet.data?.currency), 'gift-outline', '#10B981', trends.bonuses, '/transactions'),
+        kpi('Bonuses', formatPrice(analyticsPhotog.bonuses, wallet.data?.currency), 'gift-outline', '#10B981', trends.bonuses, '/transactions'),
         kpi(
           'Ratings',
           `${(analyticsPhotog.averageRating ?? 5).toFixed(1)}/5`,
@@ -767,7 +770,7 @@ function PendingPaymentsAlert({
           <Text style={[styles.alertSub, { color: stroke }]}>
             {items.length} payment{items.length === 1 ? '' : 's'} totaling{' '}
             <Text style={{ fontWeight: fontWeight.extrabold }}>
-              {formatMoney(totalPendingAmount, currency)}
+              {formatPrice(totalPendingAmount, currency)}
             </Text>
           </Text>
         </View>
@@ -822,7 +825,7 @@ function PendingPaymentsAlert({
                   { color: p.status === 'failed' ? colors.error : colors.primary },
                 ]}
               >
-                {formatMoney(p.amount - p.paidAmount, currency)}
+                {formatPrice(p.amount - p.paidAmount, currency)}
               </Text>
               <View style={styles.payNowChip}>
                 <Ionicons name="card" size={11} color={colors.textOnPrimary} />
@@ -956,7 +959,7 @@ function SimpleHeader({
       >
         <Text style={styles.balanceLabel}>Wallet balance</Text>
         <Text style={styles.balanceValue}>
-          {wallet.loading && !wallet.data ? '—' : formatMoney(wallet.data?.total, wallet.data?.currency)}
+          {wallet.loading && !wallet.data ? '—' : formatPrice(wallet.data?.total, wallet.data?.currency)}
         </Text>
         <View style={styles.balanceFoot}>
           <Text style={styles.balanceLink}>Open wallet</Text>
@@ -1063,7 +1066,7 @@ function RecentPaymentRow({
         <Text style={[styles.photogEvent, { color: typeColor }]}>{payment.type}</Text>
       </View>
       <Text style={[styles.recentPayAmount, { color: isFailure ? colors.error : colors.primary }]}>
-        {formatMoney(payment.amount, currency)}
+        {formatPrice(payment.amount, currency)}
       </Text>
     </View>
   );

@@ -7,7 +7,7 @@ import { cleanTransactionTitle } from '@/features/analytics/api';
 import { listWalletMovements, type Movement } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 
 const PAGE_SIZE = 8;
 
@@ -193,7 +193,7 @@ function Row({ movement }: { movement: Movement }) {
       </View>
       <Text style={[styles.amount, { color: inbound ? colors.success : colors.text }]}>
         {inbound ? '+' : '-'}
-        {formatMoney(movement.amount, movement.currency)}
+        {formatPrice(movement.amount, movement.currency)}
       </Text>
     </View>
   );

@@ -58,7 +58,8 @@ import {
 } from '@/features/photographers/api';
 import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { getWallet } from '@/features/wallet/api';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -257,6 +258,8 @@ const PENDING_PAYMENT_SNOOZE_MS = 6 * 60 * 60 * 1000; // 6 hours
 const STORAGE_KEY_PENDING_DISMISSED = 'connekt.pending_payment_dismissed_until';
 
 export function ClientHome() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const styles = useStyles();
   const { colors, isDark } = useTheme();
   const responsive = useResponsive();
@@ -791,7 +794,7 @@ export function ClientHome() {
                   {hasFailedPayment ? 'Payment action required' : 'Pending payment'}
                 </Text>
                 <Text style={styles.pendingAlertSub}>
-                  {formatMoney(totalPendingAmount, wallet.data?.currency)} due for your booking
+                  {formatPrice(totalPendingAmount, wallet.data?.currency)} due for your booking
                 </Text>
               </View>
             </Pressable>

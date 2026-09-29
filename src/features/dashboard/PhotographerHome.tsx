@@ -49,7 +49,8 @@ import {
 import { listPhotographerEvents } from '@/features/events/api';
 import { listPhotographerReviews } from '@/features/reviews/api';
 import { getWallet } from '@/features/wallet/api';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { MultipleDonutOverviewCard } from '@/features/dashboard/MultipleDonutOverviewCard';
 
@@ -133,6 +134,8 @@ function getEventDateBadge(dateStr?: string): { month: string; day: string } {
 }
 
 export function PhotographerHome() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const styles = useStyles();
   const { colors, isDark } = useTheme();
   const router = useRouter();
@@ -296,20 +299,20 @@ export function PhotographerHome() {
   const displayEarnings = balanceHidden
     ? '$ ••••'
     : a?.totalEarnings
-      ? formatMoney(a.totalEarnings, currency)
+      ? formatPrice(a.totalEarnings, currency)
       : '$0';
 
   const displayPending = balanceHidden
     ? '$ ••••'
     : a?.pendingPayments
-      ? formatMoney(a.pendingPayments, currency)
+      ? formatPrice(a.pendingPayments, currency)
       : '$0';
 
   const totalBonuses = (a?.bonuses ?? 0) + (a?.totalTips ?? 0);
   const displayBonuses = balanceHidden
     ? '$ ••••'
     : totalBonuses
-      ? formatMoney(totalBonuses, currency)
+      ? formatPrice(totalBonuses, currency)
       : '$0';
 
   const isNewCreator = (a?.totalEarnings ?? 0) === 0 && (a?.completedEvents ?? 0) === 0;
@@ -778,7 +781,7 @@ export function PhotographerHome() {
             <Text style={styles.sectionTitle}>Overview</Text>
             <Text style={styles.sectionSubtitle}>
               {isComparisonMode
-                ? `Comparing against your ${formatMoney(targetEarnings, currency)} target`
+                ? `Comparing against your ${formatPrice(targetEarnings, currency)} target`
                 : isNewCreator
                   ? 'Earnings and pipeline will update as bookings complete'
                   : 'Track your revenue, pipeline, clients and bonuses'}
@@ -836,7 +839,7 @@ export function PhotographerHome() {
               <Text style={styles.comparisonBannerText}>
                 Tracking against your{' '}
                 <Text style={{ fontFamily: fonts.bold }}>
-                  {formatMoney(targetEarnings, currency)} Target
+                  {formatPrice(targetEarnings, currency)} Target
                 </Text>
               </Text>
             </View>
@@ -891,7 +894,7 @@ export function PhotographerHome() {
           title="Performance Overview"
           subtitle={
             isComparisonMode
-              ? `Tracking against ${formatMoney(targetEarnings, currency)} goal`
+              ? `Tracking against ${formatPrice(targetEarnings, currency)} goal`
               : 'Revenue streams & goal distribution'
           }
         />
@@ -1194,7 +1197,7 @@ export function PhotographerHome() {
               const isLast = index === Math.min(transactions.data?.length ?? 0, 3) - 1;
               const displayAmount = balanceHidden
                 ? '+$ ••••'
-                : `+${formatMoney(txn.amount, currency)}`;
+                : `+${formatPrice(txn.amount, currency)}`;
 
               return (
                 <Pressable

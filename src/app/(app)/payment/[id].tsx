@@ -12,7 +12,7 @@ import { canPayDeclarationHere } from '@/features/payments/policy';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 
 export default function PaymentDetailScreen() {
   const { colors } = useTheme();
@@ -84,7 +84,7 @@ export default function PaymentDetailScreen() {
       >
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>{data?.title}</Text>
-          <Text style={styles.amount}>{data?.amount != null ? formatMoney(data.amount, data.currency) : '—'}</Text>
+          <Text style={styles.amount}>{data?.amount != null ? formatPrice(data.amount, data.currency) : '—'}</Text>
           <StatusPill status={data?.status} />
         </View>
 

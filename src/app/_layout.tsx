@@ -11,6 +11,7 @@ import {
   PragatiNarrow_700Bold,
 } from '@expo-google-fonts/pragati-narrow';
 import { useAuth } from '@/store/auth';
+import { useCurrency } from '@/store/currency';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdateBanner, UpdatePromptModal } from '@/features/updates';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
@@ -153,6 +154,7 @@ function useProtectedRoute() {
 export default function RootLayout() {
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
+  const loadCurrency = useCurrency((s) => s.load);
   const [fontsLoaded] = useFonts({
     PragatiNarrow_400Regular,
     PragatiNarrow_700Bold,
@@ -163,7 +165,8 @@ export default function RootLayout() {
   useEffect(() => {
     bootstrap();
     loadOnboarding();
-  }, [bootstrap, loadOnboarding]);
+    loadCurrency();
+  }, [bootstrap, loadOnboarding, loadCurrency]);
 
   // Hide the native static splash screen immediately so the full-screen video
   // preloader is revealed and plays from the very first frame
