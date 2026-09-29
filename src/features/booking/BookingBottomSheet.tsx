@@ -12,7 +12,6 @@ import { useAuth, isApiError } from '@/store/auth';
 import { logoBase64 } from '@/utils/logoBase64';
 import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import { formatPrice as formatSelectedPrice } from '@/utils/format';
-import { useCurrency } from '@/store/currency';
 
 export type BookingBottomSheetProps = {
   photographerId?: string;
@@ -111,8 +110,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
     useEffect(() => {
       if (selectedPackage?.currency) {
-        // Start in the currency picked in the top-bar selector; the pill below can still override it.
-        setDisplayCurrency(useCurrency.getState().currency);
+        setDisplayCurrency(selectedPackage.currency as any);
       }
     }, [selectedPackage?.currency]);
 
