@@ -48,4 +48,9 @@ describe('a debit on the booking balance', () => {
   it('still calls a credit "Booking earnings"', () => {
     expect(formatWalletMovement({ ...debit, direction: 'in' }, 'photographer')?.title).toBe('Booking earnings');
   });
+
+  it('shows an appended data-correction credit as a correction, not as earnings', () => {
+    const fix: Movement = { ...debit, direction: 'in', sourceType: 'DATA_CORRECTION' };
+    expect(formatWalletMovement(fix, 'photographer')?.title).toBe('Balance correction');
+  });
 });

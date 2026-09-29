@@ -247,6 +247,10 @@ export function formatWalletMovement(m: Movement, role: DashboardRole): MoneyIte
   if (role === 'photographer' && cat === 'BALANCE' && direction === 'out') {
     title = 'Balance deduction';
   }
+  // Rows appended by a data correction (e.g. V313) undo an earlier wrong entry.
+  if (m.sourceType === 'DATA_CORRECTION') {
+    title = 'Balance correction';
+  }
 
   const subtitle = m.description || undefined;
 
