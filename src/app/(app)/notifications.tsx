@@ -40,6 +40,7 @@ import {
 import { notificationTarget } from '@/features/notifications/routing';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 type FilterOption = 'all' | 'unread' | 'booking' | 'payment_group' | 'album' | 'security';
 type DateGroup = 'Today' | 'Yesterday' | 'This Week' | 'Earlier';
@@ -72,6 +73,8 @@ function cleanNarrative(n: AppNotification) {
 }
 
 export default function NotificationsScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();

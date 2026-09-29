@@ -3,6 +3,7 @@ import {
     registerForPushNotifications,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
+import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -45,6 +46,9 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: c.background },
           headerBackButtonDisplayMode: 'minimal', // chevron only, no "‹ Home" text
           headerShadowVisible: false,
+          // Display-currency selector on every headed screen, like the web topbar.
+          // Form screens below opt out.
+          headerRight: () => <CurrencyButton compact />,
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -52,6 +56,7 @@ export default function AppLayout() {
           name="event/new"
           options={{
             title: 'New event',
+            headerRight: () => null,
             presentation: 'formSheet',
             sheetAllowedDetents: [0.6, 1],
             sheetGrabberVisible: true,
@@ -64,7 +69,7 @@ export default function AppLayout() {
         <Stack.Screen name="photographer/[id]" options={{ title: 'Photographer' }} />
         <Stack.Screen name="conversation/[id]" options={{ title: 'Chat' }} />
         <Stack.Screen name="packages" options={{ title: 'My Packages' }} />
-        <Stack.Screen name="package/new" options={{ title: 'New package', presentation: 'modal' }} />
+        <Stack.Screen name="package/new" options={{ title: 'New package', presentation: 'modal', headerRight: () => null }} />
         <Stack.Screen name="streams" options={{ title: 'Live Streams' }} />
         <Stack.Screen name="stream/[id]" options={{ title: 'Stream', headerShown: false }} />
         <Stack.Screen name="stream/control/[id]" options={{ title: 'Go Live', headerShown: false }} />

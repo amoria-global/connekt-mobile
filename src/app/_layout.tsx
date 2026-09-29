@@ -155,6 +155,8 @@ export default function RootLayout() {
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
   const loadCurrency = useCurrency((s) => s.load);
+  const syncCurrency = useCurrency((s) => s.syncWithAccount);
+  const authStatus = useAuth((s) => s.status);
   const [fontsLoaded] = useFonts({
     PragatiNarrow_400Regular,
     PragatiNarrow_700Bold,
@@ -167,6 +169,11 @@ export default function RootLayout() {
     loadOnboarding();
     loadCurrency();
   }, [bootstrap, loadOnboarding, loadCurrency]);
+
+  // Signed in: adopt the currency saved on the account so web and mobile agree.
+  useEffect(() => {
+    if (authStatus === 'authenticated') syncCurrency();
+  }, [authStatus, syncCurrency]);
 
   // Hide the native static splash screen immediately so the full-screen video
   // preloader is revealed and plays from the very first frame

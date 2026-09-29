@@ -7,8 +7,11 @@ import { getPayrollReport } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 export default function PayrollScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getPayrollReport(), []));

@@ -29,6 +29,8 @@ import { VerifiedAvatar } from '@/components/ui/VerifiedAvatar';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 
 function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyphMap; onPress?: () => void; style?: any }) {
@@ -51,6 +53,8 @@ const REPORT_REASONS = [
 ];
 
 export default function PhotographerProfileScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -682,7 +686,7 @@ export default function PhotographerProfileScreen() {
                     >
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {p.name}
-                        {p.price ? ` · ${p.currency ?? ''} ${p.price}` : ''}
+                        {p.price ? ` · ${formatPrice(p.price, p.currency)}` : ''}
                       </Text>
                     </Pressable>
                   );

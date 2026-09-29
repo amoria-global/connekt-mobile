@@ -7,10 +7,13 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { acceptBooking, listBookings, rejectBooking, type Booking } from './api';
+import { useCurrency } from '@/store/currency';
 
 type Props = { title?: string; subtitle?: string; topInset?: number };
 
 export function BookingsList({ title, subtitle, topInset }: Props) {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const styles = useStyles();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listBookings(), []));
   const [busyId, setBusyId] = useState<string | null>(null);

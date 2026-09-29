@@ -46,7 +46,8 @@ import { listWalletMovements, type Movement } from '@/features/wallet/api';
 import { takeSelfieDataUrl } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 type Step = 'form' | 'verify' | 'done' | 'failed';
 type Donation = { mode: 'unset' } | { mode: 'skip' } | { mode: 'preset'; value: number } | { mode: 'custom'; text: string };
@@ -54,6 +55,8 @@ type Donation = { mode: 'unset' } | { mode: 'skip' } | { mode: 'preset'; value: 
 const RESEND_COOLDOWN_S = 30;
 
 export default function WithdrawScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -694,7 +697,7 @@ export default function WithdrawScreen() {
                                 { color: isIn ? colors.success : colors.text },
                               ]}
                             >
-                              {sign} {formatMoney(item.amount, item.currency)}
+                              {sign} {formatPrice(item.amount, item.currency)}
                             </Text>
                           </View>
                         );
