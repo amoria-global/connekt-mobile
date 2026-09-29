@@ -9,7 +9,7 @@
  *   • Seamless link to Withdraw flow.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { useRouter, type Href } from 'expo-router';
+import { Redirect, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -38,6 +38,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { canUsePaymentsScreen } from '@/features/payments/access';
 
 type Filter = 'all' | 'paid' | 'pending' | 'failed';
 type Section = 'events' | 'streaming' | 'gifts';
@@ -55,7 +56,7 @@ const STATUS_TONE: Record<Exclude<Filter, 'all'>, { bg: string; fg: string; labe
   failed: { bg: '#FEE2E2', fg: '#B91C1C', label: 'Failed' },
 };
 
-export default function PaymentsScreen() {
+function PaymentsContent() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
@@ -868,3 +869,10 @@ const useStyles = makeStyles((c) => ({
   },
   giftDate: { fontFamily: fonts.regular, fontSize: 11, color: c.textMuted, marginTop: 2 },
 }));
+
+/** Photographers only receive payments; send them to their earnings view instead. */
+export default function PaymentsScreen() {
+  const { role } = useRole();
+  if (!canUsePaymentsScreen(role)) return <Redirect href="/transactions" />;
+  return <PaymentsContent />;
+}

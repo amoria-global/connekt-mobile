@@ -47,6 +47,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { canUsePaymentsScreen } from '@/features/payments/access';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -129,7 +130,10 @@ export default function WalletScreen() {
   const links: Link[] = [
     { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
     { label: 'Wallet movements', icon: 'list-outline', href: '/wallet/movements' as Href },
-    { label: 'Payments', icon: 'card-outline', href: '/payments' as Href },
+    // Photographers receive payments, they do not make them: no Payments screen for them.
+    ...(canUsePaymentsScreen(role)
+      ? [{ label: 'Payments', icon: 'card-outline' as const, href: '/payments' as Href }]
+      : []),
     { label: 'Payment accounts', icon: 'wallet-outline', href: '/payment-accounts' as Href },
     ...(isPhotographer
       ? [{ label: 'Payroll report', icon: 'bar-chart-outline' as const, href: '/payroll' as Href }]
