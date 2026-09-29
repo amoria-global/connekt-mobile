@@ -37,8 +37,12 @@ import {
   type GeoRegionItem,
 } from '@/features/geopricing/regions';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 export default function GeoPricingScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { eventId, packageId } = useLocalSearchParams<{ eventId?: string; packageId?: string }>();
@@ -294,7 +298,7 @@ export default function GeoPricingScreen() {
                   <Text style={styles.ruleMeta}>{r.scopeType === 'CONTINENT' ? 'Continent' : 'Country'}</Text>
                 </View>
                 <Text style={styles.rulePrice}>
-                  {r.price} {r.currencyAbbreviation ?? defaultCurrency ?? ''}
+                  {formatPrice(Number(r.price), r.currencyAbbreviation ?? defaultCurrency ?? undefined)}
                 </Text>
                 <Pressable onPress={() => onDelete(r)} hitSlop={8} style={styles.delBtn}>
                   <Ionicons name="trash-outline" size={18} color={colors.error} />
