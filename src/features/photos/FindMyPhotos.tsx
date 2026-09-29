@@ -60,7 +60,7 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
@@ -149,7 +149,7 @@ function PhotoCell({
         <View style={styles.cellPriceBadge}>
           <Ionicons name="lock-closed" size={11} color="#FFF" />
           {price != null && price > 0 && (
-            <Text style={styles.cellPriceText}>{formatMoney(price, currency)}</Text>
+            <Text style={styles.cellPriceText}>{formatPrice(price, currency)}</Text>
           )}
         </View>
       )}
@@ -766,7 +766,7 @@ export function FindMyPhotos() {
       void openWebCheckout(albumPurchaseUrl(code.trim()));
     Alert.alert(
       'Extra Photos',
-      `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${freeAlbumCurrencyAbbr || ''} ${extrasTotal} and are purchased on connekyt.com.`,
+      `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined)} and are purchased on connekyt.com.`,
       [
         { text: 'Cancel', style: 'cancel' },
         ...(allowed.length
@@ -1797,7 +1797,7 @@ export function FindMyPhotos() {
                 : <Ionicons name={showPurchase ? 'card-outline' : 'cloud-download-outline'} size={16} color="#FFF" />}
               <Text style={styles.actionBarBtnText}>
                 {showPurchase
-                  ? `Purchase (${freeAlbumCurrencyAbbr || ''} ${extrasTotal} for ${info.overflow} extra)`
+                  ? `Purchase (${formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined)} for ${info.overflow} extra)`
                   : `Download ${downloadableNow}`}
               </Text>
             </Pressable>
@@ -2078,7 +2078,7 @@ export function FindMyPhotos() {
                   <Text style={styles.actionBarBtnText}>
                     Buy {selectedUnpurchased.length}
                     {selectedUnpurchasedTotal > 0
-                      ? ` · ${formatMoney(selectedUnpurchasedTotal, resultCurrency)}`
+                      ? ` · ${formatPrice(selectedUnpurchasedTotal, resultCurrency)}`
                       : ''}
                   </Text>
                 </Pressable>
@@ -2466,7 +2466,7 @@ export function FindMyPhotos() {
                           <Ionicons name="card-outline" size={18} color="#FFF" />
                           <Text style={styles.lbBtnText}>
                             Buy ·{' '}
-                            {formatMoney(
+                            {formatPrice(
                               previewPhoto.price,
                               (previewPhoto as any).currencyAbbreviation ||
                                 (previewPhoto as any).currency ||

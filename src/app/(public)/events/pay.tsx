@@ -59,6 +59,7 @@ import {
 } from '@/features/payments/formatPhone';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { formatPrice } from '@/utils/format';
 
 type Stage = 'contact' | 'payment' | 'awaiting' | 'success';
 
@@ -79,7 +80,7 @@ const PAYMENT_COUNTRIES = [
 
 function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
-  return `${symbol || code || 'RWF'} ${fee.toLocaleString()}`;
+  return formatPrice(fee, code || 'RWF');
 }
 
 export default function EventPaymentScreen() {

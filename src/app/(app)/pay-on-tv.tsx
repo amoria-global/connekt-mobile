@@ -33,6 +33,7 @@ import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { openWebCheckout, payToWatchUrl } from '@/features/payments/webCheckout';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { formatPrice } from '@/utils/format';
 
 /**
  * The TV encodes a full pay-to-watch URL. Pull eventId + device out of it,
@@ -58,7 +59,7 @@ function extractTarget(scanned: string): { eventId: string; device: string } | n
 
 function feeLabel(fee: number, code?: string | null, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
-  return `${fee.toLocaleString()} ${symbol || code || 'RWF'}`;
+  return formatPrice(fee, code || 'RWF');
 }
 
 function leaveScreen(router: ReturnType<typeof useRouter>) {

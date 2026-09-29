@@ -45,6 +45,7 @@ import { isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { formatPrice } from '@/utils/format';
 
 
 type SavedGroupCode = {
@@ -57,7 +58,7 @@ type SavedGroupCode = {
 
 function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
-  return `${fee.toLocaleString()} ${symbol || code || 'RWF'}`;
+  return formatPrice(fee, code || 'RWF');
 }
 
 function isExpired(isoDate?: string): boolean {

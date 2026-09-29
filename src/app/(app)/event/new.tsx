@@ -52,7 +52,7 @@ import {
   type GeoRegionItem,
 } from '@/features/geopricing/regions';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatMoney, formatPrice } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
 /**
@@ -1307,7 +1307,7 @@ export default function NewEventScreen() {
                 isEditing
                   ? 'Save changes'
                   : amount
-                    ? `Book & pay ${formatMoney(amount, params.currency)}`
+                    ? `Book & pay ${formatPrice(amount, params.currency)}`
                     : 'Create event'
               }
               onPress={handleSubmit(onSubmit)}

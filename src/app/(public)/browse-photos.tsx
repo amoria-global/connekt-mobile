@@ -44,6 +44,7 @@ import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { spacing, radii, makeStyles, useTheme } from '@/theme';
+import { formatPrice } from '@/utils/format';
 
 const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const WATERMARK_COLS = [0, 1, 2, 3, 4];
@@ -374,7 +375,7 @@ export default function BrowsePhotosScreen() {
               {cartItems.length} photo{cartItems.length === 1 ? '' : 's'}
             </Text>
             <Text style={styles.cartBarTotal}>
-              {sym(cartItems[0]?.buyerCurrency)}{cartTotal.toFixed(2)}
+              {formatPrice(cartTotal, cartItems[0]?.buyerCurrency ?? undefined)}
             </Text>
           </View>
           <Pressable style={styles.cartBarBtn} onPress={() => startCheckout()}>
