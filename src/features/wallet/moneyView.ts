@@ -365,6 +365,42 @@ export function selectWalletStats(w: WalletDTO, role: DashboardRole): WalletStat
   };
 }
 
+export type DirectionFilter = 'all' | 'in' | 'out' | 'withdrawals';
+
+/**
+ * The In/Out pills for the wallet lists. Photographers only receive money and take
+ * it out by withdrawing, so "Money out" read to them as spending. They get Earnings
+ * and Withdrawals instead; other roles keep Money in / Money out.
+ */
+export function getDirectionFilters(role: DashboardRole): { label: string; value: DirectionFilter }[] {
+  if (role === 'photographer') {
+    return [
+      { label: 'All', value: 'all' },
+      { label: 'Earnings (+)', value: 'in' },
+      { label: 'Withdrawals', value: 'withdrawals' },
+    ];
+  }
+  return [
+    { label: 'All', value: 'all' },
+    { label: 'Money in (+)', value: 'in' },
+    { label: 'Money out (−)', value: 'out' },
+  ];
+}
+
+export function matchesDirectionFilter(
+  row: { direction: 'in' | 'out'; category?: string },
+  filter: DirectionFilter,
+): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'withdrawals') return (row.category ?? '').toUpperCase() === 'WITHDRAWAL';
+  return row.direction === filter;
+}
+
+/** True when the wallet page would show this movement to the role (internal ledger rows are not). */
+export function isVisibleToRole(m: Movement, role: DashboardRole): boolean {
+  return !shouldHideMovement(m, role);
+}
+
 export function getFilterTags(role: DashboardRole): string[] {
   if (role === 'photographer') {
     return ['All', 'Booking', 'Tip', 'Bonus', 'Stream', 'Photo', 'Donation', 'Withdrawal'];

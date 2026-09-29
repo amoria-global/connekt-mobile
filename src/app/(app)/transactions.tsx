@@ -9,6 +9,15 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useAuth } from '@/store/auth';
+import {
+  getDirectionFilters,
+  isVisibleToRole,
+  matchesDirectionFilter,
+  toRole,
+  type DashboardRole,
+  type DirectionFilter,
+} from '@/features/wallet/moneyView';
 
 const PAGE_SIZE = 8;
 
@@ -17,9 +26,12 @@ export default function TransactionsScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const user = useAuth((s) => s.user);
+  const role: DashboardRole = toRole(user?.customerType);
+  const directionFilters = getDirectionFilters(role);
   const { data, loading, error, refresh } = useAsync(useCallback(() => listWalletMovements(), []));
 
-  const [directionFilter, setDirectionFilter] = useState<'all' | 'in' | 'out'>('all');
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -30,7 +42,8 @@ export default function TransactionsScreen() {
   const filtered = useMemo(() => {
     const list = data ?? [];
     return list.filter((m) => {
-      if (directionFilter !== 'all' && m.direction !== directionFilter) return false;
+      if (!isVisibleToRole(m, role)) return false;
+      if (!matchesDirectionFilter(m, directionFilter)) return false;
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const rawTitle = m.description || m.category || 'Transaction';
@@ -41,7 +54,7 @@ export default function TransactionsScreen() {
       }
       return true;
     });
-  }, [data, directionFilter, search]);
+  }, [data, directionFilter, search, role]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -54,13 +67,7 @@ export default function TransactionsScreen() {
     <View style={styles.headerFilters}>
       {/* Direction Pills */}
       <View style={styles.filterRow}>
-        {(
-          [
-            { label: 'All', value: 'all' },
-            { label: 'Money in (+)', value: 'in' },
-            { label: 'Money out (−)', value: 'out' },
-          ] as const
-        ).map((d) => {
+        {directionFilters.map((d) => {
           const active = directionFilter === d.value;
           return (
             <Pressable
