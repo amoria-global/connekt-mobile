@@ -1092,7 +1092,7 @@ export default function NewEventScreen() {
                               </Text>
                             </View>
                             <Text style={styles.rulePriceText}>
-                              {rule.price} {rule.currencyCode || selectedCurrency}
+                              {formatPrice(Number(rule.price), rule.currencyCode || selectedCurrency)}
                             </Text>
                             <Pressable
                               onPress={() => removeGeoRule(idx)}

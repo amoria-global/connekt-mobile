@@ -55,7 +55,7 @@ export default function DonationsScreen() {
         <View style={styles.tierRow}>
           {tiers.map((t) => (
             <View key={t} style={styles.tier}>
-              <Text style={styles.tierText}>{t.toLocaleString()} RWF</Text>
+              <Text style={styles.tierText}>{formatPrice(t, 'RWF')}</Text>
             </View>
           ))}
         </View>
