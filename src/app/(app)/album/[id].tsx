@@ -35,7 +35,7 @@ import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import {
   addAlbumImages,
   deleteAlbum,
@@ -79,7 +79,7 @@ export default function AlbumDetailScreen() {
     useCallback(() => getAlbum(id, role ?? isPhotographer), [id, role, isPhotographer]),
   );
 
-  const [unlocking, setUnlocking] = useState(false);
+  const [unlockOpen, setUnlockOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [faceStatus, setFaceStatus] = useState<AlbumFaceStatus | null>(null);
   const [reportImageId, setReportImageId] = useState<string | null>(null);
@@ -256,21 +256,13 @@ export default function AlbumDetailScreen() {
   const gridWidth = width - gridPadding * 2;
   const cell = Math.floor((gridWidth - gap * (gridCols - 1)) / gridCols);
 
-  const onUnlock = async () => {
+  const onUnlock = () => {
     if (!digitalPurchasesEnabled) return;
     if (!data?.eventId) {
       Alert.alert('Unavailable', 'This album cannot be restored right now.');
       return;
     }
-    setUnlocking(true);
-    try {
-      const url = await mintHandoffUrl('ARCHIVE', { eventId: data.eventId });
-      await openWebCheckout(url);
-    } catch (err) {
-      Alert.alert('Unlock failed', isApiError(err) ? err.message : 'Please try again.');
-    } finally {
-      setUnlocking(false);
-    }
+    setUnlockOpen(true);
   };
 
   if (loading && !data) {
@@ -626,8 +618,7 @@ export default function AlbumDetailScreen() {
                           : 'Unlock on web'
                       }
                       onPress={onUnlock}
-                      loading={unlocking}
-                    />
+                                          />
                   </>
                 ) : (
                   <Text style={styles.lockedMsg}>
@@ -1009,6 +1000,14 @@ export default function AlbumDetailScreen() {
         targetType="PHOTO"
         subject={data?.photographer ?? data?.name}
         submit={submitPhotoReport}
+      />
+      <HandoffCheckoutSheet
+        visible={unlockOpen}
+        onClose={() => setUnlockOpen(false)}
+        onSettled={() => void refresh()}
+        handoff={data?.eventId ? { type: 'ARCHIVE', eventId: data.eventId } : null}
+        title={data?.name ?? 'Restore album'}
+        subtitle="Archive unlock"
       />
     </Screen>
   );

@@ -1,5 +1,21 @@
 # Payments in the mobile app
 
+## Update 2026-09-30: bookings and archive now pay in the app
+
+Booking balances, photobook extras and the archive unlock are completed in the
+app by `features/payments/HandoffCheckoutSheet`, using the same server contract
+as the connekyt.com receiver (`nativeCheckout.ts`: mint handoff, public
+`/handoff/{token}/initiate`, poll the public status endpoint). No amount is sent
+from the client and no country or redirect is sent, so gateway routing is
+unchanged. A timeout resolves to `unknown` and never offers a retry.
+Anonymous stream/gift/photo/donation buyers were already native (see donate.tsx,
+events/pay.tsx, PhotoCheckoutSheet). The text below predates this and is kept
+for the invariants, not for the "no native flow" claim.
+
+Only BOOKING and PHOTOBOOK_EXTRAS declarations are owed by the signed-in user
+(`isOwedObligation`). Unsettled STREAMING/GIFT/FACE_RECOGNITION rows are viewers'
+unfinished purchases and never count toward "pending payments".
+
 ## The app does not take payments
 
 There is no native payment flow. No phone number collection, no MoMo/card
