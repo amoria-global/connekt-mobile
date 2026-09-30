@@ -22,6 +22,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
+import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -244,9 +245,13 @@ export default function JoinPackageScreen() {
 
             <Button title="Buy access" onPress={onBuy} />
             <Text style={styles.peopleHint}>
-              Package selection (individual or group) and payment are completed
-              securely on connekyt.com.
+              Pay for yourself here with mobile money or card. Buying for a group?
             </Text>
+            <Button
+              title="Buy a group package"
+              variant="outline"
+              onPress={() => void openWebCheckout(streamAccessUrl(id))}
+            />
           </>
         ) : null}
 

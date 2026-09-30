@@ -133,7 +133,7 @@ export function GiftTray({
         <View style={s.grab} />
         <View style={s.sheetHead}>
           <Text style={s.sheetTitle}>Send a gift</Text>
-          <Text style={s.sheetHint}>Paid securely on connekyt.com</Text>
+          <Text style={s.sheetHint}>Paid securely in the app</Text>
         </View>
 
         {/* "View in" currency pills — display-only conversion, mirrors the

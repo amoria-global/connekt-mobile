@@ -1128,7 +1128,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   <View style={styles.handoffNoticeBanner}>
                     <Ionicons name="globe-outline" size={18} color={colors.primary} />
                     <Text style={styles.handoffNoticeText}>
-                      After you confirm, you&apos;ll complete payment securely on connekyt.com.
+                      After you confirm, you can pay securely in the app.
                     </Text>
                   </View>
 

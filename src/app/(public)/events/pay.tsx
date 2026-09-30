@@ -87,7 +87,15 @@ function feeLabel(fee: number, code: string | null | undefined, symbol?: string 
 export default function EventPaymentScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, device: tvDevice } = useLocalSearchParams<{ id: string; device?: string }>();
+  // Pay-on-TV: a phone pays for a TV. Access is bound to the TV's device id
+  // (from its QR), never this phone's, and this phone must not remember the
+  // resulting viewer as its own.
+  const forTv = !!tvDevice;
+  const accessDeviceId = async () => (tvDevice ? String(tvDevice) : getDeviceId());
+  const rememberViewer = async (vId: string) => {
+    if (!forTv) await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+  };
   const router = useRouter();
 
   const event = useAsync(useCallback(() => getPublicEventDetailed(id), [id]));
@@ -165,7 +173,7 @@ export default function EventPaymentScreen() {
     setBusy(true);
     setError(null);
     try {
-      const deviceId = await getDeviceId();
+      const deviceId = await accessDeviceId();
       const normalizedEmail = email.trim().toLowerCase();
       const reg = await registerAnonymousViewer(id, {
         name: name.trim(),
@@ -179,7 +187,7 @@ export default function EventPaymentScreen() {
       }
 
       setViewerId(reg.viewerId);
-      await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
+      await rememberViewer(reg.viewerId);
 
       // If already paid or event is free, immediately grant access
       if (!reg.needsPayment) {
@@ -201,10 +209,10 @@ export default function EventPaymentScreen() {
     setBusy(true);
     setError(null);
     try {
-      const deviceId = await getDeviceId();
+      const deviceId = await accessDeviceId();
       const rec = await reconcileAnonymousByFingerprint(id, deviceId);
       if (rec.status === 'ACCESS_GRANTED' && rec.viewerId) {
-        await storage.set(`anonymousViewer_${id}`, rec.viewerId).catch(() => {});
+        await rememberViewer(rec.viewerId);
         setViewerId(rec.viewerId);
         setStage('success');
         return;
@@ -282,7 +290,7 @@ export default function EventPaymentScreen() {
     pollCancelRef.current = poll.cancel;
     void poll.done.then(async (outcome) => {
       if (outcome === 'success') {
-        await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+        await rememberViewer(vId);
         setStage('success');
       } else if (outcome === 'failed') {
         setError('Payment was declined or cancelled. You have not been charged.');
@@ -599,7 +607,7 @@ export default function EventPaymentScreen() {
             <Text style={styles.successTitle}>Access Pass Activated!</Text>
             <Text style={styles.successSub}>
               Your live stream access for <Text style={{ fontWeight: '700' }}>{data.title}</Text> has
-              been unlocked and linked to this device.
+              been unlocked and linked to {forTv ? 'your TV, which will start playing shortly' : 'this device'}.
             </Text>
 
             <Button

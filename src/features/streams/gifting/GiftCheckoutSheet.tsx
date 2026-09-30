@@ -8,7 +8,7 @@
  */
 import { CheckoutSheet, type StartInput } from '@/features/payments/CheckoutSheet';
 import { resolveCurrencyId } from '@/features/donations/api';
-import { initiatePublicGift, type GiftCatalogItem } from '@/features/streams/api';
+import { initiateAuthenticatedGift, initiatePublicGift, type GiftCatalogItem } from '@/features/streams/api';
 import { formatGiftUsd } from '@/features/streams/gifting/GiftOverlay';
 import { getDeviceId } from '@/utils/deviceId';
 
@@ -42,6 +42,24 @@ export function buildGiftRequest(args: {
   };
 }
 
+type AuthGiftRequest = Parameters<typeof initiateAuthenticatedGift>[0];
+
+/** Request for a signed-in sender. Same rules as buildGiftRequest, no viewer or device. */
+export function buildAuthGiftRequest(args: {
+  eventId: string;
+  gift: GiftCatalogItem;
+  input: StartInput;
+}): AuthGiftRequest {
+  const { eventId, gift, input } = args;
+  return {
+    eventId,
+    giftCode: gift.code,
+    currencyId: resolveCurrencyId('USD'),
+    paymentMethod: input.card ? 'CARD' : 'MOBILE_MONEY',
+    ...(input.card ? {} : { phone: input.phone, telecomProvider: input.telecomProvider }),
+  };
+}
+
 export function GiftCheckoutSheet({
   visible,
   onClose,
@@ -55,17 +73,20 @@ export function GiftCheckoutSheet({
   onClose: () => void;
   onSettled?: () => void;
   eventId: string;
-  viewerId: string;
+  /** A registered stream viewer's id. Omit for a signed-in account. */
+  viewerId?: string;
   gift: GiftCatalogItem | null;
   eventTitle?: string;
 }) {
   if (!gift) return null;
 
   const start = async (input: StartInput) => {
-    const res = await initiatePublicGift(
-      eventId,
-      buildGiftRequest({ viewerId, deviceFingerprint: await getDeviceId(), gift, input }),
-    );
+    const res = viewerId
+      ? await initiatePublicGift(
+          eventId,
+          buildGiftRequest({ viewerId, deviceFingerprint: await getDeviceId(), gift, input }),
+        )
+      : await initiateAuthenticatedGift(buildAuthGiftRequest({ eventId, gift, input }));
     if (!res.refid) throw { status: 400, message: res.message || 'Could not start the gift payment.' };
     return { refid: res.refid, paymentUrl: res.paymentUrl };
   };
@@ -75,7 +96,7 @@ export function GiftCheckoutSheet({
       visible={visible}
       onClose={onClose}
       onSettled={onSettled}
-      resetKey={`gift:${eventId}:${gift.code}`}
+      resetKey={`gift:${eventId}:${gift.code}:${viewerId ?? 'account'}`}
       start={start}
       heading="Send gift"
       title={`${gift.emoji} ${gift.name}`}
