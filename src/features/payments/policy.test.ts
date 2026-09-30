@@ -141,3 +141,25 @@ describe('isOwedObligation', () => {
     expect(canPayDeclarationHere('photobook_extras')).toBe(true);
   });
 });
+
+describe('digitalPurchasesEnabled in a release build', () => {
+  it('stays off on native even when NODE_ENV is not "test"', () => {
+    // The gate used to read `NODE_ENV !== 'test'`, which is true in every
+    // shipped build, so it was open everywhere except under jest.
+    const before = process.env.NODE_ENV;
+    const flag = process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES;
+    try {
+      (process.env as Record<string, string>).NODE_ENV = 'production';
+      delete process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES;
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fresh = require('./policy') as typeof import('./policy');
+        expect(fresh.digitalPurchasesEnabled).toBe(false);
+        expect(fresh.canShowDigitalPrice(false)).toBe(false);
+      });
+    } finally {
+      (process.env as Record<string, string | undefined>).NODE_ENV = before;
+      if (flag !== undefined) process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES = flag;
+    }
+  });
+});

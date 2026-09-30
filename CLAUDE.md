@@ -82,8 +82,12 @@ The greenfield sandbox lives at `src/_design-sandbox/` and is git-ignored.
 
 ## ⚠️ Payments — read `docs/PAYMENTS.md` before touching anything money-related
 
-Most payments now complete in the app (see the 2026-09-30 note in
-`docs/PAYMENTS.md`). Booking balances, photobook extras, archive unlock and
+Payments complete in the app (see the 2026-09-30 note in `docs/PAYMENTS.md`), but
+**digital goods are OFF on native builds** (`digitalPurchasesEnabled` is true only on
+web or with `EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES=true`; no `NODE_ENV` clause). Stream
+tickets, gifts, photo purchases, archive unlock, photobook extras and pay-on-TV are
+built but absent in store builds. Bookings and donations are exempt and always on.
+Never loosen the flag to ship a feature; read `policy.ts` first. Booking balances, photobook extras, archive unlock and
 catalog gifts go through `features/payments/CheckoutSheet` (with
 `HandoffCheckoutSheet` and `GiftCheckoutSheet` on top). Stream access, donations
 and photo purchases use `events/pay`, `donate` and `PhotoCheckoutSheet`. Signed-in gifts (`initiate-gift`), pay-on-TV (`events/pay?device=`) and a free album's
