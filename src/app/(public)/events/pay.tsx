@@ -20,7 +20,8 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { pollStatus } from '@/features/payments/nativeCheckout';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -84,7 +85,14 @@ function feeLabel(fee: number, code: string | null | undefined, symbol?: string 
   return formatPrice(fee, code || 'RWF');
 }
 
+// Stream tickets are digital goods, absent in store builds (payments/policy).
+// Nothing links here on those builds; this stops a stale deep link too.
 export default function EventPaymentScreen() {
+  if (!digitalPurchasesEnabled) return <Redirect href="/" />;
+  return <EventPaymentInner />;
+}
+
+function EventPaymentInner() {
   const { colors } = useTheme();
   const styles = useStyles();
   const { id, device: tvDevice } = useLocalSearchParams<{ id: string; device?: string }>();
