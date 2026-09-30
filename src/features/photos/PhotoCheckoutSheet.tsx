@@ -186,6 +186,9 @@ export function PhotoCheckoutSheet({
 
   // Flow & status
   const [stage, setStage] = useState<Stage>('form');
+  // True when we stopped waiting without a verdict. The charge may have landed,
+  // so the failed screen must not offer a retry that could charge twice.
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const [statusNote, setStatusNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -285,6 +288,7 @@ export function PhotoCheckoutSheet({
     if (!canPay || !selectedTile) return;
     setBusy(true);
     setError(null);
+    setUnconfirmed(false);
     setStage('awaiting');
     setStatusNote(
       isCard ? 'Opening secure checkout window…' : 'Sending payment prompt to your phone…',
@@ -342,6 +346,7 @@ export function PhotoCheckoutSheet({
       }
 
       if (settled !== 'success') {
+        setUnconfirmed(settled === 'pending');
         setStage('failed');
         setError(
           settled === 'failed'
@@ -691,13 +696,17 @@ export function PhotoCheckoutSheet({
             {stage === 'failed' && (
               <View style={styles.statusWrap}>
                 <Ionicons name="close-circle" size={64} color={colors.error} />
-                <Text style={styles.statusTitle}>Payment Not Completed</Text>
+                <Text style={styles.statusTitle}>
+                  {unconfirmed ? 'Payment Not Confirmed Yet' : 'Payment Not Completed'}
+                </Text>
                 <Text style={styles.statusNote}>{error || 'The payment could not be processed.'}</Text>
                 <View style={styles.statusActions}>
-                  <Pressable style={[styles.payBtn, { flex: 1 }]} onPress={retry}>
-                    <Ionicons name="refresh" size={16} color={colors.textOnPrimary} />
-                    <Text style={styles.payBtnText}>Try Again</Text>
-                  </Pressable>
+                  {unconfirmed ? null : (
+                    <Pressable style={[styles.payBtn, { flex: 1 }]} onPress={retry}>
+                      <Ionicons name="refresh" size={16} color={colors.textOnPrimary} />
+                      <Text style={styles.payBtnText}>Try Again</Text>
+                    </Pressable>
+                  )}
                   <Pressable style={styles.ghostBtn} onPress={onClose}>
                     <Text style={styles.ghostBtnText}>Close</Text>
                   </Pressable>

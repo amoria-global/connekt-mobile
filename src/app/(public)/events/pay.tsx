@@ -19,6 +19,7 @@
  *      • Auto-unlocks and navigates directly into /events/live-stream on success.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { pollStatus } from '@/features/payments/nativeCheckout';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -61,7 +62,7 @@ import { flagEmoji } from '@/components/ui/PhoneInput';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
-type Stage = 'contact' | 'payment' | 'awaiting' | 'success';
+type Stage = 'contact' | 'payment' | 'awaiting' | 'success' | 'unconfirmed';
 
 const PAYMENT_COUNTRIES = [
   { iso2: 'RW', name: 'Rwanda', dial: '250' },
@@ -128,8 +129,7 @@ export default function EventPaymentScreen() {
 
   // Payment polling state
   const [refid, setRefid] = useState<string | null>(null);
-  const [pollCountdown, setPollCountdown] = useState(90);
-  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollCancelRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     detectPaymentCountry()
@@ -152,7 +152,7 @@ export default function EventPaymentScreen() {
   // Clean up polling timer
   useEffect(() => {
     return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      pollCancelRef.current?.();
     };
   }, []);
 
@@ -244,17 +244,16 @@ export default function EventPaymentScreen() {
       const res = await initiateAnonymousPayment(id, payload);
 
       if (paymentMethod === 'CARD' && res.paymentUrl) {
-        // Open secure browser modal for 3DS authentication
+        // Lock the form while the card page is open so a second tap cannot
+        // start a second charge; polling settles the result.
+        setStage('awaiting');
+        if (res.refid) startPolling(res.refid, viewerId, true);
         await WebBrowser.openAuthSessionAsync(res.paymentUrl, 'connekt://payment-callback');
-        // Check status after card completion
-        if (res.refid) {
-          startPolling(res.refid, viewerId);
-        }
       } else if (res.refid) {
         // Mobile money: start polling USSD status
         setRefid(res.refid);
         setStage('awaiting');
-        startPolling(res.refid, viewerId);
+        startPolling(res.refid, viewerId, paymentMethod === 'CARD');
       } else if (res.status === 'SUCCESS') {
         setStage('success');
       } else {
@@ -268,36 +267,30 @@ export default function EventPaymentScreen() {
   };
 
   // ── Step 4: Status Polling ────────────────────────────────────────────────
-  const startPolling = (txRefid: string, vId: string) => {
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    let secondsLeft = 90;
-    setPollCountdown(secondsLeft);
-
-    pollTimerRef.current = setInterval(async () => {
-      secondsLeft -= 2;
-      setPollCountdown(Math.max(0, secondsLeft));
-
-      try {
-        const check = await checkAnonymousPaymentStatus(id, txRefid, vId);
-        if (check.status === 'SUCCESS') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
-          setStage('success');
-        } else if (check.status === 'FAILED') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          setError(check.message || 'Payment was declined or timed out. Please try again.');
-          setStage('payment');
-        }
-      } catch {
-        /* best-effort poll */
-      }
-
-      if (secondsLeft <= 0) {
-        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-        setError('Payment approval timed out. Please check your phone balance and try again.');
+  const startPolling = (txRefid: string, vId: string, card: boolean) => {
+    pollCancelRef.current?.();
+    // Shared poller: bounded, keeps going through failed reads and the card's
+    // early FAILED, and ends in `unconfirmed` rather than `failed` when it runs
+    // out of time. The charge may have landed, so that state never offers a
+    // retry (see docs/PAYMENTS.md).
+    const poll = pollStatus(async () => {
+      const check = await checkAnonymousPaymentStatus(id, txRefid, vId);
+      if (check.status === 'SUCCESS') return 'success';
+      if (check.status === 'FAILED') return 'failed';
+      return 'pending';
+    }, card);
+    pollCancelRef.current = poll.cancel;
+    void poll.done.then(async (outcome) => {
+      if (outcome === 'success') {
+        await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+        setStage('success');
+      } else if (outcome === 'failed') {
+        setError('Payment was declined or cancelled. You have not been charged.');
         setStage('payment');
+      } else {
+        setStage('unconfirmed');
       }
-    }, 2000);
+    });
   };
 
   if (event.loading && !event.data) {
@@ -563,26 +556,37 @@ export default function EventPaymentScreen() {
             <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: spacing.md }} />
             <Text style={styles.awaitingTitle}>Check Your Phone</Text>
             <Text style={styles.awaitingSub}>
-              A USSD payment prompt has been dispatched to{' '}
-              <Text style={{ fontWeight: '700', color: colors.text }}>
-                +{dialCodeFor(country)} {phone}
-              </Text>
-              . Please enter your Mobile Money PIN to approve the payment.
+              {paymentMethod === 'CARD' ? (
+                'Complete the card payment in the secure window, then return here.'
+              ) : (
+                <>
+                  A USSD payment prompt has been dispatched to{' '}
+                  <Text style={{ fontWeight: '700', color: colors.text }}>
+                    +{dialCodeFor(country)} {phone}
+                  </Text>
+                  . Please enter your Mobile Money PIN to approve the payment.
+                </>
+              )}
             </Text>
 
             <View style={styles.countdownBox}>
               <Ionicons name="time-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.countdownText}>Waiting for confirmation… ({pollCountdown}s)</Text>
+              <Text style={styles.countdownText}>Waiting for confirmation…</Text>
             </View>
 
-            <Button
-              title="Cancel / Try Another Method"
-              variant="outline"
-              onPress={() => {
-                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-                setStage('payment');
-              }}
-            />
+          </View>
+        )}
+
+        {/* ── Unconfirmed: we stopped waiting. No retry, the charge may have landed. ── */}
+        {stage === 'unconfirmed' && (
+          <View style={styles.awaitingCard}>
+            <Ionicons name="time-outline" size={40} color={colors.textMuted} style={{ marginVertical: spacing.md }} />
+            <Text style={styles.awaitingTitle}>We could not confirm your payment yet</Text>
+            <Text style={styles.awaitingSub}>
+              If you approved the prompt on your phone, your access may still activate. Check your
+              phone and try &quot;Already paid? Verify access&quot; in a few minutes before paying again.
+            </Text>
+            <Button title="Back" variant="outline" onPress={() => router.back()} />
           </View>
         )}
 
