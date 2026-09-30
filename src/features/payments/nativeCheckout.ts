@@ -79,14 +79,20 @@ export function interpretStatus(
   return status;
 }
 
+export type StatusRead = () => Promise<'success' | 'failed' | 'pending'>;
+
 /**
- * Poll until a terminal state. Resolves `unknown` (never `failed`) when the
- * budget runs out or reads keep erroring: the charge may have landed, so the
- * caller must NOT offer a retry, only tell the buyer to check their phone or
- * their payments. Returns a cancel function alongside the promise.
+ * Poll `read` until a terminal state. Resolves `unknown` (never `failed`) when
+ * the budget runs out or reads keep erroring: the charge may have landed, so
+ * the caller must NOT offer a retry, only tell the buyer to check their phone
+ * or their payments. Returns a cancel function alongside the promise.
+ *
+ * Shared by every in-app checkout so the rule lives in one place. Each screen
+ * supplies its own status read (the public xentripay endpoint, or the
+ * anonymous-viewer one that also unlocks access on success).
  */
-export function pollHandoff(
-  refid: string,
+export function pollStatus(
+  read: StatusRead,
   card: boolean,
   sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
 ): { done: Promise<PollOutcome>; cancel: () => void } {
@@ -97,7 +103,7 @@ export function pollHandoff(
       await sleep(POLL_INTERVAL_MS);
       if (cancelled) return 'unknown';
       try {
-        const s = interpretStatus(await getPublicPaymentStatus(refid), (i + 1) * POLL_INTERVAL_MS, card);
+        const s = interpretStatus(await read(), (i + 1) * POLL_INTERVAL_MS, card);
         if (s !== 'pending') return s;
       } catch {
         /* a failed read is not a failed payment: keep polling */
@@ -106,4 +112,12 @@ export function pollHandoff(
     return 'unknown';
   })();
   return { done, cancel: () => { cancelled = true; } };
+}
+
+export function pollHandoff(
+  refid: string,
+  card: boolean,
+  sleep?: (ms: number) => Promise<void>,
+): { done: Promise<PollOutcome>; cancel: () => void } {
+  return pollStatus(() => getPublicPaymentStatus(refid), card, sleep);
 }

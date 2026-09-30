@@ -114,7 +114,8 @@ import {
 } from '@/features/streams/gifting/GiftOverlay';
 import { GiftTray } from '@/features/streams/gifting/GiftTray';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { liveGiftUrl, openWebCheckout, streamAccessUrl, donationUrl } from '@/features/payments/webCheckout';
+import { liveGiftUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { GiftCheckoutSheet } from '@/features/streams/gifting/GiftCheckoutSheet';
 import { useAsync } from '@/hooks/useAsync';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { reportContent, reportPublicChatMessage } from '@/features/moderation/api';
@@ -872,6 +873,7 @@ export default function PublicLiveStreamScreen() {
   // for banners / floaters / big-gift takeovers on EVERY platform.
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftConfirm, setGiftConfirm] = useState<GiftCatalogItem | null>(null);
+  const [giftPay, setGiftPay] = useState<GiftCatalogItem | null>(null);
   const [giftEvents, setGiftEvents] = useState<GiftEvent[]>([]);
 
   // ── Access detection (web parity: lines 595-755) ─────────────────────────
@@ -1559,14 +1561,10 @@ export default function PublicLiveStreamScreen() {
     setGiftConfirm(gift);
   };
 
-  // Step 2 — user confirms → open web checkout, then fire the local
-  // gift animation so they see the effect immediately on return.
-  const onConfirmGift = async () => {
-    if (!giftConfirm) return;
-    const gift = giftConfirm;
-    setGiftConfirm(null);
-    await openWebCheckout(liveGiftUrl(id, viewerId, gift.code));
-    // Fire the gift animation locally after returning from the browser.
+  // Step 2 — user confirms. A registered viewer pays in the app (GiftCheckoutSheet);
+  // without a viewer id there is no identity to bind the gift to, so fall back
+  // to the web page, which registers one.
+  const fireLocalGift = (gift: GiftCatalogItem) => {
     setGiftEvents((prev) => [
       ...prev.slice(-49),
       {
@@ -1582,7 +1580,19 @@ export default function PublicLiveStreamScreen() {
     ]);
   };
 
-  const onDonate = () => openWebCheckout(donationUrl(id));
+  const onConfirmGift = async () => {
+    if (!giftConfirm) return;
+    const gift = giftConfirm;
+    setGiftConfirm(null);
+    if (viewerId) {
+      setGiftPay(gift);
+      return;
+    }
+    await openWebCheckout(liveGiftUrl(id, undefined, gift.code));
+    fireLocalGift(gift);
+  };
+
+  const onDonate = () => router.push(`/(public)/donate?eventId=${id}` as unknown as Href);
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -2186,6 +2196,15 @@ export default function PublicLiveStreamScreen() {
             onClose={() => setGiftConfirm(null)}
             onConfirm={onConfirmGift}
           />
+          <GiftCheckoutSheet
+            visible={!!giftPay && chatFullscreen}
+            onClose={() => setGiftPay(null)}
+            onSettled={() => giftPay && fireLocalGift(giftPay)}
+            eventId={id}
+            viewerId={viewerId ?? ''}
+            gift={giftPay}
+            eventTitle={eventTitle}
+          />
         </View>
       </Modal>
 
@@ -2261,7 +2280,7 @@ export default function PublicLiveStreamScreen() {
               />
               {status.isPaid && digitalPurchasesEnabled ? (
                 <Pressable
-                  onPress={() => void openWebCheckout(streamAccessUrl(id))}
+                  onPress={() => router.push(`/(public)/events/pay?id=${id}` as unknown as Href)}
                   style={{ alignItems: 'center', marginTop: 8 }}
                 >
                   <Text style={styles.linkText}>Buy access instead</Text>
@@ -2289,6 +2308,15 @@ export default function PublicLiveStreamScreen() {
         onClose={() => setGiftConfirm(null)}
         onConfirm={onConfirmGift}
       />
+      <GiftCheckoutSheet
+            visible={!!giftPay && !chatFullscreen}
+            onClose={() => setGiftPay(null)}
+            onSettled={() => giftPay && fireLocalGift(giftPay)}
+            eventId={id}
+            viewerId={viewerId ?? ''}
+            gift={giftPay}
+            eventTitle={eventTitle}
+          />
 
       {/* Report a live-chat message (long-press a message to open). */}
       <ReportSheet
