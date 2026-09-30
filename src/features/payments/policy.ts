@@ -43,10 +43,11 @@
  */
 import { Platform } from 'react-native';
 
+// Native builds are OFF, release builds included. A `NODE_ENV !== 'test'` clause
+// used to sit here; it made this true in every shipped build and only false under
+// jest, which is how the store-billing gate described above was silently open.
 export const digitalPurchasesEnabled =
-  Platform.OS === 'web' ||
-  process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES === 'true' ||
-  process.env.NODE_ENV !== 'test';
+  Platform.OS === 'web' || process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES === 'true';
 
 /**
  * Payment-declaration types that pay for DIGITAL goods (stream access, tips,

@@ -775,14 +775,14 @@ export function FindMyPhotos() {
         {
           albumId: freeAlbumId,
           photoIds: overflowIds,
-          amount: Math.round(price * overflowIds.length),
+          amount: Math.round(price * overflowIds.length * 100) / 100,
           currencyId: freeAlbumCurrencyId,
         },
       ]);
       setCheckoutPhotoCount(overflowIds.length);
       setCheckoutPhotographerCount(1);
       setCheckoutCurrencySym(freeAlbumCurrencyAbbr ? `${freeAlbumCurrencyAbbr} ` : '$');
-      setCheckoutTotal(Math.round(price * overflowIds.length));
+      setCheckoutTotal(Math.round(price * overflowIds.length * 100) / 100);
       setCheckoutPendingPhotoIds(overflowIds);
       setCheckoutVisible(true);
     };
