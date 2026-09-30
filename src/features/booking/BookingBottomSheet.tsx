@@ -10,7 +10,7 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { bookingsApi } from '@/api/endpoints/bookings';
 import { useAuth, isApiError } from '@/store/auth';
 import { logoBase64 } from '@/utils/logoBase64';
-import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { formatPrice as formatSelectedPrice } from '@/utils/format';
 
 export type BookingBottomSheetProps = {
@@ -100,13 +100,11 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
     const [bookingSuccess, setBookingSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // ── Web payment handoff (step 4) ─────────────────────────────────────
-    // The app no longer collects payment details (phone / telecom / card
-    // pickers). After the booking is created we keep the declaration (or
-    // event) id and offer a single "Complete payment on connekyt.com"
-    // button that opens the web checkout.
+    // ── In-app payment (step 4) ──────────────────────────────────────────
+    // After the booking is created we keep the declaration (or event) id and
+    // offer "Pay now", which completes the payment in HandoffCheckoutSheet.
     const [payHandoff, setPayHandoff] = useState<{ declarationId?: string; eventId?: string } | null>(null);
-    const [openingCheckout, setOpeningCheckout] = useState(false);
+    const [checkoutOpen, setCheckoutOpen] = useState(false);
 
     useEffect(() => {
       if (selectedPackage?.currency) {
@@ -255,22 +253,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
       }
     };
 
-    // Mint the BOOKING_DECLARATION handoff for the booking we just created
-    // and open the connekyt.com checkout in the in-app browser.
-    const handleCompletePaymentOnWeb = async () => {
-      if (!payHandoff || openingCheckout) return;
-      setOpeningCheckout(true);
-      try {
-        const url = await mintHandoffUrl('BOOKING_DECLARATION', payHandoff);
-        await openWebCheckout(url);
-      } catch (error) {
-        Alert.alert(
-          'Could not open checkout',
-          isApiError(error) ? error.message : 'Something went wrong. Please try again from Payments.',
-        );
-      } finally {
-        setOpeningCheckout(false);
-      }
+    const handleCompletePayment = () => {
+      if (payHandoff) setCheckoutOpen(true);
     };
 
     const handleDownloadProof = async () => {
@@ -469,6 +453,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
     };
 
     return (
+      <>
       <BottomSheet
         ref={ref}
         index={-1}
@@ -949,7 +934,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   </View>
                   <Text style={styles.successTitle}>Booking Reserved!</Text>
                   <Text style={styles.successSubtitle}>
-                    Your event has been recorded. To secure your date, finish the payment securely on connekyt.com.
+                    Your event has been recorded. To secure your date, pay now or later from Payments.
                   </Text>
 
                   <View style={styles.summaryCard}>
@@ -977,14 +962,11 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   {payHandoff ? (
                     <>
                       <Pressable
-                        style={[styles.continueButton, { marginBottom: 12 }, openingCheckout && { opacity: 0.7 }]}
-                        onPress={handleCompletePaymentOnWeb}
-                        disabled={openingCheckout}
+                        style={[styles.continueButton, { marginBottom: 12 }]}
+                        onPress={handleCompletePayment}
                       >
-                        <Ionicons name="globe-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                        <Text style={styles.continueButtonText}>
-                          {openingCheckout ? 'Opening Checkout…' : 'Complete payment on connekyt.com'}
-                        </Text>
+                        <Ionicons name="card-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                        <Text style={styles.continueButtonText}>Pay now</Text>
                       </Pressable>
                       <Text style={styles.handoffHint}>
                         Your booking is held for you. You can also complete your payment later anytime from your Payments tab.
@@ -992,7 +974,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     </>
                   ) : (
                     <Text style={styles.handoffHint}>
-                      Your request has been sent to the photographer. Once accepted, you can complete payment on connekyt.com from Payments.
+                      Your request has been sent to the photographer. Once accepted, you can pay from Payments.
                     </Text>
                   )}
 
@@ -1200,6 +1182,15 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           </InputAccessoryView>
         )}
       </BottomSheet>
+      <HandoffCheckoutSheet
+        visible={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        handoff={payHandoff ? { type: 'BOOKING_DECLARATION', ...payHandoff } : null}
+        title={eventName || 'Booking'}
+        subtitle={photographerName}
+        amountLabel={formatSelectedPrice(selectedPackage?.price, selectedPackage?.currency)}
+      />
+      </>
     );
   };
 

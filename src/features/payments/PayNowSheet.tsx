@@ -1,26 +1,20 @@
 /**
  * Pay-Now bottom sheet.
  *
- * Drives the client dashboard's "Pending payments" cards. The app no
- * longer collects payment details (phone numbers, telecom choice,
- * card/momo selection) or polls the gateway — the sheet shows the
- * event + amount due and hands the user off to the connekyt.com web
- * checkout, where the server-fixed balance is charged.
+ * Drives the "Pending payments" cards and the Payments screen. It shows the
+ * event and the amount due, then completes the payment inside the app through
+ * HandoffCheckoutSheet. The amount is fixed by the server to the booking
+ * balance; nothing is sent from here.
  *
- * The sheet is fully self-contained — pass `payment` + `onClose` +
- * `onSuccess` and the consumer only needs to handle visibility and
- * refresh (`onSuccess` fires when the user returns from the browser so
- * the dashboard can re-fetch).
+ * Only declarations the handoff accepts get a pay action (see
+ * canPayDeclarationHere). Anything else is view-only.
  */
-import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
-import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
-import { canPayDeclarationHere } from '@/features/payments/policy';
-import { type PendingPayment } from '@/features/analytics/api';
-import { isApiError } from '@/store/auth';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { type PendingPayment } from '@/features/analytics/api';
+import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
+import { canPayDeclarationHere } from '@/features/payments/policy';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
@@ -38,85 +32,43 @@ export function PayNowSheet({
   const styles = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const due = payment ? payment.amount - payment.paidAmount : 0;
-  const currencyHint = (payment as { currency?: string } | null)?.currency ?? 'USD';
-
-  const [busy, setBusy] = useState(false);
-
-  const onContinue = async () => {
-    if (!payment || busy || !canPayDeclarationHere(payment.paymentType)) return;
-    setBusy(true);
-    try {
-      const url = await mintHandoffUrl('BOOKING_DECLARATION', { declarationId: payment.id });
-      await openWebCheckout(url);
-      // The browser has been dismissed — let the consumer refresh so a
-      // completed payment disappears from the pending list.
-      onSuccess?.();
-    } catch (e) {
-      Alert.alert(
-        'Could not open checkout',
-        isApiError(e) ? e.message : 'Something went wrong. Please try again.',
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
 
   if (!payment) return null;
 
+  const due = payment.amount - payment.paidAmount;
+  const currencyHint = (payment as { currency?: string } | null)?.currency ?? 'USD';
+
+  if (canPayDeclarationHere(payment.paymentType)) {
+    return (
+      <HandoffCheckoutSheet
+        visible={visible}
+        onClose={onClose}
+        onSettled={onSuccess}
+        handoff={{ type: 'BOOKING_DECLARATION', declarationId: payment.id }}
+        title={payment.eventName}
+        subtitle={payment.photographerName}
+        amountLabel={formatPrice(due, currencyHint)}
+      />
+    );
+  }
+
+  // Not something the signed-in user owes: explain instead of offering a dead button.
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <View style={styles.sheetContainer}>
-        <View
-          style={[
-            styles.sheet,
-            { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.lg) },
-          ]}
-        >
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.lg) }]}>
           <View style={styles.handle} />
           <View style={styles.headRow}>
-            <Text style={styles.title}>Pay now</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
+            <Text style={styles.title}>{payment.eventName}</Text>
+            <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close">
               <Ionicons name="close" size={22} color={colors.textMuted} />
             </Pressable>
           </View>
-
-          <ScrollView contentContainerStyle={styles.body}>
-            <View style={styles.summary}>
-              <Text style={styles.summaryEvent} numberOfLines={1}>
-                {payment.eventName}
-              </Text>
-              <Text style={styles.summarySub}>{payment.photographerName}</Text>
-              <Text style={styles.summaryAmount}>{formatPrice(due, currencyHint)}</Text>
-            </View>
-
-            <View style={styles.webHint}>
-              <Ionicons name="globe-outline" size={16} color={colors.info} />
-              <Text style={styles.webHintText}>
-                You&apos;ll complete this payment securely on connekyt.com. The amount due is
-                fixed to your booking balance.
-              </Text>
-            </View>
-
-            {canPayDeclarationHere(payment.paymentType) ? (
-              <>
-                <Button
-                  title="Complete payment on connekyt.com"
-                  onPress={onContinue}
-                  loading={busy}
-                  disabled={busy}
-                />
-                <Text style={styles.note}>
-                  Payments are processed on the connekyt.com secure checkout.
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.note}>
-                This charge isn&apos;t settled from here.
-              </Text>
-            )}
-          </ScrollView>
+          <Text style={styles.note}>
+            This is a purchase a viewer started and has not completed. There is nothing for you to
+            pay.
+          </Text>
         </View>
       </View>
     </Modal>
@@ -132,40 +84,10 @@ const useStyles = makeStyles((c) => ({
     borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    maxHeight: '90%',
+    gap: spacing.md,
   },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: c.border,
-    marginBottom: spacing.sm,
-  },
-  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  title: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-
-  body: { paddingBottom: spacing.lg, gap: spacing.md },
-
-  summary: { backgroundColor: c.primary, borderRadius: radii.lg, padding: spacing.lg, gap: 2 },
-  summaryEvent: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  summarySub: { color: 'rgba(255,255,255,0.78)', fontSize: fontSize.xs },
-  summaryAmount: {
-    marginTop: spacing.sm,
-    color: c.textOnPrimary,
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.extrabold,
-  },
-
-  webHint: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: c.infoBg,
-    borderRadius: radii.md,
-  },
-  webHintText: { flex: 1, color: c.info, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
-
-  note: { textAlign: 'center', color: c.textMuted, fontSize: fontSize.xs },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border },
+  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title: { flex: 1, fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  note: { color: c.textMuted, fontSize: fontSize.sm, lineHeight: 20 },
 }));
