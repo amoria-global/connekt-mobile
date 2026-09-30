@@ -38,7 +38,7 @@ import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { useAuth, isApiError } from '@/store/auth';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { liveGiftUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { GiftCheckoutSheet } from '@/features/streams/gifting/GiftCheckoutSheet';
 import {
   getStream,
   joinStream,
@@ -127,6 +127,7 @@ export default function StreamDetailScreen() {
   const [replyingTo, setReplyingTo] = useState<{ id: string; sender: string; text?: string } | null>(null);
   const [chatFilter, setChatFilter] = useState<'all' | 'gifts'>('all');
   const [giftTrayVisible, setGiftTrayVisible] = useState(false);
+  const [giftPay, setGiftPay] = useState<GiftCatalogItem | null>(null);
   const [retrying, setRetrying] = useState(false);
   const chatInputRef = useRef<TextInput>(null);
 
@@ -317,12 +318,10 @@ export default function StreamDetailScreen() {
     }
   };
 
-  const onSendGiftSelected = async (gift: GiftCatalogItem) => {
+  // A signed-in sender pays in the app; the gift is priced by its code on the server.
+  const onSendGiftSelected = (gift: GiftCatalogItem) => {
     setGiftTrayVisible(false);
-    const targetEventId = data?.eventId ?? id;
-    const viewerId = user?.customerId ? String(user.customerId) : undefined;
-    const url = liveGiftUrl(targetEventId, viewerId, gift.code);
-    await openWebCheckout(url);
+    setGiftPay(gift);
   };
 
   const onShare = async () => {
@@ -815,6 +814,13 @@ export default function StreamDetailScreen() {
         visible={giftTrayVisible}
         onClose={() => setGiftTrayVisible(false)}
         onSendGift={onSendGiftSelected}
+      />
+      <GiftCheckoutSheet
+        visible={!!giftPay}
+        onClose={() => setGiftPay(null)}
+        eventId={data?.eventId ?? id}
+        gift={giftPay}
+        eventTitle={data?.title}
       />
     </Screen>
   );
