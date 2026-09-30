@@ -37,6 +37,7 @@ import {
   resolveCurrencyId,
   type InitiatePublicDonationPayload,
 } from '@/features/donations/api';
+import { pollStatus } from '@/features/payments/nativeCheckout';
 import { getPublicPaymentStatus } from '@/features/photos/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
@@ -56,7 +57,7 @@ import { flagEmoji } from '@/components/ui/PhoneInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
-type Stage = 'form' | 'awaiting' | 'success';
+type Stage = 'form' | 'awaiting' | 'success' | 'unconfirmed';
 
 type MethodTile = {
   id: string;
@@ -254,8 +255,7 @@ export default function PublicDonateScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refid, setRefid] = useState<string | null>(null);
-  const [pollCountdown, setPollCountdown] = useState(90);
-  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollCancelRef = useRef<(() => void) | null>(null);
 
   // Load geo payment country and payment options
   useEffect(() => {
@@ -283,7 +283,7 @@ export default function PublicDonateScreen() {
 
   useEffect(() => {
     return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      pollCancelRef.current?.();
     };
   }, []);
 
@@ -502,14 +502,15 @@ export default function PublicDonateScreen() {
       });
 
       if (isCard && res.paymentUrl) {
+        // Lock the form while the card page is open so a second tap cannot
+        // start a second charge; polling settles the result.
+        setStage('awaiting');
+        if (res.refid) startPolling(res.refid, true);
         await WebBrowser.openAuthSessionAsync(res.paymentUrl, 'connekt://donation-callback');
-        if (res.refid) {
-          startPolling(res.refid);
-        }
       } else if (res.refid) {
         setRefid(res.refid);
         setStage('awaiting');
-        startPolling(res.refid);
+        startPolling(res.refid, isCard);
       } else if (res.status === 'SUCCESS') {
         setStage('success');
       } else {
@@ -522,35 +523,23 @@ export default function PublicDonateScreen() {
     }
   };
 
-  const startPolling = (txRefid: string) => {
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    let secondsLeft = 90;
-    setPollCountdown(secondsLeft);
-
-    pollTimerRef.current = setInterval(async () => {
-      secondsLeft -= 2;
-      setPollCountdown(Math.max(0, secondsLeft));
-
-      try {
-        const check = await getPublicPaymentStatus(txRefid);
-        if (check === 'success') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          setStage('success');
-        } else if (check === 'failed') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          setError('Payment was declined or cancelled. Please try again.');
-          setStage('form');
-        }
-      } catch {
-        /* best-effort poll */
-      }
-
-      if (secondsLeft <= 0) {
-        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-        setError('Payment approval timed out. Please try again.');
+  const startPolling = (txRefid: string, card: boolean) => {
+    pollCancelRef.current?.();
+    // Shared poller: bounded, and it ends in `unconfirmed` rather than a failure
+    // when it runs out of time. The charge may have landed, so that state never
+    // offers a retry, which would create a second donation and charge again.
+    const poll = pollStatus(() => getPublicPaymentStatus(txRefid), card);
+    pollCancelRef.current = poll.cancel;
+    void poll.done.then((outcome) => {
+      if (outcome === 'success') {
+        setStage('success');
+      } else if (outcome === 'failed') {
+        setError('Payment was declined or cancelled. You have not been charged.');
         setStage('form');
+      } else {
+        setStage('unconfirmed');
       }
-    }, 2000);
+    });
   };
 
   return (
@@ -886,17 +875,20 @@ export default function PublicDonateScreen() {
 
             <View style={styles.countdownBox}>
               <Ionicons name="time-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.countdownText}>Waiting for confirmation… ({pollCountdown}s)</Text>
+              <Text style={styles.countdownText}>Waiting for confirmation…</Text>
             </View>
+          </View>
+        )}
 
-            <Button
-              title="Cancel"
-              variant="outline"
-              onPress={() => {
-                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-                setStage('form');
-              }}
-            />
+        {stage === 'unconfirmed' && (
+          <View style={styles.awaitingCard}>
+            <Ionicons name="time-outline" size={40} color={colors.textMuted} style={{ marginVertical: spacing.md }} />
+            <Text style={styles.awaitingTitle}>We could not confirm your donation yet</Text>
+            <Text style={styles.awaitingSub}>
+              If you approved the prompt, your donation may still go through. Please check your
+              phone before donating again.
+            </Text>
+            <Button title="Back" variant="outline" onPress={() => router.back()} />
           </View>
         )}
 

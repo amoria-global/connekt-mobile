@@ -82,27 +82,31 @@ The greenfield sandbox lives at `src/_design-sandbox/` and is git-ignored.
 
 ## ⚠️ Payments — read `docs/PAYMENTS.md` before touching anything money-related
 
-**This app does not take payments.** No phone collection, no MoMo/card picker,
-no gateway polling, no settlement. Every paid flow opens the connekyt.com web
-checkout in the in-app browser (`src/features/payments/webCheckout.ts`).
+Most payments now complete in the app (see the 2026-09-30 note in
+`docs/PAYMENTS.md`). Booking balances, photobook extras, archive unlock and
+catalog gifts go through `features/payments/CheckoutSheet` (with
+`HandoffCheckoutSheet` and `GiftCheckoutSheet` on top). Stream access, donations
+and photo purchases use `events/pay`, `donate` and `PhotoCheckoutSheet`. Still on
+the connekyt.com checkout: gifts from a signed-in account (`stream/[id]`),
+pay-on-TV, and extra photos beyond a free album's quota.
 
-That means the **web client owns payment correctness and this app inherits its
-fixes automatically** — a web payment fix reaches mobile buyers with no app
-release, and no change here can repair a web payment bug.
-
-- **Do not build a native payment flow** without reading `docs/PAYMENTS.md`
-  and the backend's `docs/PAYMENTS.md`. The web flow took seven production
-  defects to get right, including one where anonymous buyers were told a
-  successful payment had failed and offered a retry that charges again.
-- **Do not wire up the dead payment helpers** in `features/photos/api.ts`,
-  `features/streams/api.ts` or `features/donations/api.ts`. They are defined
-  and never called, and they are flagged in place.
-- **Never poll an authenticated status endpoint for a buyer.** Photo and
-  stream buyers are anonymous; use `/public/payments/xentripay/status/{refid}`.
-- **Never send an amount from the client.** `mintHandoffUrl` sends none by
-  design so the server sets the price.
-- **The in-app browser is a separate storage jar.** Nothing the checkout
-  writes to localStorage is readable here. Delivery relies on the emailed
-  unlock code.
-- **Always check `action` on the envelope** — the backend returns HTTP 200 for
-  failures, so `action: 0` with a 200 is a failure.
+- **Read `docs/PAYMENTS.md` and the backend's `docs/PAYMENTS.md`** before changing
+  any of it. The web flow took seven production defects to get right.
+- **One poller.** Use `pollStatus` in `features/payments/nativeCheckout.ts`. It is
+  bounded, survives failed reads, ignores a card's early FAILED, and ends in
+  `unknown`, never `failed`, when it runs out of time. Never offer a retry from
+  `unknown`: the charge may have landed and a retry charges again.
+- **Never poll an authenticated status endpoint for a buyer.** Use
+  `/public/payments/xentripay/status/{refid}` (or the anonymous-viewer status,
+  which also unlocks access).
+- **Never send an amount from the client** for a declaration or archive handoff;
+  the server sets the price. Gifts are priced by `giftCode`.
+- **Pass the operator id through untouched.** Guessing a provider charges the
+  wrong network.
+- **Lock the form while a card page is open** so a second tap cannot start a
+  second charge.
+- **Only BOOKING and PHOTOBOOK_EXTRAS are owed** (`isOwedObligation`). Unsettled
+  digital declarations are viewers' unfinished purchases, not bills.
+- **Always check `action` on the envelope**; HTTP 200 with `action: 0` is a failure.
+- **Do not change gateway routing** (no country or redirect the web receiver does
+  not send) without an explicit decision.

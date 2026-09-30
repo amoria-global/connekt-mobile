@@ -37,7 +37,6 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import { redeemGroupCode } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
@@ -164,11 +163,10 @@ export default function JoinPackageScreen() {
     data.streamFeeCurrencySymbol,
   );
 
-  // Purchase happens on connekyt.com — never in the app, and never at all
-  // on Android (policy gate below).
-  const onBuyOnWeb = () => {
+  // Purchase happens in the app (events/pay), gated by the policy flag below.
+  const onBuy = () => {
     if (!digitalPurchasesEnabled) return;
-    void openWebCheckout(streamAccessUrl(id));
+    router.push(`/(public)/events/pay?id=${id}` as unknown as Href);
   };
 
   return (
@@ -244,7 +242,7 @@ export default function JoinPackageScreen() {
               <Text style={styles.totalValue}>{perPersonLabel} / person</Text>
             </View>
 
-            <Button title="Buy access on connekyt.com" onPress={onBuyOnWeb} />
+            <Button title="Buy access" onPress={onBuy} />
             <Text style={styles.peopleHint}>
               Package selection (individual or group) and payment are completed
               securely on connekyt.com.

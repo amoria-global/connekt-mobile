@@ -52,7 +52,6 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { canShowDigitalPrice, digitalPurchasesEnabled } from '@/features/payments/policy';
-import { openWebCheckout, streamAccessUrl } from '@/features/payments/webCheckout';
 import type { PublicEvent } from '@/features/events/types';
 import {
   checkAnonymousAccessStatus,
@@ -1001,9 +1000,7 @@ export default function PublicEventDetailScreen() {
             cta={cta!}
             onPress={() => {
               if (cta!.action === 'webCheckout') {
-                openWebCheckout(streamAccessUrl(id))
-                  .then(() => { setVerifyOpen(true); })
-                  .catch(() => {});
+                router.push(`/(public)/events/pay?id=${id}` as unknown as Href);
               } else if (cta!.href) {
                 router.push(cta!.href);
               }
