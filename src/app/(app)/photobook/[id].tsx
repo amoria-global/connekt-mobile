@@ -32,8 +32,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
-import { isApiError } from '@/store/auth';
+import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { getPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
@@ -59,7 +58,8 @@ export default function PhotobookDetailScreen() {
   const { width } = useWindowDimensions();
 
   const { data, loading, error, refresh } = useAsync(useCallback(() => getPhotobook(id), [id]));
-  const [payBusy, setPayBusy] = useState(false);
+  const [payDeclarationId, setPayDeclarationId] = useState<string | null>(null);
+  const payBusy = false;
   const [activePhoto, setActivePhoto] = useState<PhotobookPhoto | null>(null);
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [gridCols, setGridCols] = useState<2 | 3>(3);
@@ -121,22 +121,14 @@ export default function PhotobookDetailScreen() {
     }
   };
 
-  const onPayExtras = async () => {
-    if (!digitalPurchasesEnabled || payBusy) return;
+  const onPayExtras = () => {
+    if (!digitalPurchasesEnabled) return;
     const declarationId = data?.paymentDeclarationId;
     if (!declarationId) {
       router.push('/payments' as never);
       return;
     }
-    setPayBusy(true);
-    try {
-      const url = await mintHandoffUrl('BOOKING_DECLARATION', { declarationId });
-      await openWebCheckout(url);
-    } catch (e) {
-      Alert.alert('Could not open payment', isApiError(e) ? e.message : 'Please try again.');
-    } finally {
-      setPayBusy(false);
-    }
+    setPayDeclarationId(declarationId);
   };
 
   const gap = 2;
@@ -495,6 +487,14 @@ export default function PhotobookDetailScreen() {
           </View>
         </View>
       </Modal>
+      <HandoffCheckoutSheet
+        visible={!!payDeclarationId}
+        onClose={() => setPayDeclarationId(null)}
+        onSettled={() => void refresh()}
+        handoff={payDeclarationId ? { type: 'BOOKING_DECLARATION', declarationId: payDeclarationId } : null}
+        title={data?.name ?? 'Photobook extras'}
+        subtitle="Extra photos"
+      />
     </Screen>
   );
 }

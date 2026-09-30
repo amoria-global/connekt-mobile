@@ -23,7 +23,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { TimeField } from '@/components/ui/TimeField';
 import { createEvent, getEvent, listEventCategories, updateEvent, uploadEventPhoto } from '@/features/events/api';
-import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import {
   getPhotographer,
   listPhotographers,
@@ -109,6 +109,7 @@ export default function NewEventScreen() {
   const isEditing = !!params.editId;
 
   const [serverError, setServerError] = useState<string | null>(null);
+  const [payEventId, setPayEventId] = useState<string | null>(null);
   const [cover, setCover] = useState<PickedImage | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [existingCover, setExistingCover] = useState<string | null>(null);
@@ -577,22 +578,13 @@ export default function NewEventScreen() {
         );
       }
 
-      // Booking payment is completed on the web — the app collects nothing.
-      // Bookings are a real-world service (Play-exempt), so this redirect is
-      // offered on every platform. Best-effort: if the declaration isn't ready
-      // yet, the user can still pay from the event's Payments later.
+      // Booking payment is completed in the app. Bookings are a real-world
+      // service (Play-exempt). The sheet mints the handoff itself, so if the
+      // declaration is not ready yet the user sees why and can pay later from
+      // the event's Payments.
       if (amount && amount > 0) {
-        try {
-          const url = await mintHandoffUrl('BOOKING_DECLARATION', { eventId: event.id });
-          router.replace(`/event/${event.id}`);
-          await openWebCheckout(url);
-          return;
-        } catch {
-          Alert.alert(
-            'Booking created',
-            'Your booking is reserved. Complete the payment from the event page when you’re ready.',
-          );
-        }
+        setPayEventId(event.id);
+        return;
       }
 
       router.replace(`/event/${event.id}`);
@@ -1382,6 +1374,13 @@ export default function NewEventScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      <HandoffCheckoutSheet
+        visible={!!payEventId}
+        onClose={() => router.replace(`/event/${payEventId}`)}
+        handoff={payEventId ? { type: 'BOOKING_DECLARATION', eventId: payEventId } : null}
+        title="Booking payment"
+        subtitle="Reserve your date"
+      />
     </Screen>
   );
 }

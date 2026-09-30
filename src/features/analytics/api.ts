@@ -8,6 +8,7 @@
  */
 import { api } from '@/api/client';
 import type { ApiEnvelope } from '@/types';
+import { isOwedObligation } from '@/features/payments/policy';
 import { formatPrice } from '@/utils/format';
 
 export type AnalyticsStat = { key: string; label: string; value: string };
@@ -350,7 +351,9 @@ function mapPendingPayment(r: Raw): PendingPayment {
 export async function getCustomerPendingPayments(): Promise<PendingPayment[]> {
   const res = await api.get<ApiEnvelope<Raw[]>>('/customer/payments/pending');
   const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapPendingPayment).filter((p) => p.id);
+  // The endpoint returns every unsettled declaration on the user's events,
+  // including viewers' unfinished tickets and gifts. Those are not owed.
+  return data.map(mapPendingPayment).filter((p) => p.id && isOwedObligation(p.paymentType));
 }
 
 export async function getCoordinatorPendingPayments(): Promise<PendingPayment[]> {
@@ -367,7 +370,7 @@ export async function getCoordinatorPendingPayments(): Promise<PendingPayment[]>
       return s !== 'COMPLETED' && s !== 'SUCCESS';
     })
     .map(mapPendingPayment)
-    .filter((p) => p.id);
+    .filter((p) => p.id && isOwedObligation(p.paymentType));
 }
 
 // ────── Recent activities + photographers (Client only) ───────────────────

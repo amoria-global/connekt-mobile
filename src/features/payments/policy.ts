@@ -71,9 +71,33 @@ export function isDigitalDeclaration(paymentType?: string | null): boolean {
   return !!paymentType && DIGITAL_DECLARATION_TYPES.has(paymentType.toUpperCase());
 }
 
-/** Whether this declaration may be paid from the generic pending-payment UI. */
+/**
+ * Whether this declaration may be paid from the generic pending-payment UI.
+ *
+ * Mirrors PaymentHandoffController: the declaration handoff only carries a
+ * booking or the extra-photos add-on and refuses every digital type
+ * ("This payment can't be completed here."). It must not follow
+ * digitalPurchasesEnabled, which is true on release builds: a pay button the
+ * server always refuses is a dead end. An unclassified type is left to the
+ * server, so a legitimate payment is never silently blocked.
+ */
 export function canPayDeclarationHere(paymentType?: string | null): boolean {
-  return !isDigitalDeclaration(paymentType) || digitalPurchasesEnabled;
+  const t = paymentType?.toUpperCase();
+  if (t === 'PHOTOBOOK_EXTRAS') return true;
+  return !isDigitalDeclaration(t) && t !== 'DONATION';
+}
+
+/**
+ * Whether an unsettled declaration is something the signed-in user OWES.
+ *
+ * A pending STREAMING/GIFT/FACE_RECOGNITION declaration is a viewer's ticket or
+ * purchase attempt that was never completed. It is not a bill: production held
+ * 90 of those against one open booking, so summing them produced a "$132,642 in
+ * pending payments, complete them to avoid cancellations" banner for money
+ * nobody owed. Only the types the handoff accepts count as owed.
+ */
+export function isOwedObligation(paymentType?: string | null): boolean {
+  return canPayDeclarationHere(paymentType);
 }
 
 /**

@@ -32,6 +32,7 @@ import {
   type StreamingPayment,
   type GiftPayment,
 } from '@/features/payments/api';
+import { isOwedObligation } from '@/features/payments/policy';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import type { PendingPayment } from '@/features/analytics/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -50,7 +51,20 @@ function bucket(status?: string): Exclude<Filter, 'all'> {
   return 'pending';
 }
 
-const STATUS_TONE: Record<Exclude<Filter, 'all'>, { bg: string; fg: string; label: string }> = {
+/**
+ * Bucket for a whole record. An unsettled digital declaration (a viewer's
+ * unfinished ticket or gift) is not owed by the signed-in user, so it must not
+ * feed the pending total, the pending banner or a pay button.
+ */
+type RowBucket = Exclude<Filter, 'all'> | 'unfinished';
+
+function bucketOf(p: { status?: string; paymentType?: string }): RowBucket {
+  const b = bucket(p.status);
+  return b === 'pending' && !isOwedObligation(p.paymentType) ? 'unfinished' : b;
+}
+
+const STATUS_TONE: Record<RowBucket, { bg: string; fg: string; label: string }> = {
+  unfinished: { bg: '#E5E7EB', fg: '#4B5563', label: 'Not completed' },
   paid: { bg: '#D1FAE5', fg: '#047857', label: 'Paid' },
   pending: { bg: '#FEF3C7', fg: '#92400E', label: 'Pending' },
   failed: { bg: '#FEE2E2', fg: '#B91C1C', label: 'Failed' },
@@ -105,8 +119,8 @@ function PaymentsContent() {
     let pending = 0;
     for (const p of payments) {
       const amt = p.amount ?? 0;
-      total += amt;
-      const b = bucket(p.status);
+      const b = bucketOf(p);
+      if (b !== 'unfinished') total += amt;
       if (b === 'paid') paid += amt;
       else if (b === 'pending') pending += amt;
     }
@@ -115,12 +129,15 @@ function PaymentsContent() {
 
   const counts = useMemo(() => {
     const c = { all: payments.length, paid: 0, pending: 0, failed: 0 };
-    for (const p of payments) c[bucket(p.status)] += 1;
+    for (const p of payments) {
+      const b = bucketOf(p);
+      if (b !== 'unfinished') c[b] += 1;
+    }
     return c;
   }, [payments]);
 
   const filteredPayments = useMemo(
-    () => (filter === 'all' ? payments : payments.filter((p) => bucket(p.status) === filter)),
+    () => (filter === 'all' ? payments : payments.filter((p) => bucketOf(p) === filter)),
     [payments, filter],
   );
 
@@ -352,10 +369,10 @@ function PaymentsContent() {
             />
           }
           renderItem={({ item }) => {
-            const b = bucket(item.status);
+            const b = bucketOf(item);
             const tone = STATUS_TONE[b];
             const isPending = b === 'pending';
-            const isFailed = b === 'failed';
+            const isFailed = b === 'failed' && isOwedObligation(item.paymentType);
 
             return (
               <Pressable
