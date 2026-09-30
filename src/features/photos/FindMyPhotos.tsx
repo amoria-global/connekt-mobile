@@ -33,9 +33,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ensureFaceConsent } from '@/features/privacy/consent';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import {
-  albumPurchaseUrl,
   browsePhotosUrl,
-  openWebCheckout,
 } from '@/features/payments/webCheckout';
 import { PhotoCheckoutSheet } from './PhotoCheckoutSheet';
 import { savePhotoToGallery, saveBatchPhotosToGallery } from '@/utils/gallerySaver';
@@ -387,6 +385,9 @@ export function FindMyPhotos() {
 
   // --- In-App Checkout & Lightbox & Batch Downloader ---
   const [checkoutVisible, setCheckoutVisible] = useState(false);
+  // Set while the checkout is paying for a free album's extras, so success ships
+  // every selected photo through the free-album download path.
+  const extrasInFlight = useRef<{ allSelectedIds: string[] } | null>(null);
   const [checkoutItems, setCheckoutItems] = useState<MultiAlbumPurchaseItem[]>([]);
   const [checkoutPhotoCount, setCheckoutPhotoCount] = useState(0);
   const [checkoutPhotographerCount, setCheckoutPhotographerCount] = useState(0);
@@ -755,18 +756,39 @@ export function FindMyPhotos() {
       return;
     }
 
-    // Extras are purchased on connekyt.com — the app never collects the
-    // payment. Offer to download the free allowance now and hand the extras
-    // over to the web page (this branch is only reachable when
-    // digitalPurchasesEnabled — the Android path returned above).
+    // Extras are paid in the app through the same checkout as paid albums, for
+    // the OVERFLOW photos only (owned photos and the free quota are never
+    // charged). Offer to download the free allowance now or pay for the rest
+    // (this branch is only reachable when digitalPurchasesEnabled — the Android
+    // path returned above).
     const capNum = Number.isFinite(info.cap) ? (info.cap as number) : info.newPicks.length;
     const allowed = [...info.owned, ...info.newPicks.slice(0, capNum)];
     const extrasTotal = Math.round(price * info.overflow);
-    const buyOnWeb = () =>
-      void openWebCheckout(albumPurchaseUrl(code.trim()));
+    const buyExtras = () => {
+      const overflowIds = info.newPicks.slice(capNum);
+      if (!overflowIds.length || !freeAlbumId || !freeAlbumCurrencyId) {
+        setFreeStatusMsg('These extra photos cannot be purchased right now. Please try again.');
+        return;
+      }
+      extrasInFlight.current = { allSelectedIds: Array.from(selectedFreeIds) };
+      setCheckoutItems([
+        {
+          albumId: freeAlbumId,
+          photoIds: overflowIds,
+          amount: Math.round(price * overflowIds.length),
+          currencyId: freeAlbumCurrencyId,
+        },
+      ]);
+      setCheckoutPhotoCount(overflowIds.length);
+      setCheckoutPhotographerCount(1);
+      setCheckoutCurrencySym(freeAlbumCurrencyAbbr ? `${freeAlbumCurrencyAbbr} ` : '$');
+      setCheckoutTotal(Math.round(price * overflowIds.length));
+      setCheckoutPendingPhotoIds(overflowIds);
+      setCheckoutVisible(true);
+    };
     Alert.alert(
       'Extra Photos',
-      `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined)} and are purchased on connekyt.com.`,
+      `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined)} and are paid for here in the app.`,
       [
         { text: 'Cancel', style: 'cancel' },
         ...(allowed.length
@@ -780,7 +802,7 @@ export function FindMyPhotos() {
                     try {
                       await downloadFreeSelected(allowed);
                       setFreeStatusMsg(
-                        `Done! Buy the ${info.overflow} extra photo${info.overflow === 1 ? '' : 's'} on connekyt.com.`,
+                        `Done! You can pay for the ${info.overflow} extra photo${info.overflow === 1 ? '' : 's'} any time.`,
                       );
                     } catch {
                       setFreeStatusMsg('Some photos could not be downloaded. Please try again.');
@@ -792,7 +814,7 @@ export function FindMyPhotos() {
               },
             ]
           : []),
-        { text: 'Buy extras on connekyt.com', onPress: buyOnWeb },
+        { text: 'Pay for extras', onPress: buyExtras },
       ],
     );
   };
@@ -852,6 +874,22 @@ export function FindMyPhotos() {
     unlockCodeResult: string | null,
     purchasedPhotoIds: string[],
   ) => {
+    if (extrasInFlight.current) {
+      const { allSelectedIds } = extrasInFlight.current;
+      extrasInFlight.current = null;
+      setCheckoutVisible(false);
+      // Mark everything just paid for as owned so a refresh never re-charges,
+      // then ship the whole selection (free quota + extras).
+      setFreeAcquiredIds((prev) => {
+        const next = new Set(prev);
+        allSelectedIds.forEach((id) => next.add(id));
+        return next;
+      });
+      setPurchaseNotice('Payment confirmed. Your extra photos are unlocked and downloading.');
+      void downloadFreeSelected();
+      return;
+    }
+
     const ids = purchasedPhotoIds.length ? purchasedPhotoIds : checkoutPendingPhotoIds;
     const owned = new Set(ids);
 
@@ -2269,7 +2307,10 @@ export function FindMyPhotos() {
       {/* ── In-App Photo Checkout Sheet ── */}
       <PhotoCheckoutSheet
         visible={checkoutVisible}
-        onClose={() => setCheckoutVisible(false)}
+        onClose={() => {
+          extrasInFlight.current = null;
+          setCheckoutVisible(false);
+        }}
         items={checkoutItems}
         photoCount={checkoutPhotoCount}
         photographerCount={checkoutPhotographerCount}

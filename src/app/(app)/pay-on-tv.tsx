@@ -30,7 +30,6 @@ import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
-import { openWebCheckout, payToWatchUrl } from '@/features/payments/webCheckout';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
@@ -172,6 +171,7 @@ function PayPanel({
   onBack: () => void;
   onDone: () => void;
 }) {
+  const router = useRouter();
   const styles = useStyles();
   const { colors, gradients } = useTheme();
   const [title, setTitle] = useState<string>('This stream');
@@ -206,11 +206,14 @@ function PayPanel({
 
   const totalLabel = feeLabel(fee, feeCode, feeSymbol);
 
-  // Payment happens on the web, keyed to the TV's device id (from the QR) so
-  // access lands on the TV. The TV polls access-status and unlocks itself.
+  // Payment happens in the app (events/pay), keyed to the TV's device id (from
+  // the QR) so access lands on the TV. The TV polls access-status and unlocks
+  // itself.
   const onPayOnWeb = () => {
     if (!digitalPurchasesEnabled) return;
-    void openWebCheckout(payToWatchUrl(eventId, device));
+    router.push(
+      `/(public)/events/pay?id=${encodeURIComponent(eventId)}&device=${encodeURIComponent(device)}` as unknown as Href,
+    );
     setHandedOff(true);
   };
 
@@ -272,7 +275,7 @@ function PayPanel({
           <>
             <View style={styles.steps}>
               <Step icon="qr-code-outline" text="Scanned the code your TV is showing." done />
-              <Step icon="card-outline" text="Complete payment securely on connekyt.com." />
+              <Step icon="card-outline" text="Pay securely in the app." />
               <Step icon="tv-outline" text="Your TV unlocks automatically once paid." />
             </View>
           </>
@@ -295,7 +298,7 @@ function PayPanel({
         {handedOff ? (
           <Button title="Done" onPress={onDone} />
         ) : digitalPurchasesEnabled ? (
-          <Button title={`Pay ${totalLabel} on connekyt.com`} onPress={onPayOnWeb} />
+          <Button title={`Pay ${totalLabel}`} onPress={onPayOnWeb} />
         ) : (
           <Button title="Close" onPress={onDone} />
         )}
@@ -305,7 +308,7 @@ function PayPanel({
         </Pressable>
         <View style={styles.secureRow}>
           <Ionicons name="lock-closed" size={11} color={colors.textMuted} />
-          <Text style={styles.note}>Payment is completed securely on connekyt.com</Text>
+          <Text style={styles.note}>Payment is completed securely in the app</Text>
         </View>
       </View>
     </Screen>

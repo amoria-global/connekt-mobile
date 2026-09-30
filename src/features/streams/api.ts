@@ -833,6 +833,42 @@ export async function initiatePublicGift(
   };
 }
 
+/**
+ * Gift from a signed-in account: POST /payments/xentripay/initiate-gift.
+ * Catalog gifts are priced by `giftCode` on the server (USD); no amount is sent.
+ * Same contract the web live page uses for authenticated viewers.
+ */
+export async function initiateAuthenticatedGift(payload: {
+  eventId: string;
+  giftCode: string;
+  currencyId: string;
+  paymentMethod: 'MOBILE_MONEY' | 'CARD';
+  phone?: string;
+  /** Operator id from the payment options (MTN, AIRTEL, MPESA, ...). */
+  telecomProvider?: string;
+}): Promise<GiftInitiation> {
+  const body: Record<string, unknown> = {
+    eventId: payload.eventId,
+    giftCode: payload.giftCode,
+    currencyId: payload.currencyId,
+    paymentMethod: payload.paymentMethod,
+  };
+  if (payload.paymentMethod === 'MOBILE_MONEY') {
+    body.phone = payload.phone ?? '';
+    body.telecomProvider = payload.telecomProvider ?? '';
+  }
+  const res = await api.post<ApiEnvelope<Raw>>('/payments/xentripay/initiate-gift', body);
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not start the gift payment.' };
+  }
+  const d = (res?.data ?? {}) as Raw;
+  return {
+    refid: str(d.refid) ?? str(d.refId) ?? str(d.referenceId),
+    paymentUrl: str(d.paymentUrl) ?? str(d.checkoutUrl),
+    message: str(res?.message),
+  };
+}
+
 // ────── Device-switch confirmation (single-device enforcement) ──────────
 //
 // The DEVICE_MISMATCH reason from access-status means the paid viewer
