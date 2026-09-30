@@ -1,4 +1,4 @@
-import { CARD_FAILED_GRACE_MS, interpretStatus, pollHandoff } from './nativeCheckout';
+import { CARD_FAILED_GRACE_MS, interpretStatus, pollHandoff, pollStatus } from './nativeCheckout';
 
 jest.mock('@/api/client', () => ({ api: { post: jest.fn(), get: jest.fn() } }));
 jest.mock('@/features/photos/api', () => ({ getPublicPaymentStatus: jest.fn() }));
@@ -48,5 +48,23 @@ describe('pollHandoff', () => {
   it('resolves failed for a declined mobile money charge', async () => {
     getPublicPaymentStatus.mockResolvedValue('failed');
     await expect(pollHandoff('r1', false, instant).done).resolves.toBe('failed');
+  });
+});
+
+describe('pollStatus', () => {
+  it('works with any status read, e.g. the anonymous-viewer one', async () => {
+    const read = jest
+      .fn<Promise<'success' | 'failed' | 'pending'>, []>()
+      .mockResolvedValueOnce('pending')
+      .mockResolvedValueOnce('success');
+    await expect(pollStatus(read, false, instant).done).resolves.toBe('success');
+  });
+
+  it('stops without calling the read again once cancelled', async () => {
+    const read = jest.fn().mockResolvedValue('pending');
+    const poll = pollStatus(read, false, instant);
+    poll.cancel();
+    await expect(poll.done).resolves.toBe('unknown');
+    expect(read).not.toHaveBeenCalled();
   });
 });

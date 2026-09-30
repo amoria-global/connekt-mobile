@@ -792,7 +792,8 @@ export async function initiatePublicGift(
     currencyId: string;
     paymentMethod: 'MOMO' | 'CARD';
     phone?: string;
-    telecomProvider?: 'MTN' | 'AIRTEL';
+    /** Operator id from the payment options (MTN, AIRTEL, MPESA, ...). */
+    telecomProvider?: string;
     redirectUrl?: string;
     giftMessage?: string;
     /** Catalog gift code — server derives the exact amount; `amount` is ignored when present. */
@@ -809,7 +810,7 @@ export async function initiatePublicGift(
   if (payload.giftCode) body.giftCode = payload.giftCode;
   if (payload.paymentMethod === 'MOMO') {
     body.phone = payload.phone ?? '';
-    body.telecomProvider = payload.telecomProvider ?? 'MTN';
+    body.telecomProvider = payload.telecomProvider ?? '';
   }
   if (payload.paymentMethod === 'CARD' && payload.redirectUrl) {
     body.redirectUrl = payload.redirectUrl;

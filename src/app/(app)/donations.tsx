@@ -6,14 +6,14 @@
  * suggested tiers and the user's donation history, and hands the actual
  * donation off to the connekyt.com donations page.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useRef } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { getDonationTiers, listDonations, type Donation } from '@/features/donations/api';
-import { donationUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
@@ -30,22 +30,21 @@ export default function DonationsScreen() {
   const tiersAsync = useAsync(useCallback(() => getDonationTiers(), []));
   const tiers = tiersAsync.data?.length ? tiersAsync.data.map((t) => t.amount) : FALLBACK_TIERS;
 
-  const [opening, setOpening] = useState(false);
+  const router = useRouter();
+  // The donate screen completes the payment in the app; refresh the history
+  // when coming back so a completed donation shows up below.
+  const skipFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (skipFirstFocus.current) {
+        skipFirstFocus.current = false;
+        return;
+      }
+      void history.refresh();
+    }, [history]),
+  );
 
-  const onDonate = async () => {
-    if (opening) return;
-    setOpening(true);
-    try {
-      await openWebCheckout(donationUrl());
-      // Refresh once the browser is dismissed so a completed donation
-      // shows up in the history below.
-      await history.refresh();
-    } catch {
-      Alert.alert('Could not open the donations page', 'Please try again.');
-    } finally {
-      setOpening(false);
-    }
-  };
+  const onDonate = () => router.push('/(public)/donate' as unknown as Href);
 
   return (
     <Screen padded={false}>
@@ -60,19 +59,9 @@ export default function DonationsScreen() {
           ))}
         </View>
 
-        <View style={styles.webHint}>
-          <Ionicons name="globe-outline" size={16} color={colors.info} />
-          <Text style={styles.webHintText}>
-            You&apos;ll choose your amount and payment method on the connekyt.com secure
-            donations page.
-          </Text>
-        </View>
-
         <Button
-          title="Donate on connekyt.com"
+          title="Donate"
           onPress={onDonate}
-          loading={opening}
-          disabled={opening}
         />
 
         <Text style={styles.historyTitle}>Your donations</Text>
