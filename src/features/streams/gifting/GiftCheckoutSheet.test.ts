@@ -1,4 +1,4 @@
-import { buildGiftRequest } from './GiftCheckoutSheet';
+import { buildAuthGiftRequest, buildGiftRequest } from './GiftCheckoutSheet';
 
 jest.mock('@/api/client', () => ({ api: { post: jest.fn(), get: jest.fn() } }));
 jest.mock('@/utils/deviceId', () => ({ getDeviceId: jest.fn() }));
@@ -28,5 +28,19 @@ describe('buildGiftRequest', () => {
   it('never rewrites an M-Pesa number onto MTN', () => {
     const r = buildGiftRequest({ ...base, input: { card: false, phone: '254712345678', telecomProvider: 'MPESA' } });
     expect(r.telecomProvider).toBe('MPESA');
+  });
+});
+
+describe('buildAuthGiftRequest', () => {
+  it('names the gift, never an amount, and no viewer or device for a signed-in sender', () => {
+    const r = buildAuthGiftRequest({ eventId: 'e1', gift, input: { card: false, phone: '254712345678', telecomProvider: 'MPESA' } });
+    expect(r).toEqual(expect.objectContaining({ eventId: 'e1', giftCode: 'LION', paymentMethod: 'MOBILE_MONEY', telecomProvider: 'MPESA' }));
+    expect(r).not.toHaveProperty('amount');
+    expect(r).not.toHaveProperty('viewerId');
+  });
+  it('sends no phone for a card', () => {
+    const r = buildAuthGiftRequest({ eventId: 'e1', gift, input: { card: true } });
+    expect(r.paymentMethod).toBe('CARD');
+    expect(r.phone).toBeUndefined();
   });
 });

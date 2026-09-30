@@ -2376,7 +2376,7 @@ function GiftConfirmSheet({
         <View style={gcStyles.infoRow}>
           <Ionicons name="globe-outline" size={15} color={colors.info} />
           <Text style={gcStyles.infoText}>
-            You’ll complete this payment securely on connekyt.com. Tap the button below to continue.
+            You’ll pay with mobile money or card on the next screen.
           </Text>
         </View>
 

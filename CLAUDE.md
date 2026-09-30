@@ -86,9 +86,10 @@ Most payments now complete in the app (see the 2026-09-30 note in
 `docs/PAYMENTS.md`). Booking balances, photobook extras, archive unlock and
 catalog gifts go through `features/payments/CheckoutSheet` (with
 `HandoffCheckoutSheet` and `GiftCheckoutSheet` on top). Stream access, donations
-and photo purchases use `events/pay`, `donate` and `PhotoCheckoutSheet`. Still on
-the connekyt.com checkout: gifts from a signed-in account (`stream/[id]`),
-pay-on-TV, and extra photos beyond a free album's quota.
+and photo purchases use `events/pay`, `donate` and `PhotoCheckoutSheet`. Signed-in gifts (`initiate-gift`), pay-on-TV (`events/pay?device=`) and a free album's
+extra photos (PhotoCheckoutSheet, overflow only) are in the app too. Still on the
+connekyt.com checkout: group stream packages, and a gift from a viewer who has not
+registered yet (the web page registers one).
 
 - **Read `docs/PAYMENTS.md` and the backend's `docs/PAYMENTS.md`** before changing
   any of it. The web flow took seven production defects to get right.
