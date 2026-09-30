@@ -10,7 +10,7 @@
  *   - Embedded ActivityFeed with role-filtered tag pills, direction icons, and relative times
  *   - Activity row tap detail modal showing full ledger metadata
  *   - Withdraw funds action for photographer and coordinator roles
- *   - Quick links (Transactions, All movements, Payments, Payroll report)
+ *   - Quick links (Transactions, Payments, Payroll report)
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -132,7 +132,6 @@ export default function WalletScreen() {
 
   const links: Link[] = [
     { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
-    { label: 'Wallet movements', icon: 'list-outline', href: '/wallet/movements' as Href },
     // Photographers receive payments, they do not make them: no Payments screen for them.
     ...(canUsePaymentsScreen(role)
       ? [{ label: 'Payments', icon: 'card-outline' as const, href: '/payments' as Href }]
@@ -332,7 +331,7 @@ export default function WalletScreen() {
                 <Text style={styles.sectionTitle}>Activity</Text>
               </View>
               <Pressable
-                onPress={() => router.push('/wallet/movements' as Href)}
+                onPress={() => router.push('/transactions' as Href)}
                 hitSlop={8}
               >
                 <Text style={styles.seeAllText}>See all</Text>
