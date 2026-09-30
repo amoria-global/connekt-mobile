@@ -4,6 +4,7 @@ import {
   isDigitalDeclaration,
   canPayDeclarationHere,
   canShowDigitalPrice,
+  isOwedObligation,
 } from './policy';
 
 /**
@@ -121,5 +122,22 @@ describe('canShowDigitalPrice', () => {
     // pay. Hiding it would make free events look paywalled, which costs the
     // user something real and buys no compliance.
     expect(canShowDigitalPrice(true)).toBe(true);
+  });
+});
+
+describe('isOwedObligation', () => {
+  it('counts only what the declaration handoff accepts as owed', () => {
+    // 90 of 91 unsettled declarations in production were viewers' unfinished
+    // tickets and gifts. Summing them produced a "$132,642 pending" banner.
+    expect(isOwedObligation('BOOKING')).toBe(true);
+    expect(isOwedObligation('PHOTOBOOK_EXTRAS')).toBe(true);
+    for (const t of ['STREAMING', 'GIFT', 'TIP', 'FACE_RECOGNITION', 'ALBUM_SALE', 'DONATION']) {
+      expect(isOwedObligation(t)).toBe(false);
+    }
+  });
+
+  it('does not depend on the digital-purchases flag, which is on in release builds', () => {
+    expect(canPayDeclarationHere('STREAMING')).toBe(false);
+    expect(canPayDeclarationHere('photobook_extras')).toBe(true);
   });
 });

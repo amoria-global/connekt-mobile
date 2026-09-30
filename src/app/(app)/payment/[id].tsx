@@ -1,16 +1,15 @@
 import { useCallback, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { useRole } from '@/features/auth/role';
 import { getPayment } from '@/features/payments/api';
-import { mintHandoffUrl, openWebCheckout } from '@/features/payments/webCheckout';
+import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { canPayDeclarationHere } from '@/features/payments/policy';
 import { useAsync } from '@/hooks/useAsync';
-import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
@@ -25,34 +24,12 @@ export default function PaymentDetailScreen() {
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => getPayment(id, role), [id, role]),
   );
-  const [opening, setOpening] = useState(false);
+  const [paying, setPaying] = useState(false);
 
-  // Unsettled declarations can be completed on the connekyt.com checkout — the
-  // app never collects payment details itself. But a DIGITAL declaration (a
-  // stream ticket, tip, archive/photo purchase) must not be payable here on
-  // Android: that would be an in-app digital purchase completed off Play
-  // billing. Only real-world obligations (a booking) stay payable on Android.
+  // Only a booking (or the extra-photos add-on) is something the user owes; the
+  // server refuses every other declaration type. Digital ones stay view-only.
   const payable =
     /pending|partial/i.test(data?.status ?? '') && canPayDeclarationHere(data?.paymentType);
-
-  const onCompleteOnWeb = async () => {
-    if (!id || opening) return;
-    setOpening(true);
-    try {
-      const declId = data?.declarationId || id;
-      const url = await mintHandoffUrl('BOOKING_DECLARATION', { declarationId: declId });
-      await openWebCheckout(url);
-      // Re-fetch after the browser closes so a settled payment shows as paid.
-      await refresh();
-    } catch (e) {
-      Alert.alert(
-        'Could not open checkout',
-        isApiError(e) ? e.message : 'Something went wrong. Please try again.',
-      );
-    } finally {
-      setOpening(false);
-    }
-  };
 
   if (loading && !data) {
     return (
@@ -108,18 +85,22 @@ export default function PaymentDetailScreen() {
 
         {payable ? (
           <View style={styles.section}>
-            <Button
-              title="Complete payment on connekyt.com"
-              onPress={onCompleteOnWeb}
-              loading={opening}
-              disabled={opening}
-            />
+            <Button title="Pay now" onPress={() => setPaying(true)} />
             <Text style={styles.webNote}>
-              You&apos;ll finish this payment on the connekyt.com secure checkout.
+              The amount due is fixed to your booking balance.
             </Text>
           </View>
         ) : null}
       </ScrollView>
+      <HandoffCheckoutSheet
+        visible={paying}
+        onClose={() => setPaying(false)}
+        onSettled={() => void refresh()}
+        handoff={{ type: 'BOOKING_DECLARATION', declarationId: data?.declarationId || id }}
+        title={data?.title ?? 'Payment'}
+        subtitle={data?.photographerName}
+        amountLabel={data?.amount != null ? formatPrice(data.amount, data.currency) : undefined}
+      />
     </Screen>
   );
 }
