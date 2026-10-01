@@ -60,8 +60,15 @@ import {
   phoneHintForCountry,
 } from '@/features/payments/formatPhone';
 import { flagEmoji } from '@/components/ui/PhoneInput';
+import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
+
+// The stream-ticket endpoint takes MTN or AIRTEL for mobile money, as before.
+const STREAM_OPERATORS = [
+  { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
+  { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' },
+];
 
 type Stage = 'contact' | 'payment' | 'awaiting' | 'success' | 'unconfirmed';
 
@@ -427,92 +434,23 @@ function EventPaymentInner() {
 
             {/* Payment Method Selector */}
             <Text style={styles.sectionTitle}>Select Payment Method</Text>
-            <View style={styles.methodsRow}>
-              <Pressable
-                style={[
-                  styles.methodCard,
-                  paymentMethod === 'MOBILE_MONEY' && styles.methodCardActive,
-                ]}
-                onPress={() => setPaymentMethod('MOBILE_MONEY')}
-              >
-                <Ionicons
-                  name="phone-portrait-outline"
-                  size={20}
-                  color={paymentMethod === 'MOBILE_MONEY' ? colors.primary : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.methodText,
-                    paymentMethod === 'MOBILE_MONEY' && styles.methodTextActive,
-                  ]}
-                >
-                  Mobile Money
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.methodCard,
-                  paymentMethod === 'CARD' && styles.methodCardActive,
-                ]}
-                onPress={() => setPaymentMethod('CARD')}
-              >
-                <Ionicons
-                  name="card-outline"
-                  size={20}
-                  color={paymentMethod === 'CARD' ? colors.primary : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.methodText,
-                    paymentMethod === 'CARD' && styles.methodTextActive,
-                  ]}
-                >
-                  Card (Visa/MC)
-                </Text>
-              </Pressable>
-            </View>
+            <PaymentMethodPicker
+              operators={STREAM_OPERATORS}
+              supportsCard
+              selectedId={paymentMethod === 'CARD' ? 'card' : telecomProvider.toLowerCase()}
+              onSelect={(id) => {
+                if (id === 'card') {
+                  setPaymentMethod('CARD');
+                } else {
+                  setPaymentMethod('MOBILE_MONEY');
+                  setTelecomProvider(id === 'airtel' ? 'AIRTEL' : 'MTN');
+                }
+              }}
+            />
 
             {/* Mobile Money Details */}
             {paymentMethod === 'MOBILE_MONEY' ? (
               <View style={styles.providerBox}>
-                {country === 'RW' && (
-                  <View style={styles.providerToggleRow}>
-                    <Pressable
-                      style={[
-                        styles.providerPill,
-                        telecomProvider === 'MTN' && styles.providerPillActive,
-                      ]}
-                      onPress={() => setTelecomProvider('MTN')}
-                    >
-                      <Text
-                        style={[
-                          styles.providerPillText,
-                          telecomProvider === 'MTN' && styles.providerPillTextActive,
-                        ]}
-                      >
-                        MTN MoMo
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.providerPill,
-                        telecomProvider === 'AIRTEL' && styles.providerPillActive,
-                      ]}
-                      onPress={() => setTelecomProvider('AIRTEL')}
-                    >
-                      <Text
-                        style={[
-                          styles.providerPillText,
-                          telecomProvider === 'AIRTEL' && styles.providerPillTextActive,
-                        ]}
-                      >
-                        Airtel Money
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-
                 <Text style={styles.inputLabel}>Mobile Phone Number</Text>
                 <View style={styles.phoneInputRow}>
                   <View style={styles.dialPrefix}>

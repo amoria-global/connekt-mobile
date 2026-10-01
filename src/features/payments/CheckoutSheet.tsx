@@ -30,6 +30,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
+import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import { detectPaymentCountry, getPaymentOptions, type PaymentOperator } from '@/features/reference/api';
 import { formatPhoneE164, isPlausibleMobile, phoneHintForCountry } from '@/features/payments/formatPhone';
 import { getPublicPaymentStatus } from '@/features/photos/api';
@@ -122,6 +123,17 @@ export function CheckoutSheet({
 
   useEffect(() => () => cancelPoll.current?.(), []);
 
+  // The buyer can pick another country; the operator list follows it.
+  const changeCountry = useCallback(async (iso2: string) => {
+    setCountry(iso2);
+    setMethodId(null);
+    setPhone('');
+    const opts = await getPaymentOptions(iso2).catch(() => null);
+    if (!opts) return;
+    setSupportsCard(opts.supportsCard);
+    setOperators(opts.operators);
+  }, []);
+
   const tiles: Tile[] = useMemo(() => {
     const list: Tile[] = operators.map((o) => ({
       id: o.id.toLowerCase(),
@@ -133,7 +145,9 @@ export function CheckoutSheet({
     return list;
   }, [operators, supportsCard]);
 
-  const selected = tiles.find((t) => t.id === methodId) ?? tiles[0] ?? null;
+  // No silent default: a buyer picks the network themselves, so a charge never
+  // goes to a guessed provider (docs/PAYMENTS.md: pass the operator id through).
+  const selected = tiles.find((t) => t.id === methodId) ?? null;
   const isCard = selected?.isCard ?? false;
   const canPay = !!selected && stage === 'form' && (isCard || isPlausibleMobile(phone, country));
 
@@ -236,30 +250,17 @@ export function CheckoutSheet({
             ) : (
               <>
                 <Text style={styles.label}>Pay with</Text>
-                <View style={styles.tiles}>
-                  {tiles.map((t) => {
-                    const active = t.id === selected?.id;
-                    return (
-                      <Pressable
-                        key={t.id}
-                        onPress={() => setMethodId(t.id)}
-                        disabled={stage === 'starting'}
-                        style={[styles.tile, active && styles.tileActive]}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: active }}
-                      >
-                        <Ionicons
-                          name={t.isCard ? 'card-outline' : 'phone-portrait-outline'}
-                          size={18}
-                          color={active ? colors.primary : colors.textMuted}
-                        />
-                        <Text style={[styles.tileText, active && { color: colors.primary }]}>{t.name}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <PaymentMethodPicker
+                  operators={operators}
+                  supportsCard={supportsCard}
+                  selectedId={selected?.id ?? null}
+                  onSelect={setMethodId}
+                  country={country}
+                  onCountryChange={changeCountry}
+                  disabled={stage === 'starting'}
+                />
 
-                {!isCard ? (
+                {!selected ? null : !isCard ? (
                   <>
                     <Text style={styles.label}>Mobile money number</Text>
                     <TextInput
@@ -326,20 +327,6 @@ const useStyles = makeStyles((c) => ({
   summarySub: { color: 'rgba(255,255,255,0.78)', fontSize: fontSize.xs },
   summaryAmount: { marginTop: spacing.sm, color: c.textOnPrimary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
   label: { color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-  tiles: { gap: spacing.sm },
-  tile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    minHeight: 48,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.card,
-  },
-  tileActive: { borderColor: c.primary, backgroundColor: c.tint },
-  tileText: { color: c.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   input: {
     minHeight: 48,
     borderRadius: radii.md,

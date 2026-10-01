@@ -41,6 +41,7 @@ import { pollStatus } from '@/features/payments/nativeCheckout';
 import { getPublicPaymentStatus } from '@/features/photos/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
+import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import {
   detectPaymentCountry,
   getPaymentOptions,
@@ -269,10 +270,7 @@ export default function PublicDonateScreen() {
         if (cancelled) return;
         if (opts) {
           setSupportsCard(opts.supportsCard);
-          if (opts.operators.length > 0) {
-            setOperators(opts.operators);
-            setMethod(opts.operators[0].id.toLowerCase());
-          }
+          if (opts.operators.length > 0) setOperators(opts.operators);
         }
       } catch {}
     })();
@@ -313,14 +311,8 @@ export default function PublicDonateScreen() {
     return list;
   }, [operators, supportsCard]);
 
-  // Default selection if unset
-  useEffect(() => {
-    if (!method && tiles.length > 0) {
-      setMethod(tiles[0].id);
-    }
-  }, [tiles, method]);
-
-  const selectedTile = tiles.find((t) => t.id === method) ?? tiles[0] ?? null;
+  // No silent default: the buyer picks the network (docs/PAYMENTS.md: never guess a provider).
+  const selectedTile = tiles.find((t) => t.id === method) ?? null;
   const isCard = selectedTile?.isCard ?? false;
   const isRwanda = country.toUpperCase() === 'RW';
 
@@ -343,10 +335,8 @@ export default function PublicDonateScreen() {
       const opts = await getPaymentOptions(cIso2).catch(() => null);
       if (opts) {
         setSupportsCard(opts.supportsCard);
-        if (opts.operators.length > 0) {
-          setOperators(opts.operators);
-          setMethod(opts.operators[0].id.toLowerCase());
-        }
+        if (opts.operators.length > 0) setOperators(opts.operators);
+        setMethod(null);
       }
     } catch {}
   };
@@ -692,38 +682,14 @@ export default function PublicDonateScreen() {
                 </Pressable>
               </View>
 
-              {/* Payment Method Tiles Grid (Matches Find My Photos / PhotoCheckoutSheet) */}
-              <View style={styles.methods}>
-                {tiles.map((tile) => {
-                  const isSelected = selectedTile?.id === tile.id;
-                  return (
-                    <Pressable
-                      key={tile.id}
-                      style={[styles.method, isSelected && styles.methodActive]}
-                      onPress={() => setMethod(tile.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Select ${tile.name}`}
-                    >
-                      <Ionicons
-                        name={tile.isCard ? 'card-outline' : 'phone-portrait-outline'}
-                        size={20}
-                        color={isSelected ? colors.primary : colors.textMuted}
-                      />
-                      <Text
-                        style={[styles.methodLabel, isSelected && styles.methodLabelActive]}
-                        numberOfLines={1}
-                      >
-                        {tile.name}
-                      </Text>
-                      {isSelected && (
-                        <View style={styles.methodCheck}>
-                          <Ionicons name="checkmark" size={12} color={colors.textOnPrimary} />
-                        </View>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
+              {/* Mobile Money / Cards, with the networks and their logos */}
+              <PaymentMethodPicker
+                operators={operators}
+                supportsCard={supportsCard}
+                selectedId={selectedTile?.id ?? null}
+                onSelect={setMethod}
+                disabled={busy}
+              />
 
               {/* Mobile Money Phone Input with dynamic provider-specific placeholder */}
               {!isCard && selectedTile && (
