@@ -31,6 +31,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { flagEmoji } from '@/components/ui/PhoneInput';
+import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import { useAuth } from '@/store/auth';
 import {
   detectPaymentCountry,
@@ -164,10 +165,8 @@ export function PhotoCheckoutSheet({
       const opts = await getPaymentOptions(cIso2).catch(() => null);
       if (opts) {
         setSupportsCard(opts.supportsCard);
-        if (opts.operators.length > 0) {
-          setOperators(opts.operators);
-          setMethod(opts.operators[0].id.toLowerCase());
-        }
+        if (opts.operators.length > 0) setOperators(opts.operators);
+        setMethod(null);
       }
     } catch {}
   };
@@ -261,14 +260,8 @@ export function PhotoCheckoutSheet({
     return list;
   }, [operators, supportsCard, geo.disableCards]);
 
-  // Default selection if unset
-  useEffect(() => {
-    if (!method && tiles.length > 0) {
-      setMethod(tiles[0].id);
-    }
-  }, [tiles, method]);
-
-  const selectedTile = tiles.find((t) => t.id === method) ?? tiles[0] ?? null;
+  // No silent default: the buyer picks the network (docs/PAYMENTS.md: never guess a provider).
+  const selectedTile = tiles.find((t) => t.id === method) ?? null;
   const isCard = selectedTile?.isCard ?? false;
   const isRwanda = country.toUpperCase() === 'RW';
 
@@ -515,47 +508,16 @@ export function PhotoCheckoutSheet({
 
                 {/* Payment Method Selector */}
                 <Text style={styles.sectionHeader}>SELECT PAYMENT METHOD</Text>
-                <View style={styles.methods}>
-                  {tiles.map((tile) => {
-                    const isSelected = selectedTile?.id === tile.id;
-                    const isDisabled =
-                       geo.blocked ||
-                      (tile.isCard ? geo.disableCards : geo.disableMobileMoney);
-
-                    return (
-                      <Pressable
-                        key={tile.id}
-                        style={[
-                          styles.method,
-                          isSelected && styles.methodActive,
-                          isDisabled && styles.methodDisabled,
-                        ]}
-                        onPress={() => !isDisabled && setMethod(tile.id)}
-                        disabled={isDisabled}
-                      >
-                        <Ionicons
-                          name={tile.isCard ? 'card-outline' : 'phone-portrait-outline'}
-                          size={20}
-                          color={isSelected ? colors.primary : colors.textMuted}
-                        />
-                        <Text
-                          style={[
-                            styles.methodLabel,
-                            isSelected && styles.methodLabelActive,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {tile.name}
-                        </Text>
-                        {isSelected && (
-                          <View style={styles.methodCheck}>
-                            <Ionicons name="checkmark" size={12} color={colors.textOnPrimary} />
-                          </View>
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <PaymentMethodPicker
+                  operators={operators}
+                  supportsCard={supportsCard && !geo.disableCards}
+                  selectedId={selectedTile?.id ?? null}
+                  onSelect={setMethod}
+                  country={country}
+                  onCountryChange={selectCountry}
+                  disableMobileMoney={geo.blocked || geo.disableMobileMoney}
+                  disableCards={geo.blocked}
+                />
 
                 {/* Phone number input for Mobile Money */}
                 {!isCard && selectedTile ? (
