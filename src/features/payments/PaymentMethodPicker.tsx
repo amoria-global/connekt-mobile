@@ -134,6 +134,32 @@ export function PaymentMethodPicker({
           <Ionicons name={momoActive ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
         </Pressable>
 
+        {momoActive ? (
+          <View style={styles.panel} accessibilityRole="radiogroup">
+            {operators.map((op) => {
+              const id = op.id.toLowerCase();
+              const active = id === selectedId;
+              return (
+                <Pressable
+                  key={op.id}
+                  style={[styles.op, active && styles.opActive]}
+                  onPress={() => onSelect(id)}
+                  disabled={disabled}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active, disabled }}
+                  accessibilityLabel={op.name}
+                >
+                  <Logo source={operatorLogo(op.id)} label={op.name} size={36} />
+                  <Text style={[styles.opName, active && styles.opNameActive]} numberOfLines={2}>
+                    {op.name}
+                  </Text>
+                  {active ? <Ionicons name="checkmark-circle" size={18} color={colors.primary} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
         {supportsCard ? (
           <Pressable
             style={[styles.main, cardSelected && styles.mainActive, cardOff && styles.off]}
@@ -157,32 +183,6 @@ export function PaymentMethodPicker({
           </Pressable>
         ) : null}
       </View>
-
-      {momoActive ? (
-        <View style={styles.panel} accessibilityRole="radiogroup">
-          {operators.map((op) => {
-            const id = op.id.toLowerCase();
-            const active = id === selectedId;
-            return (
-              <Pressable
-                key={op.id}
-                style={[styles.op, active && styles.opActive]}
-                onPress={() => onSelect(id)}
-                disabled={disabled}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active, disabled }}
-                accessibilityLabel={op.name}
-              >
-                <Logo source={operatorLogo(op.id)} label={op.name} size={36} />
-                <Text style={[styles.opName, active && styles.opNameActive]} numberOfLines={2}>
-                  {op.name}
-                </Text>
-                {active ? <Ionicons name="checkmark-circle" size={18} color={colors.primary} /> : null}
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
 
       {onCountryChange ? (
         <Modal visible={countryOpen} animationType="slide" onRequestClose={() => setCountryOpen(false)}>
