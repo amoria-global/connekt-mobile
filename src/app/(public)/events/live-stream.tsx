@@ -1612,89 +1612,91 @@ export default function PublicLiveStreamScreen() {
       <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
       <View style={styles.placeholderScrim} />
       <StreamWatermark position="top-right" />
-      <View style={styles.placeholderContent}>
-        {status.isCancelled || status.isEnded ? (
-          <>
-            <Ionicons
-              name={status.isCancelled ? 'close-circle' : 'archive'}
-              size={42}
-              color="rgba(255,255,255,0.85)"
-            />
-            <Text style={styles.placeholderHeadline}>
-              {status.isCancelled ? 'Event cancelled' : 'Event ended'}
-            </Text>
-            {status.isEnded ? (
-              <View style={{ alignItems: 'center', marginTop: 12, paddingHorizontal: 24, gap: 10 }}>
-                <Text
-                  style={{
-                    color: 'rgba(255,255,255,0.72)',
-                    fontSize: 13,
-                    textAlign: 'center',
-                    lineHeight: 18,
-                  }}
+      {status.isCancelled || status.isEnded ? (
+        <View style={styles.placeholderContentFlow}>
+          <Ionicons
+            name={status.isCancelled ? 'close-circle' : 'archive'}
+            size={42}
+            color="rgba(255,255,255,0.85)"
+          />
+          <Text style={styles.placeholderHeadline}>
+            {status.isCancelled ? 'Event cancelled' : 'Event ended'}
+          </Text>
+          {status.isEnded ? (
+            <View style={{ alignItems: 'center', marginTop: 4, gap: 12 }}>
+              <Text
+                style={{
+                  color: 'rgba(255,255,255,0.78)',
+                  fontSize: 13,
+                  textAlign: 'center',
+                  lineHeight: 19,
+                }}
+              >
+                Attended this live event in person? Find all photos you appear in using facial recognition!
+              </Text>
+              <View style={{ flexDirection: 'column', gap: 10, alignItems: 'center', width: '100%' }}>
+                <Pressable
+                  style={({ pressed }) => [
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: 'rgba(255,255,255,0.18)',
+                      paddingHorizontal: 20,
+                      paddingVertical: 12,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.3)',
+                      width: '100%',
+                    },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                  onPress={() => (id ? router.push(`/(public)/event/${id}` as never) : router.back())}
+                  accessibilityRole="button"
+                  accessibilityLabel="View Event Details"
                 >
-                  Attended this live event in person? Find all photos you appear in using facial recognition!
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      {
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 6,
-                        backgroundColor: 'rgba(255,255,255,0.18)',
-                        paddingHorizontal: 18,
-                        paddingVertical: 11,
-                        borderRadius: 999,
-                        borderWidth: 1,
-                        borderColor: 'rgba(255,255,255,0.3)',
-                      },
-                      pressed && { opacity: 0.85 },
-                    ]}
-                    onPress={() => (id ? router.push(`/(public)/event/${id}` as never) : router.back())}
-                    accessibilityRole="button"
-                    accessibilityLabel="View Event Details"
-                  >
-                    <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
-                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
-                      View Details
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      {
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 6,
-                        backgroundColor: '#4F46E5',
-                        paddingHorizontal: 18,
-                        paddingVertical: 11,
-                        borderRadius: 999,
-                      },
-                      pressed && { opacity: 0.85 },
-                    ]}
-                    onPress={() => router.push('/find-photos' as never)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Find My Photos"
-                  >
-                    <Ionicons name="search" size={16} color="#FFFFFF" />
-                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
-                      Find My Photos
-                    </Text>
-                  </Pressable>
-                </View>
+                  <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
+                    View Details
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: '#4F46E5',
+                      paddingHorizontal: 20,
+                      paddingVertical: 12,
+                      borderRadius: 999,
+                      width: '100%',
+                    },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                  onPress={() => router.push('/find-photos' as never)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Find My Photos"
+                >
+                  <Ionicons name="search" size={16} color="#FFFFFF" />
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
+                    Find My Photos
+                  </Text>
+                </Pressable>
               </View>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
-            <Text style={styles.placeholderText}>
-              Stream will appear here once it goes live.
-            </Text>
-          </>
-        )}
-      </View>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.placeholderContent}>
+          <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
+          <Text style={styles.placeholderText}>
+            Stream will appear here once it goes live.
+          </Text>
+        </View>
+      )}
     </>
   );
 
@@ -2020,7 +2022,7 @@ export default function PublicLiveStreamScreen() {
                 </View>
               </Pressable>
             ) : (
-              <View style={[styles.playerStage, styles.playerStageRatio]}>{offlineStageContent}</View>
+              <View style={[styles.playerStage, (status.isEnded || status.isCancelled) ? styles.playerStageEnded : styles.playerStageRatio]}>{offlineStageContent}</View>
             )}
 
             {tokenError ? (
@@ -2587,6 +2589,13 @@ const useStyles = makeStyles((c, e) => ({
     gap: spacing.md,
     paddingHorizontal: spacing.xl,
   },
+  placeholderContentFlow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: 32,
+  },
   placeholderHeadline: {
     color: '#fff',
     fontSize: 20,
@@ -2623,6 +2632,7 @@ const useStyles = makeStyles((c, e) => ({
     position: 'relative',
   },
   playerStageRatio: { aspectRatio: 16 / 9 },
+  playerStageEnded: { minHeight: 280 },
 
   // Live full-bleed: the video fills the whole screen, everything overlays.
   liveRoot: { flex: 1, backgroundColor: '#000' },
