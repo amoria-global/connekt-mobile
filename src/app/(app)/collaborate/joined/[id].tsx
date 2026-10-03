@@ -15,7 +15,7 @@ import { Screen } from '@/components/ui/Screen';
 import { getJoinedAlbum, leaveAlbum, submitPhoto, withdrawSubmission } from '@/features/collab/api';
 import { AlbumCover, PersonRow, StatusChip } from '@/features/collab/components';
 import { timeAgo, type JoinedAlbumDetail, type SubmissionStatus } from '@/features/collab/model';
-import { pickOriginalPhotos } from '@/services/imagePicker';
+import { pickOriginalPhotos, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
 
@@ -53,6 +53,7 @@ export default function JoinedAlbumScreen() {
   const [filter, setFilter] = useState<Filter>('ALL');
   const [progress, setProgress] = useState<{ done: number; failed: number; total: number } | null>(null);
   const [failures, setFailures] = useState<Array<{ id: string; name: string; error: string }>>([]);
+  const [staged, setStaged] = useState<PickedImage[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -92,14 +93,28 @@ export default function JoinedAlbumScreen() {
         skipped.slice(0, 5).map((s) => `${s.name}: ${s.reason}`).join('\n'));
     }
     if (picked.length === 0) return;
+    // Stage only. Nothing reaches the owner until the collaborator taps Submit.
+    setProgress(null);
+    setFailures([]);
+    setStaged((cur) => {
+      const have = new Set(cur.map((p) => p.uri));
+      return [...cur, ...picked.filter((p) => !have.has(p.uri))];
+    });
+  };
+
+  const removeStaged = (uri: string) => setStaged((cur) => cur.filter((p) => p.uri !== uri));
+
+  const submitStaged = async () => {
+    if (!id || uploading || staged.length === 0) return;
+    const batch = staged;
     setFailures([]);
     let done = 0;
     let failed = 0;
     const failedItems: Array<{ id: string; name: string; error: string }> = [];
-    setProgress({ done, failed, total: picked.length });
+    setProgress({ done, failed, total: batch.length });
     // One at a time: phones on mobile data do better with a steady single
     // upload than several competing ones.
-    for (const img of picked) {
+    for (const img of batch) {
       try {
         await submitPhoto(id, img);
         done += 1;
@@ -108,8 +123,11 @@ export default function JoinedAlbumScreen() {
         const msg = isApiError(e) ? e.message : 'Upload failed';
         failedItems.push({ id: `${Date.now()}-${failed}`, name: img.name ?? `Photo ${done + failed}`, error: msg });
       }
-      setProgress({ done, failed, total: picked.length });
+      setProgress({ done, failed, total: batch.length });
     }
+    // Sent photos leave the staging list. Rejected ones stay out too, since the
+    // same file would be rejected again; the collaborator picks a better one.
+    setStaged([]);
     await load();
     if (failedItems.length > 0) {
       setFailures(failedItems);
@@ -181,11 +199,36 @@ export default function JoinedAlbumScreen() {
         <View style={styles.uploadCard}>
           <Text style={styles.uploadTitle}>Submit your photos</Text>
           <Text style={styles.muted}>
-            Sent at full quality. JPEG, PNG or WebP, up to 20 MB each, at least Full HD. {owner.name} decides what goes
-            into the album, and you can withdraw a photo until it is reviewed.
+            Full quality. JPEG, PNG or WebP, up to 20 MB each, at least Full HD. Photos are only sent to {owner.name} when
+            you tap Submit, and you can withdraw one until it is reviewed.
           </Text>
-          <Button title={uploading ? `Submitting ${progress!.done + progress!.failed + 1} of ${progress!.total}…` : 'Add photos'}
-            onPress={addPhotos} loading={uploading} />
+          <Button title={staged.length > 0 ? 'Add more photos' : 'Add photos'}
+            variant={staged.length > 0 ? 'outline' : undefined} onPress={addPhotos} />
+          {staged.length > 0 && (
+            <View style={styles.stagedBox}>
+              <Text style={styles.stagedTitle}>
+                {staged.length} photo{staged.length === 1 ? '' : 's'} ready to submit
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stagedRow}>
+                {staged.map((p) => (
+                  <View key={p.uri} style={styles.stagedThumb}>
+                    <Image source={{ uri: p.uri }} style={styles.fill} contentFit="cover" />
+                    {!uploading && (
+                      <Pressable onPress={() => removeStaged(p.uri)} hitSlop={6} style={styles.stagedRemove}
+                        accessibilityRole="button" accessibilityLabel={`Remove ${p.name}`}>
+                        <Ionicons name="close" size={14} color="#FFFFFF" />
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+              <Button
+                title={uploading
+                  ? `Submitting ${Math.min(progress!.done + progress!.failed + 1, progress!.total)} of ${progress!.total}…`
+                  : `Submit ${staged.length} photo${staged.length === 1 ? '' : 's'} to ${owner.name}`}
+                onPress={submitStaged} loading={uploading} />
+            </View>
+          )}
           {progress && (
             <View style={styles.progressTrack} accessibilityRole="progressbar"
               accessibilityValue={{ min: 0, max: progress.total, now: progress.done + progress.failed }}>
@@ -278,6 +321,14 @@ const useStyles = makeStyles((c, e) => ({
     padding: spacing.lg, gap: spacing.md,
   },
   uploadTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  stagedBox: { gap: spacing.md, borderTopWidth: 1, borderTopColor: c.borderSoft, paddingTop: spacing.md },
+  stagedTitle: { color: c.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  stagedRow: { gap: spacing.sm },
+  stagedThumb: { width: 72, height: 72, borderRadius: radii.md, overflow: 'hidden', backgroundColor: c.surfaceMuted },
+  stagedRemove: {
+    position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center',
+  },
   progressTrack: { height: 6, borderRadius: radii.full, backgroundColor: c.surfaceMuted, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: radii.full, backgroundColor: c.primary },
   filters: { gap: spacing.sm },
