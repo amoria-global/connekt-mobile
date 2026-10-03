@@ -247,7 +247,7 @@ export default function OwnerAlbumScreen() {
             {decided.map((s) => (
               <Pressable key={s.id} onPress={() => setPreview(s)} style={[styles.tile, { width: tile, height: tile }]}
                 accessibilityRole="button" accessibilityLabel={`Photo from ${s.collaborator.name}, ${s.status.toLowerCase()}`}>
-                {s.imageUrl ? <Image source={{ uri: s.imageUrl }} style={styles.tileImage} contentFit="cover" /> : null}
+                {(s.thumbnailUrl || s.imageUrl) ? <Image source={{ uri: s.thumbnailUrl || s.imageUrl }} style={styles.tileImage} contentFit="cover" /> : null}
                 <View style={styles.tileStatus}><StatusChip status={s.status} /></View>
               </Pressable>
             ))}
@@ -270,7 +270,7 @@ export default function OwnerAlbumScreen() {
           <Pressable style={styles.previewClose} onPress={() => setPreview(null)} accessibilityRole="button" accessibilityLabel="Close">
             <Ionicons name="close" size={28} color="#FFFFFF" />
           </Pressable>
-          {preview?.imageUrl ? <Image source={{ uri: preview.imageUrl }} style={styles.previewImage} contentFit="contain" /> : null}
+          {(preview?.thumbnailUrl || preview?.imageUrl) ? <Image source={{ uri: preview.thumbnailUrl || preview.imageUrl }} style={styles.previewImage} contentFit="contain" /> : null}
           {preview && (
             <View style={styles.previewPanel}>
               <PersonRow person={preview.collaborator} caption={`Submitted ${timeAgo(preview.submittedAt)}`} />
@@ -319,7 +319,7 @@ function ReviewTile({ s, size, selecting, selected, onPress, onLongPress }: {
       accessibilityLabel={`Photo from ${s.collaborator.name}${selected ? ', selected' : ''}`}
       accessibilityHint={selecting ? 'Tap to select or unselect' : 'Tap to review, long press to select several'}
     >
-      {s.imageUrl ? <Image source={{ uri: s.imageUrl }} style={styles.tileImage} contentFit="cover" transition={120} /> : null}
+      {(s.thumbnailUrl || s.imageUrl) ? <Image source={{ uri: s.thumbnailUrl || s.imageUrl }} style={styles.tileImage} contentFit="cover" transition={120} /> : null}
       {selecting && (
         <View style={[styles.check, selected && styles.checkOn]}>
           {selected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}

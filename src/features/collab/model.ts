@@ -39,6 +39,8 @@ export type Submission = {
   id: string;
   albumId: string;
   imageUrl?: string;
+  thumbnailUrl?: string;
+  originalUrl?: string;
   caption?: string;
   status: SubmissionStatus;
   reviewNote?: string;
@@ -106,10 +108,15 @@ export function mapInvite(r: Raw): Invite {
 
 export function mapSubmission(r: Raw): Submission {
   const status = String(r.status ?? '') as SubmissionStatus;
+  const thumb = str(r.thumbnailUrl);
+  const img = str(r.imageUrl);
+  const orig = str(r.originalUrl);
   return {
     id: String(r.id ?? ''),
     albumId: String(r.albumId ?? ''),
-    imageUrl: str(r.imageUrl),
+    imageUrl: thumb || img,
+    thumbnailUrl: thumb,
+    originalUrl: orig || img,
     caption: str(r.caption),
     status: STATUSES.includes(status) ? status : 'PENDING',
     reviewNote: str(r.reviewNote),

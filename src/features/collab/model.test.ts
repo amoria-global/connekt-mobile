@@ -38,6 +38,19 @@ describe('mapping', () => {
     expect(mapSubmission({ id: '1', status: 'APPROVED' }).status).toBe('APPROVED');
   });
 
+  it('maps thumbnailUrl and originalUrl, preferring thumbnail for imageUrl', () => {
+    const s = mapSubmission({
+      id: 'sub-1',
+      imageUrl: 'https://connekyt.com/uploads/gallery/images/test.jpg',
+      thumbnailUrl: 'https://connekyt.com/uploads/gallery/thumbs/test.jpg',
+      originalUrl: 'https://connekyt.com/uploads/gallery/images/test.jpg',
+      status: 'APPROVED',
+    });
+    expect(s.thumbnailUrl).toBe('https://connekyt.com/uploads/gallery/thumbs/test.jpg');
+    expect(s.imageUrl).toBe('https://connekyt.com/uploads/gallery/thumbs/test.jpg');
+    expect(s.originalUrl).toBe('https://connekyt.com/uploads/gallery/images/test.jpg');
+  });
+
   it('survives missing lists in an album detail', () => {
     const d = mapOwnedDetail({ album: { id: 'a', title: 'Wedding' } });
     expect(d.album.title).toBe('Wedding');
