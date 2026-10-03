@@ -31,22 +31,22 @@ const STEPS = [
 ];
 
 const SPECIALTY_OPTIONS = [
+  { id: 'ANY', label: 'Any specialty' },
   { id: 'WEDDING', label: 'Wedding / ceremony' },
   { id: 'CELEBRATION', label: 'Celebration' },
   { id: 'CORPORATE', label: 'Corporate' },
-  { id: 'ANY', label: 'Any specialty' },
 ];
 
 const PHOTOGRAPHER_TYPES: { id: PhotographerType; label: string }[] = [
+  { id: 'ANY', label: 'Any type' },
   { id: 'FREELANCER', label: 'Freelancer' },
   { id: 'STUDIO', label: 'Company / Studio' },
-  { id: 'ANY', label: 'Any type' },
 ];
 
 const COVERAGE_OPTIONS: { id: LocationCoverage; label: string }[] = [
+  { id: 'ANY', label: 'Any location' },
   { id: 'SAME_CITY', label: 'Same city' },
   { id: 'NEARBY_CITY', label: 'Nearby city' },
-  { id: 'ANY', label: 'Any location' },
 ];
 
 export default function HybridWizardScreen() {
@@ -74,11 +74,11 @@ export default function HybridWizardScreen() {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   // --- Step 2 State: Photographer Needs ---
-  const [photographerType, setPhotographerType] = useState<PhotographerType>('FREELANCER');
-  const [minBudget, setMinBudget] = useState('100000');
-  const [maxBudget, setMaxBudget] = useState('200000');
-  const [specialty, setSpecialty] = useState('CELEBRATION');
-  const [locationCoverage, setLocationCoverage] = useState<LocationCoverage>('SAME_CITY');
+  const [photographerType, setPhotographerType] = useState<PhotographerType>('ANY');
+  const [minBudget, setMinBudget] = useState('');
+  const [maxBudget, setMaxBudget] = useState('');
+  const [specialty, setSpecialty] = useState('ANY');
+  const [locationCoverage, setLocationCoverage] = useState<LocationCoverage>('ANY');
 
   // Live match counter state
   const [matchResult, setMatchResult] = useState<MatchPreviewResult | null>(null);
@@ -94,22 +94,30 @@ export default function HybridWizardScreen() {
     if (!eventDate || !startTime) return;
     setCalculatingMatch(true);
     try {
+      const minNum = parseFloat(minBudget);
+      const maxNum = parseFloat(maxBudget);
+
+      // Default duration: if no endTime selected, default to +4 hours for availability calculation
+      let calculatedEndTime = endTime;
+      if (!calculatedEndTime && startTime) {
+        calculatedEndTime = new Date(startTime.getTime() + 4 * 60 * 60 * 1000);
+      }
+
       const res = await getMatchPreview({
         eventDate: toDateStr(eventDate),
         startTime: toTimeStr(startTime),
-        endTime: endTime ? toTimeStr(endTime) : undefined,
+        endTime: calculatedEndTime ? toTimeStr(calculatedEndTime) : undefined,
         city: city.trim() || 'Kigali',
-        minBudget: parseFloat(minBudget) || undefined,
-        maxBudget: parseFloat(maxBudget) || undefined,
+        minBudget: !Number.isNaN(minNum) && minNum > 0 ? minNum : undefined,
+        maxBudget: !Number.isNaN(maxNum) && maxNum > 0 ? maxNum : undefined,
         currency: currentCurrency || 'RWF',
-        photographerType,
-        specialty,
-        locationCoverage,
+        photographerType: photographerType === 'ANY' ? undefined : photographerType,
+        specialty: specialty === 'ANY' ? undefined : specialty,
+        locationCoverage: locationCoverage === 'ANY' ? undefined : locationCoverage,
       });
       setMatchResult(res);
     } catch {
-      // fallback preview
-      setMatchResult({ matchCount: 5 });
+      setMatchResult({ matchCount: 0 });
     } finally {
       setCalculatingMatch(false);
     }
@@ -156,8 +164,10 @@ export default function HybridWizardScreen() {
     if (!eventDate || !startTime) return;
     setSubmitting(true);
     try {
-      const minNum = parseFloat(minBudget) || undefined;
-      const maxNum = parseFloat(maxBudget) || undefined;
+      const minNum = parseFloat(minBudget);
+      const maxNum = parseFloat(maxBudget);
+      const hasMin = !Number.isNaN(minNum) && minNum > 0;
+      const hasMax = !Number.isNaN(maxNum) && maxNum > 0;
 
       // 1. Create the event record
       const locationFull = [venue.trim(), city.trim()].filter(Boolean).join(', ');
@@ -171,7 +181,7 @@ export default function HybridWizardScreen() {
           location: locationFull,
           description: `Hybrid booking match request for ${title.trim()} in ${city.trim()}`,
           organizer: 'Client Event',
-          price: maxNum ?? minNum,
+          price: hasMax ? maxNum : hasMin ? minNum : undefined,
           currency: currentCurrency || 'RWF',
           eventVisibility: 'PRIVATE', // unassigned hybrid events remain private from public feeds
         },
@@ -180,12 +190,12 @@ export default function HybridWizardScreen() {
 
       // 2. Publish match request brief
       await createMatchRequest(newEvent.id, {
-        minBudget: minNum,
-        maxBudget: maxNum,
+        minBudget: hasMin ? minNum : undefined,
+        maxBudget: hasMax ? maxNum : undefined,
         currency: currentCurrency || 'RWF',
-        photographerType,
-        specialty,
-        locationCoverage,
+        photographerType: photographerType === 'ANY' ? undefined : photographerType,
+        specialty: specialty === 'ANY' ? undefined : specialty,
+        locationCoverage: locationCoverage === 'ANY' ? undefined : locationCoverage,
         expirationHours: 24,
       });
 
@@ -471,6 +481,15 @@ export default function HybridWizardScreen() {
                   <Text style={styles.checkText}>Instagram profile verified</Text>
                 </View>
               </View>
+
+              {matchResult?.matchCount === 0 && !calculatingMatch && (
+                <View style={styles.zeroMatchHint}>
+                  <Ionicons name="information-circle-outline" size={16} color="#D97706" />
+                  <Text style={styles.zeroMatchText}>
+                    0 photographers currently match these specific filters. Setting location to "Any location" or leaving budget open will match more local creators.
+                  </Text>
+                </View>
+              )}
             </View>
 
             <Button title="Continue to Review" onPress={handleNextStep2} style={styles.continueBtn} />
@@ -772,6 +791,21 @@ const useStyles = makeStyles((c) => ({
     fontSize: fontSize.xs,
     color: c.textMuted,
     lineHeight: 18,
+  },
+  zeroMatchHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    marginTop: spacing.sm,
+  },
+  zeroMatchText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#92400E',
+    lineHeight: 16,
   },
   continueBtn: {
     marginTop: spacing.md,

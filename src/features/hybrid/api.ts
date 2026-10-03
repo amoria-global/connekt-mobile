@@ -31,11 +31,51 @@ function assertOk(res: { action?: number; message?: string } | undefined, fallba
  * 4.1 Real-time match preview & candidate count for the event wizard.
  */
 export async function getMatchPreview(payload: MatchPreviewPayload): Promise<MatchPreviewResult> {
-  const res = await api.post<ApiEnvelope<MatchPreviewResult>>('/events/match-preview', payload);
-  if (res?.action === 0) {
+  try {
+    const res = await api.post<any>('/events/match-preview', payload);
+
+    if (res?.action === 0) {
+      console.warn('[MatchPreview] Backend returned action: 0, message:', res?.message);
+      return { matchCount: 0 };
+    }
+
+    const raw = res?.data !== undefined ? res.data : res;
+
+    // 1. Raw integer: { action: 1, data: 12 } or 12
+    if (typeof raw === 'number') {
+      return { matchCount: raw };
+    }
+
+    // 2. Array of matched photographers: [ { id: 1 }, ... ]
+    if (Array.isArray(raw)) {
+      return { matchCount: raw.length };
+    }
+
+    // 3. Object with count / matchCount / total / matches
+    if (raw && typeof raw === 'object') {
+      const count =
+        typeof raw.matchCount === 'number'
+          ? raw.matchCount
+          : typeof raw.count === 'number'
+            ? raw.count
+            : typeof raw.total === 'number'
+              ? raw.total
+              : Array.isArray(raw.matches)
+                ? raw.matches.length
+                : typeof raw.matchedCount === 'number'
+                  ? raw.matchedCount
+                  : null;
+
+      if (count !== null) {
+        return { matchCount: count, breakdown: raw.breakdown };
+      }
+    }
+
+    return { matchCount: 0 };
+  } catch (err) {
+    console.warn('[MatchPreview] Error fetching match count:', err);
     return { matchCount: 0 };
   }
-  return res?.data ?? { matchCount: 0 };
 }
 
 /**
