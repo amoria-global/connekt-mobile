@@ -14,7 +14,7 @@
  *  10. Recent Payments Feed (From /photographer/transactions)
  *  11. Compare Goals Modal (Customizable target earnings, shoots & clients)
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -187,21 +187,29 @@ export function PhotographerHome() {
   const [dismissedOppIds, setDismissedOppIds] = useState<string[]>([]);
   const opportunities = useAsync(
     useCallback(
-      () => (env.hybridBookingEnabled ? listOpportunities('INVITED') : Promise.resolve([])),
+      () => (env.hybridBookingEnabled ? listOpportunities() : Promise.resolve([])),
       [],
     ),
   );
+
+  // Poll for incoming opportunities every 6 seconds while active
+  useEffect(() => {
+    if (!env.hybridBookingEnabled) return;
+    const timer = setInterval(() => {
+      opportunities.refresh();
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [opportunities]);
 
   const incomingOpportunity = useMemo(() => {
     if (!env.hybridBookingEnabled) return null;
     const list = opportunities.data ?? [];
     return (
-      list.find(
-        (opp) =>
-          opp.status !== 'APPROVED' &&
-          opp.status !== 'REJECTED' &&
-          !dismissedOppIds.includes(opp.candidateId),
-      ) ?? null
+      list.find((opp) => {
+        const s = (opp.status ?? '').toUpperCase();
+        const isClosed = s === 'APPROVED' || s === 'REJECTED' || s === 'DECLINED' || s === 'EXPIRED';
+        return !isClosed && !dismissedOppIds.includes(opp.candidateId);
+      }) ?? null
     );
   }, [opportunities.data, dismissedOppIds]);
 
