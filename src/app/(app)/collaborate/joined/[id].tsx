@@ -7,6 +7,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -22,6 +23,21 @@ type Filter = 'ALL' | SubmissionStatus;
 const FILTERS: [Filter, string][] = [['ALL', 'All'], ['PENDING', 'Waiting'], ['APPROVED', 'Added'], ['REJECTED', 'Not accepted']];
 const GAP = 8;
 
+function cleanErrorMessage(name: string, raw: string): string {
+  if (raw.toLowerCase().includes('low-quality') || raw.toLowerCase().includes('is only')) {
+    const dimMatch = raw.match(/is only (\d+x\d+)/i) || raw.match(/\((\d+x\d+)\)/);
+    const dim = dimMatch ? dimMatch[1].replace('x', ' × ') : null;
+    const reqMatch = raw.match(/Photos must be at least ([^.]+)/i);
+    const req = reqMatch ? reqMatch[1].trim() : 'at least Full HD (1920 × 1080)';
+    return `${dim ? `Resolution ${dim} px. ` : ''}Must be ${req}. Please upload the full-resolution photo.`;
+  }
+  let clean = raw;
+  if (clean.startsWith(`${name}:`)) {
+    clean = clean.slice(name.length + 1).trim();
+  }
+  return clean;
+}
+
 export default function JoinedAlbumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
@@ -33,6 +49,7 @@ export default function JoinedAlbumScreen() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('ALL');
   const [progress, setProgress] = useState<{ done: number; failed: number; total: number } | null>(null);
+  const [failures, setFailures] = useState<Array<{ id: string; name: string; error: string }>>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -72,9 +89,10 @@ export default function JoinedAlbumScreen() {
         skipped.slice(0, 5).map((s) => `${s.name}: ${s.reason}`).join('\n'));
     }
     if (picked.length === 0) return;
+    setFailures([]);
     let done = 0;
     let failed = 0;
-    let firstError: string | null = null;
+    const failedItems: Array<{ id: string; name: string; error: string }> = [];
     setProgress({ done, failed, total: picked.length });
     // One at a time: phones on mobile data do better with a steady single
     // upload than several competing ones.
@@ -84,13 +102,16 @@ export default function JoinedAlbumScreen() {
         done += 1;
       } catch (e) {
         failed += 1;
-        firstError = firstError ?? (isApiError(e) ? e.message : 'Upload failed');
+        const msg = isApiError(e) ? e.message : 'Upload failed';
+        failedItems.push({ id: `${Date.now()}-${failed}`, name: img.name ?? `Photo ${done + failed}`, error: msg });
       }
       setProgress({ done, failed, total: picked.length });
     }
     await load();
-    if (failed > 0) {
-      Alert.alert(`${failed} photo${failed === 1 ? '' : 's'} not submitted`, firstError ?? 'Please try again.');
+    if (failedItems.length > 0) {
+      setFailures(failedItems);
+      const firstClean = cleanErrorMessage(failedItems[0].name, failedItems[0].error);
+      Alert.alert(`${failedItems.length} photo${failedItems.length === 1 ? '' : 's'} not submitted`, firstClean);
     }
   };
 
@@ -173,6 +194,25 @@ export default function JoinedAlbumScreen() {
               {progress.done} submitted{progress.failed > 0 ? ` · ${progress.failed} failed` : ''}
             </Text>
           )}
+          {failures.length > 0 && !uploading && (
+            <View style={styles.errorBox}>
+              <View style={styles.errorHeader}>
+                <Ionicons name="alert-circle" size={16} color={colors.error} />
+                <Text style={styles.errorTitle}>
+                  {failures.length} photo{failures.length === 1 ? '' : 's'} rejected
+                </Text>
+                <Pressable onPress={() => setFailures([])} hitSlop={8} style={{ marginLeft: 'auto' }}>
+                  <Text style={styles.errorDismiss}>Dismiss</Text>
+                </Pressable>
+              </View>
+              {failures.map((err) => (
+                <View key={err.id} style={styles.errorRow}>
+                  <Text style={styles.errorFileName} numberOfLines={1}>{err.name}</Text>
+                  <Text style={styles.errorDetail}>{cleanErrorMessage(err.name, err.error)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
@@ -249,4 +289,48 @@ const useStyles = makeStyles((c, e) => ({
   cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   small: { color: c.textMuted, fontSize: fontSize.xs },
   withdraw: { color: c.error, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  errorTitle: {
+    color: c.error,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  errorDismiss: {
+    color: c.textMuted,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    textDecorationLine: 'underline',
+  },
+  errorRow: {
+    backgroundColor: c.card,
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    gap: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  errorFileName: {
+    color: c.text,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
+  errorDetail: {
+    color: c.textSoft,
+    fontSize: fontSize.xs,
+    lineHeight: 16,
+  },
 }));
