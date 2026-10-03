@@ -3,6 +3,7 @@ import {
     registerForPushNotifications,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
+import { GlobalOpportunityCallNotifier } from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
@@ -131,6 +132,7 @@ export default function AppLayout() {
         <Stack.Screen name="collaborate/joined/[id]" options={{ title: 'Album' }} />
         <Stack.Screen name="collaborate/join/[token]" options={{ title: 'Join album' }} />
       </Stack>
+      <GlobalOpportunityCallNotifier />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );
