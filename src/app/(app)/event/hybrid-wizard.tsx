@@ -32,13 +32,15 @@ const STEPS = [
 
 const SPECIALTY_OPTIONS = [
   { id: 'ANY', label: 'Any specialty' },
-  { id: 'WEDDING', label: 'Wedding / ceremony' },
-  { id: 'CELEBRATION', label: 'Celebration' },
-  { id: 'CORPORATE', label: 'Corporate' },
+  { id: 'Wedding', label: 'Wedding / ceremony' },
+  { id: 'Portrait', label: 'Portrait / celebration' },
+  { id: 'Commercial', label: 'Commercial & events' },
+  { id: 'Fashion', label: 'Fashion' },
+  { id: 'Product', label: 'Product & brand' },
 ];
 
 const PHOTOGRAPHER_TYPES: { id: PhotographerType; label: string }[] = [
-  { id: 'ANY', label: 'Any type' },
+  { id: 'ANY', label: 'Any type (All pros)' },
   { id: 'FREELANCER', label: 'Freelancer' },
   { id: 'STUDIO', label: 'Company / Studio' },
 ];
