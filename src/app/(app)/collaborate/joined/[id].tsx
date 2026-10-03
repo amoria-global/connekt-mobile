@@ -328,12 +328,12 @@ const useStyles = makeStyles((c, e) => ({
   },
   errorFileName: {
     color: c.text,
-    fontSize: fontSize.xs,
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
   },
   errorDetail: {
-    color: c.textSoft,
-    fontSize: fontSize.xs,
-    lineHeight: 16,
+    color: c.text,
+    fontSize: fontSize.sm,
+    lineHeight: 20,
   },
 }));
