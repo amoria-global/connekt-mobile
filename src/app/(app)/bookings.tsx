@@ -80,8 +80,12 @@ export default function BookingsScreen() {
     if (!isPhotographer || !env.hybridBookingEnabled) return;
     setLoadingOpp(true);
     try {
-      const res = await listOpportunities('PENDING_RESPONSE');
-      setOpportunities(res);
+      const res = await listOpportunities();
+      const pending = res.filter((opp) => {
+        const s = (opp.status ?? '').toUpperCase();
+        return s !== 'APPROVED' && s !== 'REJECTED' && s !== 'DECLINED' && s !== 'EXPIRED';
+      });
+      setOpportunities(pending);
     } catch (e) {
       console.warn('Could not load opportunities:', e);
     } finally {
@@ -90,9 +94,10 @@ export default function BookingsScreen() {
   }, [isPhotographer]);
 
   useEffect(() => {
-    if (isPhotographer && env.hybridBookingEnabled) {
-      fetchOpportunities();
-    }
+    if (!isPhotographer || !env.hybridBookingEnabled) return;
+    fetchOpportunities();
+    const timer = setInterval(fetchOpportunities, 6000);
+    return () => clearInterval(timer);
   }, [isPhotographer, fetchOpportunities]);
 
   const [busyId, setBusyId] = useState<string | null>(null);
