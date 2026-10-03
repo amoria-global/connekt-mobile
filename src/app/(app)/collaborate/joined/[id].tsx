@@ -193,7 +193,9 @@ export default function JoinedAlbumScreen() {
             {shown.map((s) => (
               <View key={s.id} style={[styles.card, { width: tile }]}>
                 <View style={{ width: tile, height: tile, backgroundColor: colors.surfaceMuted }}>
-                  {s.imageUrl ? <Image source={{ uri: s.imageUrl }} style={styles.fill} contentFit="cover" transition={120} /> : null}
+                  {(s.thumbnailUrl || s.imageUrl) ? (
+                    <Image source={{ uri: s.thumbnailUrl || s.imageUrl }} style={styles.fill} contentFit="cover" transition={120} />
+                  ) : null}
                 </View>
                 <View style={styles.cardBody}>
                   <StatusChip status={s.status} />
