@@ -27,9 +27,12 @@ function cleanErrorMessage(name: string, raw: string): string {
   if (raw.toLowerCase().includes('low-quality') || raw.toLowerCase().includes('is only')) {
     const dimMatch = raw.match(/is only (\d+x\d+)/i) || raw.match(/\((\d+x\d+)\)/);
     const dim = dimMatch ? dimMatch[1].replace('x', ' × ') : null;
-    const reqMatch = raw.match(/Photos must be at least ([^.]+)/i);
-    const req = reqMatch ? reqMatch[1].trim() : 'at least Full HD (1920 × 1080)';
-    return `${dim ? `Resolution ${dim} px. ` : ''}Must be ${req}. Please upload the full-resolution photo.`;
+    let guide = 'Photos must be at least Full HD (1920 × 1080).';
+    const guideMatch = raw.match(/((?:Photos|Every photo) must be at least .+$)/i);
+    if (guideMatch) {
+      guide = guideMatch[1].trim();
+    }
+    return `${dim ? `Resolution: ${dim} px. ` : ''}${guide}`;
   }
   let clean = raw;
   if (clean.startsWith(`${name}:`)) {
