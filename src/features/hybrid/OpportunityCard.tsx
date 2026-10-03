@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import type { PhotographerOpportunity } from './types';
 
@@ -9,10 +9,11 @@ type Props = {
   opportunity: PhotographerOpportunity;
   onApprove: (item: PhotographerOpportunity) => void;
   onReject: (item: PhotographerOpportunity) => void;
+  onPress?: (item: PhotographerOpportunity) => void;
   busy?: boolean;
 };
 
-export function OpportunityCard({ opportunity, onApprove, onReject, busy }: Props) {
+export function OpportunityCard({ opportunity, onApprove, onReject, onPress, busy }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
 
@@ -25,12 +26,24 @@ export function OpportunityCard({ opportunity, onApprove, onReject, busy }: Prop
         <View style={styles.badgeContainer}>
           <Text style={styles.badgeText}>NEW OPPORTUNITY</Text>
         </View>
-        {opportunity.distanceKm != null && (
-          <View style={styles.distanceBadge}>
-            <Ionicons name="navigate-outline" size={12} color={colors.primary} />
-            <Text style={styles.distanceText}>{opportunity.distanceKm.toFixed(1)} km away</Text>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {opportunity.distanceKm != null && (
+            <View style={styles.distanceBadge}>
+              <Ionicons name="navigate-outline" size={12} color={colors.primary} />
+              <Text style={styles.distanceText}>{opportunity.distanceKm.toFixed(1)} km away</Text>
+            </View>
+          )}
+          {onPress && !isApproved && !isRejected && (
+            <Pressable
+              style={styles.radarPill}
+              onPress={() => onPress(opportunity)}
+              hitSlop={6}
+            >
+              <Ionicons name="flash" size={11} color="#0284C7" />
+              <Text style={styles.radarPillText}>Call Alert</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <Text style={styles.title} numberOfLines={1}>
@@ -276,5 +289,21 @@ const useStyles = makeStyles((c) => ({
   statusTextRejected: {
     fontSize: fontSize.xs,
     color: c.textMuted,
+  },
+  radarPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  radarPillText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: '#0284C7',
   },
 }));
