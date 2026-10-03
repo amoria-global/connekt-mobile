@@ -47,6 +47,7 @@ import {
 } from '@/features/hybrid/api';
 import type { PhotographerOpportunity } from '@/features/hybrid/types';
 import { OpportunityCard } from '@/features/hybrid/OpportunityCard';
+import { IncomingOpportunityAlertModal } from '@/features/hybrid/IncomingOpportunityAlertModal';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -73,6 +74,7 @@ export default function BookingsScreen() {
   const [opportunities, setOpportunities] = useState<PhotographerOpportunity[]>([]);
   const [loadingOpp, setLoadingOpp] = useState(false);
   const [oppBusyId, setOppBusyId] = useState<string | null>(null);
+  const [fullscreenOpp, setFullscreenOpp] = useState<PhotographerOpportunity | null>(null);
 
   const fetchOpportunities = useCallback(async () => {
     if (!isPhotographer || !env.hybridBookingEnabled) return;
@@ -391,6 +393,7 @@ export default function BookingsScreen() {
                 opportunity={opp}
                 onApprove={onApproveOpp}
                 onReject={onRejectOpp}
+                onPress={(o) => setFullscreenOpp(o)}
                 busy={oppBusyId === opp.candidateId}
               />
             ))
@@ -438,6 +441,21 @@ export default function BookingsScreen() {
           />
         </View>
       </Modal>
+
+      {/* Full-Screen Incoming Opportunity Alert (Uber / Ringing Call Style) */}
+      <IncomingOpportunityAlertModal
+        opportunity={fullscreenOpp}
+        visible={fullscreenOpp !== null}
+        onApprove={async (opp) => {
+          setFullscreenOpp(null);
+          await onApproveOpp(opp);
+        }}
+        onReject={async (opp) => {
+          setFullscreenOpp(null);
+          await onRejectOpp(opp);
+        }}
+        onDismiss={() => setFullscreenOpp(null)}
+      />
     </Screen>
   );
 }
