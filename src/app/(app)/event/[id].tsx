@@ -574,6 +574,20 @@ export default function EventDetailScreen() {
               </View>
             </View>
           </InfoCard>
+        ) : ownsEvents ? (
+          <InfoCard icon="people-outline" title="Photographer Matching Active">
+            <View style={{ gap: 10 }}>
+              <Text style={styles.desc}>
+                Matching is active. Verified local photographers are reviewing your brief.
+              </Text>
+              <PrimaryBtn
+                icon="list-outline"
+                label="View Candidates & Select"
+                variant="primary"
+                onPress={() => router.push(`/event/candidates?id=${id}` as never)}
+              />
+            </View>
+          </InfoCard>
         ) : null}
 
         {(ev?.packageName || money) ? (

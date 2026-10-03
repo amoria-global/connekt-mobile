@@ -4895,6 +4895,14 @@
     "controller" : "EventRemoteController#cancelJoin",
     "pathVariables" : [ "eventGuestId" ]
   }, {
+    "method" : "POST",
+    "path" : "/api/remote/events/match-preview",
+    "controller" : "HybridBookingController#getMatchPreview",
+    "body" : {
+      "type" : "MatchPreviewRequestDTO",
+      "properties" : [ "city", "currency", "endTime", "eventDate", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerType", "specialty", "startTime" ]
+    }
+  }, {
     "method" : "PATCH",
     "path" : "/api/remote/events/media/{mediaId}/select",
     "controller" : "EventRemoteController#selectMediaForPhotoBook",
@@ -5164,8 +5172,46 @@
     "pathVariables" : [ "eventId" ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/events/{id}/candidates",
+    "controller" : "HybridBookingController#getApprovedCandidates",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/events/{id}/convert-to-hybrid",
+    "controller" : "HybridBookingController#convertToHybrid",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/events/{id}/match-request",
+    "controller" : "HybridBookingController#createMatchRequest",
+    "body" : {
+      "type" : "CreateMatchRequestDTO",
+      "properties" : [ "currency", "expirationHours", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/events/{id}/select-photographer",
+    "controller" : "HybridBookingController#selectPhotographer",
+    "body" : {
+      "type" : "SelectPhotographerRequestDTO",
+      "properties" : [ "candidateId", "escrowPercentage", "packageId", "photographerId" ]
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/geo/payment-status",
     "controller" : "PublicGeoStatusController#getPaymentStatus"
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/opportunities/{candidateId}/approve",
+    "controller" : "HybridBookingController#approveOpportunity",
+    "pathVariables" : [ "candidateId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/opportunities/{candidateId}/reject",
+    "controller" : "HybridBookingController#rejectOpportunity",
+    "pathVariables" : [ "candidateId" ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/packages/{packageId}/geo-prices",
@@ -5991,6 +6037,14 @@
     "pathVariables" : [ "notificationId" ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/photographer/opportunities",
+    "controller" : "HybridBookingController#getPhotographerOpportunities",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/photographer/packages",
     "controller" : "PhotographerPackageController#getMyPackages"
   }, {
@@ -6293,7 +6347,7 @@
     "controller" : "PhotographerRemoteController#updateImportantDetails",
     "body" : {
       "type" : "PhotographerImportantDetailDTO",
-      "properties" : [ "about", "address", "businessType", "firstName", "lastName", "organizationName", "phone", "preferredUsername", "specialtyIds", "spokenLanguages", "taxId" ]
+      "properties" : [ "about", "address", "businessType", "city", "firstName", "instagramHandle", "lastName", "latitude", "longitude", "organizationName", "phone", "preferredUsername", "specialtyIds", "spokenLanguages", "taxId" ]
     }
   }, {
     "method" : "POST",

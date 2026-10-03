@@ -31,6 +31,7 @@ import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { env } from '@/config/env';
 
 const ITEMS_PER_PAGE = 8;
 const ALL_CATEGORIES = 'All Categories';
@@ -483,6 +484,28 @@ export default function PhotographersScreen() {
           Browse vetted visual creators for your upcoming shoots and events
         </Text>
       </View>
+
+      {/* Hybrid Matching Banner */}
+      {env.hybridBookingEnabled && (
+        <Pressable
+          style={styles.hybridBanner}
+          onPress={() => router.push('/event/hybrid-wizard' as never)}
+        >
+          <View style={styles.hybridBannerIcon}>
+            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.hybridBannerTitle}>Can't decide? Post your event</Text>
+            <Text style={styles.hybridBannerDesc}>
+              Broadcast date & budget to available talent with zero rejection risk.
+            </Text>
+          </View>
+          <View style={styles.hybridBannerBtn}>
+            <Text style={styles.hybridBannerBtnText}>Post Brief</Text>
+            <Ionicons name="arrow-forward" size={12} color={colors.primary} />
+          </View>
+        </Pressable>
+      )}
 
       {/* Global In-Page Search Bar */}
       <View style={styles.searchBar}>
@@ -1058,6 +1081,56 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: 12.5,
     color: c.textMuted,
     lineHeight: 17,
+  },
+
+  // Hybrid Banner
+  hybridBanner: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    backgroundColor: c.tint,
+    borderWidth: 1.5,
+    borderColor: c.primary + '35',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  hybridBannerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hybridBannerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: c.text,
+    marginBottom: 2,
+  },
+  hybridBannerDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.textSoft,
+    lineHeight: 15,
+  },
+  hybridBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: c.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.primary + '40',
+  },
+  hybridBannerBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 10.5,
+    color: c.primary,
   },
 
   // Search Bar

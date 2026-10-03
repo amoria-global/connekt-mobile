@@ -28,6 +28,10 @@ export function notificationTarget(n: NotificationRouteInput): Href {
       case 'EVENT':
       case 'ASSIGNMENT':
         return `/event/${ref}` as Href;
+      case 'OPPORTUNITY':
+      case 'HYBRID_OPPORTUNITY':
+      case 'HYBRID_MATCH':
+        return '/bookings' as Href;
       case 'PAYMENT':
       case 'GIFT':
       case 'STREAMFEE':

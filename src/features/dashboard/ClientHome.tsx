@@ -38,6 +38,8 @@ import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
+import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
+import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import {
@@ -275,6 +277,7 @@ export function ClientHome() {
   const [payNowOpen, setPayNowOpen] = useState(false);
   const [payNowPayment, setPayNowPayment] = useState<PendingPayment | null>(null);
   const [isPendingDismissed, setIsPendingDismissed] = useState(false);
+  const [bookingModeOpen, setBookingModeOpen] = useState(false);
 
   // Real-Time Inline Global Search State
   const scrollViewRef = useRef<ScrollView>(null);
@@ -1327,7 +1330,13 @@ export function ClientHome() {
               responsive.isLarge && styles.bentoCardLarge,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => router.push('/photographers' as never)}
+            onPress={() => {
+              if (env.hybridBookingEnabled) {
+                setBookingModeOpen(true);
+              } else {
+                router.push('/photographers' as never);
+              }
+            }}
           >
             <View style={styles.bentoTopRow}>
               <View
@@ -1994,6 +2003,12 @@ export function ClientHome() {
           events.refresh();
           analytics.refresh();
         }}
+      />
+
+      {/* Booking Mode Selector (Direct vs Hybrid per Figma Slide 02/03) */}
+      <BookingModeSelector
+        visible={bookingModeOpen}
+        onClose={() => setBookingModeOpen(false)}
       />
 
       {/* Global Real-Time Search Modal */}
