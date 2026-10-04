@@ -5186,7 +5186,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "currency", "expirationHours", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
+      "properties" : [ "currency", "expirationHours", "instructions", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
     },
     "pathVariables" : [ "id" ]
   }, {
@@ -5195,7 +5195,7 @@
     "controller" : "HybridBookingController#selectPhotographer",
     "body" : {
       "type" : "SelectPhotographerRequestDTO",
-      "properties" : [ "candidateId", "escrowPercentage", "packageId", "photographerId" ]
+      "properties" : [ "candidateId", "escrowPercentage", "notes", "packageId", "photographerId" ]
     },
     "pathVariables" : [ "id" ]
   }, {

@@ -1327,6 +1327,7 @@ export function ClientHome() {
           <Pressable
             style={({ pressed }) => [
               styles.bentoCard,
+              styles.bentoCardHero,
               responsive.isLarge && styles.bentoCardLarge,
               pressed && styles.cardPressed,
             ]}
@@ -1337,19 +1338,18 @@ export function ClientHome() {
                 router.push('/photographers' as never);
               }
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Book Photographer"
           >
             <View style={styles.bentoTopRow}>
-              <View
-                style={[
-                  styles.bentoIconBox,
-                  {
-                    backgroundColor: colors.tint,
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
+              <LinearGradient
+                colors={['#083A85', '#1D4ED8']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bentoHeroIconBox}
               >
-                <Ionicons name="camera" size={19} color={colors.primary} />
-              </View>
+                <Ionicons name="camera" size={19} color="#FFFFFF" />
+              </LinearGradient>
               <View
                 style={[
                   styles.bentoBadge,
@@ -1366,15 +1366,15 @@ export function ClientHome() {
 
             <View style={styles.bentoBottomRow}>
               <View style={styles.bentoTextWrap}>
-                <Text style={styles.bentoTitle} numberOfLines={1}>
+                <Text style={styles.bentoTitle} numberOfLines={2}>
                   Book Photographer
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
                   Find verified pros
                 </Text>
               </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
+              <View style={styles.bentoHeroActionBtn}>
+                <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
               </View>
             </View>
           </Pressable>
@@ -2715,6 +2715,27 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bentoCardHero: {
+    borderColor: 'rgba(8, 58, 133, 0.22)',
+    borderWidth: 1.5,
+  },
+  bentoHeroIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...e(2),
+  },
+  bentoHeroActionBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...e(2),
   },
 
   // Luxury Trio Stats KPI Card
