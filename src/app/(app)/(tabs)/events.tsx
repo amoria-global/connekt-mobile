@@ -38,8 +38,16 @@ export default function EventsScreen() {
     );
   }
 
-  // Client Events and the Home "Explore Events" quick action deliberately
-  // share one component and one live-viewing flow. This is also safe during
-  // session hydration, before the role is available.
-  return <ExploreEventsScreen />;
+  /*
+   * Client Events Dashboard:
+   * Clients can see all their created events, browse public streams or vetted
+   * photographers via workspace tabs, and tap "+" to launch Direct Booking
+   * or Hybrid Matching with live talent previews and ranked candidate dispatch.
+   */
+  return (
+    <Screen padded={false} edges={[]}>
+      <OwnerEventsDashboard coordinator={false} initialSearch={initialSearch} topInset={topBarHeight} />
+      <TopBar />
+    </Screen>
+  );
 }
