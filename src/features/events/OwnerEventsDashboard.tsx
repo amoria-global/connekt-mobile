@@ -15,8 +15,8 @@
  * Shares the visual language + Pragati Narrow type of the photographer
  * "Events & albums" dashboard.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -140,6 +140,12 @@ export function OwnerEventsDashboard({
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(
     coordinator ? listCoordinatorEvents : listEvents,
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
   );
 
   const [filter, setFilter] = useState<Filter>('all');
@@ -291,7 +297,7 @@ export function OwnerEventsDashboard({
         </Pressable>
       </View>
 
-      {/* Workspace toggle tabs for Coordinator — matching Photographer's Library tabs */}
+      {/* Workspace toggle tabs for Coordinator or Client */}
       {coordinator ? (
         <ScrollView
           horizontal
@@ -320,7 +326,45 @@ export function OwnerEventsDashboard({
             );
           })}
         </ScrollView>
-      ) : null}
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.workspaceTabs}
+        >
+          <View style={[styles.workspaceTab, styles.workspaceTabActive]}>
+            <Ionicons name="calendar" size={14} color="#fff" />
+            <Text style={[styles.workspaceTabText, styles.workspaceTabTextActive]}>
+              My Events
+            </Text>
+            {events.length > 0 && (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{events.length}</Text>
+              </View>
+            )}
+          </View>
+
+          <Pressable
+            onPress={() => router.push('/photographers' as Href)}
+            style={styles.workspaceTab}
+          >
+            <Ionicons name="camera-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.workspaceTabText}>
+              Photographers
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/explore-events' as Href)}
+            style={styles.workspaceTab}
+          >
+            <Ionicons name="compass-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.workspaceTabText}>
+              Explore Public Streams
+            </Text>
+          </Pressable>
+        </ScrollView>
+      )}
 
       {/* Stat strip - clean solid cards, no top tear, no gradients */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statStrip}>
@@ -487,8 +531,12 @@ export function OwnerEventsDashboard({
                 message={
                   search || filter !== 'all'
                     ? 'Try a different filter or search term.'
-                    : 'Tap "New" to create your first event.'
+                    : 'Create your first event with Direct Booking or Hybrid Matching.'
                 }
+                action={{
+                  label: '+ Create Event',
+                  onPress: handleNewEvent,
+                }}
               />
             </View>
           )
@@ -587,8 +635,14 @@ export function OwnerEventsDashboard({
       {/* Dual Entry Booking Mode Selector */}
       <BookingModeSelector
         visible={bookingModeOpen}
-        onClose={() => setBookingModeOpen(false)}
-        onSelectDirect={() => router.push('/event/new' as Href)}
+        onClose={() => {
+          setBookingModeOpen(false);
+          refresh();
+        }}
+        onSelectDirect={() => {
+          setBookingModeOpen(false);
+          router.push('/event/new' as Href);
+        }}
       />
     </View>
   );
@@ -721,6 +775,19 @@ const useStyles = makeStyles((c) => ({
   },
   workspaceTabTextActive: {
     color: '#fff',
+  },
+  tabBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radii.full,
+    marginLeft: 2,
+  },
+  tabBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '700',
   },
 
   statStrip: { gap: 10, paddingVertical: spacing.md },
