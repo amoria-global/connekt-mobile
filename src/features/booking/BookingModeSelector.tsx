@@ -23,7 +23,6 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, radii, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
@@ -41,7 +40,7 @@ export function BookingModeSelector({
   onSelectDirect,
   onSelectHybrid,
 }: BookingModeSelectorProps) {
-  const { colors, gradients, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -294,14 +293,9 @@ export function BookingModeSelector({
 
               {/* Main Content */}
               <View style={styles.cardBodyRow}>
-                <LinearGradient
-                  colors={gradients.brand}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.hybridIconBox}
-                >
+                <View style={styles.hybridIconBox}>
                   <Ionicons name="calendar-outline" size={22} color="#FFFFFF" />
-                </LinearGradient>
+                </View>
                 <View style={styles.cardTextWrap}>
                   <Text style={styles.optionTitle}>Post My Event</Text>
                   <Text style={styles.optionDesc}>
@@ -368,16 +362,11 @@ export function BookingModeSelector({
                 </View>
               </View>
 
-              {/* Explicit Action Button CTA with Brand Gradient */}
-              <LinearGradient
-                colors={gradients.brand}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.hybridCtaBtn}
-              >
+              {/* Explicit Action Button CTA - Solid Primary (No Gradient) */}
+              <View style={styles.hybridCtaBtn}>
                 <Text style={styles.hybridCtaText}>Post Brief & Match Talent</Text>
                 <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
-              </LinearGradient>
+              </View>
             </Pressable>
           </View>
 
@@ -600,6 +589,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 44,
     height: 44,
     borderRadius: 13,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...e(2),
@@ -680,6 +670,7 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    backgroundColor: c.primary,
     paddingVertical: 9.5,
     borderRadius: radii.full,
     marginTop: 2,
