@@ -6,7 +6,14 @@ import type { ID } from '@/types';
 
 export type PhotographerType = 'FREELANCER' | 'STUDIO' | 'ANY';
 export type LocationCoverage = 'SAME_CITY' | 'NEARBY_CITY' | 'ANY';
-export type RecommendationTier = 'HIGH' | 'MEDIUM' | 'LOW';
+export type RecommendationTier =
+  | 'HIGH'
+  | 'MEDIUM'
+  | 'LOW'
+  | 'TOP_MATCH'
+  | 'STRONG_MATCH'
+  | 'GOOD_MATCH'
+  | 'ELIGIBLE';
 
 export type MatchPreviewPayload = {
   eventDate: string; // YYYY-MM-DD
@@ -44,6 +51,7 @@ export type MatchRequestPayload = {
   specialty?: string;
   locationCoverage?: LocationCoverage;
   expirationHours?: number;
+  instructions?: string;
 };
 
 export type MatchRequestResult = {
@@ -58,20 +66,26 @@ export type PhotographerOpportunity = {
   matchRequestId: string;
   eventId: string;
   eventTitle: string;
+  clientName?: string;
   eventType?: string;
   eventDate: string;
   startTime: string;
   endTime?: string;
   durationHours?: number;
   city?: string;
+  eventCity?: string;
   venue?: string;
+  eventAddress?: string;
   distanceKm?: number;
   minBudget?: number;
   maxBudget?: number;
+  estimatedEarnings?: number;
   currency?: string;
+  escrowGuaranteed?: boolean;
   matchReasons?: string[];
+  instructions?: string;
   expiresAt?: string;
-  status?: 'INVITED' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+  status?: 'INVITED' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'PENDING_RESPONSE';
 };
 
 export type CandidateInstagram = {
@@ -86,20 +100,26 @@ export type CandidateSummary = {
   candidateId: string;
   photographerId: string;
   name: string;
+  photographerName?: string;
   avatar?: string;
+  profilePictureUrl?: string;
+  city?: string;
   photographerType?: 'FREELANCER' | 'STUDIO';
   recommendationTier: RecommendationTier;
   compositeScore: number;
+  rank?: number;
   distanceKm?: number;
   reviewCount?: number;
   rating?: number;
   typicalPriceRange?: string;
+  portfolioImages?: string[];
   instagram?: CandidateInstagram;
   packages?: Array<{
     id: string;
     name: string;
     price: number;
     currency: string;
+    description?: string;
     durationHours?: number;
     includedPhotos?: number;
   }>;
@@ -116,7 +136,8 @@ export type SelectPhotographerPayload = {
   candidateId: string;
   photographerId: string;
   packageId?: string;
-  escrowPercentage?: 50 | 70 | 100;
+  escrowPercentage?: number;
+  notes?: string;
 };
 
 export type SelectPhotographerResult = {

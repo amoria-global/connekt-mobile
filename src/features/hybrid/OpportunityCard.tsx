@@ -50,6 +50,13 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
         {opportunity.eventTitle}
       </Text>
 
+      {opportunity.clientName ? (
+        <View style={styles.clientRow}>
+          <Ionicons name="person-circle-outline" size={14} color={colors.textMuted} />
+          <Text style={styles.clientText}>Client: {opportunity.clientName}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.metaList}>
         <View style={styles.metaRow}>
           <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
@@ -60,26 +67,46 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
           </Text>
         </View>
 
-        {(opportunity.venue || opportunity.city) && (
+        {(opportunity.eventAddress || opportunity.venue || opportunity.eventCity || opportunity.city) && (
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={14} color={colors.textMuted} />
             <Text style={styles.metaText} numberOfLines={1}>
-              {[opportunity.venue, opportunity.city].filter(Boolean).join(', ')}
+              {opportunity.eventAddress ||
+                [opportunity.venue, opportunity.eventCity || opportunity.city].filter(Boolean).join(', ')}
             </Text>
           </View>
         )}
 
-        {(opportunity.minBudget != null || opportunity.maxBudget != null) && (
+        {(opportunity.estimatedEarnings != null || opportunity.minBudget != null || opportunity.maxBudget != null) && (
           <View style={styles.metaRow}>
-            <Ionicons name="cash-outline" size={14} color={colors.primary} />
+            <Ionicons name="cash-outline" size={14} color="#059669" />
             <Text style={styles.budgetText}>
-              {opportunity.minBudget != null && opportunity.maxBudget != null
-                ? `${formatPrice(opportunity.minBudget, opportunity.currency)} – ${formatPrice(opportunity.maxBudget, opportunity.currency)}`
-                : formatPrice(opportunity.maxBudget ?? opportunity.minBudget ?? 0, opportunity.currency)}
+              {opportunity.estimatedEarnings != null
+                ? `${opportunity.currency || 'RWF'} ${opportunity.estimatedEarnings.toLocaleString()} (Est. Payout)`
+                : opportunity.minBudget != null && opportunity.maxBudget != null
+                  ? `${formatPrice(opportunity.minBudget, opportunity.currency)} – ${formatPrice(opportunity.maxBudget, opportunity.currency)}`
+                  : formatPrice(opportunity.maxBudget ?? opportunity.minBudget ?? 0, opportunity.currency)}
             </Text>
+            {opportunity.escrowGuaranteed && (
+              <View style={styles.escrowBadge}>
+                <Ionicons name="shield-checkmark" size={11} color="#059669" />
+                <Text style={styles.escrowBadgeText}>Escrow Protected</Text>
+              </View>
+            )}
           </View>
         )}
       </View>
+
+      {/* CLIENT INSTRUCTIONS IF SPECIFIED */}
+      {opportunity.instructions ? (
+        <View style={styles.instructionsBox}>
+          <View style={styles.instructionsHeader}>
+            <Ionicons name="document-text-outline" size={13} color="#083A85" />
+            <Text style={styles.instructionsTitle}>Client Brief / Notes:</Text>
+          </View>
+          <Text style={styles.instructionsText}>{opportunity.instructions}</Text>
+        </View>
+      ) : null}
 
       {/* WHY YOU MATCH REASONS */}
       {opportunity.matchReasons && opportunity.matchReasons.length > 0 && (
@@ -179,6 +206,17 @@ const useStyles = makeStyles((c) => ({
     fontWeight: fontWeight.bold,
     color: c.text,
   },
+  clientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: -4,
+  },
+  clientText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+  },
   metaList: {
     gap: 6,
   },
@@ -186,6 +224,7 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexWrap: 'wrap',
   },
   metaText: {
     fontSize: fontSize.xs,
@@ -194,7 +233,48 @@ const useStyles = makeStyles((c) => ({
   budgetText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
-    color: c.primary,
+    color: '#059669',
+  },
+  escrowBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  escrowBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: '#059669',
+  },
+  instructionsBox: {
+    backgroundColor: 'rgba(8, 58, 133, 0.05)',
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(8, 58, 133, 0.15)',
+    padding: spacing.sm + 2,
+    gap: 4,
+  },
+  instructionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  instructionsTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 10.5,
+    color: '#083A85',
+    letterSpacing: 0.2,
+  },
+  instructionsText: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: c.text,
+    lineHeight: 18,
   },
   matchReasonsBox: {
     backgroundColor: c.surfaceMuted,

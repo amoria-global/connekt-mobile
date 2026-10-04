@@ -29,6 +29,8 @@ export default function AppLayout() {
           type: typeof data.type === 'string' ? data.type : undefined,
           referenceId: typeof data.referenceId === 'string' ? data.referenceId : undefined,
           eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+          link: typeof data.link === 'string' ? data.link : undefined,
+          deepLink: typeof data.deepLink === 'string' ? data.deepLink : undefined,
         }),
       );
     });

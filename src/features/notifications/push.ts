@@ -57,12 +57,17 @@ export async function registerForPushNotifications(): Promise<string | null> {
     // Expo push tokens only work on real hardware, not simulators.
     if (!Device.isDevice) return null;
 
-    // Android needs a channel for notifications to reach the tray.
+    // Android needs a channel with MAX importance for lock-screen wake and heads-up banner.
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'Event updates',
-        importance: Notifications.AndroidImportance.DEFAULT,
+        name: 'Amoria Connect Notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
         lightColor: '#083A85',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       });
     }
 
