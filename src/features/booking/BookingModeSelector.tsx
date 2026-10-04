@@ -369,17 +369,6 @@ export function BookingModeSelector({
               </View>
             </Pressable>
           </View>
-
-          {/* Footer Security / Escrow Guarantee */}
-          <View style={[styles.footerNote, isDark && styles.footerNoteDark]}>
-            <View style={styles.shieldBox}>
-              <Ionicons name="shield-checkmark" size={14} color="#10B981" />
-            </View>
-            <Text style={styles.footerNoteText}>
-              <Text style={styles.footerHighlight}>Connekyt Escrow Protection: </Text>
-              Funds are held securely and released only after you approve photo delivery.
-            </Text>
-          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -681,39 +670,5 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: 12.5,
     color: '#FFFFFF',
     letterSpacing: 0.2,
-  },
-  footerNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.06)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radii.lg,
-    borderWidth: 0.5,
-    borderColor: 'rgba(16, 185, 129, 0.2)',
-    marginTop: 4,
-  },
-  footerNoteDark: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-  },
-  shieldBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerNoteText: {
-    flex: 1,
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: c.textMuted,
-    lineHeight: 15,
-  },
-  footerHighlight: {
-    fontFamily: fonts.bold,
-    color: c.text,
   },
 }));
