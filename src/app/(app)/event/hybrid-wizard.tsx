@@ -61,14 +61,30 @@ export default function HybridWizardScreen() {
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
+  const defaultDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d;
+  }, []);
+  const defaultStartTime = useMemo(() => {
+    const d = new Date();
+    d.setHours(18, 0, 0, 0);
+    return d;
+  }, []);
+  const defaultEndTime = useMemo(() => {
+    const d = new Date();
+    d.setHours(22, 0, 0, 0);
+    return d;
+  }, []);
+
   // --- Step 1 State: Event Basics ---
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState("Sarah's Celebration");
   const [category, setCategory] = useState('Celebration');
-  const [eventDate, setEventDate] = useState<Date | null>(null);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [endTime, setEndTime] = useState<Date | null>(null);
+  const [eventDate, setEventDate] = useState<Date | null>(defaultDate);
+  const [startTime, setStartTime] = useState<Date | null>(defaultStartTime);
+  const [endTime, setEndTime] = useState<Date | null>(defaultEndTime);
   const [city, setCity] = useState('Kigali');
-  const [venue, setVenue] = useState('');
+  const [venue, setVenue] = useState('Convention Center');
 
   // Pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -216,7 +232,15 @@ export default function HybridWizardScreen() {
       {/* Header */}
       <View style={styles.topHeader}>
         <Pressable
-          onPress={() => (currentStep > 1 ? setCurrentStep(currentStep - 1) : router.back())}
+          onPress={() => {
+            if (currentStep > 1) {
+              setCurrentStep(currentStep - 1);
+            } else if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/' as never);
+            }
+          }}
           style={styles.backBtn}
           hitSlop={10}
         >
@@ -228,7 +252,14 @@ export default function HybridWizardScreen() {
             Step {currentStep} of {STEPS.length} • {STEPS[currentStep - 1]?.title}
           </Text>
         </View>
-        <Pressable onPress={() => router.back()} style={styles.closeBtn} hitSlop={10}>
+        <Pressable
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('/' as never);
+          }}
+          style={styles.closeBtn}
+          hitSlop={10}
+        >
           <Ionicons name="close" size={20} color={colors.textMuted} />
         </Pressable>
       </View>
