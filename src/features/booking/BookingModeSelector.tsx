@@ -7,11 +7,10 @@
  *       Step 1 (Event Details), Step 2 (Requirements & Live Talent Count), and
  *       Step 3 (Review & Post Brief).
  *
- * Converges downstream into the shared booking + escrow service.
- * Redesigned to pro-grade standards with BlurView backdrop, spring physics,
- * tactile drag handle, explicit solid Connekyt brand action buttons, and live matching.
+ * All inputs use real user data with no dummy/hardcoded pre-fills.
+ * Amount fields automatically format with standard comma thousands separators (e.g. 1,000,000).
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -34,14 +33,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { Button } from '@/components/ui/Button';
 import { getMatchPreview, createMatchRequest } from '@/features/hybrid/api';
 import type { PhotographerType, LocationCoverage, MatchPreviewResult } from '@/features/hybrid/types';
 import { createEvent } from '@/features/events/api';
 import { useRole } from '@/features/auth/role';
+import { useAuth, isApiError } from '@/store/auth';
 import { useCurrency } from '@/store/currency';
-import { formatPrice } from '@/utils/format';
-import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 export type BookingStep = 'select' | 1 | 2 | 3;
@@ -63,10 +60,10 @@ const STEPS = [
 ];
 
 const POPULAR_CATEGORIES = [
-  { id: 'Celebration', label: 'Celebration', icon: 'sparkles-outline' },
   { id: 'Wedding', label: 'Wedding', icon: 'heart-outline' },
   { id: 'Birthday', label: 'Birthday', icon: 'gift-outline' },
   { id: 'Corporate', label: 'Corporate', icon: 'briefcase-outline' },
+  { id: 'Celebration', label: 'Celebration', icon: 'sparkles-outline' },
   { id: 'Portrait', label: 'Portrait', icon: 'person-outline' },
   { id: 'Fashion', label: 'Fashion', icon: 'shirt-outline' },
   { id: 'Concert', label: 'Concert / Festival', icon: 'musical-notes-outline' },
@@ -93,6 +90,23 @@ const COVERAGE_OPTIONS: { id: LocationCoverage; label: string }[] = [
   { id: 'NEARBY_CITY', label: 'Nearby city' },
 ];
 
+/**
+ * Formats a raw number/string into comma-separated thousands (e.g. 1000000 -> 1,000,000).
+ */
+export function formatAmountWithCommas(val: string): string {
+  const digits = val.replace(/\D/g, '');
+  if (!digits) return '';
+  return Number(digits).toLocaleString('en-US');
+}
+
+/**
+ * Parses a comma-formatted amount string into an integer.
+ */
+export function parseAmountNumber(val: string): number {
+  const digits = val.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+
 export function BookingModeSelector({
   visible,
   onClose,
@@ -105,6 +119,7 @@ export function BookingModeSelector({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isCoordinator } = useRole();
+  const user = useAuth((s) => s.user);
   const currentCurrency = useCurrency((s) => s.currency);
 
   const [mounted, setMounted] = useState(visible);
@@ -114,31 +129,14 @@ export function BookingModeSelector({
   const animFade = useRef(new Animated.Value(0)).current;
   const animY = useRef(new Animated.Value(450)).current;
 
-  // Defaults for Step 1
-  const defaultDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d;
-  }, []);
-  const defaultStartTime = useMemo(() => {
-    const d = new Date();
-    d.setHours(18, 0, 0, 0);
-    return d;
-  }, []);
-  const defaultEndTime = useMemo(() => {
-    const d = new Date();
-    d.setHours(22, 0, 0, 0);
-    return d;
-  }, []);
-
-  // --- Step 1 State: Event Basics ---
-  const [title, setTitle] = useState("Sarah's Celebration");
-  const [category, setCategory] = useState('Celebration');
-  const [eventDate, setEventDate] = useState<Date | null>(defaultDate);
-  const [startTime, setStartTime] = useState<Date | null>(defaultStartTime);
-  const [endTime, setEndTime] = useState<Date | null>(defaultEndTime);
+  // --- Step 1 State: Real Data (Zero dummy data pre-fills) ---
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
+  const [eventDate, setEventDate] = useState<Date | null>(null);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState<Date | null>(null);
   const [city, setCity] = useState('Kigali');
-  const [venue, setVenue] = useState('Convention Center');
+  const [venue, setVenue] = useState('');
 
   // Pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -161,13 +159,13 @@ export function BookingModeSelector({
   const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const toTimeStr = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
 
-  // Live match preview debounced calculation
+  // Live match preview debounced calculation with real API data
   const fetchMatchCount = useCallback(async () => {
     if (!eventDate || !startTime) return;
     setCalculatingMatch(true);
     try {
-      const minNum = parseFloat(minBudget);
-      const maxNum = parseFloat(maxBudget);
+      const minNum = parseAmountNumber(minBudget);
+      const maxNum = parseAmountNumber(maxBudget);
 
       let calculatedEndTime = endTime;
       if (!calculatedEndTime && startTime) {
@@ -179,8 +177,8 @@ export function BookingModeSelector({
         startTime: toTimeStr(startTime),
         endTime: calculatedEndTime ? toTimeStr(calculatedEndTime) : undefined,
         city: city.trim() || 'Kigali',
-        minBudget: !Number.isNaN(minNum) && minNum > 0 ? minNum : undefined,
-        maxBudget: !Number.isNaN(maxNum) && maxNum > 0 ? maxNum : undefined,
+        minBudget: minNum > 0 ? minNum : undefined,
+        maxBudget: maxNum > 0 ? maxNum : undefined,
         currency: currentCurrency || 'RWF',
         photographerType: photographerType === 'ANY' ? undefined : photographerType,
         specialty: specialty === 'ANY' ? undefined : specialty,
@@ -278,19 +276,19 @@ export function BookingModeSelector({
 
   const handleNextStep1 = () => {
     if (!title.trim()) {
-      Alert.alert('Required', 'Please enter an event title.');
+      Alert.alert('Required', 'Please enter your event name.');
       return;
     }
     if (!eventDate) {
-      Alert.alert('Required', 'Please choose the event date.');
+      Alert.alert('Required', 'Please select an event date.');
       return;
     }
     if (!startTime) {
-      Alert.alert('Required', 'Please choose the start time.');
+      Alert.alert('Required', 'Please select a start time.');
       return;
     }
     if (!venue.trim()) {
-      Alert.alert('Required', 'Please specify the venue or venue location.');
+      Alert.alert('Required', 'Please enter the venue or address.');
       return;
     }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -298,8 +296,8 @@ export function BookingModeSelector({
   };
 
   const handleNextStep2 = () => {
-    const min = parseFloat(minBudget) || 0;
-    const max = parseFloat(maxBudget) || 0;
+    const min = parseAmountNumber(minBudget);
+    const max = parseAmountNumber(maxBudget);
     if (max > 0 && min > max) {
       Alert.alert('Budget error', 'Maximum budget must be greater than or equal to minimum budget.');
       return;
@@ -312,23 +310,32 @@ export function BookingModeSelector({
     if (!eventDate || !startTime) return;
     setSubmitting(true);
     try {
-      const minNum = parseFloat(minBudget);
-      const maxNum = parseFloat(maxBudget);
-      const hasMin = !Number.isNaN(minNum) && minNum > 0;
-      const hasMax = !Number.isNaN(maxNum) && maxNum > 0;
+      const minNum = parseAmountNumber(minBudget);
+      const maxNum = parseAmountNumber(maxBudget);
+      const hasMin = minNum > 0;
+      const hasMax = maxNum > 0;
 
-      // 1. Create the event record
+      // 1. Create the event record with real entered data
       const locationFull = [venue.trim(), city.trim()].filter(Boolean).join(', ');
       const newEvent = await createEvent(
         {
           title: title.trim(),
-          category,
+          category: category.trim() || 'Event',
           eventDate: toDateStr(eventDate),
           startTime: toTimeStr(startTime).slice(0, 5),
           endTime: endTime ? toTimeStr(endTime).slice(0, 5) : undefined,
           location: locationFull,
-          description: `Hybrid booking match request for ${title.trim()} in ${city.trim()}`,
-          organizer: 'Client Event',
+          description: [
+            title.trim(),
+            category.trim() ? `Category: ${category.trim()}` : '',
+            venue.trim() ? `Venue: ${venue.trim()}` : '',
+            city.trim() ? `City: ${city.trim()}` : '',
+          ].filter(Boolean).join(' • '),
+          organizer:
+            [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+            user?.organizationName ||
+            user?.email ||
+            'Client Event',
           price: hasMax ? maxNum : hasMin ? minNum : undefined,
           currency: currentCurrency || 'RWF',
           eventVisibility: 'PRIVATE',
@@ -357,6 +364,22 @@ export function BookingModeSelector({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const displayBudgetSummary = () => {
+    const min = parseAmountNumber(minBudget);
+    const max = parseAmountNumber(maxBudget);
+    const curr = currentCurrency || 'RWF';
+    if (min > 0 && max > 0) {
+      return `${curr} ${min.toLocaleString('en-US')} – ${curr} ${max.toLocaleString('en-US')}`;
+    }
+    if (max > 0) {
+      return `Up to ${curr} ${max.toLocaleString('en-US')}`;
+    }
+    if (min > 0) {
+      return `From ${curr} ${min.toLocaleString('en-US')}`;
+    }
+    return 'Open budget / Negotiable';
   };
 
   // Drag down gesture responder on handle area
@@ -673,7 +696,7 @@ export function BookingModeSelector({
                       <View style={styles.stepIntro}>
                         <Text style={styles.stepTitle}>Event Information</Text>
                         <Text style={styles.stepDesc}>
-                          Tell local photographers where and when your event takes place.
+                          Where and when is your shoot taking place? Local creators will match based on these details.
                         </Text>
                       </View>
 
@@ -683,7 +706,7 @@ export function BookingModeSelector({
                         <View style={styles.inputContainer}>
                           <Ionicons name="sparkles" size={18} color={colors.primary} style={styles.inputIcon} />
                           <TextInput
-                            placeholder="e.g. Sarah's 30th Birthday, Tech Summit"
+                            placeholder="Enter event name"
                             placeholderTextColor={colors.textMuted}
                             value={title}
                             onChangeText={setTitle}
@@ -706,7 +729,7 @@ export function BookingModeSelector({
                             return (
                               <Pressable
                                 key={cat.id}
-                                onPress={() => setCategory(cat.id)}
+                                onPress={() => setCategory(isSelected ? '' : cat.id)}
                                 style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
                               >
                                 <Ionicons
@@ -726,7 +749,7 @@ export function BookingModeSelector({
                         <View style={[styles.inputContainer, { marginTop: 6 }]}>
                           <Ionicons name="pricetag-outline" size={16} color={colors.textMuted} style={styles.inputIcon} />
                           <TextInput
-                            placeholder="Or type custom category..."
+                            placeholder="Enter custom category"
                             placeholderTextColor={colors.textMuted}
                             value={category}
                             onChangeText={setCategory}
@@ -744,7 +767,7 @@ export function BookingModeSelector({
                           </View>
                           <View style={styles.selectorTextWrap}>
                             <Text style={styles.selectorMicroLabel}>DATE OF SHOOT</Text>
-                            <Text style={styles.selectorMainText}>
+                            <Text style={[styles.selectorMainText, !eventDate && styles.selectorPlaceholderText]}>
                               {eventDate
                                 ? eventDate.toLocaleDateString(undefined, {
                                     weekday: 'short',
@@ -756,7 +779,7 @@ export function BookingModeSelector({
                             </Text>
                           </View>
                           <View style={styles.changeBadge}>
-                            <Text style={styles.changeBadgeText}>Change</Text>
+                            <Text style={styles.changeBadgeText}>{eventDate ? 'Change' : 'Select'}</Text>
                             <Ionicons name="chevron-forward" size={12} color={colors.primary} />
                           </View>
                         </Pressable>
@@ -771,14 +794,14 @@ export function BookingModeSelector({
                             style={styles.timeSelectorCard}
                           >
                             <View style={styles.timeIconBox}>
-                              <Ionicons name="time" size={16} color={colors.primary} />
+                              <Ionicons name="time" size={16} color={startTime ? colors.primary : colors.textMuted} />
                             </View>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.selectorMicroLabel}>STARTS</Text>
-                              <Text style={styles.timeMainText}>
+                              <Text style={[styles.timeMainText, !startTime && styles.timePlaceholderText]}>
                                 {startTime
                                   ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                  : 'Set time'}
+                                  : 'Select time'}
                               </Text>
                             </View>
                           </Pressable>
@@ -791,11 +814,11 @@ export function BookingModeSelector({
                             style={styles.timeSelectorCard}
                           >
                             <View style={styles.timeIconBox}>
-                              <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+                              <Ionicons name="time-outline" size={16} color={endTime ? colors.primary : colors.textMuted} />
                             </View>
                             <View style={{ flex: 1 }}>
                               <Text style={styles.selectorMicroLabel}>ENDS</Text>
-                              <Text style={styles.timeMainText}>
+                              <Text style={[styles.timeMainText, !endTime && styles.timePlaceholderText]}>
                                 {endTime
                                   ? endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                   : 'Optional'}
@@ -812,7 +835,7 @@ export function BookingModeSelector({
                           <View style={styles.inputContainer}>
                             <Ionicons name="location-sharp" size={16} color={colors.primary} style={styles.inputIcon} />
                             <TextInput
-                              placeholder="Kigali"
+                              placeholder="Enter city"
                               placeholderTextColor={colors.textMuted}
                               value={city}
                               onChangeText={setCity}
@@ -826,7 +849,7 @@ export function BookingModeSelector({
                           <View style={styles.inputContainer}>
                             <Ionicons name="business-outline" size={16} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
-                              placeholder="Convention Center"
+                              placeholder="Enter venue or address"
                               placeholderTextColor={colors.textMuted}
                               value={venue}
                               onChangeText={setVenue}
@@ -869,17 +892,17 @@ export function BookingModeSelector({
                         </View>
                       </View>
 
-                      {/* Budget Range */}
+                      {/* Budget Range with Commas */}
                       <View style={styles.fieldWrap}>
                         <Text style={styles.fieldLabel}>BUDGET RANGE ({currentCurrency || 'RWF'})</Text>
                         <View style={styles.twoColumnRow}>
                           <View style={[styles.inputContainer, { flex: 1 }]}>
                             <Text style={styles.budgetPrefix}>{currentCurrency || 'RWF'}</Text>
                             <TextInput
-                              placeholder="Min budget"
+                              placeholder="Min amount"
                               placeholderTextColor={colors.textMuted}
                               value={minBudget}
-                              onChangeText={setMinBudget}
+                              onChangeText={(text) => setMinBudget(formatAmountWithCommas(text))}
                               keyboardType="numeric"
                               style={styles.textInput}
                             />
@@ -887,10 +910,10 @@ export function BookingModeSelector({
                           <View style={[styles.inputContainer, { flex: 1 }]}>
                             <Text style={styles.budgetPrefix}>{currentCurrency || 'RWF'}</Text>
                             <TextInput
-                              placeholder="Max budget"
+                              placeholder="Max amount"
                               placeholderTextColor={colors.textMuted}
                               value={maxBudget}
-                              onChangeText={setMaxBudget}
+                              onChangeText={(text) => setMaxBudget(formatAmountWithCommas(text))}
                               keyboardType="numeric"
                               style={styles.textInput}
                             />
@@ -999,7 +1022,7 @@ export function BookingModeSelector({
 
                       <View style={styles.summaryCard}>
                         <View style={styles.summaryTopRow}>
-                          <Text style={styles.summaryEventTitle}>{title}</Text>
+                          <Text style={styles.summaryEventTitle}>{title.trim() || 'Untitled Event'}</Text>
                           <View style={styles.matchPill}>
                             <Text style={styles.matchPillText}>{matchResult?.matchCount ?? 0} MATCHES</Text>
                           </View>
@@ -1008,21 +1031,32 @@ export function BookingModeSelector({
                         <View style={styles.summaryMetaRow}>
                           <Ionicons name="calendar-outline" size={15} color={colors.primary} />
                           <Text style={styles.summaryMetaText}>
-                            {eventDate?.toDateString()} • {startTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {eventDate
+                              ? eventDate.toLocaleDateString(undefined, {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })
+                              : 'Date not set'}{' '}
+                            •{' '}
+                            {startTime
+                              ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : 'Time not set'}
                             {endTime ? ` – ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                           </Text>
                         </View>
 
                         <View style={styles.summaryMetaRow}>
                           <Ionicons name="location-outline" size={15} color={colors.primary} />
-                          <Text style={styles.summaryMetaText}>{venue}, {city}</Text>
+                          <Text style={styles.summaryMetaText}>
+                            {[venue.trim(), city.trim()].filter(Boolean).join(', ') || 'Location not set'}
+                          </Text>
                         </View>
 
                         <View style={styles.summaryMetaRow}>
                           <Ionicons name="cash-outline" size={15} color={colors.primary} />
-                          <Text style={styles.summaryMetaText}>
-                            {formatPrice(parseFloat(minBudget) || 0, currentCurrency)} – {formatPrice(parseFloat(maxBudget) || 0, currentCurrency)}
-                          </Text>
+                          <Text style={styles.summaryMetaText}>{displayBudgetSummary()}</Text>
                         </View>
 
                         <View style={styles.summaryDivider} />
@@ -1618,6 +1652,10 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: 14,
     color: c.text,
   },
+  selectorPlaceholderText: {
+    color: c.textMuted,
+    fontFamily: fonts.regular,
+  },
   changeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1659,6 +1697,10 @@ const useStyles = makeStyles((c, e) => ({
     fontFamily: fonts.bold,
     fontSize: 13.5,
     color: c.text,
+  },
+  timePlaceholderText: {
+    color: c.textMuted,
+    fontFamily: fonts.regular,
   },
   chipRow: {
     flexDirection: 'row',
