@@ -263,7 +263,7 @@ export function ClientHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const styles = useStyles();
-  const { colors, isDark } = useTheme();
+  const { colors, gradients, isDark } = useTheme();
   const responsive = useResponsive();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -1343,7 +1343,7 @@ export function ClientHome() {
           >
             <View style={styles.bentoTopRow}>
               <LinearGradient
-                colors={['#083A85', '#1D4ED8']}
+                colors={gradients.brand}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.bentoHeroIconBox}

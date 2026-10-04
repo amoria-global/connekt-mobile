@@ -41,7 +41,7 @@ export function BookingModeSelector({
   onSelectDirect,
   onSelectHybrid,
 }: BookingModeSelectorProps) {
-  const { colors, isDark } = useTheme();
+  const { colors, gradients, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -227,7 +227,7 @@ export function BookingModeSelector({
                   <Text style={styles.indexPillText}>01 · DIRECT</Text>
                 </View>
                 <View style={styles.marketplaceTag}>
-                  <Ionicons name="storefront-outline" size={11} color={colors.textMuted} />
+                  <Ionicons name="people-outline" size={11} color={colors.primary} />
                   <Text style={styles.marketplaceTagText}>MARKETPLACE</Text>
                 </View>
               </View>
@@ -235,7 +235,7 @@ export function BookingModeSelector({
               {/* Main Content */}
               <View style={styles.cardBodyRow}>
                 <View style={styles.directIconBox}>
-                  <Ionicons name="search" size={22} color={colors.primary} />
+                  <Ionicons name="camera-outline" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.cardTextWrap}>
                   <Text style={styles.optionTitle}>Find a Photographer</Text>
@@ -248,7 +248,7 @@ export function BookingModeSelector({
               {/* Feature Pills */}
               <View style={styles.featurePillsRow}>
                 <View style={styles.featurePill}>
-                  <Ionicons name="checkmark-circle" size={11} color={colors.primary} />
+                  <Ionicons name="images-outline" size={11} color={colors.primary} />
                   <Text style={styles.featurePillText}>Instant portfolios</Text>
                 </View>
                 <View style={styles.featurePill}>
@@ -256,7 +256,7 @@ export function BookingModeSelector({
                   <Text style={styles.featurePillText}>Verified reviews</Text>
                 </View>
                 <View style={styles.featurePill}>
-                  <Ionicons name="chatbubbles-outline" size={10} color={colors.textMuted} />
+                  <Ionicons name="chatbubbles-outline" size={10} color={colors.primary} />
                   <Text style={styles.featurePillText}>Direct chat</Text>
                 </View>
               </View>
@@ -264,7 +264,7 @@ export function BookingModeSelector({
               {/* Explicit Action Button CTA */}
               <View style={styles.directCtaBtn}>
                 <Text style={styles.directCtaText}>Browse Marketplace</Text>
-                <Ionicons name="arrow-forward" size={13} color={colors.text} />
+                <Ionicons name="arrow-forward" size={13} color={colors.primary} />
               </View>
             </Pressable>
 
@@ -283,7 +283,7 @@ export function BookingModeSelector({
               {/* Kicker Row */}
               <View style={styles.cardHeaderRow}>
                 <View style={[styles.hybridIndexPill, isDark && styles.hybridIndexPillDark]}>
-                  <Ionicons name="sparkles" size={11} color="#7C3AED" />
+                  <Ionicons name="sparkles" size={11} color={colors.accent} />
                   <Text style={styles.hybridIndexPillText}>02 · RECOMMENDED</Text>
                 </View>
                 <View style={[styles.hybridTag, isDark && styles.hybridTagDark]}>
@@ -295,12 +295,12 @@ export function BookingModeSelector({
               {/* Main Content */}
               <View style={styles.cardBodyRow}>
                 <LinearGradient
-                  colors={['#7C3AED', '#5B21B6']}
+                  colors={gradients.brand}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.hybridIconBox}
                 >
-                  <Ionicons name="flash" size={22} color="#FFFFFF" />
+                  <Ionicons name="calendar-outline" size={22} color="#FFFFFF" />
                 </LinearGradient>
                 <View style={styles.cardTextWrap}>
                   <Text style={styles.optionTitle}>Post My Event</Text>
@@ -319,7 +319,7 @@ export function BookingModeSelector({
                     isDark && styles.hybridFeaturePillDark,
                   ]}
                 >
-                  <Ionicons name="radio" size={11} color="#7C3AED" />
+                  <Ionicons name="call-outline" size={11} color={colors.accent} />
                   <Text
                     style={[
                       styles.featurePillText,
@@ -337,7 +337,7 @@ export function BookingModeSelector({
                     isDark && styles.hybridFeaturePillDark,
                   ]}
                 >
-                  <Ionicons name="navigate-outline" size={10} color="#7C3AED" />
+                  <Ionicons name="location-outline" size={10} color={colors.accent} />
                   <Text
                     style={[
                       styles.featurePillText,
@@ -355,7 +355,7 @@ export function BookingModeSelector({
                     isDark && styles.hybridFeaturePillDark,
                   ]}
                 >
-                  <Ionicons name="time-outline" size={10} color="#7C3AED" />
+                  <Ionicons name="timer-outline" size={10} color={colors.accent} />
                   <Text
                     style={[
                       styles.featurePillText,
@@ -368,9 +368,9 @@ export function BookingModeSelector({
                 </View>
               </View>
 
-              {/* Explicit Action Button CTA with Gradient */}
+              {/* Explicit Action Button CTA with Brand Gradient */}
               <LinearGradient
-                colors={['#7C3AED', '#6D28D9']}
+                colors={gradients.brand}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.hybridCtaBtn}
@@ -493,13 +493,13 @@ const useStyles = makeStyles((c, e) => ({
     ...e(1),
   },
   hybridOptionCard: {
-    borderColor: 'rgba(124, 58, 237, 0.35)',
-    backgroundColor: '#FAF5FF',
+    borderColor: 'rgba(242, 12, 143, 0.32)',
+    backgroundColor: 'rgba(242, 12, 143, 0.04)',
     ...e(2),
   },
   hybridOptionCardDark: {
-    borderColor: 'rgba(124, 58, 237, 0.45)',
-    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    borderColor: 'rgba(242, 12, 143, 0.45)',
+    backgroundColor: 'rgba(242, 12, 143, 0.10)',
   },
   cardPressed: {
     opacity: 0.9,
@@ -511,17 +511,17 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'space-between',
   },
   indexPill: {
-    backgroundColor: c.surfaceMuted,
+    backgroundColor: c.tint,
     paddingHorizontal: 8,
     paddingVertical: 2.5,
     borderRadius: radii.full,
-    borderWidth: 0.5,
-    borderColor: c.borderSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(8, 58, 133, 0.15)',
   },
   indexPillText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
-    color: c.textMuted,
+    color: c.primary,
     letterSpacing: 0.6,
   },
   marketplaceTag: {
@@ -543,18 +543,18 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: 'rgba(242, 12, 143, 0.10)',
     paddingHorizontal: 8.5,
     paddingVertical: 2.5,
     borderRadius: radii.full,
   },
   hybridIndexPillDark: {
-    backgroundColor: 'rgba(124, 58, 237, 0.28)',
+    backgroundColor: 'rgba(242, 12, 143, 0.22)',
   },
   hybridIndexPillText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
-    color: '#7C3AED',
+    color: c.accent,
     letterSpacing: 0.6,
   },
   hybridTag: {
@@ -564,22 +564,22 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: 7.5,
     paddingVertical: 2.5,
     borderRadius: radii.sm,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: 'rgba(242, 12, 143, 0.10)',
   },
   hybridTagDark: {
-    backgroundColor: 'rgba(124, 58, 237, 0.22)',
+    backgroundColor: 'rgba(242, 12, 143, 0.20)',
   },
   hybridTagText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
-    color: '#7C3AED',
+    color: c.accent,
     letterSpacing: 0.5,
   },
   livePulseDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#7C3AED',
+    backgroundColor: c.accent,
   },
   cardBodyRow: {
     flexDirection: 'row',
@@ -592,7 +592,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 13,
     backgroundColor: c.tint,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: 'rgba(8, 58, 133, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -645,27 +645,27 @@ const useStyles = makeStyles((c, e) => ({
     color: c.textMuted,
   },
   hybridFeaturePill: {
-    backgroundColor: '#F5F3FF',
-    borderColor: '#E9D5FF',
+    backgroundColor: 'rgba(242, 12, 143, 0.06)',
+    borderColor: 'rgba(242, 12, 143, 0.20)',
   },
   hybridFeaturePillDark: {
-    backgroundColor: 'rgba(124, 58, 237, 0.16)',
-    borderColor: 'rgba(124, 58, 237, 0.28)',
+    backgroundColor: 'rgba(242, 12, 143, 0.16)',
+    borderColor: 'rgba(242, 12, 143, 0.30)',
   },
   hybridFeatureText: {
-    color: '#6D28D9',
+    color: c.accent,
   },
   hybridFeatureTextDark: {
-    color: '#DDD6FE',
+    color: c.accentLight,
   },
   directCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: c.surfaceMuted,
+    backgroundColor: c.tint,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: 'rgba(8, 58, 133, 0.20)',
     paddingVertical: 8.5,
     borderRadius: radii.full,
     marginTop: 2,
@@ -673,7 +673,7 @@ const useStyles = makeStyles((c, e) => ({
   directCtaText: {
     fontFamily: fonts.bold,
     fontSize: 12.5,
-    color: c.text,
+    color: c.primary,
   },
   hybridCtaBtn: {
     flexDirection: 'row',
