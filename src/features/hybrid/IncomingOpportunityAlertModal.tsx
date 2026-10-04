@@ -234,9 +234,6 @@ export function IncomingOpportunityAlertModal({
             </View>
 
             <Text style={styles.payoutAmount}>{budgetDisplay}</Text>
-            <Text style={styles.payoutSubtext}>
-              50% deposit held safely in escrow before you head out
-            </Text>
           </View>
 
           {/* LOGISTICS TILES (DATE & TIME + VENUE & LOCATION) */}
@@ -273,7 +270,7 @@ export function IncomingOpportunityAlertModal({
             </View>
           </View>
 
-          {/* CLIENT INSTRUCTIONS CALLOUT (OR MATCH ASSURANCE) */}
+          {/* CLIENT INSTRUCTIONS CALLOUT (ONLY IF SPECIFIED) */}
           {opportunity.instructions ? (
             <View style={styles.instructionsBox}>
               <View style={styles.instructionsHeader}>
@@ -284,14 +281,7 @@ export function IncomingOpportunityAlertModal({
                 "{opportunity.instructions}"
               </Text>
             </View>
-          ) : (
-            <View style={styles.matchAssurance}>
-              <Ionicons name="sparkles" size={14} color={colors.primary} />
-              <Text style={styles.matchAssuranceText}>
-                Matches your verified specialties, rate preferences, and calendar availability.
-              </Text>
-            </View>
-          )}
+          ) : null}
         </View>
 
         {/* 3. SYMMETRICAL ACTION BUTTONS */}
@@ -494,12 +484,6 @@ const useStyles = makeStyles((c) => ({
     color: c.primary,
     letterSpacing: -0.5,
   },
-  payoutSubtext: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: c.textSoft,
-    textAlign: 'center',
-  },
   logisticsContainer: {
     gap: spacing.sm,
   },
@@ -561,23 +545,6 @@ const useStyles = makeStyles((c) => ({
     fontSize: 12,
     color: c.textSoft,
     lineHeight: 17,
-  },
-  matchAssurance: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: c.tint,
-    borderRadius: radii.md,
-    paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(8, 58, 133, 0.15)',
-  },
-  matchAssuranceText: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: c.textMuted,
-    flex: 1,
   },
   actionBar: {
     flexDirection: 'row',
