@@ -39,7 +39,7 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
               onPress={() => onPress(opportunity)}
               hitSlop={6}
             >
-              <Ionicons name="flash" size={11} color="#0284C7" />
+              <Ionicons name="flash" size={11} color={colors.accent} />
               <Text style={styles.radarPillText}>Call Alert</Text>
             </Pressable>
           )}
@@ -79,7 +79,7 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
 
         {(opportunity.estimatedEarnings != null || opportunity.minBudget != null || opportunity.maxBudget != null) && (
           <View style={styles.metaRow}>
-            <Ionicons name="cash-outline" size={14} color="#059669" />
+            <Ionicons name="cash-outline" size={14} color={colors.primary} />
             <Text style={styles.budgetText}>
               {opportunity.estimatedEarnings != null
                 ? `${opportunity.currency || 'RWF'} ${opportunity.estimatedEarnings.toLocaleString()} (Est. Payout)`
@@ -89,7 +89,7 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
             </Text>
             {opportunity.escrowGuaranteed && (
               <View style={styles.escrowBadge}>
-                <Ionicons name="shield-checkmark" size={11} color="#059669" />
+                <Ionicons name="shield-checkmark" size={11} color={colors.primary} />
                 <Text style={styles.escrowBadgeText}>Escrow Protected</Text>
               </View>
             )}
@@ -101,7 +101,7 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
       {opportunity.instructions ? (
         <View style={styles.instructionsBox}>
           <View style={styles.instructionsHeader}>
-            <Ionicons name="document-text-outline" size={13} color="#083A85" />
+            <Ionicons name="document-text-outline" size={13} color={colors.primary} />
             <Text style={styles.instructionsTitle}>Client Brief / Notes:</Text>
           </View>
           <Text style={styles.instructionsText}>{opportunity.instructions}</Text>
@@ -114,7 +114,7 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
           <Text style={styles.matchReasonsTitle}>Why you match:</Text>
           {opportunity.matchReasons.map((reason, idx) => (
             <View key={idx} style={styles.reasonRow}>
-              <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
+              <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
               <Text style={styles.reasonText}>{reason}</Text>
             </View>
           ))}
@@ -125,7 +125,7 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
       <View style={styles.actionsRow}>
         {isApproved ? (
           <View style={styles.statusBoxApproved}>
-            <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
             <Text style={styles.statusTextApproved}>Approved — Waiting for client selection</Text>
           </View>
         ) : isRejected ? (
@@ -233,23 +233,23 @@ const useStyles = makeStyles((c) => ({
   budgetText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
-    color: '#059669',
+    color: c.primary,
   },
   escrowBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: c.tint,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(8, 58, 133, 0.2)',
   },
   escrowBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 10,
-    color: '#059669',
+    color: c.primary,
   },
   instructionsBox: {
     backgroundColor: 'rgba(8, 58, 133, 0.05)',
@@ -348,13 +348,16 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: spacing.sm,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: c.tint,
     borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(8, 58, 133, 0.18)',
   },
   statusTextApproved: {
+    fontFamily: fonts.bold,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: '#15803D',
+    color: c.primary,
   },
   statusBoxRejected: {
     flex: 1,
@@ -374,16 +377,16 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#E0F2FE',
+    backgroundColor: c.tintAccent,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: '#BAE6FD',
+    borderColor: 'rgba(242, 12, 143, 0.25)',
   },
   radarPillText: {
     fontFamily: fonts.bold,
     fontSize: 10,
-    color: '#0284C7',
+    color: c.accent,
   },
 }));
