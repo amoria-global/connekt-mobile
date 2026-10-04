@@ -589,7 +589,6 @@ export function OwnerEventsDashboard({
         visible={bookingModeOpen}
         onClose={() => setBookingModeOpen(false)}
         onSelectDirect={() => router.push('/event/new' as Href)}
-        onSelectHybrid={() => router.push('/event/hybrid-wizard' as Href)}
       />
     </View>
   );
