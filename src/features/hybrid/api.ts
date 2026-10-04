@@ -229,7 +229,7 @@ export async function createMatchRequest(
     const matchPath = `/match/request?eventId=${encodeURIComponent(eventId)}`;
     let res: any;
     try {
-      res = await api.post<ApiEnvelope<MatchRequestResult>>(matchPath, payload);
+      res = await api.post<ApiEnvelope<MatchRequestResult>>(matchPath, { eventId, ...payload });
     } catch {
       res = await api.post<ApiEnvelope<MatchRequestResult>>(
         `/events/${encodeURIComponent(eventId)}/match-request`,
@@ -436,6 +436,7 @@ export async function selectPhotographer(
     res = await api.post<ApiEnvelope<SelectPhotographerResult> & { error?: string }>(
       matchPath,
       {
+        eventId,
         candidateId: payload.candidateId,
         photographerId: payload.photographerId,
         packageId: payload.packageId,
@@ -470,9 +471,15 @@ export async function selectPhotographer(
  * 7.0 Direct-to-Hybrid rescue hook: converts a declined direct booking event into a hybrid match brief.
  */
 export async function convertToHybridRescue(eventId: string): Promise<ConvertToHybridRescueResult> {
-  const res = await api.post<ApiEnvelope<ConvertToHybridRescueResult>>(
-    `/events/${encodeURIComponent(eventId)}/convert-to-hybrid`,
-  );
+  const matchPath = `/match/convert/${encodeURIComponent(eventId)}`;
+  let res: any;
+  try {
+    res = await api.post<ApiEnvelope<ConvertToHybridRescueResult>>(matchPath);
+  } catch {
+    res = await api.post<ApiEnvelope<ConvertToHybridRescueResult>>(
+      `/events/${encodeURIComponent(eventId)}/convert-to-hybrid`,
+    );
+  }
   assertOk(res, 'Could not convert event to hybrid match.');
   return res.data!;
 }
