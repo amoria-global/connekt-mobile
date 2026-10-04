@@ -168,13 +168,15 @@ export function IncomingOpportunityAlertModal({
   const formattedCountdown = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 
   const budgetDisplay =
-    opportunity.minBudget != null && opportunity.maxBudget != null
-      ? `${formatPrice(opportunity.minBudget, opportunity.currency)} – ${formatPrice(opportunity.maxBudget, opportunity.currency)}`
-      : opportunity.maxBudget != null
-        ? formatPrice(opportunity.maxBudget, opportunity.currency)
-        : opportunity.minBudget != null
-          ? formatPrice(opportunity.minBudget, opportunity.currency)
-          : 'Competitive Rate';
+    opportunity.estimatedEarnings != null
+      ? `${opportunity.currency || 'RWF'} ${opportunity.estimatedEarnings.toLocaleString()}`
+      : opportunity.minBudget != null && opportunity.maxBudget != null
+        ? `${formatPrice(opportunity.minBudget, opportunity.currency)} – ${formatPrice(opportunity.maxBudget, opportunity.currency)}`
+        : opportunity.maxBudget != null
+          ? formatPrice(opportunity.maxBudget, opportunity.currency)
+          : opportunity.minBudget != null
+            ? formatPrice(opportunity.minBudget, opportunity.currency)
+            : 'Competitive Rate';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
@@ -271,6 +273,12 @@ export function IncomingOpportunityAlertModal({
                 </View>
               )}
               <Text style={styles.eventTitle}>{opportunity.eventTitle}</Text>
+              {opportunity.clientName ? (
+                <View style={styles.clientBadge}>
+                  <Ionicons name="person-circle-outline" size={13} color="#083A85" />
+                  <Text style={styles.clientBadgeText}>Client: {opportunity.clientName}</Text>
+                </View>
+              ) : null}
               <Text style={styles.subtitle}>
                 You have been selected as a top verified candidate for this shoot.
               </Text>
@@ -281,14 +289,31 @@ export function IncomingOpportunityAlertModal({
               <View style={styles.earningsHeader}>
                 <Ionicons name="cash-outline" size={16} color="#10B981" />
                 <Text style={styles.earningsLabel}>ESTIMATED PAYOUT</Text>
+                {opportunity.escrowGuaranteed && (
+                  <View style={styles.escrowBadge}>
+                    <Ionicons name="shield-checkmark" size={10} color="#059669" />
+                    <Text style={styles.escrowBadgeText}>100% ESCROW</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.earningsValue}>{budgetDisplay}</Text>
               <Text style={styles.earningsNote}>Escrow locked upon client confirmation</Text>
             </View>
 
+            {/* Client Instructions Callout if provided */}
+            {opportunity.instructions ? (
+              <View style={styles.instructionsCard}>
+                <View style={styles.instructionsHeader}>
+                  <Ionicons name="document-text-outline" size={14} color="#083A85" />
+                  <Text style={styles.instructionsTitle}>CLIENT SPECIAL INSTRUCTIONS</Text>
+                </View>
+                <Text style={styles.instructionsText}>{opportunity.instructions}</Text>
+              </View>
+            ) : null}
+
             {/* Key Shoot Metrics (Distance, Time, Date) */}
             <View style={styles.metricsGrid}>
-              {/* Distance */}
+              {/* Distance & Location */}
               <View style={styles.metricCard}>
                 <View style={styles.metricIconWrap}>
                   <Ionicons name="navigate" size={18} color="#3B82F6" />
@@ -297,7 +322,7 @@ export function IncomingOpportunityAlertModal({
                   {opportunity.distanceKm != null ? `${opportunity.distanceKm.toFixed(1)} km` : 'Near you'}
                 </Text>
                 <Text style={styles.metricLabel} numberOfLines={1}>
-                  {opportunity.venue || opportunity.city || 'Location'}
+                  {opportunity.eventAddress || opportunity.venue || opportunity.eventCity || opportunity.city || 'Location'}
                 </Text>
               </View>
 
@@ -563,6 +588,66 @@ const useStyles = makeStyles((c) => ({
     fontFamily: fonts.regular,
     fontSize: 10.5,
     color: '#6EE7B7',
+  },
+  clientBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  clientBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: '#CBD5E1',
+  },
+  escrowBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    marginLeft: 4,
+  },
+  escrowBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 8.5,
+    color: '#34D399',
+    letterSpacing: 0.5,
+  },
+  instructionsCard: {
+    width: '100%',
+    backgroundColor: 'rgba(8, 58, 133, 0.18)',
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(8, 58, 133, 0.45)',
+    padding: spacing.md,
+    gap: 5,
+  },
+  instructionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  instructionsTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: '#93C5FD',
+    letterSpacing: 0.6,
+  },
+  instructionsText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: '#E2E8F0',
+    lineHeight: 18,
   },
   metricsGrid: {
     flexDirection: 'row',

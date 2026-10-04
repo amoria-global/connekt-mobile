@@ -16,6 +16,34 @@ const TIER_CONFIG: Record<
   RecommendationTier,
   { label: string; icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string; border: string }
 > = {
+  TOP_MATCH: {
+    label: 'TOP MATCH',
+    icon: 'sparkles',
+    bg: 'rgba(16, 185, 129, 0.12)',
+    fg: '#059669',
+    border: 'rgba(16, 185, 129, 0.3)',
+  },
+  STRONG_MATCH: {
+    label: 'STRONG MATCH',
+    icon: 'star',
+    bg: 'rgba(8, 58, 133, 0.12)',
+    fg: '#083A85',
+    border: 'rgba(8, 58, 133, 0.3)',
+  },
+  GOOD_MATCH: {
+    label: 'GOOD MATCH',
+    icon: 'thumbs-up',
+    bg: 'rgba(245, 158, 11, 0.12)',
+    fg: '#D97706',
+    border: 'rgba(245, 158, 11, 0.3)',
+  },
+  ELIGIBLE: {
+    label: 'ELIGIBLE',
+    icon: 'checkmark-circle-outline',
+    bg: 'rgba(100, 116, 139, 0.1)',
+    fg: '#475569',
+    border: 'rgba(100, 116, 139, 0.25)',
+  },
   HIGH: {
     label: 'TOP MATCH',
     icon: 'sparkles',
@@ -43,6 +71,8 @@ export function CandidateCard({ candidate, onSelect, onViewProfile, selecting }:
   const { colors, isDark } = useTheme();
   const styles = useStyles();
   const tier = TIER_CONFIG[candidate.recommendationTier] || TIER_CONFIG.LOW;
+  const rankLabel = candidate.rank ? `#${candidate.rank} ${tier.label}` : tier.label;
+  const featuredPackage = candidate.packages?.[0];
 
   return (
     <View style={styles.card}>
@@ -69,7 +99,7 @@ export function CandidateCard({ candidate, onSelect, onViewProfile, selecting }:
             </Text>
             <View style={[styles.tierBadge, { backgroundColor: tier.bg, borderColor: tier.border }]}>
               <Ionicons name={tier.icon} size={10} color={tier.fg} style={{ marginRight: 3 }} />
-              <Text style={[styles.tierText, { color: tier.fg }]}>{tier.label}</Text>
+              <Text style={[styles.tierText, { color: tier.fg }]}>{rankLabel}</Text>
             </View>
           </View>
 
@@ -107,12 +137,30 @@ export function CandidateCard({ candidate, onSelect, onViewProfile, selecting }:
         </View>
       </View>
 
+      {/* Portfolio Preview Strip if available */}
+      {Array.isArray(candidate.portfolioImages) && candidate.portfolioImages.length > 0 && (
+        <View style={styles.portfolioRow}>
+          {candidate.portfolioImages.slice(0, 3).map((imgUri, idx) => (
+            <Image
+              key={`${candidate.candidateId}-thumb-${idx}`}
+              source={{ uri: imgUri }}
+              style={styles.portfolioThumb}
+              contentFit="cover"
+            />
+          ))}
+        </View>
+      )}
+
       {/* Details Box: Price Range & Social */}
       <View style={styles.detailsRow}>
         <View style={styles.priceContainer}>
-          <Text style={styles.detailLabel}>TYPICAL RATE</Text>
+          <Text style={styles.detailLabel}>
+            {featuredPackage ? featuredPackage.name.toUpperCase() : 'TYPICAL RATE'}
+          </Text>
           <Text style={styles.priceValue}>
-            {candidate.typicalPriceRange || 'Custom Quote'}
+            {featuredPackage
+              ? `${featuredPackage.currency} ${featuredPackage.price.toLocaleString()}`
+              : candidate.typicalPriceRange || 'Custom Quote'}
           </Text>
         </View>
 
@@ -308,6 +356,17 @@ const useStyles = makeStyles((c) => ({
     fontFamily: fonts.regular,
     fontSize: 11,
     color: c.textMuted,
+  },
+  portfolioRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: -2,
+  },
+  portfolioThumb: {
+    flex: 1,
+    height: 72,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceMuted,
   },
   detailsRow: {
     flexDirection: 'row',

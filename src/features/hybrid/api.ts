@@ -11,6 +11,7 @@ import type {
   MatchRequestPayload,
   MatchRequestResult,
   PhotographerOpportunity,
+  CandidateSummary,
   CandidatesResponse,
   SelectPhotographerPayload,
   SelectPhotographerResult,
@@ -34,17 +35,23 @@ function mapOpportunity(raw: any): PhotographerOpportunity {
     matchRequestId: String(raw?.matchRequestId ?? raw?.requestId ?? ''),
     eventId: String(raw?.eventId ?? raw?.event?.id ?? ''),
     eventTitle: String(raw?.eventTitle ?? raw?.event?.title ?? raw?.title ?? 'Event Opportunity'),
+    clientName: raw?.clientName ?? raw?.client?.name ?? raw?.customerName,
     eventType: raw?.eventType ?? raw?.event?.eventType ?? raw?.category,
     eventDate: String(raw?.eventDate ?? raw?.event?.eventDate ?? raw?.date ?? ''),
     startTime: String(raw?.startTime ?? raw?.event?.startTime ?? ''),
     endTime: raw?.endTime ?? raw?.event?.endTime,
     durationHours: raw?.durationHours ?? raw?.duration,
-    city: raw?.city ?? raw?.event?.city ?? (typeof raw?.location === 'string' ? raw.location.split(',').pop()?.trim() : undefined),
-    venue: raw?.venue ?? raw?.event?.venue ?? raw?.location,
+    city: raw?.eventCity ?? raw?.city ?? raw?.event?.city ?? (typeof raw?.location === 'string' ? raw.location.split(',').pop()?.trim() : undefined),
+    eventCity: raw?.eventCity ?? raw?.city,
+    venue: raw?.eventAddress ?? raw?.venue ?? raw?.event?.venue ?? raw?.location,
+    eventAddress: raw?.eventAddress ?? raw?.venue,
     distanceKm: typeof raw?.distanceKm === 'number' ? raw.distanceKm : typeof raw?.distance === 'number' ? raw.distance : undefined,
-    minBudget: raw?.minBudget ?? raw?.budgetMin ?? raw?.price,
-    maxBudget: raw?.maxBudget ?? raw?.budgetMax ?? raw?.price,
+    minBudget: raw?.estimatedEarnings ?? raw?.minBudget ?? raw?.budgetMin ?? raw?.price,
+    maxBudget: raw?.estimatedEarnings ?? raw?.maxBudget ?? raw?.budgetMax ?? raw?.price,
+    estimatedEarnings: typeof raw?.estimatedEarnings === 'number' ? raw.estimatedEarnings : undefined,
     currency: raw?.currency ?? raw?.currencyCode ?? 'RWF',
+    escrowGuaranteed: raw?.escrowGuaranteed ?? true,
+    instructions: raw?.instructions,
     matchReasons: Array.isArray(raw?.matchReasons) ? raw.matchReasons : undefined,
     expiresAt: raw?.expiresAt ?? raw?.expirationTime,
     status: raw?.status ?? 'INVITED',
@@ -142,7 +149,15 @@ export async function getMatchPreview(payload: MatchPreviewPayload): Promise<Mat
       longitude: payload.longitude ?? 30.0619,
     };
 
-    const res = await api.post<any>('/events/match-preview', enrichedPayload);
+    // Primary endpoint per backend guide: POST /api/remote/match/preview
+    const matchPath = '/match/preview';
+    let res: any;
+    try {
+      res = await api.post<any>(matchPath, enrichedPayload);
+    } catch {
+      // Fallback endpoint
+      res = await api.post<any>('/events/match-preview', enrichedPayload);
+    }
 
     if (res && res.action !== 0) {
       const raw = res?.data !== undefined ? res.data : res;
@@ -157,27 +172,37 @@ export async function getMatchPreview(payload: MatchPreviewPayload): Promise<Mat
         return { matchCount: raw.length };
       }
 
-      // 3. Object with count / matchCount / total / matches / content (Spring Page)
+      // 3. Object with totalMatchCount / matchCount / total / matches / content (Spring Page)
       if (raw && typeof raw === 'object') {
         const count =
-          typeof raw.matchCount === 'number'
-            ? raw.matchCount
-            : typeof raw.count === 'number'
-              ? raw.count
-              : typeof raw.total === 'number'
-                ? raw.total
-                : typeof raw.totalElements === 'number'
-                  ? raw.totalElements
-                  : Array.isArray(raw.content)
-                    ? raw.content.length
-                    : Array.isArray(raw.matches)
-                      ? raw.matches.length
-                      : typeof raw.matchedCount === 'number'
-                        ? raw.matchedCount
-                        : null;
+          typeof raw.totalMatchCount === 'number'
+            ? raw.totalMatchCount
+            : typeof raw.matchCount === 'number'
+              ? raw.matchCount
+              : typeof raw.availableOnDateCount === 'number'
+                ? raw.availableOnDateCount
+                : typeof raw.count === 'number'
+                  ? raw.count
+                  : typeof raw.total === 'number'
+                    ? raw.total
+                    : typeof raw.totalElements === 'number'
+                      ? raw.totalElements
+                      : Array.isArray(raw.content)
+                        ? raw.content.length
+                        : Array.isArray(raw.matches)
+                          ? raw.matches.length
+                          : typeof raw.matchedCount === 'number'
+                            ? raw.matchedCount
+                            : null;
 
         if (count !== null && count > 0) {
-          return { matchCount: count, breakdown: raw.breakdown };
+          const breakdown = raw.breakdown ?? {
+            availableOnDate: raw.availableOnDateCount,
+            withinBudget: raw.withinBudgetCount,
+            typeMatched: raw.typeMatchedCount,
+            instagramEnriched: raw.instagramEnrichedCount,
+          };
+          return { matchCount: count, breakdown };
         }
       }
     }
@@ -191,6 +216,7 @@ export async function getMatchPreview(payload: MatchPreviewPayload): Promise<Mat
 
 /**
  * 4.2 Publish event brief and trigger matching / candidate invitations.
+ * Endpoint: POST /api/remote/match/request?eventId={eventId}
  */
 export async function createMatchRequest(
   eventId: string,
@@ -200,10 +226,16 @@ export async function createMatchRequest(
   void relayPost('/opportunities', { eventId, ...payload });
 
   try {
-    const res = await api.post<ApiEnvelope<MatchRequestResult>>(
-      `/events/${encodeURIComponent(eventId)}/match-request`,
-      payload,
-    );
+    const matchPath = `/match/request?eventId=${encodeURIComponent(eventId)}`;
+    let res: any;
+    try {
+      res = await api.post<ApiEnvelope<MatchRequestResult>>(matchPath, payload);
+    } catch {
+      res = await api.post<ApiEnvelope<MatchRequestResult>>(
+        `/events/${encodeURIComponent(eventId)}/match-request`,
+        payload,
+      );
+    }
     if (res?.action === 1 && res.data) return res.data;
   } catch (err) {
     console.warn('[createMatchRequest] Remote call failed, using prototype broadcast:', err);
@@ -211,8 +243,8 @@ export async function createMatchRequest(
 
   return {
     matchRequestId: 'mr-' + Date.now(),
-    status: 'INVITED',
-    invitedCount: 12,
+    status: 'PUBLISHED_PENDING_ASSIGNMENT',
+    invitedCount: 10,
     expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
   };
 }
@@ -234,24 +266,45 @@ function parseOpportunities(res: any): PhotographerOpportunity[] {
   return items.map(mapOpportunity).filter((o) => o.candidateId || o.eventId);
 }
 
+function mapCandidate(c: any): CandidateSummary {
+  return {
+    candidateId: String(c.candidateId ?? c.id ?? ''),
+    photographerId: String(c.photographerId ?? c.userId ?? ''),
+    name: c.photographerName || c.name || 'Photographer',
+    photographerName: c.photographerName,
+    avatar: c.profilePictureUrl || c.avatar,
+    profilePictureUrl: c.profilePictureUrl,
+    city: c.city,
+    photographerType: c.photographerType ?? (c.studio ? 'STUDIO' : 'FREELANCER'),
+    recommendationTier: c.recommendationTier || 'TOP_MATCH',
+    compositeScore: typeof c.compositeScore === 'number' ? c.compositeScore : 90,
+    rank: typeof c.rank === 'number' ? c.rank : undefined,
+    distanceKm: typeof c.distanceKm === 'number' ? c.distanceKm : undefined,
+    reviewCount: typeof c.reviewCount === 'number' ? c.reviewCount : undefined,
+    rating: typeof c.rating === 'number' ? c.rating : undefined,
+    typicalPriceRange: c.typicalPriceRange,
+    portfolioImages: Array.isArray(c.portfolioImages) ? c.portfolioImages : undefined,
+    instagram: c.instagram,
+    packages: Array.isArray(c.packages) ? c.packages : [],
+  };
+}
+
 /**
  * 4.3 Photographer opportunities feed.
- * Handles arrays, Spring Boot Page ({ content: [...] }), and envelopes.
+ * Endpoint: GET /api/remote/match/opportunities?status=PENDING_RESPONSE
  */
 export async function listOpportunities(status?: string): Promise<PhotographerOpportunity[]> {
+  const queryStatus = status || 'PENDING_RESPONSE';
   let opps: PhotographerOpportunity[] = [];
   try {
-    if (status) {
-      const res = await api.get<any>(
-        `/photographer/opportunities?status=${encodeURIComponent(status)}`,
-      );
-      opps = parseOpportunities(res);
-    } else {
-      const res = await api.get<any>(
-        '/photographer/opportunities',
-      );
-      opps = parseOpportunities(res);
+    const matchPath = `/match/opportunities?status=${encodeURIComponent(queryStatus)}`;
+    let res: any;
+    try {
+      res = await api.get<any>(matchPath);
+    } catch {
+      res = await api.get<any>(`/photographer/opportunities?status=${encodeURIComponent(queryStatus)}`);
     }
+    opps = parseOpportunities(res);
   } catch (err) {
     console.warn('[listOpportunities] Remote check:', err);
   }
@@ -270,36 +323,51 @@ export async function listOpportunities(status?: string): Promise<PhotographerOp
 
 /**
  * 4.4 Photographer approves opportunity (adds them to client candidate list).
+ * Endpoint: POST /api/remote/match/candidates/{candidateId}/approve
  */
 export async function approveOpportunity(candidateId: string): Promise<void> {
   void relayPost(`/opportunities/${encodeURIComponent(candidateId)}/approve`);
   try {
-    const res = await api.post<{ action?: number; message?: string }>(
-      `/opportunities/${encodeURIComponent(candidateId)}/approve`,
-    );
+    const matchPath = `/match/candidates/${encodeURIComponent(candidateId)}/approve`;
+    let res: any;
+    try {
+      res = await api.post<{ action?: number; message?: string }>(matchPath);
+    } catch {
+      res = await api.post<{ action?: number; message?: string }>(
+        `/opportunities/${encodeURIComponent(candidateId)}/approve`,
+      );
+    }
     if (res?.action === 1) return;
   } catch (err) {
-    console.warn('[approveOpportunity] Remote endpoint pending deployment:', err);
+    console.warn('[approveOpportunity] Remote endpoint call:', err);
   }
 }
 
 /**
  * 4.4 Photographer rejects opportunity (triggers queue backfill).
+ * Endpoint: POST /api/remote/match/candidates/{candidateId}/reject
  */
 export async function rejectOpportunity(candidateId: string): Promise<void> {
   void relayPost(`/opportunities/${encodeURIComponent(candidateId)}/reject`);
   try {
-    const res = await api.post<{ action?: number; message?: string }>(
-      `/opportunities/${encodeURIComponent(candidateId)}/reject`,
-    );
+    const matchPath = `/match/candidates/${encodeURIComponent(candidateId)}/reject`;
+    let res: any;
+    try {
+      res = await api.post<{ action?: number; message?: string }>(matchPath);
+    } catch {
+      res = await api.post<{ action?: number; message?: string }>(
+        `/opportunities/${encodeURIComponent(candidateId)}/reject`,
+      );
+    }
     if (res?.action === 1) return;
   } catch (err) {
-    console.warn('[rejectOpportunity] Remote endpoint pending deployment:', err);
+    console.warn('[rejectOpportunity] Remote endpoint call:', err);
   }
 }
 
 /**
  * 4.5 Client retrieves approved candidate shortlist ranked by recommendation tier.
+ * Endpoint: GET /api/remote/events/{eventId}/candidates
  */
 export async function listEventCandidates(eventId: string): Promise<CandidatesResponse> {
   try {
@@ -310,14 +378,17 @@ export async function listEventCandidates(eventId: string): Promise<CandidatesRe
 
     if (data && typeof data === 'object') {
       if (Array.isArray(data.candidates) && data.candidates.length > 0) {
-        return data as CandidatesResponse;
+        return {
+          ...data,
+          candidates: data.candidates.map(mapCandidate),
+        };
       }
       if (Array.isArray(data.content) && data.content.length > 0) {
         return {
           eventId,
           status: data.status || 'MATCHING',
           totalApproved: data.content.length,
-          candidates: data.content,
+          candidates: data.content.map(mapCandidate),
         };
       }
       if (Array.isArray(data) && data.length > 0) {
@@ -325,7 +396,7 @@ export async function listEventCandidates(eventId: string): Promise<CandidatesRe
           eventId,
           status: 'MATCHING',
           totalApproved: data.length,
-          candidates: data,
+          candidates: data.map(mapCandidate),
         };
       }
     }
@@ -336,7 +407,10 @@ export async function listEventCandidates(eventId: string): Promise<CandidatesRe
   // Check prototype relay
   const relayRes = await relayGet(`/events/${encodeURIComponent(eventId)}/candidates`);
   if (Array.isArray(relayRes?.data?.candidates) && relayRes.data.candidates.length > 0) {
-    return relayRes.data;
+    return {
+      ...relayRes.data,
+      candidates: relayRes.data.candidates.map(mapCandidate),
+    };
   }
 
   return {
@@ -349,16 +423,32 @@ export async function listEventCandidates(eventId: string): Promise<CandidatesRe
 
 /**
  * 4.6 Client selects a candidate with concurrency protection and locks booking.
+ * Endpoint: POST /api/remote/match/select
  * Returns declarationId to launch existing escrow checkout.
  */
 export async function selectPhotographer(
   eventId: string,
   payload: SelectPhotographerPayload,
 ): Promise<SelectPhotographerResult> {
-  const res = await api.post<ApiEnvelope<SelectPhotographerResult> & { error?: string }>(
-    `/events/${encodeURIComponent(eventId)}/select-photographer`,
-    payload,
-  );
+  const matchPath = '/match/select';
+  let res: any;
+  try {
+    res = await api.post<ApiEnvelope<SelectPhotographerResult> & { error?: string }>(
+      matchPath,
+      {
+        candidateId: payload.candidateId,
+        photographerId: payload.photographerId,
+        packageId: payload.packageId,
+        escrowPercentage: payload.escrowPercentage ?? 50,
+        notes: payload.notes,
+      },
+    );
+  } catch {
+    res = await api.post<ApiEnvelope<SelectPhotographerResult> & { error?: string }>(
+      `/events/${encodeURIComponent(eventId)}/select-photographer`,
+      payload,
+    );
+  }
 
   if (res?.action !== 1) {
     if (res?.error === 'NO_LONGER_AVAILABLE') {

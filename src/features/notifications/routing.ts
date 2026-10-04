@@ -11,13 +11,35 @@ export type NotificationRouteInput = {
   /** Push payloads may carry an explicit eventId; used before referenceId. */
   eventId?: string;
   link?: string;
+  deepLink?: string;
 };
 
 export function notificationTarget(n: NotificationRouteInput): Href {
-  // Album collaboration notifications name their screen in the link, and
-  // their referenceId is a dedup key rather than an album id.
-  const collab = collabRouteFromLink(n.link);
-  if (collab) return collab as Href;
+  const targetLink = n.deepLink || n.link;
+
+  if (targetLink) {
+    // Album collaboration notifications name their screen in the link, and
+    // their referenceId is a dedup key rather than an album id.
+    const collab = collabRouteFromLink(targetLink);
+    if (collab) return collab as Href;
+
+    // Master guide deep link routes:
+    if (targetLink === '/opportunities' || targetLink.startsWith('/opportunities')) {
+      return '/bookings' as Href;
+    }
+    const candidatesMatch = targetLink.match(/^\/events\/([^/]+)\/candidates/);
+    if (candidatesMatch) {
+      return `/event/candidates?id=${candidatesMatch[1]}` as Href;
+    }
+    const bookingMatch = targetLink.match(/^\/bookings\/([^/]+)/);
+    if (bookingMatch) {
+      return `/event/${bookingMatch[1]}` as Href;
+    }
+    const eventMatch = targetLink.match(/^\/events\/([^/]+)/);
+    if (eventMatch) {
+      return `/event/${eventMatch[1]}` as Href;
+    }
+  }
 
   const type = (n.type ?? '').toUpperCase();
   const ref = n.eventId || n.referenceId;
@@ -28,6 +50,10 @@ export function notificationTarget(n: NotificationRouteInput): Href {
       case 'EVENT':
       case 'ASSIGNMENT':
         return `/event/${ref}` as Href;
+      case 'CANDIDATE':
+      case 'CANDIDATES':
+      case 'PHOTOGRAPHER_AVAILABLE':
+        return `/event/candidates?id=${ref}` as Href;
       case 'OPPORTUNITY':
       case 'HYBRID_OPPORTUNITY':
       case 'HYBRID_MATCH':
