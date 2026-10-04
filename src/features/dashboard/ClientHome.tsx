@@ -1342,14 +1342,9 @@ export function ClientHome() {
             accessibilityLabel="Book Photographer"
           >
             <View style={styles.bentoTopRow}>
-              <LinearGradient
-                colors={gradients.brand}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.bentoHeroIconBox}
-              >
+              <View style={styles.bentoHeroIconBox}>
                 <Ionicons name="camera" size={19} color="#FFFFFF" />
-              </LinearGradient>
+              </View>
               <View
                 style={[
                   styles.bentoBadge,
@@ -2724,6 +2719,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 38,
     height: 38,
     borderRadius: 12,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...e(2),
