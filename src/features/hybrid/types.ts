@@ -33,6 +33,7 @@ export type MatchPreviewBreakdown = {
 export type MatchPreviewResult = {
   matchCount: number;
   breakdown?: MatchPreviewBreakdown;
+  debugError?: string;
 };
 
 export type MatchRequestPayload = {
