@@ -10,12 +10,13 @@
  * All inputs use real user data with no dummy/hardcoded pre-fills.
  * Amount fields automatically format with standard comma thousands separators (e.g. 1,000,000).
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   LayoutAnimation,
   Modal,
@@ -59,15 +60,46 @@ const STEPS = [
   { id: 3, title: 'Review & Post' },
 ];
 
-const POPULAR_CATEGORIES = [
-  { id: 'Wedding', label: 'Wedding', icon: 'heart-outline' },
-  { id: 'Birthday', label: 'Birthday', icon: 'gift-outline' },
-  { id: 'Corporate', label: 'Corporate', icon: 'briefcase-outline' },
-  { id: 'Celebration', label: 'Celebration', icon: 'sparkles-outline' },
-  { id: 'Portrait', label: 'Portrait', icon: 'person-outline' },
-  { id: 'Fashion', label: 'Fashion', icon: 'shirt-outline' },
-  { id: 'Concert', label: 'Concert / Festival', icon: 'musical-notes-outline' },
+export type CategorySuggestionItem = {
+  id: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  keywords?: string[];
+  popular?: boolean;
+};
+
+export const CATEGORY_SUGGESTIONS: CategorySuggestionItem[] = [
+  { id: 'Wedding', label: 'Wedding', icon: 'heart-outline', keywords: ['ceremony', 'marriage', 'bride', 'groom', 'reception', 'nuptials'], popular: true },
+  { id: 'Birthday', label: 'Birthday Party', icon: 'gift-outline', keywords: ['anniversary', 'celebration', 'party', 'kids', 'milestone'], popular: true },
+  { id: 'Corporate', label: 'Corporate Event', icon: 'briefcase-outline', keywords: ['conference', 'summit', 'meeting', 'company', 'annual', 'business'], popular: true },
+  { id: 'Celebration', label: 'Celebration & Gala', icon: 'sparkles-outline', keywords: ['dinner', 'reception', 'banquet', 'award', 'party'], popular: true },
+  { id: 'Portrait', label: 'Portrait & Headshots', icon: 'person-outline', keywords: ['headshot', 'studio', 'personal', 'model', 'profile'], popular: true },
+  { id: 'Fashion', label: 'Fashion & Runway', icon: 'shirt-outline', keywords: ['lookbook', 'editorial', 'model', 'runway', 'apparel'], popular: true },
+  { id: 'Concert', label: 'Concert & Music Festival', icon: 'musical-notes-outline', keywords: ['festival', 'band', 'live', 'dj', 'gig', 'performance'], popular: true },
+  { id: 'BabyShower', label: 'Baby Shower & Maternity', icon: 'happy-outline', keywords: ['baby', 'gender reveal', 'maternity', 'pregnancy', 'newborn'] },
+  { id: 'Graduation', label: 'Graduation & Academic', icon: 'school-outline', keywords: ['university', 'commencement', 'diploma', 'college', 'school'] },
+  { id: 'Engagement', label: 'Engagement & Proposal', icon: 'diamond-outline', keywords: ['proposal', 'fiance', 'ring', 'couple', 'love'] },
+  { id: 'Product', label: 'Product & Commercial', icon: 'cube-outline', keywords: ['advertising', 'brand', 'ecommerce', 'catalog', 'merchandise'] },
+  { id: 'Sports', label: 'Sports & Athletics', icon: 'fitness-outline', keywords: ['fitness', 'workout', 'tournament', 'football', 'basketball', 'marathon'] },
+  { id: 'Family', label: 'Family & Reunion', icon: 'people-outline', keywords: ['family', 'reunion', 'relatives', 'children', 'gathering'] },
+  { id: 'Food', label: 'Food & Culinary', icon: 'restaurant-outline', keywords: ['restaurant', 'chef', 'dishes', 'menu', 'cafe', 'culinary'] },
+  { id: 'RealEstate', label: 'Real Estate & Architecture', icon: 'business-outline', keywords: ['house', 'property', 'hotel', 'villa', 'airbnb', 'architecture'] },
+  { id: 'Nightlife', label: 'Nightlife & Club Event', icon: 'wine-outline', keywords: ['party', 'club', 'lounge', 'nightclub', 'bar', 'evening'] },
+  { id: 'Traditional', label: 'Traditional & Cultural', icon: 'flame-outline', keywords: ['gusaba', 'dowry', 'cultural', 'heritage', 'traditional'] },
+  { id: 'Documentary', label: 'Documentary & NGO', icon: 'earth-outline', keywords: ['ngo', 'community', 'outreach', 'fieldwork', 'storytelling'] },
 ];
+
+export const POPULAR_CATEGORIES = CATEGORY_SUGGESTIONS.filter((c) => c.popular);
+
+export function filterCategorySuggestions(query: string): CategorySuggestionItem[] {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return POPULAR_CATEGORIES;
+  return CATEGORY_SUGGESTIONS.filter((item) => {
+    if (item.label.toLowerCase().includes(trimmed)) return true;
+    if (item.keywords?.some((k) => k.toLowerCase().includes(trimmed))) return true;
+    return false;
+  }).slice(0, 6);
+}
 
 const SPECIALTY_OPTIONS = [
   { id: 'ANY', label: 'Any specialty' },
@@ -132,11 +164,16 @@ export function BookingModeSelector({
   // --- Step 1 State: Real Data (Zero dummy data pre-fills) ---
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
+  const [categoryFocused, setCategoryFocused] = useState(false);
   const [eventDate, setEventDate] = useState<Date | null>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [city, setCity] = useState('Kigali');
   const [venue, setVenue] = useState('');
+
+  const categorySuggestions = useMemo(() => {
+    return filterCategorySuggestions(category);
+  }, [category]);
 
   // Pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -716,46 +753,168 @@ export function BookingModeSelector({
                         </View>
                       </View>
 
-                      {/* Category Chips + Custom */}
+                      {/* Event Category with Real-time Autocomplete Suggestions */}
                       <View style={styles.fieldWrap}>
-                        <Text style={styles.fieldLabel}>EVENT CATEGORY</Text>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.categoryScroll}
-                        >
-                          {POPULAR_CATEGORIES.map((cat) => {
-                            const isSelected = category.toLowerCase() === cat.id.toLowerCase();
-                            return (
-                              <Pressable
-                                key={cat.id}
-                                onPress={() => setCategory(isSelected ? '' : cat.id)}
-                                style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-                              >
-                                <Ionicons
-                                  name={cat.icon as any}
-                                  size={13}
-                                  color={isSelected ? colors.primary : colors.textMuted}
-                                />
-                                <Text
-                                  style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
-                                >
-                                  {cat.label}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </ScrollView>
-                        <View style={[styles.inputContainer, { marginTop: 6 }]}>
-                          <Ionicons name="pricetag-outline" size={16} color={colors.textMuted} style={styles.inputIcon} />
+                        <View style={styles.fieldLabelRow}>
+                          <Text style={styles.fieldLabel}>EVENT CATEGORY</Text>
+                          {category ? (
+                            <Pressable
+                              onPress={() => {
+                                setCategory('');
+                                setCategoryFocused(false);
+                              }}
+                              hitSlop={8}
+                            >
+                              <Text style={styles.clearCategoryText}>Clear</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
+
+                        {/* Search / Type Category Input */}
+                        <View style={[styles.inputContainer, categoryFocused && styles.inputContainerFocused]}>
+                          <Ionicons
+                            name="pricetag-outline"
+                            size={18}
+                            color={categoryFocused ? colors.primary : colors.textMuted}
+                            style={styles.inputIcon}
+                          />
                           <TextInput
-                            placeholder="Enter custom category"
+                            placeholder="Type to search or enter category (e.g. Wedding...)"
                             placeholderTextColor={colors.textMuted}
                             value={category}
-                            onChangeText={setCategory}
+                            onChangeText={(text) => {
+                              setCategory(text);
+                              setCategoryFocused(true);
+                            }}
+                            onFocus={() => setCategoryFocused(true)}
                             style={styles.textInput}
+                            autoCapitalize="words"
+                            returnKeyType="done"
+                            onSubmitEditing={() => setCategoryFocused(false)}
                           />
+                          {category ? (
+                            <Pressable
+                              onPress={() => {
+                                setCategory('');
+                                setCategoryFocused(false);
+                              }}
+                              hitSlop={8}
+                              style={{ paddingRight: 4 }}
+                              accessibilityLabel="Clear category"
+                            >
+                              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                            </Pressable>
+                          ) : null}
                         </View>
+
+                        {/* Dropdown Suggestions Card when typing or focused */}
+                        {categoryFocused && category.trim().length > 0 && (
+                          <View style={styles.suggestionsCard}>
+                            <View style={styles.suggestionsHeader}>
+                              <Ionicons name="sparkles" size={11} color={colors.primary} />
+                              <Text style={styles.suggestionsHeaderText}>
+                                SUGGESTED CATEGORIES ({categorySuggestions.length})
+                              </Text>
+                            </View>
+
+                            {categorySuggestions.map((item) => {
+                              const isExact = category.toLowerCase() === item.label.toLowerCase();
+                              return (
+                                <Pressable
+                                  key={item.id}
+                                  style={({ pressed }) => [
+                                    styles.suggestionItem,
+                                    pressed && styles.suggestionItemPressed,
+                                    isExact && styles.suggestionItemActive,
+                                  ]}
+                                  onPress={() => {
+                                    setCategory(item.label);
+                                    setCategoryFocused(false);
+                                    Keyboard.dismiss();
+                                  }}
+                                >
+                                  <View style={[styles.suggestionIconWrap, isExact && styles.suggestionIconWrapActive]}>
+                                    <Ionicons
+                                      name={item.icon}
+                                      size={16}
+                                      color={isExact ? '#FFFFFF' : colors.primary}
+                                    />
+                                  </View>
+                                  <View style={styles.suggestionTextWrap}>
+                                    <Text style={[styles.suggestionLabel, isExact && styles.suggestionLabelActive]}>
+                                      {item.label}
+                                    </Text>
+                                    <Text style={styles.suggestionMatchHint}>
+                                      {item.popular ? 'Popular event type' : 'Verified category'}
+                                    </Text>
+                                  </View>
+                                  <View style={[styles.suggestionTag, isExact && styles.suggestionTagActive]}>
+                                    <Text style={[styles.suggestionTagText, isExact && styles.suggestionTagTextActive]}>
+                                      {isExact ? 'Selected' : 'Pick'}
+                                    </Text>
+                                  </View>
+                                </Pressable>
+                              );
+                            })}
+
+                            {/* Option to use custom category string if not an exact match */}
+                            {!CATEGORY_SUGGESTIONS.some(
+                              (c) => c.label.toLowerCase() === category.trim().toLowerCase(),
+                            ) && (
+                              <Pressable
+                                style={({ pressed }) => [
+                                  styles.customCategoryItem,
+                                  pressed && styles.suggestionItemPressed,
+                                ]}
+                                onPress={() => {
+                                  setCategory(category.trim());
+                                  setCategoryFocused(false);
+                                  Keyboard.dismiss();
+                                }}
+                              >
+                                <Ionicons name="checkmark-circle-outline" size={16} color={colors.primary} />
+                                <Text style={styles.customCategoryText}>
+                                  Use custom category: &quot;{category.trim()}&quot;
+                                </Text>
+                              </Pressable>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Popular Category Quick Chips (visible when not actively typing in dropdown) */}
+                        {(!categoryFocused || category.trim().length === 0) && (
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.categoryScroll}
+                            style={{ marginTop: 8 }}
+                          >
+                            {POPULAR_CATEGORIES.map((cat) => {
+                              const isSelected = category.toLowerCase() === cat.label.toLowerCase();
+                              return (
+                                <Pressable
+                                  key={cat.id}
+                                  onPress={() => {
+                                    setCategory(isSelected ? '' : cat.label);
+                                    setCategoryFocused(false);
+                                  }}
+                                  style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+                                >
+                                  <Ionicons
+                                    name={cat.icon}
+                                    size={13}
+                                    color={isSelected ? colors.primary : colors.textMuted}
+                                  />
+                                  <Text
+                                    style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
+                                  >
+                                    {cat.label}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </ScrollView>
+                        )}
                       </View>
 
                       {/* Event Date Selector Card */}
@@ -1617,6 +1776,119 @@ const useStyles = makeStyles((c, e) => ({
   categoryChipTextSelected: {
     fontFamily: fonts.bold,
     color: c.primary,
+  },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  clearCategoryText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: c.primary,
+  },
+  inputContainerFocused: {
+    borderColor: c.primary,
+    borderWidth: 1.5,
+  },
+  suggestionsCard: {
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  suggestionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: c.surfaceMuted,
+    borderBottomWidth: 1,
+    borderBottomColor: c.borderSoft,
+  },
+  suggestionsHeaderText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: c.primary,
+    letterSpacing: 0.6,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: c.borderSoft,
+    gap: 10,
+    backgroundColor: c.surface,
+  },
+  suggestionItemPressed: {
+    backgroundColor: c.surfaceMuted,
+  },
+  suggestionItemActive: {
+    backgroundColor: c.tint,
+  },
+  suggestionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionIconWrapActive: {
+    backgroundColor: c.primary,
+  },
+  suggestionTextWrap: {
+    flex: 1,
+  },
+  suggestionLabel: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.sm,
+    color: c.text,
+  },
+  suggestionLabelActive: {
+    color: c.primary,
+  },
+  suggestionMatchHint: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    color: c.textMuted,
+    marginTop: 1,
+  },
+  suggestionTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
+  },
+  suggestionTagActive: {
+    backgroundColor: c.primary,
+  },
+  suggestionTagText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: c.textSoft,
+  },
+  suggestionTagTextActive: {
+    color: '#FFFFFF',
+  },
+  customCategoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: c.surfaceMuted,
+    gap: 8,
+  },
+  customCategoryText: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.xs,
+    color: c.primary,
+    flex: 1,
   },
   dateSelectorCard: {
     flexDirection: 'row',

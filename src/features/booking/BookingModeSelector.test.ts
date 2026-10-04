@@ -18,6 +18,9 @@ import {
   BookingModeSelector,
   formatAmountWithCommas,
   parseAmountNumber,
+  CATEGORY_SUGGESTIONS,
+  POPULAR_CATEGORIES,
+  filterCategorySuggestions,
 } from './BookingModeSelector';
 
 describe('BookingModeSelector', () => {
@@ -44,6 +47,32 @@ describe('BookingModeSelector', () => {
       expect(parseAmountNumber('50,000')).toBe(50000);
       expect(parseAmountNumber('')).toBe(0);
       expect(parseAmountNumber('invalid')).toBe(0);
+    });
+  });
+
+  describe('category suggestions typeahead', () => {
+    it('returns popular categories when query is empty', () => {
+      const results = filterCategorySuggestions('');
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every((c) => c.popular)).toBe(true);
+    });
+
+    it('filters categories matching label substring', () => {
+      const results = filterCategorySuggestions('wed');
+      expect(results.some((c) => c.label === 'Wedding')).toBe(true);
+    });
+
+    it('filters categories matching keyword synonyms', () => {
+      const results = filterCategorySuggestions('bride');
+      expect(results.some((c) => c.label === 'Wedding')).toBe(true);
+
+      const birthdayResults = filterCategorySuggestions('anniversary');
+      expect(birthdayResults.some((c) => c.label === 'Birthday Party')).toBe(true);
+    });
+
+    it('returns empty array when no category or keyword matches', () => {
+      const results = filterCategorySuggestions('xyzunrealnomatch123');
+      expect(results).toEqual([]);
     });
   });
 });
