@@ -17,6 +17,8 @@ export type Stream = {
 
 export type StreamDetail = Stream & {
   playbackUrl?: string;
+  /** WebRTC (WHEP) URL, the same feed path the web uses. Absent when the backend withholds it (unpaid). */
+  whepUrl?: string;
   eventId?: string;
 };
 
@@ -133,6 +135,7 @@ export async function getStream(id: string, asCoordinator = false): Promise<Stre
     ...mapStream(d),
     playbackUrl:
       str(d.hlsManifestUrl) ?? str(d.playbackUrl) ?? str(d.hls) ?? derivedHls,
+    whepUrl: str(d.whepUrl),
     eventId: String(d.id ?? id),
     title: str(d.title) ?? 'Live stream',
     isLive: str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended',

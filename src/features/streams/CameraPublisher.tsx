@@ -150,6 +150,9 @@ function buildPublisherHtml(whipUrl: string, nativeUi: boolean): string {
 
       pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.cloudflare.com:3478'}], bundlePolicy:'max-bundle' });
       s.getTracks().forEach(function(t){ pc.addTrack(t, s); });
+      pc.addEventListener('connectionstatechange', function(){
+        if (pc && pc.connectionState === 'failed'){ setMsg('Stream connection failed.'); postError('network'); post('error'); }
+      });
       return pc.createOffer().then(function(offer){
         return pc.setLocalDescription(offer);
       }).then(function(){

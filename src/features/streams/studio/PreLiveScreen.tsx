@@ -84,6 +84,10 @@ function PreLiveScreenBase({
 }: Props) {
   const insets = useSafeAreaInsets();
   const phone = mode === 'browser';
+  // Same rule as the web studio: with the phone camera as the source, GO LIVE is
+  // only offered once the feed is publishing (the web calls this the encoder
+  // being detected). OBS stays always available, like the web's fallback button.
+  const canGoLive = ready && !busy && (!phone || cameraRunning);
   const readiness = !ready
     ? 'Connecting…'
     : phone
@@ -189,15 +193,15 @@ function PreLiveScreenBase({
 
         <Pressable
           onPress={onGoLive}
-          disabled={!ready || busy}
+          disabled={!canGoLive}
           style={({ pressed }) => [
             styles.go,
-            (!ready || busy) && styles.goDisabled,
+            !canGoLive && styles.goDisabled,
             pressed && styles.pressed,
           ]}
           accessibilityRole="button"
           accessibilityLabel={busy ? 'Preparing your live' : 'Go live'}
-          accessibilityState={{ disabled: !ready || busy, busy }}
+          accessibilityState={{ disabled: !canGoLive, busy }}
         >
           {busy ? (
             <>
