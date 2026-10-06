@@ -85,6 +85,8 @@ export type PhotographerOpportunity = {
   matchReasons?: string[];
   instructions?: string;
   expiresAt?: string;
+  invitedAt?: string;
+  candidateExpiresAt?: string;
   status?: 'INVITED' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'PENDING_RESPONSE';
 };
 

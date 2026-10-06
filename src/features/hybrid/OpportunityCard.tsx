@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
@@ -19,6 +19,31 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
 
   const isApproved = opportunity.status === 'APPROVED';
   const isRejected = opportunity.status === 'REJECTED';
+
+  const targetExpires = opportunity.candidateExpiresAt || opportunity.expiresAt;
+  const calculateRemaining = () => {
+    if (!targetExpires) return 15 * 60;
+    const diff = Math.floor((new Date(targetExpires).getTime() - Date.now()) / 1000);
+    return Math.max(0, diff);
+  };
+
+  const [secondsLeft, setSecondsLeft] = useState<number>(calculateRemaining);
+
+  useEffect(() => {
+    setSecondsLeft(calculateRemaining());
+    const interval = setInterval(() => {
+      setSecondsLeft(calculateRemaining());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [targetExpires]);
+
+  const isExpired = secondsLeft <= 0 || opportunity.status === 'EXPIRED';
+  const isUrgent = secondsLeft > 0 && secondsLeft <= 120;
+  const isWarning = secondsLeft > 120 && secondsLeft <= 300;
+
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  const formattedCountdown = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
   return (
     <View style={styles.card}>
@@ -49,6 +74,38 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
       <Text style={styles.title} numberOfLines={1}>
         {opportunity.eventTitle}
       </Text>
+
+      {/* 15-MINUTE LIVE COUNTDOWN TIMER */}
+      {!isApproved && !isRejected && (
+        <View style={styles.timerRow}>
+          <View
+            style={[
+              styles.timerPill,
+              isUrgent && styles.timerPillUrgent,
+              isWarning && styles.timerPillWarning,
+              isExpired && styles.timerPillExpired,
+            ]}
+          >
+            <Ionicons
+              name={isExpired ? 'time-outline' : isUrgent ? 'flame' : 'stopwatch-outline'}
+              size={12}
+              color={isExpired ? colors.textMuted : isUrgent ? colors.error : isWarning ? '#D97706' : colors.primary}
+            />
+            <Text
+              style={[
+                styles.timerText,
+                isUrgent && styles.timerTextUrgent,
+                isWarning && styles.timerTextWarning,
+                isExpired && styles.timerTextExpired,
+              ]}
+            >
+              {isExpired
+                ? 'Response Window Expired'
+                : `${isUrgent ? 'Expiring soon: ' : 'Response window: '}${formattedCountdown}`}
+            </Text>
+          </View>
+        </View>
+      )}
 
       {opportunity.clientName ? (
         <View style={styles.clientRow}>
@@ -133,6 +190,13 @@ export function OpportunityCard({ opportunity, onApprove, onReject, onPress, bus
             <Ionicons name="close-circle" size={16} color={colors.error} />
             <Text style={styles.statusTextRejected}>Opportunity declined</Text>
           </View>
+        ) : isExpired ? (
+          <View style={styles.statusBoxRejected}>
+            <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+            <Text style={[styles.statusTextRejected, { color: colors.textMuted }]}>
+              Invitation expired (15m window closed)
+            </Text>
+          </View>
         ) : (
           <>
             <Pressable
@@ -178,6 +242,48 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: -2,
+  },
+  timerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: 'rgba(8, 58, 133, 0.15)',
+  },
+  timerPillWarning: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+  },
+  timerPillUrgent: {
+    backgroundColor: c.errorBg,
+    borderColor: '#FCA5A5',
+  },
+  timerPillExpired: {
+    backgroundColor: c.surfaceMuted,
+    borderColor: c.borderSoft,
+  },
+  timerText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  timerTextWarning: {
+    color: '#D97706',
+  },
+  timerTextUrgent: {
+    color: c.error,
+  },
+  timerTextExpired: {
+    color: c.textMuted,
   },
   badgeContainer: {
     backgroundColor: c.tint,
