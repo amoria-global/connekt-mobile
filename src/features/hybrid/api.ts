@@ -54,6 +54,8 @@ function mapOpportunity(raw: any): PhotographerOpportunity {
     instructions: raw?.instructions,
     matchReasons: Array.isArray(raw?.matchReasons) ? raw.matchReasons : undefined,
     expiresAt: raw?.expiresAt ?? raw?.expirationTime,
+    invitedAt: raw?.invitedAt,
+    candidateExpiresAt: raw?.candidateExpiresAt ?? (raw?.invitedAt ? new Date(new Date(raw.invitedAt).getTime() + 15 * 60000).toISOString() : (raw?.expiresAt ?? raw?.expirationTime)),
     status: raw?.status ?? 'INVITED',
   };
 }

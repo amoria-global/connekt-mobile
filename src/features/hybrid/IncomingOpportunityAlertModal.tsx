@@ -64,10 +64,11 @@ export function IncomingOpportunityAlertModal({
       // Non-fatal
     }
 
-    if (opportunity.expiresAt) {
+    const targetExpires = opportunity.candidateExpiresAt || opportunity.expiresAt;
+    if (targetExpires) {
       const diffSecs = Math.max(
         0,
-        Math.floor((new Date(opportunity.expiresAt).getTime() - Date.now()) / 1000),
+        Math.floor((new Date(targetExpires).getTime() - Date.now()) / 1000),
       );
       setSecondsLeft(diffSecs > 0 ? diffSecs : 15 * 60);
     } else {
