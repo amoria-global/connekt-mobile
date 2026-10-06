@@ -206,7 +206,17 @@ export default function LiveViewerScreen() {
   const statusLabel = pb.phase === 'ended' ? 'ENDED' : model.isLive ? undefined : pb.phase === 'waiting' ? 'OFFLINE' : 'CONNECTING';
 
   const video = (
-    <LiveVideoSurface player={pb.player} hasSource={!!pb.playUrl} fullscreen={fs} onTap={onVideoTap}>
+    <LiveVideoSurface
+      player={pb.player}
+      hasSource={!!pb.playUrl}
+      whep={
+        pb.engine === 'whep' && pb.whepUrl
+          ? { url: pb.whepUrl, nonce: pb.whepNonce, handleRef: pb.whepRef, onStatus: pb.onWhepStatus }
+          : undefined
+      }
+      fullscreen={fs}
+      onTap={onVideoTap}
+    >
       <StreamStateOverlay phase={pb.phase} retrying={pb.retrying} onRetry={pb.retry} onBack={goBack} />
       <GiftOverlay
         events={chat.giftEvents}
