@@ -116,3 +116,35 @@ export function isOwedObligation(paymentType?: string | null): boolean {
 export function canShowDigitalPrice(isFree: boolean): boolean {
   return isFree || digitalPurchasesEnabled;
 }
+
+/**
+ * Whether an event is a physical, in-person event.
+ *
+ * Both stores exempt tickets and services consumed OUTSIDE the app from their
+ * billing rules (Apple 3.1.3(e), Google's physical goods and services
+ * carve-out). A ticket to a real venue event is that: the live stream is one
+ * way to attend, not the product. A stream-only event has no such venue, so it
+ * is digital content and stays gated.
+ *
+ * Deliberately conservative: no usable venue, or a venue that reads as online,
+ * means NOT in-person. Unknown never unlocks a purchase.
+ */
+const ONLINE_VENUE = /\b(online|virtual|livestream|live stream|stream|zoom|meet|teams|webinar|remote|web|tbd|n\/a|none)\b/i;
+type VenueLike = { location?: string | null; attendanceMode?: string | null } | null;
+export function isInPersonEvent(event?: VenueLike): boolean {
+  // The organizer's attestation (or the server's derivation of it) wins.
+  const mode = event?.attendanceMode;
+  if (mode === 'STREAM_ONLY') return false;
+  if (mode === 'IN_PERSON' || mode === 'HYBRID') return true;
+  const loc = event?.location?.trim();
+  if (!loc || loc.length < 3) return false;
+  return !ONLINE_VENUE.test(loc);
+}
+/**
+ * Whether a stream/event TICKET may be bought in the app: always on web, and
+ * on native only for in-person events (see isInPersonEvent). Every other
+ * digital good is still governed by digitalPurchasesEnabled alone.
+ */
+export function canBuyEventTicket(event?: VenueLike): boolean {
+  return digitalPurchasesEnabled || isInPersonEvent(event);
+}

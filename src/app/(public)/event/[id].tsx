@@ -51,7 +51,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
-import { canShowDigitalPrice, digitalPurchasesEnabled } from '@/features/payments/policy';
+import { canBuyEventTicket, canShowDigitalPrice, isInPersonEvent } from '@/features/payments/policy';
 import type { PublicEvent } from '@/features/events/types';
 import {
   checkAnonymousAccessStatus,
@@ -112,12 +112,14 @@ function priceLabel(e: {
   streamFee?: number | null;
   price?: number;
   streamFeeCurrencyAbbreviation?: string | null;
+  location?: string;
 }): { label: string; amount: string } {
   const code = e.streamFeeCurrencyAbbreviation || 'RWF';
   const paid = (e.streamFee || 0) > 0 || (e.price || 0) > 0;
   // A price is part of the purchase surface, so it goes where the buy button
-  // went. "Ticketed" keeps the useful half. Free stays visible.
-  if (paid && !canShowDigitalPrice(false)) return { label: '', amount: 'Ticketed' };
+  // went. "Ticketed" keeps the useful half. Free stays visible. In-person
+  // events sell a real-world ticket, so their price stays visible.
+  if (paid && !canShowDigitalPrice(false) && !isInPersonEvent(e)) return { label: '', amount: 'Ticketed' };
   if (e.streamFee && e.streamFee > 0)
     return { label: 'From', amount: formatPrice(e.streamFee, code) };
   if (e.price && e.price > 0)
@@ -161,7 +163,9 @@ function buildCta(
   const { isCancelled, isCompleted, isLive, isUpcoming, isPaid } = status;
   // Undefined where digital prices are gated off, so the disabled ticket CTA
   // below carries no figure the user cannot act on.
-  const price = canShowDigitalPrice(!isPaid)
+  const inPerson = isInPersonEvent(e);
+  const canBuy = canBuyEventTicket(e);
+  const price = canShowDigitalPrice(!isPaid) || canBuy
     ? formatPrice(e.price || e.streamFee || 0, e.streamFeeCurrencyAbbreviation || 'RWF')
     : undefined;
   if (isCancelled)
@@ -185,13 +189,14 @@ function buildCta(
         disabled: false,
         href: `/(public)/events/live-stream?id=${e.id}${viewerId ? `&viewerId=${viewerId}` : ''}` as unknown as Href,
       };
-    // No purchase path on Android, and no link out to one either. The
-    // "Already paid? Verify access" and group-code cards below stay visible,
-    // so anyone who already holds access can still get in.
-    if (!digitalPurchasesEnabled)
+    // Stream-only events have no purchase path on native, and no link out to
+    // one either. Tickets to in-person events are a real-world service and may
+    // be bought in the app. The "Already paid? Verify access" and group-code
+    // cards below stay visible, so anyone who already holds access can get in.
+    if (!canBuy)
       return { label: 'Ticket required. Verify below if you have one', sub: price, icon: 'ticket', tone: 'live', disabled: true };
     return {
-      label: 'Buy access',
+      label: inPerson ? 'Buy event ticket' : 'Buy access',
       sub: price,
       icon: 'ticket',
       tone: 'live',
@@ -204,10 +209,10 @@ function buildCta(
       return { label: 'Get notified', icon: 'notifications', tone: 'reserve', disabled: false };
     if (hasPurchasedAccess)
       return { label: 'Access reserved', icon: 'checkmark-circle', tone: 'owned', disabled: true };
-    if (!digitalPurchasesEnabled)
+    if (!canBuy)
       return { label: 'Ticket required. Verify below if you have one', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
     return {
-      label: 'Reserve your spot',
+      label: inPerson ? 'Buy event ticket' : 'Reserve your spot',
       sub: price,
       icon: 'ticket',
       tone: 'reserve',
@@ -854,7 +859,7 @@ export default function PublicEventDetailScreen() {
           {!status.isCompleted && !status.isCancelled ? (
             <View style={styles.feeCard}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.feeLabel}>Stream entry</Text>
+                <Text style={styles.feeLabel}>{isInPersonEvent(data) ? 'Event ticket (includes live stream)' : 'Stream entry'}</Text>
                 <Text style={styles.feeValue}>
                   {price.label ? `${price.label} ` : ''}
                   {price.amount}

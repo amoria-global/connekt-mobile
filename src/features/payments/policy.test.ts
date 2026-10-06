@@ -5,7 +5,26 @@ import {
   canPayDeclarationHere,
   canShowDigitalPrice,
   isOwedObligation,
+  isInPersonEvent,
+  canBuyEventTicket,
 } from './policy';
+
+describe('in-person ticket exemption', () => {
+  it('treats a real venue as in-person', () => {
+    expect(isInPersonEvent({ location: 'Kigali Convention Centre' })).toBe(true);
+  });
+  it('never treats a missing or online venue as in-person', () => {
+    expect(isInPersonEvent({})).toBe(false);
+    expect(isInPersonEvent({ location: '  ' })).toBe(false);
+    expect(isInPersonEvent({ location: 'Online' })).toBe(false);
+    expect(isInPersonEvent({ location: 'Zoom' })).toBe(false);
+    expect(isInPersonEvent(undefined)).toBe(false);
+  });
+  it('allows a native ticket purchase only for in-person events', () => {
+    expect(canBuyEventTicket({ location: 'Kigali Arena' })).toBe(true);
+    expect(canBuyEventTicket({ location: 'Virtual livestream' })).toBe(digitalPurchasesEnabled);
+  });
+});
 
 /**
  * The store-billing gate.
@@ -161,5 +180,19 @@ describe('digitalPurchasesEnabled in a release build', () => {
       (process.env as Record<string, string | undefined>).NODE_ENV = before;
       if (flag !== undefined) process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES = flag;
     }
+  });
+});
+
+describe('isInPersonEvent with an attendanceMode', () => {
+  it('trusts the server attestation over the venue text', () => {
+    expect(isInPersonEvent({ location: 'Kigali Arena', attendanceMode: 'STREAM_ONLY' })).toBe(false);
+    expect(isInPersonEvent({ location: 'Online', attendanceMode: 'IN_PERSON' })).toBe(true);
+    expect(isInPersonEvent({ location: '', attendanceMode: 'HYBRID' })).toBe(true);
+  });
+
+  it('falls back to the venue text when no mode is sent', () => {
+    expect(isInPersonEvent({ location: 'Kigali Arena' })).toBe(true);
+    expect(isInPersonEvent({ location: 'Zoom' })).toBe(false);
+    expect(isInPersonEvent({ location: 'Kigali Arena', attendanceMode: null })).toBe(true);
   });
 });

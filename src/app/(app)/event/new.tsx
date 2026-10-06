@@ -120,6 +120,9 @@ export default function NewEventScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [escrow, setEscrow] = useState<'50' | '70' | '100'>('50');
+  // Organizer attestation for app-store purposes: guests can physically attend
+  // at the venue. On by default; untick for a stream-only event.
+  const [inPerson, setInPerson] = useState(true);
 
   // Currencies & Geo-pricing (Coordinator role parity)
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
@@ -228,6 +231,7 @@ export default function NewEventScreen() {
             ev.organizer ?? `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
           description: ev.description ?? '',
         });
+        setInPerson(ev.attendanceMode !== 'STREAM_ONLY');
         if (ev.currency) {
           setSelectedCurrency(ev.currency);
         }
@@ -491,6 +495,7 @@ export default function NewEventScreen() {
       startTime: values.startTime,
       endTime: values.endTime || undefined,
       location: location || undefined,
+      attendanceMode: inPerson ? ('IN_PERSON' as const) : ('STREAM_ONLY' as const),
       organizer: values.organizer?.trim() || undefined,
       price: amount ?? (priceNum || undefined),
       // The "Live stream fee" field IS the stream fee (viewer paywall). Booking
@@ -1175,6 +1180,7 @@ export default function NewEventScreen() {
                 <Controller control={control} name="venueName" render={({ field: { onChange, onBlur, value } }) => (
                   <Input label="Venue name" placeholder="e.g. Kigali Convention Centre" value={value} onChangeText={onChange} onBlur={onBlur} />
                 )} />
+<Pressable                  onPress={() => setInPerson((v) => !v)}                  accessibilityRole="checkbox"                  accessibilityState={{ checked: inPerson }}                  style={styles.attestRow}                >                  <Ionicons                    name={inPerson ? 'checkbox' : 'square-outline'}                    size={24}                    color={inPerson ? colors.primary : colors.textMuted}                  />                  <View style={styles.attestBody}>                    <Text style={styles.attestTitle}>Guests can attend in person at this venue</Text>                    <Text style={styles.hint}>                      Untick if this is a stream-only event. Viewers then get the live stream as a ticket.                    </Text>                  </View>                </Pressable>
                 <Controller control={control} name="address" render={({ field: { onChange, onBlur, value } }) => (
                   <Input label="Address" placeholder="Street / area" value={value} onChangeText={onChange} onBlur={onBlur} />
                 )} />
@@ -1421,6 +1427,9 @@ const useStyles = makeStyles((c) => ({
     fontWeight: fontWeight.medium,
   },
   errText: { fontSize: fontSize.xs, color: c.error },
+  attestRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  attestBody: { flex: 1, gap: 2 },
+  attestTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text },
   alignStart: { alignSelf: 'flex-start' },
 
   cover: { height: 170, borderRadius: radii.lg, overflow: 'hidden', borderWidth: 1, borderColor: c.border, backgroundColor: c.surfaceMuted },
