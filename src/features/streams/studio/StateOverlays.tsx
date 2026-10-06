@@ -1,0 +1,262 @@
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import type { CameraErrorKind } from '@/features/streams/CameraPublisher';
+import { fonts } from '@/theme';
+import { S } from './theme';
+
+type IconName = keyof typeof Ionicons.glyphMap;
+
+function Center({
+  icon,
+  title,
+  body,
+  children,
+  spinner,
+}: {
+  icon?: IconName;
+  title: string;
+  body?: string;
+  children?: ReactNode;
+  spinner?: boolean;
+}) {
+  return (
+    <View style={styles.center} accessibilityLiveRegion="polite">
+      {spinner ? <ActivityIndicator color="#fff" /> : icon ? <Ionicons name={icon} size={40} color={S.text} /> : null}
+      <Text style={styles.title}>{title}</Text>
+      {body ? <Text style={styles.body}>{body}</Text> : null}
+      {children}
+    </View>
+  );
+}
+
+function PrimaryBtn({ label, onPress, icon }: { label: string; onPress: () => void; icon?: IconName }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      {icon ? <Ionicons name={icon} size={18} color="#111" /> : null}
+      <Text style={styles.btnText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Camera could not start (permission / not found / other), existing error signal, polished. */
+export function CameraErrorOverlay({
+  kind,
+  onRetry,
+}: {
+  kind: CameraErrorKind;
+  onRetry: () => void;
+}) {
+  const permission = kind === 'permission';
+  return (
+    <View style={styles.fillDark}>
+      <Center
+        icon="videocam-off"
+        title="Camera unavailable"
+        body={
+          permission
+            ? 'Please check your camera and microphone permissions, then try again.'
+            : kind === 'notfound'
+              ? 'No camera or microphone was found on this device.'
+              : kind === 'unsupported'
+                ? 'This device cannot access the camera.'
+                : 'We could not start your camera. Please try again.'
+        }
+      >
+        <PrimaryBtn label="Try Again" icon="refresh" onPress={onRetry} />
+        {permission ? (
+          <Pressable
+            onPress={() => Linking.openSettings().catch(() => {})}
+            accessibilityRole="button"
+            accessibilityLabel="Open app settings"
+            style={styles.link}
+          >
+            <Text style={styles.linkText}>Open Settings</Text>
+          </Pressable>
+        ) : null}
+      </Center>
+    </View>
+  );
+}
+
+/** Stand-in for the camera surface when there is no phone-camera feed. */
+export function CameraSlate({ kind, whipReady }: { kind: 'connecting' | 'obs' | 'standby'; whipReady?: boolean }) {
+  if (kind === 'connecting') {
+    return (
+      <View style={styles.fillDark}>
+        <Center spinner title="Preparing your camera…" />
+      </View>
+    );
+  }
+  if (kind === 'obs') {
+    return (
+      <View style={styles.fillDark}>
+        <Center
+          icon="desktop-outline"
+          title="Waiting for OBS signal"
+          body={
+            whipReady
+              ? 'Start streaming from your encoder. Your feed will appear here once it connects.'
+              : 'Establishing encoder ingest…'
+          }
+        />
+      </View>
+    );
+  }
+  return (
+    <View style={styles.fillDark}>
+      <Center icon="videocam-outline" title="Camera off" />
+    </View>
+  );
+}
+
+/** Full-screen failure when the stream could not be initialised at all. */
+export function StartFailure({
+  message,
+  onRetry,
+  onBack,
+}: {
+  message?: string | null;
+  onRetry: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <View style={[styles.fillDark, styles.solid]}>
+      <Center
+        icon="cloud-offline-outline"
+        title="Unable to start LIVE"
+        body={message || 'Please try again.'}
+      >
+        <PrimaryBtn label="Retry" icon="refresh" onPress={onRetry} />
+        <Pressable onPress={onBack} style={styles.link} accessibilityRole="button" accessibilityLabel="Go back">
+          <Text style={styles.linkText}>Go back</Text>
+        </Pressable>
+      </Center>
+    </View>
+  );
+}
+
+export function BootLoading() {
+  return (
+    <View style={[styles.fillDark, styles.solid]}>
+      <Center spinner title="Preparing your studio…" body="Setting up your video channel" />
+    </View>
+  );
+}
+
+/** Dismissible inline banner for action errors while on the camera screen. */
+export function ErrorBanner({
+  title,
+  message,
+  actionLabel,
+  onAction,
+  onDismiss,
+  top,
+}: {
+  title: string;
+  message?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  onDismiss: () => void;
+  top: number;
+}) {
+  return (
+    <View style={[styles.banner, { top }]} accessibilityLiveRegion="assertive">
+      <Ionicons name="alert-circle" size={22} color="#FCA5A5" />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.bannerTitle}>{title}</Text>
+        {message ? <Text style={styles.bannerMsg}>{message}</Text> : null}
+      </View>
+      {actionLabel && onAction ? (
+        <Pressable onPress={onAction} style={styles.bannerBtn} accessibilityRole="button" accessibilityLabel={actionLabel}>
+          <Text style={styles.bannerBtnText}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
+      <Pressable onPress={onDismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dismiss message">
+        <Ionicons name="close" size={20} color={S.textDim} />
+      </Pressable>
+    </View>
+  );
+}
+
+/** Centre prompt while paused. */
+export function PausedOverlay({ onResume, busy }: { onResume: () => void; busy: boolean }) {
+  return (
+    <View style={styles.paused} pointerEvents="box-none">
+      <View style={styles.pausedCard}>
+        <Ionicons name="pause-circle" size={34} color={S.warn} />
+        <Text style={styles.title}>Stream paused</Text>
+        <Text style={styles.body}>Viewers are waiting. Resume when you are ready.</Text>
+        <Pressable
+          onPress={onResume}
+          disabled={busy}
+          style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Resume stream"
+        >
+          {busy ? <ActivityIndicator color="#111" /> : <Ionicons name="play" size={18} color="#111" />}
+          <Text style={styles.btnText}>Resume</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  fillDark: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8,10,16,0.94)' },
+  solid: { backgroundColor: '#0B0D12', zIndex: 70 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 32 },
+  title: { fontFamily: fonts.bold, fontSize: 24, color: S.text, textAlign: 'center' },
+  body: { fontFamily: fonts.regular, fontSize: 17, color: S.textDim, textAlign: 'center', maxWidth: 320 },
+  btn: {
+    minHeight: 50,
+    paddingHorizontal: 28,
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    marginTop: 8,
+  },
+  btnText: { fontFamily: fonts.bold, fontSize: 18, color: '#111' },
+  link: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
+  linkText: { fontFamily: fonts.bold, fontSize: 16, color: S.textDim, textDecorationLine: 'underline' },
+  banner: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(40,12,14,0.94)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(252,165,165,0.4)',
+  },
+  bannerTitle: { fontFamily: fonts.bold, fontSize: 16, color: S.text },
+  bannerMsg: { fontFamily: fonts.regular, fontSize: 14, color: S.textDim },
+  bannerBtn: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+  },
+  bannerBtnText: { fontFamily: fonts.bold, fontSize: 15, color: '#111' },
+  paused: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', zIndex: 6 },
+  pausedCard: {
+    alignItems: 'center',
+    gap: 8,
+    padding: 22,
+    borderRadius: 22,
+    backgroundColor: 'rgba(8,10,16,0.82)',
+    maxWidth: 320,
+  },
+});
