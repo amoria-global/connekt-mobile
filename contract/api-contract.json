@@ -2499,6 +2499,24 @@
     },
     "pathVariables" : [ "id" ]
   }, {
+    "method" : "POST",
+    "path" : "/api/opportunities/{candidateId}/approve",
+    "controller" : "HybridBookingController#approveOpportunity",
+    "pathVariables" : [ "candidateId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/opportunities/{candidateId}/reject",
+    "controller" : "HybridBookingController#rejectOpportunity",
+    "pathVariables" : [ "candidateId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/photographer/opportunities",
+    "controller" : "HybridBookingController#getPhotographerOpportunities",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    } ]
+  }, {
     "method" : "GET",
     "path" : "/api/public/content/album-by-slug/{slug}",
     "controller" : "ContentBrowseController#albumBySlug",
@@ -7890,6 +7908,16 @@
     "path" : "/login",
     "controller" : "LoginController#viewLoginPage"
   }, {
+    "method" : "POST",
+    "path" : "/opportunities/{candidateId}/approve",
+    "controller" : "HybridBookingController#approveOpportunity",
+    "pathVariables" : [ "candidateId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/opportunities/{candidateId}/reject",
+    "controller" : "HybridBookingController#rejectOpportunity",
+    "pathVariables" : [ "candidateId" ]
+  }, {
     "method" : "GET",
     "path" : "/password-reset/forgot",
     "controller" : "PasswordResetController#showForgotForm"
@@ -7922,6 +7950,14 @@
     }, {
       "name" : "confirmPassword",
       "required" : true
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/photographer/opportunities",
+    "controller" : "HybridBookingController#getPhotographerOpportunities",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
     } ]
   }, {
     "method" : "POST",
