@@ -1,6 +1,7 @@
 import type { ID } from '@/types';
 
 export type EventStatus = string;
+/** How guests attend: a physical event (ticket consumed outside the app) or stream only. */export type AttendanceMode = 'IN_PERSON' | 'HYBRID' | 'STREAM_ONLY';export function parseAttendanceMode(v: unknown): AttendanceMode | undefined {  const s = typeof v === 'string' ? v.trim().toUpperCase() : '';  return s === 'IN_PERSON' || s === 'HYBRID' || s === 'STREAM_ONLY' ? s : undefined;}
 
 /** Payload for creating an event / booking a photographer. */
 export type CreateEventInput = {
@@ -12,6 +13,8 @@ export type CreateEventInput = {
   startTime: string; // HH:mm
   endTime?: string; // HH:mm (defaults to startTime)
   location?: string;
+  /** Organizer attestation: can guests attend in person at the venue? */
+  attendanceMode?: AttendanceMode;
   price?: number;
   /**
    * Live-stream access fee (what viewers pay to watch). Distinct from `price`
@@ -37,6 +40,7 @@ export type EventItem = {
   title: string;
   eventDate?: string;
   location?: string;
+  attendanceMode?: AttendanceMode;
   status?: EventStatus;
   category?: string;
   /** Category id when available (lets edit forms pre-select the row). */
@@ -126,6 +130,8 @@ export type PublicEvent = {
   startTime?: string;
   endTime?: string;
   location?: string;
+  /** Server-derived: stored organizer claim, else inferred from the venue. */
+  attendanceMode?: AttendanceMode;
   eventOrganizer?: string;
   eventTags?: string;
   eventPhoto?: string;

@@ -8,14 +8,15 @@ import { api } from '@/api/client';
 import type { PickedImage } from '@/services/imagePicker';
 import { appendFile } from '@/utils/upload';
 import type { ApiError, ApiEnvelope } from '@/types';
-import type {
-  CreateEventInput,
-  EventItem,
-  PublicEvent,
-  PublicEventCategory,
-  PublicEventCreator,
-  PublicEventsPage,
-  PublicEventsQuery,
+import {
+  parseAttendanceMode,
+  type CreateEventInput,
+  type EventItem,
+  type PublicEvent,
+  type PublicEventCategory,
+  type PublicEventCreator,
+  type PublicEventsPage,
+  type PublicEventsQuery,
 } from './types';
 
 type RawEvent = Record<string, unknown>;
@@ -46,6 +47,7 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
     endTime: toApiTime(input.endTime || input.startTime),
     eventDate: input.eventDate,
     location: input.location ?? '',
+    attendanceMode: input.attendanceMode,
     eventOrganizer: input.organizer || 'Organizer',
     eventVisibility: input.eventVisibility || 'PUBLIC',
     eventTags: input.tags && input.tags.length ? input.tags.join(',') : input.category,
@@ -108,6 +110,7 @@ function mapEvent(r: RawEvent): EventItem {
     title: str(r.title) ?? str(r.name) ?? 'Untitled event',
     eventDate: str(r.eventDate) ?? str(r.startTime) ?? str(r.date),
     location: str(r.location) ?? str(r.venue),
+    attendanceMode: parseAttendanceMode(r.attendanceMode),
     status: str(r.eventStatus) ?? str(r.status) ?? str(r.completionStatus),
     category: categoryName,
     categoryId,
@@ -292,6 +295,7 @@ function mapPublicEvent(r: RawEvent): PublicEvent {
     startTime: str(r.startTime),
     endTime: str(r.endTime),
     location: str(r.location),
+    attendanceMode: parseAttendanceMode(r.attendanceMode),
     eventOrganizer: str(r.eventOrganizer),
     eventTags: str(r.eventTags),
     eventPhoto: str(r.eventPhoto),

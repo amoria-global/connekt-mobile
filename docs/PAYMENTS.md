@@ -24,14 +24,36 @@ shared sheet for the JWT-gated payments and one poller for all of them.
 Still on the connekyt.com checkout: group stream packages, and a gift from a
 viewer who has not registered yet (the web page registers one).
 
-## Digital goods are OFF on native builds
+## Digital goods are OFF on native builds, except tickets to in-person events
 
 `digitalPurchasesEnabled` (`src/features/payments/policy.ts`) is true only on web
-or with `EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES=true`. Stream tickets, gifts, photo
-purchases, archive unlock, photobook extras and pay-on-TV are built and absent in
-store builds: no price, no button, no copy pointing elsewhere (Play billing, App
-Store 3.1.1, anti-steering, no Play merchant registration in Rwanda, dynamic
-prices). Bookings and donations are exempt and always on.
+or with `EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES=true`. Gifts, photo purchases,
+archive unlock, photobook extras, pay-on-TV and stream-only tickets are built and
+absent in store builds: no price, no button, no copy pointing elsewhere (Play
+billing, App Store 3.1.1, anti-steering, no Play merchant registration in Rwanda,
+dynamic prices). Bookings and donations are exempt and always on.
+
+**One exception: a ticket to an in-person event.** Both stores exempt tickets
+consumed outside the app (Apple 3.1.3(e), Google's physical goods and services
+rule), so `canBuyEventTicket` allows the in-app XentriPay and PawaPay checkout
+when `isInPersonEvent` is true. The live stream is one way to attend, not the
+product, and the copy says so ("Event ticket (includes live stream)").
+
+How an event is classified:
+- The backend stores the organizer's attestation as `attendanceMode`
+  (`IN_PERSON`, `HYBRID`, `STREAM_ONLY`) with `attendance_attested_at`, set by the
+  "Guests can attend in person at this venue" checkbox on event creation.
+- A physical claim with no real venue is saved as `STREAM_ONLY` by the server.
+- Events with no stored claim get a mode derived from the venue text, so old
+  events and old clients keep working. Online-sounding venues ("Online", "Zoom",
+  "TBD") are never in person.
+- The app trusts the server's `attendanceMode` first and only falls back to the
+  venue text when it is absent.
+
+Stream-only paid events stay gated on native: buyers use web, a group code, or
+"Verify access". Do not widen `canBuyEventTicket` to cover them. No wording makes
+this risk-free, so a lawyer should sign off on the Apple 3.1.3(e) and Google
+readings and the store listing should use the same "event ticket" wording.
 
 Do not loosen the flag to ship a feature. A `NODE_ENV !== 'test'` clause once made
 it true in every shipped build and false only under jest, so the gate was open
