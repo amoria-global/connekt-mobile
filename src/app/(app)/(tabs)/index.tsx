@@ -112,6 +112,7 @@ type Href =
   | '/wallet'
   | '/streams'
   | '/photographers'
+  | '/map'
   | '/packages'
   | '/gallery'
   | '/find-my-photos'
@@ -130,6 +131,7 @@ const COMMON_TAIL: Action[] = [
 const ACTIONS_BY_ROLE: Record<string, Action[]> = {
   Client: [
     { label: 'Find Photographers', icon: 'camera', href: '/photographers' },
+    { label: 'Nearby Map', icon: 'map', href: '/map' },
     { label: 'Find My Photos', icon: 'scan', href: '/find-my-photos' },
     ...COMMON_TAIL,
   ],
@@ -141,6 +143,7 @@ const ACTIONS_BY_ROLE: Record<string, Action[]> = {
   ],
   Coordinator: [
     { label: 'Find Photographers', icon: 'camera', href: '/photographers' },
+    { label: 'Nearby Map', icon: 'map', href: '/map' },
     { label: 'Find My Photos', icon: 'scan', href: '/find-my-photos' },
     ...COMMON_TAIL,
   ],
