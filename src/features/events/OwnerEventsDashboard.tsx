@@ -39,6 +39,8 @@ import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { listCoordinatorEvents, listEvents } from './api';
 import type { EventItem } from './types';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
+import { env } from '@/config/env';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 const PAGE_SIZE = 8;
@@ -144,7 +146,16 @@ export function OwnerEventsDashboard({
   const [search, setSearch] = useState(initialSearch);
   const [sortBy, setSortBy] = useState<EventSortOption>('newest');
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [bookingModeOpen, setBookingModeOpen] = useState(false);
   const [page, setPage] = useState(1);
+
+  const handleNewEvent = () => {
+    if (env.hybridBookingEnabled) {
+      setBookingModeOpen(true);
+    } else {
+      router.push('/event/new' as Href);
+    }
+  };
 
   useEffect(() => {
     if (initialSearch) {
@@ -272,7 +283,7 @@ export function OwnerEventsDashboard({
         </View>
         <Pressable
           style={styles.bigAddBtn}
-          onPress={() => router.push('/event/new' as Href)}
+          onPress={handleNewEvent}
           accessibilityRole="button"
           accessibilityLabel="Create new event"
         >
@@ -490,7 +501,7 @@ export function OwnerEventsDashboard({
           styles.fab,
           { bottom: Math.max(insets.bottom + 84, 96) },
         ]}
-        onPress={() => router.push('/event/new' as Href)}
+        onPress={handleNewEvent}
         android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
         accessibilityRole="button"
         accessibilityLabel="Create new event"
@@ -572,6 +583,13 @@ export function OwnerEventsDashboard({
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Dual Entry Booking Mode Selector */}
+      <BookingModeSelector
+        visible={bookingModeOpen}
+        onClose={() => setBookingModeOpen(false)}
+        onSelectDirect={() => router.push('/event/new' as Href)}
+      />
     </View>
   );
 }
