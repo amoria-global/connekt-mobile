@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { CandidateCard } from '@/features/hybrid/CandidateCard';
-import { listEventCandidates, selectPhotographer } from '@/features/hybrid/api';
+import { listEventCandidates, selectPhotographer, convertToHybridRescue } from '@/features/hybrid/api';
 import type { CandidateSummary, CandidatesResponse } from '@/features/hybrid/types';
 import { getEvent } from '@/features/events/api';
 import type { EventItem } from '@/features/events/types';
@@ -38,6 +38,7 @@ export default function EventCandidatesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [retryingMatching, setRetryingMatching] = useState(false);
 
   // Escrow payment state
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -237,80 +238,152 @@ export default function EventCandidatesScreen() {
           <Text style={styles.loadingText}>Fetching available local talent...</Text>
         </View>
       ) : candidates.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          {/* Animated Pulsing Radar */}
-          <View style={styles.radarWrapper}>
-            <Animated.View
-              style={[
-                styles.radarWaveRing,
-                {
-                  transform: [
+        (() => {
+          const isTimedOut =
+            eventDetails?.status?.toUpperCase() === 'HYBRID_TIMEOUT' ||
+            data?.status?.toUpperCase() === 'EXPIRED';
+
+          if (isTimedOut) {
+            return (
+              <View style={styles.emptyContainer}>
+                <View style={[styles.radarCircle, { backgroundColor: '#FEF3C7', width: 72, height: 72, borderRadius: 36 }]}>
+                  <Ionicons name="alert-circle" size={40} color="#D97706" />
+                </View>
+
+                <Text style={styles.emptyTitle}>Matching Window Concluded</Text>
+                <Text style={styles.emptyDesc}>
+                  No photographers accepted within the match window. You can easily switch to Direct Booking to browse and select available creators nearby on our interactive radar map.
+                </Text>
+
+                <View style={{ width: '100%', maxWidth: 340, gap: 10, marginTop: spacing.md }}>
+                  <Pressable
+                    style={[styles.refreshBtn, { backgroundColor: '#083A85' }]}
+                    onPress={() => {
+                      const lat = eventDetails?.latitude ?? -1.9536;
+                      const lng = eventDetails?.longitude ?? 30.0606;
+                      const date = eventDetails?.eventDate ? `&eventDate=${encodeURIComponent(eventDetails.eventDate)}` : '';
+                      router.push(`/map?lat=${lat}&lng=${lng}${date}&radiusKm=25` as never);
+                    }}
+                  >
+                    <Ionicons name="map-outline" size={16} color="#FFFFFF" />
+                    <Text style={styles.refreshBtnText}>Browse Nearby on Map</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.refreshBtn, { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.borderSoft }]}
+                    onPress={() => router.push('/(app)/(tabs)/photographers' as never)}
+                  >
+                    <Ionicons name="list-outline" size={16} color={colors.text} />
+                    <Text style={[styles.refreshBtnText, { color: colors.text }]}>Browse Creators List</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.refreshBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary }]}
+                    disabled={retryingMatching}
+                    onPress={async () => {
+                      setRetryingMatching(true);
+                      try {
+                        await convertToHybridRescue(eventId);
+                        Alert.alert('Matching Reactivated! 🚀', 'Your brief has been broadcast to local creators.');
+                        onRefresh();
+                      } catch (e) {
+                        Alert.alert('Could not retry matching', isApiError(e) ? e.message : 'Please try again.');
+                      } finally {
+                        setRetryingMatching(false);
+                      }
+                    }}
+                  >
+                    {retryingMatching ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.refreshBtnText, { color: colors.primary }]}>Retry Hybrid Matching</Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }
+
+          return (
+            <View style={styles.emptyContainer}>
+              {/* Animated Pulsing Radar */}
+              <View style={styles.radarWrapper}>
+                <Animated.View
+                  style={[
+                    styles.radarWaveRing,
                     {
-                      scale: radarWave.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 2.2],
+                      transform: [
+                        {
+                          scale: radarWave.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 2.2],
+                          }),
+                        },
+                      ],
+                      opacity: radarWave.interpolate({
+                        inputRange: [0, 0.7, 1],
+                        outputRange: [0.6, 0.25, 0],
                       }),
                     },
-                  ],
-                  opacity: radarWave.interpolate({
-                    inputRange: [0, 0.7, 1],
-                    outputRange: [0.6, 0.25, 0],
-                  }),
-                },
-              ]}
-            />
-            <View style={styles.radarCircle}>
-              <Ionicons name="radio" size={36} color="#FFFFFF" />
-            </View>
-          </View>
-
-          <Text style={styles.emptyTitle}>Inviting Local Photographers</Text>
-          <Text style={styles.emptyDesc}>
-            Your brief is being broadcast to top vetted creators. Photographers who accept your date and venue will appear here automatically.
-          </Text>
-
-          {/* 3-Step Live Dispatch Tracker */}
-          <View style={styles.dispatchTracker}>
-            <View style={styles.trackerStep}>
-              <View style={[styles.trackerDot, styles.trackerDotDone]}>
-                <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                  ]}
+                />
+                <View style={styles.radarCircle}>
+                  <Ionicons name="radio" size={36} color="#FFFFFF" />
+                </View>
               </View>
-              <Text style={styles.trackerStepText}>1. Brief posted</Text>
-            </View>
 
-            <View style={styles.trackerDivider} />
-
-            <View style={styles.trackerStep}>
-              <View style={[styles.trackerDot, styles.trackerDotActive]}>
-                <View style={styles.innerPulseDot} />
-              </View>
-              <Text style={[styles.trackerStepText, styles.trackerStepActiveText]}>
-                2. Creators reviewing
+              <Text style={styles.emptyTitle}>Inviting Local Photographers</Text>
+              <Text style={styles.emptyDesc}>
+                Your brief is being broadcast to top vetted creators. Photographers who accept your date and venue will appear here automatically.
               </Text>
-            </View>
 
-            <View style={styles.trackerDivider} />
+              {/* 3-Step Live Dispatch Tracker */}
+              <View style={styles.dispatchTracker}>
+                <View style={styles.trackerStep}>
+                  <View style={[styles.trackerDot, styles.trackerDotDone]}>
+                    <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.trackerStepText}>1. Brief posted</Text>
+                </View>
 
-            <View style={styles.trackerStep}>
-              <View style={styles.trackerDot}>
-                <Ionicons name="lock-closed-outline" size={10} color={colors.textMuted} />
+                <View style={styles.trackerDivider} />
+
+                <View style={styles.trackerStep}>
+                  <View style={[styles.trackerDot, styles.trackerDotActive]}>
+                    <View style={styles.innerPulseDot} />
+                  </View>
+                  <Text style={[styles.trackerStepText, styles.trackerStepActiveText]}>
+                    2. Creators reviewing
+                  </Text>
+                </View>
+
+                <View style={styles.trackerDivider} />
+
+                <View style={styles.trackerStep}>
+                  <View style={styles.trackerDot}>
+                    <Ionicons name="lock-closed-outline" size={10} color={colors.textMuted} />
+                  </View>
+                  <Text style={styles.trackerStepText}>3. Lock & book</Text>
+                </View>
               </View>
-              <Text style={styles.trackerStepText}>3. Lock & book</Text>
+
+              <View style={styles.tipBox}>
+                <Ionicons name="time-outline" size={16} color={colors.primary} />
+                <Text style={styles.tipText}>
+                  Responses usually arrive in 15–30 minutes. We&apos;ll notify you immediately when a photographer accepts.
+                </Text>
+              </View>
+
+              <Pressable style={styles.refreshBtn} onPress={onRefresh}>
+                <Ionicons name="refresh" size={16} color="#FFFFFF" />
+                <Text style={styles.refreshBtnText}>Check for Responses</Text>
+              </Pressable>
             </View>
-          </View>
-
-          <View style={styles.tipBox}>
-            <Ionicons name="time-outline" size={16} color={colors.primary} />
-            <Text style={styles.tipText}>
-              Responses usually arrive in 15–30 minutes. We&apos;ll notify you immediately when a photographer accepts.
-            </Text>
-          </View>
-
-          <Pressable style={styles.refreshBtn} onPress={onRefresh}>
-            <Ionicons name="refresh" size={16} color="#FFFFFF" />
-            <Text style={styles.refreshBtnText}>Check for Responses</Text>
-          </Pressable>
-        </View>
+          );
+        })()
       ) : (
         <FlatList
           data={candidates}

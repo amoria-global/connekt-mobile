@@ -483,3 +483,20 @@ export async function convertToHybridRescue(eventId: string): Promise<ConvertToH
   assertOk(res, 'Could not convert event to hybrid match.');
   return res.data!;
 }
+
+/**
+ * 7.1 Hybrid-to-Direct rescue hook: converts a timed-out hybrid event into direct booking mode.
+ */
+export async function convertToDirectRescue(eventId: string): Promise<any> {
+  const matchPath = `/match/convert-to-direct/${encodeURIComponent(eventId)}`;
+  let res: any;
+  try {
+    res = await api.post<any>(matchPath);
+  } catch {
+    res = await api.post<any>(
+      `/events/${encodeURIComponent(eventId)}/convert-to-direct`,
+    );
+  }
+  assertOk(res, 'Could not convert event to direct booking.');
+  return res?.data ?? res;
+}

@@ -99,6 +99,14 @@ export type EventItem = {
   /** True once the photographer has delivered the album. Gates completion. */
   albumDelivered?: boolean;
   notes?: string;
+
+  // ──────── Hybrid & Geolocation fields ────────
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+  minBudget?: number;
+  maxBudget?: number;
+  bookingMode?: string;
 };
 
 /**
