@@ -618,6 +618,26 @@ export default function EventDetailScreen() {
               </View>
             </View>
           </InfoCard>
+        ) : ev?.status?.toUpperCase() === 'MATCHES_AWAITING_SELECTION' && ownsEvents ? (
+          <InfoCard icon="people-outline" title="Candidates Ready for Selection! 🎯">
+            <View style={{ gap: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
+                <Text style={{ fontFamily: fonts.bold, fontSize: 12, color: '#6D28D9', fontWeight: fontWeight.bold }}>
+                  CREATORS ACCEPTED YOUR BRIEF
+                </Text>
+              </View>
+              <Text style={styles.desc}>
+                Verified local creators have accepted your brief. Compare their ratings, verified badges, and packages to select your photographer and lock your date.
+              </Text>
+              <PrimaryBtn
+                icon="checkmark-circle-outline"
+                label="Review & Select Photographer"
+                variant="primary"
+                onPress={() => router.push(`/event/candidates?id=${id}` as never)}
+              />
+            </View>
+          </InfoCard>
         ) : ownsEvents ? (
           <InfoCard icon="people-outline" title="Photographer Matching Active">
             <View style={{ gap: 10 }}>
@@ -836,6 +856,12 @@ function heroStatus(s: string, published?: boolean): { label: string; bg: string
       return { label: 'CANCELLED', bg: '#FEE2E2', fg: '#B91C1C' };
     case 'PAUSED':
       return { label: 'PAUSED', bg: '#E5E7EB', fg: '#374151' };
+    case 'MATCHES_AWAITING_SELECTION':
+      return { label: 'CANDIDATES READY', bg: '#EDE9FE', fg: '#6D28D9' };
+    case 'HYBRID_MATCHING':
+      return { label: 'MATCHING ACTIVE', bg: '#E0F2FE', fg: '#0284C7' };
+    case 'HYBRID_TIMEOUT':
+      return { label: 'MATCH TIMEOUT', bg: '#FEF3C7', fg: '#B45309' };
     case 'PENDING':
     case 'PROPOSED':
       return { label: 'PENDING', bg: '#FEF3C7', fg: '#92400E' };

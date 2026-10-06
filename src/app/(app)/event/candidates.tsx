@@ -173,7 +173,9 @@ export default function EventCandidatesScreen() {
           <View style={styles.liveBadgeRow}>
             <View style={styles.livePulseDot} />
             <Text style={styles.liveBadgeText}>
-              {candidates.length > 0 ? `${candidates.length} AVAILABLE` : 'BROADCASTING'}
+              {candidates.length > 0
+                ? (eventDetails?.status?.toUpperCase() === 'MATCHES_AWAITING_SELECTION' ? `${candidates.length} READY TO SELECT` : `${candidates.length} AVAILABLE`)
+                : 'BROADCASTING'}
             </Text>
           </View>
         </View>
@@ -396,9 +398,15 @@ export default function EventCandidatesScreen() {
             <View style={styles.listHeaderWrap}>
               <View style={styles.listHeaderRow}>
                 <Text style={styles.listHeaderTitle}>
-                  {candidates.length} {candidates.length === 1 ? 'Creator' : 'Creators'} Ready to Shoot
+                  {eventDetails?.status?.toUpperCase() === 'MATCHES_AWAITING_SELECTION'
+                    ? `${candidates.length} ${candidates.length === 1 ? 'Creator' : 'Creators'} Accepted Your Brief`
+                    : `${candidates.length} ${candidates.length === 1 ? 'Creator' : 'Creators'} Ready to Shoot`}
                 </Text>
-                <Text style={styles.listHeaderSub}>Choose one to lock your date</Text>
+                <Text style={styles.listHeaderSub}>
+                  {eventDetails?.status?.toUpperCase() === 'MATCHES_AWAITING_SELECTION'
+                    ? 'Choose your preferred creator to confirm your date'
+                    : 'Choose one to lock your date'}
+                </Text>
               </View>
 
               {/* Escrow Trust Banner */}

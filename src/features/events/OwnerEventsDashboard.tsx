@@ -98,6 +98,9 @@ function heroStatus(e: EventItem): { label: string; bg: string; fg: string } {
   if (s === 'COMPLETED' || s === 'DONE') return { label: 'COMPLETED', bg: '#D1FAE5', fg: '#047857' };
   if (s === 'CANCELLED' || s === 'CANCELED') return { label: 'CANCELLED', bg: '#FEE2E2', fg: '#B91C1C' };
   if (s === 'PAUSED') return { label: 'PAUSED', bg: '#E5E7EB', fg: '#374151' };
+  if (s === 'MATCHES_AWAITING_SELECTION') return { label: 'CANDIDATES READY', bg: '#EDE9FE', fg: '#6D28D9' };
+  if (s === 'HYBRID_MATCHING') return { label: 'MATCHING ACTIVE', bg: '#E0F2FE', fg: '#0284C7' };
+  if (s === 'HYBRID_TIMEOUT') return { label: 'MATCH TIMEOUT', bg: '#FEF3C7', fg: '#B45309' };
   if (e.published) return { label: 'PUBLISHED', bg: '#CCFBF1', fg: '#0F766E' };
   // An unpublished event is invisible on connekyt.com. Saying "UPCOMING" read
   // as though everything was fine, so owners never knew there was a step left.
@@ -453,6 +456,7 @@ export function OwnerEventsDashboard({
             onOpen={() => router.push(`/event/${item.id}` as Href)}
             onEdit={() => router.push(`/event/new?editId=${item.id}` as Href)}
             onShare={() => onShare(item)}
+            onSelectCandidates={() => router.push(`/event/candidates?id=${item.id}` as Href)}
           />
         )}
         ListFooterComponent={
@@ -653,11 +657,13 @@ function OwnerEventCard({
   onOpen,
   onEdit,
   onShare,
+  onSelectCandidates,
 }: {
   event: EventItem;
   onOpen: () => void;
   onEdit: () => void;
   onShare: () => void;
+  onSelectCandidates?: () => void;
 }) {
   const styles = useStyles();
   const pill = heroStatus(event);
@@ -693,6 +699,15 @@ function OwnerEventCard({
         </View>
 
         <View style={styles.actions}>
+          {(event.status ?? '').toUpperCase() === 'MATCHES_AWAITING_SELECTION' && onSelectCandidates ? (
+            <Pressable
+              style={[styles.actBtn, { backgroundColor: '#7C3AED' }]}
+              onPress={onSelectCandidates}
+            >
+              <Ionicons name="people" size={14} color="#fff" />
+              <Text style={styles.actText}>Select Creator</Text>
+            </Pressable>
+          ) : null}
           <Pressable style={[styles.actBtn, styles.actEdit]} onPress={onEdit}>
             <Ionicons name="create-outline" size={14} color="#fff" />
             <Text style={styles.actText}>Edit</Text>
