@@ -254,3 +254,22 @@ describe('mobile hybrid booking requests against the backend contract', () => {
   });
 });
 
+/**
+ * Direct Booking Map Filtering & Client Location Detection ("You are here")
+ * Controller: DirectBookingMapController
+ * Commit: 1957e777
+ */
+describe('mobile direct booking map against the backend contract', () => {
+  const mapCalls = callsIn('src/features/photographers/mapApi.ts');
+
+  it('finds the direct booking map endpoint in the api client', () => {
+    const paths = mapCalls.map((c) => `${c.method} ${c.path}`);
+    expect(paths).toContain('GET /api/remote/direct-booking/map');
+  });
+
+  it('every direct booking map path exists on the backend contract', () => {
+    const missing = mapCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path} (${c.source})`);
+    expect(missing).toEqual([]);
+  });
+});
+

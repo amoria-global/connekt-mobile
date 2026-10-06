@@ -32,6 +32,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { env } from '@/config/env';
+import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapView';
 
 const ITEMS_PER_PAGE = 8;
 const ALL_CATEGORIES = 'All Categories';
@@ -184,6 +185,7 @@ export default function PhotographersScreen() {
   const { isCoordinator } = useRole();
   const router = useRouter();
 
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [location, setLocation] = useState(ALL_LOCATIONS);
@@ -471,13 +473,62 @@ export default function PhotographersScreen() {
     router.push(`/photographer/${id}` as never);
   };
 
+  const renderViewModeSwitcher = () => (
+    <View style={styles.viewModeContainer}>
+      <Pressable
+        style={[styles.viewModeBtn, viewMode === 'list' && styles.viewModeBtnActive]}
+        onPress={() => setViewMode('list')}
+      >
+        <Ionicons
+          name="grid"
+          size={12}
+          color={viewMode === 'list' ? '#FFFFFF' : colors.textMuted}
+        />
+        <Text
+          style={[
+            styles.viewModeBtnText,
+            viewMode === 'list' && styles.viewModeBtnTextActive,
+          ]}
+        >
+          List
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.viewModeBtn, viewMode === 'map' && styles.viewModeBtnActive]}
+        onPress={() => setViewMode('map')}
+      >
+        <Ionicons
+          name="map"
+          size={12}
+          color={viewMode === 'map' ? '#FFFFFF' : colors.textMuted}
+        />
+        <Text
+          style={[
+            styles.viewModeBtnText,
+            viewMode === 'map' && styles.viewModeBtnTextActive,
+          ]}
+        >
+          Map
+        </Text>
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveBadgeText}>LIVE</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       {/* Title Area */}
       <View style={styles.titleSection}>
-        <View style={styles.eyebrowPill}>
-          <Ionicons name="sparkles" size={10} color={colors.primary} />
-          <Text style={styles.eyebrowText}>VERIFIED PROS</Text>
+        <View style={styles.titleTopRow}>
+          <View style={styles.eyebrowPill}>
+            <Ionicons name="sparkles" size={10} color={colors.primary} />
+            <Text style={styles.eyebrowText}>VERIFIED PROS</Text>
+          </View>
+          {renderViewModeSwitcher()}
         </View>
         <Text style={styles.title}>Find Photographers</Text>
         <Text style={styles.subtitle}>
@@ -830,7 +881,22 @@ export default function PhotographersScreen() {
           }}
         />
 
-        {loading && !data ? (
+        {viewMode === 'map' ? (
+          <View style={styles.mapScreenContainer}>
+            <View style={styles.mapTopHeader}>
+              <View>
+                <Text style={styles.mapTopTitle}>Direct Booking Radar</Text>
+                <Text style={styles.mapTopSubtitle}>Nearby verified creators</Text>
+              </View>
+              {renderViewModeSwitcher()}
+            </View>
+            <DirectBookingMapView
+              initialSearch={query}
+              initialSpecialty={category}
+              style={{ flex: 1 }}
+            />
+          </View>
+        ) : loading && !data ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading directory…</Text>
@@ -1053,6 +1119,92 @@ const useStyles = makeStyles((c, e) => ({
   titleSection: {
     paddingHorizontal: spacing.md,
     gap: 4,
+  },
+  titleTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  viewModeContainer: {
+    flexDirection: 'row',
+    backgroundColor: c.surfaceMuted,
+    borderRadius: radii.full,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+  },
+  viewModeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+  },
+  viewModeBtnActive: {
+    backgroundColor: c.primary,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  viewModeBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  viewModeBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2.5,
+    backgroundColor: '#F20C8F',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: radii.full,
+    marginLeft: 2,
+  },
+  liveDot: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  liveBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 7.5,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  mapScreenContainer: {
+    flex: 1,
+    backgroundColor: c.background,
+  },
+  mapTopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: c.card,
+    borderBottomWidth: 1,
+    borderBottomColor: c.borderSoft,
+    zIndex: 10,
+  },
+  mapTopTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: c.text,
+  },
+  mapTopSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.textMuted,
   },
   eyebrowPill: {
     flexDirection: 'row',
