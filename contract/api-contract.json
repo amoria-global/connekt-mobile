@@ -1683,6 +1683,14 @@
     "path" : "/api/admin/events/test",
     "controller" : "AdminEventApiController#test"
   }, {
+    "method" : "PUT",
+    "path" : "/api/admin/events/{eventId}/attendance-mode",
+    "controller" : "AdminEventApiController#setAttendanceMode",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "eventId" ]
+  }, {
     "method" : "GET",
     "path" : "/api/admin/events/{eventId}/geo-prices",
     "controller" : "AdminEventGeoPriceController#list",
