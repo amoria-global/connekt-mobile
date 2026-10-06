@@ -25,7 +25,7 @@ export function notificationTarget(n: NotificationRouteInput): Href {
 
     // Master guide deep link routes:
     if (targetLink === '/opportunities' || targetLink.startsWith('/opportunities')) {
-      return '/bookings' as Href;
+      return '/bookings?tab=opportunities' as Href;
     }
     const candidatesMatch = targetLink.match(/^\/events\/([^/]+)\/candidates/);
     if (candidatesMatch) {
@@ -57,7 +57,7 @@ export function notificationTarget(n: NotificationRouteInput): Href {
       case 'OPPORTUNITY':
       case 'HYBRID_OPPORTUNITY':
       case 'HYBRID_MATCH':
-        return '/bookings' as Href;
+        return '/bookings?tab=opportunities' as Href;
       case 'PAYMENT':
       case 'GIFT':
       case 'STREAMFEE':

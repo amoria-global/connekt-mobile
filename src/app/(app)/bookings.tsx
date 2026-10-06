@@ -18,7 +18,7 @@
  *   POST /events/{id}/convert-to-hybrid    → direct decline rescue hook
  */
 import { useCallback, useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -62,10 +62,17 @@ export default function BookingsScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { isPhotographer } = useRole();
 
   // Tab state for photographer
-  const [activeTab, setActiveTab] = useState<Tab>('direct');
+  const [activeTab, setActiveTab] = useState<Tab>(() => (tab === 'opportunities' ? 'opportunities' : 'direct'));
+
+  useEffect(() => {
+    if (tab === 'opportunities') {
+      setActiveTab('opportunities');
+    }
+  }, [tab]);
 
   // Direct bookings
   const { data, loading, error, refresh } = useAsync(useCallback(() => listBookings(), []));
