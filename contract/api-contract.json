@@ -5224,6 +5224,11 @@
     "pathVariables" : [ "id" ]
   }, {
     "method" : "POST",
+    "path" : "/api/remote/events/{id}/convert-to-direct",
+    "controller" : "HybridBookingController#convertToDirect",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
     "path" : "/api/remote/events/{id}/convert-to-hybrid",
     "controller" : "HybridBookingController#convertToHybrid",
     "pathVariables" : [ "id" ]
@@ -5274,6 +5279,11 @@
     "pathVariables" : [ "id" ]
   }, {
     "method" : "POST",
+    "path" : "/api/remote/match/convert-to-direct/{id}",
+    "controller" : "HybridBookingController#convertToDirect",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
     "path" : "/api/remote/match/convert/{id}",
     "controller" : "HybridBookingController#convertToHybrid",
     "pathVariables" : [ "id" ]
@@ -5282,6 +5292,15 @@
     "path" : "/api/remote/match/events/{id}/candidates",
     "controller" : "HybridBookingController#getApprovedCandidates",
     "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/match/events/{id}/convert-to-direct",
+    "controller" : "HybridBookingController#convertToDirect",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/match/maintenance/sweep",
+    "controller" : "HybridBookingController#sweepMatchLifecycle"
   }, {
     "method" : "GET",
     "path" : "/api/remote/match/opportunities",
@@ -5360,6 +5379,10 @@
       "name" : "eventId",
       "required" : false
     } ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/match/sweep",
+    "controller" : "HybridBookingController#sweepMatchLifecycle"
   }, {
     "method" : "POST",
     "path" : "/api/remote/opportunities/{candidateId}/approve",

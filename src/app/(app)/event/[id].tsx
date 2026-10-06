@@ -23,6 +23,7 @@ import {
 import { SatisfactionSurveySheet } from '@/features/events/SatisfactionSurveySheet';
 import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/events/survey';
 import { submitReview } from '@/features/reviews/api';
+import { convertToHybridRescue, convertToDirectRescue } from '@/features/hybrid/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
@@ -571,6 +572,49 @@ export default function EventDetailScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.personName}>{ev.photographerName}</Text>
                 {booking ? <Chip label={booking} tone={booking === 'ACCEPTED' ? 'success' : booking === 'PENDING' ? 'warning' : 'muted'} /> : null}
+              </View>
+            </View>
+          </InfoCard>
+        ) : ev?.status?.toUpperCase() === 'HYBRID_TIMEOUT' ? (
+          <InfoCard icon="warning-outline" title="Matching Concluded — Direct Booking Rescue">
+            <View style={{ gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F59E0B' }} />
+                <Text style={{ fontFamily: fonts.bold, fontSize: 12, color: '#D97706', fontWeight: fontWeight.bold }}>
+                  MATCH WINDOW EXPIRED (0 CONFIRMED CREATORS)
+                </Text>
+              </View>
+              <Text style={styles.desc}>
+                The matching window concluded without an accepted photographer. You can instantly switch to Direct Booking to browse and select available creators nearby on our interactive map.
+              </Text>
+              <View style={{ gap: 8 }}>
+                <PrimaryBtn
+                  icon="map-outline"
+                  label="Browse Nearby on Map"
+                  variant="primary"
+                  onPress={() => {
+                    const lat = ev.latitude ?? -1.9536;
+                    const lng = ev.longitude ?? 30.0606;
+                    const date = ev.eventDate ? `&eventDate=${encodeURIComponent(ev.eventDate)}` : '';
+                    router.push(`/map?lat=${lat}&lng=${lng}${date}&radiusKm=25` as never);
+                  }}
+                />
+                <PrimaryBtn
+                  icon="list-outline"
+                  label="Browse All Photographers"
+                  variant="outline"
+                  onPress={() => router.push('/(app)/(tabs)/photographers' as never)}
+                />
+                <PrimaryBtn
+                  icon="refresh-outline"
+                  label="Retry Hybrid Matching"
+                  variant="outline"
+                  loading={busy === 'retry-hybrid'}
+                  onPress={() => run('retry-hybrid', async () => {
+                    await convertToHybridRescue(id);
+                    Alert.alert('Matching Reactivated! 🚀', 'Your event brief has been broadcast to local photographers.');
+                  })}
+                />
               </View>
             </View>
           </InfoCard>

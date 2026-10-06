@@ -147,6 +147,14 @@ function mapEvent(r: RawEvent): EventItem {
     completionStatus: str(r.completionStatus),
     albumDelivered: r.albumDelivered === true,
     notes: str(r.notes),
+
+    // Hybrid & Geolocation fields
+    latitude: num(r.latitude),
+    longitude: num(r.longitude),
+    city: str(r.city),
+    minBudget: num(r.minBudget),
+    maxBudget: num(r.maxBudget),
+    bookingMode: str(r.bookingMode),
   };
 }
 
