@@ -21,7 +21,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { pollStatus } from '@/features/payments/nativeCheckout';
 import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { canBuyEventTicket } from '@/features/payments/policy';
+import { canBuyEventTicket, isInPersonEvent } from '@/features/payments/policy';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -341,6 +341,9 @@ function EventPaymentInner() {
   }
 
   const data = event.data!;
+  // In-person events sell an event ticket (the live stream is one way to attend);
+  // the copy says so on every step so the receipt matches the listing.
+  const isTicket = isInPersonEvent(data);
 
   return (
     <Screen padded={false} edges={[]}>
@@ -359,9 +362,9 @@ function EventPaymentInner() {
         {/* ── STAGE 1: Contact Information ── */}
         {stage === 'contact' && (
           <View style={styles.section}>
-            <Text style={styles.h2}>Your Access Pass</Text>
+            <Text style={styles.h2}>{isTicket ? 'Your Event Ticket' : 'Your Access Pass'}</Text>
             <Text style={styles.subtext}>
-              Enter your name and email to link your access pass and receive your receipt.
+              {isTicket ? 'Enter your name and email to link your event ticket and receive your receipt. Your ticket admits you to the event, and includes the live stream if you cannot attend in person.' : 'Enter your name and email to link your access pass and receive your receipt.'}
             </Text>
 
             {loggedIn ? (
@@ -420,7 +423,7 @@ function EventPaymentInner() {
           <View style={styles.section}>
             <View style={styles.feeBanner}>
               <View>
-                <Text style={styles.feeBannerLabel}>Total to Pay</Text>
+                <Text style={styles.feeBannerLabel}>{isTicket ? 'Event ticket' : 'Total to Pay'}</Text>
                 <Text style={styles.feeBannerAmount}>{totalLabel}</Text>
               </View>
               <Pressable
@@ -553,9 +556,9 @@ function EventPaymentInner() {
             <View style={styles.successIconCircle}>
               <Ionicons name="checkmark" size={32} color="#fff" />
             </View>
-            <Text style={styles.successTitle}>Access Pass Activated!</Text>
+            <Text style={styles.successTitle}>{isTicket ? 'Event Ticket Confirmed!' : 'Access Pass Activated!'}</Text>
             <Text style={styles.successSub}>
-              Your live stream access for <Text style={{ fontWeight: '700' }}>{data.title}</Text> has
+              {isTicket ? 'Your event ticket for ' : 'Your live stream access for '}<Text style={{ fontWeight: '700' }}>{data.title}</Text>{isTicket ? ' is confirmed. The live stream is included and has' : ' has'}
               been unlocked and linked to {forTv ? 'your TV, which will start playing shortly' : 'this device'}.
             </Text>
 
