@@ -1,3 +1,4 @@
+import { approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
 import {
     addNotificationResponseListener,
     registerForPushNotifications,
@@ -22,7 +23,34 @@ export default function AppLayout() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
     registerForPushNotifications();
-    const unsubscribe = addNotificationResponseListener((data) => {
+    const unsubscribe = addNotificationResponseListener(async (data, actionIdentifier) => {
+      const candidateId =
+        typeof data.candidateId === 'string'
+          ? data.candidateId
+          : typeof data.referenceId === 'string'
+            ? data.referenceId
+            : undefined;
+
+      // Interactive lock-screen 1-tap actions
+      if (actionIdentifier === 'ACTION_APPROVE' && candidateId) {
+        try {
+          await approveOpportunity(candidateId);
+        } catch (e) {
+          console.warn('[pushAction] Error approving opportunity from notification:', e);
+        }
+        router.push('/bookings?tab=opportunities');
+        return;
+      }
+
+      if (actionIdentifier === 'ACTION_DECLINE' && candidateId) {
+        try {
+          await rejectOpportunity(candidateId);
+        } catch (e) {
+          console.warn('[pushAction] Error declining opportunity from notification:', e);
+        }
+        return;
+      }
+
       // Deep-link to the exact entity the notification is about.
       router.push(
         notificationTarget({

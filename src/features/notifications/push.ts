@@ -69,6 +69,42 @@ export async function registerForPushNotifications(): Promise<string | null> {
         showBadge: true,
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       });
+
+      await Notifications.setNotificationChannelAsync('urgent_booking_alerts', {
+        name: 'Urgent Booking & Opportunity Alerts',
+        description: 'Instant alerts with sound, vibration, and lock-screen banners for new event opportunities',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 250, 500, 250, 500],
+        lightColor: '#F20C8F',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        bypassDnd: true,
+      });
+    }
+
+    // Interactive notification category for lock-screen 1-tap actioning
+    try {
+      await Notifications.setNotificationCategoryAsync('OPPORTUNITY_ALERT', [
+        {
+          identifier: 'ACTION_APPROVE',
+          buttonTitle: "I'm Available",
+          options: {
+            opensAppToForeground: true,
+          },
+        },
+        {
+          identifier: 'ACTION_DECLINE',
+          buttonTitle: 'Decline',
+          options: {
+            opensAppToForeground: false,
+            isDestructive: true,
+          },
+        },
+      ]);
+    } catch {
+      // Non-fatal if categories unsupported in current environment
     }
 
     const settings = await Notifications.getPermissionsAsync();
@@ -101,15 +137,16 @@ export async function registerForPushNotifications(): Promise<string | null> {
 }
 
 /**
- * Fires `onOpen` with the notification's `data` payload when the user taps a
- * push (from the tray). Returns an unsubscribe function.
+ * Fires `onOpen` with the notification's `data` payload and optional action
+ * identifier when the user interacts with a push (from tray or lock screen).
+ * Returns an unsubscribe function.
  */
 export function addNotificationResponseListener(
-  onOpen: (data: Record<string, unknown>) => void,
+  onOpen: (data: Record<string, unknown>, actionIdentifier?: string) => void,
 ): () => void {
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = (response.notification.request.content.data ?? {}) as Record<string, unknown>;
-    onOpen(data);
+    onOpen(data, response.actionIdentifier);
   });
   return () => sub.remove();
 }
