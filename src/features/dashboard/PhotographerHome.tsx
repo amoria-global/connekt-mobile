@@ -14,13 +14,14 @@
  *  10. Recent Payments Feed (From /photographer/transactions)
  *  11. Compare Goals Modal (Customizable target earnings, shoots & clients)
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import Svg, { Circle, G } from 'react-native-svg';
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -39,6 +40,10 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KycBanner } from '@/features/kyc/KycBanner';
+import { listOpportunities, approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
+import type { PhotographerOpportunity } from '@/features/hybrid/types';
+import { IncomingOpportunityAlertModal } from '@/features/hybrid/IncomingOpportunityAlertModal';
+import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import {
@@ -178,13 +183,71 @@ export function PhotographerHome() {
     ),
   );
 
+  // Hybrid Opportunities & Incoming Shoot Alert
+  const [dismissedOppIds, setDismissedOppIds] = useState<string[]>([]);
+  const opportunities = useAsync(
+    useCallback(
+      () => (env.hybridBookingEnabled ? listOpportunities() : Promise.resolve([])),
+      [],
+    ),
+  );
+
+  // Poll for incoming opportunities every 6 seconds while active
+  useEffect(() => {
+    if (!env.hybridBookingEnabled) return;
+    const timer = setInterval(() => {
+      opportunities.refresh();
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [opportunities]);
+
+  const incomingOpportunity = useMemo(() => {
+    if (!env.hybridBookingEnabled) return null;
+    const list = opportunities.data ?? [];
+    return (
+      list.find((opp) => {
+        const s = (opp.status ?? '').toUpperCase();
+        const isClosed = s === 'APPROVED' || s === 'REJECTED' || s === 'DECLINED' || s === 'EXPIRED';
+        return !isClosed && !dismissedOppIds.includes(opp.candidateId);
+      }) ?? null
+    );
+  }, [opportunities.data, dismissedOppIds]);
+
+  const handleApproveIncomingOpp = async (opp: PhotographerOpportunity) => {
+    try {
+      await approveOpportunity(opp.candidateId);
+      Alert.alert('Shoot Accepted! 🎉', 'You have been added to the client candidate shortlist.');
+      opportunities.refresh();
+      events.refresh();
+    } catch (e: any) {
+      Alert.alert('Approval error', e?.message || 'Could not approve this opportunity.');
+    }
+  };
+
+  const handleRejectIncomingOpp = async (opp: PhotographerOpportunity) => {
+    try {
+      await rejectOpportunity(opp.candidateId);
+      Alert.alert('Opportunity Declined', 'The brief has been passed to another photographer.');
+      opportunities.refresh();
+    } catch (e: any) {
+      Alert.alert('Decline error', e?.message || 'Could not decline this opportunity.');
+    }
+  };
+
+  const handleDismissIncomingOpp = () => {
+    if (incomingOpportunity) {
+      setDismissedOppIds((prev) => [...prev, incomingOpportunity.candidateId]);
+    }
+  };
+
   const refreshing =
     analytics.loading ||
     events.loading ||
     clients.loading ||
     transactions.loading ||
     wallet.loading ||
-    reviews.loading;
+    reviews.loading ||
+    opportunities.loading;
 
   const onRefresh = () => {
     analytics.refresh();
@@ -193,6 +256,7 @@ export function PhotographerHome() {
     transactions.refresh();
     wallet.refresh();
     reviews.refresh();
+    opportunities.refresh();
   };
 
   const a = analytics.data;
@@ -1401,6 +1465,15 @@ export function PhotographerHome() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Full-Screen Incoming Shoot Request Alert (Uber / Ringing Call Style) */}
+      <IncomingOpportunityAlertModal
+        opportunity={incomingOpportunity}
+        visible={incomingOpportunity !== null}
+        onApprove={handleApproveIncomingOpp}
+        onReject={handleRejectIncomingOpp}
+        onDismiss={handleDismissIncomingOpp}
+      />
 
       {/* Persistent App Header (TopBar) */}
       <TopBar />

@@ -56,6 +56,12 @@ export const env = {
   googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
   googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
 
+  /**
+   * Dual Direct & Hybrid Booking Engine feature flag.
+   * Enabled by default; set EXPO_PUBLIC_ENABLE_HYBRID_BOOKING=false to disable.
+   */
+  hybridBookingEnabled: process.env.EXPO_PUBLIC_ENABLE_HYBRID_BOOKING !== 'false',
+
   isDev: __DEV__,
 } as const;
 

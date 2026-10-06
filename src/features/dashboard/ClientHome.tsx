@@ -38,6 +38,8 @@ import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
+import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
+import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import {
@@ -261,7 +263,7 @@ export function ClientHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const styles = useStyles();
-  const { colors, isDark } = useTheme();
+  const { colors, gradients, isDark } = useTheme();
   const responsive = useResponsive();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -275,6 +277,7 @@ export function ClientHome() {
   const [payNowOpen, setPayNowOpen] = useState(false);
   const [payNowPayment, setPayNowPayment] = useState<PendingPayment | null>(null);
   const [isPendingDismissed, setIsPendingDismissed] = useState(false);
+  const [bookingModeOpen, setBookingModeOpen] = useState(false);
 
   // Real-Time Inline Global Search State
   const scrollViewRef = useRef<ScrollView>(null);
@@ -1324,22 +1327,23 @@ export function ClientHome() {
           <Pressable
             style={({ pressed }) => [
               styles.bentoCard,
+              styles.bentoCardHero,
               responsive.isLarge && styles.bentoCardLarge,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => router.push('/photographers' as never)}
+            onPress={() => {
+              if (env.hybridBookingEnabled) {
+                setBookingModeOpen(true);
+              } else {
+                router.push('/photographers' as never);
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Book Photographer"
           >
             <View style={styles.bentoTopRow}>
-              <View
-                style={[
-                  styles.bentoIconBox,
-                  {
-                    backgroundColor: colors.tint,
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
-              >
-                <Ionicons name="camera" size={19} color={colors.primary} />
+              <View style={styles.bentoHeroIconBox}>
+                <Ionicons name="camera" size={19} color="#FFFFFF" />
               </View>
               <View
                 style={[
@@ -1357,15 +1361,15 @@ export function ClientHome() {
 
             <View style={styles.bentoBottomRow}>
               <View style={styles.bentoTextWrap}>
-                <Text style={styles.bentoTitle} numberOfLines={1}>
+                <Text style={styles.bentoTitle} numberOfLines={2}>
                   Book Photographer
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
                   Find verified pros
                 </Text>
               </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
+              <View style={styles.bentoHeroActionBtn}>
+                <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
               </View>
             </View>
           </Pressable>
@@ -1994,6 +1998,12 @@ export function ClientHome() {
           events.refresh();
           analytics.refresh();
         }}
+      />
+
+      {/* Booking Mode Selector (Direct vs Hybrid per Figma Slide 02/03) */}
+      <BookingModeSelector
+        visible={bookingModeOpen}
+        onClose={() => setBookingModeOpen(false)}
       />
 
       {/* Global Real-Time Search Modal */}
@@ -2700,6 +2710,28 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bentoCardHero: {
+    borderColor: 'rgba(8, 58, 133, 0.22)',
+    borderWidth: 1.5,
+  },
+  bentoHeroIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...e(2),
+  },
+  bentoHeroActionBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...e(2),
   },
 
   // Luxury Trio Stats KPI Card

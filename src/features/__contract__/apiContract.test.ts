@@ -226,3 +226,31 @@ describe('dedicated role endpoints against the backend contract', () => {
     expect(tipCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
   });
 });
+
+/**
+ * Hybrid Booking Engine: match-preview, match-request, opportunities,
+ * candidates, select-photographer, convert-to-hybrid.
+ */
+describe('mobile hybrid booking requests against the backend contract', () => {
+  const hybridCalls = callsIn('src/features/hybrid/api.ts', (src) =>
+    src.replace(/\$\{encodeURIComponent\([^)]+\)\}/g, 'X'),
+  );
+
+  it('finds all hybrid matching endpoints in the api client', () => {
+    const paths = hybridCalls.map((c) => `${c.method} ${c.path}`);
+    expect(paths).toContain('POST /api/remote/events/match-preview');
+    expect(paths).toContain('POST /api/remote/events/X/match-request');
+    expect(paths).toContain('GET /api/remote/photographer/opportunities');
+    expect(paths).toContain('POST /api/remote/opportunities/X/approve');
+    expect(paths).toContain('POST /api/remote/opportunities/X/reject');
+    expect(paths).toContain('GET /api/remote/events/X/candidates');
+    expect(paths).toContain('POST /api/remote/events/X/select-photographer');
+    expect(paths).toContain('POST /api/remote/events/X/convert-to-hybrid');
+  });
+
+  it('every hybrid path exists on the backend contract', () => {
+    const missing = hybridCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path} (${c.source})`);
+    expect(missing).toEqual([]);
+  });
+});
+
