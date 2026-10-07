@@ -73,10 +73,20 @@ too, or every login from that platform is refused.
 
 ## iOS
 
-No iOS build has ever been produced and no Apple team is linked to the EAS project.
-Expo Go can load the JavaScript for a look at the UI, but sign-in, push notifications,
-updates and deep links all behave differently there and prove nothing. A real iPhone build
-needs an Apple Developer membership first.
+An iOS build exists: `build-13.ipa` is 2.2.0 (13), bundle `com.connekyt.app`, signed by
+Apple team `Z34A347245` with `aps-environment: production`, so it can receive push.
+`eas.json` has the iOS submit profile (App Store Connect app `6811336076`). As of
+2026-10-07 the app is going through App Store submission, not released; the open items
+are in `~/Desktop/ME/Connekyt-iOS-Submission/`. Push delivery also needs the APNs key on
+the EAS project, which isn't visible from the repo; check expo.dev → Credentials.
+
+Build 13 predates the bundled notification sounds (2026-10-07), so custom ringtones on
+iPhone need a newer iOS build.
+
+Expo Go can load the JavaScript for a look at the UI, but custom notification sounds,
+notification categories (lock-screen buttons), sign-in, push, updates and deep links
+behave differently there and prove nothing. Test those on a development or TestFlight
+build.
 
 The greenfield sandbox lives at `src/_design-sandbox/` and is git-ignored.
 
