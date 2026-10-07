@@ -5,6 +5,7 @@ import {
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
 import { GlobalOpportunityCallNotifier } from '@/features/hybrid/GlobalOpportunityCallNotifier';
+import { InAppNotificationWatcher } from '@/features/notifications/InAppNotificationWatcher';
 import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
@@ -171,6 +172,7 @@ export default function AppLayout() {
         <Stack.Screen name="collaborate/join/[token]" options={{ title: 'Join album' }} />
       </Stack>
       <GlobalOpportunityCallNotifier />
+      <InAppNotificationWatcher />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );
