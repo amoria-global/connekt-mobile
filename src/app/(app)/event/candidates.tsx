@@ -96,12 +96,14 @@ export default function EventCandidatesScreen() {
     fetchEventDetails();
   }, [fetchCandidates, fetchEventDetails]);
 
-  // Polling every 12 seconds if 0 candidates approved yet
+  // Poll every 12 seconds while matching is open, so new approvals appear
+  // even after the first one (it used to stop at the first candidate).
+  const matchOpen = !data?.matchStatus || data.matchStatus.toUpperCase() === 'ACTIVE';
   useEffect(() => {
-    if (data && data.candidates && data.candidates.length > 0) return;
+    if (!matchOpen && data && data.candidates.length > 0) return;
     const interval = setInterval(fetchCandidates, 12000);
     return () => clearInterval(interval);
-  }, [data, fetchCandidates]);
+  }, [matchOpen, data, fetchCandidates]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -152,6 +154,34 @@ export default function EventCandidatesScreen() {
 
   const candidates = data?.candidates ?? [];
 
+  // "8 invited · 3 waiting · 2 declined · 1 expired", plus when matching
+  // closes. Hidden when the backend doesn't send the counts.
+  const progressLine = (() => {
+    if (!data || typeof data.invitedCount !== 'number') return null;
+    const parts = [`${data.invitedCount} invited`];
+    if (data.pendingCount) parts.push(`${data.pendingCount} still deciding`);
+    if (data.declinedCount) parts.push(`${data.declinedCount} declined`);
+    if (data.expiredCount) parts.push(`${data.expiredCount} didn't respond`);
+    let closes = '';
+    if (data.windowExpiresAt && matchOpen) {
+      const t = new Date(data.windowExpiresAt);
+      if (!Number.isNaN(t.getTime())) {
+        closes = `Matching closes ${t.toLocaleDateString([], { weekday: 'short' })} ${t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      }
+    }
+    return { counts: parts.join(' · '), closes };
+  })();
+
+  const ProgressBox = progressLine ? (
+    <View style={styles.progressBox} accessibilityRole="summary">
+      <Ionicons name="people-outline" size={16} color={colors.primary} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.progressCounts}>{progressLine.counts}</Text>
+        {progressLine.closes ? <Text style={styles.progressCloses}>{progressLine.closes}</Text> : null}
+      </View>
+    </View>
+  ) : null;
+
   return (
     <Screen padded={false}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -159,7 +189,9 @@ export default function EventCandidatesScreen() {
       {/* Top Navigation Bar with Connekyt Branding */}
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 16) }]}>
         <Pressable
-          onPress={() => router.back()}
+          // Opened by router.replace after posting, or from a notification,
+          // there is no screen to go back to; router.back() then threw.
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)/events' as never))}
           hitSlop={12}
           style={styles.backBtn}
           accessibilityRole="button"
@@ -342,6 +374,13 @@ export default function EventCandidatesScreen() {
                 Your brief is being broadcast to top vetted creators. Photographers who accept your date and venue will appear here automatically.
               </Text>
 
+              {ProgressBox}
+              {data?.invitedCount === 0 && matchOpen ? (
+                <Text style={styles.emptyDesc}>
+                  No photographers matched your requirements yet. Try a wider location or budget, or browse photographers directly.
+                </Text>
+              ) : null}
+
               {/* 3-Step Live Dispatch Tracker */}
               <View style={styles.dispatchTracker}>
                 <View style={styles.trackerStep}>
@@ -408,6 +447,8 @@ export default function EventCandidatesScreen() {
                     : 'Choose one to lock your date'}
                 </Text>
               </View>
+
+              {ProgressBox}
 
               {/* Escrow Trust Banner */}
               <View style={styles.escrowBanner}>
@@ -731,6 +772,28 @@ const useStyles = makeStyles((c) => ({
     width: 12,
     height: 1,
     backgroundColor: c.borderSoft,
+  },
+  progressBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: c.surfaceMuted,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    marginVertical: spacing.xs,
+    alignSelf: 'stretch',
+  },
+  progressCounts: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  progressCloses: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: c.textSoft,
+    marginTop: 2,
   },
   tipBox: {
     flexDirection: 'row',
