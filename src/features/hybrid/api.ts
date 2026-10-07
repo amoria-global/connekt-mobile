@@ -189,6 +189,12 @@ export async function listEventCandidates(eventId: string): Promise<CandidatesRe
     status: String(data.status ?? ''),
     totalApproved: typeof data.totalApproved === 'number' ? data.totalApproved : candidates.length,
     candidates: candidates.map(mapCandidate),
+    matchStatus: typeof data.matchStatus === 'string' ? data.matchStatus : undefined,
+    invitedCount: typeof data.invitedCount === 'number' ? data.invitedCount : undefined,
+    pendingCount: typeof data.pendingCount === 'number' ? data.pendingCount : undefined,
+    declinedCount: typeof data.declinedCount === 'number' ? data.declinedCount : undefined,
+    expiredCount: typeof data.expiredCount === 'number' ? data.expiredCount : undefined,
+    windowExpiresAt: typeof data.windowExpiresAt === 'string' ? data.windowExpiresAt : undefined,
   };
 }
 
