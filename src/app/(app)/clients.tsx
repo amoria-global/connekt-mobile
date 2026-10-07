@@ -65,6 +65,18 @@ export default function ClientsScreen() {
               {item.totalSpent != null ? (
                 <Text style={styles.spent}>{formatPrice(item.totalSpent, item.currency)}</Text>
               ) : null}
+              <Pressable
+                hitSlop={8}
+                style={styles.chatAction}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  router.push(`/conversation/${item.id}?name=${encodeURIComponent(item.name)}` as Href);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Message ${item.name}`}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={19} color={colors.primary} />
+              </Pressable>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </Pressable>
           );
@@ -97,4 +109,9 @@ const useStyles = makeStyles((c) => ({
   email: { fontSize: fontSize.sm, color: c.textMuted },
   meta: { fontSize: fontSize.xs, color: c.textMuted },
   spent: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.primary },
+  chatAction: {
+    padding: spacing.xs,
+    borderRadius: radii.full,
+    backgroundColor: c.tint,
+  },
 }));
