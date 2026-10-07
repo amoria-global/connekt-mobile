@@ -1,9 +1,14 @@
 /**
  * API client for the Hybrid Booking Engine (/api/remote/**).
  * Reuses existing api client and authentication.
+ *
+ * Every call goes to one route and surfaces its failure. These functions used
+ * to swallow errors and return made-up results (a fake match request, a local
+ * match count, a silent "approved"), and to repeat a failed POST against an
+ * alias route. A repeated POST can act twice, and a hidden failure tells a
+ * photographer they are shortlisted when the server refused them.
  */
 import { api } from '@/api/client';
-import { listPhotographers } from '@/features/photographers/api';
 import type { ApiEnvelope, ApiError } from '@/types';
 import type {
   MatchPreviewPayload,
@@ -60,195 +65,38 @@ function mapOpportunity(raw: any): PhotographerOpportunity {
   };
 }
 
-const RELAY_BASE = 'http://127.0.0.1:8082';
-
-async function relayPost(path: string, body?: any): Promise<any> {
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 1200);
-    const r = await fetch(`${RELAY_BASE}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: ctrl.signal,
-    });
-    clearTimeout(t);
-    return await r.json();
-  } catch {
-    return null;
-  }
-}
-
-async function relayGet(path: string): Promise<any> {
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 1200);
-    const r = await fetch(`${RELAY_BASE}${path}`, { signal: ctrl.signal });
-    clearTimeout(t);
-    return await r.json();
-  } catch {
-    return null;
-  }
-}
-
-async function calculateFallbackMatchPreview(payload: MatchPreviewPayload): Promise<MatchPreviewResult> {
-  try {
-    const pros = await listPhotographers();
-    const city = (payload.city || 'Kigali').trim().toLowerCase();
-    const spec = (payload.specialty || '').trim().toLowerCase();
-
-    const matched = pros.filter((p) => {
-      // 1. City check
-      if (payload.locationCoverage === 'SAME_CITY') {
-        const loc = (p.location || '').toLowerCase();
-        if (!loc.includes(city) && !loc.includes('rwanda')) return false;
-      }
-      // 2. Specialty check
-      if (spec && spec !== 'any') {
-        const hasSpec = (p.specialties || []).some((s) => s.toLowerCase().includes(spec));
-        if (!hasSpec && p.category?.toLowerCase() !== spec) return false;
-      }
-      // 3. Budget check
-      if (payload.maxBudget && p.startingPrice && p.startingPrice > payload.maxBudget) {
-        return false;
-      }
-      return true;
-    });
-
-    const count = matched.length > 0 ? matched.length : pros.length > 0 ? pros.length : 12;
-    return {
-      matchCount: count,
-      breakdown: {
-        availableOnDate: count,
-        withinBudget: count,
-        typeMatched: count,
-        instagramEnriched: Math.min(count, 8),
-      },
-    };
-  } catch {
-    return {
-      matchCount: 12,
-      breakdown: {
-        availableOnDate: 12,
-        withinBudget: 12,
-        typeMatched: 12,
-        instagramEnriched: 8,
-      },
-    };
-  }
-}
-
 /**
  * 4.1 Real-time match preview & candidate count for the event wizard.
+ * The count is the server's, including 0; on failure this throws so the
+ * wizard can say it could not count rather than show a number.
  */
 export async function getMatchPreview(payload: MatchPreviewPayload): Promise<MatchPreviewResult> {
-  try {
-    // Add default coordinates for Kigali (-1.9441, 30.0619) if not provided,
-    // so spatial/distance SQL queries on the backend have valid coordinates to evaluate.
-    const enrichedPayload: MatchPreviewPayload = {
-      ...payload,
-      latitude: payload.latitude ?? -1.9441,
-      longitude: payload.longitude ?? 30.0619,
-    };
-
-    // Primary endpoint per backend guide: POST /api/remote/match/preview
-    const matchPath = '/match/preview';
-    let res: any;
-    try {
-      res = await api.post<any>(matchPath, enrichedPayload);
-    } catch {
-      // Fallback endpoint
-      res = await api.post<any>('/events/match-preview', enrichedPayload);
-    }
-
-    if (res && res.action !== 0) {
-      const raw = res?.data !== undefined ? res.data : res;
-
-      // 1. Raw integer
-      if (typeof raw === 'number' && raw > 0) {
-        return { matchCount: raw };
-      }
-
-      // 2. Array of matched photographers
-      if (Array.isArray(raw) && raw.length > 0) {
-        return { matchCount: raw.length };
-      }
-
-      // 3. Object with totalMatchCount / matchCount / total / matches / content (Spring Page)
-      if (raw && typeof raw === 'object') {
-        const count =
-          typeof raw.totalMatchCount === 'number'
-            ? raw.totalMatchCount
-            : typeof raw.matchCount === 'number'
-              ? raw.matchCount
-              : typeof raw.availableOnDateCount === 'number'
-                ? raw.availableOnDateCount
-                : typeof raw.count === 'number'
-                  ? raw.count
-                  : typeof raw.total === 'number'
-                    ? raw.total
-                    : typeof raw.totalElements === 'number'
-                      ? raw.totalElements
-                      : Array.isArray(raw.content)
-                        ? raw.content.length
-                        : Array.isArray(raw.matches)
-                          ? raw.matches.length
-                          : typeof raw.matchedCount === 'number'
-                            ? raw.matchedCount
-                            : null;
-
-        if (count !== null && count > 0) {
-          const breakdown = raw.breakdown ?? {
-            availableOnDate: raw.availableOnDateCount,
-            withinBudget: raw.withinBudgetCount,
-            typeMatched: raw.typeMatchedCount,
-            instagramEnriched: raw.instagramEnrichedCount,
-          };
-          return { matchCount: count, breakdown };
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('[MatchPreview] Backend match preview call:', err);
+  const res = await api.post<ApiEnvelope<Raw>>('/events/match-preview', payload);
+  assertOk(res, 'Could not calculate matching photographers.');
+  const raw = (res.data ?? {}) as Raw;
+  if (typeof raw.matchCount !== 'number') {
+    throw { status: 500, message: 'Could not calculate matching photographers.' } satisfies ApiError;
   }
-
-  // Fallback to active registered photographers in the city / specialty
-  return calculateFallbackMatchPreview(payload);
+  return {
+    matchCount: raw.matchCount,
+    breakdown: raw.breakdown as MatchPreviewResult['breakdown'],
+  };
 }
 
 /**
  * 4.2 Publish event brief and trigger matching / candidate invitations.
- * Endpoint: POST /api/remote/match/request?eventId={eventId}
+ * Endpoint: POST /api/remote/events/{eventId}/match-request
  */
 export async function createMatchRequest(
   eventId: string,
   payload: MatchRequestPayload,
 ): Promise<MatchRequestResult> {
-  // Fire broadcast to prototype relay for instant simulator sync
-  void relayPost('/opportunities', { eventId, ...payload });
-
-  try {
-    const matchPath = `/match/request?eventId=${encodeURIComponent(eventId)}`;
-    let res: any;
-    try {
-      res = await api.post<ApiEnvelope<MatchRequestResult>>(matchPath, { eventId, ...payload });
-    } catch {
-      res = await api.post<ApiEnvelope<MatchRequestResult>>(
-        `/events/${encodeURIComponent(eventId)}/match-request`,
-        payload,
-      );
-    }
-    if (res?.action === 1 && res.data) return res.data;
-  } catch (err) {
-    console.warn('[createMatchRequest] Remote call failed, using prototype broadcast:', err);
-  }
-
-  return {
-    matchRequestId: 'mr-' + Date.now(),
-    status: 'PUBLISHED_PENDING_ASSIGNMENT',
-    invitedCount: 10,
-    expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
-  };
+  const res = await api.post<ApiEnvelope<MatchRequestResult>>(
+    `/events/${encodeURIComponent(eventId)}/match-request`,
+    payload,
+  );
+  assertOk(res, 'Could not post your event to photographers.');
+  return res.data!;
 }
 
 function parseOpportunities(res: any): PhotographerOpportunity[] {
@@ -293,78 +141,38 @@ function mapCandidate(c: any): CandidateSummary {
 
 /**
  * 4.3 Photographer opportunities feed.
- * Endpoint: GET /api/remote/match/opportunities?status=PENDING_RESPONSE
+ * Endpoint: GET /api/remote/photographer/opportunities?status=PENDING_RESPONSE
  */
 export async function listOpportunities(status?: string): Promise<PhotographerOpportunity[]> {
   const queryStatus = status || 'PENDING_RESPONSE';
-  let opps: PhotographerOpportunity[] = [];
-  try {
-    const matchPath = `/match/opportunities?status=${encodeURIComponent(queryStatus)}`;
-    let res: any;
-    try {
-      res = await api.get<any>(matchPath);
-    } catch {
-      res = await api.get<any>(`/photographer/opportunities?status=${encodeURIComponent(queryStatus)}`);
-    }
-    opps = parseOpportunities(res);
-  } catch (err) {
-    console.warn('[listOpportunities] Remote check:', err);
-  }
-
-  // If remote has no pending opportunities or is pending backend deployment,
-  // sync from prototype relay so simulators can test in real-time.
-  if (opps.length === 0) {
-    const relayRes = await relayGet('/opportunities');
-    if (Array.isArray(relayRes?.data)) {
-      opps = relayRes.data.map(mapOpportunity);
-    }
-  }
-
-  return opps;
+  const res = await api.get<ApiEnvelope<unknown>>(
+    `/photographer/opportunities?status=${encodeURIComponent(queryStatus)}`,
+  );
+  assertOk(res, 'Could not load opportunities.');
+  return parseOpportunities(res);
 }
 
 /**
  * 4.4 Photographer approves opportunity (adds them to client candidate list).
- * Endpoint: POST /api/remote/match/candidates/{candidateId}/approve
+ * Endpoint: POST /api/remote/opportunities/{candidateId}/approve
+ * Throws on refusal, e.g. 409 once the invite has expired or been decided.
  */
 export async function approveOpportunity(candidateId: string): Promise<void> {
-  void relayPost(`/opportunities/${encodeURIComponent(candidateId)}/approve`);
-  try {
-    const matchPath = `/match/candidates/${encodeURIComponent(candidateId)}/approve`;
-    let res: any;
-    try {
-      res = await api.post<{ action?: number; message?: string }>(matchPath);
-    } catch {
-      res = await api.post<{ action?: number; message?: string }>(
-        `/opportunities/${encodeURIComponent(candidateId)}/approve`,
-      );
-    }
-    if (res?.action === 1) return;
-  } catch (err) {
-    console.warn('[approveOpportunity] Remote endpoint call:', err);
-  }
+  const res = await api.post<{ action?: number; message?: string }>(
+    `/opportunities/${encodeURIComponent(candidateId)}/approve`,
+  );
+  assertOk(res, 'Could not approve this opportunity.');
 }
 
 /**
  * 4.4 Photographer rejects opportunity (triggers queue backfill).
- * Endpoint: POST /api/remote/match/candidates/{candidateId}/reject
+ * Endpoint: POST /api/remote/opportunities/{candidateId}/reject
  */
 export async function rejectOpportunity(candidateId: string): Promise<void> {
-  void relayPost(`/opportunities/${encodeURIComponent(candidateId)}/reject`);
-  try {
-    const matchPath = `/match/candidates/${encodeURIComponent(candidateId)}/reject`;
-    let res: any;
-    try {
-      res = await api.post<{ action?: number; message?: string }>(matchPath);
-    } catch {
-      res = await api.post<{ action?: number; message?: string }>(
-        `/opportunities/${encodeURIComponent(candidateId)}/reject`,
-      );
-    }
-    if (res?.action === 1) return;
-  } catch (err) {
-    console.warn('[rejectOpportunity] Remote endpoint call:', err);
-  }
+  const res = await api.post<{ action?: number; message?: string }>(
+    `/opportunities/${encodeURIComponent(candidateId)}/reject`,
+  );
+  assertOk(res, 'Could not decline this opportunity.');
 }
 
 /**
@@ -372,73 +180,36 @@ export async function rejectOpportunity(candidateId: string): Promise<void> {
  * Endpoint: GET /api/remote/events/{eventId}/candidates
  */
 export async function listEventCandidates(eventId: string): Promise<CandidatesResponse> {
-  try {
-    const res = await api.get<any>(
-      `/events/${encodeURIComponent(eventId)}/candidates`,
-    );
-    const data = res?.data !== undefined ? res.data : res;
-
-    if (data && typeof data === 'object') {
-      if (Array.isArray(data.candidates) && data.candidates.length > 0) {
-        return {
-          ...data,
-          candidates: data.candidates.map(mapCandidate),
-        };
-      }
-      if (Array.isArray(data.content) && data.content.length > 0) {
-        return {
-          eventId,
-          status: data.status || 'MATCHING',
-          totalApproved: data.content.length,
-          candidates: data.content.map(mapCandidate),
-        };
-      }
-      if (Array.isArray(data) && data.length > 0) {
-        return {
-          eventId,
-          status: 'MATCHING',
-          totalApproved: data.length,
-          candidates: data.map(mapCandidate),
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('[listEventCandidates] Remote check:', err);
-  }
-
-  // Check prototype relay
-  const relayRes = await relayGet(`/events/${encodeURIComponent(eventId)}/candidates`);
-  if (Array.isArray(relayRes?.data?.candidates) && relayRes.data.candidates.length > 0) {
-    return {
-      ...relayRes.data,
-      candidates: relayRes.data.candidates.map(mapCandidate),
-    };
-  }
-
+  const res = await api.get<ApiEnvelope<Raw>>(`/events/${encodeURIComponent(eventId)}/candidates`);
+  assertOk(res, 'Could not load candidates.');
+  const data = (res.data ?? {}) as Raw;
+  const candidates = Array.isArray(data.candidates) ? data.candidates : [];
   return {
-    eventId,
-    status: 'MATCHING',
-    totalApproved: 0,
-    candidates: [],
+    eventId: String(data.eventId ?? eventId),
+    status: String(data.status ?? ''),
+    totalApproved: typeof data.totalApproved === 'number' ? data.totalApproved : candidates.length,
+    candidates: candidates.map(mapCandidate),
   };
 }
 
 /**
  * 4.6 Client selects a candidate with concurrency protection and locks booking.
- * Endpoint: POST /api/remote/match/select
+ * Endpoint: POST /api/remote/events/{eventId}/select-photographer
  * Returns declarationId to launch existing escrow checkout.
+ *
+ * Sent once, never repeated: this creates the booking and its payment
+ * declaration. After a timeout the selection may already have gone through,
+ * so the client is told to refresh rather than to try again.
  */
 export async function selectPhotographer(
   eventId: string,
   payload: SelectPhotographerPayload,
 ): Promise<SelectPhotographerResult> {
-  const matchPath = '/match/select';
-  let res: any;
+  let res: ApiEnvelope<SelectPhotographerResult>;
   try {
-    res = await api.post<ApiEnvelope<SelectPhotographerResult> & { error?: string }>(
-      matchPath,
+    res = await api.post<ApiEnvelope<SelectPhotographerResult>>(
+      `/events/${encodeURIComponent(eventId)}/select-photographer`,
       {
-        eventId,
         candidateId: payload.candidateId,
         photographerId: payload.photographerId,
         packageId: payload.packageId,
@@ -446,26 +217,25 @@ export async function selectPhotographer(
         notes: payload.notes,
       },
     );
-  } catch {
-    res = await api.post<ApiEnvelope<SelectPhotographerResult> & { error?: string }>(
-      `/events/${encodeURIComponent(eventId)}/select-photographer`,
-      payload,
-    );
-  }
-
-  if (res?.action !== 1) {
-    if (res?.error === 'NO_LONGER_AVAILABLE') {
+  } catch (e) {
+    const err = e as ApiError;
+    if (err?.status === 409 || err?.body?.error === 'NO_LONGER_AVAILABLE') {
       throw {
         status: 409,
-        message: 'This photographer is no longer available for your date. Please select another candidate.',
+        message: 'This photographer is no longer available for your event. Please select another candidate.',
       } satisfies ApiError;
     }
-    throw {
-      status: 400,
-      message: res?.message || 'Could not confirm photographer selection. Please try again.',
-    } satisfies ApiError;
+    if (err?.status === 408 || err?.status === 0) {
+      throw {
+        status: err.status,
+        message:
+          "We couldn't confirm whether your selection went through. Pull to refresh and check your event before selecting again.",
+      } satisfies ApiError;
+    }
+    throw e;
   }
 
+  assertOk(res, 'Could not confirm photographer selection. Please try again.');
   return res.data!;
 }
 
@@ -473,15 +243,9 @@ export async function selectPhotographer(
  * 7.0 Direct-to-Hybrid rescue hook: converts a declined direct booking event into a hybrid match brief.
  */
 export async function convertToHybridRescue(eventId: string): Promise<ConvertToHybridRescueResult> {
-  const matchPath = `/match/convert/${encodeURIComponent(eventId)}`;
-  let res: any;
-  try {
-    res = await api.post<ApiEnvelope<ConvertToHybridRescueResult>>(matchPath);
-  } catch {
-    res = await api.post<ApiEnvelope<ConvertToHybridRescueResult>>(
-      `/events/${encodeURIComponent(eventId)}/convert-to-hybrid`,
-    );
-  }
+  const res = await api.post<ApiEnvelope<ConvertToHybridRescueResult>>(
+    `/events/${encodeURIComponent(eventId)}/convert-to-hybrid`,
+  );
   assertOk(res, 'Could not convert event to hybrid match.');
   return res.data!;
 }
@@ -489,16 +253,10 @@ export async function convertToHybridRescue(eventId: string): Promise<ConvertToH
 /**
  * 7.1 Hybrid-to-Direct rescue hook: converts a timed-out hybrid event into direct booking mode.
  */
-export async function convertToDirectRescue(eventId: string): Promise<any> {
-  const matchPath = `/match/convert-to-direct/${encodeURIComponent(eventId)}`;
-  let res: any;
-  try {
-    res = await api.post<any>(matchPath);
-  } catch {
-    res = await api.post<any>(
-      `/events/${encodeURIComponent(eventId)}/convert-to-direct`,
-    );
-  }
+export async function convertToDirectRescue(eventId: string): Promise<Raw | undefined> {
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/events/${encodeURIComponent(eventId)}/convert-to-direct`,
+  );
   assertOk(res, 'Could not convert event to direct booking.');
-  return res?.data ?? res;
+  return res.data;
 }

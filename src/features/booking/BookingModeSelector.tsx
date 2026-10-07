@@ -190,6 +190,7 @@ export function BookingModeSelector({
   // Live match counter state
   const [matchResult, setMatchResult] = useState<MatchPreviewResult | null>(null);
   const [calculatingMatch, setCalculatingMatch] = useState(false);
+  const [matchCountFailed, setMatchCountFailed] = useState(false);
 
   // Helpers
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -219,11 +220,16 @@ export function BookingModeSelector({
         currency: currentCurrency || 'RWF',
         photographerType: photographerType === 'ANY' ? undefined : photographerType,
         specialty: specialty === 'ANY' ? undefined : specialty,
-        locationCoverage: locationCoverage === 'ANY' ? undefined : locationCoverage,
+        // Sent as-is: the backend reads a missing coverage as SAME_CITY, so
+        // dropping ANY quietly limited the search to the event's city.
+        locationCoverage,
       });
       setMatchResult(res);
+      setMatchCountFailed(false);
     } catch {
-      setMatchResult({ matchCount: 0 });
+      // Not a count of 0: say we could not count, rather than show a number.
+      setMatchResult(null);
+      setMatchCountFailed(true);
     } finally {
       setCalculatingMatch(false);
     }
@@ -387,8 +393,12 @@ export function BookingModeSelector({
         currency: currentCurrency || 'RWF',
         photographerType: photographerType === 'ANY' ? undefined : photographerType,
         specialty: specialty === 'ANY' ? undefined : specialty,
-        locationCoverage: locationCoverage === 'ANY' ? undefined : locationCoverage,
+        // Sent as-is: the backend reads a missing coverage as SAME_CITY, so
+        // dropping ANY quietly limited the search to the event's city.
+        locationCoverage,
         expirationHours: 24,
+        city: city.trim() || undefined,
+        venue: venue.trim() || undefined,
       });
 
       handleDismiss();
@@ -1133,7 +1143,7 @@ export function BookingModeSelector({
                           {calculatingMatch ? (
                             <ActivityIndicator size="small" color={colors.primary} />
                           ) : (
-                            <Text style={styles.matchCountNumber}>{matchResult?.matchCount ?? 0}</Text>
+                            <Text style={styles.matchCountNumber}>{matchResult ? matchResult.matchCount : '–'}</Text>
                           )}
                           <Text style={styles.matchCountLabel}>photographers currently match</Text>
                         </View>
@@ -1156,6 +1166,15 @@ export function BookingModeSelector({
                             <Text style={styles.checkText}>Verified Connekyt portfolio</Text>
                           </View>
                         </View>
+
+                        {matchCountFailed && !calculatingMatch && (
+                          <View style={styles.zeroMatchHint}>
+                            <Ionicons name="cloud-offline-outline" size={16} color="#D97706" />
+                            <Text style={styles.zeroMatchText}>
+                              We couldn&apos;t count matching photographers right now. Check your connection; you can still continue.
+                            </Text>
+                          </View>
+                        )}
 
                         {matchResult?.matchCount === 0 && !calculatingMatch && (
                           <View style={styles.zeroMatchHint}>
@@ -1183,7 +1202,7 @@ export function BookingModeSelector({
                         <View style={styles.summaryTopRow}>
                           <Text style={styles.summaryEventTitle}>{title.trim() || 'Untitled Event'}</Text>
                           <View style={styles.matchPill}>
-                            <Text style={styles.matchPillText}>{matchResult?.matchCount ?? 0} MATCHES</Text>
+                            <Text style={styles.matchPillText}>{matchResult ? `${matchResult.matchCount} MATCHES` : 'COUNT UNAVAILABLE'}</Text>
                           </View>
                         </View>
 

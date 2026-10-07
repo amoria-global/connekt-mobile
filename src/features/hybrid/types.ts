@@ -52,6 +52,11 @@ export type MatchRequestPayload = {
   locationCoverage?: LocationCoverage;
   expirationHours?: number;
   instructions?: string;
+  /** Where the event is; the backend measures photographer distance from it. */
+  city?: string;
+  venue?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type MatchRequestResult = {
