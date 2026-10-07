@@ -46,12 +46,14 @@ export type EventItem = {
   /** Category id when available (lets edit forms pre-select the row). */
   categoryId?: string;
   photographerName?: string;
+  photographerId?: string;
   /**
    * The booking's client (who the photographer is shooting for). On the
    * photographer feed the card shows this person + avatar, not the
    * photographer. Web parity: photographer/events.tsx card footer.
    */
   clientName?: string;
+  clientId?: string;
   clientAvatar?: string;
   /** Booked package label (e.g. "Diamond", "Gold") — shown as a card badge. */
   packageName?: string;

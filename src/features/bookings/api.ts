@@ -15,6 +15,9 @@ export type Booking = {
   eventId?: string;
   eventTitle: string;
   clientName?: string;
+  clientId?: string;
+  photographerName?: string;
+  photographerId?: string;
   status?: string;
   proposedPrice?: number;
   currency?: string;
@@ -34,13 +37,24 @@ function num(v: unknown): number | undefined {
 function mapBooking(r: Raw): Booking {
   const event = (r.event ?? {}) as Raw;
   const client = (r.client ?? r.customer ?? {}) as Raw;
+  const photographer = (r.photographer ?? {}) as Raw;
   const clientName =
     [str(client.firstName), str(client.lastName)].filter(Boolean).join(' ') || str(client.name);
+  const clientId = str(client.id) ?? str(r.clientId) ?? str(r.customerId);
+  const photographerName =
+    [str(photographer.firstName), str(photographer.lastName)].filter(Boolean).join(' ') ||
+    str(photographer.name) ||
+    str(r.photographerName);
+  const photographerId = str(photographer.id) ?? str(r.photographerId);
+
   return {
     id: String(r.id ?? r.bookingId ?? ''),
     eventId: str(event.id) ?? str(r.eventId),
     eventTitle: str(event.title) ?? str(r.eventTitle) ?? str(r.title) ?? 'Booking request',
     clientName,
+    clientId,
+    photographerName,
+    photographerId,
     status: str(r.status),
     proposedPrice: num(r.proposedPrice) ?? num(r.price),
     currency: str(r.currency) ?? str(r.currencyCode),

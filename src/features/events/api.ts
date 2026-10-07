@@ -105,6 +105,10 @@ function mapEvent(r: RawEvent): EventItem {
   const tagsCsv = str(r.eventTags);
   const tags = tagsCsv ? tagsCsv.split(',').map((t) => t.trim()).filter(Boolean) : undefined;
 
+  const photographerId = str(r.photographerId) ?? str(photographer.id);
+  const clientId =
+    str(r.clientId) ?? str(r.customerId) ?? str(client.id) ?? str(client.customerId);
+
   return {
     id: String(r.id ?? r.slug ?? r.eventId ?? ''),
     title: str(r.title) ?? str(r.name) ?? 'Untitled event',
@@ -115,7 +119,9 @@ function mapEvent(r: RawEvent): EventItem {
     category: categoryName,
     categoryId,
     photographerName,
+    photographerId,
     clientName,
+    clientId,
     clientAvatar,
     packageName: str(r.packageName),
     hasLiveStream: r.hasLiveStream === true || r.hasLiveStream === 'true' || r.hasLiveStream === 1,
