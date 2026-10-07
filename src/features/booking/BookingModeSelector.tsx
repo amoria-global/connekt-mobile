@@ -35,6 +35,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { getMatchPreview, createMatchRequest } from '@/features/hybrid/api';
+import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
 import type { PhotographerType, LocationCoverage, MatchPreviewResult } from '@/features/hybrid/types';
 import { createEvent } from '@/features/events/api';
 import { useRole } from '@/features/auth/role';
@@ -122,22 +123,8 @@ const COVERAGE_OPTIONS: { id: LocationCoverage; label: string }[] = [
   { id: 'NEARBY_CITY', label: 'Nearby city' },
 ];
 
-/**
- * Formats a raw number/string into comma-separated thousands (e.g. 1000000 -> 1,000,000).
- */
-export function formatAmountWithCommas(val: string): string {
-  const digits = val.replace(/\D/g, '');
-  if (!digits) return '';
-  return Number(digits).toLocaleString('en-US');
-}
-
-/**
- * Parses a comma-formatted amount string into an integer.
- */
-export function parseAmountNumber(val: string): number {
-  const digits = val.replace(/\D/g, '');
-  return digits ? parseInt(digits, 10) : 0;
-}
+// Re-exported for existing importers; the helpers live in utils/amount.
+export { formatAmountWithCommas, parseAmountNumber };
 
 export function BookingModeSelector({
   visible,

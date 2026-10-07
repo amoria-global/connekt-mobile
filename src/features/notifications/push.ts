@@ -18,15 +18,24 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { registerPushToken } from './api';
+import { showSystemBannerInForeground } from './inAppAlerts';
 
-// Show incoming pushes as a banner + sound even while the app is foregrounded.
+// With the app open, booking and payment pushes are shown by
+// InAppNotificationWatcher (its own banner and sound), so the phone's banner
+// is skipped for those to avoid alerting twice. Everything else still shows
+// as a banner with sound.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    const show = showSystemBannerInForeground(
+      notification.request.content.data as Record<string, unknown> | undefined,
+    );
+    return {
+      shouldShowBanner: show,
+      shouldShowList: true,
+      shouldPlaySound: show,
+      shouldSetBadge: true,
+    };
+  },
 });
 
 let registered = false;

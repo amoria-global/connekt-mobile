@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { RefreshControl, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -243,6 +243,12 @@ export default function PhotographerProfileScreen() {
   });
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(null);
 
+  // Booked dates change when someone books this photographer; reload when
+  // the screen comes back into focus and after the booking sheet closes,
+  // instead of only on month change.
+  const [calendarReload, setCalendarReload] = useState(0);
+  useFocusEffect(useCallback(() => setCalendarReload((n) => n + 1), []));
+
   useEffect(() => {
     if (!id) return;
     const start = new Date(calendarMonth.year, calendarMonth.month, 1);
@@ -260,7 +266,7 @@ export default function PhotographerProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, calendarMonth.year, calendarMonth.month]);
+  }, [id, calendarMonth.year, calendarMonth.month, calendarReload]);
 
   const now = new Date();
   const isCurrentMonth =
@@ -618,6 +624,7 @@ export default function PhotographerProfileScreen() {
         photographerImage={data?.avatar}
         packages={data?.packages || []}
         initialDate={selectedCalendarDate}
+        onClose={() => setCalendarReload((n) => n + 1)}
       />
 
       {/* Report photographer sheet */}
