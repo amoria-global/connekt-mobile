@@ -137,6 +137,16 @@ export async function registerForPushNotifications(): Promise<string | null> {
           },
         },
       ]);
+      // Direct booking request: one button that opens the incoming-request
+      // screen. Accept isn't offered here because it commits the photographer
+      // and starts the client's payment; they see the details first.
+      await Notifications.setNotificationCategoryAsync('BOOKING_REQUEST', [
+        {
+          identifier: 'VIEW_REQUEST',
+          buttonTitle: 'View & respond',
+          options: { opensAppToForeground: true },
+        },
+      ]);
     } catch {
       // Non-fatal if categories unsupported in current environment
     }
