@@ -52,6 +52,11 @@ export type MatchRequestPayload = {
   locationCoverage?: LocationCoverage;
   expirationHours?: number;
   instructions?: string;
+  /** Where the event is; the backend measures photographer distance from it. */
+  city?: string;
+  venue?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type MatchRequestResult = {
@@ -132,6 +137,13 @@ export type CandidatesResponse = {
   status: string;
   totalApproved: number;
   candidates: CandidateSummary[];
+  /** How the match is going; absent from backends before the progress fields. */
+  matchStatus?: string;
+  invitedCount?: number;
+  pendingCount?: number;
+  declinedCount?: number;
+  expiredCount?: number;
+  windowExpiresAt?: string;
 };
 
 export type SelectPhotographerPayload = {

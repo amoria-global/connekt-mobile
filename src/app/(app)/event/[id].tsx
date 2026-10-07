@@ -200,7 +200,9 @@ export default function EventDetailScreen() {
               await unpublishEvent(id, isCoordinator).catch(() => {});
             }
             await deleteEvent(id, isCoordinator);
-            router.back();
+            // Opened from a notification there's nothing to go back to.
+            if (router.canGoBack()) router.back();
+            else router.replace('/(app)/(tabs)/events' as never);
           } catch (e) {
             Alert.alert('Could not delete', isApiError(e) ? e.message : 'Please try again.');
             setBusy(null);
