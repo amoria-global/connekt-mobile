@@ -10,6 +10,7 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { bookingsApi } from '@/api/endpoints/bookings';
 import { useAuth, isApiError } from '@/store/auth';
 import { logoBase64 } from '@/utils/logoBase64';
+import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { formatPrice as formatSelectedPrice } from '@/utils/format';
 
@@ -261,182 +262,107 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
       try {
         const clientName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Client';
         const clientEmail = user?.email || 'No email provided';
-        const clientImage = user?.profilePicture || 'https://ui-avatars.com/api/?name=C&background=random';
-        
         const photogName = photographerName || 'Photographer';
-        const photogImage = photographerImage || 'https://ui-avatars.com/api/?name=P&background=random';
 
-        const formatTime = (t: Date | null) => {
-          if (!t) return 'N/A';
-          return t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        };
+        // Everything typed by the user goes into HTML, so escape it.
+        const esc = (v: unknown) =>
+          String(v ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        const money = (n: number | undefined, cur: string | undefined) =>
+          n == null || Number.isNaN(n) ? '—' : `${Math.round(n).toLocaleString('en-US')} ${esc(cur || '')}`.trim();
+        const formatTime = (t: Date | null) =>
+          t ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+        const row = (label: string, value: string) =>
+          `<tr><th>${label}</th><td>${value}</td></tr>`;
 
-        const html = `
-          <html>
-            <head>
-              <style>
-                body { 
-                  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
-                  padding: 40px; 
-                  color: #333; 
-                  background-color: #fff;
-                  position: relative;
-                }
-                .watermark {
-                  position: absolute;
-                  top: 50%;
-                  left: 50%;
-                  transform: translate(-50%, -50%);
-                  opacity: 0.15;
-                  width: 400px;
-                  height: auto;
-                  z-index: -1;
-                }
-                .card { background: rgba(249, 250, 251, 0.85); padding: 30px; border-radius: 16px; border: 1px solid #e5e7eb; position: relative; z-index: 1; }
-                h1 { color: #1e3a8a; margin-top: 0; }
-                .header { border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 20px; }
-                
-                .profiles-container {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 30px;
-                  gap: 20px;
-                }
-                .profile-card {
-                  flex: 1;
-                  background: #fff;
-                  border: 1px solid #e5e7eb;
-                  border-radius: 12px;
-                  padding: 15px;
-                  display: flex;
-                  align-items: center;
-                  gap: 15px;
-                }
-                .profile-img {
-                  width: 60px;
-                  height: 60px;
-                  border-radius: 30px;
-                  object-fit: cover;
-                }
-                .profile-info h3 { margin: 0 0 4px 0; font-size: 16px; color: #111827; }
-                .profile-info p { margin: 0; font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; }
-                .profile-info span { font-size: 14px; color: #4b5563; }
+        const price = selectedPackage?.price;
+        const cur = selectedPackage?.currency;
+        const depositPct = milestoneOption === 'full' ? 100 : milestoneOption === 'half' ? 50 : 70;
+        const deposit = price != null ? (price * depositPct) / 100 : undefined;
+        const minB = parseAmountNumber(minBudget);
+        const maxB = parseAmountNumber(maxBudget);
+        const budget =
+          minB || maxB
+            ? `${minB ? minB.toLocaleString('en-US') : '—'} – ${maxB ? maxB.toLocaleString('en-US') : '—'} ${esc(displayCurrency)}`
+            : 'Not specified';
+        const refId = payHandoff?.declarationId || payHandoff?.eventId || '';
+        const reference = refId ? refId.slice(0, 8).toUpperCase() : '—';
+        const issued = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 
-                .section-title {
-                  font-size: 18px;
-                  color: #1e3a8a;
-                  border-bottom: 1px solid #e5e7eb;
-                  padding-bottom: 8px;
-                  margin-top: 25px;
-                  margin-bottom: 15px;
-                }
+        const html = `<!doctype html>
+<html><head><meta charset="utf-8" />
+<style>
+  @page { margin: 28px; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #111827; font-size: 12.5px; margin: 0; }
+  .top { display: table; width: 100%; border-bottom: 3px solid #083A85; padding-bottom: 14px; margin-bottom: 18px; }
+  .top > div { display: table-cell; vertical-align: middle; }
+  .logo { height: 34px; }
+  .doc { text-align: right; }
+  .doc h1 { margin: 0; font-size: 20px; color: #083A85; letter-spacing: 0.2px; }
+  .doc p { margin: 3px 0 0; color: #6B7280; }
+  .status { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 999px; background: #FEF3C7; color: #92400E; font-weight: 700; font-size: 11px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: #6B7280; margin: 20px 0 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 7px 0; border-bottom: 1px solid #E5E7EB; vertical-align: top; text-align: left; }
+  th { width: 38%; color: #6B7280; font-weight: 600; }
+  td { font-weight: 600; }
+  .parties td { width: 50%; border: 1px solid #E5E7EB; padding: 10px 12px; }
+  .parties .role { color: #6B7280; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; }
+  .parties .name { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .parties .sub { color: #6B7280; font-weight: 400; margin-top: 2px; }
+  .total th, .total td { font-size: 15px; color: #083A85; font-weight: 800; border-bottom: 0; padding-top: 10px; }
+  .foot { margin-top: 26px; color: #6B7280; font-size: 10.5px; line-height: 1.5; border-top: 1px solid #E5E7EB; padding-top: 10px; }
+</style></head>
+<body>
+  <div class="top">
+    <div><img class="logo" src="${logoBase64}" /></div>
+    <div class="doc">
+      <h1>Booking Request</h1>
+      <p>Reference ${esc(reference)} · Issued ${esc(issued)}</p>
+      <span class="status">Awaiting photographer confirmation</span>
+    </div>
+  </div>
 
-                .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px; }
-                .label { font-weight: 600; color: #6b7280; width: 40%; }
-                .value { font-weight: 700; color: #111827; width: 60%; text-align: right; }
-                .total { font-size: 24px; color: #16a34a; margin-top: 20px; border-top: 2px solid #e5e7eb; padding-top: 20px; }
-                .tags { font-size: 13px; color: #111827; background: #e5e7eb; padding: 4px 8px; border-radius: 4px; margin-left: 4px; display: inline-block; }
-              </style>
-            </head>
-            <body>
-              <img src="${logoBase64}" class="watermark" />
-              <div class="card">
-                <div class="header">
-                  <h1>Connekyt Booking Proof</h1>
-                  <p style="color: #4b5563; font-size: 16px;">Thank you for your booking request! Here is your complete receipt.</p>
-                </div>
+  <table class="parties"><tr>
+    <td><div class="role">Client</div><div class="name">${esc(clientName)}</div><div class="sub">${esc(clientEmail)}</div></td>
+    <td><div class="role">Photographer</div><div class="name">${esc(photogName)}</div><div class="sub">Requested photographer</div></td>
+  </tr></table>
 
-                <div class="profiles-container">
-                  <div class="profile-card">
-                    <img src="${clientImage}" class="profile-img" />
-                    <div class="profile-info">
-                      <p>Client</p>
-                      <h3>${clientName}</h3>
-                      <span>${clientEmail}</span>
-                    </div>
-                  </div>
-                  <div class="profile-card">
-                    <img src="${photogImage}" class="profile-img" />
-                    <div class="profile-info">
-                      <p>Photographer</p>
-                      <h3>${photogName}</h3>
-                      <span>Requested Talent</span>
-                    </div>
-                  </div>
-                </div>
+  <h2>Event</h2>
+  <table>
+    ${row('Event', esc(eventName || '—'))}
+    ${row('Service', esc(serviceType || '—'))}
+    ${row('Date', esc(date ? date.toDateString() : '—'))}
+    ${row('Time', `${esc(formatTime(startTime))} – ${esc(formatTime(endTime))}`)}
+    ${row('Location', esc(location || '—'))}
+    ${row('Guests', esc(guests || '—'))}
+    ${selectedTags.length > 0 ? row('Tags', selectedTags.map(esc).join(', ')) : ''}
+    ${notes ? row('Notes', esc(notes)) : ''}
+  </table>
 
-                <div class="section-title">1. Brief</div>
-                <div class="row">
-                  <span class="label">Service Type:</span>
-                  <span class="value">${serviceType}</span>
-                </div>
-                <div class="row">
-                  <span class="label">Date:</span>
-                  <span class="value">${date ? date.toDateString() : 'N/A'}</span>
-                </div>
-                <div class="row">
-                  <span class="label">Location:</span>
-                  <span class="value">${location || 'N/A'}</span>
-                </div>
-                <div class="row">
-                  <span class="label">Budget:</span>
-                  <span class="value">${minBudget || '0'} - ${maxBudget || '0'}</span>
-                </div>
-                <div class="row">
-                  <span class="label">Tags:</span>
-                  <span class="value">${selectedTags.length > 0 ? selectedTags.map(t => '<span class="tags">' + t + '</span>').join(' ') : 'None'}</span>
-                </div>
+  <h2>Package and payment</h2>
+  <table>
+    ${row('Package', esc(selectedPackage?.name || 'Not selected'))}
+    ${row('Package price', money(price, cur))}
+    ${row('Your budget', budget)}
+    ${row('Payment plan', depositPct === 100 ? 'Full payment upfront' : `${depositPct}% deposit, balance later`)}
+    <tr class="total"><th>${depositPct === 100 ? 'Amount due' : 'Deposit due'}</th><td>${money(deposit, cur)}</td></tr>
+  </table>
 
-                <div class="section-title">2. Package</div>
-                <div class="row">
-                  <span class="label">Selected Package:</span>
-                  <span class="value">${selectedPackage?.name || 'N/A'}</span>
-                </div>
-                <div class="row">
-                  <span class="label">Base Price:</span>
-                  <span class="value">${selectedPackage?.price} ${selectedPackage?.currency}</span>
-                </div>
-
-                <div class="section-title">3. Details</div>
-                <div class="row">
-                  <span class="label">Event Title:</span>
-                  <span class="value">${eventName || 'N/A'}</span>
-                </div>
-                <div class="row">
-                  <span class="label">Start Time:</span>
-                  <span class="value">${formatTime(startTime)}</span>
-                </div>
-                <div class="row">
-                  <span class="label">End Time:</span>
-                  <span class="value">${formatTime(endTime)}</span>
-                </div>
-                <div class="row">
-                  <span class="label">Total Guests:</span>
-                  <span class="value">${guests || 'N/A'}</span>
-                </div>
-                <div class="row">
-                  <span class="label">Notes:</span>
-                  <span class="value">${notes || 'None'}</span>
-                </div>
-
-                <div class="section-title">4. Payment</div>
-                <div class="row">
-                  <span class="label">Milestone Plan:</span>
-                  <span class="value">${milestoneOption === 'full' ? '100% Upfront' : milestoneOption === 'half' ? '50% Deposit' : '70% Deposit'}</span>
-                </div>
-                <div class="row total">
-                  <span class="label">Total Amount:</span>
-                  <span class="value">${selectedPackage?.price} ${displayCurrency}</span>
-                </div>
-              </div>
-            </body>
-          </html>
-        `;
+  <div class="foot">
+    This is a record of your booking request, not a payment receipt. The booking is confirmed once the
+    photographer accepts it and your ${depositPct === 100 ? 'payment' : 'deposit'} is received; payments are held
+    in Connekyt escrow and released to the photographer according to the payment plan.
+  </div>
+</body></html>`;
 
         const { uri } = await Print.printToFileAsync({ html, base64: false });
         
-        // Rename the file to "Contract between X and Y.pdf"
-        const customFilename = `Contract_between_${clientName}_and_${photogName}_${Date.now()}.pdf`.replace(/\s+/g, '_');
+        const customFilename = `Connekyt_Booking_Request_${reference !== '—' ? reference : Date.now()}.pdf`;
         const newUri = `${FileSystem.documentDirectory}${customFilename}`;
         
         await FileSystem.copyAsync({ from: uri, to: newUri });
@@ -638,7 +564,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       placeholder="Min" 
                       placeholderTextColor={colors.textMuted} 
                       value={minBudget} 
-                      onChangeText={setMinBudget} 
+                      onChangeText={(t) => setMinBudget(formatAmountWithCommas(t))} 
                       keyboardType="number-pad"
                       returnKeyType="next"
                       onSubmitEditing={() => maxBudgetInputRef.current?.focus()}
@@ -654,7 +580,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       placeholder="Max" 
                       placeholderTextColor={colors.textMuted} 
                       value={maxBudget} 
-                      onChangeText={setMaxBudget} 
+                      onChangeText={(t) => setMaxBudget(formatAmountWithCommas(t))} 
                       keyboardType="number-pad"
                       returnKeyType="done"
                       onSubmitEditing={() => Keyboard.dismiss()}
