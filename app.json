@@ -76,7 +76,11 @@
       [
         "expo-notifications",
         {
-          "color": "#083A85"
+          "color": "#083A85",
+          "sounds": [
+            "./assets/sounds/connekyt_ringtone.wav",
+            "./assets/sounds/connekyt_chime.wav"
+          ]
         }
       ],
       [
