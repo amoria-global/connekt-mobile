@@ -1,8 +1,8 @@
 import { freshUnread, inAppAlertKind, showSystemBannerInForeground } from './inAppAlerts';
 
 describe('in-app notification alerts', () => {
-  it('rings for a booking request and chimes for other booking and payment changes', () => {
-    expect(inAppAlertKind({ id: '1', rawType: 'BOOKING', title: 'New Booking Request' })).toBe('ring');
+  it('chimes for booking and payment changes, and leaves booking requests to the incoming-request screen', () => {
+    expect(inAppAlertKind({ id: '1', rawType: 'BOOKING', title: 'New Booking Request' })).toBeNull();
     expect(inAppAlertKind({ id: '2', rawType: 'BOOKING', title: 'Booking Accepted' })).toBe('chime');
     expect(inAppAlertKind({ id: '3', rawType: 'PAYMENT', title: 'Deposit Received' })).toBe('chime');
   });

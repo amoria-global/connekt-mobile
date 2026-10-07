@@ -6,6 +6,8 @@ import {
 import { notificationTarget } from '@/features/notifications/routing';
 import { GlobalOpportunityCallNotifier } from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { InAppNotificationWatcher } from '@/features/notifications/InAppNotificationWatcher';
+import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCallNotifier';
+import { showIncomingRequest } from '@/features/bookings/incomingRequests';
 import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
@@ -50,6 +52,17 @@ export default function AppLayout() {
           console.warn('[pushAction] Error declining opportunity from notification:', e);
         }
         return;
+      }
+
+      // A direct booking request (its "View & respond" button or a tap on it)
+      // opens the full-screen incoming request instead of the event page.
+      if (data.kind === 'BOOKING_REQUEST' || actionIdentifier === 'VIEW_REQUEST') {
+        const eventId =
+          typeof data.eventId === 'string' ? data.eventId : typeof data.referenceId === 'string' ? data.referenceId : undefined;
+        if (eventId) {
+          showIncomingRequest(eventId);
+          return;
+        }
       }
 
       // Deep-link to the exact entity the notification is about.
@@ -173,6 +186,7 @@ export default function AppLayout() {
       </Stack>
       <GlobalOpportunityCallNotifier />
       <InAppNotificationWatcher />
+      <BookingRequestCallNotifier />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );
