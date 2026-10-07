@@ -20,6 +20,7 @@ import {
   resumeEvent,
   unpublishEvent,
 } from '@/features/events/api';
+import { EventQrSheet } from '@/features/events/EventQrSheet';
 import { SatisfactionSurveySheet } from '@/features/events/SatisfactionSurveySheet';
 import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/events/survey';
 import { submitReview } from '@/features/reviews/api';
@@ -58,6 +59,8 @@ export default function EventDetailScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [completionOpen, setCompletionOpen] = useState(false);
   const [surveyOpen, setSurveyOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrJustPublished, setQrJustPublished] = useState(false);
   const [comment, setComment] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -131,7 +134,15 @@ export default function EventDetailScreen() {
       'It becomes visible to everyone on connekyt.com, and guests can find and join it.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Publish', onPress: () => run('publish', () => publishEvent(id, isCoordinator)) },
+        {
+          text: 'Publish',
+          onPress: () =>
+            run('publish', async () => {
+              await publishEvent(id, isCoordinator);
+              setQrJustPublished(true);
+              setQrOpen(true);
+            }),
+        },
       ],
     );
   };
@@ -156,6 +167,11 @@ export default function EventDetailScreen() {
         },
       ],
     );
+  };
+
+  const openQr = () => {
+    setQrJustPublished(false);
+    setQrOpen(true);
   };
 
   const onShare = async () => {
@@ -549,6 +565,9 @@ export default function EventDetailScreen() {
               <PrimaryBtn icon="radio" label="Live Stream" variant="accent" onPress={onPhotographerGoLive} />
             ) : null}
             <PrimaryBtn icon="share-social" label="Share" variant="outline" onPress={onShare} />
+            {ev?.published ? (
+              <PrimaryBtn icon="qr-code-outline" label="QR code" variant="outline" onPress={openQr} />
+            ) : null}
             {canMarkComplete ? (
               <PrimaryBtn icon="checkmark-done" label="Mark Complete" variant="success" onPress={onPhotographerMarkCompleted} loading={busy === 'photog-complete'} />
             ) : null}
@@ -695,6 +714,9 @@ export default function EventDetailScreen() {
               <PrimaryBtn icon="create-outline" label="Edit" variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
               <PrimaryBtn icon="earth-outline" label="Geo pricing" variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
               <PrimaryBtn icon="share-social-outline" label="Share" variant="outline" onPress={onShare} />
+              {ev?.published ? (
+                <PrimaryBtn icon="qr-code-outline" label="QR code" variant="outline" onPress={openQr} />
+              ) : null}
               {ownerCanGoLive ? (
                 <PrimaryBtn icon="radio" label="Go Live" variant="accent" onPress={openStreamControl} />
               ) : null}
@@ -784,6 +806,15 @@ export default function EventDetailScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <EventQrSheet
+        visible={qrOpen}
+        onClose={() => setQrOpen(false)}
+        eventId={id}
+        title={ev?.title ?? 'Event'}
+        published={!!ev?.published}
+        justPublished={qrJustPublished}
+      />
 
       {/* Satisfaction survey — releases the photographer's survey-held fee */}
       <SatisfactionSurveySheet

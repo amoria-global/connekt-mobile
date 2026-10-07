@@ -11,6 +11,7 @@ import {
   PragatiNarrow_700Bold,
 } from '@expo-google-fonts/pragati-narrow';
 import { useAuth } from '@/store/auth';
+import { takePendingScanEvent } from '@/features/events/scanIntent';
 import { useCurrency } from '@/store/currency';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdateBanner, UpdatePromptModal } from '@/features/updates';
@@ -137,16 +138,24 @@ function useProtectedRoute() {
     }
     if (termsAccepted === null) return;
 
+    // A scanned event QR outranks the default landing screen: once terms and
+    // sign-in are out of the way, deliver the viewer to the event they scanned.
+    const goOr = (fallback: string) => {
+      takePendingScanEvent()
+        .catch(() => null)
+        .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}` : fallback) as Href));
+    };
+
     if (status === 'authenticated') {
-      if (inAuthGroup || inOnboarding) router.replace('/');
+      if (inAuthGroup || inOnboarding) goOr('/');
       return;
     }
 
     // Unauthenticated: show onboarding intro slides, then auth — but allow (public).
     if (!seen) {
-      if (!inOnboarding && !inPublic) router.replace('/welcome');
+      if (!inOnboarding && !inPublic) goOr('/welcome');
     } else if (!inAuthGroup && !inPublic) {
-      router.replace('/login');
+      goOr('/login');
     }
   }, [navigationState?.key, status, seen, termsAccepted, segments, router]);
 }
