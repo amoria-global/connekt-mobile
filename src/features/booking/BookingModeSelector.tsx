@@ -28,6 +28,7 @@ import {
   Text,
   TextInput,
   View,
+  InputAccessoryView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -126,6 +127,10 @@ const COVERAGE_OPTIONS: { id: LocationCoverage; label: string }[] = [
 // Re-exported for existing importers; the helpers live in utils/amount.
 export { formatAmountWithCommas, parseAmountNumber };
 
+/** Wizard sheet height; also the keyboard offset's reference (see KeyboardAvoidingView below). */
+const WIZARD_SHEET_HEIGHT = Math.min(Dimensions.get('window').height * 0.9, 740);
+const WIZARD_KEYBOARD_ACCESSORY_ID = 'hybridWizardKeyboardDone';
+
 export function BookingModeSelector({
   visible,
   onClose,
@@ -157,6 +162,25 @@ export function BookingModeSelector({
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [city, setCity] = useState('Kigali');
   const [venue, setVenue] = useState('');
+
+  // Keyboard: the return key walks title → category → city → venue, and the
+  // bottom bar drops its safe-area padding while the keyboard is up.
+  const titleRef = useRef<TextInput>(null);
+  const categoryRef = useRef<TextInput>(null);
+  const cityRef = useRef<TextInput>(null);
+  const venueRef = useRef<TextInput>(null);
+  const maxBudgetRef = useRef<TextInput>(null);
+  const [keyboardUp, setKeyboardUp] = useState(false);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const a = Keyboard.addListener(showEvt, () => setKeyboardUp(true));
+    const b = Keyboard.addListener(hideEvt, () => setKeyboardUp(false));
+    return () => {
+      a.remove();
+      b.remove();
+    };
+  }, []);
 
   const categorySuggestions = useMemo(() => {
     return filterCategorySuggestions(category);
@@ -714,14 +738,21 @@ export function BookingModeSelector({
               </View>
 
               {/* Scrollable Form Content */}
+              {/* KeyboardAvoidingView measures itself inside the sheet, which
+                  starts below the top of the screen; the offset is that gap.
+                  A fixed 10 left the keyboard covering the bottom of the form.
+                  It also wraps the bottom bar so Continue stays above the keyboard. */}
               <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+                keyboardVerticalOffset={
+                  Platform.OS === 'ios' ? Dimensions.get('window').height - WIZARD_SHEET_HEIGHT : 0
+                }
               >
                 <ScrollView
                   contentContainerStyle={styles.wizardScrollContent}
                   keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                   showsVerticalScrollIndicator={false}
                 >
                   {/* STEP 1: EVENT INFORMATION */}
@@ -742,10 +773,15 @@ export function BookingModeSelector({
                           <TextInput
                             placeholder="Enter event name"
                             placeholderTextColor={colors.textMuted}
+                            ref={titleRef}
                             value={title}
                             onChangeText={setTitle}
                             style={styles.textInput}
                             autoCapitalize="words"
+                            returnKeyType="next"
+                            submitBehavior="submit"
+                            onSubmitEditing={() => categoryRef.current?.focus()}
+                            inputAccessoryViewID={WIZARD_KEYBOARD_ACCESSORY_ID}
                           />
                         </View>
                       </View>
@@ -783,11 +819,17 @@ export function BookingModeSelector({
                               setCategory(text);
                               setCategoryFocused(true);
                             }}
+                            ref={categoryRef}
                             onFocus={() => setCategoryFocused(true)}
                             style={styles.textInput}
                             autoCapitalize="words"
-                            returnKeyType="done"
-                            onSubmitEditing={() => setCategoryFocused(false)}
+                            returnKeyType="next"
+                            submitBehavior="submit"
+                            onSubmitEditing={() => {
+                              setCategoryFocused(false);
+                              cityRef.current?.focus();
+                            }}
+                            inputAccessoryViewID={WIZARD_KEYBOARD_ACCESSORY_ID}
                           />
                           {category ? (
                             <Pressable
@@ -993,9 +1035,15 @@ export function BookingModeSelector({
                             <TextInput
                               placeholder="Enter city"
                               placeholderTextColor={colors.textMuted}
+                              ref={cityRef}
                               value={city}
                               onChangeText={setCity}
                               style={styles.textInput}
+                              autoCapitalize="words"
+                              returnKeyType="next"
+                              submitBehavior="submit"
+                              onSubmitEditing={() => venueRef.current?.focus()}
+                              inputAccessoryViewID={WIZARD_KEYBOARD_ACCESSORY_ID}
                             />
                           </View>
                         </View>
@@ -1007,9 +1055,14 @@ export function BookingModeSelector({
                             <TextInput
                               placeholder="Enter venue or address"
                               placeholderTextColor={colors.textMuted}
+                              ref={venueRef}
                               value={venue}
                               onChangeText={setVenue}
                               style={styles.textInput}
+                              autoCapitalize="words"
+                              returnKeyType="done"
+                              onSubmitEditing={() => Keyboard.dismiss()}
+                              inputAccessoryViewID={WIZARD_KEYBOARD_ACCESSORY_ID}
                             />
                           </View>
                         </View>
@@ -1059,8 +1112,12 @@ export function BookingModeSelector({
                               placeholderTextColor={colors.textMuted}
                               value={minBudget}
                               onChangeText={(text) => setMinBudget(formatAmountWithCommas(text))}
-                              keyboardType="numeric"
+                              keyboardType="number-pad"
+                              returnKeyType="next"
+                              submitBehavior="submit"
+                              onSubmitEditing={() => maxBudgetRef.current?.focus()}
                               style={styles.textInput}
+                              inputAccessoryViewID={WIZARD_KEYBOARD_ACCESSORY_ID}
                             />
                           </View>
                           <View style={[styles.inputContainer, { flex: 1 }]}>
@@ -1069,9 +1126,13 @@ export function BookingModeSelector({
                               placeholder="Max amount"
                               placeholderTextColor={colors.textMuted}
                               value={maxBudget}
+                              ref={maxBudgetRef}
                               onChangeText={(text) => setMaxBudget(formatAmountWithCommas(text))}
-                              keyboardType="numeric"
+                              keyboardType="number-pad"
+                              returnKeyType="done"
+                              onSubmitEditing={() => Keyboard.dismiss()}
                               style={styles.textInput}
+                              inputAccessoryViewID={WIZARD_KEYBOARD_ACCESSORY_ID}
                             />
                           </View>
                         </View>
@@ -1236,58 +1297,73 @@ export function BookingModeSelector({
                     </View>
                   )}
                 </ScrollView>
+
+                {/* Bottom Sticky Action Button Area */}
+                <View
+                  style={[
+                    styles.wizardBottomBar,
+                    { paddingBottom: keyboardUp ? spacing.sm : Math.max(insets.bottom, spacing.md) + spacing.xs },
+                  ]}
+                >
+                  {currentStep === 1 && (
+                    <Pressable
+                      onPress={handleNextStep1}
+                      style={styles.wizardPrimaryBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Continue to Requirements"
+                    >
+                      <Text style={styles.wizardPrimaryBtnText}>Continue to Requirements</Text>
+                      <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                    </Pressable>
+                  )}
+
+                  {currentStep === 2 && (
+                    <Pressable
+                      onPress={handleNextStep2}
+                      style={styles.wizardPrimaryBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Continue to Review"
+                    >
+                      <Text style={styles.wizardPrimaryBtnText}>Continue to Review</Text>
+                      <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                    </Pressable>
+                  )}
+
+                  {currentStep === 3 && (
+                    <Pressable
+                      onPress={handlePublish}
+                      disabled={submitting}
+                      style={[styles.wizardPrimaryBtn, submitting && { opacity: 0.7 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Post Event & Find Matches"
+                    >
+                      {submitting ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Text style={styles.wizardPrimaryBtnText}>Post Event & Find Matches</Text>
+                          <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                        </>
+                      )}
+                    </Pressable>
+                  )}
+                </View>
               </KeyboardAvoidingView>
 
-              {/* Bottom Sticky Action Button Area */}
-              <View
-                style={[
-                  styles.wizardBottomBar,
-                  { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.xs },
-                ]}
-              >
-                {currentStep === 1 && (
-                  <Pressable
-                    onPress={handleNextStep1}
-                    style={styles.wizardPrimaryBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel="Continue to Requirements"
-                  >
-                    <Text style={styles.wizardPrimaryBtnText}>Continue to Requirements</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                  </Pressable>
-                )}
-
-                {currentStep === 2 && (
-                  <Pressable
-                    onPress={handleNextStep2}
-                    style={styles.wizardPrimaryBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel="Continue to Review"
-                  >
-                    <Text style={styles.wizardPrimaryBtnText}>Continue to Review</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                  </Pressable>
-                )}
-
-                {currentStep === 3 && (
-                  <Pressable
-                    onPress={handlePublish}
-                    disabled={submitting}
-                    style={[styles.wizardPrimaryBtn, submitting && { opacity: 0.7 }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Post Event & Find Matches"
-                  >
-                    {submitting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <Text style={styles.wizardPrimaryBtnText}>Post Event & Find Matches</Text>
-                        <Ionicons name="sparkles" size={16} color="#FFFFFF" />
-                      </>
-                    )}
-                  </Pressable>
-                )}
-              </View>
+              {Platform.OS === 'ios' && (
+                <InputAccessoryView nativeID={WIZARD_KEYBOARD_ACCESSORY_ID}>
+                  <View style={styles.keyboardDoneBar}>
+                    <Pressable
+                      onPress={() => Keyboard.dismiss()}
+                      hitSlop={10}
+                      accessibilityRole="button"
+                      accessibilityLabel="Done editing"
+                    >
+                      <Text style={styles.keyboardDoneText}>Done</Text>
+                    </Pressable>
+                  </View>
+                </InputAccessoryView>
+              )}
             </View>
           )}
 
@@ -1353,8 +1429,18 @@ const useStyles = makeStyles((c, e) => ({
     paddingTop: spacing.xs,
     ...e(4),
   },
+  keyboardDoneBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: c.surfaceMuted,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.borderSoft,
+  },
+  keyboardDoneText: { color: c.primary, fontWeight: fontWeight.bold, fontSize: fontSize.md },
   sheetExpanded: {
-    height: Math.min(Dimensions.get('window').height * 0.90, 740),
+    height: WIZARD_SHEET_HEIGHT,
     maxHeight: '92%',
     paddingHorizontal: 0,
   },
