@@ -300,10 +300,31 @@ export default function BookingsScreen() {
                     <Text style={styles.eventTitle} numberOfLines={1}>
                       {b.eventTitle}
                     </Text>
-                    <StatusPill status={b.status} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {(isPhotographer ? (b.clientId && b.clientName) : (b.photographerId && b.photographerName)) ? (
+                        <Pressable
+                          hitSlop={8}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            const partnerId = isPhotographer ? b.clientId! : b.photographerId!;
+                            const partnerName = isPhotographer ? b.clientName! : b.photographerName!;
+                            router.push(
+                              `/conversation/${partnerId}?name=${encodeURIComponent(partnerName)}` as never
+                            );
+                          }}
+                          style={styles.chatAction}
+                          accessibilityRole="button"
+                          accessibilityLabel="Message"
+                        >
+                          <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.primary} />
+                        </Pressable>
+                      ) : null}
+                      <StatusPill status={b.status} />
+                    </View>
                   </View>
 
                   {b.clientName ? <Row icon="person-outline" text={b.clientName} /> : null}
+                  {b.photographerName && !b.clientName ? <Row icon="camera-outline" text={b.photographerName} /> : null}
                   {b.eventDate ? <Row icon="calendar-outline" text={formatDate(b.eventDate)} /> : null}
                   {b.proposedPrice != null ? (
                     <Row
@@ -555,6 +576,11 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'space-between',
     gap: spacing.sm,
     marginBottom: 4,
+  },
+  chatAction: {
+    padding: 5,
+    borderRadius: radii.full,
+    backgroundColor: c.tint,
   },
   eventTitle: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
