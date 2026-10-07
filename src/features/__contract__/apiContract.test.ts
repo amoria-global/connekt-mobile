@@ -246,6 +246,7 @@ describe('mobile hybrid booking requests against the backend contract', () => {
     expect(paths).toContain('GET /api/remote/events/X/candidates');
     expect(paths).toContain('POST /api/remote/events/X/select-photographer');
     expect(paths).toContain('POST /api/remote/events/X/convert-to-hybrid');
+    expect(paths).toContain('POST /api/remote/events/X/convert-to-direct');
   });
 
   it('every hybrid path exists on the backend contract', () => {
