@@ -13,7 +13,7 @@
  *
  * Foreground notifications are shown as a banner too (setNotificationHandler).
  */
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -162,6 +162,41 @@ export async function registerForPushNotifications(): Promise<string | null> {
   } catch {
     // Permission denied / no network / not configured — non-fatal.
     return null;
+  }
+}
+
+/** The channel that rings for booking requests and opportunities. */
+export const RINGING_CHANNEL = 'urgent_booking_alerts';
+
+/**
+ * Whether ringing alerts break through Do Not Disturb. Android only lets the
+ * user grant this, per channel ("Override Do Not Disturb"); the channel's
+ * bypassDnd reflects their choice. null when it can't be read (not Android,
+ * or the channel isn't created yet).
+ */
+export async function ringingBypassesDnd(): Promise<boolean | null> {
+  if (Platform.OS !== 'android') return null;
+  try {
+    const channel = await Notifications.getNotificationChannelAsync(RINGING_CHANNEL);
+    return channel ? !!channel.bypassDnd : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Opens the system settings page for the ringing channel, where the user can
+ * turn on "Override Do Not Disturb". Falls back to the app's settings page.
+ */
+export async function openRingingChannelSettings(): Promise<void> {
+  const pkg = Constants.expoConfig?.android?.package ?? 'com.amoria.connekyt.app';
+  try {
+    await Linking.sendIntent('android.settings.CHANNEL_NOTIFICATION_SETTINGS', [
+      { key: 'android.provider.extra.APP_PACKAGE', value: pkg },
+      { key: 'android.provider.extra.CHANNEL_ID', value: RINGING_CHANNEL },
+    ]);
+  } catch {
+    await Linking.openSettings();
   }
 }
 
