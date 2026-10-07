@@ -4,8 +4,8 @@
  * With the app open, the phone's own banner for booking and payment pushes
  * is suppressed (push.ts) and InAppNotificationWatcher shows its own banner
  * and sound instead, so the alert also works when no push arrives (no push
- * credentials, Expo Go, push turned off). Opportunities are left to the
- * full-screen opportunity alert, which rings by itself.
+ * credentials, Expo Go, push turned off). Opportunities and direct booking
+ * requests are left to their full-screen alerts, which ring by themselves.
  */
 
 export type InAppAlertKind = 'ring' | 'chime';
@@ -29,7 +29,8 @@ export const WATCHED_TYPES = new Set(['BOOKING', 'PAYMENT']);
 export function inAppAlertKind(n: AlertCandidate): InAppAlertKind | null {
   const type = (n.rawType ?? '').toUpperCase();
   if (OPPORTUNITY_TYPES.has(type)) return null;
-  if (RINGING_TITLES.has(n.title ?? '')) return 'ring';
+  // Booking requests get the full-screen incoming request, which rings itself.
+  if (RINGING_TITLES.has(n.title ?? '')) return null;
   if (WATCHED_TYPES.has(type)) return 'chime';
   return null;
 }
