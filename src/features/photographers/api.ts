@@ -295,16 +295,25 @@ export type BookedDate = {
   eventDate?: string;
   startTime?: { hour: number; minute: number } | null;
   endTime?: { hour: number; minute: number } | null;
+  /** Partly booked days only (isFullDay false): bookings so far and the daily cap. */
+  bookedCount?: number;
+  capacity?: number;
 };
 
+/**
+ * Red (full) days for this photographer, and with `includePartial` also days
+ * that have bookings but can take more (`isFullDay: false`). A backend that
+ * doesn't know the parameter just returns the full days.
+ */
 export async function getBookedDates(
   photographerId: string,
   from: string,
   to: string,
+  opts: { includePartial?: boolean } = {},
 ): Promise<BookedDate[]> {
   try {
     const res = await api.get<ApiEnvelope<any>>(
-      `/public/photographers/${encodeURIComponent(photographerId)}/booked-dates?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      `/public/photographers/${encodeURIComponent(photographerId)}/booked-dates?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${opts.includePartial ? '&includePartial=true' : ''}`,
     );
     const data = res?.data;
     if (Array.isArray(data)) return data as BookedDate[];
