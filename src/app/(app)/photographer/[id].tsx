@@ -258,7 +258,7 @@ export default function PhotographerProfileScreen() {
     const toStr = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
 
     let cancelled = false;
-    getBookedDates(id, fromStr, toStr)
+    getBookedDates(id, fromStr, toStr, { includePartial: true })
       .then((dates) => {
         if (!cancelled) setBookedDates(dates);
       })
@@ -303,16 +303,13 @@ export default function PhotographerProfileScreen() {
   const pad = (n: number) => String(n).padStart(2, '0');
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
-  const isDateBooked = useCallback(
-    (day: number) => {
+  // The day's booking entry, if any. isFullDay false means partly booked:
+  // shown amber and still bookable; anything else is a full (red) day.
+  const bookingFor = useCallback(
+    (day: number): BookedDate | undefined => {
       const { year, month } = calendarMonth;
       const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
-      return bookedDates.some((b) => {
-        if (!b) return false;
-        if (b.date === dateStr) return true;
-        if (b.eventDate === dateStr) return true;
-        return false;
-      });
+      return bookedDates.find((b) => b && (b.date === dateStr || b.eventDate === dateStr));
     },
     [calendarMonth, bookedDates]
   );
@@ -522,7 +519,9 @@ export default function PhotographerProfileScreen() {
                       const dateStr = `${calendarMonth.year}-${pad(calendarMonth.month + 1)}-${pad(day)}`;
                       const isPast = dateStr < todayStr;
                       const isToday = dateStr === todayStr;
-                      const booked = isDateBooked(day);
+                      const entry = bookingFor(day);
+                      const partial = entry?.isFullDay === false;
+                      const booked = !!entry && !partial;
                       const isSelected = selectedCalendarDate &&
                         selectedCalendarDate.getFullYear() === calendarMonth.year &&
                         selectedCalendarDate.getMonth() === calendarMonth.month &&
@@ -535,10 +534,18 @@ export default function PhotographerProfileScreen() {
                           <Pressable
                             disabled={!isAvailable}
                             onPress={() => handleDatePress(day)}
+                            accessibilityLabel={
+                              booked
+                                ? `${day}, fully booked`
+                                : partial && !isPast
+                                  ? `${day}, ${entry?.bookedCount ?? 1} of ${entry?.capacity ?? 2} booked, still available`
+                                  : undefined
+                            }
                             style={[
                               styles.daySquare,
                               isPast && styles.daySquarePast,
                               isAvailable && styles.daySquareAvailable,
+                              isAvailable && partial && styles.daySquarePartial,
                               booked && styles.daySquareBooked,
                               isToday && styles.daySquareToday,
                               isSelected && styles.daySquareSelected,
@@ -549,6 +556,7 @@ export default function PhotographerProfileScreen() {
                                 styles.dayText,
                                 isPast && styles.dayTextPast,
                                 isAvailable && styles.dayTextAvailable,
+                                isAvailable && partial && styles.dayTextPartial,
                                 booked && styles.dayTextBooked,
                                 isToday && styles.dayTextToday,
                                 isSelected && styles.dayTextSelected,
@@ -556,7 +564,7 @@ export default function PhotographerProfileScreen() {
                             >
                               {day}
                             </Text>
-                            {isAvailable && <View style={styles.dayDotAvailable} />}
+                            {isAvailable && <View style={partial ? styles.dayDotPartial : styles.dayDotAvailable} />}
                             {booked && <View style={styles.dayDotBooked} />}
                           </Pressable>
                         </View>
@@ -571,8 +579,12 @@ export default function PhotographerProfileScreen() {
                       <Text style={styles.legendText}>Available (Tap to book)</Text>
                     </View>
                     <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+                      <Text style={styles.legendText}>Partly booked</Text>
+                    </View>
+                    <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                      <Text style={styles.legendText}>Booked</Text>
+                      <Text style={styles.legendText}>Fully booked</Text>
                     </View>
                   </View>
                 </View>
@@ -1076,6 +1088,21 @@ const useStyles = makeStyles((c, e) => ({
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.25)',
   },
+  daySquarePartial: {
+    backgroundColor: 'rgba(245, 158, 11, 0.10)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  dayTextPartial: {
+    color: '#B45309',
+  },
+  dayDotPartial: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#F59E0B',
+    position: 'absolute',
+    bottom: 3,
+  },
   daySquareBooked: {
     backgroundColor: 'rgba(239, 68, 68, 0.08)',
     borderWidth: 1,
@@ -1133,6 +1160,8 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    rowGap: 6,
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
