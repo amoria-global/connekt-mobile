@@ -70,6 +70,7 @@ export default function PublicLayout() {
             headerShown: false,
           }}
         />
+        <Stack.Screen name="scan/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="events/join" options={{ title: 'Join event' }} />
         <Stack.Screen name="events/pay" options={{ title: 'Payment' }} />
         <Stack.Screen

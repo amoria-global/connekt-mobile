@@ -47,6 +47,7 @@ import {
   listPhotographerEvents,
 } from './api';
 import type { EventItem } from './types';
+import { EventQrSheet } from './EventQrSheet';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
 const PAGE_SIZE = 8;
@@ -176,6 +177,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   const [declineTarget, setDeclineTarget] = useState<EventItem | null>(null);
   const [declineReason, setDeclineReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [qrTarget, setQrTarget] = useState<EventItem | null>(null);
 
   const events = data ?? [];
 
@@ -433,6 +435,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             onDecline={() => setDeclineTarget(item)}
             onLiveStream={() => onLiveStream(item)}
             onCreateAlbum={() => onCreateAlbum(item)}
+            onQr={() => setQrTarget(item)}
           />
         )}
         ListFooterComponent={
@@ -532,6 +535,14 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
       >
         <Ionicons name="add" size={32} color="#fff" />
       </Pressable>
+
+      <EventQrSheet
+        visible={!!qrTarget}
+        onClose={() => setQrTarget(null)}
+        eventId={qrTarget?.id ?? ''}
+        title={qrTarget?.title ?? ''}
+        published={!!qrTarget?.published}
+      />
 
       <AcceptBookingSheet
         event={acceptTarget}
@@ -643,6 +654,7 @@ function PhotographerEventCard({
   onDecline,
   onLiveStream,
   onCreateAlbum,
+  onQr,
 }: {
   event: EventItem;
   busy: boolean;
@@ -651,6 +663,7 @@ function PhotographerEventCard({
   onDecline: () => void;
   onLiveStream: () => void;
   onCreateAlbum: () => void;
+  onQr: () => void;
 }) {
   const styles = useStyles();
   const s = statusOf(event);
@@ -767,6 +780,12 @@ function PhotographerEventCard({
                 <Pressable style={[styles.actBtn, styles.actAlbum]} onPress={onCreateAlbum}>
                   <Ionicons name="add-circle" size={13} color="#fff" />
                   <Text style={styles.actText}>Create Album</Text>
+                </Pressable>
+              ) : null}
+              {isAccepted && event.published ? (
+                <Pressable style={[styles.actBtn, styles.actQr]} onPress={onQr} accessibilityLabel="Show event QR code">
+                  <Ionicons name="qr-code" size={13} color="#fff" />
+                  <Text style={styles.actText}>QR code</Text>
                 </Pressable>
               ) : null}
               {isAccepted ? (
@@ -1151,6 +1170,7 @@ const useStyles = makeStyles((c) => ({
   actStream: { backgroundColor: '#8B5CF6' },
   actAlbum: { backgroundColor: c.primary },
   actAcceptedChip: { backgroundColor: '#10B981' },
+  actQr: { backgroundColor: 'rgba(255,255,255,0.16)' },
   pkgBadge: {
     marginLeft: 'auto',
     flexDirection: 'row',

@@ -41,6 +41,7 @@ import type { EventItem } from './types';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { env } from '@/config/env';
+import { EventQrSheet } from './EventQrSheet';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 const PAGE_SIZE = 8;
@@ -154,6 +155,7 @@ export function OwnerEventsDashboard({
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState(initialSearch);
   const [sortBy, setSortBy] = useState<EventSortOption>('newest');
+  const [qrTarget, setQrTarget] = useState<EventItem | null>(null);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [bookingModeOpen, setBookingModeOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -456,6 +458,7 @@ export function OwnerEventsDashboard({
             onOpen={() => router.push(`/event/${item.id}` as Href)}
             onEdit={() => router.push(`/event/new?editId=${item.id}` as Href)}
             onShare={() => onShare(item)}
+            onQr={() => setQrTarget(item)}
             onSelectCandidates={() => router.push(`/event/candidates?id=${item.id}` as Href)}
           />
         )}
@@ -545,6 +548,14 @@ export function OwnerEventsDashboard({
             </View>
           )
         }
+      />
+
+      <EventQrSheet
+        visible={!!qrTarget}
+        onClose={() => setQrTarget(null)}
+        eventId={qrTarget?.id ?? ''}
+        title={qrTarget?.title ?? ''}
+        published={!!qrTarget?.published}
       />
 
       {/* Floating Action Button — Create New Event */}
@@ -657,12 +668,14 @@ function OwnerEventCard({
   onOpen,
   onEdit,
   onShare,
+  onQr,
   onSelectCandidates,
 }: {
   event: EventItem;
   onOpen: () => void;
   onEdit: () => void;
   onShare: () => void;
+  onQr: () => void;
   onSelectCandidates?: () => void;
 }) {
   const styles = useStyles();
@@ -712,6 +725,12 @@ function OwnerEventCard({
             <Ionicons name="create-outline" size={14} color="#fff" />
             <Text style={styles.actText}>Edit</Text>
           </Pressable>
+          {event.published ? (
+            <Pressable style={[styles.actBtn, styles.actQr]} onPress={onQr} accessibilityLabel="Show event QR code">
+              <Ionicons name="qr-code-outline" size={14} color="#fff" />
+              <Text style={styles.actText}>QR</Text>
+            </Pressable>
+          ) : null}
           <Pressable style={[styles.actBtn, styles.actShare]} onPress={onShare}>
             <Ionicons name="share-social-outline" size={14} color="#fff" />
             <Text style={styles.actText}>Share</Text>
@@ -1050,6 +1069,7 @@ const useStyles = makeStyles((c) => ({
   actBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: radii.sm },
   actEdit: { backgroundColor: c.primary },
   actShare: { backgroundColor: 'rgba(255,255,255,0.16)' },
+  actQr: { backgroundColor: 'rgba(255,255,255,0.16)' },
   actText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff' },
   manageHint: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 1 },
   manageHintText: { fontFamily: fonts.bold, fontSize: 11, color: 'rgba(255,255,255,0.9)' },
