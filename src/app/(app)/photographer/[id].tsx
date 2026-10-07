@@ -370,6 +370,15 @@ export default function PhotographerProfileScreen() {
           <View style={[styles.topNav, { top: Math.max(insets.top, 20) }]}>
             <IconButton icon="arrow-left" onPress={() => router.back()} />
             <View style={styles.topNavRight}>
+              <IconButton
+                icon="message-circle"
+                style={{ marginRight: 8 }}
+                onPress={() =>
+                  router.push(
+                    `/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Creator')}` as never
+                  )
+                }
+              />
               <IconButton icon="more-horizontal" style={{ marginRight: 8 }} onPress={onLongPressHeader} />
               <IconButton icon="share-2" style={{ marginRight: 8 }} onPress={handleShare} />
               <IconButton
@@ -451,13 +460,26 @@ export default function PhotographerProfileScreen() {
                 {/* Book Now Card */}
                 <View style={styles.card}>
                   <Text style={styles.cardHeaderEyebrow}>AVAILABLE TO BOOK</Text>
-                  <Pressable 
-                    style={styles.bookButton}
-                    onPress={() => bottomSheetRef.current?.snapToIndex(0)}
-                  >
-                    <Ionicons name="calendar" size={18} color="white" />
-                    <Text style={styles.bookButtonText}>BOOK NOW</Text>
-                  </Pressable>
+                  <View style={styles.bookingActionRow}>
+                    <Pressable 
+                      style={styles.bookButton}
+                      onPress={() => bottomSheetRef.current?.snapToIndex(0)}
+                    >
+                      <Ionicons name="calendar" size={18} color="white" />
+                      <Text style={styles.bookButtonText}>BOOK NOW</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.messagePhotogButton}
+                      onPress={() =>
+                        router.push(
+                          `/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Creator')}` as never
+                        )
+                      }
+                    >
+                      <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
+                      <Text style={styles.messagePhotogText}>MESSAGE</Text>
+                    </Pressable>
+                  </View>
                   <View style={styles.disclaimerRow}>
                     <Ionicons name="shield-checkmark-outline" size={14} color={colors.success} />
                     <Text style={styles.disclaimerText}>No payment to inquire</Text>
@@ -986,16 +1008,39 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: c.surface,
   },
   availabilityBtnText: { color: c.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.sm },
+  bookingActionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   bookButton: {
+    flex: 1.1,
     backgroundColor: c.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: radii.lg,
     gap: 8,
-    marginBottom: spacing.md,
     ...e(2),
+  },
+  messagePhotogButton: {
+    flex: 1,
+    backgroundColor: c.surface,
+    borderWidth: 1.5,
+    borderColor: c.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: radii.lg,
+    gap: 6,
+  },
+  messagePhotogText: {
+    color: c.primary,
+    fontWeight: fontWeight.bold,
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
   bookButtonText: {
     color: '#FFFFFF',

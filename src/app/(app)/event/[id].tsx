@@ -594,6 +594,22 @@ export default function EventDetailScreen() {
                 <Text style={styles.personName}>{ev.photographerName}</Text>
                 {booking ? <Chip label={booking} tone={booking === 'ACCEPTED' ? 'success' : booking === 'PENDING' ? 'warning' : 'muted'} /> : null}
               </View>
+              {ev.photographerId ? (
+                <Pressable
+                  style={styles.messagePersonBtn}
+                  onPress={() =>
+                    router.push(
+                      `/conversation/${ev.photographerId}?name=${encodeURIComponent(ev.photographerName ?? 'Photographer')}` as never
+                    )
+                  }
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Message ${ev.photographerName}`}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={15} color={colors.primary} />
+                  <Text style={styles.messagePersonBtnText}>Message</Text>
+                </Pressable>
+              ) : null}
             </View>
           </InfoCard>
         ) : ev?.status?.toUpperCase() === 'HYBRID_TIMEOUT' ? (
@@ -1174,6 +1190,23 @@ const useStyles = makeStyles((c) => ({
   },
   personInitial: { fontFamily: fonts.bold, fontSize: 18, color: '#fff' },
   personName: { fontFamily: fonts.bold, fontSize: 16, color: c.text, marginBottom: 4 },
+  messagePersonBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: c.tint,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.primary,
+  },
+  messagePersonBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: c.primary,
+    fontWeight: fontWeight.bold,
+  },
 
   kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   kvLabel: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },

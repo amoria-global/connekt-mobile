@@ -1157,7 +1157,11 @@ export function PhotographerHome() {
                     !isLast && styles.eventItemRowDivider,
                     pressed && styles.cardPressed,
                   ]}
-                  onPress={() => router.push('/clients' as never)}
+                  onPress={() =>
+                    router.push(
+                      `/conversation/${client.id}?name=${encodeURIComponent(client.name)}` as never
+                    )
+                  }
                 >
                   {client.avatar ? (
                     <Image

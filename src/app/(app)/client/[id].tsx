@@ -147,6 +147,20 @@ export default function ClientDetailScreen() {
 
           <View style={styles.headerActions}>
             <Pressable
+              style={styles.messageBtn}
+              onPress={() =>
+                router.push(
+                  `/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Client')}` as Href
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`Message ${data?.name ?? 'client'}`}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={17} color="#FFFFFF" />
+              <Text style={styles.messageBtnText}>Message</Text>
+            </Pressable>
+
+            <Pressable
               style={[styles.favBtn, favorite && styles.favBtnActive]}
               onPress={onToggleFavorite}
               disabled={favBusy}
@@ -251,6 +265,21 @@ const useStyles = makeStyles((c) => ({
     fontSize: fontSize.xs,
     color: c.textMuted,
     marginTop: spacing.xs,
+  },
+  messageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.full,
+    backgroundColor: c.primary,
+  },
+  messageBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
   },
   favBtn: {
     flexDirection: 'row',
