@@ -10,5 +10,5 @@
   ],
   "androidFingerprint": "9b4cdbbbbdca6ab91e2746f351ce5a3482d3fd8c",
   "fingerprintNote": "EAS recorded this for build 11 (2026-09-22), released to Play's production track at releaseStatus completed on 2026-09-23 (submission c5093b63). Informational only: eas.json is a fingerprint input, so editing build env drifts the hash without changing the installed natives. The dependency and config checks below are what actually decide OTA safety.",
-  "allowedJsOnlyDeps": []
+  "allowedJsOnlyDeps": ["qrcode", "@types/qrcode"]
 }
