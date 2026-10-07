@@ -13,7 +13,7 @@
  *
  * Foreground notifications are shown as a banner too (setNotificationHandler).
  */
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -30,6 +30,19 @@ Notifications.setNotificationHandler({
 });
 
 let registered = false;
+
+/**
+ * Android channels this app creates, reported to the backend with the push
+ * token. Android drops a push addressed to a channel the device doesn't have,
+ * so the backend only targets a channel listed here and falls back to
+ * "default" otherwise.
+ *
+ * A channel's importance and sound can't be changed once created, and the
+ * released app (2.2.0) created "default" at DEFAULT importance (no heads-up
+ * banner, system sound). Booking changes therefore use a new channel,
+ * booking_updates, instead of trying to upgrade "default".
+ */
+export const NOTIFICATION_CHANNELS = ['default', 'booking_updates', 'urgent_booking_alerts'] as const;
 
 /**
  * Forget that this device registered, so the next signed-in user registers
@@ -70,9 +83,21 @@ export async function registerForPushNotifications(): Promise<string | null> {
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       });
 
+      await Notifications.setNotificationChannelAsync('booking_updates', {
+        name: 'Booking Updates',
+        description: 'Accepted, declined and paid bookings, deposits and payment reminders',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#083A85',
+        sound: 'connekyt_chime.wav',
+        enableVibrate: true,
+        showBadge: true,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      });
+
       await Notifications.setNotificationChannelAsync('urgent_booking_alerts', {
         name: 'Urgent Booking & Opportunity Alerts',
-        description: 'Instant alerts with sound, vibration, and lock-screen banners for new event opportunities',
+        description: 'Rings for new booking requests and event opportunities',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 500, 250, 500, 250, 500],
         lightColor: '#F20C8F',
@@ -127,12 +152,51 @@ export async function registerForPushNotifications(): Promise<string | null> {
     // Latch only AFTER the backend has accepted it. Setting it first meant a
     // single network failure permanently convinced this install that it was
     // registered, and it never tried again.
-    await registerPushToken(token, Platform.OS);
+    await registerPushToken(
+      token,
+      Platform.OS,
+      Platform.OS === 'android' ? NOTIFICATION_CHANNELS.join(',') : undefined,
+    );
     registered = true;
     return token;
   } catch {
     // Permission denied / no network / not configured — non-fatal.
     return null;
+  }
+}
+
+/** The channel that rings for booking requests and opportunities. */
+export const RINGING_CHANNEL = 'urgent_booking_alerts';
+
+/**
+ * Whether ringing alerts break through Do Not Disturb. Android only lets the
+ * user grant this, per channel ("Override Do Not Disturb"); the channel's
+ * bypassDnd reflects their choice. null when it can't be read (not Android,
+ * or the channel isn't created yet).
+ */
+export async function ringingBypassesDnd(): Promise<boolean | null> {
+  if (Platform.OS !== 'android') return null;
+  try {
+    const channel = await Notifications.getNotificationChannelAsync(RINGING_CHANNEL);
+    return channel ? !!channel.bypassDnd : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Opens the system settings page for the ringing channel, where the user can
+ * turn on "Override Do Not Disturb". Falls back to the app's settings page.
+ */
+export async function openRingingChannelSettings(): Promise<void> {
+  const pkg = Constants.expoConfig?.android?.package ?? 'com.amoria.connekyt.app';
+  try {
+    await Linking.sendIntent('android.settings.CHANNEL_NOTIFICATION_SETTINGS', [
+      { key: 'android.provider.extra.APP_PACKAGE', value: pkg },
+      { key: 'android.provider.extra.CHANNEL_ID', value: RINGING_CHANNEL },
+    ]);
+  } catch {
+    await Linking.openSettings();
   }
 }
 

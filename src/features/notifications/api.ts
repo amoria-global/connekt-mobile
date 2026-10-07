@@ -238,10 +238,21 @@ export async function getUnreadCount(
 /**
  * Register this device's Expo push token with the backend.
  */
-export async function registerPushToken(token: string, platform: string): Promise<void> {
-  try {
-    await api.post('/customer/notifications/push-token', { token, platform });
-  } catch {
-    /* non-fatal */
+/**
+ * Registers this device's push token. `channels` lists the Android
+ * notification channels the app has created, so the backend only addresses
+ * channels this device can display.
+ *
+ * Throws on failure: registerForPushNotifications latches only after this
+ * succeeds, and swallowing the error here latched a failed registration.
+ */
+export async function registerPushToken(token: string, platform: string, channels?: string): Promise<void> {
+  const res = await api.post<{ action?: number }>('/customer/notifications/push-token', {
+    token,
+    platform,
+    ...(channels ? { channels } : {}),
+  });
+  if (res?.action !== 1) {
+    throw { status: 400, message: 'Push token was not registered' };
   }
 }

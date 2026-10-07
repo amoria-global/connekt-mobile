@@ -10,7 +10,7 @@
  *   6. Client brief / instructions callout
  *   7. Symmetrical, ergonomic Accept (Connekyt Royal Navy) & Decline action bar
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -22,10 +22,16 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import type { PhotographerOpportunity } from './types';
+
+const RINGTONE = require('../../../assets/sounds/connekyt_ringtone.wav');
+
+/** Stop ringing after this long even if nobody answers; the alert stays up. */
+const MAX_RING_MS = 30_000;
 
 type Props = {
   opportunity: PhotographerOpportunity | null;
@@ -51,6 +57,34 @@ export function IncomingOpportunityAlertModal({
 
   // Pulse animation for live badge
   const pulseScale = useRef(new Animated.Value(1)).current;
+
+  // Ring while the alert is up. The push only rings when the app is in the
+  // background; with the app open this modal is the alert, and it used to
+  // just vibrate once. Silent mode is respected (playsInSilentMode is off).
+  const ringtone = useRef<AudioPlayer | null>(null);
+  const stopRinging = useCallback(() => {
+    ringtone.current?.pause();
+  }, []);
+
+  const ringingFor = visible ? opportunity?.candidateId : undefined;
+  useEffect(() => {
+    if (!ringingFor || Platform.OS === 'web') return;
+    let player: AudioPlayer | null = null;
+    try {
+      player = createAudioPlayer(RINGTONE);
+      player.loop = true;
+      player.play();
+      ringtone.current = player;
+    } catch {
+      // Non-fatal: the alert still shows and vibrates
+    }
+    const cap = setTimeout(() => player?.pause(), MAX_RING_MS);
+    return () => {
+      clearTimeout(cap);
+      player?.remove();
+      ringtone.current = null;
+    };
+  }, [ringingFor]);
 
   // Initialize vibration & looping pulse animation
   useEffect(() => {
@@ -111,6 +145,7 @@ export function IncomingOpportunityAlertModal({
   if (!visible || !opportunity) return null;
 
   const handleApprove = async () => {
+    stopRinging();
     try {
       setBusyAction('approve');
       await onApprove(opportunity);
@@ -120,6 +155,7 @@ export function IncomingOpportunityAlertModal({
   };
 
   const handleReject = async () => {
+    stopRinging();
     try {
       setBusyAction('reject');
       await onReject(opportunity);

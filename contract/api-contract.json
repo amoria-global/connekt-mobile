@@ -5256,7 +5256,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "currency", "eventId", "expirationHours", "instructions", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
+      "properties" : [ "city", "currency", "eventId", "expirationHours", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerType", "specialty", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {
@@ -5351,7 +5351,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "currency", "eventId", "expirationHours", "instructions", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
+      "properties" : [ "city", "currency", "eventId", "expirationHours", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerType", "specialty", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {
@@ -5364,7 +5364,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "currency", "eventId", "expirationHours", "instructions", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
+      "properties" : [ "city", "currency", "eventId", "expirationHours", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerType", "specialty", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {
