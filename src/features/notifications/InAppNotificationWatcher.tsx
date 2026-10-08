@@ -15,7 +15,7 @@ import { Animated, AppState, Platform, Pressable, Text, Vibration, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { createAudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { useRole } from '@/features/auth/role';
 import { listNotifications, type AppNotification } from './api';
@@ -34,6 +34,10 @@ const SOUNDS: Record<InAppAlertKind, number> = {
 function playOnce(kind: InAppAlertKind) {
   if (Platform.OS === 'web') return;
   try {
+    void setAudioModeAsync({
+      playsInSilentMode: false,
+      interruptionMode: 'mixWithOthers',
+    });
     const player = createAudioPlayer(SOUNDS[kind]);
     player.play();
     // Release after the clip (ringtone 7.7 s, chime 3.9 s).

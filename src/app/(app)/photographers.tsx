@@ -390,13 +390,14 @@ export default function PhotographersScreen() {
   }, [data, query, category, location, price, rating, sort]);
 
   const activeFilterCount =
-    (query.trim() ? 1 : 0) +
+    (inputQuery.trim() || query.trim() ? 1 : 0) +
     (category !== ALL_CATEGORIES ? 1 : 0) +
     (location !== ALL_LOCATIONS ? 1 : 0) +
     (price !== ALL_PRICES ? 1 : 0) +
     (rating !== ALL_RATINGS ? 1 : 0);
 
   const clearFilters = () => {
+    setInputQuery('');
     setQuery('');
     setCategory(ALL_CATEGORIES);
     setLocation(ALL_LOCATIONS);
