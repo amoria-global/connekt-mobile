@@ -186,6 +186,7 @@ export default function PhotographersScreen() {
   const router = useRouter();
 
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [inputQuery, setInputQuery] = useState('');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [location, setLocation] = useState(ALL_LOCATIONS);
@@ -193,6 +194,14 @@ export default function PhotographersScreen() {
   const [rating, setRating] = useState<string>(ALL_RATINGS);
   const [sort, setSort] = useState<SortKey>('rating');
   const [sheet, setSheet] = useState<SheetKey | null>(null);
+
+  // Debounce search query so typing is smooth and never drops keystrokes on mobile
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQuery(inputQuery);
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [inputQuery]);
 
   // Bookmark state & parity sync
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
@@ -565,14 +574,25 @@ export default function PhotographersScreen() {
         <TextInput
           placeholder="Search by need (Weddings, Studio, Drone), name..."
           placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={setQuery}
+          value={inputQuery}
+          onChangeText={setInputQuery}
           autoCapitalize="none"
           autoCorrect={false}
+          returnKeyType="search"
+          onSubmitEditing={() => setQuery(inputQuery)}
+          cursorColor={colors.primary}
+          selectionColor={colors.primary + '30'}
           style={styles.searchInput}
         />
-        {query.trim().length > 0 && (
-          <Pressable onPress={() => setQuery('')} hitSlop={10} style={styles.searchClearBtn}>
+        {inputQuery.trim().length > 0 && (
+          <Pressable
+            onPress={() => {
+              setInputQuery('');
+              setQuery('');
+            }}
+            hitSlop={10}
+            style={styles.searchClearBtn}
+          >
             <Ionicons name="close-circle" size={18} color={colors.textMuted} />
           </Pressable>
         )}
@@ -1303,7 +1323,7 @@ const useStyles = makeStyles((c, e) => ({
   searchInput: {
     flex: 1,
     fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
+    fontSize: fontSize.md,
     color: c.text,
     height: '100%',
     paddingVertical: 0,
