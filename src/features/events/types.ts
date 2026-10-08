@@ -57,6 +57,8 @@ export type EventItem = {
   clientAvatar?: string;
   /** Booked package label (e.g. "Diamond", "Gold") — shown as a card badge. */
   packageName?: string;
+  /** Underlying booking ID if mapped from a booking record. */
+  bookingId?: string;
   /** Whether this event carries a live stream (drives the Stream pill + CTA). */
   hasLiveStream?: boolean;
   coverImage?: string;

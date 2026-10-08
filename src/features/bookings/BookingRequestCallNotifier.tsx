@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useRole } from '@/features/auth/role';
 import { acceptEventBooking, declineEventBooking, listPhotographerEvents } from '@/features/events/api';
+import { acceptBooking, listBookings, rejectBooking } from '@/features/bookings/api';
 import type { EventItem } from '@/features/events/types';
 import { BookingRequestCallModal } from './BookingRequestCallModal';
 import { onShowIncomingRequest, pendingRequests } from './incomingRequests';
@@ -38,13 +39,56 @@ export function BookingRequestCallNotifier() {
     async (focusId?: string) => {
       if (!isPhotographer || busy.current) return;
       try {
-        const events = await listPhotographerEvents();
+        const [eventsRes, bookingsRes] = await Promise.allSettled([
+          listPhotographerEvents(),
+          listBookings(),
+        ]);
+        const events: EventItem[] =
+          eventsRes.status === 'fulfilled' && Array.isArray(eventsRes.value)
+            ? [...eventsRes.value]
+            : [];
+        const bookings =
+          bookingsRes.status === 'fulfilled' && Array.isArray(bookingsRes.value)
+            ? bookingsRes.value
+            : [];
+
+        // Synthesize any pending booking into an EventItem if not already in events
+        for (const b of bookings) {
+          if ((b.status ?? '').toUpperCase() === 'PENDING') {
+            const matchIndex = events.findIndex(
+              (e) => e.id === b.eventId || (b.eventId && e.id === b.eventId) || e.id === b.id,
+            );
+            if (matchIndex === -1) {
+              events.push({
+                id: b.eventId || b.id,
+                bookingId: b.id,
+                title: b.eventTitle || 'Booking request',
+                clientName: b.clientName,
+                clientId: b.clientId,
+                bookingStatus: 'PENDING',
+                eventDate: b.eventDate,
+                price: b.proposedPrice,
+                currency: b.currency,
+                createdAt: b.createdAt,
+              });
+            } else {
+              events[matchIndex].bookingId = b.id;
+              if (!events[matchIndex].bookingStatus) {
+                events[matchIndex].bookingStatus = 'PENDING';
+              }
+            }
+          }
+        }
+
         if (focusId) dismissed.current.delete(focusId);
         const waiting = pendingRequests(events, todayStr(), dismissed.current);
-        const next = (focusId && waiting.find((e) => e.id === focusId)) || waiting[0] || null;
+        const next =
+          (focusId && waiting.find((e) => e.id === focusId || e.bookingId === focusId)) ||
+          waiting[0] ||
+          null;
         setActive((prev) => (prev && next && prev.id === next.id ? prev : next));
         // Tapped a request that's already been answered: open its page instead.
-        if (focusId && !waiting.some((e) => e.id === focusId)) {
+        if (focusId && !waiting.some((e) => e.id === focusId || e.bookingId === focusId)) {
           router.push(`/event/${focusId}` as never);
         }
       } catch {
@@ -97,7 +141,12 @@ export function BookingRequestCallNotifier() {
       onAccept={async (ev) => {
         busy.current = true;
         try {
-          await acceptEventBooking(ev.id);
+          try {
+            await acceptEventBooking(ev.id);
+          } catch {
+            const bId = ev.bookingId || ev.id;
+            await acceptBooking(bId);
+          }
           done(ev, 'Booking accepted', 'The client has been notified and asked to pay the deposit.');
         } finally {
           busy.current = false;
@@ -107,7 +156,12 @@ export function BookingRequestCallNotifier() {
       onDecline={async (ev, reason) => {
         busy.current = true;
         try {
-          await declineEventBooking(ev.id, reason);
+          try {
+            await declineEventBooking(ev.id, reason);
+          } catch {
+            const bId = ev.bookingId || ev.id;
+            await rejectBooking(bId, reason);
+          }
           done(ev, 'Booking declined', 'The client has been told you are not available.');
         } finally {
           busy.current = false;

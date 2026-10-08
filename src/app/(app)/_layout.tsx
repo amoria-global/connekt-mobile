@@ -8,6 +8,8 @@ import { GlobalOpportunityCallNotifier } from '@/features/hybrid/GlobalOpportuni
 import { InAppNotificationWatcher } from '@/features/notifications/InAppNotificationWatcher';
 import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCallNotifier';
 import { showIncomingRequest } from '@/features/bookings/incomingRequests';
+import { useRole } from '@/features/auth/role';
+import { setAudioModeAsync } from 'expo-audio';
 import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
@@ -18,6 +20,7 @@ import { Platform, View } from 'react-native';
 export default function AppLayout() {
   const { isDark, colors: c } = useTheme();
   const router = useRouter();
+  const { isPhotographer } = useRole();
 
   // Signed-in: register for push notifications and route taps. The (app)
   // group only mounts once authenticated, so this runs at the right time.
@@ -25,6 +28,11 @@ export default function AppLayout() {
   // and only logs "not supported" warnings there).
   useEffect(() => {
     if (Platform.OS === 'web') return;
+    // Silent mode is strictly respected (no sound if mute switch on, vibration only).
+    void setAudioModeAsync({
+      playsInSilentMode: false,
+      interruptionMode: 'mixWithOthers',
+    });
     registerForPushNotifications();
     const unsubscribe = addNotificationResponseListener(async (data, actionIdentifier) => {
       const candidateId =
@@ -54,11 +62,23 @@ export default function AppLayout() {
         return;
       }
 
-      // A direct booking request (its "View & respond" button or a tap on it)
+      // A direct booking request (its "View & respond" button, kind === 'BOOKING_REQUEST',
+      // or a notification of type 'BOOKING' for a photographer)
       // opens the full-screen incoming request instead of the event page.
-      if (data.kind === 'BOOKING_REQUEST' || actionIdentifier === 'VIEW_REQUEST') {
+      const isBookingRequestPush =
+        data.kind === 'BOOKING_REQUEST' ||
+        actionIdentifier === 'VIEW_REQUEST' ||
+        (isPhotographer &&
+          (data.type === 'BOOKING' || data.type === 'EVENT') &&
+          typeof data.referenceId === 'string');
+
+      if (isBookingRequestPush) {
         const eventId =
-          typeof data.eventId === 'string' ? data.eventId : typeof data.referenceId === 'string' ? data.referenceId : undefined;
+          typeof data.eventId === 'string'
+            ? data.eventId
+            : typeof data.referenceId === 'string'
+              ? data.referenceId
+              : undefined;
         if (eventId) {
           showIncomingRequest(eventId);
           return;
