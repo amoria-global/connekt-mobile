@@ -112,8 +112,13 @@ function mapEvent(r: RawEvent): EventItem {
   return {
     id: String(r.id ?? r.slug ?? r.eventId ?? ''),
     title: str(r.title) ?? str(r.name) ?? 'Untitled event',
-    eventDate: str(r.eventDate) ?? str(r.startTime) ?? str(r.date),
-    location: str(r.location) ?? str(r.venue),
+    eventDate: str(r.eventDate) ?? str(r.date) ?? str(r.startDate),
+    location:
+      typeof r.location === 'string'
+        ? str(r.location)
+        : r.location && typeof r.location === 'object'
+          ? str((r.location as any).address) || str((r.location as any).name)
+          : str(r.venue),
     attendanceMode: parseAttendanceMode(r.attendanceMode),
     status: str(r.eventStatus) ?? str(r.status) ?? str(r.completionStatus),
     category: categoryName,
@@ -124,6 +129,7 @@ function mapEvent(r: RawEvent): EventItem {
     clientId,
     clientAvatar,
     packageName: str(r.packageName),
+    bookingId: str(r.bookingId),
     hasLiveStream: r.hasLiveStream === true || r.hasLiveStream === 'true' || r.hasLiveStream === 1,
     // Backend returns the event hero as `eventPhoto` on every events
     // endpoint (/customer/events, /coordinator/events, /public/events).

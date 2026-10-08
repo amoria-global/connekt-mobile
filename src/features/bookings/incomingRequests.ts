@@ -11,8 +11,8 @@ import type { EventItem } from '@/features/events/types';
 export function pendingRequests(events: EventItem[], today: string, dismissed: ReadonlySet<string>): EventItem[] {
   return events
     .filter((e) => (e.bookingStatus ?? '').toUpperCase() === 'PENDING')
-    .filter((e) => !e.eventDate || e.eventDate.slice(0, 10) >= today)
-    .filter((e) => !dismissed.has(e.id))
+    .filter((e) => !e.eventDate || e.eventDate.length < 10 || e.eventDate.slice(0, 10) >= today)
+    .filter((e) => !dismissed.has(e.id) && (!e.bookingId || !dismissed.has(e.bookingId)))
     .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
 }
 
