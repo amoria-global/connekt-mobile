@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import type { EventItem } from '@/features/events/types';
 import { formatPrice } from '@/utils/format';
 import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
@@ -74,6 +74,10 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
     if (!ringingFor || Platform.OS === 'web') return;
     let p: AudioPlayer | null = null;
     try {
+      void setAudioModeAsync({
+        playsInSilentMode: false,
+        interruptionMode: 'mixWithOthers',
+      });
       p = createAudioPlayer(RINGTONE);
       p.loop = true;
       p.play();

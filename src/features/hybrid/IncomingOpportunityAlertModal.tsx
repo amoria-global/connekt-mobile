@@ -22,7 +22,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
@@ -71,6 +71,10 @@ export function IncomingOpportunityAlertModal({
     if (!ringingFor || Platform.OS === 'web') return;
     let player: AudioPlayer | null = null;
     try {
+      void setAudioModeAsync({
+        playsInSilentMode: false,
+        interruptionMode: 'mixWithOthers',
+      });
       player = createAudioPlayer(RINGTONE);
       player.loop = true;
       player.play();
