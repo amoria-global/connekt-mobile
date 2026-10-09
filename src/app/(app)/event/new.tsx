@@ -479,6 +479,12 @@ export default function NewEventScreen() {
       }
     }
 
+    // Clients create free events only. The fee field is hidden for them unless
+    // they stream a PRIVATE event themselves, so a stale value (edit prefill,
+    // a draft, or a fee typed before switching back to a photographer) must
+    // never reach the server for a public client event.
+    const feeNum = isCoordinator || visibility === 'PRIVATE' ? priceNum : 0;
+
     const location = [values.venueName, values.address, values.city, values.country]
       .map((s) => s?.trim())
       .filter(Boolean)
@@ -497,10 +503,10 @@ export default function NewEventScreen() {
       location: location || undefined,
       attendanceMode: inPerson ? ('IN_PERSON' as const) : ('STREAM_ONLY' as const),
       organizer: values.organizer?.trim() || undefined,
-      price: amount ?? (priceNum || undefined),
+      price: amount ?? (feeNum || undefined),
       // The "Live stream fee" field IS the stream fee (viewer paywall). Booking
       // events (amount param) carry no stream fee of their own.
-      streamFee: priceNum || undefined,
+      streamFee: feeNum || undefined,
       currency: isCoordinator ? selectedCurrency : params.currency,
       maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
       eventVisibility: visibility,
