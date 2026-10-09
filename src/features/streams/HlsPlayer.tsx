@@ -106,7 +106,7 @@ function buildWhepHtml(whepUrl: string, topInset: number = 0): string {
        font-size:14px;text-align:center;padding:16px;pointer-events:none;}
   /* Brand watermark — clean centered logo with CONNEKYT underneath */
   #wm-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-       gap:8px;overflow:hidden;pointer-events:none;z-index:999;opacity:0.20;}
+       gap:8px;overflow:hidden;pointer-events:none;z-index:999;opacity:0.08;}
   .wm-logo{width:46px;height:46px;object-fit:contain;}
   #wm-center span{color:#fff;font-weight:800;letter-spacing:4px;font-size:12px;
        white-space:nowrap;text-transform:uppercase;
