@@ -561,8 +561,8 @@ export function BookingModeSelector({
           <Text style={styles.label}>What happens next</Text>
           {([
             ['radio-outline', `The best-matched photographers (up to ${options.firstBatchSize}) are alerted right away.`],
-            ['thumbs-up-outline', `Each has ${options.inviteWindowMinutes} minutes to say yes; anyone who passes is replaced by the next best match.`],
-            ['people-outline', 'Only photographers who said yes appear for you, grouped as top, good and possible matches.'],
+            ['thumbs-up-outline', `Each has ${durationText(options.inviteWindowMinutes)} to say yes; anyone who passes is replaced by the next best match.`],
+            ['people-outline', 'Only photographers who said yes appear for you, grouped as top, good and possible matches, three of each.'],
             ['shield-checkmark-outline', 'You choose one and pay 50%, 70% or 100% upfront. Connekyt holds it until delivery.'],
           ] as [keyof typeof Ionicons.glyphMap, string][]).map(([icon, t]) => (
             <View key={t} style={{ flexDirection: 'row', gap: spacing.sm }}>
