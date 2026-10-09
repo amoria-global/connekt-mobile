@@ -41,6 +41,7 @@ import { useRole } from '@/features/auth/role';
 import { acceptBooking, listBookings, rejectBooking, type Booking } from '@/features/bookings/api';
 import {
   listOpportunities,
+  getOpportunity,
   approveOpportunity,
   rejectOpportunity,
   convertToHybridRescue,
@@ -62,7 +63,7 @@ export default function BookingsScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, candidate } = useLocalSearchParams<{ tab?: string; candidate?: string }>();
   const { isPhotographer } = useRole();
 
   // Tab state for photographer
@@ -82,23 +83,33 @@ export default function BookingsScreen() {
   const [loadingOpp, setLoadingOpp] = useState(false);
   const [oppBusyId, setOppBusyId] = useState<string | null>(null);
   const [fullscreenOpp, setFullscreenOpp] = useState<PhotographerOpportunity | null>(null);
+  // New invites, ones waiting for the client, or everything that happened.
+  const [oppFilter, setOppFilter] = useState<'PENDING_RESPONSE' | 'APPROVED' | 'ALL'>('PENDING_RESPONSE');
+  const [oppError, setOppError] = useState<string | null>(null);
 
   const fetchOpportunities = useCallback(async () => {
     if (!isPhotographer || !env.hybridBookingEnabled) return;
     setLoadingOpp(true);
     try {
-      const res = await listOpportunities();
-      const pending = res.filter((opp) => {
-        const s = (opp.status ?? '').toUpperCase();
-        return s !== 'APPROVED' && s !== 'REJECTED' && s !== 'DECLINED' && s !== 'EXPIRED';
-      });
-      setOpportunities(pending);
+      const res = await listOpportunities(oppFilter);
+      setOpportunities(oppFilter === 'ALL'
+        ? res.filter((o) => o.status !== 'INVITED' && o.status !== 'APPROVED')
+        : res);
+      setOppError(null);
     } catch (e) {
-      console.warn('Could not load opportunities:', e);
+      setOppError(isApiError(e) ? e.message : 'Could not load opportunities.');
     } finally {
       setLoadingOpp(false);
     }
-  }, [isPhotographer]);
+  }, [isPhotographer, oppFilter]);
+
+  // A notification for one opportunity opens it full screen.
+  useEffect(() => {
+    if (!candidate || !isPhotographer) return;
+    getOpportunity(String(candidate))
+      .then((o) => { if (o.status === 'INVITED') setFullscreenOpp(o); })
+      .catch(() => {});
+  }, [candidate, isPhotographer]);
 
   useEffect(() => {
     if (!isPhotographer || !env.hybridBookingEnabled) return;
@@ -162,8 +173,8 @@ export default function BookingsScreen() {
     try {
       await approveOpportunity(opp.candidateId);
       Alert.alert(
-        'Opportunity Approved!',
-        'You have been added to the client’s shortlist. You will be notified as soon as they select your proposal.',
+        'You said yes',
+        `The client now sees you for ${opp.eventTitle} and can choose you. We'll tell you the outcome either way.`,
       );
       fetchOpportunities();
     } catch (e) {
@@ -173,10 +184,18 @@ export default function BookingsScreen() {
     }
   };
 
-  const onRejectOpp = async (opp: PhotographerOpportunity) => {
+  const onRejectOpp = (opp: PhotographerOpportunity) => {
+    Alert.alert('Pass on this one?', `${opp.eventTitle} goes to the next photographer.`, [
+      { text: 'Keep it', style: 'cancel' },
+      { text: 'Already booked', onPress: () => sendReject(opp, 'Already booked') },
+      { text: 'Pass', style: 'destructive', onPress: () => sendReject(opp) },
+    ]);
+  };
+
+  const sendReject = async (opp: PhotographerOpportunity, why?: string) => {
     setOppBusyId(opp.candidateId);
     try {
-      await rejectOpportunity(opp.candidateId);
+      await rejectOpportunity(opp.candidateId, why);
       setOpportunities((prev) => prev.filter((o) => o.candidateId !== opp.candidateId));
     } catch (e) {
       Alert.alert('Decline error', isApiError(e) ? e.message : 'Could not decline this opportunity.');
@@ -222,7 +241,7 @@ export default function BookingsScreen() {
               color={activeTab === 'direct' ? colors.primary : colors.textMuted}
             />
             <Text style={[styles.segmentText, activeTab === 'direct' && styles.segmentTextActive]}>
-              Direct Requests
+              Direct requests
             </Text>
           </Pressable>
 
@@ -234,9 +253,9 @@ export default function BookingsScreen() {
             }}
           >
             <Ionicons
-              name="sparkles-outline"
+              name="radio-outline"
               size={15}
-              color={activeTab === 'opportunities' ? colors.primary : colors.textMuted}
+              color={activeTab === 'opportunities' ? '#F20C8F' : colors.textMuted}
             />
             <Text
               style={[
@@ -244,7 +263,7 @@ export default function BookingsScreen() {
                 activeTab === 'opportunities' && styles.segmentTextActive,
               ]}
             >
-              Open Opportunities
+              Opportunities
             </Text>
             {opportunities.length > 0 && (
               <View style={styles.badgeCount}>
@@ -407,6 +426,21 @@ export default function BookingsScreen() {
             />
           }
         >
+          <View style={styles.oppExplainer}>
+            <Ionicons name="information-circle-outline" size={16} color="#F20C8F" />
+            <Text style={styles.oppExplainerText}>
+              Opportunities come from clients who used Post My Event: you were matched because you are free for the whole event and fit what they asked for. Say yes and the client sees you; they choose one photographer. Direct requests are sent to you by name.
+            </Text>
+          </View>
+          <View style={styles.oppFilters}>
+            {([['PENDING_RESPONSE', 'New'], ['APPROVED', 'Waiting for client'], ['ALL', 'History']] as const).map(([k, l]) => (
+              <Pressable key={k} onPress={() => setOppFilter(k)} accessibilityRole="tab" accessibilityState={{ selected: oppFilter === k }}
+                style={[styles.oppFilter, oppFilter === k && styles.oppFilterOn]}>
+                <Text style={[styles.oppFilterText, oppFilter === k && { color: '#fff' }]}>{l}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {oppError ? <Text style={styles.muted}>{oppError}</Text> : null}
           {loadingOpp && opportunities.length === 0 ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.primary} />
@@ -414,9 +448,11 @@ export default function BookingsScreen() {
           ) : opportunities.length === 0 ? (
             <View style={styles.centered}>
               <EmptyState
-                icon="sparkles-outline"
-                title="No open opportunities right now"
-                message="When clients in your area post event briefs matching your profile, they will appear here for you to claim."
+                icon="radio-outline"
+                title={oppFilter === 'PENDING_RESPONSE' ? 'No open opportunities right now' : oppFilter === 'APPROVED' ? 'Nothing waiting for a client' : 'No history yet'}
+                message={oppFilter === 'PENDING_RESPONSE'
+                  ? 'When a client posts an event that fits your profile and calendar, it appears here and your phone rings. Add your Instagram and city in Profile to be matched more often.'
+                  : oppFilter === 'APPROVED' ? 'Opportunities you said yes to wait here until the client chooses.' : 'Past opportunities and their outcomes appear here.'}
               />
             </View>
           ) : (
@@ -428,6 +464,7 @@ export default function BookingsScreen() {
                 onReject={onRejectOpp}
                 onPress={(o) => setFullscreenOpp(o)}
                 busy={oppBusyId === opp.candidateId}
+                highlighted={candidate === opp.candidateId}
               />
             ))
           )}
@@ -672,4 +709,10 @@ const useStyles = makeStyles((c) => ({
     textAlignVertical: 'top',
     marginBottom: spacing.sm,
   },
+  oppExplainer: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 14, backgroundColor: 'rgba(242,12,143,0.08)', marginBottom: 10 },
+  oppExplainerText: { flex: 1, fontSize: 12.5, lineHeight: 18, color: c.textSoft },
+  oppFilters: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
+  oppFilter: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card },
+  oppFilterOn: { backgroundColor: c.primary, borderColor: c.primary },
+  oppFilterText: { fontSize: 13, fontWeight: '700', color: c.text },
 }));
