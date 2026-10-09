@@ -64,8 +64,10 @@ miss.
 
 Client ids are per platform and per Google Cloud project, and the type is fixed when the
 client is created. Android must use an Android-type client; a Web client is refused with
-"Custom scheme URIs are not allowed". iOS has no client configured, so the Google button
-does not offer sign-in there.
+"Custom scheme URIs are not allowed". iOS uses its own iOS-type client
+(`728809448366-69tue...`, bundle `com.connekyt.app`, added 2026-10-09). Its redirect is
+`com.connekyt.app:/oauthredirect`, and Expo prebuild already registers the bundle id as a
+URL scheme, so no reversed-client-id scheme is needed.
 
 The backend verifies the Google token against its own audience allowlist
 (`connekyt.google.allowed-audiences`). Adding a platform means adding its client id there
