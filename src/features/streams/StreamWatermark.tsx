@@ -20,7 +20,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { logoBase64 } from '@/utils/logoBase64';
 
 export function StreamWatermark({
-  opacity = 0.08,
+  opacity = 0.04,
 }: {
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   offset?: { top?: number; right?: number; bottom?: number; left?: number };
