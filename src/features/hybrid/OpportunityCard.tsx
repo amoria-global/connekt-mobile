@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Pressable, ActivityIndicator } from 'react-native';
+/**
+ * One Post My Event opportunity for a photographer. Everything shown comes
+ * from the server: duration, distance, what was matched and the deadline.
+ * The internal match score never reaches this screen.
+ */
+import React from 'react';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { formatPrice } from '@/utils/format';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import type { PhotographerOpportunity } from './types';
+import { budgetLabel, countdownString, EventStartClock, hhmm, MODE_META, useCountdown } from './hybridUi';
 
 type Props = {
   opportunity: PhotographerOpportunity;
@@ -11,488 +16,130 @@ type Props = {
   onReject: (item: PhotographerOpportunity) => void;
   onPress?: (item: PhotographerOpportunity) => void;
   busy?: boolean;
+  highlighted?: boolean;
 };
 
-export function OpportunityCard({ opportunity, onApprove, onReject, onPress, busy }: Props) {
+const STATUS: Record<string, { text: string; color: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = {
+  INVITED: { text: 'New nearby opportunity', color: '#F20C8F', icon: 'radio-outline' },
+  APPROVED: { text: 'You said yes · client choosing', color: '#1E40AF', icon: 'hourglass-outline' },
+  SELECTED: { text: 'You were selected', color: '#047857', icon: 'trophy-outline' },
+  NOT_SELECTED: { text: 'Client chose someone else', color: '#6A6D76', icon: 'person-outline' },
+  REJECTED: { text: 'You passed', color: '#6A6D76', icon: 'close-circle-outline' },
+  EXPIRED: { text: 'Time ran out', color: '#6A6D76', icon: 'timer-outline' },
+  WITHDRAWN: { text: 'Closed by the client', color: '#6A6D76', icon: 'lock-closed-outline' },
+  NO_LONGER_AVAILABLE: { text: 'Released: your calendar overlaps', color: '#6A6D76', icon: 'calendar-outline' },
+};
+
+const prettyDate = (d: string) => {
+  const t = Date.parse(`${d.slice(0, 10)}T00:00:00`);
+  return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : d;
+};
+
+export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, busy, highlighted }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
-
-  const isApproved = opportunity.status === 'APPROVED';
-  const isRejected = opportunity.status === 'REJECTED';
-
-  const targetExpires = opportunity.candidateExpiresAt || opportunity.expiresAt;
-  const calculateRemaining = () => {
-    if (!targetExpires) return 15 * 60;
-    const diff = Math.floor((new Date(targetExpires).getTime() - Date.now()) / 1000);
-    return Math.max(0, diff);
-  };
-
-  const [secondsLeft, setSecondsLeft] = useState<number>(calculateRemaining);
-
-  useEffect(() => {
-    setSecondsLeft(calculateRemaining());
-    const interval = setInterval(() => {
-      setSecondsLeft(calculateRemaining());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [targetExpires]);
-
-  const isExpired = secondsLeft <= 0 || opportunity.status === 'EXPIRED';
-  const isUrgent = secondsLeft > 0 && secondsLeft <= 120;
-  const isWarning = secondsLeft > 120 && secondsLeft <= 300;
-
-  const mins = Math.floor(secondsLeft / 60);
-  const secs = secondsLeft % 60;
-  const formattedCountdown = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  const open = (o.status ?? 'INVITED') === 'INVITED';
+  const left = useCountdown(open ? o.responseDeadlineAt || o.candidateExpiresAt : null);
+  const expired = open && !!left?.done;
+  const urgent = open && !!left && !left.done && left.ms < 5 * 60 * 1000;
+  const st = STATUS[o.status ?? 'INVITED'] ?? STATUS.INVITED;
+  const budget = budgetLabel(o.minBudget, o.maxBudget);
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      onPress={onPress ? () => onPress(o) : undefined}
+      style={[styles.card, (open || highlighted) && { borderColor: MODE_META.HYBRID.color }, highlighted && { borderWidth: 2 }]}
+      accessibilityRole={onPress ? 'button' : undefined}
+    >
       <View style={styles.headerRow}>
-        <View style={styles.badgeContainer}>
-          <Text style={styles.badgeText}>NEW OPPORTUNITY</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+          <Ionicons name={st.icon} size={13} color={st.color} />
+          <Text style={[styles.eyebrow, { color: st.color }]} numberOfLines={1}>{st.text.toUpperCase()}</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {opportunity.distanceKm != null && (
-            <View style={styles.distanceBadge}>
-              <Ionicons name="navigate-outline" size={12} color={colors.primary} />
-              <Text style={styles.distanceText}>{opportunity.distanceKm.toFixed(1)} km away</Text>
-            </View>
-          )}
-          {onPress && !isApproved && !isRejected && (
-            <Pressable
-              style={styles.radarPill}
-              onPress={() => onPress(opportunity)}
-              hitSlop={6}
-            >
-              <Ionicons name="flash" size={11} color={colors.accent} />
-              <Text style={styles.radarPillText}>Call Alert</Text>
-            </Pressable>
-          )}
-        </View>
+        {open && left ? (
+          <View style={[styles.timer, urgent && { backgroundColor: colors.errorBg }]} accessibilityLabel={`Time left to answer ${countdownString(left)}`}>
+            <Ionicons name="stopwatch-outline" size={12} color={urgent ? colors.error : MODE_META.HYBRID.color} />
+            <Text style={[styles.timerText, urgent && { color: colors.error }]}>{countdownString(left, '00m 00s')}</Text>
+          </View>
+        ) : null}
       </View>
 
-      <Text style={styles.title} numberOfLines={1}>
-        {opportunity.eventTitle}
-      </Text>
+      <Text style={styles.title} numberOfLines={2}>{o.eventTitle}</Text>
+      {o.eventType ? <Text style={styles.sub}>{o.eventType}</Text> : null}
 
-      {/* 15-MINUTE LIVE COUNTDOWN TIMER */}
-      {!isApproved && !isRejected && (
-        <View style={styles.timerRow}>
-          <View
-            style={[
-              styles.timerPill,
-              isUrgent && styles.timerPillUrgent,
-              isWarning && styles.timerPillWarning,
-              isExpired && styles.timerPillExpired,
-            ]}
-          >
-            <Ionicons
-              name={isExpired ? 'time-outline' : isUrgent ? 'flame' : 'stopwatch-outline'}
-              size={12}
-              color={isExpired ? colors.textMuted : isUrgent ? colors.error : isWarning ? '#D97706' : colors.primary}
-            />
-            <Text
-              style={[
-                styles.timerText,
-                isUrgent && styles.timerTextUrgent,
-                isWarning && styles.timerTextWarning,
-                isExpired && styles.timerTextExpired,
-              ]}
-            >
-              {isExpired
-                ? 'Response Window Expired'
-                : `${isUrgent ? 'Expiring soon: ' : 'Response window: '}${formattedCountdown}`}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {opportunity.clientName ? (
-        <View style={styles.clientRow}>
-          <Ionicons name="person-circle-outline" size={14} color={colors.textMuted} />
-          <Text style={styles.clientText}>Client: {opportunity.clientName}</Text>
-        </View>
-      ) : null}
-
-      <View style={styles.metaList}>
-        <View style={styles.metaRow}>
-          <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
-          <Text style={styles.metaText}>
-            {opportunity.eventDate} • {opportunity.startTime?.slice(0, 5)}
-            {opportunity.endTime ? `–${opportunity.endTime.slice(0, 5)}` : ''}
-            {opportunity.durationHours ? ` (${opportunity.durationHours} hrs)` : ''}
-          </Text>
-        </View>
-
-        {(opportunity.eventAddress || opportunity.venue || opportunity.eventCity || opportunity.city) && (
-          <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.metaText} numberOfLines={1}>
-              {opportunity.eventAddress ||
-                [opportunity.venue, opportunity.eventCity || opportunity.city].filter(Boolean).join(', ')}
-            </Text>
-          </View>
-        )}
-
-        {(opportunity.estimatedEarnings != null || opportunity.minBudget != null || opportunity.maxBudget != null) && (
-          <View style={styles.metaRow}>
-            <Ionicons name="cash-outline" size={14} color={colors.primary} />
-            <Text style={styles.budgetText}>
-              {opportunity.estimatedEarnings != null
-                ? `${opportunity.currency || 'RWF'} ${opportunity.estimatedEarnings.toLocaleString()} (Est. Payout)`
-                : opportunity.minBudget != null && opportunity.maxBudget != null
-                  ? `${formatPrice(opportunity.minBudget, opportunity.currency)} – ${formatPrice(opportunity.maxBudget, opportunity.currency)}`
-                  : formatPrice(opportunity.maxBudget ?? opportunity.minBudget ?? 0, opportunity.currency)}
-            </Text>
-            {opportunity.escrowGuaranteed && (
-              <View style={styles.escrowBadge}>
-                <Ionicons name="shield-checkmark" size={11} color={colors.primary} />
-                <Text style={styles.escrowBadgeText}>Escrow Protected</Text>
-              </View>
-            )}
-          </View>
-        )}
+      <View style={styles.facts}>
+        <Fact icon="calendar-outline" text={o.eventDate ? prettyDate(o.eventDate) : 'Date to be confirmed'} />
+        <Fact icon="time-outline" text={`${hhmm(o.startTime)}${o.endTime ? `–${hhmm(o.endTime)}` : ''}${o.durationLabel ? ` · ${o.durationLabel}` : ''}`} strong={!!o.durationLabel} />
+        <Fact icon="location-outline" text={`${o.city || o.venue || 'Location shared on booking'}${o.distanceLabel ? ` · ${o.distanceLabel}` : ''}`} />
+        {budget ? <Fact icon="cash-outline" text={budget} /> : null}
       </View>
 
-      {/* CLIENT INSTRUCTIONS IF SPECIFIED */}
-      {opportunity.instructions ? (
-        <View style={styles.instructionsBox}>
-          <View style={styles.instructionsHeader}>
-            <Ionicons name="document-text-outline" size={13} color={colors.primary} />
-            <Text style={styles.instructionsTitle}>Client Brief / Notes:</Text>
-          </View>
-          <Text style={styles.instructionsText}>{opportunity.instructions}</Text>
-        </View>
-      ) : null}
-
-      {/* WHY YOU MATCH REASONS */}
-      {opportunity.matchReasons && opportunity.matchReasons.length > 0 && (
-        <View style={styles.matchReasonsBox}>
-          <Text style={styles.matchReasonsTitle}>Why you match:</Text>
-          {opportunity.matchReasons.map((reason, idx) => (
-            <View key={idx} style={styles.reasonRow}>
-              <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
-              <Text style={styles.reasonText}>{reason}</Text>
+      {o.matchReasons && o.matchReasons.length > 0 ? (
+        <View style={styles.reasons}>
+          {o.matchReasons.map((r) => (
+            <View key={r} style={styles.reason}>
+              <Ionicons name="checkmark" size={12} color="#047857" />
+              <Text style={styles.reasonText}>{r}</Text>
             </View>
           ))}
         </View>
-      )}
+      ) : null}
 
-      {/* ACTIONS */}
-      <View style={styles.actionsRow}>
-        {isApproved ? (
-          <View style={styles.statusBoxApproved}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-            <Text style={styles.statusTextApproved}>Approved — Waiting for client selection</Text>
-          </View>
-        ) : isRejected ? (
-          <View style={styles.statusBoxRejected}>
-            <Ionicons name="close-circle" size={16} color={colors.error} />
-            <Text style={styles.statusTextRejected}>Opportunity declined</Text>
-          </View>
-        ) : isExpired ? (
-          <View style={styles.statusBoxRejected}>
-            <Ionicons name="time-outline" size={16} color={colors.textMuted} />
-            <Text style={[styles.statusTextRejected, { color: colors.textMuted }]}>
-              Invitation expired (15m window closed)
-            </Text>
-          </View>
-        ) : (
-          <>
-            <Pressable
-              style={({ pressed }) => [styles.rejectBtn, pressed && styles.btnPressed]}
-              onPress={() => onReject(opportunity)}
-              disabled={busy}
-            >
-              <Ionicons name="close" size={16} color={colors.error} />
-              <Text style={styles.rejectBtnText}>Decline</Text>
-            </Pressable>
+      {o.instructions ? <Text style={styles.notes} numberOfLines={3}>“{o.instructions}”</Text> : null}
 
-            <Pressable
-              style={({ pressed }) => [styles.approveBtn, pressed && styles.btnPressed]}
-              onPress={() => onApprove(opportunity)}
-              disabled={busy}
-            >
-              {busy ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                  <Text style={styles.approveBtnText}>I'm Available</Text>
-                </>
-              )}
-            </Pressable>
-          </>
-        )}
-      </View>
+      {o.status === 'SELECTED' && o.eventStartAt ? <EventStartClock startAt={o.eventStartAt} /> : null}
+
+      {open ? (
+        <View style={styles.actions}>
+          <Pressable onPress={() => onReject(o)} disabled={busy || expired} style={[styles.secondary, (busy || expired) && styles.disabled]}
+            accessibilityRole="button" accessibilityLabel="Not this time">
+            <Text style={styles.secondaryText}>Not this time</Text>
+          </Pressable>
+          <Pressable onPress={() => onApprove(o)} disabled={busy || expired} style={[styles.primary, (busy || expired) && styles.disabled]}
+            accessibilityRole="button" accessibilityLabel="Yes, I'm available">
+            {busy ? <ActivityIndicator color="#fff" /> : (
+              <>
+                <Ionicons name="checkmark" size={18} color="#fff" />
+                <Text style={styles.primaryText}>{expired ? 'Time is up' : "Yes, I'm available"}</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function Fact({ icon, text, strong }: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string; strong?: boolean }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return (
+    <View style={styles.fact}>
+      <Ionicons name={icon} size={14} color={colors.primary} />
+      <Text style={[styles.factText, strong && { fontWeight: fontWeight.bold, color: colors.text }]} numberOfLines={1}>{text}</Text>
     </View>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  card: {
-    backgroundColor: c.surface,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    borderWidth: 1.5,
-    borderColor: c.borderSoft,
-    gap: spacing.md,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  timerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: -2,
-  },
-  timerPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    backgroundColor: c.tint,
-    borderWidth: 1,
-    borderColor: 'rgba(8, 58, 133, 0.15)',
-  },
-  timerPillWarning: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FCD34D',
-  },
-  timerPillUrgent: {
-    backgroundColor: c.errorBg,
-    borderColor: '#FCA5A5',
-  },
-  timerPillExpired: {
-    backgroundColor: c.surfaceMuted,
-    borderColor: c.borderSoft,
-  },
-  timerText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: c.primary,
-  },
-  timerTextWarning: {
-    color: '#D97706',
-  },
-  timerTextUrgent: {
-    color: c.error,
-  },
-  timerTextExpired: {
-    color: c.textMuted,
-  },
-  badgeContainer: {
-    backgroundColor: c.tint,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-    letterSpacing: 0.5,
-  },
-  distanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  distanceText: {
-    fontSize: fontSize.xs,
-    color: c.textMuted,
-    fontWeight: fontWeight.medium,
-  },
-  title: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: c.text,
-  },
-  clientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: -4,
-  },
-  clientText: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
-    color: c.textMuted,
-  },
-  metaList: {
-    gap: 6,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  metaText: {
-    fontSize: fontSize.xs,
-    color: c.textSoft,
-  },
-  budgetText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: c.primary,
-  },
-  escrowBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: c.tint,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(8, 58, 133, 0.2)',
-  },
-  escrowBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 10,
-    color: c.primary,
-  },
-  instructionsBox: {
-    backgroundColor: 'rgba(8, 58, 133, 0.05)',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: 'rgba(8, 58, 133, 0.15)',
-    padding: spacing.sm + 2,
-    gap: 4,
-  },
-  instructionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  instructionsTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 10.5,
-    color: '#083A85',
-    letterSpacing: 0.2,
-  },
-  instructionsText: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
-    color: c.text,
-    lineHeight: 18,
-  },
-  matchReasonsBox: {
-    backgroundColor: c.surfaceMuted,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    gap: 6,
-  },
-  matchReasonsTitle: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: c.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 2,
-  },
-  reasonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  reasonText: {
-    fontSize: fontSize.xs,
-    color: c.text,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: 4,
-  },
-  rejectBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: radii.full,
-    borderWidth: 1.5,
-    borderColor: c.error,
-    backgroundColor: c.errorBg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  rejectBtnText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: c.error,
-  },
-  approveBtn: {
-    flex: 1.4,
-    height: 44,
-    borderRadius: radii.full,
-    backgroundColor: c.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  approveBtnText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
-  },
-  btnPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
-  },
-  statusBoxApproved: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    backgroundColor: c.tint,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: 'rgba(8, 58, 133, 0.18)',
-  },
-  statusTextApproved: {
-    fontFamily: fonts.bold,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: c.primary,
-  },
-  statusBoxRejected: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    backgroundColor: c.surfaceMuted,
-    borderRadius: radii.md,
-  },
-  statusTextRejected: {
-    fontSize: fontSize.xs,
-    color: c.textMuted,
-  },
-  radarPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: c.tintAccent,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: 'rgba(242, 12, 143, 0.25)',
-  },
-  radarPillText: {
-    fontFamily: fonts.bold,
-    fontSize: 10,
-    color: c.accent,
-  },
+  card: { backgroundColor: c.card, borderRadius: radii.xl, borderWidth: 1, borderColor: c.border, padding: spacing.lg, gap: spacing.sm },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  eyebrow: { fontSize: 11, fontWeight: fontWeight.extrabold, letterSpacing: 0.6 },
+  timer: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: 'rgba(242,12,143,0.10)' },
+  timerText: { fontSize: 12, fontWeight: fontWeight.extrabold, color: '#F20C8F', fontVariant: ['tabular-nums'] },
+  title: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  sub: { fontSize: fontSize.xs, color: c.textMuted, marginTop: -4 },
+  facts: { gap: 6 },
+  fact: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  factText: { fontSize: fontSize.sm, color: c.textSoft, flex: 1 },
+  reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  reason: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.successBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full },
+  reasonText: { fontSize: 11, color: c.text },
+  notes: { fontSize: fontSize.xs, color: c.textSoft, backgroundColor: c.surfaceMuted, padding: spacing.sm, borderRadius: radii.md, fontStyle: 'italic' },
+  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  primary: { flex: 1.4, minHeight: 48, borderRadius: radii.md, backgroundColor: '#10B981', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  primaryText: { color: '#fff', fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
+  secondary: { flex: 1, minHeight: 48, borderRadius: radii.md, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  secondaryText: { color: c.textSoft, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
+  disabled: { opacity: 0.5 },
 }));

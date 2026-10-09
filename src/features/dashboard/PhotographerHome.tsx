@@ -14,6 +14,7 @@
  *  10. Recent Payments Feed (From /photographer/transactions)
  *  11. Compare Goals Modal (Customizable target earnings, shoots & clients)
  */
+import { MatchingProfilePrompt } from '@/features/hybrid/MatchingProfile';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -213,10 +214,12 @@ export function PhotographerHome() {
     );
   }, [opportunities.data, dismissedOppIds]);
 
+  const openOppCount = (opportunities.data ?? []).filter((o) => (o.status ?? 'INVITED') === 'INVITED').length;
+
   const handleApproveIncomingOpp = async (opp: PhotographerOpportunity) => {
     try {
       await approveOpportunity(opp.candidateId);
-      Alert.alert('Shoot Accepted! 🎉', 'You have been added to the client candidate shortlist.');
+      Alert.alert('You said yes', `The client now sees you for ${opp.eventTitle} and can choose you. We'll tell you the outcome either way.`);
       opportunities.refresh();
       events.refresh();
     } catch (e: any) {
@@ -227,7 +230,7 @@ export function PhotographerHome() {
   const handleRejectIncomingOpp = async (opp: PhotographerOpportunity) => {
     try {
       await rejectOpportunity(opp.candidateId);
-      Alert.alert('Opportunity Declined', 'The brief has been passed to another photographer.');
+      Alert.alert('Passed', 'It goes to the next photographer.');
       opportunities.refresh();
     } catch (e: any) {
       Alert.alert('Decline error', e?.message || 'Could not decline this opportunity.');
@@ -546,6 +549,35 @@ export function PhotographerHome() {
             </Text>
           </Pressable>
         </View>
+
+        {/* Post My Event opportunities: always one tap away, with the open count */}
+        {env.hybridBookingEnabled ? (
+          <Pressable
+            onPress={() => router.push('/bookings?tab=opportunities' as never)}
+            accessibilityRole="button"
+            accessibilityLabel={`Opportunities, ${openOppCount} waiting for your answer`}
+            style={({ pressed }) => [{
+              marginHorizontal: 16, marginBottom: 16, padding: 14, borderRadius: 18, borderWidth: 1.5,
+              borderColor: openOppCount > 0 ? '#F20C8F' : colors.border, backgroundColor: openOppCount > 0 ? 'rgba(242,12,143,0.08)' : colors.card,
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+            }, pressed && { opacity: 0.85 }]}
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(242,12,143,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="radio-outline" size={22} color="#F20C8F" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>Opportunities</Text>
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                {openOppCount > 0 ? `${openOppCount} event${openOppCount === 1 ? '' : 's'} near you waiting for your answer` : 'Events from Post My Event that fit your calendar'}
+              </Text>
+            </View>
+            {openOppCount > 0 ? (
+              <View style={{ minWidth: 24, height: 24, borderRadius: 12, backgroundColor: '#F20C8F', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }}>
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>{openOppCount}</Text>
+              </View>
+            ) : <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
+          </Pressable>
+        ) : null}
 
         {/* ── 3. Studio Search Bar (Positioned Above the Pie Chart) ──────── */}
         <View style={styles.searchSection}>
@@ -1469,6 +1501,9 @@ export function PhotographerHome() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Asks once for Instagram and base city (Post My Event matching) */}
+      {env.hybridBookingEnabled ? <MatchingProfilePrompt /> : null}
 
       {/* Full-Screen Incoming Shoot Request Alert (Uber / Ringing Call Style) */}
       <IncomingOpportunityAlertModal

@@ -9,6 +9,8 @@ export type CreateEventInput = {
   description?: string;
   /** Maps to the backend `eventType`. */
   category: string;
+  /** The event_types id, when the type was picked from the shared list. */
+  eventCategoryId?: string;
   eventDate: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime?: string; // HH:mm (defaults to startTime)
