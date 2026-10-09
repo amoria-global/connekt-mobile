@@ -2507,6 +2507,9 @@
     "method" : "POST",
     "path" : "/api/opportunities/{candidateId}/reject",
     "controller" : "HybridBookingController#rejectOpportunity",
+    "body" : {
+      "type" : "Map"
+    },
     "pathVariables" : [ "candidateId" ]
   }, {
     "method" : "GET",
@@ -4965,7 +4968,7 @@
     "controller" : "HybridBookingController#getMatchPreview",
     "body" : {
       "type" : "MatchPreviewRequestDTO",
-      "properties" : [ "city", "currency", "endTime", "eventDate", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerType", "specialty", "startTime" ]
+      "properties" : [ "city", "currency", "endTime", "eventDate", "eventId", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerSpecialty", "photographerType", "specialty", "startTime" ]
     }
   }, {
     "method" : "PATCH",
@@ -5256,7 +5259,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "currency", "eventId", "expirationHours", "instructions", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
+      "properties" : [ "city", "country", "currency", "eventId", "expirationHours", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerSpecialty", "photographerType", "specialty", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {
@@ -5289,6 +5292,9 @@
     "method" : "POST",
     "path" : "/api/remote/match/candidates/{candidateId}/reject",
     "controller" : "HybridBookingController#rejectOpportunity",
+    "body" : {
+      "type" : "Map"
+    },
     "pathVariables" : [ "candidateId" ]
   }, {
     "method" : "GET",
@@ -5336,6 +5342,9 @@
     "method" : "POST",
     "path" : "/api/remote/match/opportunities/{candidateId}/reject",
     "controller" : "HybridBookingController#rejectOpportunity",
+    "body" : {
+      "type" : "Map"
+    },
     "pathVariables" : [ "candidateId" ]
   }, {
     "method" : "POST",
@@ -5343,7 +5352,7 @@
     "controller" : "HybridBookingController#getMatchPreview",
     "body" : {
       "type" : "MatchPreviewRequestDTO",
-      "properties" : [ "city", "currency", "endTime", "eventDate", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerType", "specialty", "startTime" ]
+      "properties" : [ "city", "currency", "endTime", "eventDate", "eventId", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerSpecialty", "photographerType", "specialty", "startTime" ]
     }
   }, {
     "method" : "POST",
@@ -5351,7 +5360,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "currency", "eventId", "expirationHours", "instructions", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
+      "properties" : [ "city", "country", "currency", "eventId", "expirationHours", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerSpecialty", "photographerType", "specialty", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {
@@ -5364,7 +5373,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "currency", "eventId", "expirationHours", "instructions", "locationCoverage", "maxBudget", "minBudget", "photographerType", "specialty" ]
+      "properties" : [ "city", "country", "currency", "eventId", "expirationHours", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "photographerSpecialty", "photographerType", "specialty", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {
@@ -5410,6 +5419,9 @@
     "method" : "POST",
     "path" : "/api/remote/opportunities/{candidateId}/reject",
     "controller" : "HybridBookingController#rejectOpportunity",
+    "body" : {
+      "type" : "Map"
+    },
     "pathVariables" : [ "candidateId" ]
   }, {
     "method" : "GET",
@@ -6188,6 +6200,17 @@
     "pathVariables" : [ "clientId" ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/photographer/hybrid-profile",
+    "controller" : "HybridProfileController#getProfile"
+  }, {
+    "method" : "PUT",
+    "path" : "/api/remote/photographer/hybrid-profile",
+    "controller" : "HybridProfileController#saveProfile",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/photographer/notifications",
     "controller" : "PhotographerNotificationController#getNotifications",
     "params" : [ {
@@ -6242,6 +6265,15 @@
       "name" : "status",
       "required" : false
     } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/opportunities/count",
+    "controller" : "HybridBookingController#getOpportunityCounts"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/opportunities/{candidateId}",
+    "controller" : "HybridBookingController#getPhotographerOpportunity",
+    "pathVariables" : [ "candidateId" ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/photographer/packages",
@@ -7175,6 +7207,10 @@
     "path" : "/api/remote/public/gift-catalog",
     "controller" : "PublicRemoteController#getGiftCatalog"
   }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/hybrid/options",
+    "controller" : "HybridProfileController#options"
+  }, {
     "method" : "POST",
     "path" : "/api/remote/public/newsletter/subscribe",
     "controller" : "NewsletterRemoteController#subscribe",
@@ -7341,6 +7377,9 @@
     }, {
       "name" : "to",
       "required" : true
+    }, {
+      "name" : "includePartial",
+      "required" : false
     } ]
   }, {
     "method" : "GET",
@@ -7521,6 +7560,10 @@
       "type" : "Map"
     },
     "pathVariables" : [ "eventId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/time",
+    "controller" : "HybridProfileController#time"
   }, {
     "method" : "POST",
     "path" : "/api/remote/public/validate-invite-code",
@@ -7916,6 +7959,9 @@
     "method" : "POST",
     "path" : "/opportunities/{candidateId}/reject",
     "controller" : "HybridBookingController#rejectOpportunity",
+    "body" : {
+      "type" : "Map"
+    },
     "pathVariables" : [ "candidateId" ]
   }, {
     "method" : "GET",

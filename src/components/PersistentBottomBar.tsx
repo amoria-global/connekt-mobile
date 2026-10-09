@@ -37,6 +37,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRole } from '@/features/auth/role';
 import { listNotifications } from '@/features/notifications/api';
+import { getOpportunityCounts } from '@/features/hybrid/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -446,6 +447,12 @@ export function MoreSheet({
     () => notifications?.filter((n) => !n.read).length ?? 0,
     [notifications],
   );
+  // Open Post My Event invites, so photographers see them from anywhere.
+  const [opportunityCount, setOpportunityCount] = useState(0);
+  useEffect(() => {
+    if (!isPhotographer) return;
+    getOpportunityCounts().then((c) => setOpportunityCount(c.pending)).catch(() => {});
+  }, [isPhotographer]);
 
   const handleCardPress = (item: MoreGridItem) => {
     onClose();
@@ -497,6 +504,27 @@ export function MoreSheet({
       href: '/streams' as Href,
     });
 
+    // Post My Event opportunities: their own entry, as on the web sidebar.
+    if (isPhotographer) {
+      list.push({
+        id: 'opportunities',
+        label: 'Opportunities',
+        icon: 'radio-outline',
+        badge: opportunityCount > 0 ? opportunityCount : undefined,
+        href: '/bookings?tab=opportunities' as Href,
+      });
+    }
+
+    // The two ways to book, named as on the web dashboard.
+    if (!isPhotographer) {
+      list.push({
+        id: 'post-my-event',
+        label: 'Post My Event',
+        icon: 'radio-outline',
+        href: '/event/hybrid-wizard' as Href,
+      });
+    }
+
     // 3. Gallery / My Photos (Client & Coordinator in salo-run)
     if (!isPhotographer) {
       list.push({
@@ -511,8 +539,8 @@ export function MoreSheet({
     if (!isPhotographer) {
       list.push({
         id: 'photographers',
-        label: 'Photographers',
-        icon: 'camera-outline',
+        label: 'Find a Photographer',
+        icon: 'search-outline',
         href: '/photographers' as Href,
       });
     }
@@ -592,7 +620,7 @@ export function MoreSheet({
     });
 
     return list;
-  }, [isPhotographer, unreadCount, handleLogout]);
+  }, [isPhotographer, unreadCount, opportunityCount, handleLogout]);
 
   // Filter shortcuts by search query
   const displayedItems = useMemo(() => {

@@ -1,4 +1,5 @@
 import { FindPhotosBottomSheet } from "@/components/FindPhotosBottomSheet";
+import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
@@ -78,6 +79,7 @@ export default function LoginScreen() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [roleSheetVisible, setRoleSheetVisible] = useState(false);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
+  const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
   const [prefilledProfile, setPrefilledProfile] = useState<{
     email?: string;
     firstName?: string;
@@ -382,9 +384,9 @@ export default function LoginScreen() {
                     styles.guestCard,
                     pressed && styles.guestCardPressed,
                   ]}
-                  onPress={() => router.push("/explore-events")}
+                  onPress={() => setExploreChoiceOpen(true)}
                   accessibilityRole="button"
-                  accessibilityLabel="Explore public events and live streams"
+                  accessibilityLabel="Explore events, or post your event to get a photographer"
                 >
                   <Image
                     source={LIVE_IMAGE}
@@ -425,6 +427,8 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ExploreChoiceSheet visible={exploreChoiceOpen} onClose={() => setExploreChoiceOpen(false)} signedIn={false} />
 
       <FindPhotosBottomSheet
         visible={findPhotosModalVisible}

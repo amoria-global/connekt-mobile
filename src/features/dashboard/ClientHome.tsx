@@ -38,7 +38,8 @@ import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
-import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
+import { BookingModeSelector, type BookingStep } from '@/features/booking/BookingModeSelector';
+import { ExploreChoiceSheet, pendingPostEvent } from '@/features/hybrid/ExploreChoiceSheet';
 import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
@@ -278,6 +279,15 @@ export function ClientHome() {
   const [payNowPayment, setPayNowPayment] = useState<PendingPayment | null>(null);
   const [isPendingDismissed, setIsPendingDismissed] = useState(false);
   const [bookingModeOpen, setBookingModeOpen] = useState(false);
+  const [bookingStep, setBookingStep] = useState<BookingStep>('select');
+  const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
+  // A guest who chose "Post my event" before signing in lands here; open the wizard for them.
+  useEffect(() => {
+    if (env.hybridBookingEnabled && pendingPostEvent.take()) {
+      setBookingStep(1);
+      setBookingModeOpen(true);
+    }
+  }, []);
 
   // Real-Time Inline Global Search State
   const scrollViewRef = useRef<ScrollView>(null);
@@ -1333,6 +1343,7 @@ export function ClientHome() {
             ]}
             onPress={() => {
               if (env.hybridBookingEnabled) {
+                setBookingStep('select');
                 setBookingModeOpen(true);
               } else {
                 router.push('/photographers' as never);
@@ -1365,7 +1376,7 @@ export function ClientHome() {
                   Book Photographer
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
-                  Find verified pros
+                  {env.hybridBookingEnabled ? 'Find one, or post your event' : 'Find verified pros'}
                 </Text>
               </View>
               <View style={styles.bentoHeroActionBtn}>
@@ -1431,7 +1442,7 @@ export function ClientHome() {
               responsive.isLarge && styles.bentoCardLarge,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => router.push('/explore-events' as never)}
+            onPress={() => (env.hybridBookingEnabled ? setExploreChoiceOpen(true) : router.push('/explore-events' as never))}
           >
             <View style={styles.bentoTopRow}>
               <View
@@ -2003,7 +2014,16 @@ export function ClientHome() {
       {/* Booking Mode Selector (Direct vs Hybrid per Figma Slide 02/03) */}
       <BookingModeSelector
         visible={bookingModeOpen}
+        initialStep={bookingStep}
         onClose={() => setBookingModeOpen(false)}
+      />
+
+      {/* Explore events: post my event, or explore and watch */}
+      <ExploreChoiceSheet
+        visible={exploreChoiceOpen}
+        onClose={() => setExploreChoiceOpen(false)}
+        signedIn
+        onPostEvent={() => { setBookingStep(1); setBookingModeOpen(true); }}
       />
 
       {/* Global Real-Time Search Modal */}

@@ -75,8 +75,8 @@ export function GlobalOpportunityCallNotifier() {
       await approveOpportunity(opp.candidateId);
       setActiveOpportunity(null);
       Alert.alert(
-        'Shoot Accepted! 🎉',
-        'You have been added to the client candidate shortlist. When the client selects you, you will receive the booking confirmation.',
+        'You said yes',
+        `The client now sees you for ${opp.eventTitle} and can choose you. We'll tell you the outcome either way.`,
         [
           {
             text: 'View Opportunities',

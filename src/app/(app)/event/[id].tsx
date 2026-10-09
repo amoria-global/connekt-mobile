@@ -24,7 +24,9 @@ import { EventQrSheet } from '@/features/events/EventQrSheet';
 import { SatisfactionSurveySheet } from '@/features/events/SatisfactionSurveySheet';
 import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/events/survey';
 import { submitReview } from '@/features/reviews/api';
-import { convertToHybridRescue, convertToDirectRescue } from '@/features/hybrid/api';
+import { convertToDirectRescue } from '@/features/hybrid/api';
+import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
+import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
@@ -57,6 +59,7 @@ export default function EventDetailScreen() {
   }, [error, data, id, router]);
 
   const [busy, setBusy] = useState<string | null>(null);
+  const [repostOpen, setRepostOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
   const [surveyOpen, setSurveyOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
@@ -612,81 +615,47 @@ export default function EventDetailScreen() {
               ) : null}
             </View>
           </InfoCard>
-        ) : ev?.status?.toUpperCase() === 'HYBRID_TIMEOUT' ? (
-          <InfoCard icon="warning-outline" title="Matching Concluded — Direct Booking Rescue">
-            <View style={{ gap: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F59E0B' }} />
-                <Text style={{ fontFamily: fonts.bold, fontSize: 12, color: '#D97706', fontWeight: fontWeight.bold }}>
-                  MATCH WINDOW EXPIRED (0 CONFIRMED CREATORS)
-                </Text>
-              </View>
-              <Text style={styles.desc}>
-                The matching window concluded without an accepted photographer. You can instantly switch to Direct Booking to browse and select available creators nearby on our interactive map.
-              </Text>
-              <View style={{ gap: 8 }}>
-                <PrimaryBtn
-                  icon="map-outline"
-                  label="Browse Nearby on Map"
-                  variant="primary"
-                  onPress={() => {
-                    const lat = ev.latitude ?? -1.9536;
-                    const lng = ev.longitude ?? 30.0606;
-                    const date = ev.eventDate ? `&eventDate=${encodeURIComponent(ev.eventDate)}` : '';
-                    router.push(`/map?lat=${lat}&lng=${lng}${date}&radiusKm=25` as never);
-                  }}
-                />
-                <PrimaryBtn
-                  icon="list-outline"
-                  label="Browse All Photographers"
-                  variant="outline"
-                  onPress={() => router.push('/(app)/(tabs)/photographers' as never)}
-                />
-                <PrimaryBtn
-                  icon="refresh-outline"
-                  label="Retry Hybrid Matching"
-                  variant="outline"
-                  loading={busy === 'retry-hybrid'}
-                  onPress={() => run('retry-hybrid', async () => {
-                    await convertToHybridRescue(id);
-                    Alert.alert('Matching Reactivated! 🚀', 'Your event brief has been broadcast to local photographers.');
-                  })}
-                />
-              </View>
-            </View>
-          </InfoCard>
-        ) : ev?.status?.toUpperCase() === 'MATCHES_AWAITING_SELECTION' && ownsEvents ? (
-          <InfoCard icon="people-outline" title="Candidates Ready for Selection! 🎯">
+        ) : ownsEvents && isOpenHybrid(ev?.bookingMode, ev?.status, false) ? (
+          (() => {
+            const st = (ev?.status ?? '').toUpperCase();
+            const ended = st === 'HYBRID_TIMEOUT' || st === 'MATCHING_FAILED';
+            const ready = st === 'CANDIDATES_AVAILABLE' || st === 'MATCHES_AWAITING_SELECTION';
+            return (
+              <InfoCard icon="radio-outline" title={`Post My Event · ${friendlyEventStatus(st)}`}>
+                <View style={{ gap: 10 }}>
+                  <Text style={styles.desc}>
+                    {ended
+                      ? "No photographer said yes this time. Post it again with a wider area or budget, or choose a photographer yourself."
+                      : ready
+                        ? 'Photographers who are free for your whole event said yes. Compare them and choose one.'
+                        : 'Matching photographers near you have been alerted. Only those who say yes are shown to you.'}
+                  </Text>
+                  {ended ? (
+                    <>
+                      <PrimaryBtn icon="radio-outline" label="Post again" variant="primary"
+                        onPress={() => setRepostOpen(true)} />
+                      <PrimaryBtn icon="search-outline" label="Find a Photographer instead" variant="outline" loading={busy === 'to-direct'}
+                        onPress={() => run('to-direct', async () => {
+                          await convertToDirectRescue(id);
+                          router.push('/photographers' as never);
+                        })} />
+                    </>
+                  ) : (
+                    <PrimaryBtn icon="people-outline" label={ready ? 'Choose your photographer' : 'See the answers'} variant="primary"
+                      onPress={() => router.push(`/event/candidates?id=${id}` as never)} />
+                  )}
+                </View>
+              </InfoCard>
+            );
+          })()
+        ) : ownsEvents && !['COMPLETED', 'CANCELLED', 'CANCELED'].includes((ev?.status ?? '').toUpperCase()) ? (
+          <InfoCard icon="camera-outline" title="No photographer yet">
             <View style={{ gap: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
-                <Text style={{ fontFamily: fonts.bold, fontSize: 12, color: '#6D28D9', fontWeight: fontWeight.bold }}>
-                  CREATORS ACCEPTED YOUR BRIEF
-                </Text>
-              </View>
-              <Text style={styles.desc}>
-                Verified local creators have accepted your brief. Compare their ratings, verified badges, and packages to select your photographer and lock your date.
-              </Text>
-              <PrimaryBtn
-                icon="checkmark-circle-outline"
-                label="Review & Select Photographer"
-                variant="primary"
-                onPress={() => router.push(`/event/candidates?id=${id}` as never)}
-              />
-            </View>
-          </InfoCard>
-        ) : ownsEvents ? (
-          <InfoCard icon="people-outline" title="Photographer Matching Active">
-            <View style={{ gap: 10 }}>
-              <Text style={styles.desc}>
-                Matching is active. Verified local photographers are reviewing your brief.
-              </Text>
-              <PrimaryBtn
-                icon="list-outline"
-                label="View Candidates & Select"
-                variant="primary"
-                onPress={() => router.push(`/event/candidates?id=${id}` as never)}
-              />
+              <Text style={styles.desc}>Choose how you want to book one for this event.</Text>
+              <PrimaryBtn icon="radio-outline" label="Post My Event: let photographers say yes" variant="primary"
+                onPress={() => setRepostOpen(true)} />
+              <PrimaryBtn icon="search-outline" label="Find a Photographer yourself" variant="outline"
+                onPress={() => router.push('/photographers' as never)} />
             </View>
           </InfoCard>
         ) : null}
@@ -867,6 +836,13 @@ export default function EventDetailScreen() {
         </Pressable>
       </Modal>
 
+      {repostOpen && ev ? (
+        <BookingModeSelector
+          visible={repostOpen}
+          existingEvent={{ id, title: ev.title, eventDate: ev.eventDate, startTime: ev.startTime, endTime: ev.endTime, city: ev.city, venue: ev.location }}
+          onClose={() => { setRepostOpen(false); refresh?.(); }}
+        />
+      ) : null}
     </Screen>
   );
 }
