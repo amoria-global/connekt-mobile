@@ -112,6 +112,7 @@ export function PaymentMethodPicker({
       ) : null}
 
       <View style={styles.mainRow}>
+        <View style={styles.tiles}>
         <Pressable
           style={[styles.main, momoActive && styles.mainActive, momoOff && styles.off]}
           onPress={() => setOpen((o) => !o)}
@@ -123,7 +124,7 @@ export function PaymentMethodPicker({
           <Logo source={MOMO_LOGO} label="Mobile Money" size={44} />
           <View style={styles.mainText}>
             <Text style={[styles.mainTitle, momoActive && styles.mainTitleActive]}>Mobile Money</Text>
-            <Text style={styles.mainSub} numberOfLines={1}>
+            <Text style={styles.mainSub} numberOfLines={2}>
               {selectedOperator
                 ? selectedOperator.name
                 : disableMobileMoney || operators.length === 0
@@ -131,8 +132,32 @@ export function PaymentMethodPicker({
                   : 'Choose your network'}
             </Text>
           </View>
-          <Ionicons name={momoActive ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+          <Ionicons name={momoActive ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} style={styles.tileIcon} />
         </Pressable>
+
+        {supportsCard ? (
+          <Pressable
+            style={[styles.main, cardSelected && styles.mainActive, cardOff && styles.off]}
+            onPress={() => {
+              setOpen(false);
+              onSelect('card');
+            }}
+            disabled={cardOff}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: cardSelected, disabled: cardOff }}
+            accessibilityLabel="Cards, Visa and Mastercard"
+          >
+            <Logo source={CARDS_LOGO} label="Cards" size={44} />
+            <View style={styles.mainText}>
+              <Text style={[styles.mainTitle, cardSelected && styles.mainTitleActive]}>Cards</Text>
+              <Text style={styles.mainSub} numberOfLines={2}>
+                {disableCards ? 'Unavailable here' : 'Visa & Mastercard'}
+              </Text>
+            </View>
+            {cardSelected ? <Ionicons name="checkmark-circle" size={18} color={colors.primary} style={styles.tileIcon} /> : null}
+          </Pressable>
+        ) : null}
+        </View>
 
         {momoActive ? (
           <View style={styles.panel} accessibilityRole="radiogroup">
@@ -160,28 +185,6 @@ export function PaymentMethodPicker({
           </View>
         ) : null}
 
-        {supportsCard ? (
-          <Pressable
-            style={[styles.main, cardSelected && styles.mainActive, cardOff && styles.off]}
-            onPress={() => {
-              setOpen(false);
-              onSelect('card');
-            }}
-            disabled={cardOff}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: cardSelected, disabled: cardOff }}
-            accessibilityLabel="Cards, Visa and Mastercard"
-          >
-            <Logo source={CARDS_LOGO} label="Cards" size={44} />
-            <View style={styles.mainText}>
-              <Text style={[styles.mainTitle, cardSelected && styles.mainTitleActive]}>Cards</Text>
-              <Text style={styles.mainSub} numberOfLines={1}>
-                {disableCards ? 'Unavailable here' : 'Visa & Mastercard'}
-              </Text>
-            </View>
-            {cardSelected ? <Ionicons name="checkmark-circle" size={18} color={colors.primary} /> : null}
-          </Pressable>
-        ) : null}
       </View>
 
       {onCountryChange ? (
@@ -246,11 +249,15 @@ const useStyles = makeStyles((c) => ({
   countryName: { flex: 1, color: c.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   countryChange: { color: c.primary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   mainRow: { gap: spacing.sm },
+  // Mobile Money and Cards sit side by side; the network list opens full width below.
+  tiles: { flexDirection: 'row', gap: spacing.sm },
+  tileIcon: { position: 'absolute', top: spacing.sm, right: spacing.sm },
   main: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 64,
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    minHeight: 112,
     padding: spacing.md,
     borderRadius: radii.lg,
     borderWidth: 1.5,
@@ -259,7 +266,7 @@ const useStyles = makeStyles((c) => ({
   },
   mainActive: { borderColor: c.primary, backgroundColor: c.tint },
   off: { opacity: 0.45 },
-  mainText: { flex: 1 },
+  mainText: { alignSelf: 'stretch' },
   mainTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.extrabold },
   mainTitleActive: { color: c.primary },
   mainSub: { color: c.textMuted, fontSize: fontSize.xs, marginTop: 2 },
