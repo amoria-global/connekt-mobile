@@ -39,7 +39,9 @@ import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { listCoordinatorEvents, listEvents } from './api';
 import type { EventItem } from './types';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
-import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
+import { BookingModeSelector, type ExistingHybridEvent } from '@/features/booking/BookingModeSelector';
+import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
+import { ModeBadge, friendlyEventStatus, isOpenHybrid, modeOf } from '@/features/hybrid/hybridUi';
 import { env } from '@/config/env';
 import { EventQrSheet } from './EventQrSheet';
 
@@ -95,6 +97,12 @@ const isPast = (e: EventItem, today: number) => {
 
 function heroStatus(e: EventItem): { label: string; bg: string; fg: string } {
   const s = (e.status ?? '').toUpperCase();
+  // A posted event is hidden from the public until a photographer is booked;
+  // calling it PUBLISHED made clients think it was live.
+  if (isOpenHybrid(e.bookingMode, s, !!e.photographerName)) {
+    const ended = s === 'HYBRID_TIMEOUT' || s === 'MATCHING_FAILED';
+    return { label: friendlyEventStatus(s).toUpperCase(), bg: ended ? '#FEF3C7' : '#FCE7F3', fg: ended ? '#B45309' : '#BE185D' };
+  }
   if (s === 'ONGOING' || s === 'IN_PROGRESS') return { label: 'ONGOING', bg: '#DBEAFE', fg: '#1D4ED8' };
   if (s === 'COMPLETED' || s === 'DONE') return { label: 'COMPLETED', bg: '#D1FAE5', fg: '#047857' };
   if (s === 'CANCELLED' || s === 'CANCELED') return { label: 'CANCELLED', bg: '#FEE2E2', fg: '#B91C1C' };
@@ -158,6 +166,8 @@ export function OwnerEventsDashboard({
   const [qrTarget, setQrTarget] = useState<EventItem | null>(null);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [bookingModeOpen, setBookingModeOpen] = useState(false);
+  const [postExisting, setPostExisting] = useState<ExistingHybridEvent | null>(null);
+  const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
   const [page, setPage] = useState(1);
 
   const handleNewEvent = () => {
@@ -353,19 +363,19 @@ export function OwnerEventsDashboard({
             onPress={() => router.push('/photographers' as Href)}
             style={styles.workspaceTab}
           >
-            <Ionicons name="camera-outline" size={14} color={colors.textMuted} />
+            <Ionicons name="search-outline" size={14} color={colors.textMuted} />
             <Text style={styles.workspaceTabText}>
-              Photographers
+              Find a Photographer
             </Text>
           </Pressable>
 
           <Pressable
-            onPress={() => router.push('/explore-events' as Href)}
+            onPress={() => setExploreChoiceOpen(true)}
             style={styles.workspaceTab}
           >
             <Ionicons name="compass-outline" size={14} color={colors.textMuted} />
             <Text style={styles.workspaceTabText}>
-              Explore Public Streams
+              Explore Events
             </Text>
           </Pressable>
         </ScrollView>
@@ -460,6 +470,10 @@ export function OwnerEventsDashboard({
             onShare={() => onShare(item)}
             onQr={() => setQrTarget(item)}
             onSelectCandidates={() => router.push(`/event/candidates?id=${item.id}` as Href)}
+            onPost={() => {
+              setPostExisting({ id: item.id, title: item.title, eventDate: item.eventDate, startTime: item.startTime, endTime: item.endTime, city: item.city, venue: item.location });
+              setBookingModeOpen(true);
+            }}
           />
         )}
         ListFooterComponent={
@@ -648,10 +662,19 @@ export function OwnerEventsDashboard({
       </Modal>
 
       {/* Dual Entry Booking Mode Selector */}
+      <ExploreChoiceSheet
+        visible={exploreChoiceOpen}
+        onClose={() => setExploreChoiceOpen(false)}
+        signedIn
+        onPostEvent={() => { setPostExisting(null); setBookingModeOpen(true); }}
+      />
+
       <BookingModeSelector
         visible={bookingModeOpen}
+        existingEvent={postExisting}
         onClose={() => {
           setBookingModeOpen(false);
+          setPostExisting(null);
           refresh();
         }}
         onSelectDirect={() => {
@@ -670,6 +693,7 @@ function OwnerEventCard({
   onShare,
   onQr,
   onSelectCandidates,
+  onPost,
 }: {
   event: EventItem;
   onOpen: () => void;
@@ -677,9 +701,14 @@ function OwnerEventCard({
   onShare: () => void;
   onQr: () => void;
   onSelectCandidates?: () => void;
+  onPost?: () => void;
 }) {
   const styles = useStyles();
   const pill = heroStatus(event);
+  const status = (event.status ?? '').toUpperCase();
+  const openHybrid = isOpenHybrid(event.bookingMode, status, !!event.photographerName);
+  const canPost = !event.photographerName && modeOf(event.bookingMode) === 'DIRECT'
+    && !['COMPLETED', 'DONE', 'CANCELLED', 'CANCELED'].includes(status);
   return (
     <Pressable style={styles.card} onPress={onOpen} android_ripple={{ color: 'rgba(255,255,255,0.06)' }}>
       <Image source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
@@ -697,6 +726,11 @@ function OwnerEventCard({
       </View>
 
       <View style={styles.cardBottom}>
+        {(modeOf(event.bookingMode) === 'HYBRID' || event.photographerName) ? (
+          <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, marginBottom: 4 }}>
+            <ModeBadge mode={modeOf(event.bookingMode)} />
+          </View>
+        ) : null}
         <Text style={styles.cardTitle} numberOfLines={2}>{event.title}</Text>
         {event.location ? (
           <View style={styles.metaRow}>
@@ -707,18 +741,25 @@ function OwnerEventCard({
         <View style={styles.metaRow}>
           <Ionicons name="camera" size={12} color="rgba(255,255,255,0.85)" />
           <Text style={styles.metaText} numberOfLines={1}>
-            {event.photographerName || 'No photographer assigned'}
+            {event.photographerName || (openHybrid ? friendlyEventStatus(status) : 'No photographer yet')}
           </Text>
         </View>
 
         <View style={styles.actions}>
-          {(event.status ?? '').toUpperCase() === 'MATCHES_AWAITING_SELECTION' && onSelectCandidates ? (
-            <Pressable
-              style={[styles.actBtn, { backgroundColor: '#7C3AED' }]}
-              onPress={onSelectCandidates}
-            >
+          {openHybrid && onSelectCandidates ? (
+            <Pressable style={[styles.actBtn, { backgroundColor: '#F20C8F' }]} onPress={onSelectCandidates}
+              accessibilityRole="button" accessibilityLabel="See the photographers who answered">
               <Ionicons name="people" size={14} color="#fff" />
-              <Text style={styles.actText}>Select Creator</Text>
+              <Text style={styles.actText}>
+                {['MATCHES_AWAITING_SELECTION', 'CANDIDATES_AVAILABLE'].includes(status) ? 'Choose' : ['HYBRID_TIMEOUT', 'MATCHING_FAILED'].includes(status) ? 'Ended' : 'Answers'}
+              </Text>
+            </Pressable>
+          ) : null}
+          {canPost && onPost ? (
+            <Pressable style={[styles.actBtn, { backgroundColor: '#F20C8F' }]} onPress={onPost}
+              accessibilityRole="button" accessibilityLabel="Post My Event: let matching photographers say yes">
+              <Ionicons name="radio-outline" size={14} color="#fff" />
+              <Text style={styles.actText}>Post</Text>
             </Pressable>
           ) : null}
           <Pressable style={[styles.actBtn, styles.actEdit]} onPress={onEdit}>

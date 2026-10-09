@@ -5,7 +5,7 @@
  *   1. Follows official Connekyt palette (Royal Navy #083A85, Accent Pink #F20C8F)
  *   2. Instant, single-screen fit without scrolling
  *   3. Live countdown urgency timer in header
- *   4. Standout payout card with Connekyt Escrow assurance
+ *   4. The client's budget, labelled as a budget (nothing is held until the client books and pays)
  *   5. Clean logistics grid (date, time, venue, distance) with matching brand icons
  *   6. Client brief / instructions callout
  *   7. Symmetrical, ergonomic Accept (Connekyt Royal Navy) & Decline action bar
@@ -27,6 +27,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import type { PhotographerOpportunity } from './types';
+import { countdownString, useCountdown } from './hybridUi';
 
 const RINGTONE = require('../../../assets/sounds/connekyt_ringtone.wav');
 
@@ -53,7 +54,6 @@ export function IncomingOpportunityAlertModal({
   const insets = useSafeAreaInsets();
 
   const [busyAction, setBusyAction] = useState<'approve' | 'reject' | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState<number>(15 * 60);
 
   // Pulse animation for live badge
   const pulseScale = useRef(new Animated.Value(1)).current;
@@ -102,17 +102,6 @@ export function IncomingOpportunityAlertModal({
       // Non-fatal
     }
 
-    const targetExpires = opportunity.candidateExpiresAt || opportunity.expiresAt;
-    if (targetExpires) {
-      const diffSecs = Math.max(
-        0,
-        Math.floor((new Date(targetExpires).getTime() - Date.now()) / 1000),
-      );
-      setSecondsLeft(diffSecs > 0 ? diffSecs : 15 * 60);
-    } else {
-      setSecondsLeft(15 * 60);
-    }
-
     const heartbeat = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseScale, {
@@ -137,14 +126,10 @@ export function IncomingOpportunityAlertModal({
     };
   }, [visible, opportunity, pulseScale]);
 
-  // Countdown timer
-  useEffect(() => {
-    if (!visible) return;
-    const interval = setInterval(() => {
-      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [visible]);
+  // The invite's own deadline, on the server's clock.
+  const left = useCountdown(
+    visible ? (opportunity?.responseDeadlineAt || opportunity?.candidateExpiresAt || opportunity?.expiresAt) : null,
+  );
 
   if (!visible || !opportunity) return null;
 
@@ -168,20 +153,16 @@ export function IncomingOpportunityAlertModal({
     }
   };
 
-  const minutes = Math.floor(secondsLeft / 60);
-  const seconds = secondsLeft % 60;
-  const formattedCountdown = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  const formattedCountdown = left ? countdownString(left, 'Time is up') : '';
 
   const budgetDisplay =
-    opportunity.estimatedEarnings != null
-      ? `${opportunity.currency || 'RWF'} ${opportunity.estimatedEarnings.toLocaleString()}`
-      : opportunity.minBudget != null && opportunity.maxBudget != null
+    opportunity.minBudget != null && opportunity.maxBudget != null
         ? `${formatPrice(opportunity.minBudget, opportunity.currency)} – ${formatPrice(opportunity.maxBudget, opportunity.currency)}`
         : opportunity.maxBudget != null
           ? formatPrice(opportunity.maxBudget, opportunity.currency)
           : opportunity.minBudget != null
             ? formatPrice(opportunity.minBudget, opportunity.currency)
-            : 'Custom Quote';
+            : 'Not shared';
 
   const formattedDate = (() => {
     if (!opportunity.eventDate) return 'Date TBD';
@@ -220,12 +201,12 @@ export function IncomingOpportunityAlertModal({
         <View style={styles.topBar}>
           <View style={styles.liveBadge}>
             <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseScale }] }]} />
-            <Text style={styles.liveText}>NEW SHOOT</Text>
+            <Text style={styles.liveText}>NEW NEARBY OPPORTUNITY</Text>
           </View>
 
           <View style={styles.timerBadge}>
             <Ionicons name="time-outline" size={13} color={colors.primary} />
-            <Text style={styles.timerText}>{formattedCountdown} left</Text>
+            <Text style={styles.timerText}>{left?.done ? formattedCountdown : `${formattedCountdown} to answer`}</Text>
           </View>
 
           <Pressable
@@ -254,24 +235,20 @@ export function IncomingOpportunityAlertModal({
               {opportunity.eventTitle}
             </Text>
 
-            {opportunity.clientName ? (
-              <View style={styles.clientRow}>
-                <Ionicons name="person-circle-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.clientText}>Client: {opportunity.clientName}</Text>
-              </View>
-            ) : null}
+            <View style={styles.clientRow}>
+              <Ionicons name="radio-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.clientText}>Post My Event · you were matched to this event</Text>
+            </View>
           </View>
 
           {/* HERO PAYOUT CARD */}
           <View style={styles.payoutCard}>
             <View style={styles.payoutHeader}>
-              <Text style={styles.payoutLabel}>GUARANTEED EARNINGS</Text>
-              {opportunity.escrowGuaranteed && (
-                <View style={styles.escrowBadge}>
-                  <Ionicons name="shield-checkmark" size={11} color={colors.primary} />
-                  <Text style={styles.escrowBadgeText}>ESCROW LOCKED</Text>
-                </View>
-              )}
+              <Text style={styles.payoutLabel}>CLIENT'S BUDGET</Text>
+              <View style={styles.escrowBadge}>
+                <Ionicons name="shield-checkmark" size={11} color={colors.primary} />
+                <Text style={styles.escrowBadgeText}>PAID VIA ESCROW IF CHOSEN</Text>
+              </View>
             </View>
 
             <Text style={styles.payoutAmount}>{budgetDisplay}</Text>
@@ -289,7 +266,7 @@ export function IncomingOpportunityAlertModal({
                 <Text style={styles.logisticsSecondary}>
                   {opportunity.startTime?.slice(0, 5)}
                   {opportunity.endTime ? ` – ${opportunity.endTime.slice(0, 5)}` : ''}
-                  {opportunity.durationHours ? ` (${opportunity.durationHours} hrs)` : ''}
+                  {opportunity.durationLabel ? ` · ${opportunity.durationLabel}` : ''}
                 </Text>
               </View>
             </View>
@@ -301,15 +278,26 @@ export function IncomingOpportunityAlertModal({
               </View>
               <View style={styles.logisticsTextWrap}>
                 <Text style={styles.logisticsPrimary} numberOfLines={1}>
-                  {opportunity.venue || opportunity.city || 'Kigali'}
+                  {opportunity.city || opportunity.venue || 'Location shared on booking'}
                 </Text>
                 <Text style={styles.logisticsSecondary} numberOfLines={1}>
-                  {opportunity.eventAddress || opportunity.city || 'Venue Location'}
-                  {opportunity.distanceKm != null ? ` • ${opportunity.distanceKm.toFixed(1)} km away` : ''}
+                  {opportunity.distanceLabel || opportunity.venue || ''}
                 </Text>
               </View>
             </View>
           </View>
+
+          {/* WHAT WAS MATCHED (from the server) */}
+          {opportunity.matchReasons && opportunity.matchReasons.length > 0 ? (
+            <View style={styles.instructionsBox}>
+              {opportunity.matchReasons.slice(0, 4).map((reason) => (
+                <View key={reason} style={styles.instructionsHeader}>
+                  <Ionicons name="checkmark-circle" size={13} color="#10B981" />
+                  <Text style={styles.instructionsText} numberOfLines={1}>{reason}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {/* CLIENT INSTRUCTIONS CALLOUT (ONLY IF SPECIFIED) */}
           {opportunity.instructions ? (
@@ -336,11 +324,11 @@ export function IncomingOpportunityAlertModal({
             onPress={handleReject}
             disabled={busyAction !== null}
             accessibilityRole="button"
-            accessibilityLabel="Decline shoot"
+            accessibilityLabel="Not this time"
           >
             <Ionicons name="close" size={18} color={colors.textSoft} />
             <Text style={styles.declineBtnText}>
-              {busyAction === 'reject' ? 'Declining...' : 'Decline'}
+              {busyAction === 'reject' ? 'Sending...' : 'Not this time'}
             </Text>
           </Pressable>
 
@@ -351,13 +339,13 @@ export function IncomingOpportunityAlertModal({
               busyAction === 'approve' && styles.btnDisabled,
             ]}
             onPress={handleApprove}
-            disabled={busyAction !== null}
+            disabled={busyAction !== null || !!left?.done}
             accessibilityRole="button"
-            accessibilityLabel="Accept shoot and join shortlist"
+            accessibilityLabel="Yes, I'm available. The client will see you and can choose you."
           >
             <Ionicons name="checkmark-sharp" size={20} color={colors.textOnPrimary} />
             <Text style={styles.acceptBtnText}>
-              {busyAction === 'approve' ? 'Accepting...' : 'Accept Shoot'}
+              {busyAction === 'approve' ? 'Sending...' : "Yes, I'm available"}
             </Text>
           </Pressable>
         </View>

@@ -12,6 +12,7 @@
  *   6. Tab switcher (Personal Details, Settings, Account & Legal)
  *   7. Clean tab content (No loud/tacky gradients, pure minimalist typography)
  */
+import { MatchingProfileCard } from '@/features/hybrid/MatchingProfile';
 import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -404,6 +405,13 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
           </Pressable>
+        ) : null}
+
+        {/* Instagram and base city, for Post My Event matching */}
+        {isPhotographer ? (
+          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+            <MatchingProfileCard />
+          </View>
         ) : null}
 
         {/* ── Story Highlights Row (Instagram circular shortcuts) ────── */}

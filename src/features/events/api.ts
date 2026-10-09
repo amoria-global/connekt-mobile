@@ -60,6 +60,9 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
     maxGuests: input.maxGuests ?? 0,
     notes: '',
   };
+  if (input.eventCategoryId && UUID_RE.test(input.eventCategoryId)) {
+    payload.eventCategoryId = input.eventCategoryId;
+  }
   if (input.photographerId && UUID_RE.test(input.photographerId)) {
     payload.photographerId = input.photographerId;
   }
