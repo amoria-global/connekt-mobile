@@ -443,6 +443,10 @@ function LiveChatPanel({
 }: LiveChatPanelProps) {
   const chatFx = useChatFx();
   const listRef = useRef<ScrollView>(null);
+  // Overlay layout: comments and reactions live behind single buttons on the
+  // right rail, closed by default so nothing sits on top of the video.
+  const [chatOpen, setChatOpen] = useState(false);
+  const [reactOpen, setReactOpen] = useState(false);
   // Keep the newest message in view — the list is bottom-anchored so this is
   // what produces the upward-scrolling feed.
   useEffect(() => {
@@ -656,6 +660,22 @@ function LiveChatPanel({
             <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={16} color="#fff" />
           </Pressable>
         ) : null}
+        <Pressable
+          style={[chatFx.ctrlBtn, reactOpen && chatFx.ctrlBtnActive]}
+          onPress={() => setReactOpen((v) => !v)}
+          hitSlop={8}
+          accessibilityLabel={reactOpen ? 'Hide reactions' : 'Show reactions'}
+        >
+          <Ionicons name="happy-outline" size={16} color="#fff" />
+        </Pressable>
+        <Pressable
+          style={[chatFx.ctrlBtn, chatOpen && chatFx.ctrlBtnActive]}
+          onPress={() => setChatOpen((v) => !v)}
+          hitSlop={8}
+          accessibilityLabel={chatOpen ? 'Hide comments' : 'Show comments'}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+        </Pressable>
         {showGift ? (
           <Pressable style={chatFx.ctrlBtn} onPress={onGift} hitSlop={8}
             accessibilityLabel="Send a gift">
@@ -668,7 +688,19 @@ function LiveChatPanel({
         </Pressable>
       </View>
 
-      {/* Bottom cluster: messages + reactions + composer */}
+      {/* Reactions: a column beside the rail, only while toggled open */}
+      {reactOpen ? (
+        <View style={chatFx.reactPopover} pointerEvents="box-none">
+          {emojis.map((emoji) => (
+            <Pressable key={emoji} style={chatFx.reactionBtn} onPress={() => onReact(emoji)} hitSlop={6}>
+              <Text style={chatFx.reactionEmoji}>{emoji}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      {/* Bottom cluster: messages + composer, only while comments are open */}
+      {chatOpen ? (
       <View style={chatFx.bottom}>
         {!minimized ? (
           <ScrollView
@@ -692,14 +724,6 @@ function LiveChatPanel({
             )}
           </ScrollView>
         ) : null}
-
-        <View style={chatFx.reactions} pointerEvents="box-none">
-          {emojis.map((emoji) => (
-            <Pressable key={emoji} style={chatFx.reactionBtn} onPress={() => onReact(emoji)} hitSlop={6}>
-              <Text style={chatFx.reactionEmoji}>{emoji}</Text>
-            </Pressable>
-          ))}
-        </View>
 
         <View style={chatFx.composer}>
           <Pressable
@@ -737,6 +761,7 @@ function LiveChatPanel({
         </View>
         {error ? <Text style={chatFx.error}>{error}</Text> : null}
       </View>
+      ) : null}
     </View>
   );
 }
@@ -3123,8 +3148,10 @@ const useChatFx = makeStyles((c) => ({
   sideControls: {
     position: 'absolute',
     right: 12,
-    top: '35%',
+    top: 0,
+    bottom: 0,
     flexDirection: 'column',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
   },
@@ -3141,6 +3168,16 @@ const useChatFx = makeStyles((c) => ({
     backgroundColor: 'rgba(0,0,0,0.42)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  ctrlBtnActive: { backgroundColor: 'rgba(255,255,255,0.28)' },
+  reactPopover: {
+    position: 'absolute',
+    right: 56,
+    top: 0,
+    bottom: 0,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: 6,
   },
 
   minimizeToggle: {
