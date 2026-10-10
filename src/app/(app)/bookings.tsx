@@ -48,6 +48,7 @@ import {
 } from '@/features/hybrid/api';
 import type { PhotographerOpportunity } from '@/features/hybrid/types';
 import { OpportunityCard } from '@/features/hybrid/OpportunityCard';
+import { opportunityFilterFor } from '@/features/hybrid/status';
 import { IncomingOpportunityAlertModal } from '@/features/hybrid/IncomingOpportunityAlertModal';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
@@ -103,11 +104,16 @@ export default function BookingsScreen() {
     }
   }, [isPhotographer, oppFilter]);
 
-  // A notification for one opportunity opens it full screen.
+  // A notification for one opportunity opens it full screen when it is still
+  // open, and otherwise shows the filter that lists it: selected, not
+  // selected, expired and closed ones are under History, not New.
   useEffect(() => {
     if (!candidate || !isPhotographer) return;
     getOpportunity(String(candidate))
-      .then((o) => { if (o.status === 'INVITED') setFullscreenOpp(o); })
+      .then((o) => {
+        setOppFilter(opportunityFilterFor(o.status));
+        if (o.status === 'INVITED') setFullscreenOpp(o);
+      })
       .catch(() => {});
   }, [candidate, isPhotographer]);
 

@@ -15,6 +15,7 @@ import { convertToDirectRescue, getHybridOptions, listEventCandidates, selectPho
 import type { CandidateSummary, CandidatesResponse, RecommendationTier } from '@/features/hybrid/types';
 import { budgetLabel, CountdownText, hhmm, MODE_META, TIER_META } from '@/features/hybrid/hybridUi';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
+import { isMatchBooked } from '@/features/hybrid/status';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { isApiError } from '@/store/auth';
 import { formatPrice } from '@/utils/format';
@@ -64,7 +65,7 @@ export default function EventCandidatesScreen() {
 
   const active = (data?.matchStatus || '').toUpperCase() === 'ACTIVE';
   useEffect(() => {
-    if (data && !active && data.candidates.length > 0) return;
+    if (data && !active && (data.candidates.length > 0 || isMatchBooked(data))) return;
     const id = setInterval(load, 12000);
     return () => clearInterval(id);
   }, [active, data, load]);
@@ -127,6 +128,25 @@ export default function EventCandidatesScreen() {
           </View>
         ))}
         <Text style={styles.hint}>Groups show how closely each photographer fits your request. They are a recommendation, not a guarantee of quality.</Text>
+      </View>
+    );
+  } else if (isMatchBooked(data)) {
+    // Someone was chosen: answers are closed because the event is booked, not because matching failed.
+    content = (
+      <View style={styles.empty}>
+        <View style={[styles.emptyIcon, { backgroundColor: '#D1FAE5' }]}><Ionicons name="checkmark" size={30} color="#047857" /></View>
+        <Text style={styles.emptyTitle}>A photographer is booked for this event</Text>
+        <Text style={[styles.hint, { textAlign: 'center' }]}>Answers are closed. The booking and its first payment are on the event page.</Text>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' }}>
+          {payHandoff?.declarationId ? (
+            <Pressable onPress={() => setCheckoutOpen(true)} style={styles.primary} accessibilityRole="button">
+              <Text style={styles.primaryText}>Pay first payment</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => router.replace(`/event/${eventId}` as never)} style={payHandoff?.declarationId ? styles.secondary : styles.primary} accessibilityRole="button">
+            <Text style={payHandoff?.declarationId ? styles.secondaryText : styles.primaryText}>View event</Text>
+          </Pressable>
+        </View>
       </View>
     );
   } else if (active || !data) {
