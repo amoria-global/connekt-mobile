@@ -227,10 +227,18 @@ export type PublicEventsPage = {
  * For older list responses that do not include it, it falls back to the
  * event's ONGOING state plus its live-stream metadata.
  */
+const FINISHED_EVENT_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'CANCELED']);
+
 export function isEventLive(event: PublicEvent, liveStreamIds?: Set<string>): boolean {
   const eventStatus = (event.eventStatus || '').toUpperCase();
   const streamStatus = (event.streamStatus || '').toLowerCase();
   if (streamStatus === 'ended') return false;
+
+  // A finished event is never live. The stream input's status is not reset
+  // when an event completes, so completed rows from months ago still report
+  // 'connected' and showed a LIVE badge in the Ended tab. The web requires
+  // ONGOING outright; here the event's terminal status wins over the stream.
+  if (FINISHED_EVENT_STATUSES.has(eventStatus)) return false;
 
   // The stream lifecycle is the most reliable signal once broadcasting has
   // started. Some backend rows remain PUBLISHED while the input is already
