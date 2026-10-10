@@ -549,9 +549,13 @@ export default function PhotographersScreen() {
       {/* Hybrid Matching Banner */}
       {env.hybridBookingEnabled && (
         <Pressable
-          style={styles.hybridBanner}
+          style={({ pressed }) => [styles.hybridBanner, pressed && { opacity: 0.85 }]}
           onPress={() => router.push('/event/hybrid-wizard' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Can't decide? Post your event. Post Brief"
         >
+          {/* tint is translucent, so it sits over the opaque card instead of the page */}
+          <View pointerEvents="none" style={styles.hybridBannerWash} />
           <View style={styles.hybridBannerIcon}>
             <Ionicons name="sparkles" size={16} color="#FFFFFF" />
           </View>
@@ -563,7 +567,7 @@ export default function PhotographersScreen() {
           </View>
           <View style={styles.hybridBannerBtn}>
             <Text style={styles.hybridBannerBtnText}>Post Brief</Text>
-            <Ionicons name="arrow-forward" size={12} color={colors.primary} />
+            <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
           </View>
         </Pressable>
       )}
@@ -1260,14 +1264,23 @@ const useStyles = makeStyles((c, e) => ({
   hybridBanner: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
-    backgroundColor: c.tint,
+    backgroundColor: c.card,
     borderWidth: 1.5,
-    borderColor: c.primary + '35',
+    borderColor: c.primary + '55',
     borderRadius: radii.xl,
     padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    overflow: 'hidden',
+  },
+  hybridBannerWash: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: c.tint,
   },
   hybridBannerIcon: {
     width: 32,
@@ -1292,18 +1305,16 @@ const useStyles = makeStyles((c, e) => ({
   hybridBannerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: c.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    gap: 4,
+    backgroundColor: c.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: c.primary + '40',
   },
   hybridBannerBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 10.5,
-    color: c.primary,
+    fontSize: 11.5,
+    color: '#FFFFFF',
   },
 
   // Search Bar
