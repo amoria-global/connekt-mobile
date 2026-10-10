@@ -2051,6 +2051,9 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   cardTl: { position: 'absolute', top: spacing.xs, left: spacing.xs },
+  // A paper calendar tile over the event photo: white in both themes, so its
+  // ink is fixed too. Theme text (c.text) turns near-white in dark mode and
+  // made the day vanish on the white tile.
   cardDate: {
     width: 36,
     backgroundColor: '#fff',
@@ -2061,7 +2064,7 @@ const useStyles = makeStyles((c, e) => ({
   cardDateMo: {
     width: '100%',
     paddingVertical: 2,
-    backgroundColor: c.primary,
+    backgroundColor: '#083A85',
     color: '#fff',
     fontSize: 8.5,
     fontWeight: fontWeight.bold,
@@ -2069,7 +2072,7 @@ const useStyles = makeStyles((c, e) => ({
     textAlign: 'center',
   },
   cardDateDay: {
-    color: c.text,
+    color: '#083A85',
     fontSize: 12,
     fontWeight: fontWeight.extrabold,
     paddingVertical: 1,
