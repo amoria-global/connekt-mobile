@@ -6,8 +6,9 @@
  *                        photographer (Post My Event).
  *   Explore and watch    browse public events and live streams.
  *
- * A guest who picks the first is sent to sign in; the wizard opens on the
- * home screen once they are in (see pendingPostEvent).
+ * A guest who picks the first has the intent remembered (pendingPostEvent)
+ * and is asked to sign in by the host screen; the wizard opens on the home
+ * screen once they are in.
  */
 import React from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
@@ -16,14 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { MODE_META } from './hybridUi';
+import { pendingPostEvent, postChoiceTarget } from './postEventIntent';
 
-let pendingPost = false;
-
-/** Remembered across the sign-in screen, for this app session only. */
-export const pendingPostEvent = {
-  set: () => { pendingPost = true; },
-  take: (): boolean => { const v = pendingPost; pendingPost = false; return v; },
-};
+export { pendingPostEvent };
 
 type Props = {
   visible: boolean;
@@ -32,9 +28,15 @@ type Props = {
   signedIn: boolean;
   /** Open the wizard in place instead of navigating to its screen. */
   onPostEvent?: () => void;
+  /**
+   * A guest chose to post. The sign-in screen hosts this sheet, so pushing
+   * /login from here lands on the same screen and nothing happens; the host
+   * asks for sign-in itself instead. Without it, the guest is sent to /login.
+   */
+  onSignInRequired?: () => void;
 };
 
-export function ExploreChoiceSheet({ visible, onClose, signedIn, onPostEvent }: Props) {
+export function ExploreChoiceSheet({ visible, onClose, signedIn, onPostEvent, onSignInRequired }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
@@ -42,12 +44,14 @@ export function ExploreChoiceSheet({ visible, onClose, signedIn, onPostEvent }: 
 
   const post = () => {
     onClose();
-    if (!signedIn) {
-      pendingPostEvent.set();
-      setTimeout(() => router.push('/login' as never), 150);
-      return;
-    }
-    setTimeout(() => (onPostEvent ? onPostEvent() : router.push('/event/hybrid-wizard' as never)), 150);
+    const target = postChoiceTarget({ signedIn, canAskSignIn: !!onSignInRequired, canOpenInPlace: !!onPostEvent });
+    if (!signedIn) pendingPostEvent.set();
+    setTimeout(() => {
+      if (target === 'ask-sign-in-here') onSignInRequired?.();
+      else if (target === 'login-screen') router.push('/login' as never);
+      else if (target === 'wizard-in-place') onPostEvent?.();
+      else router.push('/event/hybrid-wizard' as never);
+    }, 150);
   };
 
   const explore = () => {
