@@ -80,12 +80,17 @@ export function GlobalOpportunityCallNotifier() {
         [
           {
             text: 'View Opportunities',
-            onPress: () => router.push('/bookings' as never),
+            onPress: () => router.push('/bookings?tab=opportunities' as never),
           },
           { text: 'OK' },
         ],
       );
     } catch (e: any) {
+      // 409: the invite closed, or the calendar now overlaps and it was released. Don't keep ringing for it.
+      if (e?.status === 409) {
+        setDismissedIds((ids) => [...ids, opp.candidateId]);
+        setActiveOpportunity(null);
+      }
       Alert.alert('Approval error', e?.message || 'Could not approve this opportunity.');
     } finally {
       isBusyRef.current = false;
