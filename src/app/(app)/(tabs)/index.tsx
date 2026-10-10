@@ -40,6 +40,8 @@ import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { ClientHome } from '@/features/dashboard/ClientHome';
+import { pendingPostDelivery, pendingPostEvent } from '@/features/hybrid/postEventIntent';
+import { env } from '@/config/env';
 import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
 import { CoordinatorHome } from '@/features/dashboard/CoordinatorHome';
 import {
@@ -185,6 +187,18 @@ export default function HomeScreen() {
   const name = user?.firstName || 'there';
 
   const showsDashboard = isClient || isCoordinator || isPhotographer;
+
+  // "Post my event" chosen as a guest before signing in. ClientHome opens the
+  // wizard in place for a client; a coordinator gets the wizard screen; a role
+  // that cannot post has the intent dropped so it never surfaces later.
+  useEffect(() => {
+    const delivery = pendingPostDelivery(role);
+    if (delivery === 'in-place' || delivery === 'wait' || !pendingPostEvent.has()) return;
+    pendingPostEvent.take();
+    if (delivery === 'wizard-screen' && env.hybridBookingEnabled) {
+      router.push('/event/hybrid-wizard' as never);
+    }
+  }, [role, router]);
 
   // ── Greeting + cycling lead copy ────────────────────────────────────────
   const [timeOfDay, setTimeOfDay] = useState<keyof typeof GREETINGS>(getTimeOfDay);

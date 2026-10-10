@@ -1,5 +1,7 @@
 import { FindPhotosBottomSheet } from "@/components/FindPhotosBottomSheet";
 import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
+import { MODE_META } from '@/features/hybrid/hybridUi';
+import { pendingPostEvent } from '@/features/hybrid/postEventIntent';
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
@@ -28,7 +30,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Image,
@@ -38,6 +40,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { z } from "zod";
@@ -80,6 +83,21 @@ export default function LoginScreen() {
   const [roleSheetVisible, setRoleSheetVisible] = useState(false);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
+  // A guest chose "Post my event": they are already on the sign-in screen, so
+  // say so here and put them in the email field. The home screen opens the
+  // wizard once they are signed in (see postEventIntent).
+  const [postIntent, setPostIntent] = useState(() => pendingPostEvent.has());
+  const scrollRef = useRef<ScrollView>(null);
+  const emailRef = useRef<TextInput>(null);
+  const askSignInToPost = () => {
+    setPostIntent(true);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setTimeout(() => emailRef.current?.focus(), 250);
+  };
+  const dismissPostIntent = () => {
+    pendingPostEvent.clear();
+    setPostIntent(false);
+  };
   const [prefilledProfile, setPrefilledProfile] = useState<{
     email?: string;
     firstName?: string;
@@ -197,6 +215,7 @@ export default function LoginScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -213,12 +232,42 @@ export default function LoginScreen() {
               <Text style={styles.subtitle}>Sign in to your account</Text>
             </View>
 
+            {postIntent ? (
+              <View
+                style={styles.postNotice}
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite"
+              >
+                <View style={styles.postNoticeIcon}>
+                  <Ionicons name={MODE_META.HYBRID.icon} size={20} color={MODE_META.HYBRID.color} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.postNoticeTitle}>Sign in to post your event</Text>
+                  <Text style={styles.postNoticeText}>
+                    Post My Event opens as soon as you are in.{" "}
+                    <Text style={styles.registerLink} onPress={onRegister} accessibilityRole="link">
+                      New here? Create an account
+                    </Text>
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={dismissPostIntent}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel posting my event"
+                >
+                  <Ionicons name="close" size={20} color={colors.textMuted} />
+                </Pressable>
+              </View>
+            ) : null}
+
             <View style={styles.form}>
               <Controller
                 control={control}
                 name="email"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
+                    ref={emailRef}
                     label="Your Email"
                     autoCapitalize="none"
                     autoComplete="username"
@@ -428,7 +477,12 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <ExploreChoiceSheet visible={exploreChoiceOpen} onClose={() => setExploreChoiceOpen(false)} signedIn={false} />
+      <ExploreChoiceSheet
+        visible={exploreChoiceOpen}
+        onClose={() => setExploreChoiceOpen(false)}
+        signedIn={false}
+        onSignInRequired={askSignInToPost}
+      />
 
       <FindPhotosBottomSheet
         visible={findPhotosModalVisible}
@@ -505,6 +559,27 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: fontWeight.semibold,
   },
   serverError: { color: c.error, fontSize: fontSize.sm, textAlign: "center" },
+
+  postNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.xl,
+    borderWidth: 1.5,
+    borderColor: MODE_META.HYBRID.color,
+    backgroundColor: c.card,
+  },
+  postNoticeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: MODE_META.HYBRID.soft,
+  },
+  postNoticeTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.extrabold, color: c.text },
+  postNoticeText: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 17, marginTop: 2 },
 
   registerLine: { alignSelf: "center", paddingVertical: spacing.xs },
   registerText: { color: c.textMuted, fontSize: fontSize.sm },
