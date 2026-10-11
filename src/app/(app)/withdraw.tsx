@@ -248,7 +248,12 @@ export default function WithdrawScreen() {
         if (verification.requiresFaceScan) setSelfie(null);
       }
     } catch (e) {
-      setVerifyError(isApiError(e) ? e.message : 'Network error. Please try again.');
+      // A timeout or dropped connection is an unknown outcome, not a wrong
+      // code: the withdrawal may have been submitted. Keep the code entered.
+      const unknown = !isApiError(e) || e.status === 408 || e.status === 0;
+      setVerifyError(unknown
+        ? 'We could not confirm this. Check your withdrawal history before trying again.'
+        : e.message);
     } finally {
       setBusy(false);
     }

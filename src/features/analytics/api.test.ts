@@ -11,11 +11,10 @@ import {
   cleanTransactionStatus,
 } from './api';
 
-jest.mock('@/api/client', () => ({
-  api: {
-    get: jest.fn(),
-  },
-}));
+jest.mock('@/api/client', () => {
+  const get = jest.fn();
+  return { api: { get, getOk: (...a: unknown[]) => get(...a) } };
+});
 
 describe('Analytics API Client', () => {
   afterEach(() => {

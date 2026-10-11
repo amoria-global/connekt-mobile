@@ -81,11 +81,12 @@ export default function WalletScreen() {
 
   // Parallel fetch: wallet summary + recent wallet movements (matching salo-run)
   const fetchData = useCallback(async () => {
-    const [wallet, movements] = await Promise.all([
+    const [wallet, history] = await Promise.all([
       getWallet(),
-      listWalletMovements(0, 50).catch(() => [] as Movement[]),
+      // A failed history read is reported, not shown as an empty history.
+      listWalletMovements(0, 50).then((m) => ({ m, failed: false }), () => ({ m: [] as Movement[], failed: true })),
     ]);
-    return { wallet, movements };
+    return { wallet, movements: history.m, movementsFailed: history.failed };
   }, []);
 
   const { data, loading, error, refresh } = useAsync(fetchData);
@@ -404,9 +405,11 @@ export default function WalletScreen() {
             {filteredActivityItems.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="receipt-outline" size={32} color={colors.textMuted} />
-                <Text style={styles.emptyCardTitle}>No movements found</Text>
+                <Text style={styles.emptyCardTitle}>{data?.movementsFailed ? 'Could not load your history' : 'No movements found'}</Text>
                 <Text style={styles.emptyCardDesc}>
-                  {activitySearch
+                  {data?.movementsFailed
+                    ? 'Pull down to try again. Your balance above is still current.'
+                    : activitySearch
                     ? `No transactions match "${activitySearch}".`
                     : activeFilter === 'All'
                       ? 'Payouts, tips, bonuses, and payments will appear here.'

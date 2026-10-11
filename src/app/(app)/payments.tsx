@@ -40,15 +40,13 @@ import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
+import { paymentBucket } from '@/features/payments/statusBucket';
 
 type Filter = 'all' | 'paid' | 'pending' | 'failed';
 type Section = 'events' | 'streaming' | 'gifts';
 
 function bucket(status?: string): Exclude<Filter, 'all'> {
-  const s = (status ?? '').toLowerCase();
-  if (/paid|complete|success|approved/.test(s)) return 'paid';
-  if (/fail|cancel|declin|error/.test(s)) return 'failed';
-  return 'pending';
+  return paymentBucket(status);
 }
 
 /**
