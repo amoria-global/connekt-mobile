@@ -5,7 +5,6 @@
  */
 import { api } from '@/api/client';
 import type { ApiEnvelope } from '@/types';
-import { listPhotographers, type Photographer } from './api';
 
 export interface ClientLocation {
   latitude: number;
@@ -87,21 +86,6 @@ export function calculateHaversineDistanceKm(
 }
 
 /**
- * Fallback coordinate offsets for Kigali area when backend returns 0 photographers
- * due to unpopulated creator GPS in sandbox/demo databases.
- */
-const DEMO_OFFSETS: [number, number][] = [
-  [-0.008, 0.009],
-  [0.012, -0.011],
-  [-0.015, -0.008],
-  [0.009, 0.016],
-  [0.018, 0.004],
-  [-0.004, -0.019],
-  [0.021, -0.015],
-  [-0.019, 0.018],
-];
-
-/**
  * Fetch nearby photographers eligible for direct booking on the interactive map.
  * Calls GET /api/remote/direct-booking/map
  */
@@ -143,82 +127,11 @@ export async function fetchDirectBookingMap(
       true,
   };
 
-  let photographers = Array.isArray(rawData?.photographers) ? rawData.photographers : [];
-
-  // If backend returns zero photographers (e.g. staging DB lacking GPS rows),
-  // augment with verified photographers from listPhotographers() so the map
-  // displays real Kigali creators with valid direct-booking capabilities.
-  if (photographers.length === 0) {
-    try {
-      const publicList = await listPhotographers();
-      const filteredList = publicList.filter((p) => {
-        if (params.specialty && params.specialty !== 'All' && params.specialty !== 'All Categories') {
-          const spec = params.specialty.toLowerCase();
-          const match =
-            (p.category && p.category.toLowerCase().includes(spec)) ||
-            (p.specialties && p.specialties.some((s) => s.toLowerCase().includes(spec)));
-          if (!match) return false;
-        }
-        if (params.search?.trim()) {
-          const s = params.search.trim().toLowerCase();
-          const matchName = p.name.toLowerCase().includes(s);
-          const matchLoc = (p.location ?? '').toLowerCase().includes(s);
-          if (!matchName && !matchLoc) return false;
-        }
-        return true;
-      });
-
-      photographers = filteredList.slice(0, 10).map((p: Photographer, idx: number) => {
-        const offset = DEMO_OFFSETS[idx % DEMO_OFFSETS.length];
-        const pLat = clientLat + offset[0];
-        const pLng = clientLng + offset[1];
-        const distance = calculateHaversineDistanceKm(clientLat, clientLng, pLat, pLng);
-
-        return {
-          photographerId: String(p.id),
-          fullName: p.name,
-          businessName: `${p.name} Studios`,
-          profilePicture: p.avatar,
-          coverImage: p.coverImage ?? p.images?.[0],
-          latitude: pLat,
-          longitude: pLng,
-          distanceKm: distance,
-          distanceFormatted: `${distance.toFixed(1)} km away`,
-          city: p.location ?? 'Kigali',
-          country: 'Rwanda',
-          specialties: p.specialties && p.specialties.length > 0 ? p.specialties : ['PORTRAIT', 'EVENT'],
-          rating: p.rating ?? 4.8,
-          reviewCount: p.reviewCount ?? 12,
-          verified: p.isVerified ?? true,
-          startingPrice: p.startingPrice ?? 120000,
-          currency: 'RWF',
-          directBookingEnabled: true,
-          packages: [
-            {
-              packageId: `pkg-${p.id}-1`,
-              name: 'Standard Direct Shoot',
-              price: p.startingPrice ?? 120000,
-              currency: 'RWF',
-              durationHours: 2,
-              deliveryDays: 3,
-              features: ['High-res edited photos', 'Online gallery', 'Print release'],
-            },
-            {
-              packageId: `pkg-${p.id}-2`,
-              name: 'Premium Direct Shoot',
-              price: (p.startingPrice ?? 120000) * 1.5,
-              currency: 'RWF',
-              durationHours: 4,
-              deliveryDays: 2,
-              features: ['Full coverage', 'Drone aerials', 'Same-day sneak peek'],
-            },
-          ],
-        };
-      });
-    } catch {
-      // Keep empty if listPhotographers fails
-    }
-  }
+  // No fallback. This used to fill an empty map with invented entries
+  // (fake GPS offsets, "Standard" 120,000 RWF and "Premium" x1.5 packages
+  // with ids pkg-<id>-1/2, a 4.8 rating, verified: true) that reached the
+  // booking sheet. An empty map shows its empty state instead.
+  const photographers = Array.isArray(rawData?.photographers) ? rawData.photographers : [];
 
   return {
     clientLocation,

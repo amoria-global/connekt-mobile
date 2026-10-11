@@ -108,7 +108,9 @@ describe('mapApi', () => {
       expect(res.photographers[0].fullName).toBe('Jean Mutabazi');
     });
 
-    it('falls back gracefully to Kigali creators when backend returns empty photographers', async () => {
+    // An empty map used to be filled with invented creators, prices and
+    // packages that reached the booking sheet.
+    it('shows an empty map rather than inventing photographers', async () => {
       (api.get as jest.Mock).mockResolvedValueOnce({
         status: 200,
         action: 1,
@@ -133,10 +135,8 @@ describe('mapApi', () => {
 
       expect(res.clientLocation.message).toBe('You are here');
       expect(res.clientLocation.isCurrentLocation).toBe(true);
-      expect(res.photographers.length).toBeGreaterThan(0);
-      expect(res.photographers[0].fullName).toBe('Alpha Shots');
-      expect(res.photographers[0].packages.length).toBeGreaterThan(0);
-      expect(res.photographers[0].distanceKm).toBeGreaterThan(0);
+      expect(res.photographers).toEqual([]);
+      expect(res.totalNearby).toBe(0);
     });
   });
 });

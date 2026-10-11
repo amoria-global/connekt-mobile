@@ -1,4 +1,5 @@
 import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
+import { useCurrency } from '@/store/currency';
 import { StyleSheet, View, Text, Pressable, Alert, Platform, Image, ActivityIndicator, Keyboard, InputAccessoryView } from 'react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
@@ -932,14 +933,15 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     const basePrice = selectedPackage?.price || 0;
                     const baseCurrency = selectedPackage?.currency || 'RWF';
                     
-                    const RATES: Record<string, Record<string, number>> = {
-                      RWF: { USD: 1 / 1350, EUR: 1 / 1450, KES: 0.098, UGX: 2.85, TZS: 1.92 },
-                      USD: { RWF: 1350 },
-                    };
+                    // Live rates from the currency store (per 1 USD), not a private
+                    // table: this one said 1350 RWF while the platform used ~1478.
+                    const liveRates = useCurrency.getState().currencies;
+                    const src = liveRates.find((c) => c.code === baseCurrency)?.rate;
+                    const dst = liveRates.find((c) => c.code === displayCurrency)?.rate;
                     const knownRate =
                       baseCurrency === displayCurrency
                         ? 1
-                        : RATES[baseCurrency]?.[displayCurrency];
+                        : src && dst ? dst / src : undefined;
                     const shownCurrency = knownRate === undefined ? baseCurrency : displayCurrency;
                     const rate = knownRate ?? 1;
 

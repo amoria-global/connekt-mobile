@@ -105,7 +105,7 @@ function mapPaymentRecord(r: Raw): PaymentRecord {
 }
 
 export async function listPayments(role?: PaymentsRole): Promise<PaymentRecord[]> {
-  const res = await api.get<ApiEnvelope<unknown>>(
+  const res = await api.getOk<ApiEnvelope<unknown>>(
     `${paymentsBase(role)}?page=0&size=20`,
   );
   return pageContent(res?.data).map(mapPaymentRecord).filter((p) => p.id);
@@ -142,7 +142,7 @@ export type GiftPayment = {
 };
 
 export async function listStreamingPayments(): Promise<StreamingRevenueResult> {
-  const res = await api.get<ApiEnvelope<unknown> & { totalStreamingRevenue?: number }>(
+  const res = await api.getOk<ApiEnvelope<unknown> & { totalStreamingRevenue?: number }>(
     '/coordinator/payments/streaming',
   );
   const items = pageContent(res?.data);
@@ -158,18 +158,17 @@ export async function listStreamingPayments(): Promise<StreamingRevenueResult> {
     status: (str(p.status) ?? 'pending').toLowerCase(),
   }));
 
+  // The wallet's net stream share only. Summing these gross booking-currency
+  // rows as a fallback overstated revenue (and mixed currencies), so a missing
+  // total is 0, not a guess.
   const totalStreamingRevenue =
-    typeof res?.totalStreamingRevenue === 'number'
-      ? res.totalStreamingRevenue
-      : payments
-          .filter((p) => p.status === 'completed')
-          .reduce((sum, p) => sum + p.amount, 0);
+    typeof res?.totalStreamingRevenue === 'number' ? res.totalStreamingRevenue : 0;
 
   return { totalStreamingRevenue, payments };
 }
 
 export async function listGiftPayments(): Promise<GiftPayment[]> {
-  const res = await api.get<ApiEnvelope<unknown>>(
+  const res = await api.getOk<ApiEnvelope<unknown>>(
     '/coordinator/payments?type=GIFT&page=0&size=100',
   );
   const items = pageContent(res?.data);
@@ -185,7 +184,7 @@ export async function listGiftPayments(): Promise<GiftPayment[]> {
         ? p.withdrawableAmount
         : typeof p.netAmount === 'number'
           ? p.netAmount
-          : rawAmt * 0.65;
+          : 0; // never an assumed 65% share; the backend split is configurable
     return {
       id: String(p.id ?? ''),
       eventTitle: str(p.eventTitle) ?? 'Live Stream',
@@ -230,7 +229,7 @@ export const PAYMENT_NOT_FOUND_MESSAGE =
 export async function getPayment(id: string, role?: PaymentsRole): Promise<PaymentDetail> {
   let res: ApiEnvelope<Raw> | undefined;
   try {
-    res = await api.get<ApiEnvelope<Raw>>(`${paymentsBase(role)}/${encodeURIComponent(id)}`);
+    res = await api.getOk<ApiEnvelope<Raw>>(`${paymentsBase(role)}/${encodeURIComponent(id)}`);
   } catch (e) {
     if (e && typeof e === 'object' && (e as ApiError).status === 404) {
       throw { ...(e as ApiError), message: PAYMENT_NOT_FOUND_MESSAGE } satisfies ApiError;
