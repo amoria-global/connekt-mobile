@@ -65,7 +65,7 @@ const POT_LABELS: Record<string, string> = {
 };
 
 export async function getWallet(): Promise<WalletDTO> {
-  const res = await api.get<ApiEnvelope<RawWallet>>('/wallet/me');
+  const res = await api.getOk<ApiEnvelope<RawWallet>>('/wallet/me');
   // A failed fetch answers HTTP 200 with action:0 and no data.
   if (res?.action !== 1) {
     throw {
@@ -150,7 +150,7 @@ function pageContent(data: unknown): Record<string, unknown>[] {
 }
 
 export async function listWalletMovements(page = 0, size = 50): Promise<Movement[]> {
-  const res = await api.get<ApiEnvelope<unknown>>(
+  const res = await api.getOk<ApiEnvelope<unknown>>(
     `/wallet/me/movements?page=${page}&size=${size}`,
   );
   return pageContent(res?.data).map((r) => {
@@ -195,7 +195,7 @@ export type PayrollReport = {
 
 /** Photographer earnings summary (web parity: GET /photographer/payroll-report). */
 export async function getPayrollReport(): Promise<PayrollReport> {
-  const res = await api.get<ApiEnvelope<Record<string, unknown>>>('/photographer/payroll-report');
+  const res = await api.getOk<ApiEnvelope<Record<string, unknown>>>('/photographer/payroll-report');
   const d = (res?.data ?? {}) as Record<string, unknown>;
   const txs = Array.isArray(d.transactions) ? (d.transactions as Record<string, unknown>[]) : [];
   return {

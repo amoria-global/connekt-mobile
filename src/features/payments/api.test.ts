@@ -6,7 +6,10 @@ import {
   PAYMENT_NOT_FOUND_MESSAGE,
 } from './api';
 
-jest.mock('@/api/client', () => ({ api: { post: jest.fn(), get: jest.fn() } }));
+jest.mock('@/api/client', () => {
+  const get = jest.fn();
+  return { api: { post: jest.fn(), get, getOk: (...a: unknown[]) => get(...a) } };
+});
 
 /**
  * Tapping a coordinator's "Payment Failed" notification opened a blank screen
@@ -93,7 +96,9 @@ describe('listStreamingPayments', () => {
 });
 
 describe('listGiftPayments', () => {
-  it('calls /coordinator/payments?type=GIFT and computes 65% net withdrawable amount', async () => {
+  // The net share comes from the backend split (withdrawableAmount); the client
+  // used to assume 65% when it was missing.
+  it('calls /coordinator/payments?type=GIFT and takes the net share from the backend', async () => {
     get.mockResolvedValue({
       action: 1,
       data: [
@@ -101,6 +106,7 @@ describe('listGiftPayments', () => {
           id: 'g1',
           eventTitle: 'Wedding Stream',
           amount: 10000,
+          withdrawableAmount: 6500,
           currencyAbbreviation: 'RWF',
           giftMessage: 'Congrats!',
           senderName: 'Bob',
