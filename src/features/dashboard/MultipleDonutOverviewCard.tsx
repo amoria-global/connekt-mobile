@@ -95,8 +95,10 @@ export function MultipleDonutOverviewCard({
     const coreRevenue = Math.max(0, totalEarnings - rewards);
 
     const hasEarnings = totalEarnings > 0;
-    const bookingsRevenue = hasEarnings ? Math.round(coreRevenue * 0.65) : 0;
-    const photoSalesRevenue = hasEarnings ? coreRevenue - bookingsRevenue : 0;
+    // Analytics has no bookings vs photo-sales breakdown, so the two are one
+    // figure. This used to invent a 65/35 split of it.
+    const bookingsRevenue = hasEarnings ? coreRevenue : 0;
+    const photoSalesRevenue: number | null = null;
 
     let p1 = 0;
     let p2 = 0;
@@ -141,7 +143,7 @@ export function MultipleDonutOverviewCard({
       middle: {
         key: 'middle' as const,
         pct: p2,
-        label: 'Event Bookings',
+        label: 'Bookings & Photo Sales',
         countLabel: `${completedShoots} Shoot${completedShoots === 1 ? '' : 's'}`,
         amount: bookingsRevenue,
         color: colorMiddle,
@@ -172,7 +174,7 @@ export function MultipleDonutOverviewCard({
         number: `${ringData.outer.pct}`,
         unit: '%',
         subLabel: ringData.outer.countLabel,
-        amount: balanceHidden ? '••••••' : formatPrice(ringData.outer.amount, currency),
+        amount: balanceHidden ? '••••••' : ringData.outer.amount == null ? 'In bookings total' : formatPrice(ringData.outer.amount, currency),
         color: ringData.outer.color,
       };
     }
@@ -633,7 +635,7 @@ export function MultipleDonutOverviewCard({
             <View style={styles.barItemTop}>
               <Text style={styles.barLabel}>{ringData.outer.label}</Text>
               <Text style={[styles.barValue, { color: ringData.outer.color }]}>
-                {ringData.outer.pct}% · {balanceHidden ? '••••' : formatPrice(ringData.outer.amount, currency)}
+                {ringData.outer.pct}% · {balanceHidden ? '••••' : ringData.outer.amount == null ? 'In bookings total' : formatPrice(ringData.outer.amount, currency)}
               </Text>
             </View>
             <View style={styles.barTrack}>

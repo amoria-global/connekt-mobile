@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { statusTone } from '@/features/payments/statusBucket';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, type Palette } from '@/theme';
 
 /**
@@ -7,12 +8,12 @@ import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, type Palett
  * because a plain helper cannot call `useTheme()`.
  */
 function tone(c: Palette, status?: string): { bg: string; fg: string } {
-  const s = (status ?? '').toLowerCase();
-  if (/(complet|accept|approv|paid|active|success)/.test(s))
-    return { bg: c.successBg, fg: c.success };
-  if (/(pend|await|process|hold)/.test(s)) return { bg: c.warningBg, fg: c.warning };
-  if (/(reject|cancel|fail|declin|lock)/.test(s)) return { bg: c.errorBg, fg: c.error };
-  return { bg: c.infoBg, fg: c.info };
+  switch (statusTone(status)) {
+    case 'success': return { bg: c.successBg, fg: c.success };
+    case 'warning': return { bg: c.warningBg, fg: c.warning };
+    case 'error': return { bg: c.errorBg, fg: c.error };
+    default: return { bg: c.infoBg, fg: c.info };
+  }
 }
 
 export function StatusPill({ status }: { status?: string }) {

@@ -293,31 +293,27 @@ export function PerformanceWaveCard({
       }
     }
 
-    // Relative altitude ratios [0..1] reflecting the reference curve trajectory
-    const relativeRatios =
-      totalValue === 0
-        ? [0, 0, 0, 0, 0, 0]
-        : trendDir === 'up'
-          ? [0, 0.38, 0.82, 0.62, 0.45, 0.2]
-          : [0.65, 0.8, 0.5, 0.4, 0.25, 0.1];
+    // No real series means a flat baseline with no values. This used to draw
+    // an invented curve and label its points as money (a share of the total).
+    const relativeRatios = [0, 0, 0, 0, 0, 0];
 
     const maxPerf = perfValues ? Math.max(...perfValues, 1) : 0;
 
     // Compute display values
     return X_COORDS.map((x, idx) => {
       let ratio = relativeRatios[idx];
-      let pointVal = Math.round(totalValue * (ratio || 0.1));
+      let pointVal = 0;
 
       if (perfValues && perfValues[idx] !== undefined) {
         pointVal = perfValues[idx];
         ratio = Math.min(1, Math.max(0.05, pointVal / maxPerf));
       }
 
-      const y = totalValue === 0 ? CHART_BOTTOM : CHART_BOTTOM - ratio * CHART_HEIGHT;
+      const y = perfValues ? CHART_BOTTOM - ratio * CHART_HEIGHT : CHART_BOTTOM;
 
       let displayValue = '';
-      if (idx === 0 || idx === 5) {
-        displayValue = '0';
+      if (!perfValues) {
+        displayValue = '';
       } else if (meta.isMoney) {
         displayValue = formatPrice(pointVal, currency);
       } else {
