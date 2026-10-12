@@ -33,6 +33,8 @@ absent in store builds: no price, no button, no copy pointing elsewhere (Play
 billing, App Store 3.1.1, anti-steering, no Play merchant registration in Rwanda,
 dynamic prices). Bookings and donations are exempt and always on.
 
+**Gifts are the second exception (owner decision 2026-10-12).** `giftsEnabled` is true in every build, so viewers see the gift button on the live screens; hosts never do. The store-billing risk above is accepted for gifts only.
+
 **One exception: a ticket to an in-person event.** Both stores exempt tickets
 consumed outside the app (Apple 3.1.3(e), Google's physical goods and services
 rule), so `canBuyEventTicket` allows the in-app XentriPay and PawaPay checkout

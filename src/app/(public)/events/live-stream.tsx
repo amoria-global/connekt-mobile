@@ -43,8 +43,8 @@
  *      backend gift catalog with exact prices; picking a gift hands off
  *      to the web live page with that gift preselected
  *      (liveGiftUrl(id, viewerId, code)) — the app never collects the
- *      payment. The tray button is policy-gated (digitalPurchasesEnabled:
- *      absent on Android), but INCOMING gift animations (GiftOverlay
+ *      payment. The tray button is gated by giftsEnabled (on in
+ *      every build, shown to registered or not), and INCOMING gift animations (GiftOverlay
  *      banners / floaters / big-gift takeover, fed by GIFT chat rows)
  *      render on every platform — displaying a gift is not a purchase.
  *
@@ -113,7 +113,7 @@ import {
   type GiftEvent,
 } from '@/features/streams/gifting/GiftOverlay';
 import { GiftTray } from '@/features/streams/gifting/GiftTray';
-import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { digitalPurchasesEnabled, giftsEnabled } from '@/features/payments/policy';
 import { liveGiftUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import { GiftCheckoutSheet } from '@/features/streams/gifting/GiftCheckoutSheet';
 import { useAsync } from '@/hooks/useAsync';
@@ -1581,7 +1581,7 @@ export default function PublicLiveStreamScreen() {
 
   // Step 1 — user picks a gift in the tray → show confirmation sheet.
   const onSendGift = (gift: GiftCatalogItem) => {
-    if (!digitalPurchasesEnabled) return;
+    if (!giftsEnabled) return;
     setGiftOpen(false);
     setGiftConfirm(gift);
   };
@@ -1839,7 +1839,7 @@ export default function PublicLiveStreamScreen() {
                   </View>
 
                   <View style={styles.ytStageBottomRight}>
-                    {viewerId && digitalPurchasesEnabled ? (
+                    {giftsEnabled ? (
                       <Pressable
                         style={styles.ytStageIconBtn}
                         onPress={() => setGiftOpen(true)}
@@ -1974,7 +1974,7 @@ export default function PublicLiveStreamScreen() {
               fullscreen={false}
               onToggleFullscreen={enterFullscreen}
               onGift={() => setGiftOpen(true)}
-              showGift={!!viewerId && digitalPurchasesEnabled}
+              showGift={giftsEnabled}
               onDonate={onDonate}
               maxListHeight={Math.round(windowHeight * 0.35)}
               insetBottom={insets.bottom}
@@ -2182,7 +2182,7 @@ export default function PublicLiveStreamScreen() {
               fullscreen
               onToggleFullscreen={exitFullscreen}
               onGift={() => setGiftOpen(true)}
-              showGift={!!viewerId && digitalPurchasesEnabled}
+              showGift={giftsEnabled}
               onDonate={onDonate}
               maxListHeight={Math.round(windowHeight * 0.4)}
               insetTop={insets.top}
@@ -2321,9 +2321,7 @@ export default function PublicLiveStreamScreen() {
       {/* Gift tray — catalog-driven picker; picking a gift hands off to the
           web checkout with that gift preselected. No in-app payment
           collection. The gift button that opens this is gated on
-          digitalPurchasesEnabled (showGift), so the tray never appears on
-          Android — incoming gift ANIMATIONS still render there via
-          GiftOverlay (display is not a purchase). */}
+          giftsEnabled (showGift). */}
       <GiftTray visible={giftOpen} onClose={() => setGiftOpen(false)} onSendGift={onSendGift} />
 
       {/* Gift confirmation sheet — shown after picking a gift, before

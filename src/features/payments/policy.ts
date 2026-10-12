@@ -50,6 +50,18 @@ export const digitalPurchasesEnabled =
   Platform.OS === 'web' || process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES === 'true';
 
 /**
+ * Live-stream gifts are on in every build, native included. This is the owner's
+ * explicit decision (2026-10-12), reversing the native-off gate for gifts only:
+ * viewers expect to gift a creator mid-stream and web already allows it. Hosts
+ * never see the gift button (the studio has none).
+ *
+ * The store-billing risk described above still applies to gifts on a store
+ * binary (Apple 3.1.1, Google Play billing) and is accepted knowingly. Every
+ * other digital good stays behind digitalPurchasesEnabled.
+ */
+export const giftsEnabled = true;
+
+/**
  * Payment-declaration types that pay for DIGITAL goods (stream access, tips,
  * gifts, archive/photo/album/photobook purchases). Only BOOKING (a real-world
  * photography service) is exempt. The generic "pay a pending declaration"
