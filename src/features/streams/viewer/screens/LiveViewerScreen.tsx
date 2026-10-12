@@ -17,7 +17,7 @@ import { GiftCheckoutSheet } from '@/features/streams/gifting/GiftCheckoutSheet'
 import { GiftOverlay } from '@/features/streams/gifting/GiftOverlay';
 import { GiftTray } from '@/features/streams/gifting/GiftTray';
 import type { GiftCatalogItem, StreamChat } from '@/features/streams/api';
-import { digitalPurchasesEnabled } from '@/features/payments/policy';
+import { giftsEnabled } from '@/features/payments/policy';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useFloatingReactions } from '../hooks/useFloatingReactions';
 import { useStreamChat } from '../hooks/useStreamChat';
@@ -266,7 +266,7 @@ export default function LiveViewerScreen() {
         onClose={() => dispatch({ type: 'set', patch: { showOptions: false } })}
         reducedMotion={reduced}
         chatOpen={ui.chatOpen}
-        canGift={digitalPurchasesEnabled}
+        canGift={giftsEnabled}
         onShare={openShare}
         onToggleChat={toggleChat}
         onRefresh={pb.retry}
@@ -301,7 +301,7 @@ export default function LiveViewerScreen() {
           pointerEvents="box-none"
           style={[styles.fsRail, { right: insets.right + 12, bottom: 56 }]}
         >
-          <ReactionRail onReact={react} onGift={digitalPurchasesEnabled ? openGift : undefined} vertical />
+          <ReactionRail onReact={react} onGift={giftsEnabled ? openGift : undefined} vertical />
         </View>
         {sheets}
       </View>
@@ -345,7 +345,7 @@ export default function LiveViewerScreen() {
             </View>
             <StreamHeader model={model} live={model.isLive && pb.phase !== 'ended'} onShare={openShare} />
             <View style={styles.railRow}>
-              <ReactionRail onReact={react} onGift={digitalPurchasesEnabled ? openGift : undefined} />
+              <ReactionRail onReact={react} onGift={giftsEnabled ? openGift : undefined} />
             </View>
           </View>
           <View style={[styles.sideChat, { width: CHAT_SIDE_WIDTH, paddingTop: insets.top }]}>{chatPanel}</View>
@@ -371,7 +371,7 @@ export default function LiveViewerScreen() {
         <>
           <StreamHeader model={model} live={model.isLive && pb.phase !== 'ended'} onShare={openShare} />
           <View style={styles.railRow}>
-            <ReactionRail onReact={react} onGift={digitalPurchasesEnabled ? openGift : undefined} />
+            <ReactionRail onReact={react} onGift={giftsEnabled ? openGift : undefined} />
           </View>
         </>
       )}
