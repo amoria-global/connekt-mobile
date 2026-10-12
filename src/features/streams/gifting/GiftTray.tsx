@@ -27,10 +27,11 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getGiftCatalog, type GiftCatalogItem, type GiftExchangeRate } from '@/features/streams/api';
+import { getGiftCatalog, type GiftCatalogItem } from '@/features/streams/api';
+import { useCurrency } from '@/store/currency';
 import { isApiError } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, useTheme , makeStyles} from '@/theme';
-import { formatGiftUsd } from './GiftOverlay';
+import { formatGiftUsd, formatGiftUsdBase } from './GiftOverlay';
 
 type Tier = 'POPULAR' | 'PREMIUM';
 
@@ -54,27 +55,16 @@ export function GiftTray({
   const [sendingCode, setSendingCode] = useState<string | null>(null);
 
   const [gifts, setGifts] = useState<GiftCatalogItem[] | null>(null);
-  const [rates, setRates] = useState<Record<string, GiftExchangeRate>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Display currency switcher — parity with the web gift modal's
-  // PaymentCurrencyPreview pill. Display-only: gifts are always charged
-  // as their exact USD catalog price, the web checkout confirms it.
-  const [viewCode, setViewCode] = useState('USD');
-  const VIEW_CODES = ['USD', 'RWF', 'EUR', 'KES', 'UGX', 'TZS'];
-  // Converted amount in the chosen view currency. When active it becomes
-  // the PRIMARY tile price (USD drops to the secondary line) — switching
-  // currency must visibly convert the cards, not just annotate them.
-  const localPrice = useCallback(
-    (usd: number): string | null => {
-      if (viewCode === 'USD') return null;
-      const r = rates[viewCode];
-      if (!r?.rateToUsd || r.rateToUsd <= 0) return null;
-      return `${r.symbol || viewCode} ${Math.round(usd * r.rateToUsd).toLocaleString()}`;
-    },
-    [viewCode, rates],
-  );
+  // One display currency for the whole app (the top-bar selector). The pills
+  // here set that same selection, so the tile, the confirm sheet, the checkout
+  // sheet, the banners and the chat all show one currency. Charging is always
+  // the exact USD catalog price, so the USD line stays visible when converted.
+  const currency = useCurrency((st) => st.currency);
+  const currencies = useCurrency((st) => st.currencies);
+  const setCurrency = useCurrency((st) => st.setCurrency);
+  const converted = currency !== 'USD';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,7 +72,6 @@ export function GiftTray({
     try {
       const catalog = await getGiftCatalog();
       setGifts(catalog.gifts);
-      setRates(catalog.exchangeRates);
     } catch (e) {
       setError(isApiError(e) ? e.message : 'Could not load gifts. Check your connection.');
     } finally {
@@ -142,17 +131,17 @@ export function GiftTray({
         <View style={s.viewRow}>
           <Text style={s.viewLabel}>View in</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.viewPills}>
-            {VIEW_CODES.filter((c) => c === 'USD' || (rates[c]?.rateToUsd ?? 0) > 0).map((c) => (
+            {currencies.map((ci) => ci.code).map((c) => (
               <Pressable
                 key={c}
                 accessibilityRole="button"
-                accessibilityState={{ selected: viewCode === c }}
+                accessibilityState={{ selected: currency === c }}
                 accessibilityLabel={`View prices in ${c}`}
-                onPress={() => setViewCode(c)}
-                style={[s.viewPill, viewCode === c && s.viewPillOn]}
+                onPress={() => setCurrency(c)}
+                style={[s.viewPill, currency === c && s.viewPillOn]}
                 hitSlop={6}
               >
-                <Text style={[s.viewPillText, viewCode === c && s.viewPillTextOn]}>{c}</Text>
+                <Text style={[s.viewPillText, currency === c && s.viewPillTextOn]}>{c}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -238,11 +227,11 @@ export function GiftTray({
                   ) : (
                     <>
                       <Text style={s.tilePrice}>
-                        {localPrice(g.amountUsd) ?? formatGiftUsd(g.amountUsd)}
+                        {formatGiftUsd(g.amountUsd)}
                       </Text>
-                      {localPrice(g.amountUsd) && (
+                      {converted && (
                         <Text style={s.tileLocal} numberOfLines={1}>
-                          {formatGiftUsd(g.amountUsd)} USD
+                          {formatGiftUsdBase(g.amountUsd)} USD
                         </Text>
                       )}
                     </>
