@@ -40,11 +40,10 @@
  *
  *   4. GIFTING (TikTok-style)
  *      The GiftTray bottom sheet (features/streams/gifting) lists the
- *      backend gift catalog with exact prices; picking a gift hands off
- *      to the web live page with that gift preselected
- *      (liveGiftUrl(id, viewerId, code)) — the app never collects the
- *      payment. The tray button is gated by giftsEnabled (on in
- *      every build, shown to registered or not), and INCOMING gift animations (GiftOverlay
+ *      backend gift catalog with exact prices; picking a gift opens the
+ *      in-app GiftCheckoutSheet (a viewer who has not registered yet adds
+ *      name and email first, then lands in the same sheet). The tray button
+ *      is gated by giftsEnabled, and INCOMING gift animations (GiftOverlay
  *      banners / floaters / big-gift takeover, fed by GIFT chat rows)
  *      render on every platform — displaying a gift is not a purchase.
  *
@@ -114,7 +113,6 @@ import {
 } from '@/features/streams/gifting/GiftOverlay';
 import { GiftTray } from '@/features/streams/gifting/GiftTray';
 import { digitalPurchasesEnabled, giftsEnabled } from '@/features/payments/policy';
-import { liveGiftUrl, openWebCheckout } from '@/features/payments/webCheckout';
 import { GiftCheckoutSheet } from '@/features/streams/gifting/GiftCheckoutSheet';
 import { useAsync } from '@/hooks/useAsync';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
@@ -899,6 +897,8 @@ export default function PublicLiveStreamScreen() {
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftConfirm, setGiftConfirm] = useState<GiftCatalogItem | null>(null);
   const [giftPay, setGiftPay] = useState<GiftCatalogItem | null>(null);
+  // A gift picked before the viewer registered: resumes into the in-app checkout once they have.
+  const [pendingGift, setPendingGift] = useState<GiftCatalogItem | null>(null);
   const [giftEvents, setGiftEvents] = useState<GiftEvent[]>([]);
 
   // ── Access detection (web parity: lines 595-755) ─────────────────────────
@@ -1439,6 +1439,10 @@ export default function PublicLiveStreamScreen() {
         }
       }
       setInfoModalOpen(false);
+      if (pendingGift) {
+        setGiftPay(pendingGift);
+        setPendingGift(null);
+      }
     } catch (e) {
       setInfoError(
         isApiError(e) ? e.message : status.isPaid ? 'Could not verify your access.' : 'Could not join the chat.',
@@ -1613,8 +1617,16 @@ export default function PublicLiveStreamScreen() {
       setGiftPay(gift);
       return;
     }
-    await openWebCheckout(liveGiftUrl(id, undefined, gift.code));
-    fireLocalGift(gift);
+    // Not registered yet: collect name and email here, then resume into the
+    // in-app checkout (see onSubmitInfo). The viewer never leaves the app.
+    setPendingGift(gift);
+    setInfoError(null);
+    setInfoModalOpen(true);
+  };
+
+  const closeInfoModal = () => {
+    setInfoModalOpen(false);
+    setPendingGift(null);
   };
 
   const onDonate = () => router.push(`/(public)/donate?eventId=${id}` as unknown as Href);
@@ -2264,15 +2276,17 @@ export default function PublicLiveStreamScreen() {
        * it's a lightweight "Join the chat" — name + email only, which
        * registers the person as a viewer and grants commenting right away.
        */}
-      <Modal visible={infoModalOpen} transparent animationType="slide" onRequestClose={() => setInfoModalOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setInfoModalOpen(false)}>
+      <Modal visible={infoModalOpen} transparent animationType="slide" onRequestClose={closeInfoModal}>
+        <Pressable style={styles.modalBackdrop} onPress={closeInfoModal}>
           <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>{status.isPaid ? 'Verify your access' : 'Join the chat'}</Text>
               <Text style={styles.modalHint}>
                 {status.isPaid
                   ? "Enter the name, email and phone you used when buying your ticket. We'll restore access on this device."
-                  : 'Enter your name and email to comment. No account needed, and this event is free.'}
+                  : pendingGift
+                    ? 'Enter your name and email to send your gift. No account needed.'
+                    : 'Enter your name and email to comment. No account needed, and this event is free.'}
               </Text>
               <Input
                 label="Name"
