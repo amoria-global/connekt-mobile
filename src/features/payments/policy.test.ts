@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import {
   digitalPurchasesEnabled,
+  giftsEnabled,
   isDigitalDeclaration,
   canPayDeclarationHere,
   canShowDigitalPrice,
@@ -194,5 +195,35 @@ describe('isInPersonEvent with an attendanceMode', () => {
     expect(isInPersonEvent({ location: 'Kigali Arena' })).toBe(true);
     expect(isInPersonEvent({ location: 'Zoom' })).toBe(false);
     expect(isInPersonEvent({ location: 'Kigali Arena', attendanceMode: null })).toBe(true);
+  });
+});
+
+describe('giftsEnabled', () => {
+  it('is on for native builds while every other digital good stays off', () => {
+    // Owner decision 2026-10-12: gifts come back on iOS and Android. Nothing
+    // else is unlocked by it, so the store-billing gate still holds for the rest.
+    expect(giftsEnabled).toBe(true);
+    expect(digitalPurchasesEnabled).toBe(false);
+    expect(canShowDigitalPrice(false)).toBe(false);
+  });
+
+  it('is what both viewer screens gate the gift button on', () => {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const root = path.resolve(__dirname, '..', '..');
+    const files = [
+      path.join(root, 'app', '(public)', 'events', 'live-stream.tsx'),
+      path.join(root, 'features', 'streams', 'viewer', 'screens', 'LiveViewerScreen.tsx'),
+    ];
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8');
+      expect(src).toMatch(/giftsEnabled/);
+      // The gift entry points must not hang off the digital-purchases flag, and
+      // an unregistered viewer must still see the button (web hand-off).
+      expect(src).not.toMatch(/digitalPurchasesEnabled\s*\?\s*openGift/);
+      expect(src).not.toMatch(/canGift=\{digitalPurchasesEnabled\}/);
+      expect(src).not.toMatch(/showGift=\{!!viewerId/);
+      expect(src).not.toMatch(/viewerId && giftsEnabled/);
+    }
   });
 });
