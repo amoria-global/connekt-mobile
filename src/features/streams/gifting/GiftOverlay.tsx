@@ -82,6 +82,11 @@ export function parseGiftMeta(raw?: string | null): GiftMeta | null {
   }
 }
 
+/** The exact USD catalog price, never converted. */
+export function formatGiftUsdBase(v: number): string {
+  return `$${Number.isInteger(v) ? v : v.toFixed(2)}`;
+}
+
 /** "$5", "$2.50" in USD (whole dollars stay clean); in the selected display currency otherwise. */
 export function formatGiftUsd(v: number): string {
   if (useCurrency.getState().currency !== 'USD') return formatPrice(v, 'USD');
