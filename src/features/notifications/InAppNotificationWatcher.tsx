@@ -15,7 +15,7 @@ import { Animated, AppState, Platform, Pressable, Text, Vibration, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync } from '@/utils/safeAudio';
 import { Ionicons } from '@expo/vector-icons';
 import { useRole } from '@/features/auth/role';
 import { listNotifications, type AppNotification } from './api';

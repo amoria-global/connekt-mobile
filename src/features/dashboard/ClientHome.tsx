@@ -956,18 +956,15 @@ export function ClientHome() {
             }}
           >
             <LinearGradient
-              colors={['#083A85', '#0C2B68', '#161233']}
+              colors={isDark ? ['#131B2A', '#0F1622'] : ['#082F6E', '#0B3A85']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            {/* Subtle ambient lighting spheres */}
-            <View style={styles.ambientOrbRight} pointerEvents="none" />
-            <View style={styles.ambientOrbLeft} pointerEvents="none" />
 
             <View style={styles.editorialContent}>
               <View style={styles.editorialBadge}>
-                <Ionicons name="sparkles" size={11} color="#FFD1EC" />
+                <Ionicons name="sparkles" size={10} color={isDark ? '#93C5FD' : '#FFFFFF'} />
                 <Text style={styles.editorialBadgeText}>CURATED CREATORS</Text>
               </View>
               <Text style={styles.editorialTitle}>
@@ -979,11 +976,8 @@ export function ClientHome() {
 
               <View style={styles.editorialCtaRow}>
                 <View style={styles.editorialCtaBtn}>
-                  <Ionicons name="camera" size={13} color="#083A85" />
-                  <Text style={styles.editorialCtaBtnText}>Browse Photographers</Text>
-                </View>
-                <View style={styles.editorialExploreChip}>
-                  <Text style={styles.editorialExploreChipText}>Top Rated 2026</Text>
+                  <Text style={styles.editorialCtaBtnText}>Browse Creators</Text>
+                  <Ionicons name="arrow-forward" size={12} color={colors.primary} />
                 </View>
               </View>
             </View>
@@ -1305,13 +1299,13 @@ export function ClientHome() {
                   style={[
                     styles.categoryIconWrap,
                     active && styles.categoryIconWrapActive,
-                    !active && { backgroundColor: c.color + '18' },
+                    !active && { backgroundColor: colors.tint },
                   ]}
                 >
                   <Ionicons
                     name={c.icon}
                     size={iconSize}
-                    color={active ? '#FFFFFF' : c.color}
+                    color={active ? '#FFFFFF' : c.isLive ? '#EF4444' : colors.primary}
                   />
                 </View>
                 <Text
@@ -1337,7 +1331,6 @@ export function ClientHome() {
           <Pressable
             style={({ pressed }) => [
               styles.bentoCard,
-              styles.bentoCardHero,
               responsive.isLarge && styles.bentoCardLarge,
               pressed && styles.cardPressed,
             ]}
@@ -1353,34 +1346,22 @@ export function ClientHome() {
             accessibilityLabel="Book Photographer"
           >
             <View style={styles.bentoTopRow}>
-              <View style={styles.bentoHeroIconBox}>
-                <Ionicons name="camera" size={19} color="#FFFFFF" />
+              <View style={styles.bentoIconBox}>
+                <Ionicons name="camera" size={18} color={colors.primary} />
               </View>
-              <View
-                style={[
-                  styles.bentoBadge,
-                  {
-                    backgroundColor: colors.tint,
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
-              >
-                <Ionicons name="sparkles" size={9.5} color={colors.primary} />
-                <Text style={[styles.bentoBadgeText, { color: colors.primary }]}>PROS</Text>
+              <View style={styles.bentoArrowCircle}>
+                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
 
             <View style={styles.bentoBottomRow}>
               <View style={styles.bentoTextWrap}>
-                <Text style={styles.bentoTitle} numberOfLines={2}>
+                <Text style={styles.bentoTitle} numberOfLines={1}>
                   Book Photographer
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
-                  {env.hybridBookingEnabled ? 'Find one, or post your event' : 'Find verified pros'}
+                  {env.hybridBookingEnabled ? 'Find talent or post event' : 'Verified pros'}
                 </Text>
-              </View>
-              <View style={styles.bentoHeroActionBtn}>
-                <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
               </View>
             </View>
           </Pressable>
@@ -1398,25 +1379,13 @@ export function ClientHome() {
               <View
                 style={[
                   styles.bentoIconBox,
-                  {
-                    backgroundColor: isDark ? 'rgba(242, 12, 143, 0.16)' : 'rgba(242, 12, 143, 0.08)',
-                    borderColor: colors.borderSoft,
-                  },
+                  { backgroundColor: isDark ? 'rgba(242, 12, 143, 0.14)' : 'rgba(242, 12, 143, 0.08)' },
                 ]}
               >
-                <Ionicons name="scan" size={19} color="#F20C8F" />
+                <Ionicons name="scan" size={18} color="#F20C8F" />
               </View>
-              <View
-                style={[
-                  styles.bentoBadge,
-                  {
-                    backgroundColor: isDark ? 'rgba(242, 12, 143, 0.14)' : 'rgba(242, 12, 143, 0.06)',
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
-              >
-                <Ionicons name="flash" size={9.5} color="#F20C8F" />
-                <Text style={[styles.bentoBadgeText, { color: '#F20C8F' }]}>AI SCAN</Text>
+              <View style={styles.bentoArrowCircle}>
+                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
 
@@ -1428,9 +1397,6 @@ export function ClientHome() {
                 <Text style={styles.bentoSub} numberOfLines={1}>
                   Instant face match
                 </Text>
-              </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
           </Pressable>
@@ -1448,49 +1414,26 @@ export function ClientHome() {
               <View
                 style={[
                   styles.bentoIconBox,
-                  hasAnyLiveStream
-                    ? {
-                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : 'rgba(239, 68, 68, 0.08)',
-                        borderColor: colors.borderSoft,
-                      }
-                    : {
-                        backgroundColor: colors.tint,
-                        borderColor: colors.borderSoft,
-                      },
+                  hasAnyLiveStream && {
+                    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.08)',
+                  },
                 ]}
               >
                 <Ionicons
                   name={hasAnyLiveStream ? 'videocam' : 'videocam-outline'}
-                  size={19}
+                  size={18}
                   color={hasAnyLiveStream ? '#EF4444' : colors.primary}
                 />
               </View>
 
               {hasAnyLiveStream ? (
-                <View
-                  style={[
-                    styles.bentoBadge,
-                    {
-                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.08)',
-                      borderColor: 'rgba(239, 68, 68, 0.25)',
-                    },
-                  ]}
-                >
+                <View style={styles.bentoLiveBadge}>
                   <View style={styles.bentoLiveDot} />
-                  <Text style={[styles.bentoBadgeText, { color: '#EF4444' }]}>LIVE NOW</Text>
+                  <Text style={styles.bentoLiveBadgeText}>LIVE</Text>
                 </View>
               ) : (
-                <View
-                  style={[
-                    styles.bentoBadge,
-                    {
-                      backgroundColor: colors.tint,
-                      borderColor: colors.borderSoft,
-                    },
-                  ]}
-                >
-                  <Ionicons name="radio" size={9.5} color={colors.primary} />
-                  <Text style={[styles.bentoBadgeText, { color: colors.primary }]}>STREAMS</Text>
+                <View style={styles.bentoArrowCircle}>
+                  <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
                 </View>
               )}
             </View>
@@ -1503,9 +1446,6 @@ export function ClientHome() {
                 <Text style={styles.bentoSub} numberOfLines={1}>
                   {hasAnyLiveStream ? 'Broadcasts in real-time' : 'Shoots & streams'}
                 </Text>
-              </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
           </Pressable>
@@ -1523,43 +1463,21 @@ export function ClientHome() {
               <View
                 style={[
                   styles.bentoIconBox,
-                  {
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.08)',
-                    borderColor: colors.borderSoft,
-                  },
+                  { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.08)' },
                 ]}
               >
-                <Ionicons
-                  name="images"
-                  size={19}
-                  color="#10B981"
-                />
+                <Ionicons name="images" size={18} color="#10B981" />
               </View>
-              <View
-                style={[
-                  styles.bentoBadge,
-                  {
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.06)',
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
-              >
-                {deliveredPhotosCount > 0 ? (
-                  <Text
-                    style={[
-                      styles.bentoBadgeText,
-                      { color: isDark ? '#34D399' : '#10B981' },
-                    ]}
-                  >
-                    {deliveredPhotosCount} READY
-                  </Text>
-                ) : (
-                  <>
-                    <Ionicons name="albums-outline" size={9.5} color="#10B981" />
-                    <Text style={[styles.bentoBadgeText, { color: '#10B981' }]}>VAULT</Text>
-                  </>
-                )}
-              </View>
+
+              {deliveredPhotosCount > 0 ? (
+                <View style={styles.bentoReadyBadge}>
+                  <Text style={styles.bentoReadyBadgeText}>{deliveredPhotosCount} READY</Text>
+                </View>
+              ) : (
+                <View style={styles.bentoArrowCircle}>
+                  <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
+                </View>
+              )}
             </View>
 
             <View style={styles.bentoBottomRow}>
@@ -1570,9 +1488,6 @@ export function ClientHome() {
                 <Text style={styles.bentoSub} numberOfLines={1}>
                   Saved collections
                 </Text>
-              </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
           </Pressable>
@@ -1588,15 +1503,12 @@ export function ClientHome() {
             accessibilityLabel="View Total Bookings"
           >
             <View style={styles.statsHeaderRow}>
-              <View style={[styles.statsIconBox, { backgroundColor: colors.tint }]}>
-                <Ionicons name="calendar" size={13} color={colors.primary} />
-              </View>
-              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              <Ionicons name="calendar-outline" size={13} color={colors.primary} />
+              <Text style={styles.statsLabel} numberOfLines={1}>Bookings</Text>
             </View>
             <Text style={styles.statsNum}>
               {analytics.data?.totalBookings ?? 0}
             </Text>
-            <Text style={styles.statsLabel} numberOfLines={1}>Bookings</Text>
           </Pressable>
 
           <View style={styles.statsDivider} />
@@ -1609,15 +1521,12 @@ export function ClientHome() {
             accessibilityLabel="View Ready Photos"
           >
             <View style={styles.statsHeaderRow}>
-              <View style={[styles.statsIconBox, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : 'rgba(16, 185, 129, 0.10)' }]}>
-                <Ionicons name="images" size={13} color="#10B981" />
-              </View>
-              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              <Ionicons name="images-outline" size={13} color="#10B981" />
+              <Text style={styles.statsLabel} numberOfLines={1}>Photos Ready</Text>
             </View>
             <Text style={styles.statsNum}>
               {analytics.data?.totalPhotos ?? 0}
             </Text>
-            <Text style={styles.statsLabel} numberOfLines={1}>Photos Ready</Text>
           </Pressable>
 
           <View style={styles.statsDivider} />
@@ -1630,15 +1539,12 @@ export function ClientHome() {
             accessibilityLabel="View Saved Photographers"
           >
             <View style={styles.statsHeaderRow}>
-              <View style={[styles.statsIconBox, { backgroundColor: isDark ? 'rgba(242, 12, 143, 0.16)' : 'rgba(242, 12, 143, 0.08)' }]}>
-                <Ionicons name="bookmark" size={13} color="#F20C8F" />
-              </View>
-              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              <Ionicons name="bookmark-outline" size={13} color="#F20C8F" />
+              <Text style={styles.statsLabel} numberOfLines={1}>Saved Pros</Text>
             </View>
             <Text style={styles.statsNum}>
               {analytics.data?.bookmarkedPhotographers ?? 0}
             </Text>
-            <Text style={styles.statsLabel} numberOfLines={1}>Saved Pros</Text>
           </Pressable>
         </View>
 
@@ -2054,19 +1960,20 @@ const useStyles = makeStyles((c, e) => ({
   header: {
     paddingHorizontal: spacing.xs,
     paddingTop: spacing.xs,
-    gap: 3,
+    gap: 4,
   },
   headerEyebrow: {
     color: c.textMuted,
     fontFamily: fonts.bold,
-    fontSize: 10.5,
+    fontSize: 11,
     letterSpacing: 1.1,
+    textTransform: 'uppercase',
   },
   headerTitle: {
     color: c.text,
     fontFamily: fonts.bold,
-    fontSize: 27,
-    lineHeight: 33,
+    fontSize: 28,
+    lineHeight: 34,
     letterSpacing: -0.6,
   },
   headerName: {
@@ -2075,8 +1982,9 @@ const useStyles = makeStyles((c, e) => ({
   headerSubtitle: {
     color: c.textMuted,
     fontFamily: fonts.regular,
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 1,
   },
 
   // Pending Alert (Theme Adaptive & Dismissable)
@@ -2275,29 +2183,11 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii['2xl'],
     overflow: 'hidden',
     padding: spacing.xl,
-    minHeight: 180,
+    minHeight: 165,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    ...e(3),
-  },
-  ambientOrbRight: {
-    position: 'absolute',
-    top: -30,
-    right: -25,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(59,130,246,0.12)',
-  },
-  ambientOrbLeft: {
-    position: 'absolute',
-    bottom: -30,
-    left: -20,
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    ...e(2),
   },
   editorialContent: {
     gap: 6,
@@ -2308,8 +2198,8 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     gap: 5,
     backgroundColor: 'rgba(255,255,255,0.14)',
-    paddingHorizontal: 10,
-    paddingVertical: 3.5,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: radii.full,
     alignSelf: 'flex-start',
   },
@@ -2317,53 +2207,41 @@ const useStyles = makeStyles((c, e) => ({
     fontFamily: fonts.bold,
     fontSize: 9.5,
     color: '#FFFFFF',
-    letterSpacing: 0.7,
+    letterSpacing: 0.8,
   },
   editorialTitle: {
     fontFamily: fonts.bold,
-    fontSize: 21,
+    fontSize: 22,
     color: '#FFFFFF',
     letterSpacing: -0.4,
-    lineHeight: 27,
+    lineHeight: 28,
     marginTop: 2,
   },
   editorialSubtitle: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: 12.5,
     color: 'rgba(255,255,255,0.85)',
     lineHeight: 17,
   },
   editorialCtaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 6,
+    marginTop: 8,
   },
   editorialCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 13,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 7.5,
     borderRadius: radii.full,
     ...e(1),
   },
   editorialCtaBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 11.5,
-    color: '#083A85',
-  },
-  editorialExploreChip: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-  },
-  editorialExploreChipText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    color: c.primary,
   },
 
   // Real-Time Inline Search Bar
@@ -2671,31 +2549,50 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'space-between',
   },
   bentoIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.tint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bentoBadge: {
+  bentoLiveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3.5,
-    paddingHorizontal: 7.5,
-    paddingVertical: 3,
-    borderRadius: radii.full,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: radii.full,
   },
-  bentoBadgeText: {
+  bentoLiveBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
+    color: '#EF4444',
+    letterSpacing: 0.5,
+  },
+  bentoReadyBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: radii.full,
+  },
+  bentoReadyBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 9.5,
+    color: '#10B981',
     letterSpacing: 0.5,
   },
   bentoLiveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: '#EF4444',
   },
   bentoBottomRow: {
@@ -2717,61 +2614,39 @@ const useStyles = makeStyles((c, e) => ({
   },
   bentoSub: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 11.5,
     color: c.textMuted,
-    marginTop: 2,
+    marginTop: 1,
   },
   bentoArrowCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
     backgroundColor: c.surfaceMuted,
-    borderWidth: 0.5,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bentoCardHero: {
-    borderColor: 'rgba(8, 58, 133, 0.22)',
-    borderWidth: 1.5,
-  },
-  bentoHeroIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: c.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...e(2),
-  },
-  bentoHeroActionBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: c.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...e(2),
-  },
 
-  // Luxury Trio Stats KPI Card
+  // Minimalist Trio Stats KPI Card
   statsBar: {
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    borderRadius: radii['2xl'],
+    borderRadius: radii.xl,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: spacing.sm,
     ...e(1),
   },
   statsSegment: {
     flex: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: radii.lg,
-    justifyContent: 'space-between',
+    borderRadius: radii.md,
+    gap: 3,
   },
   statsSegmentPressed: {
     backgroundColor: c.surfaceMuted,
@@ -2779,21 +2654,13 @@ const useStyles = makeStyles((c, e) => ({
   statsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  statsIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
   },
   statsDivider: {
-    width: 1,
+    width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
     backgroundColor: c.borderSoft,
-    marginVertical: spacing.xs,
+    marginVertical: 4,
   },
   statsNum: {
     fontFamily: fonts.bold,
@@ -2804,10 +2671,8 @@ const useStyles = makeStyles((c, e) => ({
   },
   statsLabel: {
     fontFamily: fonts.regular,
-    fontWeight: '600',
-    fontSize: 11,
+    fontSize: 11.5,
     color: c.textMuted,
-    marginTop: 2,
   },
 
   // Section Headers
@@ -2907,19 +2772,19 @@ const useStyles = makeStyles((c, e) => ({
   feedFilterTrack: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 6,
-    gap: 6,
+    padding: 3.5,
+    gap: 4,
     backgroundColor: c.surfaceMuted,
-    borderBottomWidth: 1,
-    borderBottomColor: c.borderSoft,
+    borderRadius: radii.lg,
+    margin: spacing.sm,
   },
   filterPill: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
+    paddingVertical: 6.5,
     paddingHorizontal: 8,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
   },
   filterPillActive: {
     backgroundColor: c.surface,

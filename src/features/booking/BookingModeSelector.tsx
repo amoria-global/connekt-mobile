@@ -20,6 +20,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -93,7 +94,7 @@ export function BookingModeSelector({
   existingEvent,
   onPosted,
 }: BookingModeSelectorProps) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -382,38 +383,87 @@ export function BookingModeSelector({
   if (step === 'select') {
     body = (
       <View style={{ gap: spacing.md }}>
-        <Text style={styles.subtitle}>Two ways in. Both end in the same secure booking and payment.</Text>
-        {(['DIRECT', 'HYBRID'] as const).map((mode) => {
-          const m = MODE_META[mode];
-          const steps = mode === 'DIRECT'
-            ? ['Browse photographers and their packages', 'Send a request to the one you like', 'They accept, you pay, you are booked']
-            : ['Describe your event, time and budget', 'Matching, available photographers are alerted', 'Pick from the ones who said yes'];
-          return (
-            <Pressable key={mode} onPress={mode === 'DIRECT' ? goDirect : goHybrid} accessibilityRole="button" accessibilityLabel={`${m.label}. ${m.line}`}
-              style={({ pressed }) => [styles.modeCard, { borderColor: `${m.color}55` }, pressed && { borderColor: m.color, opacity: 0.95 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                <View style={[styles.modeIcon, { backgroundColor: m.soft }]}><Ionicons name={m.icon} size={22} color={m.color} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.eyebrow, { color: m.color }]}>{m.short.toUpperCase()}</Text>
-                  <Text style={styles.modeTitle}>{m.label}</Text>
+        {/* Option 1: Direct Selection */}
+        <Pressable
+          onPress={goDirect}
+          accessibilityRole="button"
+          accessibilityLabel="Browse photographers and book directly"
+          style={({ pressed }) => [
+            styles.modeCard,
+            pressed && styles.modeCardPressed,
+          ]}
+        >
+          <View style={styles.modeCardHeader}>
+            <View style={[styles.modeIconBox, { backgroundColor: colors.tint }]}>
+              <Ionicons name="camera" size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={styles.modeTitleRow}>
+                <Text style={styles.modeCardTitle}>Browse Photographers</Text>
+                <View style={[styles.modeTypePill, { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft }]}>
+                  <Text style={[styles.modeTypePillText, { color: colors.textMuted }]}>Direct</Text>
                 </View>
-                <Ionicons name="arrow-forward-circle" size={28} color={m.color} />
               </View>
-              <Text style={styles.modeLine}>{m.line}</Text>
-              {steps.map((s, i) => (
-                <View key={s} style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-                  <View style={[styles.stepDot, { backgroundColor: m.soft }]}><Text style={[styles.stepDotText, { color: m.color }]}>{i + 1}</Text></View>
-                  <Text style={styles.modeStep}>{s}</Text>
-                </View>
-              ))}
-              <Text style={styles.hint}>
-                <Text style={{ fontWeight: fontWeight.bold }}>Best when: </Text>
-                {mode === 'DIRECT' ? 'you already know who you want, or want to compare portfolios yourself.' : 'you want the best available photographer near you without searching.'}
+              <Text style={styles.modeCardDesc}>
+                Look through portfolios, compare packages, and reach out directly to the photographer you want.
               </Text>
-            </Pressable>
-          );
-        })}
-        <Text style={[styles.hint, { textAlign: 'center' }]}>Either way you pay 50%, 70% or 100% upfront, held by Connekyt until your photos are delivered.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </View>
+
+          <View style={styles.modeFeatureList}>
+            <View style={styles.modeFeatureItem}>
+              <Ionicons name="images-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.modeFeatureText}>See photos, reviews, and package prices</Text>
+            </View>
+            <View style={styles.modeFeatureItem}>
+              <Ionicons name="chatbubbles-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.modeFeatureText}>Message and book directly with the creator</Text>
+            </View>
+          </View>
+        </Pressable>
+
+        {/* Option 2: Post My Event (Smart Matching) */}
+        <Pressable
+          onPress={goHybrid}
+          accessibilityRole="button"
+          accessibilityLabel="Post your event and get matched with available photographers"
+          style={({ pressed }) => [
+            styles.modeCard,
+            styles.modeCardFeatured,
+            pressed && styles.modeCardPressed,
+          ]}
+        >
+          <View style={styles.modeCardHeader}>
+            <View style={[styles.modeIconBox, { backgroundColor: isDark ? 'rgba(242, 12, 143, 0.16)' : 'rgba(242, 12, 143, 0.08)' }]}>
+              <Ionicons name="calendar" size={20} color="#F20C8F" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={styles.modeTitleRow}>
+                <Text style={styles.modeCardTitle}>Post Your Event</Text>
+                <View style={[styles.modeTypePill, styles.modeTypePillFeatured]}>
+                  <Ionicons name="flash" size={8} color="#F20C8F" />
+                  <Text style={[styles.modeTypePillText, { color: '#F20C8F' }]}>Faster</Text>
+                </View>
+              </View>
+              <Text style={styles.modeCardDesc}>
+                Share your event date, location, and budget. Photographers who are free will reply, and you choose who you like.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </View>
+
+          <View style={styles.modeFeatureList}>
+            <View style={styles.modeFeatureItem}>
+              <Ionicons name="notifications-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.modeFeatureText}>Photographers who are actually free respond to you</Text>
+            </View>
+            <View style={styles.modeFeatureItem}>
+              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.modeFeatureText}>Saves time — no need to message people one by one</Text>
+            </View>
+          </View>
+        </Pressable>
       </View>
     );
   } else if (!options && !optionsError) {
@@ -593,22 +643,30 @@ export function BookingModeSelector({
     );
   }
 
-  const headerTitle = step === 'select' ? 'How do you want to book?' : step === 1 ? 'Tell us about your event'
+  const headerTitle = step === 'select' ? 'How would you like to book?' : step === 1 ? 'Tell us about your event'
     : step === 2 ? 'Who should we look for?' : step === 3 ? 'Review and post' : 'Your event is posted';
   const canPublish = !submitting && count !== 0 && options?.enabled !== false;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={step === 'done' ? finish : close}>
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + spacing.md : spacing.lg }]}>
-          <View style={{ flex: 1 }}>
-            {step !== 'select' && (
-              <Text style={[styles.eyebrow, { color: accent }]}>POST MY EVENT{typeof step === 'number' ? ` · STEP ${step} OF 3` : ''}</Text>
+        {/* Native Sheet Grab Handle */}
+        <View style={styles.sheetHandleContainer}>
+          <View style={styles.sheetHandle} />
+        </View>
+
+        <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + spacing.sm : spacing.xs }]}>
+          <View style={{ flex: 1, gap: 2 }}>
+            {typeof step === 'number' && (
+              <Text style={[styles.eyebrow, { color: accent }]}>STEP {step} OF 3</Text>
             )}
             <Text style={styles.headerTitle} accessibilityRole="header">{headerTitle}</Text>
+            {step === 'select' && (
+              <Text style={styles.headerSubtitle}>Pick someone yourself, or let available photographers come to you.</Text>
+            )}
           </View>
           <Pressable onPress={step === 'done' ? finish : close} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeBtn}>
-            <Ionicons name="close" size={20} color={colors.textSoft} />
+            <Ionicons name="close" size={18} color={colors.textSoft} />
           </Pressable>
         </View>
         {typeof step === 'number' && (
@@ -701,53 +759,332 @@ export function BookingModeSelector({
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: spacing.md },
-  headerTitle: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text },
-  eyebrow: { fontSize: 11, fontWeight: fontWeight.extrabold, letterSpacing: 0.8 },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
-  progress: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.lg },
-  progressBar: { flex: 1, height: 4, borderRadius: 2 },
-  subtitle: { fontSize: fontSize.sm, color: c.textMuted },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
-  hint: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 17 },
-  error: { color: c.error, backgroundColor: c.errorBg, padding: spacing.md, borderRadius: radii.md, fontSize: fontSize.sm },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+const useStyles = makeStyles((c, e) => ({
+  sheetHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  sheetHandle: {
+    width: 38,
+    height: 4.5,
+    borderRadius: 2.5,
+    backgroundColor: c.borderSoft,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    gap: spacing.md,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: c.textMuted,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  eyebrow: {
+    fontSize: 10.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.9,
+    color: c.textMuted,
+    textTransform: 'uppercase',
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  progress: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: spacing.lg,
+    marginTop: 4,
+  },
+  progressBar: {
+    flex: 1,
+    height: 3,
+    borderRadius: 1.5,
+  },
+  subtitle: {
+    fontSize: fontSize.sm,
+    color: c.textMuted,
+    lineHeight: 19,
+  },
+  label: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  hint: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    lineHeight: 17,
+  },
+  error: {
+    color: c.error,
+    backgroundColor: c.errorBg,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    fontSize: fontSize.sm,
+  },
+  wrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   input: {
-    borderWidth: 1.5, borderColor: c.border, borderRadius: radii.md, paddingHorizontal: spacing.md,
-    paddingVertical: 12, fontSize: fontSize.md, color: c.text, backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    fontSize: fontSize.md,
+    color: c.text,
+    backgroundColor: c.card,
   },
   select: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1.5, borderColor: c.border,
-    borderRadius: radii.md, paddingHorizontal: spacing.md, minHeight: 48, backgroundColor: c.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.md,
+    minHeight: 48,
+    backgroundColor: c.card,
   },
-  selectText: { flex: 1, fontSize: fontSize.md, color: c.text, fontWeight: fontWeight.semibold },
-  durationPill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: 'rgba(242,12,143,0.10)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.full },
-  matchPanel: { borderWidth: 1.5, borderColor: c.border, backgroundColor: c.surfaceMuted, borderRadius: radii.lg, padding: spacing.md },
-  matchCount: { fontSize: 34, fontWeight: fontWeight.extrabold, color: c.primary, fontVariant: ['tabular-nums'] },
-  matchTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.extrabold, color: c.text },
-  breakdown: { fontSize: fontSize.xs, color: c.textSoft },
-  modeCard: { borderWidth: 2, borderRadius: radii.xl, padding: spacing.lg, gap: spacing.sm, backgroundColor: c.card },
-  modeIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  modeTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-  modeLine: { fontSize: fontSize.sm, color: c.textSoft, lineHeight: 20 },
-  modeStep: { fontSize: fontSize.sm, color: c.textSoft },
-  stepDot: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  stepDotText: { fontSize: 11, fontWeight: fontWeight.extrabold },
-  summary: { borderWidth: 1, borderColor: c.border, borderRadius: radii.lg, padding: spacing.md, backgroundColor: c.card },
-  summaryKey: { fontSize: 10, fontWeight: fontWeight.bold, color: c.textMuted, letterSpacing: 0.6 },
-  summaryVal: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text },
-  nextIcon: { width: 26, height: 26, borderRadius: 8, backgroundColor: c.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
-  doneIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-  doneTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text, textAlign: 'center' },
-  footer: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: c.borderSoft, backgroundColor: c.surface },
-  primaryBtn: { minHeight: 52, borderRadius: radii.lg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  primaryText: { color: '#fff', fontSize: fontSize.md, fontWeight: fontWeight.extrabold },
-  secondaryBtn: { width: 52, minHeight: 52, borderRadius: radii.lg, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
-  scrim: { flex: 1, backgroundColor: c.scrim, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: radii['2xl'], borderTopRightRadius: radii['2xl'], padding: spacing.lg },
-  listRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: spacing.md, borderRadius: radii.md },
-  listText: { fontSize: fontSize.md, color: c.text },
+  selectText: {
+    flex: 1,
+    fontSize: fontSize.md,
+    color: c.text,
+    fontWeight: fontWeight.semibold,
+  },
+  durationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(242,12,143,0.10)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+  },
+  matchPanel: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.card,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    ...e(1),
+  },
+  matchCount: {
+    fontSize: 34,
+    fontWeight: fontWeight.extrabold,
+    color: c.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  matchTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  breakdown: {
+    fontSize: fontSize.xs,
+    color: c.textSoft,
+  },
+
+  // Redesigned Mode Cards
+  modeCard: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii['2xl'],
+    padding: spacing.lg,
+    gap: spacing.md,
+    backgroundColor: c.card,
+    ...e(1),
+  },
+  modeCardFeatured: {
+    borderColor: 'rgba(242, 12, 143, 0.28)',
+    backgroundColor: c.card,
+    ...e(1),
+  },
+  modeCardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.985 }],
+  },
+  modeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  modeIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modeCardTitle: {
+    fontSize: 16.5,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+    letterSpacing: -0.3,
+  },
+  modeTypePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    borderWidth: 1,
+  },
+  modeTypePillFeatured: {
+    backgroundColor: 'rgba(242, 12, 143, 0.08)',
+    borderColor: 'rgba(242, 12, 143, 0.22)',
+  },
+  modeTypePillText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+  },
+  modeCardDesc: {
+    fontSize: 13,
+    color: c.textMuted,
+    lineHeight: 18.5,
+  },
+  modeFeatureList: {
+    gap: 7,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.borderSoft,
+  },
+  modeFeatureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modeFeatureText: {
+    fontSize: 12.5,
+    color: c.textSoft,
+  },
+
+  // Summary & Review
+  summary: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    backgroundColor: c.card,
+  },
+  summaryKey: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: c.textMuted,
+    letterSpacing: 0.6,
+  },
+  summaryVal: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: c.text,
+  },
+  nextIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: c.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeStep: {
+    fontSize: fontSize.sm,
+    color: c.textSoft,
+    lineHeight: 19,
+  },
+  doneIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+    textAlign: 'center',
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.borderSoft,
+    backgroundColor: c.surface,
+  },
+  primaryBtn: {
+    minHeight: 52,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    ...e(1),
+  },
+  primaryText: {
+    color: '#fff',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.extrabold,
+  },
+  secondaryBtn: {
+    width: 52,
+    minHeight: 52,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surface,
+  },
+  scrim: {
+    flex: 1,
+    backgroundColor: c.scrim,
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: c.surface,
+    borderTopLeftRadius: radii['2xl'],
+    borderTopRightRadius: radii['2xl'],
+    padding: spacing.lg,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+  },
+  listText: {
+    fontSize: fontSize.md,
+    color: c.text,
+  },
 }));
 
 // Kept for older imports; amount formatting now lives in @/utils/amount.
