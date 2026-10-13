@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from '@/utils/safeAudio';
 import type { EventItem } from '@/features/events/types';
 import { formatPrice } from '@/utils/format';
 import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
