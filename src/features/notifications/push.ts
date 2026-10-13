@@ -67,6 +67,83 @@ export function resetPushRegistration(): void {
 }
 
 /**
+ * Ensures Android channels are created with MAX importance, vibration, sound,
+ * and PUBLIC lockscreen visibility so alerts wake the screen.
+ */
+export async function ensureAndroidChannels(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: 'Amoria Connect Notifications',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#083A85',
+    sound: 'connekyt_chime.wav',
+    enableVibrate: true,
+    showBadge: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+
+  await Notifications.setNotificationChannelAsync('booking_updates', {
+    name: 'Booking Updates',
+    description: 'Accepted, declined and paid bookings, deposits and payment reminders',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#083A85',
+    sound: 'connekyt_chime.wav',
+    enableVibrate: true,
+    showBadge: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+
+  await Notifications.setNotificationChannelAsync('urgent_booking_alerts', {
+    name: 'Urgent Booking & Opportunity Alerts',
+    description: 'Rings for new booking requests and event opportunities',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 500, 250, 500, 250, 500],
+    lightColor: '#F20C8F',
+    sound: 'connekyt_ringtone.wav',
+    enableVibrate: true,
+    showBadge: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    bypassDnd: true,
+  });
+}
+
+/**
+ * Registers interactive notification categories for lock-screen 1-tap actions.
+ */
+export async function ensureNotificationCategories(): Promise<void> {
+  try {
+    await Notifications.setNotificationCategoryAsync('OPPORTUNITY_ALERT', [
+      {
+        identifier: 'ACTION_APPROVE',
+        buttonTitle: "I'm Available",
+        options: {
+          opensAppToForeground: true,
+        },
+      },
+      {
+        identifier: 'ACTION_DECLINE',
+        buttonTitle: 'Decline',
+        options: {
+          opensAppToForeground: false,
+          isDestructive: true,
+        },
+      },
+    ]);
+    await Notifications.setNotificationCategoryAsync('BOOKING_REQUEST', [
+      {
+        identifier: 'VIEW_REQUEST',
+        buttonTitle: 'View & respond',
+        options: { opensAppToForeground: true },
+      },
+    ]);
+  } catch {
+    // Non-fatal if categories unsupported in current environment
+  }
+}
+
+/**
  * Requests permission and registers this device's Expo push token with the
  * backend. Safe to call more than once (no-ops after the first success) and
  * on any platform (returns null where push isn't available, e.g. simulators
@@ -76,97 +153,51 @@ export async function registerForPushNotifications(): Promise<string | null> {
   try {
     if (registered) return null;
     if (Platform.OS === 'web') return null;
-    // Expo push tokens only work on real hardware, not simulators.
-    if (!Device.isDevice) return null;
 
-    // Android needs a channel with MAX importance for lock-screen wake and heads-up banner.
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Amoria Connect Notifications',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#083A85',
-        sound: 'connekyt_chime.wav',
-        enableVibrate: true,
-        showBadge: true,
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      });
+    // Ensure channels and interactive action categories
+    await ensureAndroidChannels();
+    await ensureNotificationCategories();
 
-      await Notifications.setNotificationChannelAsync('booking_updates', {
-        name: 'Booking Updates',
-        description: 'Accepted, declined and paid bookings, deposits and payment reminders',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#083A85',
-        sound: 'connekyt_chime.wav',
-        enableVibrate: true,
-        showBadge: true,
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-      });
-
-      await Notifications.setNotificationChannelAsync('urgent_booking_alerts', {
-        name: 'Urgent Booking & Opportunity Alerts',
-        description: 'Rings for new booking requests and event opportunities',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 500, 250, 500, 250, 500],
-        lightColor: '#F20C8F',
-        sound: 'connekyt_ringtone.wav',
-        enableVibrate: true,
-        showBadge: true,
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-        bypassDnd: true,
-      });
-    }
-
-    // Interactive notification category for lock-screen 1-tap actioning
-    try {
-      await Notifications.setNotificationCategoryAsync('OPPORTUNITY_ALERT', [
-        {
-          identifier: 'ACTION_APPROVE',
-          buttonTitle: "I'm Available",
-          options: {
-            opensAppToForeground: true,
-          },
-        },
-        {
-          identifier: 'ACTION_DECLINE',
-          buttonTitle: 'Decline',
-          options: {
-            opensAppToForeground: false,
-            isDestructive: true,
-          },
-        },
-      ]);
-      // Direct booking request: one button that opens the incoming-request
-      // screen. Accept isn't offered here because it commits the photographer
-      // and starts the client's payment; they see the details first.
-      await Notifications.setNotificationCategoryAsync('BOOKING_REQUEST', [
-        {
-          identifier: 'VIEW_REQUEST',
-          buttonTitle: 'View & respond',
-          options: { opensAppToForeground: true },
-        },
-      ]);
-    } catch {
-      // Non-fatal if categories unsupported in current environment
-    }
-
+    // Request OS notification permissions (Alert, Badge, Sound, Lock screen)
     const settings = await Notifications.getPermissionsAsync();
     let granted = settings.granted || settings.status === 'granted';
     if (!granted) {
-      const req = await Notifications.requestPermissionsAsync();
+      const req = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+        },
+      });
       granted = req.granted || req.status === 'granted';
     }
-    if (!granted) return null;
+
+    if (!granted) {
+      console.warn('[push] Notification permissions not granted by user.');
+      return null;
+    }
+
+    // Check device hardware for remote push token acquisition
+    if (!Device.isDevice) {
+      console.log('[push] Running on simulator/emulator — remote push tokens require physical hardware. Channels & local notifications are enabled.');
+      return null;
+    }
 
     const projectId =
       (Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined)?.projectId ??
-      (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig?.projectId;
+      (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig?.projectId ??
+      'd81fbfa6-f576-4450-97c6-c443332179be';
 
     const { data: token } = await Notifications.getExpoPushTokenAsync(
       projectId ? { projectId } : undefined,
     );
-    if (!token) return null;
+
+    if (!token) {
+      console.warn('[push] Could not obtain Expo push token.');
+      return null;
+    }
+
+    console.log('[push] Push token obtained:', token);
 
     // Latch only AFTER the backend has accepted it. Setting it first meant a
     // single network failure permanently convinced this install that it was
@@ -177,11 +208,147 @@ export async function registerForPushNotifications(): Promise<string | null> {
       Platform.OS === 'android' ? NOTIFICATION_CHANNELS.join(',') : undefined,
     );
     registered = true;
+    console.log('[push] Successfully registered push token with backend.');
     return token;
-  } catch {
-    // Permission denied / no network / not configured — non-fatal.
+  } catch (err) {
+    console.warn('[push] Failed to register for push notifications:', err);
     return null;
   }
+}
+
+/**
+ * Schedules a local test notification to trigger in `delaySeconds` seconds.
+ * Allows the user to tap "Test", immediately lock their phone, and verify
+ * that the screen lights up with banner, sound, and vibration on the lock screen.
+ */
+export async function scheduleTestLockScreenNotification(delaySeconds = 5): Promise<string> {
+  await ensureAndroidChannels();
+  await ensureNotificationCategories();
+  const channelId = Platform.OS === 'android' ? 'urgent_booking_alerts' : undefined;
+  return await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Connekyt Notification 🔔',
+      body: 'Lock-screen notifications are working! Tap to open Connekyt.',
+      sound: 'connekyt_ringtone.wav',
+      data: { type: 'TEST', timestamp: Date.now() },
+      categoryIdentifier: 'BOOKING_REQUEST',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: delaySeconds,
+      channelId,
+    },
+  });
+}
+
+/**
+ * Schedules a simulated incoming booking request alert to trigger in `delaySeconds` seconds.
+ * Fires with full booking metadata, custom ringtone, and lock-screen "View & respond" button.
+ */
+export async function scheduleTestBookingAlert(delaySeconds = 5): Promise<string> {
+  await ensureAndroidChannels();
+  await ensureNotificationCategories();
+  const channelId = Platform.OS === 'android' ? 'urgent_booking_alerts' : undefined;
+  return await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'New Booking Request 🔔',
+      body: 'Sarah Jenkins requested a 4-hour Wedding photography package. Tap to respond.',
+      sound: 'connekyt_ringtone.wav',
+      data: {
+        type: 'BOOKING',
+        kind: 'BOOKING_REQUEST',
+        referenceId: 'test-booking',
+        eventId: 'test-event',
+        timestamp: Date.now(),
+      },
+      categoryIdentifier: 'BOOKING_REQUEST',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: delaySeconds,
+      channelId,
+    },
+  });
+}
+
+export type NotificationDiagnostic = {
+  permissionGranted: boolean;
+  permissionStatus: string;
+  isDevice: boolean;
+  pushToken: string | null;
+  registeredWithBackend: boolean;
+  channelsSummary?: string;
+  iosDetails?: {
+    allowsAlert?: boolean | null;
+    allowsBadge?: boolean | null;
+    allowsSound?: boolean | null;
+    allowsLockScreen?: boolean | null;
+  };
+};
+
+/**
+ * Inspects system notification permissions, physical device status, Expo push token,
+ * backend registration, and Android/iOS lock-screen readiness.
+ */
+export async function checkNotificationDiagnostics(): Promise<NotificationDiagnostic> {
+  const settings = await Notifications.getPermissionsAsync();
+  const permissionGranted = settings.granted || settings.status === 'granted';
+
+  let pushToken: string | null = null;
+  let isRegistered = registered;
+
+  if (permissionGranted && Device.isDevice) {
+    try {
+      const projectId =
+        (Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined)?.projectId ??
+        (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig?.projectId ??
+        'd81fbfa6-f576-4450-97c6-c443332179be';
+      const res = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+      pushToken = res.data;
+      if (!isRegistered && pushToken) {
+        await registerPushToken(
+          pushToken,
+          Platform.OS,
+          Platform.OS === 'android' ? NOTIFICATION_CHANNELS.join(',') : undefined,
+        );
+        registered = true;
+        isRegistered = true;
+      }
+    } catch (e) {
+      console.warn('[diagnostics] Push token check error:', e);
+    }
+  }
+
+  let channelsSummary = '';
+  if (Platform.OS === 'android') {
+    try {
+      await ensureAndroidChannels();
+      const channels = await Notifications.getNotificationChannelsAsync();
+      const urgent = channels.find((c) => c.id === 'urgent_booking_alerts');
+      const updates = channels.find((c) => c.id === 'booking_updates');
+      channelsSummary = `Android Channels:\n• Urgent Alert: ${urgent ? `Active (Importance ${urgent.importance})` : 'Missing'}\n• Booking Updates: ${updates ? `Active (Importance ${updates.importance})` : 'Missing'}`;
+    } catch {
+      channelsSummary = 'Android Channels: Could not inspect';
+    }
+  }
+
+  return {
+    permissionGranted,
+    permissionStatus: settings.status,
+    isDevice: Device.isDevice,
+    pushToken,
+    registeredWithBackend: isRegistered,
+    channelsSummary: Platform.OS === 'android' ? channelsSummary : undefined,
+    iosDetails:
+      Platform.OS === 'ios'
+        ? {
+            allowsAlert: settings.ios?.allowsAlert,
+            allowsBadge: settings.ios?.allowsBadge,
+            allowsSound: settings.ios?.allowsSound,
+            allowsLockScreen: settings.ios?.allowsDisplayOnLockScreen,
+          }
+        : undefined,
+  };
 }
 
 /** The channel that rings for booking requests and opportunities. */

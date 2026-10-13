@@ -256,3 +256,15 @@ export async function registerPushToken(token: string, platform: string, channel
     throw { status: 400, message: 'Push token was not registered' };
   }
 }
+
+/**
+ * Triggers a backend test push notification to this account's registered devices.
+ * Uses POST /customer/notifications/test-push
+ */
+export async function sendBackendTestPush(title?: string, body?: string): Promise<void> {
+  await api.post('/customer/notifications/test-push', {
+    title: title || 'Connekyt Notification Test',
+    body: body || 'Test notification dispatched from Connekyt server.',
+  });
+}
+
