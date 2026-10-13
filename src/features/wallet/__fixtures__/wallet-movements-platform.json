@@ -1,0 +1,80 @@
+{
+  "data" : {
+    "size" : 50,
+    "totalElements" : 5,
+    "number" : 0,
+    "content" : [ {
+      "id" : "70fb9ac5-1118-41df-b820-ccd4347f4e2e",
+      "walletId" : "b82aeec7-f5c2-4a95-9685-9a385a248f23",
+      "customerId" : "e253a317-1629-4e83-9458-904ff025d71a",
+      "category" : "HELD",
+      "direction" : "DEBIT",
+      "amountUsd" : 30.0000,
+      "originalAmount" : null,
+      "originalCurrency" : null,
+      "sourceType" : "EVENT_PAYMENT_DECLARATION",
+      "sourceId" : "eb268ce9-ad6f-4e9b-9989-5e96c0dd9a3b",
+      "description" : "Escrow release: PHOTOBOOK_HOLD_RELEASED",
+      "actorId" : null,
+      "createdAt" : "2026-10-13T12:37:38.615701"
+    }, {
+      "id" : "9d765f83-fe33-492e-a6ec-4cf5106d1cf2",
+      "walletId" : "b82aeec7-f5c2-4a95-9685-9a385a248f23",
+      "customerId" : "e253a317-1629-4e83-9458-904ff025d71a",
+      "category" : "HELD",
+      "direction" : "DEBIT",
+      "amountUsd" : 20.0000,
+      "originalAmount" : null,
+      "originalCurrency" : null,
+      "sourceType" : "EVENT_PAYMENT_DECLARATION",
+      "sourceId" : "eb268ce9-ad6f-4e9b-9989-5e96c0dd9a3b",
+      "description" : "Escrow release: DELIVERY_HOLD_RELEASED_ALBUM_SUBMITTED",
+      "actorId" : null,
+      "createdAt" : "2026-10-13T12:37:38.572173"
+    }, {
+      "id" : "adde290f-8119-4b8b-b6dc-fe630334a986",
+      "walletId" : "b82aeec7-f5c2-4a95-9685-9a385a248f23",
+      "customerId" : "e253a317-1629-4e83-9458-904ff025d71a",
+      "category" : "HELD",
+      "direction" : "CREDIT",
+      "amountUsd" : 30.0000,
+      "originalAmount" : 100000.0000,
+      "originalCurrency" : "RWF",
+      "sourceType" : "EVENT_PAYMENT_DECLARATION",
+      "sourceId" : "eb268ce9-ad6f-4e9b-9989-5e96c0dd9a3b",
+      "description" : "Escrow hold: MS1_PHOTOBOOK_HOLD",
+      "actorId" : null,
+      "createdAt" : "2026-10-13T12:37:38.523389"
+    }, {
+      "id" : "07a8683d-8ac7-4531-9386-2b458ab683d1",
+      "walletId" : "b82aeec7-f5c2-4a95-9685-9a385a248f23",
+      "customerId" : "e253a317-1629-4e83-9458-904ff025d71a",
+      "category" : "HELD",
+      "direction" : "CREDIT",
+      "amountUsd" : 20.0000,
+      "originalAmount" : 100000.0000,
+      "originalCurrency" : "RWF",
+      "sourceType" : "EVENT_PAYMENT_DECLARATION",
+      "sourceId" : "eb268ce9-ad6f-4e9b-9989-5e96c0dd9a3b",
+      "description" : "Escrow hold: MS1_DELIVERY_HOLD",
+      "actorId" : null,
+      "createdAt" : "2026-10-13T12:37:38.490698"
+    }, {
+      "id" : "662fa11f-96c3-4ed8-84f5-19fe3e7386f0",
+      "walletId" : "b82aeec7-f5c2-4a95-9685-9a385a248f23",
+      "customerId" : "e253a317-1629-4e83-9458-904ff025d71a",
+      "category" : "BALANCE",
+      "direction" : "CREDIT",
+      "amountUsd" : 4.5000,
+      "originalAmount" : 100000.0000,
+      "originalCurrency" : "RWF",
+      "sourceType" : "EVENT_PAYMENT_DECLARATION",
+      "sourceId" : "eb268ce9-ad6f-4e9b-9989-5e96c0dd9a3b",
+      "description" : "Booking platform fee (photographer 9%)",
+      "actorId" : null,
+      "createdAt" : "2026-10-13T12:37:38.447817"
+    } ]
+  },
+  "message" : "Movements retrieved",
+  "action" : 1
+}

@@ -47,6 +47,17 @@ function num(v: unknown): number {
   return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
 }
 
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+const REQUIRED_WALLET_NUMBERS = [
+  'balanceAvailable',
+  'pendingAmount',
+  'heldForDelivery',
+  'totalWithdrawn',
+  'totalRefunded',
+  'clientSpent',
+] as const;
+
 const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 
 /** Known balance fields → friendly labels. */
@@ -73,7 +84,16 @@ export async function getWallet(): Promise<WalletDTO> {
       message: res?.message || 'Could not load your wallet. Pull to refresh.',
     } satisfies ApiError;
   }
-  const d = (res?.data ?? {}) as RawWallet;
+  const d = res?.data as RawWallet | null | undefined;
+  // The backend never leaves these money columns null, so a payload without
+  // one is a bad response. Reading it as zero showed a funded or suspended
+  // wallet as an empty ACTIVE one.
+  if (!d || typeof d !== 'object' || !REQUIRED_WALLET_NUMBERS.every((k) => isFiniteNumber(d[k]))) {
+    throw {
+      status: 502,
+      message: 'Your wallet came back incomplete. Pull to refresh.',
+    } satisfies ApiError;
+  }
 
   const pots: WalletPot[] = Object.entries(POT_LABELS)
     .map(([key, label]) => ({ key, label, amount: num(d[key]) }))
