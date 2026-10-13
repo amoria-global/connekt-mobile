@@ -23,7 +23,7 @@ describe('gift prices follow the one display currency', () => {
   it('shows the USD price, not a guess, when the backend gave no rate for the chosen currency', () => {
     const noRate = useCurrency.getState().currencies.map((c) => (c.code === 'RWF' ? { ...c, rate: 0 } : c));
     useCurrency.setState({ currency: 'RWF', currencies: noRate });
-    expect(formatGiftUsd(5)).toBe('USD 5');
+    expect(formatGiftUsd(5)).toBe('$5.00');
   });
 
   it('keeps the base USD line unconverted so it is never mislabelled', () => {
