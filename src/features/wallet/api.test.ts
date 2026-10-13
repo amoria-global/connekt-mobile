@@ -46,6 +46,63 @@ describe('wallet payload to mobile figures', () => {
     expect(rows.reduce((t, r) => t + r.amount, 0)).toBeCloseTo(95.5, 4);
   });
 
+  it('every ledger amount is labelled USD, including the one that came from a 100,000 RWF payment', async () => {
+    // Found by the native emulator run: the booking credit is amountUsd 45.50 with originalCurrency RWF. It was
+    // labelled RWF, so the screens converted "45.50 RWF" and showed +$0.04 instead of +$45.50.
+    mockGetOk.mockResolvedValueOnce(fixture('wallet-movements-photographer.json'));
+    const rows = await listWalletMovements();
+    const booking = rows.find((r) => /Booking MS1_UPFRONT/.test(r.description ?? ''))!;
+    expect(booking.amount).toBeCloseTo(45.5, 4);
+    expect(booking.currency).toBe('USD');
+    expect(rows.map((r) => r.currency)).toEqual(['USD', 'USD', 'USD']);
+    // The payment's own figure stays available for display, as information.
+    expect(booking.originalAmount).toBe(100000);
+    expect(booking.originalCurrency).toBe('RWF');
+  });
+
+  it('a payload that carries only an original amount keeps that amount in its own currency', async () => {
+    mockGetOk.mockResolvedValueOnce({ action: 1, data: { content: [
+      { id: 'm1', direction: 'CREDIT', originalAmount: 5000, originalCurrency: 'RWF', description: 'legacy row' },
+    ] } });
+    const [row] = await listWalletMovements();
+    expect(row.amount).toBe(5000);
+    expect(row.currency).toBe('RWF');
+  });
+
+  it('a payload that states its own amount and currency is taken as it says', async () => {
+    mockGetOk.mockResolvedValueOnce({ action: 1, data: { content: [
+      { id: 'm2', direction: 'DEBIT', amount: 12.5, currency: 'USD', description: 'withdrawal' },
+    ] } });
+    const [row] = await listWalletMovements();
+    expect(row).toMatchObject({ amount: 12.5, currency: 'USD', direction: 'out' });
+  });
+
+  it('a history row missing its id, direction or amount makes the history an error, never an invented debit', async () => {
+    // Found by the native emulator run: {id:"x1"} was shown as an outgoing "Balance deduction" of an unknown amount, just now.
+    for (const bad of [
+      { id: 'x1' },
+      { id: 'x2', direction: 'CREDIT' },
+      { id: 'x3', amountUsd: 5 },
+      { direction: 'DEBIT', amountUsd: 5 },
+      { id: 'x4', direction: 'DEBIT', amountUsd: 'n/a' },
+    ]) {
+      mockGetOk.mockResolvedValueOnce({ action: 1, data: { content: [bad] } });
+      await expect(listWalletMovements()).rejects.toMatchObject({ status: 502, message: expect.stringContaining('incomplete') });
+    }
+  });
+
+  it('one bad row among good ones fails the whole history instead of silently dropping or inventing it', async () => {
+    const good = fixture('wallet-movements-photographer.json').data.content;
+    mockGetOk.mockResolvedValueOnce({ action: 1, data: { content: [...good, { id: 'x1' }] } });
+    await expect(listWalletMovements()).rejects.toMatchObject({ message: expect.stringContaining('incomplete') });
+  });
+
+  it('a genuine zero-amount row is a complete row', async () => {
+    mockGetOk.mockResolvedValueOnce({ action: 1, data: { content: [{ id: 'z1', direction: 'CREDIT', amountUsd: 0, description: 'zero' }] } });
+    const [row] = await listWalletMovements();
+    expect(row).toMatchObject({ id: 'z1', amount: 0, direction: 'in' });
+  });
+
   it('client movements show 100.00 going out', async () => {
     mockGetOk.mockResolvedValueOnce(fixture('wallet-movements-client.json'));
     const rows = await listWalletMovements();
