@@ -8,6 +8,7 @@ import type { ApiEnvelope, ApiError } from '@/types';
 import {
   applyRates,
   FALLBACK_CURRENCIES,
+  KNOWN_CURRENCIES,
   mapSource,
   readInitiate,
   readVerify,
@@ -37,7 +38,7 @@ export async function getDisplayCurrencies(): Promise<DisplayCurrency[]> {
       '/public/currencies/rates',
       { skipAuth: true },
     );
-    if (res?.action === 1 && res.data) return applyRates(FALLBACK_CURRENCIES, res.data);
+    if (res?.action === 1 && res.data) return applyRates(KNOWN_CURRENCIES, res.data);
     return USD_ONLY;
   } catch {
     // Without live rates a local-currency amount would be converted at a
