@@ -2,7 +2,7 @@ import React from 'react';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { Text } from 'react-native';
 
-import WalletScreen from './wallet';
+import WalletScreen from '@/app/(app)/(tabs)/wallet';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
 
 /**
