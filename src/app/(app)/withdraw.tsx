@@ -29,12 +29,11 @@ import {
 import {
   amountError,
   displayToUsd,
-  DONATION_PRESETS_RWF,
+  donationPresets,
   FALLBACK_CURRENCIES,
   floorTo,
   formatDisplay,
   parseAmount,
-  rwfPresetToDisplay,
   usdToDisplay,
   verificationCopy,
   type Verification,
@@ -95,7 +94,8 @@ export default function WithdrawScreen() {
 
   const currencyList = currencies.data ?? FALLBACK_CURRENCIES;
   const currency = currencyList.find((c) => c.code === currencyCode) ?? currencyList[0];
-  const rwfRate = currencyList.find((c) => c.code === 'RWF')?.rate ?? 1460;
+  // 0 when the backend gave no RWF rate: no donation presets are offered then.
+  const rwfRate = currencyList.find((c) => c.code === 'RWF')?.rate ?? 0;
 
   const sourceList = sources.data ?? [];
   const source: WithdrawSource | null =
@@ -547,18 +547,15 @@ export default function WithdrawScreen() {
                 </View>
                 <Text style={styles.muted}>Add a small donation to help fund community projects and initiatives.</Text>
                 <View style={styles.chips}>
-                  {DONATION_PRESETS_RWF.map((rwf) => {
-                    const v = rwfPresetToDisplay(rwf, rwfRate, currency);
-                    return (
-                      <Chip
-                        key={rwf}
-                        accent
-                        label={formatDisplay(v, currency)}
-                        active={donation.mode === 'preset' && donation.value === v}
-                        onPress={() => setDonation({ mode: 'preset', value: v })}
-                      />
-                    );
-                  })}
+                  {donationPresets(rwfRate, currency).map((v) => (
+                    <Chip
+                      key={v}
+                      accent
+                      label={formatDisplay(v, currency)}
+                      active={donation.mode === 'preset' && donation.value === v}
+                      onPress={() => setDonation({ mode: 'preset', value: v })}
+                    />
+                  ))}
                   <Chip
                     accent
                     label="Other"

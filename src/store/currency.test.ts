@@ -14,6 +14,10 @@ const put = api.put as jest.Mock;
 const signedIn = (yes: boolean) =>
   (useAuth.getState as jest.Mock).mockReturnValue({ status: yes ? 'authenticated' : 'unauthenticated' });
 
+// Test-owned rates. The app ships no rate for any currency but USD (the backend supplies
+// them), so these tests state the rates they convert with instead of leaning on defaults.
+const LIVE_RATES = DEFAULT_CURRENCIES.map((c) => ({ ...c, rate: ({ RWF: 1460, EUR: 0.84 } as Record<string, number>)[c.code] ?? c.rate }));
+
 // Expected strings are what web's CurrencyContext.formatPrice produces for the same inputs.
 describe('convertAndFormat (parity with web formatPrice)', () => {
   it('treats an omitted source as USD and formats USD with a $ prefix', () => {
@@ -21,12 +25,12 @@ describe('convertAndFormat (parity with web formatPrice)', () => {
   });
 
   it('converts USD to RWF with no decimals and a symbol prefix', () => {
-    expect(convertAndFormat(10, 'USD', 'RWF', DEFAULT_CURRENCIES)).toBe('RF 14,600');
+    expect(convertAndFormat(10, 'USD', 'RWF', LIVE_RATES)).toBe('RF 14,600');
   });
 
   it('converts through USD between two non-USD currencies', () => {
-    expect(convertAndFormat(1460, 'RWF', 'USD', DEFAULT_CURRENCIES)).toBe('$1.00');
-    expect(convertAndFormat(1460, 'RWF', 'EUR', DEFAULT_CURRENCIES)).toBe('€0.84');
+    expect(convertAndFormat(1460, 'RWF', 'USD', LIVE_RATES)).toBe('$1.00');
+    expect(convertAndFormat(1460, 'RWF', 'EUR', LIVE_RATES)).toBe('€0.84');
   });
 
   it('returns null for a source currency with no known rate, so callers keep the original label', () => {

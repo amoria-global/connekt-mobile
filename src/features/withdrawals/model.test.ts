@@ -3,6 +3,7 @@ import {
   applyRates,
   displayToUsd,
   FALLBACK_CURRENCIES,
+  KNOWN_CURRENCIES,
   formatDisplay,
   mapSource,
   readInitiate,
@@ -37,12 +38,14 @@ describe('currency', () => {
     expect(displayToUsd(25, USD)).toBe(25);
   });
 
-  it('takes live rates when present and keeps the fallback otherwise', () => {
-    const live = applyRates(FALLBACK_CURRENCIES, { RWF: { rateToUsd: 1455.5, symbol: 'RF' } });
+  // Changed 2026-10-13: there is no built-in RWF rate. Without a usable backend rate
+  // RWF is left out (USD only) instead of being converted at an invented 1460.
+  it('takes live rates when present and leaves RWF out otherwise', () => {
+    const live = applyRates(KNOWN_CURRENCIES, { RWF: { rateToUsd: 1455.5, symbol: 'RF' } });
     expect(live.find((c) => c.code === 'RWF')?.rate).toBe(1455.5);
     expect(live.find((c) => c.code === 'USD')?.rate).toBe(1);
-    expect(applyRates(FALLBACK_CURRENCIES, null)).toEqual(FALLBACK_CURRENCIES);
-    expect(applyRates(FALLBACK_CURRENCIES, { RWF: { rateToUsd: 0 } })[0].rate).toBe(1460);
+    expect(applyRates(KNOWN_CURRENCIES, null)).toEqual(FALLBACK_CURRENCIES);
+    expect(applyRates(KNOWN_CURRENCIES, { RWF: { rateToUsd: 0 } }).map((c) => c.code)).toEqual(['USD']);
   });
 
   it('formats letter symbols spaced and sign symbols tight', () => {
