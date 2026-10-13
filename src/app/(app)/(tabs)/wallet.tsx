@@ -171,6 +171,17 @@ export default function WalletScreen() {
             />
           }
         >
+          {/* A failed refresh keeps the last balance on screen; say so instead of presenting it as current. */}
+          {error && data ? (
+            <View style={styles.suspensionBanner} accessibilityRole="alert">
+              <Ionicons name="cloud-offline-outline" size={18} color="#92400E" />
+              <View style={styles.suspensionContent}>
+                <Text style={styles.suspensionTitle}>Could not refresh your wallet</Text>
+                <Text style={styles.suspensionDate}>The balance below is the last one we received. Pull down to try again.</Text>
+              </View>
+            </View>
+          ) : null}
+
           {/* Suspension warning banner (salo-run parity) */}
           {data?.wallet?.status === 'SUSPENDED' || data?.wallet?.suspensionReason ? (
             <View style={styles.suspensionBanner}>

@@ -1,6 +1,6 @@
 import React from 'react';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 
 import WalletScreen from '@/app/(app)/(tabs)/wallet';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
@@ -151,5 +151,34 @@ describe('mobile wallet tab as rendered', () => {
     const text = flat(r.root);
     expect(text).toContain('$95.50');
     expect(text.toLowerCase()).toMatch(/couldn|could not|unable|failed|try again/);
+  });
+});
+
+describe('found by the native emulator run', () => {
+  it('the booking credit from a 100,000 RWF payment shows +$45.50 in the activity, never +$0.04', async () => {
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const r = await mount();
+    await reveal(r);
+    const text = flat(r.root);
+    expect(text).toContain('+$45.50');
+    expect(text).not.toContain('$0.04');
+  });
+
+  it('a failed refresh keeps the last balance but says it could not refresh; a healthy load shows no such notice', async () => {
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const r = await mount();
+    await reveal(r);
+    expect(flat(r.root)).toContain('$95.50');
+    expect(flat(r.root)).not.toContain('Could not refresh your wallet');
+
+    mockGetOk.mockReset();
+    mockGetOk.mockResolvedValue({ action: 0, message: 'Wallet unavailable' });
+    await act(async () => {
+      await r.root.findByType(ScrollView).props.refreshControl.props.onRefresh();
+    });
+    const text = flat(r.root);
+    expect(text).toContain('Could not refresh your wallet');
+    expect(text).toContain('$95.50'); // the last known figure is still shown, now labelled as such
+    expect(text).not.toContain('$0.00');
   });
 });

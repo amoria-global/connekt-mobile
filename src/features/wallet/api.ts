@@ -173,11 +173,38 @@ export async function listWalletMovements(page = 0, size = 50): Promise<Movement
   const res = await api.getOk<ApiEnvelope<unknown>>(
     `/wallet/me/movements?page=${page}&size=${size}`,
   );
-  return pageContent(res?.data).map((r) => {
+  const raw = pageContent(res?.data);
+  // The backend always sends an id, a direction and an amount. A row without one cannot be shown truthfully: it used to
+  // become an outgoing "Balance deduction" of an unknown amount, just now. Treat it as a bad response, like an incomplete
+  // wallet, rather than dropping or inventing it.
+  const complete = raw.every(
+    (r) => !!str(r.id) && !!str(r.direction) && [r.amount, r.amountUsd, r.originalAmount].some(isFiniteNumber),
+  );
+  if (!complete) {
+    throw {
+      status: 502,
+      message: 'Your transaction history came back incomplete. Pull to refresh.',
+    } satisfies ApiError;
+  }
+  return raw.map((r) => {
     const dir = (str(r.direction) ?? '').toLowerCase();
     const cat = str(r.category) ?? str(r.sourceType) ?? 'BALANCE';
-    const amt = num(r.amount) || num(r.amountUsd) || num(r.originalAmount);
+    // The figure and its currency must come from the same field. The ledger is USD, so `amountUsd` is USD even when
+    // the payment itself was in RWF (`originalCurrency`). Pairing amountUsd with originalCurrency labelled 45.50 USD
+    // as RWF, and the screens then showed it as $0.04.
     const origAmt = num(r.originalAmount);
+    let amt: number;
+    let cur: string;
+    if (num(r.amount)) {
+      amt = num(r.amount);
+      cur = str(r.currency) || 'USD';
+    } else if (num(r.amountUsd)) {
+      amt = num(r.amountUsd);
+      cur = 'USD';
+    } else {
+      amt = origAmt;
+      cur = str(r.originalCurrency) || str(r.currency) || 'USD';
+    }
     return {
       id: String(r.id ?? ''),
       category: cat,
@@ -185,7 +212,7 @@ export async function listWalletMovements(page = 0, size = 50): Promise<Movement
       amount: amt,
       originalAmount: origAmt || undefined,
       originalCurrency: str(r.originalCurrency) || str(r.currency) || undefined,
-      currency: str(r.currency) || str(r.originalCurrency) || 'USD',
+      currency: cur,
       description: str(r.description),
       createdAt: str(r.createdAt),
       sourceType: str(r.sourceType),
