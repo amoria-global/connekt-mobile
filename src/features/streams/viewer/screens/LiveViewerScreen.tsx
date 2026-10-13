@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as ScreenOrientation from 'expo-screen-orientation';
+import * as ScreenOrientation from '@/utils/safeScreenOrientation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GiftCheckoutSheet } from '@/features/streams/gifting/GiftCheckoutSheet';
 import { GiftOverlay } from '@/features/streams/gifting/GiftOverlay';

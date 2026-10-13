@@ -9,7 +9,7 @@ import { InAppNotificationWatcher } from '@/features/notifications/InAppNotifica
 import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCallNotifier';
 import { showIncomingRequest } from '@/features/bookings/incomingRequests';
 import { useRole } from '@/features/auth/role';
-import { setAudioModeAsync } from 'expo-audio';
+import { setAudioModeAsync } from '@/utils/safeAudio';
 import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';

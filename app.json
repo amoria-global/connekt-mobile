@@ -76,6 +76,7 @@
       [
         "expo-notifications",
         {
+          "enableBackgroundRemoteNotifications": true,
           "color": "#083A85",
           "sounds": [
             "./assets/sounds/connekyt_ringtone.wav",
