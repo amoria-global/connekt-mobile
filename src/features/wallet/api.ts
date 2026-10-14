@@ -169,11 +169,27 @@ function pageContent(data: unknown): Record<string, unknown>[] {
   return Array.isArray(c) ? (c as Record<string, unknown>[]) : [];
 }
 
+export type MovementPage = {
+  items: Movement[];
+  /** True when the server says (or, for an unpaged reply, suggests) that older rows exist. */
+  hasMore: boolean;
+};
+
 export async function listWalletMovements(page = 0, size = 50): Promise<Movement[]> {
+  return (await listWalletMovementsPage(page, size)).items;
+}
+
+/**
+ * One page of the ledger. `/wallet/me/movements` returns a Spring Page, so `last: false` is the server's own
+ * statement that older movements exist. A reply with no `last` flag falls back to "a full page means maybe more".
+ */
+export async function listWalletMovementsPage(page = 0, size = 50): Promise<MovementPage> {
   const res = await api.getOk<ApiEnvelope<unknown>>(
     `/wallet/me/movements?page=${page}&size=${size}`,
   );
   const raw = pageContent(res?.data);
+  const last = (res?.data as { last?: unknown } | null | undefined)?.last;
+  const hasMore = typeof last === 'boolean' ? !last : raw.length >= size;
   // The backend always sends an id, a direction and an amount. A row without one cannot be shown truthfully: it used to
   // become an outgoing "Balance deduction" of an unknown amount, just now. Treat it as a bad response, like an incomplete
   // wallet, rather than dropping or inventing it.
@@ -186,7 +202,7 @@ export async function listWalletMovements(page = 0, size = 50): Promise<Movement
       message: 'Your transaction history came back incomplete. Pull to refresh.',
     } satisfies ApiError;
   }
-  return raw.map((r) => {
+  const items = raw.map((r) => {
     const dir = (str(r.direction) ?? '').toLowerCase();
     const cat = str(r.category) ?? str(r.sourceType) ?? 'BALANCE';
     // The figure and its currency must come from the same field. The ledger is USD, so `amountUsd` is USD even when
@@ -219,6 +235,7 @@ export async function listWalletMovements(page = 0, size = 50): Promise<Movement
       sourceId: str(r.sourceId),
     } satisfies Movement;
   }).filter((m) => m.id);
+  return { items, hasMore };
 }
 
 // --- Payroll report (photographer) ---------------------------------------

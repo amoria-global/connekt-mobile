@@ -4,7 +4,7 @@
  * The exact field names from the backend can vary, so we map defensively:
  * unknown fields are simply ignored and the UI shows what it has.
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import type { PickedImage } from '@/services/imagePicker';
 import { appendFile } from '@/utils/upload';
 import type { ApiError, ApiEnvelope } from '@/types';
@@ -238,7 +238,9 @@ export async function listPhotographerEvents(): Promise<EventItem[]> {
   // The photographer endpoint returns the full list (no pagination) but in
   // booking/insertion order — sort newest-created first for parity with the
   // other dashboards.
-  const res = await api.get<ApiEnvelope<unknown>>('/photographer/events');
+  // A refused request answers HTTP 200 with action:0. Without requireOk that read
+  // as an empty list and the dashboard said "no events" instead of "could not load".
+  const res = requireOk(await api.get<ApiEnvelope<unknown>>('/photographer/events'));
   return sortByCreatedDesc(unwrapList(res?.data).map(mapEvent).filter((e) => e.id));
 }
 
@@ -465,6 +467,14 @@ async function action(path: string, fallback: string): Promise<void> {
   if (res.action !== 1) {
     throw { status: 400, message: res.message || fallback } satisfies ApiError;
   }
+}
+
+/**
+ * Hides a finished event from the photographer's own list (web: POST /photographer/events/{id}/dismiss, a soft
+ * delete; the client and the event itself are untouched). The server only checks that the caller is assigned.
+ */
+export function dismissPhotographerEvent(id: string): Promise<void> {
+  return action(`/photographer/events/${encodeURIComponent(id)}/dismiss`, 'Could not remove the event.');
 }
 
 /** Publishes an event (makes it public/live). */
