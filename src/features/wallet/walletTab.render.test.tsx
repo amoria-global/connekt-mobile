@@ -69,6 +69,18 @@ async function reveal(r: TestRenderer.ReactTestRenderer) {
   });
 }
 
+/** Photographers see Overview / Analytics / Activity tabs; open one by its label. */
+async function openTab(r: TestRenderer.ReactTestRenderer, label: string) {
+  const tab = r.root.findAll(
+    (n) =>
+      n.props?.accessibilityRole === 'tab' &&
+      n.findAllByType(Text).some((t) => t.props.children === label),
+  )[0];
+  await act(async () => {
+    tab.props.onPress();
+  });
+}
+
 function serve(walletFile: string, movementsFile: string | Error) {
   mockGetOk.mockImplementation(async (path: string) => {
     if (path.startsWith('/wallet/me/movements')) {
@@ -148,8 +160,8 @@ describe('mobile wallet tab as rendered', () => {
     serve('wallet-me-photographer.json', new Error('boom'));
     const r = await mount();
     await reveal(r);
+    await openTab(r, 'Activity');
     const text = flat(r.root);
-    expect(text).toContain('$95.50');
     expect(text.toLowerCase()).toMatch(/couldn|could not|unable|failed|try again/);
   });
 });
@@ -159,6 +171,7 @@ describe('found by the native emulator run', () => {
     serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
     const r = await mount();
     await reveal(r);
+    await openTab(r, 'Activity');
     const text = flat(r.root);
     expect(text).toContain('+$45.50');
     expect(text).not.toContain('$0.04');
@@ -180,5 +193,67 @@ describe('found by the native emulator run', () => {
     expect(text).toContain('Could not refresh your wallet');
     expect(text).toContain('$95.50'); // the last known figure is still shown, now labelled as such
     expect(text).not.toContain('$0.00');
+  });
+});
+
+describe('photographer wallet tabs', () => {
+  it('splits Overview, Analytics and Activity so the screen is not one long scroll', async () => {
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const r = await mount();
+    await reveal(r);
+
+    let text = flat(r.root);
+    expect(text).toContain('Earnings breakdown');
+    expect(text).not.toContain('Showing'); // the activity list is on its own tab
+
+    await openTab(r, 'Activity');
+    text = flat(r.root);
+    expect(text).toContain('Showing');
+    expect(text).not.toContain('Earnings breakdown');
+  });
+
+  it('analytics labels balances as balances and never invents a period earnings figure', async () => {
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const r = await mount();
+    await openTab(r, 'Analytics');
+    const text = flat(r.root);
+    expect(text).toContain('Available to withdraw');
+    expect(text).toContain('Current balance, not a period figure.');
+    expect(text).toContain('Where your balance comes from');
+    expect(text).not.toMatch(/Released this month|NaN|undefined/);
+  });
+
+  it('other roles still see every section on one screen, without tabs', async () => {
+    mockRole = 'CLIENT';
+    serve('wallet-me-client.json', 'wallet-movements-client.json');
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).not.toContain('Analytics');
+    expect(text).toContain('Showing');
+  });
+});
+
+describe('photographer activity beyond the first 50 movements', () => {
+  it('offers older transactions when the server says more exist, and fetches the next page', async () => {
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const base = mockGetOk.getMockImplementation()!;
+    const older = { id: 'older-1', direction: 'IN', amount: 7, category: 'BOOKING', description: 'Older booking payout', createdAt: '2025-01-01T10:00:00' };
+    mockGetOk.mockImplementation(async (path: string) => {
+      if (path.startsWith('/wallet/me/movements?page=0')) {
+        const f = await base(path);
+        return { ...f, data: { ...(f.data.content ? f.data : { content: f.data }), last: false } };
+      }
+      if (path.startsWith('/wallet/me/movements?page=1')) return { action: 1, data: { content: [older], last: true } };
+      return base(path);
+    });
+    const r = await mount();
+    await openTab(r, 'Activity');
+    const btn = () => r.root.findAll((n) => n.props?.accessibilityLabel === 'Load older transactions' && typeof n.props?.onPress === 'function')[0];
+    expect(btn()).toBeDefined();
+    await act(async () => {
+      await btn().props.onPress();
+    });
+    expect(mockGetOk).toHaveBeenCalledWith('/wallet/me/movements?page=1&size=50');
+    expect(btn()).toBeUndefined(); // the last page was reached
   });
 });

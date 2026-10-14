@@ -39,11 +39,16 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
+import { ScheduleView } from '@/features/photographer/ScheduleView';
+import { bucketOf } from '@/features/photographer/schedule';
+import { SegmentedTabs } from '@/features/photographer/kit';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
 import {
   acceptEventBooking,
   declineEventBooking,
+  dismissPhotographerEvent,
   listPhotographerEvents,
 } from './api';
 import type { EventItem } from './types';
@@ -90,30 +95,8 @@ type ViewTab = 'events' | 'albums' | 'photobooks' | 'content';
 type EventFilter = 'all' | 'pending' | 'upcoming' | 'ongoing' | 'completed';
 type PhotogStatus = 'pending' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
 
-/** Collapse the many backend status strings into the web's 5 buckets. */
-function statusOf(e: EventItem): PhotogStatus {
-  if ((e.bookingStatus ?? '').toUpperCase() === 'PENDING') {
-    return 'pending';
-  }
-  switch ((e.status ?? '').toUpperCase()) {
-    case 'PENDING':
-    case 'PROPOSED':
-    case 'ASSIGNED':
-      return 'pending';
-    case 'ONGOING':
-    case 'IN_PROGRESS':
-      return 'ongoing';
-    case 'COMPLETED':
-    case 'DONE':
-    case 'AWAITING_REVIEW':
-      return 'completed';
-    case 'CANCELLED':
-    case 'CANCELED':
-      return 'cancelled';
-    default:
-      return 'upcoming';
-  }
-}
+/** Same buckets as the schedule view, so the list and the calendar never disagree. */
+const statusOf = (e: EventItem): PhotogStatus => bucketOf(e);
 
 const STATUS_PILL: Record<PhotogStatus, { bg: string; fg: string; label: string }> = {
   pending: { bg: '#FEF3C7', fg: '#92400E', label: 'PENDING' },
@@ -169,6 +152,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
 
   const listRef = useRef<FlatList<EventItem>>(null);
   const [view, setView] = useState<ViewTab>('events');
+  // Schedule (calendar) is the default workspace; List keeps the paginated card grid.
+  const [layout, setLayout] = useState<'schedule' | 'list'>('schedule');
   const [filter, setFilter] = useState<EventFilter>('all');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<EventSortOption>('newest');
@@ -288,6 +273,29 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
     }
   };
 
+  // Soft-hides a finished event, as the web's "Dismiss Event" does. Only completed or cancelled events offer it, so a
+  // booking that still needs work can never be tucked away by a stray tap.
+  const onDismissEvent = (e: EventItem) => {
+    Alert.alert('Remove this event?', `"${e.title}" will disappear from your list. The client and the event are not affected.`, [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          setBusyId(e.id);
+          try {
+            await dismissPhotographerEvent(e.id);
+            refresh();
+          } catch (err) {
+            Alert.alert('Could not remove', isApiError(err) ? err.message : 'Please try again.');
+          } finally {
+            setBusyId(null);
+          }
+        },
+      },
+    ]);
+  };
+
   /**
    * Streaming and albums both hang off the public event page, so the backend
    * only accepts them once the event is published. The photographer can't
@@ -337,6 +345,18 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
 
       {view === 'events' ? (
         <>
+          {/* The kit's blocks carry their own side margins; cancel this list's padding. */}
+          <View style={{ marginHorizontal: -spacing.lg }}>
+            <SegmentedTabs
+              label="Events layout"
+              value={layout}
+              onChange={setLayout}
+              tabs={[
+                { key: 'schedule', label: 'Calendar' },
+                { key: 'list', label: 'List' },
+              ]}
+            />
+          </View>
 
           {/* Filter pills */}
           <ScrollView
@@ -363,7 +383,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                   </Text>
                   <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
                     <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
-                      {counts[f]}
+                      {data ? counts[f] : '-'}
                     </Text>
                   </View>
                 </Pressable>
@@ -413,17 +433,45 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
     </View>
   );
 
+  const scheduleMode = view === 'events' && layout === 'schedule';
+  const headerWithSchedule = scheduleMode ? (
+    <View style={{ gap: spacing.md }}>
+      {header}
+      {loading && !data ? (
+        <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
+      ) : error && !data ? (
+        <View style={{ paddingTop: spacing.md }}>
+          <EmptyState icon="cloud-offline-outline" title="Couldn't load events" message={error} />
+        </View>
+      ) : (
+        <View style={{ marginHorizontal: -spacing.lg }}>
+          <ScheduleView
+            events={filtered}
+            allEvents={events}
+            busyId={busyId}
+            onOpen={(e) => router.push(`/event/${e.id}` as Href)}
+            onAccept={(e) => setAcceptTarget(e)}
+            onDecline={(e) => setDeclineTarget(e)}
+            onCreate={() => router.push('/event/new' as Href)}
+          />
+        </View>
+      )}
+    </View>
+  ) : (
+    header
+  );
+
   return (
     <View style={styles.container}>
       <FlatList
         ref={listRef}
         key="photographer-events-grid"
-        data={pagedEvents}
+        data={scheduleMode ? [] : pagedEvents}
         keyExtractor={(e) => e.id}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListHeaderComponent={header}
+        ListHeaderComponent={headerWithSchedule}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
         renderItem={({ item }) => (
@@ -436,10 +484,11 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             onLiveStream={() => onLiveStream(item)}
             onCreateAlbum={() => onCreateAlbum(item)}
             onQr={() => setQrTarget(item)}
+            onDismiss={() => onDismissEvent(item)}
           />
         )}
         ListFooterComponent={
-          sortedAndFiltered.length > 0 ? (
+          !scheduleMode && sortedAndFiltered.length > 0 ? (
             <View style={styles.paginationFooter}>
               <View style={styles.pagerBar}>
                 <Pressable
@@ -500,7 +549,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
           ) : null
         }
         ListEmptyComponent={
-          loading ? (
+          scheduleMode ? null : loading ? (
             <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
           ) : error ? (
             <View style={{ paddingTop: spacing.xl }}>
@@ -655,6 +704,7 @@ function PhotographerEventCard({
   onLiveStream,
   onCreateAlbum,
   onQr,
+  onDismiss,
 }: {
   event: EventItem;
   busy: boolean;
@@ -664,6 +714,7 @@ function PhotographerEventCard({
   onLiveStream: () => void;
   onCreateAlbum: () => void;
   onQr: () => void;
+  onDismiss: () => void;
 }) {
   const styles = useStyles();
   const s = statusOf(event);
@@ -786,6 +837,18 @@ function PhotographerEventCard({
                 <Pressable style={[styles.actBtn, styles.actQr]} onPress={onQr} accessibilityLabel="Show event QR code">
                   <Ionicons name="qr-code" size={13} color="#fff" />
                   <Text style={styles.actText}>QR code</Text>
+                </Pressable>
+              ) : null}
+              {s === 'completed' || s === 'cancelled' ? (
+                <Pressable
+                  style={[styles.actBtn, styles.actQr, busy && styles.actBusy]}
+                  onPress={onDismiss}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${event.title} from my list`}
+                >
+                  <Ionicons name="eye-off-outline" size={13} color="#fff" />
+                  <Text style={styles.actText}>Remove</Text>
                 </Pressable>
               ) : null}
               {isAccepted ? (
