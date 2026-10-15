@@ -97,6 +97,22 @@ function longDate(now = new Date()): string {
   }
 }
 
+/** Same buckets and words as the Events calendar, so a shoot is never described two ways. */
+const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' }> = {
+  pending: { label: 'Awaiting your reply', tone: 'warning' },
+  upcoming: { label: 'Scheduled', tone: 'info' },
+  ongoing: { label: 'In progress', tone: 'success' },
+  completed: { label: 'Completed', tone: 'neutral' },
+  cancelled: { label: 'Cancelled', tone: 'error' },
+};
+
+/** The API's own transaction status, coloured by meaning. Unknown words stay neutral rather than guessing. */
+function txTone(status: string): 'success' | 'warning' | 'neutral' {
+  if (/pend|hold|escrow|process/i.test(status)) return 'warning';
+  if (/credit|complete|paid|releas|success/i.test(status)) return 'success';
+  return 'neutral';
+}
+
 function whenText(e: EventItem): string {
   const day = eventDay(e);
   const parts = [day ? formatDate(day) : '', e.startTime ? clock12(e.startTime) : ''].filter(Boolean);
@@ -260,7 +276,7 @@ export function PhotographerHome() {
         {/* 1. Orientation */}
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
               {greeting()}, {name}
             </Text>
             <Text style={styles.date}>{longDate()}</Text>
@@ -384,6 +400,9 @@ export function PhotographerHome() {
                     accessibilityIgnoresInvertColors
                   />
                 ) : null}
+                <View style={styles.shootBadge}>
+                  <StatusBadge {...SHOOT_STATUS[bucketOf(e)]} />
+                </View>
                 <Text style={styles.cardTitle} numberOfLines={1}>
                   {e.title || 'Photo shoot'}
                 </Text>
@@ -451,7 +470,7 @@ export function PhotographerHome() {
                 icon={m.icon}
                 value={m.value}
                 loading={analytics.loading && !analytics.data}
-                tone={m.key === 'rating' ? 'accent' : 'primary'}
+                tone={m.key === 'rating' ? 'accent' : m.key === 'earned' ? 'success' : 'primary'}
               />
             )}
           />
@@ -486,6 +505,13 @@ export function PhotographerHome() {
                 accessibilityLabel={`${t.eventName}, ${signedMoneyText(t.amount, LEDGER_CURRENCY, hidden)}, ${t.status}`}
                 style={({ pressed }) => [styles.txRow, i < arr.length - 1 && styles.txDivider, pressed && { opacity: 0.85 }]}
               >
+                <View style={[styles.txIcon, { backgroundColor: t.amount < 0 ? colors.warningBg : colors.successBg }]}>
+                  <Ionicons
+                    name={t.amount < 0 ? 'arrow-up' : 'arrow-down'}
+                    size={16}
+                    color={t.amount < 0 ? colors.warning : colors.success}
+                  />
+                </View>
                 <View style={styles.txText}>
                   <Text style={styles.cardTitle} numberOfLines={1}>
                     {t.eventName || 'Shoot payment'}
@@ -495,8 +521,10 @@ export function PhotographerHome() {
                   </Text>
                 </View>
                 <View style={styles.txAmount}>
-                  <Text style={styles.amount}>{signedMoneyText(t.amount, LEDGER_CURRENCY, hidden)}</Text>
-                  <Text style={styles.cardMeta}>{t.status}</Text>
+                  <Text style={[styles.amount, t.amount >= 0 && { color: colors.success }]}>
+                    {signedMoneyText(t.amount, LEDGER_CURRENCY, hidden)}
+                  </Text>
+                  <StatusBadge label={t.status} tone={txTone(t.status)} />
                 </View>
               </Pressable>
             ))}
@@ -586,6 +614,8 @@ const useStyles = makeStyles((c, elevation) => ({
   list: { padding: 0, overflow: 'hidden' },
   txRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, minHeight: 56 },
   txDivider: { borderBottomWidth: 1, borderBottomColor: c.borderSoft },
+  txIcon: { width: 34, height: 34, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },
+  shootBadge: { alignSelf: 'flex-start', marginBottom: spacing.xs },
   txText: { flex: 1, minWidth: 0 },
   txAmount: { alignItems: 'flex-end', maxWidth: '45%' },
   amount: { color: c.text, fontSize: 15, fontWeight: '800' },

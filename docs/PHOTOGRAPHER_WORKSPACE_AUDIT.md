@@ -1,4 +1,4 @@
-# Photographer workspace audit (2026-10-14 to 15, final pass)
+# Photographer workspace audit (2026-10-14 to 15, reconciled after the dark-mode passes)
 
 Scope: photographer Home, Wallet (Overview, Analytics, Activity), Events calendar and list, Analytics,
 Photobooks (photographer side) and the shared pieces they use. Branch `feat/photographer-workspace-redesign`.
@@ -6,6 +6,18 @@ Evidence is code, backend source (`PhotographerDashboardController`, `Photograph
 `EcoWalletController`, `WalletController`, `SeoLookupController`), the web checkout (`connekt-dashboard`,
 `connekyt-landing`) and an Android emulator run (see "Verification"). Customer, merchant and admin dashboards and the
 live-stream experience were not touched.
+
+## Status at a glance (checked against Git and EAS on 2026-10-15)
+
+Two pieces of work are described in this document and they are in different states. Do not read one as the other.
+
+| Work | Branch and commits | State |
+|---|---|---|
+| Photographer redesign (Home, Wallet tabs, Events calendar, Analytics, goals, photobooks, paging) | `feat/photographer-workspace-redesign` (`618358c`, `0dd59fb`), merged to `main` as `d8bb37d` | **Released to Android phones on runtime 2.2.2 over the air.** `main` and `origin/main` were at `201a509` when this was written; `production` at `e46978c`; update group `c917325e` (see "Release status") |
+| iOS | Build 41 (2.2.2) submitted to App Review | Still Waiting for Review when rechecked through the App Store Connect API on 2026-10-15 (2.2.1 is the released version). **No iOS over-the-air update has been published**, so iPhones have none of this work |
+| Dark mode, large-text and shared-surface fixes, honest withdraw balance | `feat/photographer-dark-mode` (`a84a377`, `b8ac8f5`, and the commit that carries this edit) | **Not merged and not published.** It is on the branch only, so no phone has it. Merging it to `main` would publish it to Android automatically unless every commit carries `[skip publish]` |
+
+Consequences worth stating plainly: the Withdraw screen in production still shows `$0.00` when the backend reports no withdrawable source (fixed on the dark-mode branch, see below), and the production dark theme is still the earlier graphite palette. Every statement below under "Dark mode review" describes the unmerged branch.
 
 ## Screen by screen
 
@@ -89,9 +101,9 @@ Status: C complete, P partial, M missing, B blocked by backend, I intentionally 
 | Check | Command | Result |
 |---|---|---|
 | Types | `npx tsc --noEmit` | exit 0 |
-| Tests | `npx jest` | 67 suites passed, 510 tests passed, 1 skipped (clean `main` was 52 suites, 407 tests) |
+| Tests | `npx jest` | 70 suites passed, 551 tests passed, 1 skipped, exit 0, on the dark-mode branch after the third pass (clean `main` was 52 suites, 407 tests) |
 | Lint | per touched file, `npx eslint <file>` against the same file from `git show af5ef62:<file>` (clean `main`) | no touched file has more errors than on `main`, and every new file is clean; the per-file counts are in "Lint comparison" below |
-| OTA gate | `node scripts/check-ota-compatibility.mjs` | refuses: 41 native dependency versions and the config plugins differ from the installed build, "This branch must NOT be published as an OTA update". `main` already has the same refusal; this work changes no dependency and no `app.json` |
+| OTA gate | `node scripts/check-ota-compatibility.mjs` | Passes on the dark-mode branch: version 2.2.2 matches installed build 33, 57 runtime dependencies match, native config unchanged, "Safe to publish to the production channel". (When the redesign first landed, the gate refused because the recorded baseline was build 28; it passes since the baseline was refreshed to build 33.) |
 
 New regression tests (react-test-renderer, the repo's style): `useAsync.test.tsx` (first load, failure then retry, newer-before-older, older failure after newer success, failure keeps previous data, overlapping foreground requests, quiet tick superseding a foreground request, unmount), `useForegroundPolling.test.tsx` (interval, background pause and catch-up, no overlap, disabled and cleanup), `useMovementPages.test.tsx` and `walletTab.render.test.tsx` (paging), `GoalsSection.test.tsx`, `photobooks/api.test.ts`, `events/photographerApi.test.ts`, `PhotographerEventsDashboard.render.test.tsx` (one switch, creation without a floating button, Sort only in List, Remove only on finished events, confirm then dismiss, a refusal keeps the event), `KycBanner.compact.test.tsx`, `ScheduleView.test.tsx` (controlled mode), `photographerAnalytics.render.test.tsx` (lifetime labels), `profileLink.test.ts`, `PhotographerHome.render.test.tsx`, `schedule.test.ts`, `WalletAnalytics.test.tsx`, `money.test.ts`.
 
@@ -110,7 +122,7 @@ Inspected on the emulator, with screenshots:
 - Analytics: the finished screen (lifetime titles, all-time note, rating 4.6/5, empty trajectory state).
 - Larger text (font scale 1.6): Home, and Events Agenda with the switch, badges and conflict banner after the fixes.
 
-Not inspected natively: iOS, dark theme, the Analytics screen's failed state, a real photographer account, real payment or withdrawal flows, tablet sizes. Gestures were `adb` swipes and taps.
+Not inspected in that first emulator run: iOS, dark theme, the Analytics screen's failed state, a real photographer account, real payment or withdrawal flows, tablet sizes. The dark theme and Analytics failed states were inspected later; see "Dark mode review". Gestures were `adb` swipes and taps.
 
 ### Lint comparison
 
@@ -134,12 +146,95 @@ The remaining errors are the React-compiler rules (`set-state-in-effect`, refs d
 
 React-compiler lint errors listed above (identical to `HEAD`). `MultipleDonutOverviewCard.tsx` is now dead code, but `moneyHonesty.test.ts` reads its source, so it was left in place.
 
+## Dark mode review (2026-10-15, branch `feat/photographer-dark-mode`, unmerged)
+
+Reference: the three prototype screens in `Connekyt_Photographer_Prototype.docx` (Home and business overview, Wallet overview with the work calendar, Wallet analytics). Their colours were sampled from the images: screens sit on a deep blue-teal (about `#071321` to `#0B1828`), cards one step up (about `#0F2231` to `#132434`), a blue hairline, a mid blue for selection, pink used sparingly, and amber, green and blue only on small status pills and tiles.
+
+Method: Android emulator (Pixel 5, API 34, system night mode on) running this branch's JavaScript, with a temporary fixture backend (a fake `fetch` plus an auth bypass in the git-ignored sandbox). It proves how the app renders, not what the real server returns. The harness, the `auth.ts` edit and the local servers were removed afterwards, and `git status` and the final diff show neither.
+
+**What the comparison decided**
+
+| Prototype element | Decision | Why |
+|---|---|---|
+| Deep blue-teal ground, lighter navy cards, blue hairline | Adopted: new dark surface steps (`#0A1524`, `#0F1D2F`, `#13243A`, `#1A2E47`, `#1B3049`), `#274463` border | This is most of the visual gap, and it is pure palette |
+| Page background exactly the prototype's | Adapted | The native splash (`app.json`) is `#0E1117`; changing it is a native change that would block the OTA gate. The app ground is now navy, and `AppPreloader` still draws the splash hex, so the app fades from the splash colour into navy |
+| Wallet hero as a row (amount and Withdraw side by side) | Adopted, photographers only | It follows the prototype and removes a tall stack. Other roles keep the centred hero |
+| Coloured icon tiles, green incoming amounts, status pills on earnings rows | Adopted on Home (and metric tiles take their tone) | Pure presentation of fields we already have; the status word is the API's own |
+| Status badge on shoot cards | Adopted (same bucket and wording as the Events calendar) | One description of a shoot everywhere |
+| Pink accent on a needs-attention action | Adopted for a secondary action that has waiting items | Restrained: only when a badge count exists |
+| Glowing card borders | Omitted | Decoration that adds a bright edge on every card, and costs legibility on small cards |
+| Donut and ring charts, line charts | Already present on Analytics; tracks recoloured to a navy step | Existing components |
+| Photo thumbnails | Already rendered where the data has `coverImage`; verified with a cover image in the fixture | No new data was invented |
+| The prototype's milestone list with release status | Not built | Blocked by the backend (listed above) |
+
+**Dark screens actually inspected on the emulator (screenshots read)**
+- Home: full scroll, balances hidden and shown, loading skeletons, shoot card with cover image and status badge, business overview, goals, recent earnings, recent clients.
+- Wallet: Overview, Analytics, Activity (loaded, empty, failed).
+- Main Analytics screen: all charts and rows scrolled end to end, period tabs, and its failed state (the "Try again" banner with the rest kept honest as N/A).
+- Events: loading, Month, Week, Agenda, List.
+- Event detail.
+- Goals: new goal form, empty-save validation, save failure, a successful save, the edit form, the delete confirmation.
+- Received photobooks: shelf, a book's detail, the resubmit confirmation and its result; My photobooks empty state; Albums empty state.
+- Withdraw and Payment accounts, view only (no transaction was started).
+- A client account in dark and light (Home, Wallet) to check the shared top bar, tab bar and palette.
+- The photographer in light (Home, Wallet, Events List) after the changes.
+- Earlier pass: 360dp wide at 1.6x text on Home and Events.
+
+**Defects found in the dark render and corrected, each at its cause**
+
+| Defect | Fix |
+|---|---|
+| Grey slab look: graphite surfaces, no blue | New navy surface steps and cool text (`palettes.ts`) |
+| Status chips and banners (wallet pending and suspended chips, photobook chips, event detail chips) were light pastels or hard-coded hexes | New `warningSoft`, `warningLine`, `errorSoft`, `errorLine` tokens; wallet chips and banner use tokens; `features/photobooks/statusChip.ts` maps photobook chips; event detail chips use tokens |
+| Event detail Share button was a solid white slab | The module-level `colors` export is the light palette; the outline button now reads the theme |
+| Pushed screens' header was a lighter shade than the tab screens | `(app)/_layout.tsx` header uses the same card step and link blue as `TopBar` in dark |
+| Analytics period tabs: selected pill was a dim card | Brand fill with white text in dark; tab role and selected state added |
+| Analytics donut tracks were bright translucent white | Navy track step |
+| Delete goal looked like an ordinary link | New `destructive` variant (error colour), used for Delete goal |
+| "Remove from my list" was low-contrast grey | `textSoft` at semibold |
+| Metric tiles and earnings rows were flat text | Tinted icon tiles, signed green amounts, status pills |
+| Large text and small screens (earlier pass) | See the earlier table |
+
+**Shared components and other roles.** The palette, `TopBar`, `PersistentBottomBar`, the app stack header and `BrandPill` are used by every role. What changed for them: the dark ground and cards are navy instead of graphite, the Android top bar is opaque, the active tab bubble is calmer in dark, and the stack header matches the top bar in dark. Light mode is unchanged: the link token equals `primary` in light, and the client dashboard and wallet in light were compared after the change and look the same. The client dashboard in dark was rendered and is intact. Coordinator and viewer were not rendered; they use the same shared components. The wallet hero row and the home/shoot badges are photographer-only.
+
+**Pinned by tests.** `src/theme/palettes.test.ts` (text, soft, muted and link at least 4.5:1 on every surface in both palettes, the status colours on their tinted grounds and on cards, the stronger chip grounds, navy hue, ascending dark steps, hairline, identical keys) and `src/features/photobooks/statusChip.test.ts` (light unchanged, dark mapping, unknown status untouched), plus the week-title test.
+
+**Does dark match the prototype?** Close in structure and palette, not identical. After the changes the ground, cards, hairlines, tiles, pills, links and charts read as the same navy family, and the layouts follow the prototype (compact wallet hero, tiled icons, status pills). It still differs in the exact page colour (graphite splash constraint is only visible at launch), the glowing borders (deliberately omitted), and the prototype's richer content (milestone release status, which needs backend data). I do not claim a pixel match.
+
+**Third pass: shared roles, large text, error states and the Withdraw balance (this commit)**
+
+Inspected on the emulator in dark, with screenshots read:
+- **Coordinator** Home at normal size and at 1.6x text, including the performance card.
+- **Viewer** Home and Wallet at normal size, and Home at 1.6x text.
+- **Client** Home and Wallet, dark and light (earlier in the pass).
+- **Wallet Analytics failed states:** trends failing (error under the period tabs, balance cards kept), payment activity failing (error beneath real Shoots and Clients figures), and the Try again recovery.
+- **Withdraw** with four backend answers: a source reporting 0, an empty list, an unreadable balance, and a failed load.
+
+| Defect found | Fix |
+|---|---|
+| Coordinator Revenue figure was dark navy on a navy card (hard-coded `#083A85`) | Uses the `link` token (identical in light, readable in dark) |
+| Viewer "Open wallet" was light pink on a mid-blue card (about 2:1) | White in dark; light unchanged |
+| "See all" on the home sections used the fill blue as small text | `link` token |
+| Coordinator at 1.6x: action chips overlapped, "PHOTOGRAPHERS" and "TOTAL REVENUE" broke mid-word or truncated | Scaling capped on those labels; the snapshot labels and the card title shrink to fit instead of wrapping or truncating; Create Event keeps its padding |
+| Tab bar label touched the edges of its bubble at 1.6x | Label scaling capped at 1.15x |
+| Wallet Analytics error notice touched the period tabs | Vertical gap added where the notice is placed |
+
+**Withdraw `$0.00` traced to its logic.** `listWithdrawableSources` mapped each source through `num()`, which turns a missing, null or non-numeric amount into `0`, and the screen computed `available` as `0` whenever there was no source, then rendered it with the same formatter as a real balance. So three different situations (no source reported, a source with no usable amount, and a genuine zero) all showed `$0.00`. A failed request already showed an error with Try again and is unchanged.
+
+Fix, with the financial rules untouched (no amount, conversion, limit or submission logic changed):
+- `listWithdrawableSources` now fails the load ("Could not read your balance.") when the data is not a list, or any source has an unreadable `availableBalance`. An empty list is still a valid answer. A reported `0` is still `0`.
+- New `BalanceHero`: no source shows **N/A** with "No withdrawable balance was reported. Reopen this screen to check again." A source shows its own number, including a real `$0.00`, with the USD value beneath when the main currency differs.
+- Pinned by `features/withdrawals/api.test.ts` (reported zero, empty list, five unreadable shapes, missing list, action 0) and `BalanceHero.test.tsx` (N/A with no source and no `$0`, reported zero, reported balance, converted balance).
+- Verified on the emulator: reported zero shows `RF 0` with `$0.00` beneath; empty shows N/A; unreadable and failed show the error with Try again and no number.
+
+**Not inspected in dark:** event actions beyond Remove and the detail header, the withdraw confirmation, code and selfie steps and a funded balance with a saved payment account (no transaction was started), goal sheets at large text, the coordinator and viewer screens beyond Home and Wallet, tablets, iOS (no iOS tooling here) and any real account. Coordinator and viewer Wallet at large text were not captured.
+
 ## Remaining dependencies and risks
 
 1. Backend: the items in "Blocked by backend".
 2. Editing a received photobook, `bonus-status`, and a share or PDF export of the earnings report are not built.
 3. Production profile link: `slug-for` is public and unit tested here, but was not called against production.
-4. Release: nothing was published. Work stays on this branch; the release line is `production` through the OTA gate (`docs/RELEASING.md`), never from `main`.
+4. Release: the redesign is live on Android over the air (runtime 2.2.2) and its store build 33 is on the Play production track. iOS has no update yet and 2.2.2 is in App Review. The dark-mode branch is unmerged and unpublished. Real-account checks of goals, photobooks, event Remove and wallet paging have still not happened, and nothing was run on an iPhone.
 
 ## CI incident during this work
 

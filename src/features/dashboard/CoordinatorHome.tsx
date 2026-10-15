@@ -224,7 +224,10 @@ export function CoordinatorHome() {
             accessibilityLabel="Create a new event"
           >
             <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.quickActionPrimaryBtnText}>Create Event</Text>
+            {/* On a 360dp phone the label met the button edge; it now keeps its padding and shrinks if it must. */}
+            <Text style={styles.quickActionPrimaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.2}>
+              Create Event
+            </Text>
           </Pressable>
 
           {/* Secondary Action: Gallery (the Team it replaced was retired for album collaboration) */}
@@ -235,7 +238,9 @@ export function CoordinatorHome() {
             accessibilityLabel="Gallery"
           >
             <Ionicons name="images-outline" size={15} color={colors.primary} />
-            <Text style={styles.quickActionSecondaryBtnText}>Gallery</Text>
+            <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+              Gallery
+            </Text>
           </Pressable>
 
           {/* Tertiary Action: Photographers */}
@@ -246,7 +251,7 @@ export function CoordinatorHome() {
             accessibilityLabel="Photographers"
           >
             <Ionicons name="camera-outline" size={15} color={colors.primary} />
-            <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1}>
+            <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
               Photographers
             </Text>
           </Pressable>
@@ -259,7 +264,7 @@ export function CoordinatorHome() {
             accessibilityLabel="Live Streams"
           >
             <Ionicons name="videocam" size={14} color="#EF4444" />
-            <Text style={styles.quickActionLiveBtnText}>Live</Text>
+            <Text style={styles.quickActionLiveBtnText} maxFontSizeMultiplier={1.2}>Live</Text>
           </Pressable>
         </View>
 
@@ -425,8 +430,10 @@ export function CoordinatorHome() {
                 accessibilityRole="button"
                 accessibilityLabel="View revenue in wallet"
               >
-                <Text style={styles.snapshotLabel}>REVENUE</Text>
-                <Text style={[styles.snapshotValue, { color: '#083A85' }]}>
+                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
+                  REVENUE
+                </Text>
+                <Text style={[styles.snapshotValue, { color: colors.link }]}>
                   {formatPrice(a?.totalRevenue || 0, currency)}
                 </Text>
               </Pressable>
@@ -437,7 +444,9 @@ export function CoordinatorHome() {
                 accessibilityRole="button"
                 accessibilityLabel="View events"
               >
-                <Text style={styles.snapshotLabel}>EVENTS</Text>
+                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
+                  EVENTS
+                </Text>
                 <Text style={[styles.snapshotValue, { color: '#F20C8F' }]}>
                   {String(a?.totalEvents || 0)}
                 </Text>
@@ -449,7 +458,9 @@ export function CoordinatorHome() {
                 accessibilityRole="button"
                 accessibilityLabel="View photographers"
               >
-                <Text style={styles.snapshotLabel}>PHOTOGRAPHERS</Text>
+                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
+                  PHOTOGRAPHERS
+                </Text>
                 <Text style={[styles.snapshotValue, { color: '#10B981' }]}>
                   {String(a?.totalPhotographers || 0)}
                 </Text>
@@ -725,6 +736,7 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    paddingHorizontal: 12,
     height: 42,
     borderRadius: radii.lg,
     backgroundColor: c.primary,
