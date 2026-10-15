@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -15,6 +14,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';

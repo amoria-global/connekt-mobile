@@ -4,7 +4,8 @@
  * on the same withdrawal-methods endpoints (see features/paymentAccounts).
  */
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';

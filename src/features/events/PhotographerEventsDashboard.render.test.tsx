@@ -25,7 +25,9 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('expo-image', () => ({ Image: () => null }));
 jest.mock('./EventQrSheet', () => ({ EventQrSheet: () => null }));
+// No signed-in user: the themed dialog then falls back to the native alert, which this test spies on.
 jest.mock('@/store/auth', () => ({
+  useAuth: { getState: () => ({ user: null }) },
   isApiError: (e: unknown) => !!e && typeof e === 'object' && 'message' in (e as object),
 }));
 

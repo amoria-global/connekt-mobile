@@ -22,7 +22,12 @@ jest.mock('@/api/client', () => ({
   },
   requireOk: (r: unknown) => jest.requireActual('@/api/client').requireOk(r),
 }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+// No signed-in user: the themed dialog then falls back to the native alert, which these tests spy on.
 jest.mock('@/store/auth', () => ({
+  useAuth: { getState: () => ({ user: null }) },
   isApiError: (e: unknown) => !!e && typeof e === 'object' && 'message' in (e as object),
 }));
 
