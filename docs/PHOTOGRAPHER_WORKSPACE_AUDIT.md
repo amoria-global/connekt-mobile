@@ -7,17 +7,17 @@ Evidence is code, backend source (`PhotographerDashboardController`, `Photograph
 `connekyt-landing`) and an Android emulator run (see "Verification"). Customer, merchant and admin dashboards and the
 live-stream experience were not touched.
 
-## Status at a glance (checked against Git and EAS on 2026-10-15)
-
-Two pieces of work are described in this document and they are in different states. Do not read one as the other.
+## Status at a glance (checked against Git, GitHub Actions and EAS on 2026-10-15)
 
 | Work | Branch and commits | State |
 |---|---|---|
-| Photographer redesign (Home, Wallet tabs, Events calendar, Analytics, goals, photobooks, paging) | `feat/photographer-workspace-redesign` (`618358c`, `0dd59fb`), merged to `main` as `d8bb37d` | **Released to Android phones on runtime 2.2.2 over the air.** `main` and `origin/main` were at `201a509` when this was written; `production` at `e46978c`; update group `c917325e` (see "Release status") |
-| iOS | Build 41 (2.2.2) submitted to App Review | Still Waiting for Review when rechecked through the App Store Connect API on 2026-10-15 (2.2.1 is the released version). **No iOS over-the-air update has been published**, so iPhones have none of this work |
-| Dark mode, large-text and shared-surface fixes, honest withdraw balance | `feat/photographer-dark-mode` (`a84a377`, `b8ac8f5`, and the commit that carries this edit) | **Not merged and not published.** It is on the branch only, so no phone has it. Merging it to `main` would publish it to Android automatically unless every commit carries `[skip publish]` |
+| Photographer redesign (Home, Wallet tabs, Events calendar, Analytics, goals, photobooks, paging) | `feat/photographer-workspace-redesign` (`618358c`, `0dd59fb`), merged to `main` as `d8bb37d` | Released to Android over the air on runtime 2.2.2 (update group `c917325e`) |
+| Dark mode, large-text and shared-surface fixes, honest withdraw balance | `feat/photographer-dark-mode` (`a84a377`, `b8ac8f5`, `480aaa8`), merged to `main` as `602ce3b` | **Published on both platforms on runtime 2.2.2:** Android update group `cecb3ebc` (id `01a14030-d09b-7f0f-b3de-f32206e37da6`, from the promote workflow, `production` at `4977516`) and iOS update group `ac5143a4` (id `01a1403a-c386-7c4e-823a-68a6c8f4baec`, from a manual dispatch of `production.yml` with platform `ios`) |
+| iOS store build | Build 41 (2.2.2) in App Review | Waiting for Review when last checked through the App Store Connect API on 2026-10-15 (2.2.1 is the released version) |
 
-Consequences worth stating plainly: the Withdraw screen in production still shows `$0.00` when the backend reports no withdrawable source (fixed on the dark-mode branch, see below), and the production dark theme is still the earlier graphite palette. Every statement below under "Dark mode review" describes the unmerged branch.
+What the iOS update reaches: phones running an iOS 2.2.2 build, which today means TestFlight builds 38 to 41. App Store users are on 2.2.1 (runtime 2.2.1) and do not receive it until Apple releases 2.2.2. A phone fetches the update on a launch and runs it from the next launch.
+
+The iOS bundle was exported locally before publishing and bundles cleanly (the new strings are present, no harness). It has not been run on an iPhone by me: there is no iOS tooling on this machine, so no iOS screen has been visually verified. Whoever tests on TestFlight is the first iOS check.
 
 ## Screen by screen
 
@@ -146,7 +146,7 @@ The remaining errors are the React-compiler rules (`set-state-in-effect`, refs d
 
 React-compiler lint errors listed above (identical to `HEAD`). `MultipleDonutOverviewCard.tsx` is now dead code, but `moneyHonesty.test.ts` reads its source, so it was left in place.
 
-## Dark mode review (2026-10-15, branch `feat/photographer-dark-mode`, unmerged)
+## Dark mode review (2026-10-15, branch `feat/photographer-dark-mode`, merged as `602ce3b` and published)
 
 Reference: the three prototype screens in `Connekyt_Photographer_Prototype.docx` (Home and business overview, Wallet overview with the work calendar, Wallet analytics). Their colours were sampled from the images: screens sit on a deep blue-teal (about `#071321` to `#0B1828`), cards one step up (about `#0F2231` to `#132434`), a blue hairline, a mid blue for selection, pink used sparingly, and amber, green and blue only on small status pills and tiles.
 
@@ -234,7 +234,7 @@ Fix, with the financial rules untouched (no amount, conversion, limit or submiss
 1. Backend: the items in "Blocked by backend".
 2. Editing a received photobook, `bonus-status`, and a share or PDF export of the earnings report are not built.
 3. Production profile link: `slug-for` is public and unit tested here, but was not called against production.
-4. Release: the redesign is live on Android over the air (runtime 2.2.2) and its store build 33 is on the Play production track. iOS has no update yet and 2.2.2 is in App Review. The dark-mode branch is unmerged and unpublished. Real-account checks of goals, photobooks, event Remove and wallet paging have still not happened, and nothing was run on an iPhone.
+4. Release: the redesign and the dark-mode work are live on Android over the air and on iOS 2.2.2 builds over the air (see "Status at a glance"). Store build 33 is on the Play production track and iOS 2.2.2 is in App Review. An over-the-air update cannot be recalled, only replaced by a newer one. Real-account checks of goals, photobooks, event Remove, wallet paging and the Withdraw balance states have still not happened, and nothing was run on an iPhone.
 
 ## CI incident during this work
 
