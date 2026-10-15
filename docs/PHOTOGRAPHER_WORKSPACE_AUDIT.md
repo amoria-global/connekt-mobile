@@ -141,6 +141,10 @@ React-compiler lint errors listed above (identical to `HEAD`). `MultipleDonutOve
 3. Production profile link: `slug-for` is public and unit tested here, but was not called against production.
 4. Release: nothing was published. Work stays on this branch; the release line is `production` through the OTA gate (`docs/RELEASING.md`), never from `main`.
 
+## CI incident during this work
+
+The first push of this work to `main` turned both `ci` and `promote main to production` red although all 510 tests passed. Jest exited 1 with "Cannot log after tests are done": my render tests left list and icon timers running, they fired after the file finished and logged an act() warning. It reproduced locally as one such message in a full run. Fixed forward by `src/test/autoUnmount.ts` (unmounts every renderer after each test), imported by the render tests. After the fix jest exits 0 locally in parallel and in band. Nothing was published by the failed run (the promote job was skipped).
+
 ## Release status
 
 How a change reaches users (from `docs/RELEASING.md`, `CLAUDE.md`, and the three workflows in `.github/workflows`):
