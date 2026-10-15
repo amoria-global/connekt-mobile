@@ -147,13 +147,21 @@ The first push of this work to `main` turned both `ci` and `promote main to prod
 
 ## Release status
 
-How a change reaches users (from `docs/RELEASING.md`, `CLAUDE.md`, and the three workflows in `.github/workflows`):
-- A push reaches no phone. Installed apps run JavaScript published to the `production` EAS channel on top of their store build.
-- `ci.yml` checks branches. A push to `main` runs `promote-to-production.yml`: tests, then `scripts/check-ota-compatibility.mjs`. If the gate passes, it merges `main` into `production`, and `production.yml` then publishes the update. If the gate refuses, nothing is merged, the run stays green, and it says a store build is needed.
-- `main` is on Expo SDK 57 and version 2.2.x; the installed baseline in `.eas/production-baseline.json` is older. The gate currently refuses `main` itself (41 native dependency versions and new config plugins), so a push to `main` publishes nothing.
+How a change reaches users (from `docs/RELEASING.md`, `CLAUDE.md`, and the three workflows in `.github/workflows`): a push reaches no phone. Installed apps run JavaScript published to the `production` EAS channel on top of their store build. A push to `main` runs `promote-to-production.yml` (tests, then `scripts/check-ota-compatibility.mjs`); if the gate passes it merges `main` into `production`, and `production.yml` publishes.
 
-What happened here (checked against GitHub Actions, not assumed):
-- The work was committed on `feat/photographer-workspace-redesign` and merged into `main` with `--no-ff` (`d8bb37d`). That push turned `ci` and `promote` red because of the leaked-timer jest exit code described above; the fix was merged as `cb93e06`, and for that commit `ci` is green and `promote main to production` is green.
-- On the green run the promote job ran the OTA gate and refused: "app.json version is 2.2.2, but installed phones run 2.2.0", plus the native dependency and config plugin differences. It printed "main cannot run on the installed build, so it was not merged into production." The `production` branch is untouched (it still points at `10a9c04`), and no `production` workflow has run since 2026-09-24.
-- **Not released to users.** Reaching phones needs a store build first (path B in `docs/RELEASING.md`: build, submit to the production track, wait for it to finish, refresh the baseline, push). That is a deliberate release action outside this work, and nothing was run with `eas`.
-- Before a store build ships this work, run it against a real photographer account on a device (goals, photobooks, event remove, wallet paging) and on iOS; neither could be done here.
+What happened, in order (2026-10-15):
+1. The gate refused `main` against the recorded baseline (build 28, 2.2.0): app version, 16 patch-level Expo dependencies and the notifications plugin config.
+2. Those natives were already built by others. `eas build:list` shows build 33 (EAS build `4f724bff`, 2.2.2, version code 33, commit `74ce1b0`, finished 2026-10-13, never submitted). `main` has no `package.json`, `app.json` or `eas.json` difference from that commit, so no new build was made (a rebuild would only have burned a version code).
+3. Path B step 5: `eas submit --platform android --profile production --id 4f724bff...`. Submission `7a276295` reported **finished**, track `production`, release status `completed`, version code 33.
+4. Path B step 7: `.eas/production-baseline.json` refreshed from the build record (commit `74ce1b0`, 2.2.2, runtime 2.2.2, build number 33, fingerprint `51877a65...`), committed `85ca327` with `[skip publish]`. The gate then printed "Safe to publish to the production channel" (all 57 runtime dependencies match, native config unchanged).
+5. Push of `main` (`85ca327`): `ci` green, `promote main to production` green, `production` branch fast-forwarded by merge `03097a9`, `production.yml` run succeeded.
+6. Verification of the publish: the manifest a phone would fetch (`expo-runtime-version: 2.2.2`, channel `production`, platform android) returns update id `01a13f24-975b-76a7-9ea7-eb4ec46dddd5`, update group `c917325e-77a9-4bfe-a764-eb3193c6becb`, created 2026-10-15 10:38 UTC. `eas update:list --branch production` shows the same group, runtime 2.2.2. The CDN refuses direct bundle downloads, so the bundle was checked through a local `expo export` of the same commit: it contains "Lifetime earnings", "Received from clients" and "Load older transactions", and no harness strings.
+
+Distinguish the states:
+- **Store build**: finished (build 33, built by a teammate before this work).
+- **Store submission**: finished to the Play production track, release status completed (Play's own processing and rollout are outside what the CLI can show).
+- **Promotion**: done (`production` = `03097a9`).
+- **OTA update available**: yes, on runtime 2.2.2 for Android only. The baseline platforms list is android; no iOS build or update exists for this work.
+- Phones receive the update on their next launch and only if they run a 2.2.2 build. Builds 30 to 32 also report 2.2.2 and differ from build 33 only by Expo patch bumps and one notifications flag, which is the exposure the repo's `appVersion` runtime policy already accepts.
+
+Still not done: running this against a real photographer account on a device (goals, photobooks, event remove, wallet paging), and any iOS run. Watch the first launches after this update.
