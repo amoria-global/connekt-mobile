@@ -254,14 +254,19 @@ export default function PhotobookDetailScreen() {
                   <Ionicons name="chevron-back" size={20} color="#fff" />
                 </Pressable>
 
-                <Pressable
-                  style={styles.heroNavCircle}
-                  onPress={onShareBook}
-                  hitSlop={8}
-                  accessibilityLabel="Share photobook"
-                >
-                  <Ionicons name="share-outline" size={18} color="#fff" />
-                </Pressable>
+                {received ? (
+                  // The share link points at the customer view of a book, which a received book does not have.
+                  <View />
+                ) : (
+                  <Pressable
+                    style={styles.heroNavCircle}
+                    onPress={onShareBook}
+                    hitSlop={8}
+                    accessibilityLabel="Share photobook"
+                  >
+                    <Ionicons name="share-outline" size={18} color="#fff" />
+                  </Pressable>
+                )}
               </View>
 
               {/* Hero Bottom Info */}
@@ -310,7 +315,7 @@ export default function PhotobookDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Resubmit to client"
                   accessibilityState={{ disabled: actionBusy, busy: actionBusy }}
-                  style={[styles.retryBtn, { minHeight: 48, justifyContent: 'center' }]}
+                  style={[styles.retryBtn, { minHeight: 48, justifyContent: 'center', alignItems: 'center' }]}
                 >
                   <Text style={styles.retryBtnText}>{actionBusy ? 'Working...' : 'Resubmit to client'}</Text>
                 </Pressable>
@@ -420,7 +425,9 @@ export default function PhotobookDetailScreen() {
             </View>
             <Text style={styles.emptyTitle}>No photos in this book</Text>
             <Text style={styles.emptySubtitle}>
-              The photographer has not added photos to this photobook collection yet.
+              {received
+                ? 'This photobook has no photos yet.'
+                : 'The photographer has not added photos to this photobook collection yet.'}
             </Text>
           </View>
         }

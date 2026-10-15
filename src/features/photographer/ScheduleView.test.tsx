@@ -116,3 +116,32 @@ describe('ScheduleView', () => {
     expect(flat(r.root)).not.toBe(before);
   });
 });
+
+describe('ScheduleView controlled by the screen', () => {
+  const clash = [
+    ev({ id: 'a', title: 'Wedding', eventDate: today, startTime: '09:00', endTime: '11:00' }),
+    ev({ id: 'b', title: 'Portraits', eventDate: today, startTime: '10:00', endTime: '12:00' }),
+  ];
+  function mountControlled(mode: 'month' | 'week' | 'agenda', onModeChange: jest.Mock, onCreate = jest.fn()) {
+    let r!: TestRenderer.ReactTestRenderer;
+    act(() => {
+      r = TestRenderer.create(
+        <ScheduleView mode={mode} onModeChange={onModeChange} events={clash} allEvents={clash} busyId={null}
+          onOpen={jest.fn()} onAccept={jest.fn()} onDecline={jest.fn()} onCreate={onCreate} />,
+      );
+    });
+    return r;
+  }
+
+  it('hides its own Month/Week/Agenda tabs when the screen owns the switch', () => {
+    const r = mountControlled('week', jest.fn());
+    expect(r.root.findAll(tab('Month'))).toHaveLength(0);
+  });
+
+  it('asks the screen to switch to Week when a conflict is reviewed from another mode', () => {
+    const onModeChange = jest.fn();
+    const r = mountControlled('month', onModeChange);
+    press(r, (n) => String(n.props?.accessibilityLabel).includes('schedule conflict'));
+    expect(onModeChange).toHaveBeenCalledWith('week');
+  });
+});

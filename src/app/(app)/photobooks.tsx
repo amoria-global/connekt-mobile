@@ -12,7 +12,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -59,6 +59,15 @@ export default function PhotobooksScreen() {
   const mine = useAsync(useCallback(() => listPhotobooks(), []));
   const receivedList = useAsync(useCallback(() => (isPhotographer ? listReceivedPhotobooks() : Promise.resolve([])), [isPhotographer]));
   const received = isPhotographer && shelf === 'received';
+  // Coming back from a book (resubmitted or removed there) must not show the old shelf. Quiet, so the list does not flash.
+  const refreshMine = mine.refreshQuietly;
+  const refreshReceived = receivedList.refreshQuietly;
+  useFocusEffect(
+    useCallback(() => {
+      void refreshMine();
+      void refreshReceived();
+    }, [refreshMine, refreshReceived]),
+  );
   const { data, loading, error, refresh } = received ? receivedList : mine;
   const [filter, setFilter] = useState<StatusFilter>('ALL');
   const [search, setSearch] = useState('');
@@ -311,7 +320,7 @@ export default function PhotobooksScreen() {
       />
 
       {/* Floating Action Button — Create New Photobook */}
-      {canCreate ? (
+      {canCreate && !received ? (
         <Pressable
           style={[
             styles.fab,
@@ -443,6 +452,8 @@ const useStyles = makeStyles((c) => ({
   // Hardcover Book Cards (3:4 ratio)
   card: {
     flex: 1,
+    // A lone last card must stay one column wide, not stretch across the grid.
+    maxWidth: '49%',
     borderRadius: radii.lg,
     backgroundColor: c.surface,
     borderWidth: 1,
