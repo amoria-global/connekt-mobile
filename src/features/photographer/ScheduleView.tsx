@@ -8,6 +8,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import type { EventItem } from '@/features/events/types';
 import { formatDate } from '@/utils/format';
@@ -353,6 +354,9 @@ function AgendaRow({
         style={styles.rowMain}
       >
         <Text style={styles.time}>{time}</Text>
+        {event.coverImage ? (
+          <Image source={{ uri: event.coverImage }} style={styles.thumb} contentFit="cover" accessibilityIgnoresInvertColors />
+        ) : null}
         <View style={styles.rowText}>
           <Text style={styles.rowTitle} numberOfLines={2}>
             {event.title || 'Photo shoot'}
@@ -432,7 +436,8 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.md,
   },
   rowMain: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, minHeight: TOUCH },
-  time: { width: 64, color: c.link, fontSize: 13, fontWeight: '800' },
+  time: { width: 58, color: c.link, fontSize: 13, fontWeight: '800' },
+  thumb: { width: 56, height: 56, borderRadius: radii.md },
   rowText: { flex: 1, minWidth: 0, gap: 4 },
   rowTitle: { color: c.text, fontSize: 16, fontWeight: '700' },
   rowMeta: { color: c.textMuted, fontSize: 13 },

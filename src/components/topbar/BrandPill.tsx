@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 /**
@@ -12,10 +12,13 @@ export function BrandPill({
   onPress,
   children,
   style,
+  flat,
 }: {
   onPress?: () => void;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** Wordmark without the raised pill, left aligned (the photographer chrome, as in the prototype). */
+  flat?: boolean;
 }) {
   const styles = useStyles();
   const content = children ?? (
@@ -34,12 +37,12 @@ export function BrandPill({
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, style, pressed && styles.pressed]}>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, flat && styles.flat, style, pressed && styles.pressed]}>
         {content}
       </Pressable>
     );
   }
-  return <View style={[styles.pill, style]}>{content}</View>;
+  return <View style={[styles.pill, flat && styles.flat, style]}>{content}</View>;
 }
 
 const useStyles = makeStyles((c, e) => ({
@@ -55,6 +58,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: spacing.lg,
     ...e(2),
   },
+  flat: { height: 40, backgroundColor: 'transparent', justifyContent: 'flex-start', paddingHorizontal: 0, shadowOpacity: 0, elevation: 0 },
   pressed: { opacity: 0.9 },
   mark: { width: 22, height: 22 },
   text: {

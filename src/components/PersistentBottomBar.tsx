@@ -93,9 +93,40 @@ type TabButtonProps = {
   onPress: () => void;
   width: number;
   badgeCount?: number;
+  /** Photographer chrome: icon and label always shown, the selected tab in pink with a short underline, no bubble. */
+  flat?: boolean;
 };
 
-function TabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
+/** The restrained tab from the photographer prototype: nothing floats, the selected item is named by colour, a rule and its state. */
+function FlatTabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const tone = isFocused ? colors.accent : colors.textMuted;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.flatTab, { width }]}
+      accessibilityRole="button"
+      accessibilityState={isFocused ? { selected: true } : {}}
+      accessibilityLabel={tab.label}
+    >
+      <View>
+        <Ionicons name={isFocused ? tab.iconFocused : tab.icon} size={22} color={tone} />
+        {badgeCount != null && badgeCount > 0 ? <View style={[styles.badgeDot, styles.flatBadge]} /> : null}
+      </View>
+      <Text style={[styles.flatLabel, { color: tone }, isFocused && styles.flatLabelOn]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
+        {tab.label}
+      </Text>
+      <View style={[styles.flatRule, { backgroundColor: isFocused ? colors.accent : 'transparent' }]} />
+    </Pressable>
+  );
+}
+
+function TabButton(props: TabButtonProps) {
+  return props.flat ? <FlatTabButton {...props} /> : <AnimatedTabButton {...props} />;
+}
+
+function AnimatedTabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [focusAnim] = useState(() => new Animated.Value(isFocused ? 1 : 0));
@@ -213,7 +244,8 @@ export function PersistentBottomBar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
-  const { role } = useRole();
+  const { role, isPhotographer } = useRole();
+  const flat = isPhotographer;
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
   const unreadCount = useMemo(
     () => notifications?.filter((n) => !n.read).length ?? 0,
@@ -377,7 +409,7 @@ export function PersistentBottomBar() {
           }}
         >
           {/* Animated Bubble Indicator */}
-          {tabWidth > 0 && (
+          {tabWidth > 0 && !flat && (
             <Animated.View
               pointerEvents="none"
               style={[
@@ -421,6 +453,7 @@ export function PersistentBottomBar() {
                 isFocused={isFocused}
                 onPress={onPress}
                 width={tabWidth}
+                flat={flat}
                 badgeCount={tab.isMore && unreadCount > 0 ? unreadCount : undefined}
               />
             );
@@ -779,6 +812,11 @@ const useStyles = makeStyles((c) => ({
     width: 28,
     height: 28,
   },
+  flatTab: { height: BAR_CONTENT_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: 2, zIndex: 2 },
+  flatLabel: { fontSize: 11, fontWeight: fontWeight.semibold },
+  flatLabelOn: { fontWeight: fontWeight.bold },
+  flatRule: { width: 20, height: 2.5, borderRadius: 2 },
+  flatBadge: { top: -2, right: -5 },
   tabLabel: {
     position: 'absolute',
     bottom: 5,
