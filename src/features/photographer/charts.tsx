@@ -4,9 +4,9 @@
  * validated figures. A ring with nothing to show draws only its track, so an
  * unknown or zero value never looks like progress.
  */
-import type { ReactNode } from 'react';
-import { View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import { useState, type ReactNode } from 'react';
+import { Text, View } from 'react-native';
+import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 import { useTheme } from '@/theme';
 
 export type RingSegment = { value: number; color: string };
@@ -104,5 +104,102 @@ export function ProgressRing({
     >
       {children}
     </SegmentRing>
+  );
+}
+
+// ── Trend (area) chart ──────────────────────────────────────────────────────
+
+export type TrendPoint = { x: number; y: number };
+
+/**
+ * Geometry for a smooth area chart. Points sit at the centre of equal columns so a
+ * label row of equal flex cells lines up under them. `values` are relative sizes
+ * (the caller decides what they mean); the largest value reaches `padTop` and zero
+ * sits on the baseline. The curve uses horizontal control points, so it never dips
+ * below the baseline or overshoots a peak.
+ */
+export function trendGeometry(values: readonly number[], width: number, height: number, padTop = 26, padBottom = 6) {
+  const n = values.length;
+  const max = Math.max(0, ...values);
+  const base = height - padBottom;
+  const span = base - padTop;
+  const pts: TrendPoint[] = values.map((v, i) => ({
+    x: ((i + 0.5) * width) / n,
+    y: max > 0 ? base - (Math.max(0, v) / max) * span : base,
+  }));
+  if (n === 0) return { pts, line: '', area: '', base };
+  let line = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < n; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const mx = (a.x + b.x) / 2;
+    line += ` C ${mx} ${a.y} ${mx} ${b.y} ${b.x} ${b.y}`;
+  }
+  const area = `${line} L ${pts[n - 1].x} ${base} L ${pts[0].x} ${base} Z`;
+  return { pts, line, area, base };
+}
+
+/** Smooth area chart with a gradient fill, faint rules, a dot per interval and the peak called out. */
+export function TrendChart({
+  values,
+  height = 150,
+  peakIndex,
+  peakLabel = 'Peak',
+}: {
+  values: readonly number[];
+  height?: number;
+  /** Index of the highest interval, drawn larger in the accent colour. */
+  peakIndex: number;
+  peakLabel?: string;
+}) {
+  const { colors } = useTheme();
+  const [width, setWidth] = useState(0);
+  const geo = trendGeometry(values, width, height);
+  return (
+    <View onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width))} style={{ height }}>
+      {width > 0 ? (
+        <Svg width={width} height={height}>
+          <Defs>
+            <LinearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={colors.primary} stopOpacity={0.5} />
+              <Stop offset="1" stopColor={colors.primary} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          {[0.25, 0.6].map((f) => (
+            <Line key={f} x1={0} x2={width} y1={26 + (geo.base - 26) * f} y2={26 + (geo.base - 26) * f} stroke={colors.borderSoft} strokeWidth={1} strokeDasharray="4 5" />
+          ))}
+          <Line x1={0} x2={width} y1={geo.base} y2={geo.base} stroke={colors.border} strokeWidth={1} />
+          <Path d={geo.area} fill="url(#trendFill)" />
+          <Path d={geo.line} stroke={colors.link} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          {geo.pts.map((p, i) => (
+            <Circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r={i === peakIndex ? 6 : 4}
+              fill={i === peakIndex ? colors.accent : colors.card}
+              stroke={i === peakIndex ? colors.card : colors.link}
+              strokeWidth={i === peakIndex ? 2.5 : 2}
+            />
+          ))}
+        </Svg>
+      ) : null}
+      {width > 0 && geo.pts[peakIndex] ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: Math.max(0, geo.pts[peakIndex].y - 25),
+            left: Math.min(Math.max(0, geo.pts[peakIndex].x - 24), Math.max(0, width - 48)),
+            width: 48,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '800' }} maxFontSizeMultiplier={1.2}>
+            {peakLabel}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
