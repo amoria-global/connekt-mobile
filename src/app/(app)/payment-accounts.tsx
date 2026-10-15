@@ -85,7 +85,7 @@ export default function PaymentAccountsScreen() {
           <RefreshControl refreshing={false} onRefresh={accounts.refresh} tintColor={colors.primary} />
         }
       >
-        <ScreenHeader title="Payment accounts" subtitle="Manage the accounts you use for payments and withdrawals." />
+        <ScreenHeader duplicatesHeader title="Payment accounts" subtitle="Manage the accounts you use for payments and withdrawals." />
 
         <View style={styles.body}>
           {accounts.loading && !accounts.data ? (

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
+import { useRole } from '@/features/auth/role';
 import { spacing, fontSize, fontWeight, fonts, makeStyles } from '@/theme';
 
 /**
@@ -10,19 +11,23 @@ export function UserHeaderBand({
   eyebrow,
   title,
   subtitle,
+  duplicatesHeader,
   children,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
+  /** The native stack header already shows `title`; photographer screens then drop the repeat. */
+  duplicatesHeader?: boolean;
   children?: React.ReactNode;
 }) {
   const styles = useStyles();
+  const hideTitle = useRole().isPhotographer && duplicatesHeader;
 
   return (
     <View style={styles.wrap}>
       {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-      <Text style={styles.title}>{title}</Text>
+      {hideTitle ? null : <Text style={styles.title} accessibilityRole="header">{title}</Text>}
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       {children}
     </View>

@@ -33,7 +33,7 @@ export default function TvDevicesScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Manage TVs" subtitle="TVs connected to your Connekyt account" />
+      <ScreenHeader duplicatesHeader title="Manage TVs" subtitle="TVs connected to your Connekyt account" />
       <View style={styles.action}>
         <Button title="Connect a new TV" onPress={() => router.push('/connect-to-tv' as Href)} />
         <Pressable style={styles.payOnTv} onPress={() => router.push('/pay-on-tv' as Href)}>

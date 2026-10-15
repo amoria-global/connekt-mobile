@@ -18,7 +18,7 @@ export default function StreamsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Live Streams" subtitle="Watch and support creators" />
+      <ScreenHeader duplicatesHeader title="Live Streams" subtitle="Watch and support creators" />
       <DataList
         data={data}
         loading={loading}

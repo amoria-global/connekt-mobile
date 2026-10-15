@@ -226,6 +226,7 @@ export default function BookingsScreen() {
   return (
     <Screen padded={false}>
       <UserHeaderBand
+        duplicatesHeader
         title="Bookings"
         subtitle={
           isPhotographer
