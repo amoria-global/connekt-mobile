@@ -20,13 +20,16 @@ import type {
  * ("Coordinator", "event-coordinator", "event_coordinator"). Normalize every
  * variant to the four roles the app understands, the same way the web does.
  */
-function normalizeRole(raw?: string): CustomerType | undefined {
+export function normalizeRole(raw?: string): CustomerType | undefined {
   if (!raw) return undefined;
   const r = raw.toLowerCase().replace(/[\s_]+/g, '-');
   if (r === 'photographer') return 'Photographer';
   if (r === 'client') return 'Client';
   if (r === 'viewer') return 'Viewer';
-  if (r === 'user') return 'User';
+  // "User" was merged into Client on the backend (V307 moved every account,
+  // and sign-up stores User as Client). This is the retired name of the same
+  // role, not an inference, so a session minted before the merge keeps working.
+  if (r === 'user') return 'Client';
   if (r === 'coordinator' || r === 'event-coordinator') return 'Coordinator';
   // ROLE INVARIANT: never infer, replace or downgrade a role. This used to
   // return 'Client' for anything unrecognised, so a backend role this client

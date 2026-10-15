@@ -8,9 +8,12 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { deletePackage, listPackages, type Package } from '@/features/packages/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 export default function PackagesScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const styles = useStyles();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPackages(), []));
@@ -60,7 +63,7 @@ export default function PackagesScreen() {
               <Text style={styles.name}>{item.name}</Text>
               {item.price != null ? (
                 <Text style={styles.price}>
-                  {formatMoney(item.price, item.currency)}
+                  {formatPrice(item.price, item.currency)}
                   {item.priceUnit ? ` ${item.priceUnit}` : ''}
                 </Text>
               ) : null}

@@ -17,6 +17,8 @@ export type Stream = {
 
 export type StreamDetail = Stream & {
   playbackUrl?: string;
+  /** WebRTC (WHEP) URL, the same feed path the web uses. Absent when the backend withholds it (unpaid). */
+  whepUrl?: string;
   eventId?: string;
 };
 
@@ -74,19 +76,30 @@ function mapStream(r: Raw): Stream {
   };
 }
 
-export async function listStreams(): Promise<Stream[]> {
-  // Backend route is /api/remote/customer/streams (ClientStreamController);
-  // /api/remote/streams returns 404 ("No static resource"). The old
-  // /streams path was never wired and silently broke the Live Streams
-  // tab + every in-app stream/[id] open.
-  const res = await api.get<ApiEnvelope<unknown>>('/customer/streams');
-  const raw = res?.data;
-  const data: Raw[] = Array.isArray(raw)
-    ? (raw as Raw[])
-    : Array.isArray((raw as any)?.content)
-      ? ((raw as any).content as Raw[])
-      : [];
-  return data.map(mapStream).filter((s) => s.id);
+export async function listStreams(asCoordinator = false): Promise<Stream[]> {
+  const base = asCoordinator ? '/coordinator/streams' : '/customer/streams';
+  try {
+    const res = await api.get<ApiEnvelope<unknown>>(base);
+    const raw = res?.data;
+    const data: Raw[] = Array.isArray(raw)
+      ? (raw as Raw[])
+      : Array.isArray((raw as any)?.content)
+        ? ((raw as any).content as Raw[])
+        : [];
+    return data.map(mapStream).filter((s) => s.id);
+  } catch (err) {
+    if (asCoordinator) {
+      const fallbackRes = await api.get<ApiEnvelope<unknown>>('/customer/streams');
+      const raw = fallbackRes?.data;
+      const data: Raw[] = Array.isArray(raw)
+        ? (raw as Raw[])
+        : Array.isArray((raw as any)?.content)
+          ? ((raw as any).content as Raw[])
+          : [];
+      return data.map(mapStream).filter((s) => s.id);
+    }
+    throw err;
+  }
 }
 
 /**
@@ -96,9 +109,20 @@ export async function listStreams(): Promise<Stream[]> {
  * resolve the "stream detail" view by fetching the event with the
  * same id and mapping the relevant fields across.
  */
-export async function getStream(id: string): Promise<StreamDetail> {
-  const res = await api.get<ApiEnvelope<Raw>>(`/customer/events/${encodeURIComponent(id)}`);
-  const d = (res?.data ?? {}) as Raw;
+export async function getStream(id: string, asCoordinator = false): Promise<StreamDetail> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  let d: Raw = {};
+  try {
+    const res = await api.get<ApiEnvelope<Raw>>(`${base}/${encodeURIComponent(id)}`);
+    d = (res?.data ?? {}) as Raw;
+  } catch (err) {
+    if (asCoordinator) {
+      const fallbackRes = await api.get<ApiEnvelope<Raw>>(`/customer/events/${encodeURIComponent(id)}`);
+      d = (fallbackRes?.data ?? {}) as Raw;
+    } else {
+      throw err;
+    }
+  }
   // playbackUrl is HLS only; we derive it from whepUrl when the
   // backend's hlsManifestUrl is null (the same fallback as the public
   // access-status path — Cloudflare's manifest URL shares the customer
@@ -111,6 +135,7 @@ export async function getStream(id: string): Promise<StreamDetail> {
     ...mapStream(d),
     playbackUrl:
       str(d.hlsManifestUrl) ?? str(d.playbackUrl) ?? str(d.hls) ?? derivedHls,
+    whepUrl: str(d.whepUrl),
     eventId: String(d.id ?? id),
     title: str(d.title) ?? 'Live stream',
     isLive: str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended',
@@ -171,8 +196,19 @@ export async function joinStream(id: string): Promise<string | undefined> {
   return str(d.hlsManifestUrl) ?? str(d.playbackUrl);
 }
 
-export async function tipStream(id: string, amount: number): Promise<void> {
-  await api.post(`/streams/${encodeURIComponent(id)}/tip`, { amount });
+export type TipStreamPayload = {
+  amount: number;
+  currency?: string;
+  provider?: string;
+  phone?: string;
+};
+
+export async function tipStream(
+  id: string,
+  payload: number | TipStreamPayload,
+): Promise<void> {
+  const body = typeof payload === 'number' ? { amount: payload } : payload;
+  await api.post(`/streams/${encodeURIComponent(id)}/tip`, body);
 }
 
 // ────── Public stream access (guest / anonymous viewer flow) ──────────────
@@ -759,7 +795,8 @@ export async function initiatePublicGift(
     currencyId: string;
     paymentMethod: 'MOMO' | 'CARD';
     phone?: string;
-    telecomProvider?: 'MTN' | 'AIRTEL';
+    /** Operator id from the payment options (MTN, AIRTEL, MPESA, ...). */
+    telecomProvider?: string;
     redirectUrl?: string;
     giftMessage?: string;
     /** Catalog gift code — server derives the exact amount; `amount` is ignored when present. */
@@ -776,7 +813,7 @@ export async function initiatePublicGift(
   if (payload.giftCode) body.giftCode = payload.giftCode;
   if (payload.paymentMethod === 'MOMO') {
     body.phone = payload.phone ?? '';
-    body.telecomProvider = payload.telecomProvider ?? 'MTN';
+    body.telecomProvider = payload.telecomProvider ?? '';
   }
   if (payload.paymentMethod === 'CARD' && payload.redirectUrl) {
     body.redirectUrl = payload.redirectUrl;
@@ -788,6 +825,42 @@ export async function initiatePublicGift(
     body,
     { skipAuth: true },
   );
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not start the gift payment.' };
+  }
+  const d = (res?.data ?? {}) as Raw;
+  return {
+    refid: str(d.refid) ?? str(d.refId) ?? str(d.referenceId),
+    paymentUrl: str(d.paymentUrl) ?? str(d.checkoutUrl),
+    message: str(res?.message),
+  };
+}
+
+/**
+ * Gift from a signed-in account: POST /payments/xentripay/initiate-gift.
+ * Catalog gifts are priced by `giftCode` on the server (USD); no amount is sent.
+ * Same contract the web live page uses for authenticated viewers.
+ */
+export async function initiateAuthenticatedGift(payload: {
+  eventId: string;
+  giftCode: string;
+  currencyId: string;
+  paymentMethod: 'MOBILE_MONEY' | 'CARD';
+  phone?: string;
+  /** Operator id from the payment options (MTN, AIRTEL, MPESA, ...). */
+  telecomProvider?: string;
+}): Promise<GiftInitiation> {
+  const body: Record<string, unknown> = {
+    eventId: payload.eventId,
+    giftCode: payload.giftCode,
+    currencyId: payload.currencyId,
+    paymentMethod: payload.paymentMethod,
+  };
+  if (payload.paymentMethod === 'MOBILE_MONEY') {
+    body.phone = payload.phone ?? '';
+    body.telecomProvider = payload.telecomProvider ?? '';
+  }
+  const res = await api.post<ApiEnvelope<Raw>>('/payments/xentripay/initiate-gift', body);
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not start the gift payment.' };
   }

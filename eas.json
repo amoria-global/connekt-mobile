@@ -26,7 +26,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://backend.connekyt.com/api/remote",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "728809448366-p7n5gjov2ubgkcl0poun7argihmgk71c.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "728809448366-p7n5gjov2ubgkcl0poun7argihmgk71c.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "728809448366-69tueodvvmookki9pfnpmmg3cnunmihe.apps.googleusercontent.com"
       }
     },
     "preview-simulator": {
@@ -43,7 +44,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://backend.connekyt.com/api/remote",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "728809448366-p7n5gjov2ubgkcl0poun7argihmgk71c.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "728809448366-p7n5gjov2ubgkcl0poun7argihmgk71c.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "728809448366-69tueodvvmookki9pfnpmmg3cnunmihe.apps.googleusercontent.com"
       }
     },
     "production-apk": {

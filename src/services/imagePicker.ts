@@ -86,6 +86,68 @@ export async function pickMultipleFromLibrary(limit = 30): Promise<PickedImage[]
   return res.assets.map(toPicked);
 }
 
+/** Largest file the server accepts per upload (spring.servlet.multipart.max-file-size). */
+export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+
+export type OriginalPick = {
+  photos: PickedImage[];
+  /** Picked but not uploadable, with a reason the screen can show. */
+  skipped: { name: string; reason: string }[];
+};
+
+const ORIGINAL_TYPES: Record<string, { type: string; ext: string }> = {
+  jpg: { type: 'image/jpeg', ext: 'jpg' },
+  jpeg: { type: 'image/jpeg', ext: 'jpg' },
+  png: { type: 'image/png', ext: 'png' },
+  webp: { type: 'image/webp', ext: 'webp' },
+};
+
+/**
+ * Full-quality picks for work a photographer hands to another photographer
+ * (album collaboration). Still the system photo picker on Android, which
+ * Google Play requires: `legacy` stays off, so no storage permission is
+ * involved. `quality: 1` makes expo-image-picker copy the original bytes
+ * instead of re-encoding them. On iOS the compatible representation asks
+ * Photos for a JPEG rather than HEIC.
+ *
+ * Unlike the compressed pickers above, nothing is re-encoded, so the file's
+ * real type is kept. Types the server refuses (HEIC, for one) and files over
+ * the upload limit come back in `skipped` instead of failing mid-upload.
+ */
+export async function pickOriginalPhotos(limit = 50): Promise<OriginalPick> {
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) {
+    if (perm.canAskAgain === false) promptOpenSettings('photos');
+    return { photos: [], skipped: [] };
+  }
+  const res = await ImagePicker.launchImageLibraryAsync({
+    quality: 1,
+    mediaTypes: ['images'],
+    allowsMultipleSelection: true,
+    selectionLimit: limit,
+    exif: false,
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+  });
+  const out: OriginalPick = { photos: [], skipped: [] };
+  if (res.canceled || !res.assets?.length) return out;
+  for (const asset of res.assets) {
+    const name = asset.fileName || asset.uri.split('/').pop() || 'photo';
+    const ext = asset.uri.split('?')[0].split('.').pop()?.toLowerCase() ?? '';
+    const known = ORIGINAL_TYPES[ext];
+    if (!known) {
+      out.skipped.push({ name, reason: 'Only JPEG, PNG or WebP photos can be submitted' });
+      continue;
+    }
+    if (asset.fileSize && asset.fileSize > MAX_UPLOAD_BYTES) {
+      out.skipped.push({ name, reason: 'Larger than 20 MB' });
+      continue;
+    }
+    const base = name.replace(/\.[^./]+$/, '');
+    out.photos.push({ uri: asset.uri, name: `${base}.${known.ext}`, type: known.type });
+  }
+  return out;
+}
+
 /**
  * Launches the camera straight to the front-facing lens for a selfie.
  *

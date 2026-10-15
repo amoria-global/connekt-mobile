@@ -80,6 +80,14 @@ Never take the CLI's word for it.
 
 ## Rules paid for in production
 
+**Face data needs the same answer in four places.** Apple held iOS 2.2.0 (13) on 2026-09-24
+until we documented every face path. Before submitting any iOS build, the App Review Notes
+must carry the "FACE DATA" block, and it, privacy policy section 8 and `docs/FACE_DATA.md`
+must agree. Any change that captures, sends or stores a face follows the checklist in
+`docs/FACE_DATA.md`; `src/features/privacy/faceDataConsent.test.ts` enforces the consent side, and
+`scripts/check-store-policy.mjs` runs it inside every store build, so EAS refuses to build a
+binary that would repeat a rejection. Add a test to that script for every new rejection.
+
 **A submission to any track burns the version code.** On 2026-09-19 build 10 went up as an
 internal draft first. That consumed code 10, and the production submission was then refused
 `SUBMISSION_SERVICE_ANDROID_OLD_VERSION_CODE_ERROR`. 2.2.0 sat stranded in internal testing

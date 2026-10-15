@@ -70,6 +70,8 @@ import { isApiError, useAuth } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { canShowDigitalPrice } from '@/features/payments/policy';
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 
 const PAGE_SIZE = 8;
@@ -189,10 +191,10 @@ function priceText(e: PublicEvent): { label: string; amount: string } {
     return { label: '', amount: 'Ticketed' };
   }
   if (e.streamFee && e.streamFee > 0) {
-    return { label: 'From', amount: `${code} ${e.streamFee.toLocaleString()}` };
+    return { label: 'From', amount: formatPrice(e.streamFee, code) };
   }
   if (e.price && e.price > 0) {
-    return { label: 'From', amount: `${code} ${e.price.toLocaleString()}` };
+    return { label: 'From', amount: formatPrice(e.price, code) };
   }
   return { label: '', amount: 'Free' };
 }
@@ -236,6 +238,8 @@ type SuggestionItem = {
 };
 
 export default function ExploreEventsScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -2047,6 +2051,9 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   cardTl: { position: 'absolute', top: spacing.xs, left: spacing.xs },
+  // A paper calendar tile over the event photo: white in both themes, so its
+  // ink is fixed too. Theme text (c.text) turns near-white in dark mode and
+  // made the day vanish on the white tile.
   cardDate: {
     width: 36,
     backgroundColor: '#fff',
@@ -2057,7 +2064,7 @@ const useStyles = makeStyles((c, e) => ({
   cardDateMo: {
     width: '100%',
     paddingVertical: 2,
-    backgroundColor: c.primary,
+    backgroundColor: '#083A85',
     color: '#fff',
     fontSize: 8.5,
     fontWeight: fontWeight.bold,
@@ -2065,7 +2072,7 @@ const useStyles = makeStyles((c, e) => ({
     textAlign: 'center',
   },
   cardDateDay: {
-    color: c.text,
+    color: '#083A85',
     fontSize: 12,
     fontWeight: fontWeight.extrabold,
     paddingVertical: 1,

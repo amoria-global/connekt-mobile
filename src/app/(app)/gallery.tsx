@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Modal,
   Pressable,
   RefreshControl,
@@ -78,7 +79,7 @@ export default function GalleryScreen() {
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isPhotographer } = useRole();
+  const { role, isPhotographer } = useRole();
 
   const [filter, setFilter] = useState<AlbumFilter>('all');
   const [search, setSearch] = useState('');
@@ -87,7 +88,7 @@ export default function GalleryScreen() {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
 
   const { data, loading, error, refresh } = useAsync(
-    useCallback(() => listAlbums(isPhotographer), [isPhotographer]),
+    useCallback(() => listAlbums(role ?? isPhotographer), [role, isPhotographer]),
   );
 
   const albums = data ?? [];
@@ -196,6 +197,7 @@ export default function GalleryScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.segmentScroll}
       >
         {(['all', 'event', 'personal', 'locked'] as const).map((f) => {
@@ -257,11 +259,22 @@ export default function GalleryScreen() {
           placeholder="Search collections by name or type…"
           placeholderTextColor={colors.textMuted}
           style={styles.searchInput}
+          returnKeyType="search"
+          blurOnSubmit={true}
+          onSubmitEditing={() => Keyboard.dismiss()}
           autoCapitalize="none"
           autoCorrect={false}
         />
         {search ? (
-          <Pressable onPress={() => setSearch('')} hitSlop={8}>
+          <Pressable
+            onPress={() => {
+              setSearch('');
+              Keyboard.dismiss();
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
             <Ionicons name="close-circle" size={18} color={colors.textMuted} />
           </Pressable>
         ) : (
@@ -269,6 +282,8 @@ export default function GalleryScreen() {
             style={styles.sortIndicatorChip}
             onPress={() => setSortSheetOpen(true)}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Sort options"
           >
             <Text style={styles.sortIndicatorText}>{activeSortLabel}</Text>
             <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
@@ -279,16 +294,18 @@ export default function GalleryScreen() {
   );
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <FlatList<GalleryItem>
         key={layoutMode}
         data={sortedAndFiltered}
         keyExtractor={(g) => g.id}
         numColumns={layoutMode === 'grid' ? 2 : 1}
         columnWrapperStyle={layoutMode === 'grid' ? { gap: spacing.md } : undefined}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          { paddingBottom: Math.max(insets.bottom + 80, 96) },
         ]}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
@@ -583,7 +600,7 @@ export default function GalleryScreen() {
 
 const useStyles = makeStyles((c) => ({
   list: { paddingHorizontal: spacing.lg, gap: spacing.md },
-  headerContainer: { paddingTop: spacing.md, gap: spacing.md, marginBottom: spacing.xs },
+  headerContainer: { paddingTop: spacing.xs, gap: spacing.md, marginBottom: spacing.xs },
 
   // Editorial Title & Header Controls
   titleRow: {

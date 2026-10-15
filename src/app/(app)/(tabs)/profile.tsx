@@ -12,11 +12,11 @@
  *   6. Tab switcher (Personal Details, Settings, Account & Legal)
  *   7. Clean tab content (No loud/tacky gradients, pure minimalist typography)
  */
+import { MatchingProfileCard } from '@/features/hybrid/MatchingProfile';
 import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
   Alert,
@@ -45,7 +45,6 @@ type ProfileTab = 'details' | 'settings' | 'account';
 
 function roleLabel(type?: string) {
   if (!type) return null;
-  if (type === 'User') return 'Guest Member';
   if (type === 'Coordinator' || type === 'event-coordinator') return 'Event Coordinator';
   return type;
 }
@@ -67,7 +66,6 @@ export default function ProfileScreen() {
   const logout = useAuth((s) => s.logout);
   const updateUser = useAuth((s) => s.updateUser);
   const { isCoordinator, isPhotographer, role: customerRole } = useRole();
-  const isOwner = isCoordinator || isPhotographer;
 
   const [coverUploading, setCoverUploading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -227,12 +225,12 @@ export default function ProfileScreen() {
       { key: 'gallery', icon: 'images-outline' as const, label: 'Gallery', href: '/gallery' as Href },
       { key: 'tv', icon: 'tv-outline' as const, label: 'TV Screens', href: '/tv-devices' as Href },
       { key: 'analytics', icon: 'bar-chart-outline' as const, label: 'Analytics', href: '/analytics' as Href },
-      ...(isOwner
-        ? [{ key: 'team', icon: 'people-outline' as const, label: 'Team', href: '/team' as Href }]
+      ...(isPhotographer
+        ? [{ key: 'collaborate', icon: 'people-outline' as const, label: 'Collaborate', href: '/collaborate' as Href }]
         : []),
       { key: 'security', icon: 'lock-closed-outline' as const, label: 'Security', href: '/two-factor' as Href },
     ],
-    [isOwner],
+    [isPhotographer],
   );
 
   return (
@@ -253,16 +251,12 @@ export default function ProfileScreen() {
                 transition={200}
               />
             ) : (
-              <LinearGradient
-                colors={['#0a1f44', '#083a85']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
+              <View
+                style={[StyleSheet.absoluteFill, { backgroundColor: '#083a85' }]}
               />
             )}
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.35)']}
-              style={styles.coverScrim}
+            <View
+              style={[styles.coverScrim, { backgroundColor: 'rgba(0,0,0,0.18)' }]}
             />
 
             {/* Change cover photo button */}
@@ -411,6 +405,13 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
           </Pressable>
+        ) : null}
+
+        {/* Instagram and base city, for Post My Event matching */}
+        {isPhotographer ? (
+          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+            <MatchingProfileCard />
+          </View>
         ) : null}
 
         {/* ── Story Highlights Row (Instagram circular shortcuts) ────── */}
@@ -563,12 +564,12 @@ export default function ProfileScreen() {
                 label="Blocked accounts"
                 onPress={() => router.push('/blocked-accounts' as Href)}
               />
-              {isOwner && (
+              {isPhotographer && (
                 <MenuRow
                   icon="people-circle-outline"
-                  label="Team management"
-                  hint="Members & permissions"
-                  onPress={() => router.push('/team' as Href)}
+                  label="Collaborate"
+                  hint="Albums you share with photographers"
+                  onPress={() => router.push('/collaborate' as Href)}
                 />
               )}
               <MenuRow

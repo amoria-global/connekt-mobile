@@ -56,6 +56,40 @@ export const COUNTRIES: Country[] = [
   { code: 'NZ', label: 'New Zealand' },
   { code: 'BR', label: 'Brazil' },
   { code: 'MX', label: 'Mexico' },
+  { code: 'ZM', label: 'Zambia' },
+  { code: 'ZW', label: 'Zimbabwe' },
+  { code: 'MW', label: 'Malawi' },
+  { code: 'MZ', label: 'Mozambique' },
+  { code: 'BJ', label: 'Benin' },
+  { code: 'TG', label: 'Togo' },
+  { code: 'BF', label: 'Burkina Faso' },
+  { code: 'ML', label: 'Mali' },
+  { code: 'GN', label: 'Guinea' },
+  { code: 'GA', label: 'Gabon' },
+  { code: 'AO', label: 'Angola' },
+  { code: 'DZ', label: 'Algeria' },
+  { code: 'TN', label: 'Tunisia' },
+  { code: 'PT', label: 'Portugal' },
+  { code: 'NO', label: 'Norway' },
+  { code: 'DK', label: 'Denmark' },
+  { code: 'FI', label: 'Finland' },
+  { code: 'PL', label: 'Poland' },
+  { code: 'AT', label: 'Austria' },
+  { code: 'TR', label: 'Turkey' },
+  { code: 'KR', label: 'South Korea' },
+  { code: 'AR', label: 'Argentina' },
+  { code: 'CO', label: 'Colombia' },
+];
+
+export type GeoRegionItem = {
+  scopeType: 'CONTINENT' | 'COUNTRY';
+  code: string;
+  label: string;
+};
+
+export const ALL_REGIONS: GeoRegionItem[] = [
+  ...CONTINENTS.map((c) => ({ scopeType: 'CONTINENT' as const, code: c.code, label: c.label })),
+  ...COUNTRIES.map((c) => ({ scopeType: 'COUNTRY' as const, code: c.code, label: c.label })),
 ];
 
 export function countryLabel(code: string): string {
@@ -64,4 +98,8 @@ export function countryLabel(code: string): string {
 
 export function continentLabel(code: string): string {
   return CONTINENTS.find((c) => c.code === code)?.label ?? code;
+}
+
+export function regionLabel(scope: 'CONTINENT' | 'COUNTRY', code: string): string {
+  return scope === 'CONTINENT' ? continentLabel(code) : countryLabel(code);
 }

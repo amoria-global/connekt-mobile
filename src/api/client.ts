@@ -96,7 +96,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     // iOS NSURLSession -1005 ("The network connection was lost") happens when reusing
     // an idle keep-alive TCP socket that the server/Cloudflare has closed.
     // Retrying once immediately opens a fresh socket, which usually succeeds.
-    if (isConnectionLostError(err) && !_retried) {
+    // GET only: replaying a POST after a lost connection can submit a payment
+    // or withdrawal twice, because the first one may already have landed.
+    if (isConnectionLostError(err) && !_retried && (rest.method ?? 'GET') === 'GET') {
       return request<T>(path, { ...options, _retried: true });
     }
 
@@ -269,8 +271,24 @@ function isApiError(err: unknown): err is ApiError {
   return !!err && typeof err === 'object' && 'status' in err && 'message' in err;
 }
 
+/**
+ * The backend answers failures with HTTP 200 and action 0. A reader that only
+ * looks at data turns that into zeros on screen, so money and analytics reads
+ * go through getOk, which throws instead. A body without an action field
+ * (a raw page) passes through unchanged.
+ */
+export function requireOk<T>(res: T): T {
+  if (res && typeof res === 'object' && 'action' in res && (res as { action?: unknown }).action !== 1) {
+    const message = (res as { message?: unknown }).message;
+    throw { status: 200, message: typeof message === 'string' && message ? message : 'Could not load this. Please try again.' } satisfies ApiError;
+  }
+  return res;
+}
+
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'GET' }),
+  getOk: async <T>(path: string, opts?: RequestOptions) =>
+    requireOk(await request<T>(path, { ...opts, method: 'GET' })),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions) =>
     request<T>(path, { ...opts, method: 'POST', body }),
   put: <T>(path: string, body?: unknown, opts?: RequestOptions) =>

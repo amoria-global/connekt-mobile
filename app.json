@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.2.0",
+    "version": "2.2.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -76,7 +76,12 @@
       [
         "expo-notifications",
         {
-          "color": "#083A85"
+          "enableBackgroundRemoteNotifications": true,
+          "color": "#083A85",
+          "sounds": [
+            "./assets/sounds/connekyt_ringtone.wav",
+            "./assets/sounds/connekyt_chime.wav"
+          ]
         }
       ],
       [
@@ -121,7 +126,8 @@
       "expo-image",
       "expo-sharing",
       "expo-web-browser",
-      "expo-screen-orientation"
+      "expo-screen-orientation",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

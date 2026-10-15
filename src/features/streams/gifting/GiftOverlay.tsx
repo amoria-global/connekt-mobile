@@ -27,6 +27,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors, spacing, radii, fontSize, fontWeight, useTheme , makeStyles} from '@/theme';
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -80,8 +82,14 @@ export function parseGiftMeta(raw?: string | null): GiftMeta | null {
   }
 }
 
-/** "$5", "$2.50" — whole dollars stay clean, cents only when needed. */
+/** The exact USD catalog price, never converted. */
+export function formatGiftUsdBase(v: number): string {
+  return `$${Number.isInteger(v) ? v : v.toFixed(2)}`;
+}
+
+/** "$5", "$2.50" in USD (whole dollars stay clean); in the selected display currency otherwise. */
 export function formatGiftUsd(v: number): string {
+  if (useCurrency.getState().currency !== 'USD') return formatPrice(v, 'USD');
   return `$${Number.isInteger(v) ? v : v.toFixed(2)}`;
 }
 

@@ -31,6 +31,8 @@ import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { env } from '@/config/env';
+import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapView';
 
 const ITEMS_PER_PAGE = 8;
 const ALL_CATEGORIES = 'All Categories';
@@ -183,6 +185,8 @@ export default function PhotographersScreen() {
   const { isCoordinator } = useRole();
   const router = useRouter();
 
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [inputQuery, setInputQuery] = useState('');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [location, setLocation] = useState(ALL_LOCATIONS);
@@ -190,6 +194,14 @@ export default function PhotographersScreen() {
   const [rating, setRating] = useState<string>(ALL_RATINGS);
   const [sort, setSort] = useState<SortKey>('rating');
   const [sheet, setSheet] = useState<SheetKey | null>(null);
+
+  // Debounce search query so typing is smooth and never drops keystrokes on mobile
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQuery(inputQuery);
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [inputQuery]);
 
   // Bookmark state & parity sync
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
@@ -387,13 +399,14 @@ export default function PhotographersScreen() {
   }, [data, query, category, location, price, rating, sort]);
 
   const activeFilterCount =
-    (query.trim() ? 1 : 0) +
+    (inputQuery.trim() || query.trim() ? 1 : 0) +
     (category !== ALL_CATEGORIES ? 1 : 0) +
     (location !== ALL_LOCATIONS ? 1 : 0) +
     (price !== ALL_PRICES ? 1 : 0) +
     (rating !== ALL_RATINGS ? 1 : 0);
 
   const clearFilters = () => {
+    setInputQuery('');
     setQuery('');
     setCategory(ALL_CATEGORIES);
     setLocation(ALL_LOCATIONS);
@@ -470,13 +483,62 @@ export default function PhotographersScreen() {
     router.push(`/photographer/${id}` as never);
   };
 
+  const renderViewModeSwitcher = () => (
+    <View style={styles.viewModeContainer}>
+      <Pressable
+        style={[styles.viewModeBtn, viewMode === 'list' && styles.viewModeBtnActive]}
+        onPress={() => setViewMode('list')}
+      >
+        <Ionicons
+          name="grid"
+          size={12}
+          color={viewMode === 'list' ? '#FFFFFF' : colors.textMuted}
+        />
+        <Text
+          style={[
+            styles.viewModeBtnText,
+            viewMode === 'list' && styles.viewModeBtnTextActive,
+          ]}
+        >
+          List
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.viewModeBtn, viewMode === 'map' && styles.viewModeBtnActive]}
+        onPress={() => setViewMode('map')}
+      >
+        <Ionicons
+          name="map"
+          size={12}
+          color={viewMode === 'map' ? '#FFFFFF' : colors.textMuted}
+        />
+        <Text
+          style={[
+            styles.viewModeBtnText,
+            viewMode === 'map' && styles.viewModeBtnTextActive,
+          ]}
+        >
+          Map
+        </Text>
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveBadgeText}>LIVE</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       {/* Title Area */}
       <View style={styles.titleSection}>
-        <View style={styles.eyebrowPill}>
-          <Ionicons name="sparkles" size={10} color={colors.primary} />
-          <Text style={styles.eyebrowText}>VERIFIED PROS</Text>
+        <View style={styles.titleTopRow}>
+          <View style={styles.eyebrowPill}>
+            <Ionicons name="sparkles" size={10} color={colors.primary} />
+            <Text style={styles.eyebrowText}>VERIFIED PROS</Text>
+          </View>
+          {renderViewModeSwitcher()}
         </View>
         <Text style={styles.title}>Find Photographers</Text>
         <Text style={styles.subtitle}>
@@ -484,20 +546,57 @@ export default function PhotographersScreen() {
         </Text>
       </View>
 
+      {/* Hybrid Matching Banner */}
+      {env.hybridBookingEnabled && (
+        <Pressable
+          style={({ pressed }) => [styles.hybridBanner, pressed && { opacity: 0.85 }]}
+          onPress={() => router.push('/event/hybrid-wizard' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Can't decide? Post your event. Post Brief"
+        >
+          {/* tint is translucent, so it sits over the opaque card instead of the page */}
+          <View pointerEvents="none" style={styles.hybridBannerWash} />
+          <View style={styles.hybridBannerIcon}>
+            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.hybridBannerTitle}>Can't decide? Post your event</Text>
+            <Text style={styles.hybridBannerDesc}>
+              Broadcast date & budget to available talent with zero rejection risk.
+            </Text>
+          </View>
+          <View style={styles.hybridBannerBtn}>
+            <Text style={styles.hybridBannerBtnText}>Post Brief</Text>
+            <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+          </View>
+        </Pressable>
+      )}
+
       {/* Global In-Page Search Bar */}
       <View style={styles.searchBar}>
         <Ionicons name="search" size={18} color={colors.textMuted} />
         <TextInput
           placeholder="Search by need (Weddings, Studio, Drone), name..."
           placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={setQuery}
+          value={inputQuery}
+          onChangeText={setInputQuery}
           autoCapitalize="none"
           autoCorrect={false}
+          returnKeyType="search"
+          onSubmitEditing={() => setQuery(inputQuery)}
+          cursorColor={colors.primary}
+          selectionColor={colors.primary + '30'}
           style={styles.searchInput}
         />
-        {query.trim().length > 0 && (
-          <Pressable onPress={() => setQuery('')} hitSlop={10} style={styles.searchClearBtn}>
+        {inputQuery.trim().length > 0 && (
+          <Pressable
+            onPress={() => {
+              setInputQuery('');
+              setQuery('');
+            }}
+            hitSlop={10}
+            style={styles.searchClearBtn}
+          >
             <Ionicons name="close-circle" size={18} color={colors.textMuted} />
           </Pressable>
         )}
@@ -807,7 +906,22 @@ export default function PhotographersScreen() {
           }}
         />
 
-        {loading && !data ? (
+        {viewMode === 'map' ? (
+          <View style={styles.mapScreenContainer}>
+            <View style={styles.mapTopHeader}>
+              <View>
+                <Text style={styles.mapTopTitle}>Direct Booking Radar</Text>
+                <Text style={styles.mapTopSubtitle}>Nearby verified creators</Text>
+              </View>
+              {renderViewModeSwitcher()}
+            </View>
+            <DirectBookingMapView
+              initialSearch={query}
+              initialSpecialty={category}
+              style={{ flex: 1 }}
+            />
+          </View>
+        ) : loading && !data ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading directory…</Text>
@@ -1031,6 +1145,92 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: spacing.md,
     gap: 4,
   },
+  titleTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  viewModeContainer: {
+    flexDirection: 'row',
+    backgroundColor: c.surfaceMuted,
+    borderRadius: radii.full,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+  },
+  viewModeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: radii.full,
+  },
+  viewModeBtnActive: {
+    backgroundColor: c.primary,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  viewModeBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  viewModeBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2.5,
+    backgroundColor: '#F20C8F',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: radii.full,
+    marginLeft: 2,
+  },
+  liveDot: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  liveBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 7.5,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  mapScreenContainer: {
+    flex: 1,
+    backgroundColor: c.background,
+  },
+  mapTopHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: c.card,
+    borderBottomWidth: 1,
+    borderBottomColor: c.borderSoft,
+    zIndex: 10,
+  },
+  mapTopTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: c.text,
+  },
+  mapTopSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.textMuted,
+  },
   eyebrowPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1060,6 +1260,63 @@ const useStyles = makeStyles((c, e) => ({
     lineHeight: 17,
   },
 
+  // Hybrid Banner
+  hybridBanner: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    backgroundColor: c.card,
+    borderWidth: 1.5,
+    borderColor: c.primary + '55',
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    overflow: 'hidden',
+  },
+  hybridBannerWash: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: c.tint,
+  },
+  hybridBannerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hybridBannerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: c.text,
+    marginBottom: 2,
+  },
+  hybridBannerDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: c.textSoft,
+    lineHeight: 15,
+  },
+  hybridBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: c.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+  },
+  hybridBannerBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 11.5,
+    color: '#FFFFFF',
+  },
+
   // Search Bar
   searchBar: {
     marginHorizontal: spacing.md,
@@ -1077,7 +1334,7 @@ const useStyles = makeStyles((c, e) => ({
   searchInput: {
     flex: 1,
     fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
+    fontSize: fontSize.md,
     color: c.text,
     height: '100%',
     paddingVertical: 0,

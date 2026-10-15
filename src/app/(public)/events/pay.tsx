@@ -19,7 +19,9 @@
  *      • Auto-unlocks and navigates directly into /events/live-stream on success.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { pollStatus } from '@/features/payments/nativeCheckout';
+import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { canBuyEventTicket, isInPersonEvent } from '@/features/payments/policy';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -58,9 +60,17 @@ import {
   phoneHintForCountry,
 } from '@/features/payments/formatPhone';
 import { flagEmoji } from '@/components/ui/PhoneInput';
+import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { formatPrice } from '@/utils/format';
 
-type Stage = 'contact' | 'payment' | 'awaiting' | 'success';
+// The stream-ticket endpoint takes MTN or AIRTEL for mobile money, as before.
+const STREAM_OPERATORS = [
+  { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
+  { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' },
+];
+
+type Stage = 'contact' | 'payment' | 'awaiting' | 'success' | 'unconfirmed';
 
 const PAYMENT_COUNTRIES = [
   { iso2: 'RW', name: 'Rwanda', dial: '250' },
@@ -79,13 +89,29 @@ const PAYMENT_COUNTRIES = [
 
 function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
   if (!fee || fee <= 0) return 'Free';
-  return `${symbol || code || 'RWF'} ${fee.toLocaleString()}`;
+  return formatPrice(fee, code || 'RWF');
 }
 
+// Stream-only tickets are digital goods, absent in store builds (payments/policy).
+// Tickets to in-person events are a real-world service and are allowed; that is
+// decided once the event has loaded (see the guard in EventPaymentInner), which
+// also stops a stale deep link to a stream-only event.
 export default function EventPaymentScreen() {
+  return <EventPaymentInner />;
+}
+
+function EventPaymentInner() {
   const { colors } = useTheme();
   const styles = useStyles();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, device: tvDevice } = useLocalSearchParams<{ id: string; device?: string }>();
+  // Pay-on-TV: a phone pays for a TV. Access is bound to the TV's device id
+  // (from its QR), never this phone's, and this phone must not remember the
+  // resulting viewer as its own.
+  const forTv = !!tvDevice;
+  const accessDeviceId = async () => (tvDevice ? String(tvDevice) : getDeviceId());
+  const rememberViewer = async (vId: string) => {
+    if (!forTv) await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
+  };
   const router = useRouter();
 
   const event = useAsync(useCallback(() => getPublicEventDetailed(id), [id]));
@@ -127,8 +153,7 @@ export default function EventPaymentScreen() {
 
   // Payment polling state
   const [refid, setRefid] = useState<string | null>(null);
-  const [pollCountdown, setPollCountdown] = useState(90);
-  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollCancelRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     detectPaymentCountry()
@@ -151,7 +176,7 @@ export default function EventPaymentScreen() {
   // Clean up polling timer
   useEffect(() => {
     return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      pollCancelRef.current?.();
     };
   }, []);
 
@@ -164,7 +189,7 @@ export default function EventPaymentScreen() {
     setBusy(true);
     setError(null);
     try {
-      const deviceId = await getDeviceId();
+      const deviceId = await accessDeviceId();
       const normalizedEmail = email.trim().toLowerCase();
       const reg = await registerAnonymousViewer(id, {
         name: name.trim(),
@@ -178,7 +203,7 @@ export default function EventPaymentScreen() {
       }
 
       setViewerId(reg.viewerId);
-      await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
+      await rememberViewer(reg.viewerId);
 
       // If already paid or event is free, immediately grant access
       if (!reg.needsPayment) {
@@ -200,10 +225,10 @@ export default function EventPaymentScreen() {
     setBusy(true);
     setError(null);
     try {
-      const deviceId = await getDeviceId();
+      const deviceId = await accessDeviceId();
       const rec = await reconcileAnonymousByFingerprint(id, deviceId);
       if (rec.status === 'ACCESS_GRANTED' && rec.viewerId) {
-        await storage.set(`anonymousViewer_${id}`, rec.viewerId).catch(() => {});
+        await rememberViewer(rec.viewerId);
         setViewerId(rec.viewerId);
         setStage('success');
         return;
@@ -243,17 +268,16 @@ export default function EventPaymentScreen() {
       const res = await initiateAnonymousPayment(id, payload);
 
       if (paymentMethod === 'CARD' && res.paymentUrl) {
-        // Open secure browser modal for 3DS authentication
+        // Lock the form while the card page is open so a second tap cannot
+        // start a second charge; polling settles the result.
+        setStage('awaiting');
+        if (res.refid) startPolling(res.refid, viewerId, true);
         await WebBrowser.openAuthSessionAsync(res.paymentUrl, 'connekt://payment-callback');
-        // Check status after card completion
-        if (res.refid) {
-          startPolling(res.refid, viewerId);
-        }
       } else if (res.refid) {
         // Mobile money: start polling USSD status
         setRefid(res.refid);
         setStage('awaiting');
-        startPolling(res.refid, viewerId);
+        startPolling(res.refid, viewerId, paymentMethod === 'CARD');
       } else if (res.status === 'SUCCESS') {
         setStage('success');
       } else {
@@ -267,37 +291,33 @@ export default function EventPaymentScreen() {
   };
 
   // ── Step 4: Status Polling ────────────────────────────────────────────────
-  const startPolling = (txRefid: string, vId: string) => {
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    let secondsLeft = 90;
-    setPollCountdown(secondsLeft);
-
-    pollTimerRef.current = setInterval(async () => {
-      secondsLeft -= 2;
-      setPollCountdown(Math.max(0, secondsLeft));
-
-      try {
-        const check = await checkAnonymousPaymentStatus(id, txRefid, vId);
-        if (check.status === 'SUCCESS') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          await storage.set(`anonymousViewer_${id}`, vId).catch(() => {});
-          setStage('success');
-        } else if (check.status === 'FAILED') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          setError(check.message || 'Payment was declined or timed out. Please try again.');
-          setStage('payment');
-        }
-      } catch {
-        /* best-effort poll */
-      }
-
-      if (secondsLeft <= 0) {
-        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-        setError('Payment approval timed out. Please check your phone balance and try again.');
+  const startPolling = (txRefid: string, vId: string, card: boolean) => {
+    pollCancelRef.current?.();
+    // Shared poller: bounded, keeps going through failed reads and the card's
+    // early FAILED, and ends in `unconfirmed` rather than `failed` when it runs
+    // out of time. The charge may have landed, so that state never offers a
+    // retry (see docs/PAYMENTS.md).
+    const poll = pollStatus(async () => {
+      const check = await checkAnonymousPaymentStatus(id, txRefid, vId);
+      if (check.status === 'SUCCESS') return 'success';
+      if (check.status === 'FAILED') return 'failed';
+      return 'pending';
+    }, card);
+    pollCancelRef.current = poll.cancel;
+    void poll.done.then(async (outcome) => {
+      if (outcome === 'success') {
+        await rememberViewer(vId);
+        setStage('success');
+      } else if (outcome === 'failed') {
+        setError('Payment was declined or cancelled. You have not been charged.');
         setStage('payment');
+      } else {
+        setStage('unconfirmed');
       }
-    }, 2000);
+    });
   };
+
+  if (!event.loading && !canBuyEventTicket(event.data)) return <Redirect href="/" />;
 
   if (event.loading && !event.data) {
     return (
@@ -321,6 +341,9 @@ export default function EventPaymentScreen() {
   }
 
   const data = event.data!;
+  // In-person events sell an event ticket (the live stream is one way to attend);
+  // the copy says so on every step so the receipt matches the listing.
+  const isTicket = isInPersonEvent(data);
 
   return (
     <Screen padded={false} edges={[]}>
@@ -339,9 +362,9 @@ export default function EventPaymentScreen() {
         {/* ── STAGE 1: Contact Information ── */}
         {stage === 'contact' && (
           <View style={styles.section}>
-            <Text style={styles.h2}>Your Access Pass</Text>
+            <Text style={styles.h2}>{isTicket ? 'Your Event Ticket' : 'Your Access Pass'}</Text>
             <Text style={styles.subtext}>
-              Enter your name and email to link your access pass and receive your receipt.
+              {isTicket ? 'Enter your name and email to link your event ticket and receive your receipt. Your ticket admits you to the event, and includes the live stream if you cannot attend in person.' : 'Enter your name and email to link your access pass and receive your receipt.'}
             </Text>
 
             {loggedIn ? (
@@ -400,7 +423,7 @@ export default function EventPaymentScreen() {
           <View style={styles.section}>
             <View style={styles.feeBanner}>
               <View>
-                <Text style={styles.feeBannerLabel}>Total to Pay</Text>
+                <Text style={styles.feeBannerLabel}>{isTicket ? 'Event ticket' : 'Total to Pay'}</Text>
                 <Text style={styles.feeBannerAmount}>{totalLabel}</Text>
               </View>
               <Pressable
@@ -417,92 +440,23 @@ export default function EventPaymentScreen() {
 
             {/* Payment Method Selector */}
             <Text style={styles.sectionTitle}>Select Payment Method</Text>
-            <View style={styles.methodsRow}>
-              <Pressable
-                style={[
-                  styles.methodCard,
-                  paymentMethod === 'MOBILE_MONEY' && styles.methodCardActive,
-                ]}
-                onPress={() => setPaymentMethod('MOBILE_MONEY')}
-              >
-                <Ionicons
-                  name="phone-portrait-outline"
-                  size={20}
-                  color={paymentMethod === 'MOBILE_MONEY' ? colors.primary : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.methodText,
-                    paymentMethod === 'MOBILE_MONEY' && styles.methodTextActive,
-                  ]}
-                >
-                  Mobile Money
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.methodCard,
-                  paymentMethod === 'CARD' && styles.methodCardActive,
-                ]}
-                onPress={() => setPaymentMethod('CARD')}
-              >
-                <Ionicons
-                  name="card-outline"
-                  size={20}
-                  color={paymentMethod === 'CARD' ? colors.primary : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.methodText,
-                    paymentMethod === 'CARD' && styles.methodTextActive,
-                  ]}
-                >
-                  Card (Visa/MC)
-                </Text>
-              </Pressable>
-            </View>
+            <PaymentMethodPicker
+              operators={STREAM_OPERATORS}
+              supportsCard
+              selectedId={paymentMethod === 'CARD' ? 'card' : telecomProvider.toLowerCase()}
+              onSelect={(id) => {
+                if (id === 'card') {
+                  setPaymentMethod('CARD');
+                } else {
+                  setPaymentMethod('MOBILE_MONEY');
+                  setTelecomProvider(id === 'airtel' ? 'AIRTEL' : 'MTN');
+                }
+              }}
+            />
 
             {/* Mobile Money Details */}
             {paymentMethod === 'MOBILE_MONEY' ? (
               <View style={styles.providerBox}>
-                {country === 'RW' && (
-                  <View style={styles.providerToggleRow}>
-                    <Pressable
-                      style={[
-                        styles.providerPill,
-                        telecomProvider === 'MTN' && styles.providerPillActive,
-                      ]}
-                      onPress={() => setTelecomProvider('MTN')}
-                    >
-                      <Text
-                        style={[
-                          styles.providerPillText,
-                          telecomProvider === 'MTN' && styles.providerPillTextActive,
-                        ]}
-                      >
-                        MTN MoMo
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.providerPill,
-                        telecomProvider === 'AIRTEL' && styles.providerPillActive,
-                      ]}
-                      onPress={() => setTelecomProvider('AIRTEL')}
-                    >
-                      <Text
-                        style={[
-                          styles.providerPillText,
-                          telecomProvider === 'AIRTEL' && styles.providerPillTextActive,
-                        ]}
-                      >
-                        Airtel Money
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-
                 <Text style={styles.inputLabel}>Mobile Phone Number</Text>
                 <View style={styles.phoneInputRow}>
                   <View style={styles.dialPrefix}>
@@ -562,26 +516,37 @@ export default function EventPaymentScreen() {
             <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: spacing.md }} />
             <Text style={styles.awaitingTitle}>Check Your Phone</Text>
             <Text style={styles.awaitingSub}>
-              A USSD payment prompt has been dispatched to{' '}
-              <Text style={{ fontWeight: '700', color: colors.text }}>
-                +{dialCodeFor(country)} {phone}
-              </Text>
-              . Please enter your Mobile Money PIN to approve the payment.
+              {paymentMethod === 'CARD' ? (
+                'Complete the card payment in the secure window, then return here.'
+              ) : (
+                <>
+                  A USSD payment prompt has been dispatched to{' '}
+                  <Text style={{ fontWeight: '700', color: colors.text }}>
+                    +{dialCodeFor(country)} {phone}
+                  </Text>
+                  . Please enter your Mobile Money PIN to approve the payment.
+                </>
+              )}
             </Text>
 
             <View style={styles.countdownBox}>
               <Ionicons name="time-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.countdownText}>Waiting for confirmation… ({pollCountdown}s)</Text>
+              <Text style={styles.countdownText}>Waiting for confirmation…</Text>
             </View>
 
-            <Button
-              title="Cancel / Try Another Method"
-              variant="outline"
-              onPress={() => {
-                if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-                setStage('payment');
-              }}
-            />
+          </View>
+        )}
+
+        {/* ── Unconfirmed: we stopped waiting. No retry, the charge may have landed. ── */}
+        {stage === 'unconfirmed' && (
+          <View style={styles.awaitingCard}>
+            <Ionicons name="time-outline" size={40} color={colors.textMuted} style={{ marginVertical: spacing.md }} />
+            <Text style={styles.awaitingTitle}>We could not confirm your payment yet</Text>
+            <Text style={styles.awaitingSub}>
+              If you approved the prompt on your phone, your access may still activate. Check your
+              phone and try &quot;Already paid? Verify access&quot; in a few minutes before paying again.
+            </Text>
+            <Button title="Back" variant="outline" onPress={() => router.back()} />
           </View>
         )}
 
@@ -591,10 +556,10 @@ export default function EventPaymentScreen() {
             <View style={styles.successIconCircle}>
               <Ionicons name="checkmark" size={32} color="#fff" />
             </View>
-            <Text style={styles.successTitle}>Access Pass Activated!</Text>
+            <Text style={styles.successTitle}>{isTicket ? 'Event Ticket Confirmed!' : 'Access Pass Activated!'}</Text>
             <Text style={styles.successSub}>
-              Your live stream access for <Text style={{ fontWeight: '700' }}>{data.title}</Text> has
-              been unlocked and linked to this device.
+              {isTicket ? 'Your event ticket for ' : 'Your live stream access for '}<Text style={{ fontWeight: '700' }}>{data.title}</Text>{isTicket ? ' is confirmed. The live stream is included and has' : ' has'}
+              been unlocked and linked to {forTv ? 'your TV, which will start playing shortly' : 'this device'}.
             </Text>
 
             <Button

@@ -64,8 +64,10 @@ miss.
 
 Client ids are per platform and per Google Cloud project, and the type is fixed when the
 client is created. Android must use an Android-type client; a Web client is refused with
-"Custom scheme URIs are not allowed". iOS has no client configured, so the Google button
-does not offer sign-in there.
+"Custom scheme URIs are not allowed". iOS uses its own iOS-type client
+(`728809448366-69tue...`, bundle `com.connekyt.app`, added 2026-10-09). Its redirect is
+`com.connekyt.app:/oauthredirect`, and Expo prebuild already registers the bundle id as a
+URL scheme, so no reversed-client-id scheme is needed.
 
 The backend verifies the Google token against its own audience allowlist
 (`connekyt.google.allowed-audiences`). Adding a platform means adding its client id there
@@ -73,36 +75,55 @@ too, or every login from that platform is refused.
 
 ## iOS
 
-No iOS build has ever been produced and no Apple team is linked to the EAS project.
-Expo Go can load the JavaScript for a look at the UI, but sign-in, push notifications,
-updates and deep links all behave differently there and prove nothing. A real iPhone build
-needs an Apple Developer membership first.
+An iOS build exists: `build-13.ipa` is 2.2.0 (13), bundle `com.connekyt.app`, signed by
+Apple team `Z34A347245` with `aps-environment: production`, so it can receive push.
+`eas.json` has the iOS submit profile (App Store Connect app `6811336076`). As of
+2026-10-07 the app is going through App Store submission, not released; the open items
+are in `~/Desktop/ME/Connekyt-iOS-Submission/`. Push delivery also needs the APNs key on
+the EAS project, which isn't visible from the repo; check expo.dev → Credentials.
+
+Build 13 predates the bundled notification sounds (2026-10-07), so custom ringtones on
+iPhone need a newer iOS build.
+
+Expo Go can load the JavaScript for a look at the UI, but custom notification sounds,
+notification categories (lock-screen buttons), sign-in, push, updates and deep links
+behave differently there and prove nothing. Test those on a development or TestFlight
+build.
 
 The greenfield sandbox lives at `src/_design-sandbox/` and is git-ignored.
 
 ## ⚠️ Payments — read `docs/PAYMENTS.md` before touching anything money-related
 
-**This app does not take payments.** No phone collection, no MoMo/card picker,
-no gateway polling, no settlement. Every paid flow opens the connekyt.com web
-checkout in the in-app browser (`src/features/payments/webCheckout.ts`).
+Payments complete in the app (see the 2026-09-30 note in `docs/PAYMENTS.md`), but
+**digital goods are OFF on native builds** (`digitalPurchasesEnabled` is true only on
+web or with `EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES=true`; no `NODE_ENV` clause). Stream
+tickets, gifts, photo purchases, archive unlock, photobook extras and pay-on-TV are
+built but absent in store builds. Bookings and donations are exempt and always on.
+Never loosen the flag to ship a feature; read `policy.ts` first. Booking balances, photobook extras, archive unlock and
+catalog gifts go through `features/payments/CheckoutSheet` (with
+`HandoffCheckoutSheet` and `GiftCheckoutSheet` on top). Stream access, donations
+and photo purchases use `events/pay`, `donate` and `PhotoCheckoutSheet`. Signed-in gifts (`initiate-gift`), pay-on-TV (`events/pay?device=`) and a free album's
+extra photos (PhotoCheckoutSheet, overflow only) are in the app too. Still on the
+connekyt.com checkout: group stream packages, and a gift from a viewer who has not
+registered yet (the web page registers one).
 
-That means the **web client owns payment correctness and this app inherits its
-fixes automatically** — a web payment fix reaches mobile buyers with no app
-release, and no change here can repair a web payment bug.
-
-- **Do not build a native payment flow** without reading `docs/PAYMENTS.md`
-  and the backend's `docs/PAYMENTS.md`. The web flow took seven production
-  defects to get right, including one where anonymous buyers were told a
-  successful payment had failed and offered a retry that charges again.
-- **Do not wire up the dead payment helpers** in `features/photos/api.ts`,
-  `features/streams/api.ts` or `features/donations/api.ts`. They are defined
-  and never called, and they are flagged in place.
-- **Never poll an authenticated status endpoint for a buyer.** Photo and
-  stream buyers are anonymous; use `/public/payments/xentripay/status/{refid}`.
-- **Never send an amount from the client.** `mintHandoffUrl` sends none by
-  design so the server sets the price.
-- **The in-app browser is a separate storage jar.** Nothing the checkout
-  writes to localStorage is readable here. Delivery relies on the emailed
-  unlock code.
-- **Always check `action` on the envelope** — the backend returns HTTP 200 for
-  failures, so `action: 0` with a 200 is a failure.
+- **Read `docs/PAYMENTS.md` and the backend's `docs/PAYMENTS.md`** before changing
+  any of it. The web flow took seven production defects to get right.
+- **One poller.** Use `pollStatus` in `features/payments/nativeCheckout.ts`. It is
+  bounded, survives failed reads, ignores a card's early FAILED, and ends in
+  `unknown`, never `failed`, when it runs out of time. Never offer a retry from
+  `unknown`: the charge may have landed and a retry charges again.
+- **Never poll an authenticated status endpoint for a buyer.** Use
+  `/public/payments/xentripay/status/{refid}` (or the anonymous-viewer status,
+  which also unlocks access).
+- **Never send an amount from the client** for a declaration or archive handoff;
+  the server sets the price. Gifts are priced by `giftCode`.
+- **Pass the operator id through untouched.** Guessing a provider charges the
+  wrong network.
+- **Lock the form while a card page is open** so a second tap cannot start a
+  second charge.
+- **Only BOOKING and PHOTOBOOK_EXTRAS are owed** (`isOwedObligation`). Unsettled
+  digital declarations are viewers' unfinished purchases, not bills.
+- **Always check `action` on the envelope**; HTTP 200 with `action: 0` is a failure.
+- **Do not change gateway routing** (no country or redirect the web receiver does
+  not send) without an explicit decision.

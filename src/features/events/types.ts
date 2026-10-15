@@ -1,6 +1,7 @@
 import type { ID } from '@/types';
 
 export type EventStatus = string;
+/** How guests attend: a physical event (ticket consumed outside the app) or stream only. */export type AttendanceMode = 'IN_PERSON' | 'HYBRID' | 'STREAM_ONLY';export function parseAttendanceMode(v: unknown): AttendanceMode | undefined {  const s = typeof v === 'string' ? v.trim().toUpperCase() : '';  return s === 'IN_PERSON' || s === 'HYBRID' || s === 'STREAM_ONLY' ? s : undefined;}
 
 /** Payload for creating an event / booking a photographer. */
 export type CreateEventInput = {
@@ -8,10 +9,14 @@ export type CreateEventInput = {
   description?: string;
   /** Maps to the backend `eventType`. */
   category: string;
+  /** The event_types id, when the type was picked from the shared list. */
+  eventCategoryId?: string;
   eventDate: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime?: string; // HH:mm (defaults to startTime)
   location?: string;
+  /** Organizer attestation: can guests attend in person at the venue? */
+  attendanceMode?: AttendanceMode;
   price?: number;
   /**
    * Live-stream access fee (what viewers pay to watch). Distinct from `price`
@@ -37,20 +42,25 @@ export type EventItem = {
   title: string;
   eventDate?: string;
   location?: string;
+  attendanceMode?: AttendanceMode;
   status?: EventStatus;
   category?: string;
   /** Category id when available (lets edit forms pre-select the row). */
   categoryId?: string;
   photographerName?: string;
+  photographerId?: string;
   /**
    * The booking's client (who the photographer is shooting for). On the
    * photographer feed the card shows this person + avatar, not the
    * photographer. Web parity: photographer/events.tsx card footer.
    */
   clientName?: string;
+  clientId?: string;
   clientAvatar?: string;
   /** Booked package label (e.g. "Diamond", "Gold") — shown as a card badge. */
   packageName?: string;
+  /** Underlying booking ID if mapped from a booking record. */
+  bookingId?: string;
   /** Whether this event carries a live stream (drives the Stream pill + CTA). */
   hasLiveStream?: boolean;
   coverImage?: string;
@@ -95,6 +105,14 @@ export type EventItem = {
   /** True once the photographer has delivered the album. Gates completion. */
   albumDelivered?: boolean;
   notes?: string;
+
+  // ──────── Hybrid & Geolocation fields ────────
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+  minBudget?: number;
+  maxBudget?: number;
+  bookingMode?: string;
 };
 
 /**
@@ -126,6 +144,8 @@ export type PublicEvent = {
   startTime?: string;
   endTime?: string;
   location?: string;
+  /** Server-derived: stored organizer claim, else inferred from the venue. */
+  attendanceMode?: AttendanceMode;
   eventOrganizer?: string;
   eventTags?: string;
   eventPhoto?: string;
@@ -207,10 +227,18 @@ export type PublicEventsPage = {
  * For older list responses that do not include it, it falls back to the
  * event's ONGOING state plus its live-stream metadata.
  */
+const FINISHED_EVENT_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'CANCELED']);
+
 export function isEventLive(event: PublicEvent, liveStreamIds?: Set<string>): boolean {
   const eventStatus = (event.eventStatus || '').toUpperCase();
   const streamStatus = (event.streamStatus || '').toLowerCase();
   if (streamStatus === 'ended') return false;
+
+  // A finished event is never live. The stream input's status is not reset
+  // when an event completes, so completed rows from months ago still report
+  // 'connected' and showed a LIVE badge in the Ended tab. The web requires
+  // ONGOING outright; here the event's terminal status wins over the stream.
+  if (FINISHED_EVENT_STATUSES.has(eventStatus)) return false;
 
   // The stream lifecycle is the most reliable signal once broadcasting has
   // started. Some backend rows remain PUBLISHED while the input is already

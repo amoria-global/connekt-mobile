@@ -12,7 +12,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -28,7 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
-import { listPhotobooks, type Photobook } from '@/features/photobooks/api';
+import { listPhotobooks, listReceivedPhotobooks, type Photobook } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
@@ -39,6 +39,11 @@ const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
   DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
   PENDING: { label: 'Pending', bg: '#FEF3C7', fg: '#92400E' },
   SENT: { label: 'Delivered', bg: '#DBEAFE', fg: '#1D4ED8' },
+  // Photobooks a client sent to the photographer (web: received photobooks).
+  SENT_TO_PHOTOGRAPHER: { label: 'To edit', bg: '#FEF3C7', fg: '#92400E' },
+  PHOTOGRAPHER_EDITING: { label: 'Editing', bg: '#DBEAFE', fg: '#1D4ED8' },
+  RESUBMITTED: { label: 'Resubmitted', bg: '#DBEAFE', fg: '#1D4ED8' },
+  COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
 };
 
 export default function PhotobooksScreen() {
@@ -49,11 +54,25 @@ export default function PhotobooksScreen() {
   const { isPhotographer, isCoordinator } = useRole();
   const canCreate = isPhotographer || isCoordinator;
 
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotobooks(), []));
+  // A photographer has two shelves: books they made, and books clients sent them to edit (web "received photobooks").
+  const [shelf, setShelf] = useState<'mine' | 'received'>('mine');
+  const mine = useAsync(useCallback(() => listPhotobooks(), []));
+  const receivedList = useAsync(useCallback(() => (isPhotographer ? listReceivedPhotobooks() : Promise.resolve([])), [isPhotographer]));
+  const received = isPhotographer && shelf === 'received';
+  // Coming back from a book (resubmitted or removed there) must not show the old shelf. Quiet, so the list does not flash.
+  const refreshMine = mine.refreshQuietly;
+  const refreshReceived = receivedList.refreshQuietly;
+  useFocusEffect(
+    useCallback(() => {
+      void refreshMine();
+      void refreshReceived();
+    }, [refreshMine, refreshReceived]),
+  );
+  const { data, loading, error, refresh } = received ? receivedList : mine;
   const [filter, setFilter] = useState<StatusFilter>('ALL');
   const [search, setSearch] = useState('');
 
-  const photobooks = data ?? [];
+  const photobooks = useMemo(() => data ?? [], [data]);
 
   const counts = useMemo(() => {
     const c: Record<StatusFilter, number> = { ALL: photobooks.length, PUBLISHED: 0, DRAFT: 0, SENT: 0 };
@@ -70,9 +89,11 @@ export default function PhotobooksScreen() {
     const q = search.trim().toLowerCase();
     return photobooks.filter((p) => {
       const s = (p.status ?? '').toUpperCase();
-      if (filter === 'PUBLISHED' && s !== 'PUBLISHED') return false;
-      if (filter === 'DRAFT' && s !== 'DRAFT') return false;
-      if (filter === 'SENT' && s !== 'SENT') return false;
+      if (!received) {
+        if (filter === 'PUBLISHED' && s !== 'PUBLISHED') return false;
+        if (filter === 'DRAFT' && s !== 'DRAFT') return false;
+        if (filter === 'SENT' && s !== 'SENT') return false;
+      }
       if (!q) return true;
       return (
         p.name.toLowerCase().includes(q) ||
@@ -80,7 +101,7 @@ export default function PhotobooksScreen() {
         (p.photographerName ?? '').toLowerCase().includes(q)
       );
     });
-  }, [photobooks, filter, search]);
+  }, [photobooks, filter, search, received]);
 
   const header = (
     <View style={styles.header}>
@@ -97,8 +118,26 @@ export default function PhotobooksScreen() {
         </View>
       </View>
 
+      {isPhotographer ? (
+        <View style={styles.filterRow} accessibilityRole="tablist">
+          {(['mine', 'received'] as const).map((k) => (
+            <Pressable
+              key={k}
+              onPress={() => setShelf(k)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: shelf === k }}
+              style={[styles.filterPill, shelf === k && styles.filterPillActive, { minHeight: 44 }]}
+            >
+              <Text style={[styles.filterPillText, shelf === k && styles.filterPillTextActive]}>
+                {k === 'mine' ? 'My photobooks' : 'Received from clients'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       {/* Filter Segment Row */}
-      <ScrollView
+      {received ? null : <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
@@ -130,7 +169,7 @@ export default function PhotobooksScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </ScrollView>}
 
       {/* Integrated Search Bar */}
       <View style={styles.searchBar}>
@@ -179,7 +218,7 @@ export default function PhotobooksScreen() {
           return (
             <Pressable
               style={styles.card}
-              onPress={() => router.push(`/photobook/${item.id}` as Href)}
+              onPress={() => router.push((received ? `/photobook/${item.id}?received=1` : `/photobook/${item.id}`) as Href)}
               android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
             >
               <View style={styles.cover}>
@@ -255,16 +294,18 @@ export default function PhotobooksScreen() {
                 <Ionicons name="book-outline" size={40} color={colors.textMuted} />
               </View>
               <Text style={styles.emptyTitle}>
-                {search || filter !== 'ALL' ? 'No matching photobooks' : 'No photobooks yet'}
+                {search || (!received && filter !== 'ALL') ? 'No matching photobooks' : received ? 'Nothing received yet' : 'No photobooks yet'}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {search || filter !== 'ALL'
+                {search || (!received && filter !== 'ALL')
                   ? 'Try selecting a different status filter or clearing your search.'
+                  : received
+                  ? 'Photobooks your clients send you to edit will appear here.'
                   : canCreate
                   ? 'Curate your event photos into a bound, high-impact digital photobook.'
                   : 'Curated photobooks created by your photographer will appear here.'}
               </Text>
-              {canCreate && !search && filter === 'ALL' ? (
+              {canCreate && !received && !search && filter === 'ALL' ? (
                 <Pressable
                   style={styles.emptyBtn}
                   onPress={() => router.push('/photobook/new' as Href)}
@@ -279,7 +320,7 @@ export default function PhotobooksScreen() {
       />
 
       {/* Floating Action Button — Create New Photobook */}
-      {canCreate ? (
+      {canCreate && !received ? (
         <Pressable
           style={[
             styles.fab,
@@ -411,6 +452,8 @@ const useStyles = makeStyles((c) => ({
   // Hardcover Book Cards (3:4 ratio)
   card: {
     flex: 1,
+    // A lone last card must stay one column wide, not stretch across the grid.
+    maxWidth: '49%',
     borderRadius: radii.lg,
     backgroundColor: c.surface,
     borderWidth: 1,

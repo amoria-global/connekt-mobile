@@ -10,16 +10,23 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
+import { useRole } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 export default function ClientDetailScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data, loading, error } = useAsync(useCallback(() => getClient(id), [id]));
+  const { isCoordinator } = useRole();
+  const { data, loading, error } = useAsync(
+    useCallback(() => getClient(id, isCoordinator), [id, isCoordinator]),
+  );
 
   const [favorite, setFavorite] = useState(false);
   const [favBusy, setFavBusy] = useState(false);
@@ -140,6 +147,20 @@ export default function ClientDetailScreen() {
 
           <View style={styles.headerActions}>
             <Pressable
+              style={styles.messageBtn}
+              onPress={() =>
+                router.push(
+                  `/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Client')}` as Href
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`Message ${data?.name ?? 'client'}`}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={17} color="#FFFFFF" />
+              <Text style={styles.messageBtnText}>Message</Text>
+            </Pressable>
+
+            <Pressable
               style={[styles.favBtn, favorite && styles.favBtnActive]}
               onPress={onToggleFavorite}
               disabled={favBusy}
@@ -170,7 +191,7 @@ export default function ClientDetailScreen() {
         <View style={styles.stats}>
           <Stat label="Bookings" value={String(data?.bookings ?? data?.events.length ?? 0)} />
           {data?.totalSpent != null ? (
-            <Stat label="Total spent" value={formatMoney(data.totalSpent, data.currency)} />
+            <Stat label="Total spent" value={formatPrice(data.totalSpent, data.currency)} />
           ) : null}
         </View>
 
@@ -244,6 +265,21 @@ const useStyles = makeStyles((c) => ({
     fontSize: fontSize.xs,
     color: c.textMuted,
     marginTop: spacing.xs,
+  },
+  messageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.full,
+    backgroundColor: c.primary,
+  },
+  messageBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: '#FFFFFF',
   },
   favBtn: {
     flexDirection: 'row',

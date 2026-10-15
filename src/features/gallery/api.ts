@@ -7,9 +7,32 @@
  * Image URLs come back absolute from the backend.
  */
 import { api } from '@/api/client';
+import { env } from '@/config/env';
 import type { PickedImage } from '@/services/imagePicker';
 import type { ApiError, ApiEnvelope, ID } from '@/types';
 import { appendFile } from '@/utils/upload';
+
+export function normalizeImageUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === 'null' || trimmed.includes('/null')) return undefined;
+
+  const backendRoot = env.apiBaseUrl.replace(/\/api\/remote\/?$/, '');
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    const OLD_IP = 'http://197.243.24.101';
+    if (trimmed.startsWith(OLD_IP)) {
+      return trimmed.replace(OLD_IP, backendRoot);
+    }
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `${backendRoot}${trimmed}`;
+  }
+
+  return `${backendRoot}/${trimmed}`;
+}
 
 export type GalleryItem = {
   id: ID;
@@ -27,7 +50,7 @@ export type GalleryItem = {
   kind?: string;
 };
 
-export type AlbumImage = { id: ID; url?: string; caption?: string };
+export type AlbumImage = { id: ID; url?: string; fullUrl?: string; caption?: string };
 
 export type AlbumDetail = GalleryItem & {
   images: AlbumImage[];
@@ -44,6 +67,7 @@ export type AlbumDetail = GalleryItem & {
   archiveFee?: number;
   archiveCurrency?: string;
   photographer?: string;
+  photographerAvatar?: string;
   /** Content-album review state (only set for content albums). */
   approvalStatus?: ContentApprovalStatus;
   /** Reviewer's note when the content album was rejected / needs changes. */
@@ -57,10 +81,17 @@ const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : und
 
 function mapGallery(r: Raw): GalleryItem {
   const isContent = !!str(r.contentApprovalStatus);
+  const rawCover =
+    str(r.thumbnail) ??
+    str(r.thumbnailUrl) ??
+    str(r.coverPhoto) ??
+    str(r.coverImage) ??
+    str(r.fileUrl) ??
+    str(r.url);
   return {
     id: String(r.id ?? ''),
     name: str(r.title) ?? str(r.name) ?? 'Album',
-    coverPhoto: str(r.thumbnail) ?? str(r.coverPhoto) ?? str(r.coverImage),
+    coverPhoto: normalizeImageUrl(rawCover),
     photoCount: num(r.photoCount) ?? num(r.photosCount),
     locked: r.isLocked === true || r.locked === true,
     isContent,
@@ -73,13 +104,19 @@ function mapGallery(r: Raw): GalleryItem {
  * content-library albums, which live in the Content tab. Web parity:
  * salo-run's Albums view excludes content albums from the main list.
  */
-export async function listAlbums(isPhotographer: boolean): Promise<GalleryItem[]> {
-  const all = await listGalleries(isPhotographer);
+export async function listAlbums(role?: string | boolean): Promise<GalleryItem[]> {
+  const all = await listGalleries(role);
   return all.filter((a) => !a.isContent);
 }
 
-export async function listGalleries(isPhotographer: boolean): Promise<GalleryItem[]> {
-  const path = isPhotographer ? '/photographer/albums' : '/customer/albums';
+export async function listGalleries(role?: string | boolean): Promise<GalleryItem[]> {
+  const isPhotographer = role === true || role === 'Photographer';
+  const isCoordinator = role === 'Coordinator';
+  const path = isPhotographer
+    ? '/photographer/albums'
+    : isCoordinator
+    ? '/coordinator/galleries'
+    : '/customer/albums';
   const res = await api.get<ApiEnvelope<Raw[]>>(path);
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map(mapGallery).filter((g) => g.id);
@@ -115,9 +152,13 @@ export async function listContentAlbums(): Promise<ContentAlbumItem[]> {
     .filter((a) => a.id && a.approvalStatus);
 }
 
-export async function getAlbum(id: string, isPhotographer = false): Promise<AlbumDetail> {
+export async function getAlbum(id: string, role?: string | boolean): Promise<AlbumDetail> {
+  const isPhotographer = role === true || role === 'Photographer';
+  const isCoordinator = role === 'Coordinator';
   const path = isPhotographer
     ? `/photographer/albums/${encodeURIComponent(id)}`
+    : isCoordinator
+    ? `/coordinator/galleries/${encodeURIComponent(id)}`
     : `/customer/albums/${encodeURIComponent(id)}`;
   const res = await api.get<ApiEnvelope<Raw>>(path);
   const d = (res?.data ?? {}) as Raw;
@@ -125,8 +166,9 @@ export async function getAlbum(id: string, isPhotographer = false): Promise<Albu
   const payment = (d.payment ?? {}) as Raw;
   return {
     ...mapGallery(d),
-    photographer: str(d.photographer),
-    amountDue: num(payment.amountDue),
+    photographer: str(d.photographer) ?? str(d.photographerName),
+    photographerAvatar: normalizeImageUrl(str(d.photographerAvatar) ?? str(d.avatar)),
+    amountDue: num(payment.amountDue) ?? num(d.amountDue),
     currency: str(payment.currency) ?? str(d.currency),
     eventId: str(d.eventId) ?? str(payment.eventId),
     currencyId: str(payment.currencyId) ?? str(d.currencyId),
@@ -134,10 +176,20 @@ export async function getAlbum(id: string, isPhotographer = false): Promise<Albu
     archiveCurrency: str(d.archiveCurrency),
     approvalStatus: str(d.contentApprovalStatus) as ContentApprovalStatus | undefined,
     approvalComment: str(d.contentApprovalComment),
-    categoryLabel: str(d.contentCategoryLabel) ?? str(d.contentCategory),
+    categoryLabel: str(d.contentCategoryLabel) ?? str(d.contentCategory) ?? str(d.category),
     images: rawImages
-      .map((i) => ({ id: String(i.id ?? ''), url: str(i.fileUrl) ?? str(i.url), caption: str(i.caption) }))
-      .filter((i) => i.id),
+      .map((i) => {
+        const rawThumb = str(i.thumbnailUrl) ?? str(i.thumbnail) ?? str(i.previewUrl);
+        const rawOriginal = str(i.fileUrl) ?? str(i.url) ?? str(i.filePath) ?? str(i.path);
+        const bestUrl = rawThumb || rawOriginal;
+        return {
+          id: String(i.id ?? ''),
+          url: normalizeImageUrl(bestUrl) ?? '',
+          fullUrl: normalizeImageUrl(rawOriginal || bestUrl) ?? '',
+          caption: str(i.caption),
+        };
+      })
+      .filter((i) => i.id && i.url),
   };
 }
 

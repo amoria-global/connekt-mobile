@@ -47,6 +47,17 @@ function num(v: unknown): number {
   return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
 }
 
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+const REQUIRED_WALLET_NUMBERS = [
+  'balanceAvailable',
+  'pendingAmount',
+  'heldForDelivery',
+  'totalWithdrawn',
+  'totalRefunded',
+  'clientSpent',
+] as const;
+
 const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 
 /** Known balance fields → friendly labels. */
@@ -65,7 +76,7 @@ const POT_LABELS: Record<string, string> = {
 };
 
 export async function getWallet(): Promise<WalletDTO> {
-  const res = await api.get<ApiEnvelope<RawWallet>>('/wallet/me');
+  const res = await api.getOk<ApiEnvelope<RawWallet>>('/wallet/me');
   // A failed fetch answers HTTP 200 with action:0 and no data.
   if (res?.action !== 1) {
     throw {
@@ -73,7 +84,16 @@ export async function getWallet(): Promise<WalletDTO> {
       message: res?.message || 'Could not load your wallet. Pull to refresh.',
     } satisfies ApiError;
   }
-  const d = (res?.data ?? {}) as RawWallet;
+  const d = res?.data as RawWallet | null | undefined;
+  // The backend never leaves these money columns null, so a payload without
+  // one is a bad response. Reading it as zero showed a funded or suspended
+  // wallet as an empty ACTIVE one.
+  if (!d || typeof d !== 'object' || !REQUIRED_WALLET_NUMBERS.every((k) => isFiniteNumber(d[k]))) {
+    throw {
+      status: 502,
+      message: 'Your wallet came back incomplete. Pull to refresh.',
+    } satisfies ApiError;
+  }
 
   const pots: WalletPot[] = Object.entries(POT_LABELS)
     .map(([key, label]) => ({ key, label, amount: num(d[key]) }))
@@ -149,15 +169,58 @@ function pageContent(data: unknown): Record<string, unknown>[] {
   return Array.isArray(c) ? (c as Record<string, unknown>[]) : [];
 }
 
+export type MovementPage = {
+  items: Movement[];
+  /** True when the server says (or, for an unpaged reply, suggests) that older rows exist. */
+  hasMore: boolean;
+};
+
 export async function listWalletMovements(page = 0, size = 50): Promise<Movement[]> {
-  const res = await api.get<ApiEnvelope<unknown>>(
+  return (await listWalletMovementsPage(page, size)).items;
+}
+
+/**
+ * One page of the ledger. `/wallet/me/movements` returns a Spring Page, so `last: false` is the server's own
+ * statement that older movements exist. A reply with no `last` flag falls back to "a full page means maybe more".
+ */
+export async function listWalletMovementsPage(page = 0, size = 50): Promise<MovementPage> {
+  const res = await api.getOk<ApiEnvelope<unknown>>(
     `/wallet/me/movements?page=${page}&size=${size}`,
   );
-  return pageContent(res?.data).map((r) => {
+  const raw = pageContent(res?.data);
+  const last = (res?.data as { last?: unknown } | null | undefined)?.last;
+  const hasMore = typeof last === 'boolean' ? !last : raw.length >= size;
+  // The backend always sends an id, a direction and an amount. A row without one cannot be shown truthfully: it used to
+  // become an outgoing "Balance deduction" of an unknown amount, just now. Treat it as a bad response, like an incomplete
+  // wallet, rather than dropping or inventing it.
+  const complete = raw.every(
+    (r) => !!str(r.id) && !!str(r.direction) && [r.amount, r.amountUsd, r.originalAmount].some(isFiniteNumber),
+  );
+  if (!complete) {
+    throw {
+      status: 502,
+      message: 'Your transaction history came back incomplete. Pull to refresh.',
+    } satisfies ApiError;
+  }
+  const items = raw.map((r) => {
     const dir = (str(r.direction) ?? '').toLowerCase();
     const cat = str(r.category) ?? str(r.sourceType) ?? 'BALANCE';
-    const amt = num(r.amount) || num(r.amountUsd) || num(r.originalAmount);
+    // The figure and its currency must come from the same field. The ledger is USD, so `amountUsd` is USD even when
+    // the payment itself was in RWF (`originalCurrency`). Pairing amountUsd with originalCurrency labelled 45.50 USD
+    // as RWF, and the screens then showed it as $0.04.
     const origAmt = num(r.originalAmount);
+    let amt: number;
+    let cur: string;
+    if (num(r.amount)) {
+      amt = num(r.amount);
+      cur = str(r.currency) || 'USD';
+    } else if (num(r.amountUsd)) {
+      amt = num(r.amountUsd);
+      cur = 'USD';
+    } else {
+      amt = origAmt;
+      cur = str(r.originalCurrency) || str(r.currency) || 'USD';
+    }
     return {
       id: String(r.id ?? ''),
       category: cat,
@@ -165,13 +228,14 @@ export async function listWalletMovements(page = 0, size = 50): Promise<Movement
       amount: amt,
       originalAmount: origAmt || undefined,
       originalCurrency: str(r.originalCurrency) || str(r.currency) || undefined,
-      currency: str(r.currency) || str(r.originalCurrency) || 'USD',
+      currency: cur,
       description: str(r.description),
       createdAt: str(r.createdAt),
       sourceType: str(r.sourceType),
       sourceId: str(r.sourceId),
     } satisfies Movement;
   }).filter((m) => m.id);
+  return { items, hasMore };
 }
 
 // --- Payroll report (photographer) ---------------------------------------
@@ -195,7 +259,7 @@ export type PayrollReport = {
 
 /** Photographer earnings summary (web parity: GET /photographer/payroll-report). */
 export async function getPayrollReport(): Promise<PayrollReport> {
-  const res = await api.get<ApiEnvelope<Record<string, unknown>>>('/photographer/payroll-report');
+  const res = await api.getOk<ApiEnvelope<Record<string, unknown>>>('/photographer/payroll-report');
   const d = (res?.data ?? {}) as Record<string, unknown>;
   const txs = Array.isArray(d.transactions) ? (d.transactions as Record<string, unknown>[]) : [];
   return {

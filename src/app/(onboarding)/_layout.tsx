@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 export default function OnboardingLayout() {
   return (
     <Stack
-      initialRouteName="splash"
+      initialRouteName="welcome"
       screenOptions={{ headerShown: false, animation: 'fade' }}
     >
       <Stack.Screen name="terms" />

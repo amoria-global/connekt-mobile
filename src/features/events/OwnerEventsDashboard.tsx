@@ -15,8 +15,8 @@
  * Shares the visual language + Pragati Narrow type of the photographer
  * "Events & albums" dashboard.
  */
-import { useMemo, useRef, useState } from 'react';
-import { useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -39,6 +39,11 @@ import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { listCoordinatorEvents, listEvents } from './api';
 import type { EventItem } from './types';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { BookingModeSelector, type ExistingHybridEvent } from '@/features/booking/BookingModeSelector';
+import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
+import { ModeBadge, friendlyEventStatus, isOpenHybrid, modeOf } from '@/features/hybrid/hybridUi';
+import { env } from '@/config/env';
+import { EventQrSheet } from './EventQrSheet';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 const PAGE_SIZE = 8;
@@ -92,10 +97,19 @@ const isPast = (e: EventItem, today: number) => {
 
 function heroStatus(e: EventItem): { label: string; bg: string; fg: string } {
   const s = (e.status ?? '').toUpperCase();
+  // A posted event is hidden from the public until a photographer is booked;
+  // calling it PUBLISHED made clients think it was live.
+  if (isOpenHybrid(e.bookingMode, s, !!e.photographerName)) {
+    const ended = s === 'HYBRID_TIMEOUT' || s === 'MATCHING_FAILED';
+    return { label: friendlyEventStatus(s).toUpperCase(), bg: ended ? '#FEF3C7' : '#FCE7F3', fg: ended ? '#B45309' : '#BE185D' };
+  }
   if (s === 'ONGOING' || s === 'IN_PROGRESS') return { label: 'ONGOING', bg: '#DBEAFE', fg: '#1D4ED8' };
   if (s === 'COMPLETED' || s === 'DONE') return { label: 'COMPLETED', bg: '#D1FAE5', fg: '#047857' };
   if (s === 'CANCELLED' || s === 'CANCELED') return { label: 'CANCELLED', bg: '#FEE2E2', fg: '#B91C1C' };
   if (s === 'PAUSED') return { label: 'PAUSED', bg: '#E5E7EB', fg: '#374151' };
+  if (s === 'MATCHES_AWAITING_SELECTION') return { label: 'CANDIDATES READY', bg: '#EDE9FE', fg: '#6D28D9' };
+  if (s === 'HYBRID_MATCHING') return { label: 'MATCHING ACTIVE', bg: '#E0F2FE', fg: '#0284C7' };
+  if (s === 'HYBRID_TIMEOUT') return { label: 'MATCH TIMEOUT', bg: '#FEF3C7', fg: '#B45309' };
   if (e.published) return { label: 'PUBLISHED', bg: '#CCFBF1', fg: '#0F766E' };
   // An unpublished event is invisible on connekyt.com. Saying "UPCOMING" read
   // as though everything was fine, so owners never knew there was a step left.
@@ -118,7 +132,6 @@ const STAT_META = [
 
 const WORKSPACE_TABS: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; route?: Href }[] = [
   { key: 'events', label: 'Events', icon: 'calendar-outline' as const },
-  { key: 'team', label: 'Team', icon: 'people-circle-outline' as const, route: '/team' as Href },
   { key: 'photographers', label: 'Photographers', icon: 'camera-outline' as const, route: '/photographers' as Href },
   { key: 'geo-pricing', label: 'Geo Pricing', icon: 'globe-outline' as const, route: '/event/geo-pricing' as Href },
 ];
@@ -126,9 +139,11 @@ const WORKSPACE_TABS: { key: string; label: string; icon: keyof typeof Ionicons.
 export function OwnerEventsDashboard({
   coordinator = false,
   topInset = 0,
+  initialSearch = '',
 }: {
   coordinator?: boolean;
   topInset?: number;
+  initialSearch?: string;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -139,11 +154,36 @@ export function OwnerEventsDashboard({
     coordinator ? listCoordinatorEvents : listEvents,
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
+
   const [filter, setFilter] = useState<Filter>('all');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [sortBy, setSortBy] = useState<EventSortOption>('newest');
+  const [qrTarget, setQrTarget] = useState<EventItem | null>(null);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [bookingModeOpen, setBookingModeOpen] = useState(false);
+  const [postExisting, setPostExisting] = useState<ExistingHybridEvent | null>(null);
+  const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
   const [page, setPage] = useState(1);
+
+  const handleNewEvent = () => {
+    if (env.hybridBookingEnabled) {
+      setBookingModeOpen(true);
+    } else {
+      router.push('/event/new' as Href);
+    }
+  };
+
+  useEffect(() => {
+    if (initialSearch) {
+      setSearch(initialSearch);
+      setPage(1);
+    }
+  }, [initialSearch]);
 
   const events = data ?? [];
   const today = startOfToday();
@@ -197,7 +237,8 @@ export function OwnerEventsDashboard({
       return (
         e.title.toLowerCase().includes(q) ||
         (e.location ?? '').toLowerCase().includes(q) ||
-        (e.photographerName ?? '').toLowerCase().includes(q)
+        (e.photographerName ?? '').toLowerCase().includes(q) ||
+        (e.category ?? '').toLowerCase().includes(q)
       );
     });
   }, [events, filter, search, today]);
@@ -263,7 +304,7 @@ export function OwnerEventsDashboard({
         </View>
         <Pressable
           style={styles.bigAddBtn}
-          onPress={() => router.push('/event/new' as Href)}
+          onPress={handleNewEvent}
           accessibilityRole="button"
           accessibilityLabel="Create new event"
         >
@@ -271,7 +312,7 @@ export function OwnerEventsDashboard({
         </Pressable>
       </View>
 
-      {/* Workspace toggle tabs for Coordinator — matching Photographer's Library tabs */}
+      {/* Workspace toggle tabs for Coordinator or Client */}
       {coordinator ? (
         <ScrollView
           horizontal
@@ -300,7 +341,45 @@ export function OwnerEventsDashboard({
             );
           })}
         </ScrollView>
-      ) : null}
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.workspaceTabs}
+        >
+          <View style={[styles.workspaceTab, styles.workspaceTabActive]}>
+            <Ionicons name="calendar" size={14} color="#fff" />
+            <Text style={[styles.workspaceTabText, styles.workspaceTabTextActive]}>
+              My Events
+            </Text>
+            {events.length > 0 && (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{events.length}</Text>
+              </View>
+            )}
+          </View>
+
+          <Pressable
+            onPress={() => router.push('/photographers' as Href)}
+            style={styles.workspaceTab}
+          >
+            <Ionicons name="search-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.workspaceTabText}>
+              Find a Photographer
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setExploreChoiceOpen(true)}
+            style={styles.workspaceTab}
+          >
+            <Ionicons name="compass-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.workspaceTabText}>
+              Explore Events
+            </Text>
+          </Pressable>
+        </ScrollView>
+      )}
 
       {/* Stat strip - clean solid cards, no top tear, no gradients */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statStrip}>
@@ -389,6 +468,12 @@ export function OwnerEventsDashboard({
             onOpen={() => router.push(`/event/${item.id}` as Href)}
             onEdit={() => router.push(`/event/new?editId=${item.id}` as Href)}
             onShare={() => onShare(item)}
+            onQr={() => setQrTarget(item)}
+            onSelectCandidates={() => router.push(`/event/candidates?id=${item.id}` as Href)}
+            onPost={() => {
+              setPostExisting({ id: item.id, title: item.title, eventDate: item.eventDate, startTime: item.startTime, endTime: item.endTime, city: item.city, venue: item.location });
+              setBookingModeOpen(true);
+            }}
           />
         )}
         ListFooterComponent={
@@ -467,12 +552,24 @@ export function OwnerEventsDashboard({
                 message={
                   search || filter !== 'all'
                     ? 'Try a different filter or search term.'
-                    : 'Tap "New" to create your first event.'
+                    : 'Create your first event with Direct Booking or Hybrid Matching.'
                 }
+                action={{
+                  label: '+ Create Event',
+                  onPress: handleNewEvent,
+                }}
               />
             </View>
           )
         }
+      />
+
+      <EventQrSheet
+        visible={!!qrTarget}
+        onClose={() => setQrTarget(null)}
+        eventId={qrTarget?.id ?? ''}
+        title={qrTarget?.title ?? ''}
+        published={!!qrTarget?.published}
       />
 
       {/* Floating Action Button — Create New Event */}
@@ -481,7 +578,7 @@ export function OwnerEventsDashboard({
           styles.fab,
           { bottom: Math.max(insets.bottom + 84, 96) },
         ]}
-        onPress={() => router.push('/event/new' as Href)}
+        onPress={handleNewEvent}
         android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
         accessibilityRole="button"
         accessibilityLabel="Create new event"
@@ -563,6 +660,28 @@ export function OwnerEventsDashboard({
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Dual Entry Booking Mode Selector */}
+      <ExploreChoiceSheet
+        visible={exploreChoiceOpen}
+        onClose={() => setExploreChoiceOpen(false)}
+        signedIn
+        onPostEvent={() => { setPostExisting(null); setBookingModeOpen(true); }}
+      />
+
+      <BookingModeSelector
+        visible={bookingModeOpen}
+        existingEvent={postExisting}
+        onClose={() => {
+          setBookingModeOpen(false);
+          setPostExisting(null);
+          refresh();
+        }}
+        onSelectDirect={() => {
+          setBookingModeOpen(false);
+          router.push('/event/new' as Href);
+        }}
+      />
     </View>
   );
 }
@@ -572,14 +691,24 @@ function OwnerEventCard({
   onOpen,
   onEdit,
   onShare,
+  onQr,
+  onSelectCandidates,
+  onPost,
 }: {
   event: EventItem;
   onOpen: () => void;
   onEdit: () => void;
   onShare: () => void;
+  onQr: () => void;
+  onSelectCandidates?: () => void;
+  onPost?: () => void;
 }) {
   const styles = useStyles();
   const pill = heroStatus(event);
+  const status = (event.status ?? '').toUpperCase();
+  const openHybrid = isOpenHybrid(event.bookingMode, status, !!event.photographerName);
+  const canPost = !event.photographerName && modeOf(event.bookingMode) === 'DIRECT'
+    && !['COMPLETED', 'DONE', 'CANCELLED', 'CANCELED'].includes(status);
   return (
     <Pressable style={styles.card} onPress={onOpen} android_ripple={{ color: 'rgba(255,255,255,0.06)' }}>
       <Image source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
@@ -597,6 +726,11 @@ function OwnerEventCard({
       </View>
 
       <View style={styles.cardBottom}>
+        {(modeOf(event.bookingMode) === 'HYBRID' || event.photographerName) ? (
+          <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, marginBottom: 4 }}>
+            <ModeBadge mode={modeOf(event.bookingMode)} />
+          </View>
+        ) : null}
         <Text style={styles.cardTitle} numberOfLines={2}>{event.title}</Text>
         {event.location ? (
           <View style={styles.metaRow}>
@@ -607,15 +741,37 @@ function OwnerEventCard({
         <View style={styles.metaRow}>
           <Ionicons name="camera" size={12} color="rgba(255,255,255,0.85)" />
           <Text style={styles.metaText} numberOfLines={1}>
-            {event.photographerName || 'No photographer assigned'}
+            {event.photographerName || (openHybrid ? friendlyEventStatus(status) : 'No photographer yet')}
           </Text>
         </View>
 
         <View style={styles.actions}>
+          {openHybrid && onSelectCandidates ? (
+            <Pressable style={[styles.actBtn, { backgroundColor: '#F20C8F' }]} onPress={onSelectCandidates}
+              accessibilityRole="button" accessibilityLabel="See the photographers who answered">
+              <Ionicons name="people" size={14} color="#fff" />
+              <Text style={styles.actText}>
+                {['MATCHES_AWAITING_SELECTION', 'CANDIDATES_AVAILABLE'].includes(status) ? 'Choose' : ['HYBRID_TIMEOUT', 'MATCHING_FAILED'].includes(status) ? 'Ended' : 'Answers'}
+              </Text>
+            </Pressable>
+          ) : null}
+          {canPost && onPost ? (
+            <Pressable style={[styles.actBtn, { backgroundColor: '#F20C8F' }]} onPress={onPost}
+              accessibilityRole="button" accessibilityLabel="Post My Event: let matching photographers say yes">
+              <Ionicons name="radio-outline" size={14} color="#fff" />
+              <Text style={styles.actText}>Post</Text>
+            </Pressable>
+          ) : null}
           <Pressable style={[styles.actBtn, styles.actEdit]} onPress={onEdit}>
             <Ionicons name="create-outline" size={14} color="#fff" />
             <Text style={styles.actText}>Edit</Text>
           </Pressable>
+          {event.published ? (
+            <Pressable style={[styles.actBtn, styles.actQr]} onPress={onQr} accessibilityLabel="Show event QR code">
+              <Ionicons name="qr-code-outline" size={14} color="#fff" />
+              <Text style={styles.actText}>QR</Text>
+            </Pressable>
+          ) : null}
           <Pressable style={[styles.actBtn, styles.actShare]} onPress={onShare}>
             <Ionicons name="share-social-outline" size={14} color="#fff" />
             <Text style={styles.actText}>Share</Text>
@@ -694,6 +850,19 @@ const useStyles = makeStyles((c) => ({
   },
   workspaceTabTextActive: {
     color: '#fff',
+  },
+  tabBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radii.full,
+    marginLeft: 2,
+  },
+  tabBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '700',
   },
 
   statStrip: { gap: 10, paddingVertical: spacing.md },
@@ -941,6 +1110,7 @@ const useStyles = makeStyles((c) => ({
   actBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: radii.sm },
   actEdit: { backgroundColor: c.primary },
   actShare: { backgroundColor: 'rgba(255,255,255,0.16)' },
+  actQr: { backgroundColor: 'rgba(255,255,255,0.16)' },
   actText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff' },
   manageHint: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 1 },
   manageHintText: { fontFamily: fonts.bold, fontSize: 11, color: 'rgba(255,255,255,0.9)' },

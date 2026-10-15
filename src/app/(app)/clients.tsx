@@ -7,14 +7,21 @@ import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { listClients } from '@/features/clients/api';
 import { useAsync } from '@/hooks/useAsync';
+import { useRole } from '@/features/auth/role';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 export default function ClientsScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listClients(), []));
+  const { isCoordinator } = useRole();
+  const { data, loading, error, refresh } = useAsync(
+    useCallback(() => listClients(isCoordinator), [isCoordinator]),
+  );
 
   return (
     <Screen padded={false}>
@@ -24,7 +31,7 @@ export default function ClientsScreen() {
         error={error}
         onRefresh={refresh}
         title="Clients"
-        subtitle="People who have booked you"
+        subtitle={isCoordinator ? 'Clients across your events & productions' : 'People who have booked you'}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => {
           const initials = (item.name[0] ?? '?').toUpperCase();
@@ -56,8 +63,20 @@ export default function ClientsScreen() {
                 ) : null}
               </View>
               {item.totalSpent != null ? (
-                <Text style={styles.spent}>{formatMoney(item.totalSpent, item.currency)}</Text>
+                <Text style={styles.spent}>{formatPrice(item.totalSpent, item.currency)}</Text>
               ) : null}
+              <Pressable
+                hitSlop={8}
+                style={styles.chatAction}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  router.push(`/conversation/${item.id}?name=${encodeURIComponent(item.name)}` as Href);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Message ${item.name}`}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={19} color={colors.primary} />
+              </Pressable>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </Pressable>
           );
@@ -90,4 +109,9 @@ const useStyles = makeStyles((c) => ({
   email: { fontSize: fontSize.sm, color: c.textMuted },
   meta: { fontSize: fontSize.xs, color: c.textMuted },
   spent: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.primary },
+  chatAction: {
+    padding: spacing.xs,
+    borderRadius: radii.full,
+    backgroundColor: c.tint,
+  },
 }));

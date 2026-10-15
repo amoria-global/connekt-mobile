@@ -1,5 +1,6 @@
 /**
- * Add a payment account: MTN MoMo, Airtel Money or a bank account.
+ * Add a payment account: Mobile Money (MTN MoMo or Airtel Money) or a bank account.
+ * The two top choices match every payment sheet: Mobile Money opens the networks.
  *
  * Same steps as the web's "Add account" modal (preferences.tsx):
  *   - mobile money: a valid phone number, then a XentriPay name lookup; when
@@ -14,6 +15,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -31,6 +33,7 @@ import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import type { Role } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { MOMO_LOGO, operatorLogo } from '@/features/payments/operatorLogos';
 import { addPaymentAccount, listBanks, validateMobileAccount, type Bank } from './api';
 import { MOBILE_PROVIDER, resolveMobileName, type AccountKind, type PaymentAccount } from './model';
 
@@ -44,10 +47,10 @@ type Props = {
   onSaved: (account: PaymentAccount) => void;
 };
 
-const KINDS: { key: AccountKind; label: string; hint: string; icon: keyof typeof Ionicons.glyphMap; tint: string }[] = [
-  { key: 'mtn', label: 'MTN MoMo', hint: 'Mobile money', icon: 'phone-portrait-outline', tint: '#F59E0B' },
-  { key: 'airtel', label: 'Airtel Money', hint: 'Mobile money', icon: 'phone-portrait-outline', tint: '#ED1C24' },
-  { key: 'bank', label: 'Bank', hint: 'Bank transfer', icon: 'business-outline', tint: '#3B82F6' },
+/** Networks listed under the single "Mobile Money" choice. */
+const NETWORKS: { key: Exclude<AccountKind, 'bank'>; label: string }[] = [
+  { key: 'mtn', label: 'MTN MoMo' },
+  { key: 'airtel', label: 'Airtel Money' },
 ];
 
 export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 = 'RW', onClose, onSaved }: Props) {
@@ -237,28 +240,59 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
           ) : (
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
               <View style={styles.kindRow} accessibilityRole="radiogroup">
-                {KINDS.map((k) => {
-                  const active = kind === k.key;
-                  return (
-                    <Pressable
-                      key={k.key}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: active }}
-                      onPress={() => {
-                        setKind(k.key);
-                        setError(null);
-                      }}
-                      style={[styles.kind, active && styles.kindActive]}
-                    >
-                      <View style={[styles.kindIcon, { backgroundColor: `${k.tint}1F` }]}>
-                        <Ionicons name={k.icon} size={18} color={k.tint} />
-                      </View>
-                      <Text style={[styles.kindLabel, active && styles.kindLabelActive]}>{k.label}</Text>
-                      <Text style={styles.kindHint}>{k.hint}</Text>
-                    </Pressable>
-                  );
-                })}
+                <Pressable
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isMobile, expanded: isMobile }}
+                  onPress={() => {
+                    if (!isMobile) setKind('mtn');
+                    setError(null);
+                  }}
+                  style={[styles.kind, isMobile && styles.kindActive]}
+                >
+                  <Image source={MOMO_LOGO} style={styles.kindLogo} resizeMode="cover" accessible={false} />
+                  <Text style={[styles.kindLabel, isMobile && styles.kindLabelActive]}>Mobile Money</Text>
+                  <Text style={styles.kindHint}>{isMobile ? NETWORKS.find((n) => n.key === kind)?.label : 'Choose your network'}</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: !isMobile }}
+                  onPress={() => {
+                    setKind('bank');
+                    setError(null);
+                  }}
+                  style={[styles.kind, !isMobile && styles.kindActive]}
+                >
+                  <View style={[styles.kindIcon, { backgroundColor: '#3B82F61F' }]}>
+                    <Ionicons name="business-outline" size={22} color="#3B82F6" />
+                  </View>
+                  <Text style={[styles.kindLabel, !isMobile && styles.kindLabelActive]}>Bank</Text>
+                  <Text style={styles.kindHint}>Bank transfer</Text>
+                </Pressable>
               </View>
+
+              {isMobile ? (
+                <View style={styles.networkPanel} accessibilityRole="radiogroup" accessibilityLabel="Mobile money network">
+                  {NETWORKS.map((n) => {
+                    const active = kind === n.key;
+                    return (
+                      <Pressable
+                        key={n.key}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: active }}
+                        onPress={() => {
+                          setKind(n.key);
+                          setError(null);
+                        }}
+                        style={[styles.network, active && styles.networkActive]}
+                      >
+                        <Image source={operatorLogo(n.key) ?? MOMO_LOGO} style={styles.networkLogo} resizeMode="contain" accessible={false} />
+                        <Text style={[styles.networkLabel, active && styles.kindLabelActive]} numberOfLines={1}>{n.label}</Text>
+                        {active ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} /> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
 
               {isMobile ? (
                 <>
@@ -378,7 +412,23 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.surface,
   },
   kindActive: { borderColor: c.primary, backgroundColor: c.tint },
-  kindIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  kindIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  kindLogo: { width: 44, height: 44, borderRadius: 12, marginBottom: 4 },
+  networkPanel: { flexDirection: 'row', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.lg, backgroundColor: c.surfaceMuted },
+  network: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
+  },
+  networkActive: { borderColor: c.primary, backgroundColor: c.tint },
+  networkLogo: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#FFFFFF' },
+  networkLabel: { flex: 1, fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
   kindLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
   kindLabelActive: { color: c.primary },
   kindHint: { fontSize: fontSize.xs, color: c.textMuted },

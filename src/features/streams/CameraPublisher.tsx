@@ -3,31 +3,57 @@
  *
  * Same idea as the native HlsPlayer: react-native-webview is a real
  * browser engine, so we run the web photographer's WHIP browser-capture
- * flow (salo-run/lib/whip-client.ts `WHIPClient`) INSIDE the WebView —
+ * flow (salo-run/lib/whip-client.ts `WHIPClient`) INSIDE the WebView:
  * getUserMedia → publish the camera/mic to Cloudflare's WHIP endpoint
  * over WebRTC, with a live local preview. No react-native-webrtc needed.
  *
  * Capture needs camera + mic permission: iOS is granted with
  * `mediaCapturePermissionGrantState="grant"`; Android auto-grants the
  * WebView once the app holds CAMERA / RECORD_AUDIO (declared in app
- * config). The inline HTML reports status back to RN via postMessage and
- * carries its own mic / camera / flip overlay controls.
+ * config). The inline HTML reports status back to RN via postMessage.
+ *
+ * Two UI modes:
+ *   • default     , the inline HTML draws its own mic / camera / flip buttons.
+ *   • `nativeUi`  , the HTML draws nothing but the video; React Native owns
+ *                    the controls and drives the WebView through the
+ *                    `CameraPublisherHandle` ref. Device state (mic / camera
+ *                    muted, facing mode) and capture errors are reported back
+ *                    through `onDeviceState` / `onCameraError`.
+ *
+ * The publishing pipeline (getUserMedia → WHIP) is identical in both modes.
  */
-import { useMemo } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import type { PublishStatus } from './CameraPublisher.web';
 
 export type { PublishStatus } from './CameraPublisher.web';
 
+export type CameraFacing = 'user' | 'environment';
+export type CameraDeviceState = { micOff: boolean; camOff: boolean; facing: CameraFacing };
+export type CameraErrorKind = 'permission' | 'notfound' | 'unsupported' | 'network' | 'other';
+
+/** Imperative controls, only effective in `nativeUi` mode or when the camera is running. */
+export type CameraPublisherHandle = {
+  toggleMic: () => void;
+  toggleCam: () => void;
+  flip: () => void;
+};
+
 type Props = {
   whipUrl: string;
   publish: boolean;
   onStatusChange?: (status: PublishStatus) => void;
+  /** Hide the in-WebView buttons/messages; the parent renders its own UI. */
+  nativeUi?: boolean;
+  onDeviceState?: (state: CameraDeviceState) => void;
+  onCameraError?: (kind: CameraErrorKind) => void;
+  /** Fill the parent (edge-to-edge, no 16:9 crop box). */
+  fill?: boolean;
   style?: any;
 };
 
-function buildPublisherHtml(whipUrl: string): string {
+function buildPublisherHtml(whipUrl: string, nativeUi: boolean): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -59,6 +85,7 @@ function buildPublisherHtml(whipUrl: string): string {
 <script>
 (function(){
   var WHIP_URL = ${JSON.stringify(whipUrl)};
+  var NATIVE_UI = ${nativeUi ? 'true' : 'false'};
   var video = document.getElementById('v');
   var msgEl = document.getElementById('msg');
   var bar = document.getElementById('bar');
@@ -81,7 +108,12 @@ function buildPublisherHtml(whipUrl: string): string {
   flipBtn.innerHTML = ICONS.flip;
 
   function post(s){ try{ window.ReactNativeWebView && window.ReactNativeWebView.postMessage(s); }catch(e){} }
-  function setMsg(t){ if(msgEl){ msgEl.style.display = t ? 'flex' : 'none'; msgEl.textContent = t || ''; } }
+  function postState(){ post(JSON.stringify({ t:'state', micOff: micOff, camOff: camOff, facing: facing })); }
+  function postError(kind){ post(JSON.stringify({ t:'error', kind: kind })); }
+  function setMsg(t){
+    if (NATIVE_UI){ msgEl.style.display = 'none'; return; }
+    if(msgEl){ msgEl.style.display = t ? 'flex' : 'none'; msgEl.textContent = t || ''; }
+  }
 
   function waitIce(timeout){
     return new Promise(function(resolve){
@@ -102,7 +134,7 @@ function buildPublisherHtml(whipUrl: string): string {
   function start(){
     setMsg('Starting camera…'); post('starting');
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      setMsg('This device cannot access the camera.'); post('error'); return;
+      setMsg('This device cannot access the camera.'); postError('unsupported'); post('error'); return;
     }
     navigator.mediaDevices.getUserMedia({ video:{ facingMode: facing }, audio:true })
     .then(function(s){
@@ -113,10 +145,14 @@ function buildPublisherHtml(whipUrl: string): string {
       video.play().catch(function(){});
       s.getAudioTracks().forEach(function(t){ t.enabled = !micOff; });
       s.getVideoTracks().forEach(function(t){ t.enabled = !camOff; });
-      bar.style.display = 'flex';
+      if (!NATIVE_UI) bar.style.display = 'flex';
+      postState();
 
       pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.cloudflare.com:3478'}], bundlePolicy:'max-bundle' });
       s.getTracks().forEach(function(t){ pc.addTrack(t, s); });
+      pc.addEventListener('connectionstatechange', function(){
+        if (pc && pc.connectionState === 'failed'){ setMsg('Stream connection failed.'); postError('network'); post('error'); }
+      });
       return pc.createOffer().then(function(offer){
         return pc.setLocalDescription(offer);
       }).then(function(){
@@ -136,31 +172,42 @@ function buildPublisherHtml(whipUrl: string): string {
     })
     .catch(function(err){
       var m = (err && err.message) || '';
-      if (/Permission|NotAllowed/i.test(m)) setMsg('Camera / microphone permission denied.');
-      else if (/NotFound/i.test(m)) setMsg('No camera or microphone found.');
+      var n = (err && err.name) || '';
+      var kind = 'other';
+      var captured = !!stream;
+      if (captured) { kind = 'network'; setMsg('Could not connect.'); }
+      else if (/Permission|NotAllowed/i.test(m + ' ' + n)) { setMsg('Camera / microphone permission denied.'); kind = 'permission'; }
+      else if (/NotFound/i.test(m + ' ' + n)) { setMsg('No camera or microphone found.'); kind = 'notfound'; }
       else setMsg('Could not start the camera.');
-      post('error'); teardown();
+      postError(kind); post('error'); teardown();
     });
   }
 
-  micBtn.addEventListener('click', function(){
+  function toggleMic(){
     micOff = !micOff;
     if (stream) stream.getAudioTracks().forEach(function(t){ t.enabled = !micOff; });
-    this.innerHTML = micOff ? ICONS.micOff : ICONS.micOn;
-    if (micOff) this.classList.add('off'); else this.classList.remove('off');
-  });
+    micBtn.innerHTML = micOff ? ICONS.micOff : ICONS.micOn;
+    if (micOff) micBtn.classList.add('off'); else micBtn.classList.remove('off');
+    postState();
+  }
 
-  camBtn.addEventListener('click', function(){
+  function toggleCam(){
     camOff = !camOff;
     if (stream) stream.getVideoTracks().forEach(function(t){ t.enabled = !camOff; });
-    this.innerHTML = camOff ? ICONS.camOff : ICONS.camOn;
-    if (camOff) this.classList.add('off'); else this.classList.remove('off');
-  });
+    camBtn.innerHTML = camOff ? ICONS.camOff : ICONS.camOn;
+    if (camOff) camBtn.classList.add('off'); else camBtn.classList.remove('off');
+    postState();
+  }
 
-  flipBtn.addEventListener('click', function(){
+  function flip(){
     facing = facing === 'user' ? 'environment' : 'user';
     teardown(); start();
-  });
+  }
+
+  micBtn.addEventListener('click', toggleMic);
+  camBtn.addEventListener('click', toggleCam);
+  flipBtn.addEventListener('click', flip);
+  window.__studio = { mic: toggleMic, cam: toggleCam, flip: flip };
 
   window.addEventListener('pagehide', function(){ destroyed = true; teardown(); });
   start();
@@ -170,23 +217,65 @@ function buildPublisherHtml(whipUrl: string): string {
 </html>`;
 }
 
-export function CameraPublisher({ whipUrl, publish, onStatusChange, style }: Props) {
-  const html = useMemo(() => buildPublisherHtml(whipUrl), [whipUrl]);
+export const CameraPublisher = forwardRef<CameraPublisherHandle, Props>(function CameraPublisher(
+  { whipUrl, publish, onStatusChange, nativeUi = false, onDeviceState, onCameraError, fill, style },
+  ref,
+) {
+  const webRef = useRef<WebView>(null);
+  const html = useMemo(() => buildPublisherHtml(whipUrl, nativeUi), [whipUrl, nativeUi]);
+  // Stable source object so parent re-renders (chat polling etc.) never look
+  // like a source change to the WebView.
+  const source = useMemo(() => ({ html, baseUrl: 'https://connekyt.com' }), [html]);
 
-  if (!publish) return <View style={[styles.wrap, style]} />;
+  useImperativeHandle(
+    ref,
+    () => {
+      const run = (fn: 'mic' | 'cam' | 'flip') =>
+        webRef.current?.injectJavaScript(
+          `(function(){try{window.__studio&&window.__studio.${fn}();}catch(e){}})();true;`,
+        );
+      return {
+        toggleMic: () => run('mic'),
+        toggleCam: () => run('cam'),
+        flip: () => run('flip'),
+      };
+    },
+    [],
+  );
+
+  if (!publish) return <View style={[fill ? styles.fill : styles.wrap, style]} />;
 
   const onMessage = (e: WebViewMessageEvent) => {
-    const s = e.nativeEvent.data as PublishStatus;
+    const data = e.nativeEvent.data;
+    if (data.startsWith('{')) {
+      try {
+        const msg = JSON.parse(data);
+        if (msg.t === 'state') {
+          onDeviceState?.({
+            micOff: !!msg.micOff,
+            camOff: !!msg.camOff,
+            facing: msg.facing === 'environment' ? 'environment' : 'user',
+          });
+        } else if (msg.t === 'error') {
+          onCameraError?.(msg.kind as CameraErrorKind);
+        }
+      } catch {
+        /* ignore malformed */
+      }
+      return;
+    }
+    const s = data as PublishStatus;
     if (s === 'starting' || s === 'publishing' || s === 'error' || s === 'idle') {
       onStatusChange?.(s);
     }
   };
 
   return (
-    <View style={[styles.wrap, style]}>
+    <View style={[fill ? styles.fill : styles.wrap, style]}>
       <WebView
         key={whipUrl}
-        source={{ html, baseUrl: 'https://connekyt.com' }}
+        ref={webRef}
+        source={source}
         originWhitelist={['*']}
         javaScriptEnabled
         domStorageEnabled
@@ -194,7 +283,7 @@ export function CameraPublisher({ whipUrl, publish, onStatusChange, style }: Pro
         mediaPlaybackRequiresUserAction={false}
         // iOS: grant camera + mic to the WebView content (Android grants
         // automatically once the app holds CAMERA / RECORD_AUDIO).
-        mediaCapturePermissionGrantState="grant"
+        mediaCapturePermissionGrantType="grant"
         onMessage={onMessage}
         style={styles.webview}
         scrollEnabled={false}
@@ -202,9 +291,10 @@ export function CameraPublisher({ whipUrl, publish, onStatusChange, style }: Pro
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: '#000' },
+  fill: { ...StyleSheet.absoluteFill, backgroundColor: '#000' },
   webview: { width: '100%', height: '100%', backgroundColor: '#000' },
 });

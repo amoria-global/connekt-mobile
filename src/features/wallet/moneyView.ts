@@ -243,6 +243,14 @@ export function formatWalletMovement(m: Movement, role: DashboardRole): MoneyIte
     title = cat.replace(/_/g, ' ').toLowerCase();
     title = title.charAt(0).toUpperCase() + title.slice(1);
   }
+  // A debit on a photographer's booking balance is a deduction, not earnings.
+  if (role === 'photographer' && cat === 'BALANCE' && direction === 'out') {
+    title = 'Balance deduction';
+  }
+  // Rows appended by a data correction (e.g. V313) undo an earlier wrong entry.
+  if (m.sourceType === 'DATA_CORRECTION') {
+    title = 'Balance correction';
+  }
 
   const subtitle = m.description || undefined;
 
@@ -279,19 +287,22 @@ export function selectWalletStats(w: WalletDTO, role: DashboardRole): WalletStat
   const status = w.status || 'ACTIVE';
 
   if (role === 'photographer') {
-    const totalEarnings = w.balanceAvailable;
+    // The cards are the breakdown of balanceAvailable, so they add up to the hero.
+    // A "Total earnings" card only repeated the hero (it is the withdrawable
+    // balance, not lifetime earnings). In escrow and Total withdrawn are not part of it.
     const inEscrow = w.heldForDelivery || w.deliveryHeldAmount || 0;
 
     return {
       hero: { label: 'Available to withdraw', value: w.balanceAvailable },
       cards: [
-        { label: 'Total earnings', value: totalEarnings, color: 'green', hidden: false },
+        { label: 'Booking earnings', value: w.balanceBooking, color: 'green', hidden: w.balanceBooking === 0 },
         { label: 'Tips', value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
         { label: 'Bonuses', value: w.balanceBonuses, color: 'amber', hidden: w.balanceBonuses === 0 },
         { label: 'Stream bonus', value: w.balanceStreamFees, color: 'blue', hidden: w.balanceStreamFees === 0 },
         { label: 'Album sales', value: w.balancePhotoPurchase, color: 'blue', hidden: w.balancePhotoPurchase === 0 },
         { label: 'Gifts', value: w.balanceGifts, color: 'purple', hidden: w.balanceGifts === 0 },
         { label: 'Donations', value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
+        { label: 'Ad revenue', value: w.balanceAdRevenue, color: 'blue', hidden: !w.balanceAdRevenue },
         { label: 'In escrow', value: inEscrow, color: 'amber', hidden: inEscrow === 0 },
         { label: 'Total withdrawn', value: w.totalWithdrawn, color: 'neutral', hidden: w.totalWithdrawn === 0 },
       ],
@@ -352,6 +363,42 @@ export function selectWalletStats(w: WalletDTO, role: DashboardRole): WalletStat
     pendingChip: w.pendingAmount > 0 ? { label: 'Processing', value: w.pendingAmount } : null,
     status,
   };
+}
+
+export type DirectionFilter = 'all' | 'in' | 'out' | 'withdrawals';
+
+/**
+ * The In/Out pills for the wallet lists. Photographers only receive money and take
+ * it out by withdrawing, so "Money out" read to them as spending. They get Earnings
+ * and Withdrawals instead; other roles keep Money in / Money out.
+ */
+export function getDirectionFilters(role: DashboardRole): { label: string; value: DirectionFilter }[] {
+  if (role === 'photographer') {
+    return [
+      { label: 'All', value: 'all' },
+      { label: 'Earnings (+)', value: 'in' },
+      { label: 'Withdrawals', value: 'withdrawals' },
+    ];
+  }
+  return [
+    { label: 'All', value: 'all' },
+    { label: 'Money in (+)', value: 'in' },
+    { label: 'Money out (−)', value: 'out' },
+  ];
+}
+
+export function matchesDirectionFilter(
+  row: { direction: 'in' | 'out'; category?: string },
+  filter: DirectionFilter,
+): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'withdrawals') return (row.category ?? '').toUpperCase() === 'WITHDRAWAL';
+  return row.direction === filter;
+}
+
+/** True when the wallet page would show this movement to the role (internal ledger rows are not). */
+export function isVisibleToRole(m: Movement, role: DashboardRole): boolean {
+  return !shouldHideMovement(m, role);
 }
 
 export function getFilterTags(role: DashboardRole): string[] {

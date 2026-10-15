@@ -1,0 +1,32 @@
+{
+  "action" : 1,
+  "message" : "Wallet retrieved",
+  "data" : {
+    "id" : "76422818-2342-45c6-a75b-7d256cab2712",
+    "customerId" : "7746c06e-6474-411b-8e5d-744b94f0772d",
+    "customerName" : "SYNTHETIC PHOTOGRAPHER",
+    "customerEmail" : "synthetic-7746c06e-6474-411b-8e5d-744b94f0772d@test.invalid",
+    "customerType" : "Unknown",
+    "balanceAvailable" : 95.5000,
+    "balanceBooking" : 95.5000,
+    "balanceTips" : 0.0000,
+    "balanceBonuses" : 0.0000,
+    "balanceGifts" : 0.0000,
+    "balanceStreamFees" : 0.0000,
+    "balanceDonations" : 0.0000,
+    "balanceAdRevenue" : 0.0000,
+    "balancePhotoPurchase" : 0.0000,
+    "heldForDelivery" : 0.0000,
+    "pendingAmount" : 0.0000,
+    "blockedAmount" : 0.0000,
+    "totalWithdrawn" : 0.0000,
+    "totalRefunded" : 0.0000,
+    "clientSpent" : 0.0000,
+    "status" : "ACTIVE",
+    "suspensionReason" : null,
+    "suspendedAt" : null,
+    "lastReconciledAt" : null,
+    "lastDriftAt" : null,
+    "consecutiveDriftCount" : 0
+  }
+}

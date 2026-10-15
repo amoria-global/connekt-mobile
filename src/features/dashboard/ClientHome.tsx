@@ -38,6 +38,9 @@ import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
+import { BookingModeSelector, type BookingStep } from '@/features/booking/BookingModeSelector';
+import { ExploreChoiceSheet, pendingPostEvent } from '@/features/hybrid/ExploreChoiceSheet';
+import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import {
@@ -58,7 +61,8 @@ import {
 } from '@/features/photographers/api';
 import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { getWallet } from '@/features/wallet/api';
-import { formatDate, formatMoney } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -80,75 +84,16 @@ const POPULAR_STYLES = [
 
 const CATEGORY_CHIPS = [
   { label: 'All', icon: 'apps-outline' as const, color: '#083A85' },
-  { label: 'Live Streams', icon: 'videocam' as const, color: '#EF4444', isLive: true },
-  { label: 'Weddings', icon: 'heart' as const, color: '#F20C8F' },
-  { label: 'Portraits', icon: 'person' as const, color: '#3B82F6' },
-  { label: 'Events', icon: 'calendar' as const, color: '#0EA5E9' },
-  { label: 'Birthdays', icon: 'gift' as const, color: '#F59E0B' },
-  { label: 'Studio', icon: 'camera' as const, color: '#10B981' },
+  { label: 'Live Streams', icon: 'videocam-outline' as const, color: '#EF4444', isLive: true },
+  { label: 'Wedding', icon: 'heart-outline' as const, color: '#F20C8F' },
+  { label: 'Portraits', icon: 'person-outline' as const, color: '#3B82F6' },
+  { label: 'Events', icon: 'calendar-outline' as const, color: '#0EA5E9' },
+  { label: 'Birthday', icon: 'gift-outline' as const, color: '#F59E0B' },
+  { label: 'Studio', icon: 'camera-outline' as const, color: '#10B981' },
   { label: 'Fashion', icon: 'shirt-outline' as const, color: '#8B5CF6' },
   { label: 'Graduation', icon: 'school-outline' as const, color: '#EC4899' },
   { label: 'Family', icon: 'people-outline' as const, color: '#14B8A6' },
   { label: 'Corporate', icon: 'briefcase-outline' as const, color: '#64748B' },
-];
-
-const SHOWCASE_PHOTOGRAPHERS: Photographer[] = [
-  {
-    id: 'showcase-1',
-    name: 'Aura Studio',
-    category: 'Weddings & Celebrations',
-    rating: 4.9,
-    reviewCount: 38,
-    completedJobs: 45,
-    specialties: ['Weddings', 'Portraits', 'Bridal'],
-    currentStatus: 'available',
-    location: 'Kigali, Rwanda',
-    startingPrice: 120,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-    coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=500',
-    images: [
-      'https://images.unsplash.com/photo-1519741497674-611481863552?w=500',
-      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500',
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500',
-    ],
-  },
-  {
-    id: 'showcase-2',
-    name: 'Apex Visuals',
-    category: 'Portraits & Lifestyle',
-    rating: 5.0,
-    reviewCount: 52,
-    completedJobs: 68,
-    specialties: ['Editorial', 'Studio', 'Fashion'],
-    currentStatus: 'available',
-    location: 'Kigali, Rwanda',
-    startingPrice: 85,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    coverImage: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500',
-    images: [
-      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500',
-      'https://images.unsplash.com/photo-1519741497674-611481863552?w=500',
-    ],
-  },
-  {
-    id: 'showcase-3',
-    name: 'Lumina Media',
-    category: 'Corporate & Events',
-    rating: 4.8,
-    reviewCount: 29,
-    completedJobs: 34,
-    specialties: ['Corporate', 'Live Events', 'Conferences'],
-    currentStatus: 'available',
-    location: 'Kigali, Rwanda',
-    startingPrice: 150,
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
-    coverImage: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500',
-    images: [
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500',
-      'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=500',
-    ],
-  },
 ];
 
 type BookingRowItem = {
@@ -162,59 +107,6 @@ type BookingRowItem = {
   isLive: boolean;
 };
 
-const SHOWCASE_BOOKINGS: BookingRowItem[] = [
-  {
-    id: 'showcase-b1',
-    title: 'Kigali Fashion Week Gala',
-    category: 'Live Stream',
-    photographerName: 'Lumina Media',
-    eventDate: 'Today',
-    price: 35,
-    statusType: 'LIVE',
-    isLive: true,
-  },
-  {
-    id: 'showcase-b2',
-    title: 'Diane & Eric Wedding',
-    category: 'Wedding Ceremony',
-    photographerName: 'Aura Studio',
-    eventDate: 'Oct 18',
-    price: 350,
-    statusType: 'PAID',
-    isLive: false,
-  },
-  {
-    id: 'showcase-b3',
-    title: 'Studio Portrait Session',
-    category: 'Editorial Portraits',
-    photographerName: 'Apex Visuals',
-    eventDate: 'Oct 24',
-    price: 120,
-    statusType: 'BOOKED',
-    isLive: false,
-  },
-  {
-    id: 'showcase-b4',
-    title: 'Africa Tech Keynote',
-    category: 'Corporate Event',
-    photographerName: 'Lumina Media',
-    eventDate: 'Nov 02',
-    price: 250,
-    statusType: 'PAID',
-    isLive: false,
-  },
-  {
-    id: 'showcase-b5',
-    title: 'Golden Jubilee Celebration',
-    category: 'Celebration',
-    photographerName: 'Aura Studio',
-    eventDate: 'Nov 15',
-    price: 180,
-    statusType: 'BOOKED',
-    isLive: false,
-  },
-];
-
 type ClientActivityItem = {
   id: string;
   type: string;
@@ -227,57 +119,6 @@ type ClientActivityItem = {
   actionText: string;
   route: string;
 };
-
-const SHOWCASE_ACTIVITIES: ClientActivityItem[] = [
-  {
-    id: 'act-1',
-    type: 'GALLERY_DELIVERED',
-    title: 'High-Res Album Delivered',
-    message: 'Aura Studio uploaded 48 edited photos to your vault',
-    timeAgo: '15m ago',
-    icon: 'images',
-    iconColor: '#10B981',
-    iconBg: 'rgba(16, 185, 129, 0.12)',
-    actionText: 'View Photos',
-    route: '/gallery',
-  },
-  {
-    id: 'act-2',
-    type: 'STREAM_LIVE',
-    title: 'Live Stream Broadcasting',
-    message: 'Lumina Media started live coverage of Kigali Fashion Gala',
-    timeAgo: 'Live now',
-    icon: 'videocam',
-    iconColor: '#EF4444',
-    iconBg: 'rgba(239, 68, 68, 0.12)',
-    actionText: 'Watch Live',
-    route: '/explore-events',
-  },
-  {
-    id: 'act-3',
-    type: 'PAYMENT_ESCROW',
-    title: 'Escrow Payment Secured',
-    message: 'Deposit of $350 verified for Diane & Eric Wedding',
-    timeAgo: '2h ago',
-    icon: 'shield-checkmark',
-    iconColor: '#083A85',
-    iconBg: 'rgba(8, 58, 133, 0.12)',
-    actionText: 'Receipt',
-    route: '/events',
-  },
-  {
-    id: 'act-4',
-    type: 'BOOKING_CONFIRMED',
-    title: 'Booking Confirmed',
-    message: 'Apex Visuals accepted your Studio Portrait Session for Oct 24',
-    timeAgo: 'Yesterday',
-    icon: 'calendar',
-    iconColor: '#8B5CF6',
-    iconBg: 'rgba(139, 92, 246, 0.12)',
-    actionText: 'Details',
-    route: '/events',
-  },
-];
 
 type FeedUnifiedItem =
   | { kind: 'booking'; data: BookingRowItem }
@@ -420,8 +261,10 @@ const PENDING_PAYMENT_SNOOZE_MS = 6 * 60 * 60 * 1000; // 6 hours
 const STORAGE_KEY_PENDING_DISMISSED = 'connekt.pending_payment_dismissed_until';
 
 export function ClientHome() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const styles = useStyles();
-  const { colors, isDark } = useTheme();
+  const { colors, gradients, isDark } = useTheme();
   const responsive = useResponsive();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -435,6 +278,16 @@ export function ClientHome() {
   const [payNowOpen, setPayNowOpen] = useState(false);
   const [payNowPayment, setPayNowPayment] = useState<PendingPayment | null>(null);
   const [isPendingDismissed, setIsPendingDismissed] = useState(false);
+  const [bookingModeOpen, setBookingModeOpen] = useState(false);
+  const [bookingStep, setBookingStep] = useState<BookingStep>('select');
+  const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
+  // A guest who chose "Post my event" before signing in lands here; open the wizard for them.
+  useEffect(() => {
+    if (env.hybridBookingEnabled && pendingPostEvent.take()) {
+      setBookingStep(1);
+      setBookingModeOpen(true);
+    }
+  }, []);
 
   // Real-Time Inline Global Search State
   const scrollViewRef = useRef<ScrollView>(null);
@@ -582,9 +435,6 @@ export function ClientHome() {
       }
       return next;
     });
-    if (id.startsWith('showcase-')) {
-      return;
-    }
     setBookmarkLoading((prev) => ({ ...prev, [id]: true }));
     try {
       if (isBookmarked) {
@@ -627,8 +477,7 @@ export function ClientHome() {
   };
 
   const photographerList = useMemo(() => {
-    const apiList = photographers.data ?? [];
-    return apiList.length > 0 ? apiList : SHOWCASE_PHOTOGRAPHERS;
+    return photographers.data ?? [];
   }, [photographers.data]);
 
   const featuredCardWidth = responsive.isLarge ? 270 : 236;
@@ -816,7 +665,7 @@ export function ClientHome() {
         });
     }
 
-    return SHOWCASE_BOOKINGS;
+    return [];
   }, [events.data]);
 
   const activityList: ClientActivityItem[] = useMemo(() => {
@@ -824,7 +673,7 @@ export function ClientHome() {
     if (apiData.length > 0) {
       return apiData.map(mapApiActivity);
     }
-    return SHOWCASE_ACTIVITIES;
+    return [];
   }, [recentActivities.data]);
 
   const displayedFeedItems: FeedUnifiedItem[] = useMemo(() => {
@@ -958,7 +807,7 @@ export function ClientHome() {
                   {hasFailedPayment ? 'Payment action required' : 'Pending payment'}
                 </Text>
                 <Text style={styles.pendingAlertSub}>
-                  {formatMoney(totalPendingAmount, wallet.data?.currency)} due for your booking
+                  {formatPrice(totalPendingAmount, wallet.data?.currency)} due for your booking
                 </Text>
               </View>
             </Pressable>
@@ -1107,18 +956,15 @@ export function ClientHome() {
             }}
           >
             <LinearGradient
-              colors={['#083A85', '#0C2B68', '#161233']}
+              colors={isDark ? ['#131B2A', '#0F1622'] : ['#082F6E', '#0B3A85']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            {/* Subtle ambient lighting spheres */}
-            <View style={styles.ambientOrbRight} pointerEvents="none" />
-            <View style={styles.ambientOrbLeft} pointerEvents="none" />
 
             <View style={styles.editorialContent}>
               <View style={styles.editorialBadge}>
-                <Ionicons name="sparkles" size={11} color="#FFD1EC" />
+                <Ionicons name="sparkles" size={10} color={isDark ? '#93C5FD' : '#FFFFFF'} />
                 <Text style={styles.editorialBadgeText}>CURATED CREATORS</Text>
               </View>
               <Text style={styles.editorialTitle}>
@@ -1130,11 +976,8 @@ export function ClientHome() {
 
               <View style={styles.editorialCtaRow}>
                 <View style={styles.editorialCtaBtn}>
-                  <Ionicons name="camera" size={13} color="#083A85" />
-                  <Text style={styles.editorialCtaBtnText}>Browse Talent</Text>
-                </View>
-                <View style={styles.editorialExploreChip}>
-                  <Text style={styles.editorialExploreChipText}>Top Rated 2026</Text>
+                  <Text style={styles.editorialCtaBtnText}>Browse Creators</Text>
+                  <Ionicons name="arrow-forward" size={12} color={colors.primary} />
                 </View>
               </View>
             </View>
@@ -1364,7 +1207,7 @@ export function ClientHome() {
                   <Ionicons name="search-outline" size={28} color={colors.textMuted} />
                   <Text style={styles.suggestionEmptyTitle}>No matching results</Text>
                   <Text style={styles.suggestionEmptySub}>
-                    We couldn't find any talent or events matching "{searchQuery}". Try browsing by
+                    We couldn't find any photographers or events matching "{searchQuery}". Try browsing by
                     popular categories below.
                   </Text>
                 </View>
@@ -1456,13 +1299,13 @@ export function ClientHome() {
                   style={[
                     styles.categoryIconWrap,
                     active && styles.categoryIconWrapActive,
-                    !active && { backgroundColor: c.color + '18' },
+                    !active && { backgroundColor: colors.tint },
                   ]}
                 >
                   <Ionicons
                     name={c.icon}
                     size={iconSize}
-                    color={active ? '#FFFFFF' : c.color}
+                    color={active ? '#FFFFFF' : c.isLive ? '#EF4444' : colors.primary}
                   />
                 </View>
                 <Text
@@ -1491,31 +1334,23 @@ export function ClientHome() {
               responsive.isLarge && styles.bentoCardLarge,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => router.push('/photographers' as never)}
+            onPress={() => {
+              if (env.hybridBookingEnabled) {
+                setBookingStep('select');
+                setBookingModeOpen(true);
+              } else {
+                router.push('/photographers' as never);
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Book Photographer"
           >
             <View style={styles.bentoTopRow}>
-              <View
-                style={[
-                  styles.bentoIconBox,
-                  {
-                    backgroundColor: colors.tint,
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
-              >
-                <Ionicons name="camera" size={19} color={colors.primary} />
+              <View style={styles.bentoIconBox}>
+                <Ionicons name="camera" size={18} color={colors.primary} />
               </View>
-              <View
-                style={[
-                  styles.bentoBadge,
-                  {
-                    backgroundColor: colors.tint,
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
-              >
-                <Ionicons name="sparkles" size={9.5} color={colors.primary} />
-                <Text style={[styles.bentoBadgeText, { color: colors.primary }]}>PROS</Text>
+              <View style={styles.bentoArrowCircle}>
+                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
 
@@ -1525,11 +1360,8 @@ export function ClientHome() {
                   Book Photographer
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
-                  Find verified pros
+                  {env.hybridBookingEnabled ? 'Find talent or post event' : 'Verified pros'}
                 </Text>
-              </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
           </Pressable>
@@ -1547,25 +1379,13 @@ export function ClientHome() {
               <View
                 style={[
                   styles.bentoIconBox,
-                  {
-                    backgroundColor: isDark ? 'rgba(242, 12, 143, 0.16)' : 'rgba(242, 12, 143, 0.08)',
-                    borderColor: colors.borderSoft,
-                  },
+                  { backgroundColor: isDark ? 'rgba(242, 12, 143, 0.14)' : 'rgba(242, 12, 143, 0.08)' },
                 ]}
               >
-                <Ionicons name="scan" size={19} color="#F20C8F" />
+                <Ionicons name="scan" size={18} color="#F20C8F" />
               </View>
-              <View
-                style={[
-                  styles.bentoBadge,
-                  {
-                    backgroundColor: isDark ? 'rgba(242, 12, 143, 0.14)' : 'rgba(242, 12, 143, 0.06)',
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
-              >
-                <Ionicons name="flash" size={9.5} color="#F20C8F" />
-                <Text style={[styles.bentoBadgeText, { color: '#F20C8F' }]}>AI SCAN</Text>
+              <View style={styles.bentoArrowCircle}>
+                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
 
@@ -1578,9 +1398,6 @@ export function ClientHome() {
                   Instant face match
                 </Text>
               </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
-              </View>
             </View>
           </Pressable>
 
@@ -1591,55 +1408,32 @@ export function ClientHome() {
               responsive.isLarge && styles.bentoCardLarge,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => router.push('/explore-events' as never)}
+            onPress={() => (env.hybridBookingEnabled ? setExploreChoiceOpen(true) : router.push('/explore-events' as never))}
           >
             <View style={styles.bentoTopRow}>
               <View
                 style={[
                   styles.bentoIconBox,
-                  hasAnyLiveStream
-                    ? {
-                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : 'rgba(239, 68, 68, 0.08)',
-                        borderColor: colors.borderSoft,
-                      }
-                    : {
-                        backgroundColor: colors.tint,
-                        borderColor: colors.borderSoft,
-                      },
+                  hasAnyLiveStream && {
+                    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.08)',
+                  },
                 ]}
               >
                 <Ionicons
                   name={hasAnyLiveStream ? 'videocam' : 'videocam-outline'}
-                  size={19}
+                  size={18}
                   color={hasAnyLiveStream ? '#EF4444' : colors.primary}
                 />
               </View>
 
               {hasAnyLiveStream ? (
-                <View
-                  style={[
-                    styles.bentoBadge,
-                    {
-                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.08)',
-                      borderColor: 'rgba(239, 68, 68, 0.25)',
-                    },
-                  ]}
-                >
+                <View style={styles.bentoLiveBadge}>
                   <View style={styles.bentoLiveDot} />
-                  <Text style={[styles.bentoBadgeText, { color: '#EF4444' }]}>LIVE NOW</Text>
+                  <Text style={styles.bentoLiveBadgeText}>LIVE</Text>
                 </View>
               ) : (
-                <View
-                  style={[
-                    styles.bentoBadge,
-                    {
-                      backgroundColor: colors.tint,
-                      borderColor: colors.borderSoft,
-                    },
-                  ]}
-                >
-                  <Ionicons name="radio" size={9.5} color={colors.primary} />
-                  <Text style={[styles.bentoBadgeText, { color: colors.primary }]}>STREAMS</Text>
+                <View style={styles.bentoArrowCircle}>
+                  <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
                 </View>
               )}
             </View>
@@ -1652,9 +1446,6 @@ export function ClientHome() {
                 <Text style={styles.bentoSub} numberOfLines={1}>
                   {hasAnyLiveStream ? 'Broadcasts in real-time' : 'Shoots & streams'}
                 </Text>
-              </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
           </Pressable>
@@ -1672,43 +1463,21 @@ export function ClientHome() {
               <View
                 style={[
                   styles.bentoIconBox,
-                  {
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.08)',
-                    borderColor: colors.borderSoft,
-                  },
+                  { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.08)' },
                 ]}
               >
-                <Ionicons
-                  name="images"
-                  size={19}
-                  color="#10B981"
-                />
+                <Ionicons name="images" size={18} color="#10B981" />
               </View>
-              <View
-                style={[
-                  styles.bentoBadge,
-                  {
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.06)',
-                    borderColor: colors.borderSoft,
-                  },
-                ]}
-              >
-                {deliveredPhotosCount > 0 ? (
-                  <Text
-                    style={[
-                      styles.bentoBadgeText,
-                      { color: isDark ? '#34D399' : '#10B981' },
-                    ]}
-                  >
-                    {deliveredPhotosCount} READY
-                  </Text>
-                ) : (
-                  <>
-                    <Ionicons name="albums-outline" size={9.5} color="#10B981" />
-                    <Text style={[styles.bentoBadgeText, { color: '#10B981' }]}>VAULT</Text>
-                  </>
-                )}
-              </View>
+
+              {deliveredPhotosCount > 0 ? (
+                <View style={styles.bentoReadyBadge}>
+                  <Text style={styles.bentoReadyBadgeText}>{deliveredPhotosCount} READY</Text>
+                </View>
+              ) : (
+                <View style={styles.bentoArrowCircle}>
+                  <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
+                </View>
+              )}
             </View>
 
             <View style={styles.bentoBottomRow}>
@@ -1719,9 +1488,6 @@ export function ClientHome() {
                 <Text style={styles.bentoSub} numberOfLines={1}>
                   Saved collections
                 </Text>
-              </View>
-              <View style={styles.bentoArrowCircle}>
-                <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
               </View>
             </View>
           </Pressable>
@@ -1737,15 +1503,12 @@ export function ClientHome() {
             accessibilityLabel="View Total Bookings"
           >
             <View style={styles.statsHeaderRow}>
-              <View style={[styles.statsIconBox, { backgroundColor: colors.tint }]}>
-                <Ionicons name="calendar" size={13} color={colors.primary} />
-              </View>
-              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              <Ionicons name="calendar-outline" size={13} color={colors.primary} />
+              <Text style={styles.statsLabel} numberOfLines={1}>Bookings</Text>
             </View>
             <Text style={styles.statsNum}>
               {analytics.data?.totalBookings ?? 0}
             </Text>
-            <Text style={styles.statsLabel} numberOfLines={1}>Bookings</Text>
           </Pressable>
 
           <View style={styles.statsDivider} />
@@ -1758,15 +1521,12 @@ export function ClientHome() {
             accessibilityLabel="View Ready Photos"
           >
             <View style={styles.statsHeaderRow}>
-              <View style={[styles.statsIconBox, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.18)' : 'rgba(16, 185, 129, 0.10)' }]}>
-                <Ionicons name="images" size={13} color="#10B981" />
-              </View>
-              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              <Ionicons name="images-outline" size={13} color="#10B981" />
+              <Text style={styles.statsLabel} numberOfLines={1}>Photos Ready</Text>
             </View>
             <Text style={styles.statsNum}>
               {analytics.data?.totalPhotos ?? 0}
             </Text>
-            <Text style={styles.statsLabel} numberOfLines={1}>Photos Ready</Text>
           </Pressable>
 
           <View style={styles.statsDivider} />
@@ -1779,15 +1539,12 @@ export function ClientHome() {
             accessibilityLabel="View Saved Photographers"
           >
             <View style={styles.statsHeaderRow}>
-              <View style={[styles.statsIconBox, { backgroundColor: isDark ? 'rgba(242, 12, 143, 0.16)' : 'rgba(242, 12, 143, 0.08)' }]}>
-                <Ionicons name="bookmark" size={13} color="#F20C8F" />
-              </View>
-              <Ionicons name="chevron-forward" size={12} color={colors.textMuted} style={{ opacity: 0.5 }} />
+              <Ionicons name="bookmark-outline" size={13} color="#F20C8F" />
+              <Text style={styles.statsLabel} numberOfLines={1}>Saved Pros</Text>
             </View>
             <Text style={styles.statsNum}>
               {analytics.data?.bookmarkedPhotographers ?? 0}
             </Text>
-            <Text style={styles.statsLabel} numberOfLines={1}>Saved Pros</Text>
           </Pressable>
         </View>
 
@@ -1807,43 +1564,61 @@ export function ClientHome() {
           </Pressable>
         </View>
 
-        <ScrollView
-          ref={featuredRailRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.photographersRail}
-          snapToInterval={featuredCardWidth + spacing.md}
-          snapToAlignment="start"
-          decelerationRate="fast"
-          onScrollBeginDrag={onRailScrollBeginDrag}
-          onMomentumScrollEnd={onRailScrollEnd}
-          onScrollEndDrag={onRailScrollEnd}
-        >
-          {featuredList.map((p) => (
+        {photographers.loading ? (
+          <View style={styles.photographersEmptyCard}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.photographersEmptySub}>Loading featured photographers...</Text>
+          </View>
+        ) : featuredList.length === 0 ? (
+          <View style={styles.photographersEmptyCard}>
+            <Ionicons name="camera-outline" size={28} color={colors.textMuted} />
+            <Text style={styles.photographersEmptyTitle}>No Photographers Available</Text>
+            <Text style={styles.photographersEmptySub}>
+              Discover vetted photographers and book your next photography session
+            </Text>
             <Pressable
-              key={p.id}
-              style={({ pressed }) => [
-                styles.featuredPhotogCardWrap,
-                { width: featuredCardWidth },
-                pressed && styles.cardPressed,
-              ]}
-              onPress={() => {
-                if (p.id.startsWith('showcase-')) {
-                  router.push('/photographers' as never);
-                } else {
-                  router.push(`/photographer/${p.id}` as never);
-                }
-              }}
+              style={styles.photographersEmptyAction}
+              onPress={() => router.push('/photographers' as never)}
             >
-              <PhotographerCard
-                photographer={p}
-                coverHeight={130}
-                isBookmarked={bookmarkedIds.has(p.id)}
-                onToggleBookmark={() => handleToggleBookmark(p.id)}
-              />
+              <Text style={styles.photographersEmptyActionText}>Browse Photographers</Text>
+              <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
             </Pressable>
-          ))}
-        </ScrollView>
+          </View>
+        ) : (
+          <ScrollView
+            ref={featuredRailRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photographersRail}
+            snapToInterval={featuredCardWidth + spacing.md}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            onScrollBeginDrag={onRailScrollBeginDrag}
+            onMomentumScrollEnd={onRailScrollEnd}
+            onScrollEndDrag={onRailScrollEnd}
+          >
+            {featuredList.map((p) => (
+              <Pressable
+                key={p.id}
+                style={({ pressed }) => [
+                  styles.featuredPhotogCardWrap,
+                  { width: featuredCardWidth },
+                  pressed && styles.cardPressed,
+                ]}
+                onPress={() => {
+                  router.push(`/photographer/${p.id}` as never);
+                }}
+              >
+                <PhotographerCard
+                  photographer={p}
+                  coverHeight={130}
+                  isBookmarked={bookmarkedIds.has(p.id)}
+                  onToggleBookmark={() => handleToggleBookmark(p.id)}
+                />
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Recent Bookings & Activity Hub */}
         <View style={styles.sectionHeader}>
@@ -1957,9 +1732,7 @@ export function ClientHome() {
                       pressed && styles.feedRowPressed,
                     ]}
                     onPress={() => {
-                      if (b.id.startsWith('showcase-')) {
-                        router.push('/events' as never);
-                      } else if (b.isLive) {
+                      if (b.isLive) {
                         router.push(`/(public)/events/live-stream?id=${b.id}` as never);
                       } else {
                         router.push(`/(public)/event/${b.id}` as never);
@@ -2144,6 +1917,21 @@ export function ClientHome() {
         }}
       />
 
+      {/* Booking Mode Selector (Direct vs Hybrid per Figma Slide 02/03) */}
+      <BookingModeSelector
+        visible={bookingModeOpen}
+        initialStep={bookingStep}
+        onClose={() => setBookingModeOpen(false)}
+      />
+
+      {/* Explore events: post my event, or explore and watch */}
+      <ExploreChoiceSheet
+        visible={exploreChoiceOpen}
+        onClose={() => setExploreChoiceOpen(false)}
+        signedIn
+        onPostEvent={() => { setBookingStep(1); setBookingModeOpen(true); }}
+      />
+
       {/* Global Real-Time Search Modal */}
       <GlobalSearchModal
         visible={searchModalVisible}
@@ -2172,19 +1960,20 @@ const useStyles = makeStyles((c, e) => ({
   header: {
     paddingHorizontal: spacing.xs,
     paddingTop: spacing.xs,
-    gap: 3,
+    gap: 4,
   },
   headerEyebrow: {
     color: c.textMuted,
     fontFamily: fonts.bold,
-    fontSize: 10.5,
+    fontSize: 11,
     letterSpacing: 1.1,
+    textTransform: 'uppercase',
   },
   headerTitle: {
     color: c.text,
     fontFamily: fonts.bold,
-    fontSize: 27,
-    lineHeight: 33,
+    fontSize: 28,
+    lineHeight: 34,
     letterSpacing: -0.6,
   },
   headerName: {
@@ -2193,8 +1982,9 @@ const useStyles = makeStyles((c, e) => ({
   headerSubtitle: {
     color: c.textMuted,
     fontFamily: fonts.regular,
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 1,
   },
 
   // Pending Alert (Theme Adaptive & Dismissable)
@@ -2393,29 +2183,11 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii['2xl'],
     overflow: 'hidden',
     padding: spacing.xl,
-    minHeight: 180,
+    minHeight: 165,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    ...e(3),
-  },
-  ambientOrbRight: {
-    position: 'absolute',
-    top: -30,
-    right: -25,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(59,130,246,0.12)',
-  },
-  ambientOrbLeft: {
-    position: 'absolute',
-    bottom: -30,
-    left: -20,
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    ...e(2),
   },
   editorialContent: {
     gap: 6,
@@ -2426,8 +2198,8 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     gap: 5,
     backgroundColor: 'rgba(255,255,255,0.14)',
-    paddingHorizontal: 10,
-    paddingVertical: 3.5,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: radii.full,
     alignSelf: 'flex-start',
   },
@@ -2435,53 +2207,41 @@ const useStyles = makeStyles((c, e) => ({
     fontFamily: fonts.bold,
     fontSize: 9.5,
     color: '#FFFFFF',
-    letterSpacing: 0.7,
+    letterSpacing: 0.8,
   },
   editorialTitle: {
     fontFamily: fonts.bold,
-    fontSize: 21,
+    fontSize: 22,
     color: '#FFFFFF',
     letterSpacing: -0.4,
-    lineHeight: 27,
+    lineHeight: 28,
     marginTop: 2,
   },
   editorialSubtitle: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: 12.5,
     color: 'rgba(255,255,255,0.85)',
     lineHeight: 17,
   },
   editorialCtaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 6,
+    marginTop: 8,
   },
   editorialCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 13,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 7.5,
     borderRadius: radii.full,
     ...e(1),
   },
   editorialCtaBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 11.5,
-    color: '#083A85',
-  },
-  editorialExploreChip: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-  },
-  editorialExploreChipText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    color: c.primary,
   },
 
   // Real-Time Inline Search Bar
@@ -2789,31 +2549,50 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'space-between',
   },
   bentoIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.tint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bentoBadge: {
+  bentoLiveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3.5,
-    paddingHorizontal: 7.5,
-    paddingVertical: 3,
-    borderRadius: radii.full,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: radii.full,
   },
-  bentoBadgeText: {
+  bentoLiveBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
+    color: '#EF4444',
+    letterSpacing: 0.5,
+  },
+  bentoReadyBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: radii.full,
+  },
+  bentoReadyBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 9.5,
+    color: '#10B981',
     letterSpacing: 0.5,
   },
   bentoLiveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: '#EF4444',
   },
   bentoBottomRow: {
@@ -2835,39 +2614,39 @@ const useStyles = makeStyles((c, e) => ({
   },
   bentoSub: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 11.5,
     color: c.textMuted,
-    marginTop: 2,
+    marginTop: 1,
   },
   bentoArrowCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
     backgroundColor: c.surfaceMuted,
-    borderWidth: 0.5,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // Luxury Trio Stats KPI Card
+  // Minimalist Trio Stats KPI Card
   statsBar: {
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    borderRadius: radii['2xl'],
+    borderRadius: radii.xl,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: spacing.sm,
     ...e(1),
   },
   statsSegment: {
     flex: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: radii.lg,
-    justifyContent: 'space-between',
+    borderRadius: radii.md,
+    gap: 3,
   },
   statsSegmentPressed: {
     backgroundColor: c.surfaceMuted,
@@ -2875,21 +2654,13 @@ const useStyles = makeStyles((c, e) => ({
   statsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  statsIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
   },
   statsDivider: {
-    width: 1,
+    width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
     backgroundColor: c.borderSoft,
-    marginVertical: spacing.xs,
+    marginVertical: 4,
   },
   statsNum: {
     fontFamily: fonts.bold,
@@ -2900,10 +2671,8 @@ const useStyles = makeStyles((c, e) => ({
   },
   statsLabel: {
     fontFamily: fonts.regular,
-    fontWeight: '600',
-    fontSize: 11,
+    fontSize: 11.5,
     color: c.textMuted,
-    marginTop: 2,
   },
 
   // Section Headers
@@ -2950,6 +2719,46 @@ const useStyles = makeStyles((c, e) => ({
   featuredPhotogCardWrap: {
     flexShrink: 0,
   },
+  photographersEmptyCard: {
+    backgroundColor: c.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
+    ...e(1),
+  },
+  photographersEmptyTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: c.text,
+    marginTop: 4,
+  },
+  photographersEmptySub: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: c.textMuted,
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  photographersEmptyAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: c.primary,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    marginTop: 6,
+  },
+  photographersEmptyActionText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: '#FFFFFF',
+  },
 
   // Commercial Activity & Bookings Hub
   activityFeedCard: {
@@ -2963,19 +2772,19 @@ const useStyles = makeStyles((c, e) => ({
   feedFilterTrack: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 6,
-    gap: 6,
+    padding: 3.5,
+    gap: 4,
     backgroundColor: c.surfaceMuted,
-    borderBottomWidth: 1,
-    borderBottomColor: c.borderSoft,
+    borderRadius: radii.lg,
+    margin: spacing.sm,
   },
   filterPill: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
+    paddingVertical: 6.5,
     paddingHorizontal: 8,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
   },
   filterPillActive: {
     backgroundColor: c.surface,

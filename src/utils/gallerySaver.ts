@@ -7,7 +7,13 @@
 import { Alert } from 'react-native';
 import { downloadAsync, cacheDirectory } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { Asset, requestPermissionsAsync } from 'expo-media-library';
+let MediaLibraryModule: typeof import('expo-media-library') | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  MediaLibraryModule = require('expo-media-library');
+} catch {
+  MediaLibraryModule = null;
+}
 
 export type SavePhotoResult = {
   success: boolean;
@@ -36,10 +42,12 @@ export async function savePhotoToGallery(
     // Check / request media library write permissions
     let savedDirectly = false;
     try {
-      const { status } = await requestPermissionsAsync(true);
-      if (status === 'granted') {
-        await Asset.create(downloadedUri);
-        savedDirectly = true;
+      if (MediaLibraryModule) {
+        const { status } = await MediaLibraryModule.requestPermissionsAsync(true);
+        if (status === 'granted') {
+          await MediaLibraryModule.Asset.create(downloadedUri);
+          savedDirectly = true;
+        }
       }
     } catch (permErr) {
       console.warn('MediaLibrary permission / create error:', permErr);
@@ -86,8 +94,10 @@ export async function saveBatchPhotosToGallery(
 ): Promise<{ total: number; saved: number; failed: number }> {
   let hasPermission = false;
   try {
-    const { status } = await requestPermissionsAsync(true);
-    hasPermission = status === 'granted';
+    if (MediaLibraryModule) {
+      const { status } = await MediaLibraryModule.requestPermissionsAsync(true);
+      hasPermission = status === 'granted';
+    }
   } catch {
     hasPermission = false;
   }
@@ -103,8 +113,8 @@ export async function saveBatchPhotosToGallery(
       const localUri = (cacheDirectory ?? '') + item.filename;
       const { uri } = await downloadAsync(item.url, localUri);
 
-      if (hasPermission) {
-        await Asset.create(uri);
+      if (hasPermission && MediaLibraryModule) {
+        await MediaLibraryModule.Asset.create(uri);
         saved++;
       } else if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'image/jpeg' });

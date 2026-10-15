@@ -78,7 +78,7 @@ export default function PaymentAccountsScreen() {
   };
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={

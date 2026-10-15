@@ -128,7 +128,7 @@ export default function NewContentAlbumScreen() {
   const cats = categories.data ?? [];
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

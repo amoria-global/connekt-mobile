@@ -226,7 +226,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
             <TextInput
               ref={inputRef}
               style={styles.searchInput}
-              placeholder="Search talent, live streams, events..."
+              placeholder="Search photographers, live streams, events..."
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
