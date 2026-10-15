@@ -5,6 +5,8 @@ import { Alert, Text, TextInput } from 'react-native';
 import { GoalsSection } from './GoalsSection';
 import { emptyDraft, toPlan, validateDraft } from './plans';
 
+import '@/test/autoUnmount';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockGetOk = jest.fn();

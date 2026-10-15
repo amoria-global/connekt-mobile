@@ -6,6 +6,8 @@ import type { EventItem } from '@/features/events/types';
 import { ScheduleView } from './ScheduleView';
 import { dayKey, shiftDays, weekOf } from './schedule';
 
+import '@/test/autoUnmount';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const today = dayKey(new Date());

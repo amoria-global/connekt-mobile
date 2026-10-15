@@ -12,6 +12,8 @@ import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
  * Money honesty is the point: an unknown figure is N/A and a failed request is
  * an error with a retry, never a zero or an empty list.
  */
+import '@/test/autoUnmount';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockGet = jest.fn();
