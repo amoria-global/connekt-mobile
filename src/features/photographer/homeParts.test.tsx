@@ -4,7 +4,7 @@ import { Text } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import { BusinessOverview, EarningRow, PriorityCard, ShootCard } from './homeParts';
-import { ProgressRing, SegmentRing } from './charts';
+import { ProgressRing, SegmentRing, TrendChart, trendGeometry } from './charts';
 
 import '@/test/autoUnmount';
 
@@ -154,5 +154,49 @@ describe('EarningRow', () => {
     const row = r.root.findAll((n) => n.props?.accessibilityLabel === 'Booking payout, +$95.50, COMPLETED')[0];
     act(() => row.props.onPress());
     expect(onPress).toHaveBeenCalled();
+  });
+});
+
+describe('trendGeometry and TrendChart', () => {
+  it('puts each point at the centre of an equal column, so a label row lines up under it', () => {
+    const g = trendGeometry([1, 2, 3, 4], 400, 150);
+    expect(g.pts.map((p) => p.x)).toEqual([50, 150, 250, 350]);
+  });
+
+  it('draws the largest value at the top padding and zero on the baseline', () => {
+    const g = trendGeometry([0, 10, 5], 300, 150, 26, 6);
+    expect(g.pts[1].y).toBe(26);
+    expect(g.pts[0].y).toBe(144);
+    expect(g.pts[2].y).toBe(85);
+  });
+
+  it('a chart of zeros is flat on the baseline, never a peak', () => {
+    const g = trendGeometry([0, 0, 0], 300, 150);
+    expect(new Set(g.pts.map((p) => p.y))).toEqual(new Set([g.base]));
+  });
+
+  it('a negative value is clamped to the baseline', () => {
+    expect(trendGeometry([-5, 10], 200, 100).pts[0].y).toBe(94);
+  });
+
+  it('the curve never leaves the band between the peak and the baseline', () => {
+    const g = trendGeometry([3, 9, 1, 7], 400, 150);
+    const ys = [...g.line.matchAll(/C ([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) /g)].flatMap((m) => [Number(m[2]), Number(m[4])]);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(26);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(g.base);
+  });
+
+  it('handles no points and a single point without a curve segment', () => {
+    expect(trendGeometry([], 300, 150).line).toBe('');
+    expect(trendGeometry([5], 300, 150).line).not.toContain('C');
+  });
+
+  it('renders nothing until it has a width, then draws the curve and one dot per interval', () => {
+    const r = mount(<TrendChart values={[1, 3, 2]} peakIndex={1} />);
+    expect(r.root.findAllByType(Circle)).toHaveLength(0);
+    const host = r.root.findAll((n) => typeof n.props?.onLayout === 'function')[0];
+    act(() => host.props.onLayout({ nativeEvent: { layout: { width: 300, height: 150 } } }));
+    expect(r.root.findAllByType(Circle)).toHaveLength(3);
+    expect(flat(r.root)).toContain('Peak');
   });
 });
