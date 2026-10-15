@@ -7,6 +7,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';
+import { useRole } from '@/features/auth/role';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 type Variant = 'primary' | 'accent' | 'ghost' | 'outline' | 'danger';
@@ -22,6 +23,8 @@ export function Button({ title, variant = 'primary', loading, disabled, style, t
   const variantStyles = useVariantStyles();
   const styles = useStyles();
   const { colors } = useTheme();
+  // Photographer screens use the prototype's squarer 48dp buttons; other roles keep the pill.
+  const flat = useRole().isPhotographer;
   const isDisabled = disabled || loading;
   const isOutlined = variant === 'ghost' || variant === 'outline';
   return (
@@ -30,6 +33,7 @@ export function Button({ title, variant = 'primary', loading, disabled, style, t
       disabled={isDisabled}
       style={(state) => [
         styles.base,
+        flat && styles.baseFlat,
         variantStyles[variant],
         isDisabled && styles.disabled,
         state.pressed && !isDisabled && styles.pressed,
@@ -54,6 +58,7 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
+  baseFlat: { height: 48, borderRadius: radii.md },
   pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   disabled: { opacity: 0.5 },
   label: {

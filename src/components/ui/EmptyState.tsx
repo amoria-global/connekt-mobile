@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
+import { useRole } from '@/features/auth/role';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { Button } from './Button';
 
@@ -13,10 +14,11 @@ type Props = {
 export function EmptyState({ icon, title, message, action }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const flat = useRole().isPhotographer;
   return (
     <View style={styles.wrap}>
-      <View style={styles.iconCircle}>
-        <Ionicons name={icon} size={32} color={colors.primary} />
+      <View style={[styles.iconCircle, flat && styles.iconTile]}>
+        <Ionicons name={icon} size={flat ? 26 : 32} color={colors.primary} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
@@ -35,6 +37,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconTile: { width: 56, height: 56, borderRadius: radii.md, borderWidth: 1, borderColor: c.borderSoft, backgroundColor: c.tint },
   title: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   message: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', maxWidth: 280 },
   action: { marginTop: spacing.md, alignSelf: 'center', paddingHorizontal: spacing['2xl'] },

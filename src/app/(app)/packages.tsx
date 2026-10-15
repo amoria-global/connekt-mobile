@@ -42,7 +42,7 @@ export default function PackagesScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="My Packages" subtitle="Services clients can book" />
+      <ScreenHeader duplicatesHeader title="My Packages" subtitle="Services clients can book" />
       <DataList
         data={data}
         loading={loading}

@@ -228,7 +228,7 @@ export default function GeoPricingScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Geo pricing" />
+      <ScreenHeader duplicatesHeader title="Geo pricing" />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {eventsAsync.data && eventsAsync.data.length > 0 && !packageId ? (
           <View style={styles.eventPickerCard}>

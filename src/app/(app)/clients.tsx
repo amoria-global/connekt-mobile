@@ -31,6 +31,7 @@ export default function ClientsScreen() {
         error={error}
         onRefresh={refresh}
         title="Clients"
+        duplicatesHeader
         subtitle={isCoordinator ? 'Clients across your events & productions' : 'People who have booked you'}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => {

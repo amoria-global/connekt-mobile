@@ -186,6 +186,7 @@ export default function TransactionsScreen() {
         error={error}
         onRefresh={refresh}
         title="Transactions"
+        duplicatesHeader
         subtitle="Your wallet activity"
         headerExtra={headerExtra}
         footer={
@@ -224,7 +225,7 @@ function Row({ movement }: { movement: Movement }) {
         </Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={2}>
           {cleanTitle}
         </Text>
         {movement.createdAt ? <Text style={styles.date}>{formatDate(movement.createdAt)}</Text> : null}
@@ -243,15 +244,15 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.border,
     padding: spacing.md,
   },
-  icon: { width: 40, height: 40, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   sign: { fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   body: { flex: 1, gap: 2 },
-  title: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  title: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text, lineHeight: 19 },
   date: { fontSize: fontSize.xs, color: c.textMuted },
   amount: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
@@ -267,8 +268,8 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.xs,
   },
   filterPill: {
-    paddingHorizontal: 12,
-    height: 30,
+    paddingHorizontal: 14,
+    minHeight: 40,
     borderRadius: radii.full,
     backgroundColor: c.surface,
     borderWidth: 1,
@@ -282,11 +283,11 @@ const useStyles = makeStyles((c) => ({
   },
   filterPillText: {
     fontFamily: fonts.bold,
-    fontSize: 12,
-    color: c.textMuted,
+    fontSize: 13,
+    color: c.textSoft,
   },
   filterPillTextActive: {
-    color: '#ffffff',
+    color: c.textOnPrimary,
   },
   searchWrap: {
     flexDirection: 'row',
@@ -296,12 +297,12 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    paddingHorizontal: spacing.sm,
-    height: 38,
+    paddingHorizontal: spacing.md,
+    height: 44,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: c.text,
     paddingVertical: 0,
   },
