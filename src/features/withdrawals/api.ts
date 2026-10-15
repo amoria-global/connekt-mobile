@@ -26,7 +26,19 @@ export async function listWithdrawableSources(role: Role | undefined): Promise<W
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not load your balance.' } satisfies ApiError;
   }
-  return (Array.isArray(res.data) ? res.data : []).map(mapSource);
+  // A balance that was not reported must fail the load, not become a confirmed zero ("num" turns a missing or
+  // malformed amount into 0, which on this screen reads as "you have nothing"). An empty list is a valid answer.
+  if (!Array.isArray(res.data)) throw { status: 502, message: 'Could not read your balance.' } satisfies ApiError;
+  if (res.data.some((r) => !isReportedAmount(r?.availableBalance))) {
+    throw { status: 502, message: 'Could not read your balance.' } satisfies ApiError;
+  }
+  return res.data.map(mapSource);
+}
+
+function isReportedAmount(v: unknown): boolean {
+  if (typeof v === 'number') return Number.isFinite(v);
+  if (typeof v === 'string') return v.trim() !== '' && Number.isFinite(Number(v));
+  return false;
 }
 
 const USD_ONLY = FALLBACK_CURRENCIES.filter((c) => c.code === 'USD');

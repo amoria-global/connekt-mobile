@@ -382,7 +382,9 @@ export function PerformanceWaveCard({
         <View style={styles.headerLeft}>
           <View style={styles.eyebrowRow}>
             <View style={[styles.glowingDot, { backgroundColor: meta.color }]} />
-            <Text style={styles.eyebrowText}>{meta.title}</Text>
+            <Text style={styles.eyebrowText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} maxFontSizeMultiplier={1.15}>
+              {meta.title}
+            </Text>
           </View>
           <View style={styles.headlineRow}>
             <Text style={styles.headlineValue}>{formattedHeadline}</Text>
