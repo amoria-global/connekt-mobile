@@ -33,8 +33,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
-import { getPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
+import { dismissReceivedPhotobook, getPhotobook, resubmitPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
@@ -45,6 +46,10 @@ const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
   DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
   PENDING: { label: 'Pending review', bg: '#FEF3C7', fg: '#92400E' },
   SENT: { label: 'Delivered', bg: '#DBEAFE', fg: '#1D4ED8' },
+  SENT_TO_PHOTOGRAPHER: { label: 'To edit', bg: '#FEF3C7', fg: '#92400E' },
+  PHOTOGRAPHER_EDITING: { label: 'Editing', bg: '#DBEAFE', fg: '#1D4ED8' },
+  RESUBMITTED: { label: 'Resubmitted', bg: '#DBEAFE', fg: '#1D4ED8' },
+  COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
 };
 
 export default function PhotobookDetailScreen() {
@@ -53,11 +58,16 @@ export default function PhotobookDetailScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, received: receivedParam } = useLocalSearchParams<{ id: string; received?: string }>();
+  // Opened from the photographer's "Received from clients" shelf: read it, and resubmit or dismiss it, through the
+  // photographer endpoints. The customer endpoint 404s for a book the signed-in user does not own as a customer.
+  const received = receivedParam === '1';
   const router = useRouter();
   const { width } = useWindowDimensions();
 
-  const { data, loading, error, refresh } = useAsync(useCallback(() => getPhotobook(id), [id]));
+  const { data, loading, error, refresh } = useAsync(useCallback(() => getPhotobook(id, received), [id, received]));
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [payDeclarationId, setPayDeclarationId] = useState<string | null>(null);
   const payBusy = false;
   const [activePhoto, setActivePhoto] = useState<PhotobookPhoto | null>(null);
@@ -130,6 +140,36 @@ export default function PhotobookDetailScreen() {
     }
     setPayDeclarationId(declarationId);
   };
+
+  const runAction = async (op: () => Promise<void>, onDone: () => void, fallback: string) => {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await op();
+      onDone();
+    } catch (e) {
+      setActionError(isApiError(e) ? e.message : fallback);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+  const onResubmit = () =>
+    Alert.alert('Send back to the client?', 'The client will see your edited photobook.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Resubmit',
+        onPress: () => void runAction(() => resubmitPhotobook(id), () => void refresh(), 'Could not resubmit. Please try again.'),
+      },
+    ]);
+  const onDismiss = () =>
+    Alert.alert('Remove from your list?', 'This hides the photobook from your received list.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => void runAction(() => dismissReceivedPhotobook(id), () => router.back(), 'Could not remove it. Please try again.'),
+      },
+    ]);
 
   const gap = 2;
   const cell = (width - gap * (gridCols - 1)) / gridCols;
@@ -214,14 +254,19 @@ export default function PhotobookDetailScreen() {
                   <Ionicons name="chevron-back" size={20} color="#fff" />
                 </Pressable>
 
-                <Pressable
-                  style={styles.heroNavCircle}
-                  onPress={onShareBook}
-                  hitSlop={8}
-                  accessibilityLabel="Share photobook"
-                >
-                  <Ionicons name="share-outline" size={18} color="#fff" />
-                </Pressable>
+                {received ? (
+                  // The share link points at the customer view of a book, which a received book does not have.
+                  <View />
+                ) : (
+                  <Pressable
+                    style={styles.heroNavCircle}
+                    onPress={onShareBook}
+                    hitSlop={8}
+                    accessibilityLabel="Share photobook"
+                  >
+                    <Ionicons name="share-outline" size={18} color="#fff" />
+                  </Pressable>
+                )}
               </View>
 
               {/* Hero Bottom Info */}
@@ -262,8 +307,37 @@ export default function PhotobookDetailScreen() {
               </View>
             ) : null}
 
+            {received ? (
+              <View style={styles.descCard}>
+                <Pressable
+                  onPress={onResubmit}
+                  disabled={actionBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Resubmit to client"
+                  accessibilityState={{ disabled: actionBusy, busy: actionBusy }}
+                  style={[styles.retryBtn, { minHeight: 48, justifyContent: 'center', alignItems: 'center' }]}
+                >
+                  <Text style={styles.retryBtnText}>{actionBusy ? 'Working...' : 'Resubmit to client'}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={onDismiss}
+                  disabled={actionBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove from my list"
+                  style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={styles.muted}>Remove from my list</Text>
+                </Pressable>
+                {actionError ? (
+                  <Text style={[styles.muted, { color: colors.error }]} accessibilityRole="alert">
+                    {actionError}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
             {/* Extras Payment Banner */}
-            {data?.paymentRequired && data?.extraPhotosAmount && digitalPurchasesEnabled ? (
+            {!received && data?.paymentRequired && data?.extraPhotosAmount && digitalPurchasesEnabled ? (
               <Pressable
                 style={({ pressed }) => [styles.payBanner, pressed && { opacity: 0.9 }]}
                 onPress={() => void onPayExtras()}
@@ -351,7 +425,9 @@ export default function PhotobookDetailScreen() {
             </View>
             <Text style={styles.emptyTitle}>No photos in this book</Text>
             <Text style={styles.emptySubtitle}>
-              The photographer has not added photos to this photobook collection yet.
+              {received
+                ? 'This photobook has no photos yet.'
+                : 'The photographer has not added photos to this photobook collection yet.'}
             </Text>
           </View>
         }

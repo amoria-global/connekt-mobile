@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, Stack } from 'expo-router';
 import {
   ActivityIndicator,
@@ -58,6 +58,7 @@ import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { ErrorNotice } from '@/features/photographer/kit';
 
 const DEFAULT_DAYS = [
   { day: 'Sun', value1: 0, value2: 0 },
@@ -113,6 +114,10 @@ export default function AnalyticsScreen() {
   const [photogClients, setPhotogClients] = useState<PhotographerClient[]>([]);
   const [photogTransactions, setPhotogTransactions] = useState<RecentTransaction[]>([]);
   const [photogPerf, setPhotogPerf] = useState<PerformancePoint[]>([]);
+  // Why the headline figures are missing, so a failed load is not shown as zeros.
+  const [photogError, setPhotogError] = useState<string | null>(null);
+  // Only the newest load may write state: switching period quickly must not let a slow old answer win.
+  const loadTicket = useRef(0);
 
   // ── Shared ────────────────────────────────────────────────────────────────
   const [trends, setTrends] = useState<TrendsMap>({});
@@ -124,6 +129,7 @@ export default function AnalyticsScreen() {
   const [showPayNow, setShowPayNow] = useState(false);
 
   const load = useCallback(async (isPull = false) => {
+    const ticket = ++loadTicket.current;
     if (isPull) setRefreshing(true);
     else setLoading(true);
 
@@ -141,6 +147,7 @@ export default function AnalyticsScreen() {
           getCustomerRecentPayments(5),
           getCustomerPerformance(period, from, to),
         ]);
+        if (ticket !== loadTicket.current) return;
         if (a.status === 'fulfilled') setClientData(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (pending.status === 'fulfilled') setClientPendingPayments(pending.value);
@@ -157,6 +164,7 @@ export default function AnalyticsScreen() {
           getCoordinatorRecentActivities(6),
           getCoordinatorPerformance(period, from, to),
         ]);
+        if (ticket !== loadTicket.current) return;
         if (a.status === 'fulfilled') setCoordData(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (pending.status === 'fulfilled') setCoordPendingPayments(pending.value);
@@ -171,6 +179,12 @@ export default function AnalyticsScreen() {
           getPhotographerRecentTransactions(5),
           getPhotographerPerformance(period, from, to),
         ]);
+        if (ticket !== loadTicket.current) return;
+        setPhotogError(
+          a.status === 'rejected'
+            ? ((a.reason as { message?: string } | undefined)?.message ?? 'Could not load your analytics.')
+            : null,
+        );
         if (a.status === 'fulfilled') setPhotogData(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (clients.status === 'fulfilled') setPhotogClients(clients.value);
@@ -178,8 +192,10 @@ export default function AnalyticsScreen() {
         if (perf.status === 'fulfilled') setPhotogPerf(perf.value);
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (ticket === loadTicket.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [isClient, isCoordinator, isPhotographer, period, customApplied, customFrom, customTo]);
 
@@ -190,6 +206,8 @@ export default function AnalyticsScreen() {
   const onRefresh = useCallback(() => {
     load(true);
   }, [load]);
+
+  const photogUnavailable = isPhotographer && !!photogError && !photogData;
 
   // Current timeframe label (matches salo-run periodLabel)
   const periodLabel = useMemo(() => {
@@ -358,17 +376,18 @@ type StatCardItem = {
     if (isPhotographer) {
       return [
         {
-          title: 'Total Earnings',
-          value: formatPrice(photogData?.totalEarnings || 0, currency),
+          // The earnings endpoint has no period: this is lifetime, so the title says so (the tabs above only move the
+          // change percentages and charts).
+          title: 'Lifetime earnings',
+          value: formatPrice(photogData?.totalEarnings, currency),
           iconName: 'cash-outline' as const,
           accentColor: colors.primary,
           href: '/wallet',
-          chartType: 'histogram' as const,
-          histogramData: activePerf.map((p) => (p.value1 || 0) + (p.value2 || 0)),
+          // No sparkline here: the figure is lifetime, and a period chart beside it would read as its history.
         },
         {
-          title: 'Pending',
-          value: formatPrice(photogData?.pendingPayments || 0, currency),
+          title: 'Pending release',
+          value: formatPrice(photogData?.pendingPayments, currency),
           iconName: 'time-outline' as const,
           accentColor: colors.warning,
           chartType: 'donut' as const,
@@ -379,17 +398,15 @@ type StatCardItem = {
           },
         },
         {
-          title: 'Clients',
-          value: String(photogData?.totalClients || 0),
+          title: 'Clients served',
+          value: photogData ? String(photogData.totalClients) : 'N/A',
           iconName: 'people-outline' as const,
           accentColor: colors.primary,
           href: '/clients',
-          chartType: 'histogram' as const,
-          histogramData: activePerf.map((p) => p.value1 || 0),
         },
         {
-          title: 'Bonuses',
-          value: formatPrice(photogData?.bonuses || 0, currency),
+          title: 'Lifetime bonuses',
+          value: formatPrice(photogData?.bonuses, currency),
           iconName: 'gift-outline' as const,
           accentColor: colors.accent,
           chartType: 'donut' as const,
@@ -401,7 +418,8 @@ type StatCardItem = {
         },
         {
           title: 'Rating',
-          value: `${(photogData?.averageRating ?? 5).toFixed(1)}/5`,
+          // No rating is not a 5.0: say so instead of inventing one.
+          value: !photogData ? 'N/A' : photogData.averageRating > 0 ? `${photogData.averageRating.toFixed(1)}/5` : 'No reviews yet',
           iconName: 'star-outline' as const,
           accentColor: colors.accent,
         },
@@ -625,6 +643,10 @@ type StatCardItem = {
           />
         }
       >
+        {isPhotographer && photogError ? (
+          <ErrorNotice message={photogError} onRetry={() => load()} />
+        ) : null}
+
         {/* ── Segmented Timeframe Filter Tabs (salo-run .ck-tabs) ─────────── */}
         <View style={styles.filterTabsContainer}>
           {PERIOD_TABS.map((tab) => {
@@ -645,6 +667,12 @@ type StatCardItem = {
             );
           })}
         </View>
+
+        {isPhotographer ? (
+          <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: spacing.sm }}>
+            Totals are all time. The period above changes the trends and charts.
+          </Text>
+        ) : null}
 
         {/* Custom date range inputs (salo-run mobile-custom-dates) */}
         {period === 'custom' && (
@@ -842,6 +870,9 @@ type StatCardItem = {
         )}
 
         {/* ── Diverse Shapes Analytics Charts ─────────────────────────────── */}
+        {/* A failed photographer load has no data to chart; the error above says so. */}
+        {photogUnavailable ? null : (
+        <>
         {/* Shape 1: Curved Wave Spline Area Chart */}
         <View style={styles.sectionCard}>
           <TrendCurveChart data={activePerf} height={160} />
@@ -871,6 +902,8 @@ type StatCardItem = {
             segments={ratioData.segments}
           />
         </View>
+        </>
+        )}
 
         {/* ── CLIENT Specific Lists ───────────────────────────────────────── */}
         {isClient && (
