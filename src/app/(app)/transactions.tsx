@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { cleanTransactionTitle } from '@/features/analytics/api';
-import { listWalletMovements, type Movement } from '@/features/wallet/api';
+import { listWalletMovementsPage, type Movement } from '@/features/wallet/api';
+import { useMovementPages } from '@/features/wallet/useMovementPages';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
@@ -29,7 +30,8 @@ export default function TransactionsScreen() {
   const user = useAuth((s) => s.user);
   const role: DashboardRole = toRole(user?.customerType);
   const directionFilters = getDirectionFilters(role);
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listWalletMovements(), []));
+  const { data, loading, error, refresh } = useAsync(useCallback(() => listWalletMovementsPage(0, 50), []));
+  const pages = useMovementPages(data);
 
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
   const [search, setSearch] = useState('');
@@ -40,7 +42,7 @@ export default function TransactionsScreen() {
   }, [directionFilter, search]);
 
   const filtered = useMemo(() => {
-    const list = data ?? [];
+    const list = pages.items;
     return list.filter((m) => {
       if (!isVisibleToRole(m, role)) return false;
       if (!matchesDirectionFilter(m, directionFilter)) return false;
@@ -54,7 +56,7 @@ export default function TransactionsScreen() {
       }
       return true;
     });
-  }, [data, directionFilter, search, role]);
+  }, [pages.items, directionFilter, search, role]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -157,6 +159,25 @@ export default function TransactionsScreen() {
     </View>
   ) : undefined;
 
+  const loadOlder =
+    pages.hasMore || pages.moreError ? (
+      <View style={{ alignItems: 'center', gap: 6, paddingBottom: spacing.lg }}>
+        {pages.hasMore ? (
+          <Pressable
+            onPress={pages.loadMore}
+            disabled={pages.loadingMore}
+            accessibilityRole="button"
+            accessibilityLabel="Load older transactions"
+            accessibilityState={{ disabled: pages.loadingMore, busy: pages.loadingMore }}
+            style={[styles.pageNavBtn, { minHeight: 44, justifyContent: 'center' }]}
+          >
+            <Text style={styles.pageNavBtnText}>{pages.loadingMore ? 'Loading older...' : 'Load older transactions'}</Text>
+          </Pressable>
+        ) : null}
+        {pages.moreError ? <Text style={styles.paginationInfo} accessibilityRole="alert">{pages.moreError}</Text> : null}
+      </View>
+    ) : null;
+
   return (
     <Screen padded={false} edges={[]}>
       <DataList
@@ -167,7 +188,14 @@ export default function TransactionsScreen() {
         title="Transactions"
         subtitle="Your wallet activity"
         headerExtra={headerExtra}
-        footer={footer}
+        footer={
+          footer || loadOlder ? (
+            <View>
+              {footer}
+              {loadOlder}
+            </View>
+          ) : undefined
+        }
         keyExtractor={(m) => m.id}
         renderItem={({ item }) => <Row movement={item} />}
         emptyIcon="swap-horizontal-outline"

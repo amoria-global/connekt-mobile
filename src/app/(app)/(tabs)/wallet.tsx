@@ -31,7 +31,8 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { useAuth } from '@/store/auth';
-import { getWallet, listWalletMovements, type Movement } from '@/features/wallet/api';
+import { getWallet, listWalletMovementsPage, type MovementPage } from '@/features/wallet/api';
+import { useMovementPages } from '@/features/wallet/useMovementPages';
 import {
   toRole,
   selectWalletStats,
@@ -51,6 +52,8 @@ import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
+import { SegmentedTabs } from '@/features/photographer/kit';
+import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -73,6 +76,8 @@ export default function WalletScreen() {
   const [activityPage, setActivityPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<MoneyItem | null>(null);
   const [balanceHidden, setBalanceHidden] = useState(true);
+  // Photographers get Overview / Analytics / Activity tabs; other roles see every section, as before.
+  const [walletTab, setWalletTab] = useState<'overview' | 'analytics' | 'activity'>('overview');
   const PAGE_SIZE = 5;
 
   useEffect(() => {
@@ -84,12 +89,15 @@ export default function WalletScreen() {
     const [wallet, history] = await Promise.all([
       getWallet(),
       // A failed history read is reported, not shown as an empty history.
-      listWalletMovements(0, 50).then((m) => ({ m, failed: false }), () => ({ m: [] as Movement[], failed: true })),
+      listWalletMovementsPage(0, 50).then((m) => ({ m, failed: false }), () => ({ m: null as MovementPage | null, failed: true })),
     ]);
-    return { wallet, movements: history.m, movementsFailed: history.failed };
+    return { wallet, history: history.m, movementsFailed: history.failed };
   }, []);
 
   const { data, loading, error, refresh } = useAsync(fetchData);
+
+  // Older ledger pages are appended on request; the first page stays owned by the refresh above.
+  const pages = useMovementPages(data?.history);
 
   const dashboardRole: DashboardRole = toRole(
     role || user?.customerType || data?.wallet?.customerType,
@@ -103,10 +111,10 @@ export default function WalletScreen() {
   const filterTags = useMemo(() => getFilterTags(dashboardRole), [dashboardRole]);
 
   const filteredActivityItems = useMemo(() => {
-    if (!data?.movements) return [];
+    if (!data?.history) return [];
     const q = activitySearch.trim().toLowerCase();
     const items: MoneyItem[] = [];
-    for (const m of data.movements) {
+    for (const m of pages.items) {
       const item = formatWalletMovement(m, dashboardRole);
       if (!item) continue;
       if (activeFilter !== 'All' && item.tag !== activeFilter) continue;
@@ -122,7 +130,7 @@ export default function WalletScreen() {
       items.push(item);
     }
     return items;
-  }, [data?.movements, dashboardRole, activeFilter, directionFilter, activitySearch]);
+  }, [data?.history, pages.items, dashboardRole, activeFilter, directionFilter, activitySearch]);
 
   const totalPages = Math.max(1, Math.ceil(filteredActivityItems.length / PAGE_SIZE));
   const safePage = Math.min(activityPage, totalPages);
@@ -144,6 +152,10 @@ export default function WalletScreen() {
   ];
 
   const visibleCards = stats?.cards.filter((c) => !c.hidden) ?? [];
+  const tabbed = isPhotographer;
+  const showOverview = !tabbed || walletTab === 'overview';
+  const showAnalytics = tabbed && walletTab === 'analytics';
+  const showActivity = !tabbed || walletTab === 'activity';
 
   return (
     <Screen padded={false} edges={[]}>
@@ -199,8 +211,23 @@ export default function WalletScreen() {
             </View>
           ) : null}
 
+          {tabbed ? (
+            <View style={styles.walletTabs}>
+              <SegmentedTabs
+                label="Wallet sections"
+                value={walletTab}
+                onChange={setWalletTab}
+                tabs={[
+                  { key: 'overview', label: 'Overview' },
+                  { key: 'analytics', label: 'Analytics' },
+                  { key: 'activity', label: 'Activity' },
+                ]}
+              />
+            </View>
+          ) : null}
+
           {/* MoneyHero Card (Clean solid card — single authoritative wallet header) */}
-          {stats && (
+          {showOverview && stats && (
             <View style={styles.heroCard}>
               <View style={styles.heroContent}>
                 <View style={styles.heroTopRow}>
@@ -271,6 +298,7 @@ export default function WalletScreen() {
           )}
 
           {/* Quick Links Menu (Top placement for instant access without scrolling) */}
+          {showOverview ? (
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionTitle}>Quick links</Text>
             <View style={styles.menuCard}>
@@ -293,9 +321,17 @@ export default function WalletScreen() {
               ))}
             </View>
           </View>
+          ) : null}
+
+          {showAnalytics ? (
+            // The analytics blocks carry their own side margins, so cancel the scroll's padding.
+            <View style={styles.walletBleed}>
+              <WalletAnalytics wallet={data?.wallet ?? null} />
+            </View>
+          ) : null}
 
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
-          {visibleCards.length > 0 && (
+          {showOverview && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
               <Text style={styles.sectionTitle}>
                 {dashboardRole === 'photographer'
@@ -334,6 +370,7 @@ export default function WalletScreen() {
           )}
 
           {/* Embedded ActivityFeed (salo-run parity) */}
+          {showActivity ? (
           <View style={styles.sectionBlock}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.activityTitleWrap}>
@@ -557,9 +594,23 @@ export default function WalletScreen() {
                     </View>
                   ) : null}
                 </View>
+                {pages.hasMore ? (
+                  <Pressable
+                    onPress={pages.loadMore}
+                    disabled={pages.loadingMore}
+                    accessibilityRole="button"
+                    accessibilityLabel="Load older transactions"
+                    accessibilityState={{ disabled: pages.loadingMore, busy: pages.loadingMore }}
+                    style={[styles.pageNavBtn, { alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginTop: 4 }]}
+                  >
+                    <Text style={styles.pageNavBtnText}>{pages.loadingMore ? 'Loading older...' : 'Load older transactions'}</Text>
+                  </Pressable>
+                ) : null}
+                {pages.moreError ? <Text style={styles.paginationInfo} accessibilityRole="alert">{pages.moreError}</Text> : null}
               </>
             )}
           </View>
+          ) : null}
         </ScrollView>
       )}
 
@@ -847,6 +898,8 @@ const useStyles = makeStyles((c) => ({
   heroWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: '#ffffff' },
 
   // Breakdown StatCards
+  walletBleed: { marginHorizontal: -spacing.lg },
+  walletTabs: { marginBottom: spacing.md, marginHorizontal: -spacing.lg },
   sectionBlock: { gap: spacing.sm },
   sectionTitle: { fontFamily: fonts.bold, fontSize: 17, color: c.text },
   potGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
