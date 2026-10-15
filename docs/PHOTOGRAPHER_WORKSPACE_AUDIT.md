@@ -14,7 +14,7 @@ live-stream experience were not touched.
 | Photographer redesign (Home, Wallet tabs, Events calendar, Analytics, goals, photobooks, paging) | `feat/photographer-workspace-redesign` (`618358c`, `0dd59fb`), merged to `main` as `d8bb37d` | Released to Android over the air on runtime 2.2.2 (update group `c917325e`) |
 | Dark mode, large-text and shared-surface fixes, honest withdraw balance | `feat/photographer-dark-mode` (`a84a377`, `b8ac8f5`, `480aaa8`), merged to `main` as `602ce3b` | **Published on both platforms on runtime 2.2.2:** Android update group `cecb3ebc` (id `01a14030-d09b-7f0f-b3de-f32206e37da6`, from the promote workflow, `production` at `4977516`) and iOS update group `ac5143a4` (id `01a1403a-c386-7c4e-823a-68a6c8f4baec`, from a manual dispatch of `production.yml` with platform `ios`) |
 | iOS store build | Build 41 (2.2.2) in App Review | Waiting for Review when last checked through the App Store Connect API on 2026-10-15 (2.2.1 is the released version) |
-| Visual fidelity pass (compact chrome, priority card, shoot cards, business overview, wallet and analytics composition) | `feat/photographer-visual-fidelity` | **Not merged and not published.** See "Visual fidelity pass" |
+| Visual fidelity pass (compact chrome, priority card, shoot cards, business overview, wallet and analytics composition) | `feat/photographer-visual-fidelity` | **Published on both platforms on runtime 2.2.2.** Merged to `main` as `d0a3eed` (feature commit `0e74c12`). Android update id `01a140a0-738c-77ef-9218-867d0607be72` (promote workflow, `production` at `2110352`), iOS update id `01a140a9-1b37-7038-9512-4fcea7586b56` (manual dispatch of `production.yml`, platform `ios`). Both were checked by fetching the manifest a phone would fetch. Not run on an iPhone by me. See "Visual fidelity pass" |
 
 What the iOS update reaches: phones running an iOS 2.2.2 build, which today means TestFlight builds 38 to 41. App Store users are on 2.2.1 (runtime 2.2.1) and do not receive it until Apple releases 2.2.2. A phone fetches the update on a launch and runs it from the next launch.
 
@@ -230,7 +230,7 @@ Fix, with the financial rules untouched (no amount, conversion, limit or submiss
 
 **Not inspected in dark:** event actions beyond Remove and the detail header, the withdraw confirmation, code and selfie steps and a funded balance with a saved payment account (no transaction was started), goal sheets at large text, the coordinator and viewer screens beyond Home and Wallet, tablets, iOS (no iOS tooling here) and any real account. Coordinator and viewer Wallet at large text were not captured.
 
-## Visual fidelity pass (2026-10-15, branch `feat/photographer-visual-fidelity`, unmerged and unpublished)
+## Visual fidelity pass (2026-10-15, branch `feat/photographer-visual-fidelity`, merged as `d0a3eed` and published)
 
 Trigger: the released app was compared on an iPhone (TestFlight, `IMG_9057-merged.pdf`) against `Connekyt_Photographer_Prototype.docx`. The released UI had the dark palette but not the prototype's composition: an oversized pink bubble in the tab bar, a tall top bar with a raised brand pill, four same-weight outlined buttons, tall repetitive cards, a wide dashed Goals box, pill-shaped statuses, quick-link rows instead of compact tiles, and a plain progress-bar Analytics.
 
