@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { DataList } from '@/components/ui/DataList';
 import { Fab } from '@/components/ui/Fab';
 import { Screen } from '@/components/ui/Screen';
