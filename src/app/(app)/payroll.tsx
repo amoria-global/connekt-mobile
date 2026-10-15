@@ -67,7 +67,7 @@ export default function PayrollScreen() {
             <View key={s.key} style={styles.statCard}>
               <Text style={styles.statLabel}>{s.label}</Text>
               {s.value == null ? (
-                <Text style={styles.statUnknown} accessibilityLabel={`${s.label} unavailable`}>
+                <Text style={styles.statUnknown} accessibilityLabel={`${s.label} unavailable`} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
                   Unavailable
                 </Text>
               ) : (
@@ -79,7 +79,7 @@ export default function PayrollScreen() {
           ))}
         </View>
 
-        <SectionHeader title="Earnings" />
+        {view.unavailable ? null : <SectionHeader title="Earnings" />}
         {view.listUnavailable ? (
           view.unavailable ? null : <ErrorNotice message="The list of earnings was not included in this report." onRetry={refresh} compact />
         ) : view.confirmedEmpty ? (

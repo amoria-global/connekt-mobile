@@ -93,7 +93,7 @@ export default function NewEventScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
-  const { isCoordinator } = useRole();
+  const { isCoordinator, isPhotographer } = useRole();
   const user = useAuth((s) => s.user);
   const params = useLocalSearchParams<{
     photographerId?: string;
@@ -623,7 +623,8 @@ export default function NewEventScreen() {
               <Text style={styles.bannerName}>{params.photographerName ?? 'Photographer'}</Text>
               {amount ? <Text style={styles.bannerPrice}>{formatPrice(amount, params.currency)}</Text> : null}
             </View>
-          ) : (
+          ) : // The sheet header already says "New event"; only editing needs the in-body title for photographers.
+          isPhotographer && !isEditing ? null : (
             <Text style={styles.title}>{isEditing ? 'Edit event' : 'New event'}</Text>
           )}
 

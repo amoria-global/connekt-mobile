@@ -5,7 +5,7 @@ Companion to `PHOTOGRAPHER_WORKSPACE_AUDIT.md`, which covers Home, Wallet, Analy
 
 ## Honest summary
 
-This is still a partial completion of the larger brief (second commit on the branch). Route discovery is complete. The shared building blocks are corrected for photographers
+This is still a partial completion of the larger brief (third commit on the branch). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
 (other roles are unchanged), and a first set of internal screens was checked on the Android emulator in dark mode
 against a fixture backend. Many screens are NOT individually restyled or verified, and the table below says which.
 The dark-mode pass (earlier) had already moved every internal screen onto the navy palette, so the remaining gap
@@ -40,12 +40,19 @@ Transactions (shared with other roles, improvements only): filter chips 40dp (we
 
 | Piece | What it is | Status |
 |---|---|---|
-| `components/ui/dialog.tsx` | A themed confirmation dialog with the exact `Alert.alert(title, message, buttons, options)` shape. Photographer sessions get it, drawn from the app tokens (Cancel outlined, destructive outlined in the error colour, never white on light red). Back and a backdrop tap act as Cancel. Dialogs queue. Every other role, and any call made before the host is mounted, uses the native alert with the arguments forwarded unchanged. `<DialogHost />` is mounted once in `(app)/_layout.tsx`. The native alert cannot be restyled, which is why this exists | Implemented, unit tested (6 tests). Not seen on a device |
+| `components/ui/dialog.tsx` | A themed confirmation dialog with the exact `Alert.alert(title, message, buttons, options)` shape. Photographer sessions get it, drawn from the app tokens (Cancel outlined, destructive outlined in the error colour, never white on light red). Back and a backdrop tap act as Cancel. Dialogs queue. Every other role, and any call made before the host is mounted, uses the native alert with the arguments forwarded unchanged. `<DialogHost />` is mounted once in `(app)/_layout.tsx`. The native alert cannot be restyled, which is why this exists | Implemented, unit tested (6 tests). **Seen on the emulator** (dark and light, 1.6x text): Sign Out dialog, Cancel and Back both dismiss it and leave the user signed in |
 | Alert call sites | 30 files now import `Alert` from the dialog module instead of `react-native`: profile, album, album/new, blocked-accounts, bookings, client, collaborate album and joined, conversation, event detail, candidates, geo-pricing, event/new, notifications, packages, payment-accounts, photobook, tv-devices, the More sheet sign out, booking-request and opportunity notifiers, BookingsList, PhotographerHome, EventCard, Events dashboard, KYC flows, ReportSheet, AddAccountSheet, Goals | Implemented. Behaviour for non photographers is unchanged |
-| `components/ui/Sheet.tsx` | Bottom sheet: handle, title, 48dp close, scrolling body that keeps taps on inputs, keyboard avoidance, bottom safe area, pinned footer for the primary action. `busy` makes Back, the backdrop and the close button inert so a request in flight cannot be orphaned | Implemented, unit tested (3 tests). Adopted by Goals (create, edit, delete). Not seen on a device |
-| Payroll report | `PayrollReport` figures are `number or null`, `entries` is `null` when the response carries no list. A figure is `$0.00` only when the backend sent a numeric 0. No figures and no list is "unavailable", with a retry. A failed request, or HTTP 200 with `action: 0`, is an error with a retry. A confirmed empty list says "No earnings yet". The screen uses the photographer kit (cards, icon tiles, status words, skeletons) | Implemented. Unit tested (5 contract tests) and render tested (5 screen tests). Not seen on a device |
+| `components/ui/Sheet.tsx` | Bottom sheet: handle, title, 48dp close, scrolling body that keeps taps on inputs, keyboard avoidance, bottom safe area, pinned footer for the primary action. `busy` makes Back, the backdrop and the close button inert so a request in flight cannot be orphaned | Implemented, unit tested (3 tests). Adopted by Goals. **Seen on the emulator** (dark): handle, title, close, pinned Save goal, inline validation errors on an empty save with no request sent |
+| Payroll report | `PayrollReport` figures are `number or null`, `entries` is `null` when the response carries no list. A figure is `$0.00` only when the backend sent a numeric 0. No figures and no list is "unavailable", with a retry. A failed request, or HTTP 200 with `action: 0`, is an error with a retry. A confirmed empty list says "No earnings yet". The screen uses the photographer kit (cards, icon tiles, status words, skeletons) | Implemented. Unit tested (5 contract tests) and render tested (5 screen tests). **Seen on the emulator** (dark, light, 1.6x text) with a fixture that returns no figures: every tile says Unavailable and a Try again notice shows, never $0.00. A real confirmed zero was only tested by render test |
 
 Why payroll showed `$0.00`: `getPayrollReport` used `num()`, which turns a missing field into 0, and the screen then drew those zeros beside "No earnings yet". The web behaviour was not available to compare here; the rule applied is the one used for the Withdraw balance.
+
+Round three, found by looking at the running app:
+
+- **Event detail (`event/[id]`):** the details were a grid of nine tinted cards with a wrapping time. Photographers now get one compact list with icon tiles, labels, values and hairlines. Other roles keep the grid. Viewed dark and light, and at 1.6x text.
+- **New event (`event/new`):** the in-body "New event" repeated the sheet header, so it is dropped for photographers when creating. "Edit event" keeps its in-body title because the native header always says "New event". The form itself (cover, fields, date and time pickers, who covers the event, Create event) already matched the design system and was left alone.
+- **A bug I introduced and device testing caught:** `payroll.render.test.tsx` lived under `src/app/(app)/`, so Expo Router bundled it as a route and the app crashed with "Property 'afterEach' doesn't exist". The test now lives in `src/features/wallet/`. No other test file is under `src/app`.
+- **Large text:** payroll's "Unavailable" broke mid-word at 1.6x. It now shrinks to one line.
 
 ## Coverage matrix
 
@@ -58,7 +65,7 @@ Legend: V = viewed on Android emulator, dark mode, fixture backend (not a live a
 | `packages` | Home | V before and after (duplicate title removed) |
 | `bookings` | Home Opportunities, More | V before and after (duplicate title removed) |
 | `payment-accounts` | Wallet | V before, duplicate title removed through the shared header, not re-viewed |
-| `payroll` | Wallet, Analytics | V before. Rewritten in round two (unknown is never zero, kit styling). Render tested, not re-viewed on a device |
+| `payroll` | Wallet, Analytics | V after the rewrite (dark, light, 1.6x). Unknown is never zero. Fixture returned no figures, so the Unavailable state was seen. Confirmed zero and a populated list are render tested only |
 | `withdraw` | Wallet | V before, unchanged. Continue button sits under the gesture bar until scrolled |
 | `collaborate/index` | More, Home | V before, unchanged (already consistent) |
 | `photobooks` | Home, Events | V before, unchanged |
@@ -66,21 +73,26 @@ Legend: V = viewed on Android emulator, dark mode, fixture backend (not a live a
 | `edit-profile` | profile | V before, unchanged (buttons now 48dp flat) |
 | `notifications` | top bar bell | V before, unchanged |
 | `profile` | top bar avatar | V before, unchanged |
-| `event/[id]` | Home, Events | V, but the fixture has no single event endpoint so only the empty shell was seen |
+| `event/[id]` | Home, Events | V dark, light, 1.6x. Details restyled (see round three). Action buttons, Booking Progress and Booking Details cards were seen and left as they are |
+| `event/new` | Home, Events | V dark. Form already consistent, duplicate title removed. Validation, submission and failure paths were not exercised |
+| `album/[id]` | Events, gallery | V dark with fixture photos: 3 column grid, consistent thumbnails, actions row. The owner sees a card naming themself as photographer, left as is |
+| `analytics` | Home, Wallet | V dark, full scroll. Structure is consistent with the wallet analytics. The Performance legend reads "Current V1 / Current V2", the backend's unlabeled series, left alone because its meaning is not documented |
+| More sheet | bottom bar | V dark. Already a grid of icon tiles with search, no change needed |
 | `donations`, `streams`, `tv-devices`, `blocked-accounts`, `event/geo-pricing` | profile, More | Shared (duplicate title removed), not viewed |
 | `album/new`, `album/[id]`, `content-albums`, `content-album/new`, `photobook/new`, `photobook/[id]`, `conversation/[id]`, `client/[id]`, `collaborate/album/[id]`, `collaborate/joined/[id]`, `collaborate/join/[token]`, `package/new`, `two-factor`, `preferences`, `kyc`, `payment/[id]`, `payments`, `event/new`, `event/candidates`, `stream/control/[id]`, `analytics` | various | Not individually reviewed. Receive the 48dp button and Segmented changes where they use those components |
 | Overlays listed above | various | Not restyled. No shared sheet primitive exists |
 
 ## Not done, and why
 
-- **Device verification of round two.** The Android emulator was started three times for this round and the system process hung each time ("System UI isn't responding" / "Process system isn't responding"). The host had about 1.9 GB of its 8 GB free, which is the likely cause. After the third failure with a smaller emulator I stopped. So the themed dialog, the Sheet, the Goals sheet and the payroll screen are covered by unit and render tests only, NOT by a screenshot. I also did not restyle the large forms blind.
-- **Not restyled:** `event/new` (1.7k lines), `event/[id]` (1.2k), `album/[id]` (1.6k), `analytics` (2.8k) and their own inputs, plus the More sheet and the Events dashboard's accept, decline and sort sheets (they were already designed with the dashboard and were not moved onto `Sheet`). Their Alert dialogs are themed through the dialog module, but their layouts are as before. Moving them needs the visual check that was not possible.
-- **Light mode, large text and iOS** were not exercised on any of these screens. A dialog shown while another native Modal is open has not been tried on iOS.
+- **Still not individually reviewed on a device:** `album/new`, `content-albums`, `content-album/new`, `photobook/new`, `photobook/[id]`, `conversation/[id]`, `client/[id]`, `collaborate` sub-screens, `package/new`, `two-factor`, `preferences`, `kyc`, `payment/[id]`, `payments`, `event/candidates`, `stream/control/[id]`, `withdraw` end to end, and the Events dashboard's accept, decline and sort sheets. Earlier dark mode screenshots show most already match the palette.
+- **Flows not exercised:** event creation submit and failure, goal save and delete on a live backend, photobook resubmit, accept and reject of a booking, load older transactions on a real account. Only validation and dismissal were driven.
+- **iOS** was not exercised at all, and a dialog opened while another native Modal is open has not been tried on iOS.
+- Fixture data only. No live account was used.
 - `wallet/movements` is an orphan route with no entry point. Left alone.
 
 ## Verification
 
 - `npx tsc --noEmit`: exit 0.
-- `npx jest`: 76 suites, 597 passed, 1 skipped. New: `photographerChrome.test.tsx` (6), `dialog.test.tsx` (6), `Sheet.test.tsx` (3), `payrollView.test.ts` (5), `payroll.render.test.tsx` (5). Two existing tests (Goals, Events dashboard) needed their mocks extended for the dialog and Sheet; no assertion was weakened.
+- `npx jest`: 76 suites, 597 passed, 1 skipped (re-run after the final edits). New: `photographerChrome.test.tsx` (6), `dialog.test.tsx` (6), `Sheet.test.tsx` (3), `payrollView.test.ts` (5), `payroll.render.test.tsx` (5). Two existing tests (Goals, Events dashboard) needed their mocks extended for the dialog and Sheet; no assertion was weakened.
 - `npm run lint`: 359 errors, the same files and counts as `main` before this branch (compared per file).
 - Emulator: Pixel 5 API 34, dark mode, fixture backend with a temporary sign-in bypass. The harness and bypass are removed and absent from the diff.
