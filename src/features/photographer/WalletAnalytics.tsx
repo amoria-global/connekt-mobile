@@ -221,7 +221,8 @@ const useStyles = makeStyles((c) => ({
   chart: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, height: 150 },
   barCol: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
   barSlot: { flex: 1, width: '100%', justifyContent: 'flex-end' },
-  bar: { width: '100%', borderRadius: radii.sm, backgroundColor: c.primary },
+  // A bar the full width of a third of the screen read as a slab; slimmer bars keep the relative sizes legible.
+  bar: { width: '58%', alignSelf: 'center', borderRadius: radii.sm, backgroundColor: c.primary },
   barLabel: { color: c.textMuted, fontSize: 11 },
   emptyChart: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
   exportWrap: { gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.xl },

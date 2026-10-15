@@ -32,6 +32,8 @@ export const lightPalette = {
   primaryDark: '#062d6b',
   accent: '#F20C8F',
   accentLight: '#ff4fae',
+  /** Text-link blue: `primary` is a fill colour, and in dark it is only 3.4:1 as small text on a card. */
+  link: '#083A85',
 
   // Surfaces — ascending "elevation": page < panel < card < raised
   background: '#F4F6FB',
@@ -79,24 +81,27 @@ export const darkPalette: Palette = {
   primaryDark: '#2A54A8',
   accent: '#F20C8F',
   accentLight: '#ff4fae',
+  link: '#7FA6F5',
 
   // Surfaces — four deliberate steps. These carry elevation on their own,
   // because shadows do not register on a dark ground.
+  // `background` stays #0E1117: app.json's dark splash is the same hex, and changing it is a native change.
+  // The navy of the Photographer prototype therefore lives in the steps above it.
   background: '#0E1117',
-  surface: '#161B24',
-  card: '#1D232E',
-  surfaceMuted: '#28303D',
-  elevated: '#242B37',
+  surface: '#121A2A',
+  card: '#172238',
+  surfaceMuted: '#243250',
+  elevated: '#1D2A44',
 
   // Text — softened whites; pure #FFF on near-black causes halation.
   text: '#EDF0F5',
   textSoft: '#C6CCD8',
-  textMuted: '#8E96A6',
+  textMuted: '#93A0B8',
   textOnPrimary: '#FFFFFF',
 
   // Lines — visible enough to define a card edge, quiet enough not to grid up.
-  border: '#2F3746',
-  borderSoft: '#242B37',
+  border: '#2C3C5E',
+  borderSoft: '#1F2C47',
 
   // Tints must be lighter AND more opaque than their light counterparts,
   // otherwise they vanish against the background.

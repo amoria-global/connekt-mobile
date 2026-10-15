@@ -260,7 +260,7 @@ export function PhotographerHome() {
         {/* 1. Orientation */}
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
               {greeting()}, {name}
             </Text>
             <Text style={styles.date}>{longDate()}</Text>
