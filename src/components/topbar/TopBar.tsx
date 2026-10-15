@@ -15,11 +15,14 @@ import { NotificationButton } from './NotificationButton';
 import { ProfileButton } from './ProfileButton';
 
 const BAR_HEIGHT = 60;
+/** The photographer chrome is a tighter bar (the prototype's header is a single quiet row). */
+const COMPACT_BAR_HEIGHT = 52;
 
 /** Total height the bar occupies (safe-area top + bar row). Screens pad their content by this so it scrolls under the translucent bar. */
 export function useTopBarHeight() {
   const insets = useSafeAreaInsets();
-  return insets.top + BAR_HEIGHT;
+  const { isPhotographer } = useRole();
+  return insets.top + (isPhotographer ? COMPACT_BAR_HEIGHT : BAR_HEIGHT);
 }
 
 export type TopBarProps = {
@@ -45,13 +48,15 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
-  const { role } = useRole();
+  const { role, isPhotographer } = useRole();
+  const compact = isPhotographer;
+  const barHeight = compact ? COMPACT_BAR_HEIGHT : BAR_HEIGHT;
 
   const { data } = useAsync(useCallback(() => listNotifications(role), [role]));
   const hasUnread = !!data?.some((n) => !n.read);
 
   return (
-    <View style={[styles.wrap, { height: insets.top + BAR_HEIGHT }]} pointerEvents="box-none">
+    <View style={[styles.wrap, { height: insets.top + barHeight }]} pointerEvents="box-none">
       {Platform.OS === 'ios' ? (
         <BlurView
           intensity={48}
@@ -67,22 +72,22 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
         style={[styles.tint, { backgroundColor: isDark ? colors.card : colors.elevated, opacity: Platform.OS === 'android' ? 1 : 0.88 }]}
         pointerEvents="none"
       />
-      <View style={[styles.row, { top: insets.top }]}>
+      <View style={[styles.row, { top: insets.top, height: barHeight }, compact && styles.rowCompact]}>
         {back ? (
           <Pressable
             onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}
             accessibilityRole="button"
             accessibilityLabel="Go back"
-            style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.btn, compact && styles.btnCompact, pressed && styles.pressed]}
           >
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </Pressable>
         ) : (
-          <ProfileButton user={user} onPress={() => router.push('/profile')} />
+          <ProfileButton user={user} compact={compact} onPress={() => router.push('/profile')} />
         )}
-        <BrandPill style={styles.brand} />
-        <CurrencyButton />
-        <NotificationButton hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
+        <BrandPill style={styles.brand} flat={compact} />
+        <CurrencyButton bar={compact} />
+        <NotificationButton compact={compact} hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
       </View>
     </View>
   );
@@ -119,6 +124,8 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
     ...e(2),
   },
+  rowCompact: { gap: spacing.sm },
+  btnCompact: { width: 40, height: 40, shadowOpacity: 0, elevation: 0, borderWidth: 1.5, borderColor: c.border },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   // Tighter padding so the pill still fits beside the currency chip on narrow phones.
   brand: { paddingHorizontal: spacing.md },
