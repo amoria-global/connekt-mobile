@@ -195,6 +195,8 @@ function TabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProp
           },
         ]}
         numberOfLines={1}
+        // The label sits inside a fixed-size bubble; at 1.6x text it touched the bubble's edges.
+        maxFontSizeMultiplier={1.15}
       >
         {tab.label}
       </Animated.Text>

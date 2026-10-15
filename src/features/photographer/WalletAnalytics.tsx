@@ -135,7 +135,14 @@ function PeriodActivity({ period }: { period: PeriodKey }) {
   const trends = useAsync(useCallback(() => getPhotographerTrends(period), [period]));
   const perf = useAsync(useCallback(() => getPhotographerPerformance(period), [period]));
 
-  if (trends.error && !trends.data) return <ErrorNotice message={trends.error} onRetry={trends.refresh} />;
+  // ErrorNotice has no vertical margin of its own; under the period tabs it touched them.
+  if (trends.error && !trends.data) {
+    return (
+      <View style={styles.noticeGap}>
+        <ErrorNotice message={trends.error} onRetry={trends.refresh} />
+      </View>
+    );
+  }
   if (trends.loading && !trends.data) return <SkeletonCard height={110} />;
 
   const t = trends.data ?? {};
@@ -157,7 +164,9 @@ function PeriodActivity({ period }: { period: PeriodKey }) {
       </View>
       <SectionHeader title="Payment activity" subtitle="Relative size of payments received in each interval" />
       {perf.error && !perf.data ? (
-        <ErrorNotice message={perf.error} onRetry={perf.refresh} />
+        <View style={styles.noticeGap}>
+          <ErrorNotice message={perf.error} onRetry={perf.refresh} />
+        </View>
       ) : perf.loading && !perf.data ? (
         <SkeletonCard height={150} />
       ) : (
@@ -206,6 +215,8 @@ export function BarChart({ points }: { points: readonly PerformancePoint[] }) {
 }
 
 const useStyles = makeStyles((c) => ({
+  noticeGap: { marginTop: spacing.md },
+
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, marginTop: spacing.md },
   cardLabel: { color: c.textSoft, fontSize: 14, fontWeight: '600' },
   big: { color: c.text, fontSize: 30, fontWeight: '800', marginTop: 2 },
