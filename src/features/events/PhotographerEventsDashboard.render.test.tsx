@@ -10,6 +10,8 @@ import { dayKey } from '@/features/photographer/schedule';
  * router, safe area, image and QR sheet are faked. Covers the single view switch, creation reachable without a
  * floating button, and the finished-event Remove action.
  */
+import '@/test/autoUnmount';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockGet = jest.fn();

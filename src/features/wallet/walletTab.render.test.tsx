@@ -13,6 +13,8 @@ import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
  * (photographer 95.50, client 100.00 USD). Navigation chrome and the transport
  * are faked; getOk keeps the production requireOk.
  */
+import '@/test/autoUnmount';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockGetOk = jest.fn();
