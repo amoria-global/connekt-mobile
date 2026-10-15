@@ -295,7 +295,15 @@ export function SegmentedTabs<K extends string>({
             accessibilityState={{ selected: on }}
             style={[styles.segmentItem, on && styles.segmentItemOn]}
           >
-            <Text style={[styles.segmentText, on && styles.segmentTextOn]} numberOfLines={1}>
+            <Text
+              style={[styles.segmentText, on && styles.segmentTextOn]}
+              numberOfLines={1}
+              // Four short words must fit one row at the largest system text size, so the tab label shrinks a little
+              // rather than turning "Agenda" into "Agen...".
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              maxFontSizeMultiplier={1.4}
+            >
               {t.label}
             </Text>
           </Pressable>
@@ -328,7 +336,7 @@ export function StatusBadge({
   return (
     <View style={[styles.badgePill, { backgroundColor: bg }]}>
       <Ionicons name={icon ?? (defaultIcon as IconName)} size={12} color={fg} />
-      <Text style={[styles.badgePillText, { color: fg }]} numberOfLines={1}>
+      <Text style={[styles.badgePillText, { color: fg }]} numberOfLines={2}>
         {label}
       </Text>
     </View>

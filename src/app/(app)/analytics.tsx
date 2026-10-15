@@ -376,16 +376,17 @@ type StatCardItem = {
     if (isPhotographer) {
       return [
         {
-          title: 'Total Earnings',
+          // The earnings endpoint has no period: this is lifetime, so the title says so (the tabs above only move the
+          // change percentages and charts).
+          title: 'Lifetime earnings',
           value: formatPrice(photogData?.totalEarnings, currency),
           iconName: 'cash-outline' as const,
           accentColor: colors.primary,
           href: '/wallet',
-          chartType: 'histogram' as const,
-          histogramData: activePerf.map((p) => (p.value1 || 0) + (p.value2 || 0)),
+          // No sparkline here: the figure is lifetime, and a period chart beside it would read as its history.
         },
         {
-          title: 'Pending',
+          title: 'Pending release',
           value: formatPrice(photogData?.pendingPayments, currency),
           iconName: 'time-outline' as const,
           accentColor: colors.warning,
@@ -397,16 +398,14 @@ type StatCardItem = {
           },
         },
         {
-          title: 'Clients',
+          title: 'Clients served',
           value: photogData ? String(photogData.totalClients) : 'N/A',
           iconName: 'people-outline' as const,
           accentColor: colors.primary,
           href: '/clients',
-          chartType: 'histogram' as const,
-          histogramData: activePerf.map((p) => p.value1 || 0),
         },
         {
-          title: 'Bonuses',
+          title: 'Lifetime bonuses',
           value: formatPrice(photogData?.bonuses, currency),
           iconName: 'gift-outline' as const,
           accentColor: colors.accent,
@@ -668,6 +667,12 @@ type StatCardItem = {
             );
           })}
         </View>
+
+        {isPhotographer ? (
+          <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: spacing.sm }}>
+            Totals are all time. The period above changes the trends and charts.
+          </Text>
+        ) : null}
 
         {/* Custom date range inputs (salo-run mobile-custom-dates) */}
         {period === 'custom' && (

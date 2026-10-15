@@ -90,4 +90,14 @@ describe('photographer analytics screen as rendered', () => {
     serve(ok({ totalEarnings: 100, pendingPayments: 10, totalClients: 2, bonuses: 0, averageRating: 4.6 }));
     expect(flat((await mount()).root)).toContain('4.6/5');
   });
+
+  it('does not present lifetime totals as period figures under the period tabs', async () => {
+    serve(ok({ totalEarnings: 4820, pendingPayments: 300, totalClients: 11, bonuses: 0, averageRating: 4.6 }));
+    const text = flat((await mount()).root);
+    expect(text).toContain('Lifetime earnings');
+    expect(text).toContain('Pending release');
+    expect(text).toContain('Clients served');
+    expect(text).toContain('Totals are all time.');
+    expect(text).not.toContain('Total Earnings');
+  });
 });

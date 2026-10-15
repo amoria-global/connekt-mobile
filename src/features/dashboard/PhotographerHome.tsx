@@ -255,7 +255,7 @@ export function PhotographerHome() {
           />
         }
       >
-        <KycBanner />
+        <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />
 
         {/* 1. Orientation */}
         <View style={styles.header}>

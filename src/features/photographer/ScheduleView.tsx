@@ -28,7 +28,8 @@ import {
   type EventBucket,
 } from './schedule';
 
-type Mode = 'month' | 'week' | 'agenda';
+export type ScheduleMode = 'month' | 'week' | 'agenda';
+type Mode = ScheduleMode;
 const MODES: readonly { key: Mode; label: string }[] = [
   { key: 'month', label: 'Month' },
   { key: 'week', label: 'Week' },
@@ -68,7 +69,15 @@ export function ScheduleView({
   onAccept,
   onDecline,
   onCreate,
+  mode: controlledMode,
+  onModeChange,
 }: {
+  /**
+   * Optional control from the parent. When the screen already shows its own view switch (so the calendar mode and
+   * the list share one control), it passes `mode` and `onModeChange` and this component hides its own tabs.
+   */
+  mode?: ScheduleMode;
+  onModeChange?: (m: ScheduleMode) => void;
   /** Events after the screen's filter and search. */
   events: readonly EventItem[];
   /** Every event, so conflicts are never hidden by a filter. */
@@ -82,7 +91,10 @@ export function ScheduleView({
   const styles = useStyles();
   const { colors } = useTheme();
   const today = dayKey(new Date());
-  const [mode, setMode] = useState<Mode>('week');
+  const [ownMode, setOwnMode] = useState<Mode>('week');
+  const controlled = controlledMode !== undefined;
+  const mode = controlledMode ?? ownMode;
+  const setMode = (m: Mode) => (controlled ? onModeChange?.(m) : setOwnMode(m));
   const [selected, setSelected] = useState(today);
   const [agendaDays, setAgendaDays] = useState(AGENDA_PAGE_DAYS);
 
@@ -109,7 +121,7 @@ export function ScheduleView({
 
   return (
     <View style={styles.wrap}>
-      <SegmentedTabs tabs={MODES} value={mode} onChange={setMode} label="Calendar view" />
+      {controlled ? null : <SegmentedTabs tabs={MODES} value={mode} onChange={setMode} label="Calendar view" />}
 
       {conflicts.length > 0 ? (
         <Pressable

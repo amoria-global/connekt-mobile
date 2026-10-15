@@ -40,7 +40,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { ScheduleView } from '@/features/photographer/ScheduleView';
+import { ScheduleView, type ScheduleMode } from '@/features/photographer/ScheduleView';
 import { bucketOf } from '@/features/photographer/schedule';
 import { SegmentedTabs } from '@/features/photographer/kit';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
@@ -153,7 +153,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   const listRef = useRef<FlatList<EventItem>>(null);
   const [view, setView] = useState<ViewTab>('events');
   // Schedule (calendar) is the default workspace; List keeps the paginated card grid.
-  const [layout, setLayout] = useState<'schedule' | 'list'>('schedule');
+  // One switch for the whole events view: the three calendar modes or the original list.
+  const [layout, setLayout] = useState<ScheduleMode | 'list'>('week');
   const [filter, setFilter] = useState<EventFilter>('all');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<EventSortOption>('newest');
@@ -320,6 +321,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
     router.push(`/album/new?eventId=${e.id}` as Href);
   };
 
+  const scheduleMode = view === 'events' && layout !== 'list';
+
   const header = (
     <View style={{ paddingTop: topInset + spacing.xs, gap: spacing.sm }}>
       {/* Quick action view tabs: Events, Albums, Photobooks, Content */}
@@ -352,7 +355,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
               value={layout}
               onChange={setLayout}
               tabs={[
-                { key: 'schedule', label: 'Calendar' },
+                { key: 'month', label: 'Month' },
+                { key: 'week', label: 'Week' },
+                { key: 'agenda', label: 'Agenda' },
                 { key: 'list', label: 'List' },
               ]}
             />
@@ -411,6 +416,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
               ) : null}
             </View>
 
+            {/* Sorting means nothing on a calendar, so only List mode shows it. Creation is always one tap away here, so no
+                floating button ever sits over a card or the pager. */}
+            {scheduleMode ? null : (
             <Pressable
               style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
               onPress={() => setSortSheetOpen(true)}
@@ -427,13 +435,22 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
               </Text>
               {sortBy !== 'newest' && <View style={styles.sortActiveDot} />}
             </Pressable>
+            )}
+            <Pressable
+              style={[styles.sortBtn, styles.sortBtnActive, { minWidth: 44, justifyContent: 'center' }]}
+              onPress={() => router.push('/event/new' as Href)}
+              accessibilityRole="button"
+              accessibilityLabel="Create new event"
+            >
+              <Ionicons name="add" size={18} color="#fff" />
+              {scheduleMode ? <Text style={[styles.sortBtnText, styles.sortBtnTextActive]}>New</Text> : null}
+            </Pressable>
           </View>
         </>
       ) : null}
     </View>
   );
 
-  const scheduleMode = view === 'events' && layout === 'schedule';
   const headerWithSchedule = scheduleMode ? (
     <View style={{ gap: spacing.md }}>
       {header}
@@ -446,6 +463,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
       ) : (
         <View style={{ marginHorizontal: -spacing.lg }}>
           <ScheduleView
+            mode={layout}
+            onModeChange={setLayout}
             events={filtered}
             allEvents={events}
             busyId={busyId}
@@ -570,20 +589,6 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
           )
         }
       />
-
-      {/* Floating Action Button — Create New Event */}
-      <Pressable
-        style={[
-          styles.fab,
-          { bottom: Math.max(insets.bottom + 84, 96) },
-        ]}
-        onPress={() => router.push('/event/new' as Href)}
-        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-        accessibilityRole="button"
-        accessibilityLabel="Create new event"
-      >
-        <Ionicons name="add" size={32} color="#fff" />
-      </Pressable>
 
       <EventQrSheet
         visible={!!qrTarget}
@@ -1017,28 +1022,6 @@ const useStyles = makeStyles((c) => ({
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
   columnWrapper: { gap: spacing.md },
 
-  // Floating Action Button (New Event — big circular + without text)
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.primary,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 20,
-  },
-  fabText: {
-    display: 'none',
-  },
 
   // Header
   viewTabs: { gap: 6, paddingVertical: spacing.xs },
