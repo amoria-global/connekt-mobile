@@ -58,7 +58,7 @@ export function SectionHeader({
           style={({ pressed }) => [styles.sectionAction, pressed && styles.pressed]}
         >
           <Text style={styles.sectionActionText}>{actionLabel}</Text>
-          <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          <Ionicons name="chevron-forward" size={14} color={colors.link} />
         </Pressable>
       ) : null}
     </View>
@@ -137,15 +137,17 @@ export function MetricCard({
   const styles = useStyles();
   const { colors } = useTheme();
   const toneColor = { primary: colors.primary, accent: colors.accent, success: colors.success, warning: colors.warning }[tone];
+  // The icon tile carries the tone too (the prototype tints each tile: blue wallet, amber clock, green check).
+  const toneTile = { primary: colors.tint, accent: colors.tintAccent, success: colors.successBg, warning: colors.warningBg }[tone];
   const body = (
     <>
       <View style={styles.metricTop}>
         {icon ? (
-          <View style={[styles.metricIcon, { backgroundColor: colors.tint }]}>
+          <View style={[styles.metricIcon, { backgroundColor: toneTile }]}>
             <Ionicons name={icon} size={16} color={toneColor} />
           </View>
         ) : null}
-        <Text style={styles.metricLabel}>
+        <Text style={styles.metricLabel} maxFontSizeMultiplier={1.25}>
           {label}
         </Text>
         {onPress ? <Ionicons name="chevron-forward" size={14} color={colors.textMuted} /> : null}
@@ -199,7 +201,7 @@ export function ActionButton({
   label: string;
   icon?: IconName;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'tertiary';
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'destructive';
   disabled?: boolean;
   busy?: boolean;
   badge?: number;
@@ -207,8 +209,15 @@ export function ActionButton({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { fontScale } = useWindowDimensions();
+  // At large text two buttons per row leave a label only ~100dp beside its icon, which split words ("Opportuniti / es").
+  // Stacking the icon over the label gives it the whole button width.
+  const stacked = fontScale > 1.3 && !!icon && !busy;
   const inactive = disabled || busy;
-  const fg = variant === 'primary' ? colors.textOnPrimary : colors.primary;
+  // A secondary action with items waiting on the photographer (a badge) takes the accent, as in the prototype.
+  const attention = variant === 'secondary' && !!badge;
+  const fg =
+    variant === 'primary' ? colors.textOnPrimary : variant === 'destructive' ? colors.error : attention ? colors.accent : colors.link;
   return (
     <Pressable
       onPress={inactive ? undefined : onPress}
@@ -217,9 +226,10 @@ export function ActionButton({
       accessibilityState={{ disabled: !!inactive, busy: !!busy }}
       style={({ pressed }) => [
         styles.action,
+        stacked && styles.actionStacked,
         variant === 'primary' && { backgroundColor: colors.primary, borderColor: colors.primary },
-        variant === 'secondary' && { borderColor: colors.primary },
-        variant === 'tertiary' && { borderColor: 'transparent' },
+        variant === 'secondary' && { borderColor: attention ? colors.accent : colors.primary },
+        (variant === 'tertiary' || variant === 'destructive') && { borderColor: 'transparent' },
         inactive && styles.disabled,
         pressed && !inactive && styles.pressed,
         style,
@@ -230,7 +240,7 @@ export function ActionButton({
       ) : icon ? (
         <Ionicons name={icon} size={18} color={fg} />
       ) : null}
-      <Text style={[styles.actionText, { color: fg }]} numberOfLines={2}>
+      <Text style={[styles.actionText, { color: fg }]} numberOfLines={2} maxFontSizeMultiplier={1.25}>
         {label}
       </Text>
       {badge ? (
@@ -450,7 +460,7 @@ export const useStyles = makeStyles((c, elevation) => ({
   sectionTitle: { color: c.text, fontSize: 18, fontWeight: '800' },
   sectionSubtitle: { color: c.textMuted, fontSize: 13, lineHeight: 18 },
   sectionAction: { flexDirection: 'row', alignItems: 'center', minHeight: TOUCH, paddingLeft: spacing.sm },
-  sectionActionText: { color: c.primary, fontSize: 14, fontWeight: '700' },
+  sectionActionText: { color: c.link, fontSize: 14, fontWeight: '700' },
   metricCard: {
     flex: 1,
     backgroundColor: c.card,
@@ -478,6 +488,7 @@ export const useStyles = makeStyles((c, elevation) => ({
     borderRadius: radii.md,
     borderWidth: 1.5,
   },
+  actionStacked: { flexDirection: 'column', gap: spacing.xs, paddingHorizontal: spacing.sm },
   actionText: { fontSize: 15, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   badge: {
     minWidth: 22,

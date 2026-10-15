@@ -46,6 +46,14 @@ const tab = (label: string) => (n: ReactTestInstance) =>
   n.props?.accessibilityRole === 'tab' && n.findAllByType(Text).some((t) => t.props.children === label);
 
 describe('ScheduleView', () => {
+  it('titles the week with a month on the left, never a bare day number', () => {
+    // Found in dark-mode review: the header read "12 to Oct 18, 2026".
+    const title = flat(mount([]).root)
+      .split(' | ')
+      .find((t) => / to /.test(t) && /\d{4}$/.test(t));
+    expect(title).toMatch(/^[A-Z][a-z]{2} \d{1,2} to (\d{1,2}|[A-Z][a-z]{2} \d{1,2}), \d{4}$/);
+  });
+
   it('opens on the current week with today selected and lists today in time order', () => {
     const r = mount([
       ev({ id: 'pm', title: 'Graduation', eventDate: today, startTime: '15:00', endTime: '16:00' }),

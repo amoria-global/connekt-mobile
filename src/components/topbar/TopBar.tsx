@@ -52,15 +52,19 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
 
   return (
     <View style={[styles.wrap, { height: insets.top + BAR_HEIGHT }]} pointerEvents="box-none">
-      <BlurView
-        intensity={48}
-        tint={isDark ? 'dark' : 'light'}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
+      {Platform.OS === 'ios' ? (
+        <BlurView
+          intensity={48}
+          tint={isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
       <View
-        // Android has no real blur behind the bar, so at 0.88 the content scrolling under it showed through as clutter.
-        style={[styles.tint, { backgroundColor: colors.elevated, opacity: Platform.OS === 'android' ? 0.97 : 0.88 }]}
+        // Android has no real blur, and any translucency there just lets scrolled text ghost through the bar (seen in
+        // dark mode as "Booking earnings $95.50" behind the status bar), so the bar is fully opaque on Android. In
+        // dark it uses the card step so the round buttons (surface) stay a visible step darker than the bar.
+        style={[styles.tint, { backgroundColor: isDark ? colors.card : colors.elevated, opacity: Platform.OS === 'android' ? 1 : 0.88 }]}
         pointerEvents="none"
       />
       <View style={[styles.row, { top: insets.top }]}>

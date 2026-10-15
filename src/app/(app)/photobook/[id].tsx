@@ -40,6 +40,7 @@ import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { chipColors } from '@/features/photobooks/statusChip';
 
 const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
   PUBLISHED: { label: 'Published · Live', bg: '#D1FAE5', fg: '#047857' },
@@ -55,7 +56,7 @@ const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
 export default function PhotobookDetailScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { id, received: receivedParam } = useLocalSearchParams<{ id: string; received?: string }>();
@@ -204,11 +205,12 @@ export default function PhotobookDetailScreen() {
 
   const coverUrl = data?.coverImage || photos[0]?.url;
   const statusKey = (data?.status ?? '').toUpperCase();
-  const statusMeta = STATUS_META[statusKey] ?? {
+  const baseMeta = STATUS_META[statusKey] ?? {
     label: data?.status || 'Book',
     bg: 'rgba(0,0,0,0.6)',
     fg: '#fff',
   };
+  const statusMeta = { ...baseMeta, ...chipColors(baseMeta, isDark, colors) };
 
   return (
     <Screen padded={false}>
@@ -326,7 +328,7 @@ export default function PhotobookDetailScreen() {
                   accessibilityLabel="Remove from my list"
                   style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Text style={styles.muted}>Remove from my list</Text>
+                  <Text style={[styles.muted, { color: colors.textSoft, fontWeight: '600' }]}>Remove from my list</Text>
                 </Pressable>
                 {actionError ? (
                   <Text style={[styles.muted, { color: colors.error }]} accessibilityRole="alert">

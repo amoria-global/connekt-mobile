@@ -957,7 +957,7 @@ function SimpleHeader({
   wallet: ReturnType<typeof useAsync<Awaited<ReturnType<typeof getWallet>>>>;
   router: ReturnType<typeof useRouter>;
 }) {
-  const { colors, gradients } = useTheme();
+  const { colors, gradients, isDark } = useTheme();
   const styles = useStyles();
   return (
     <>
@@ -979,8 +979,9 @@ function SimpleHeader({
           {wallet.loading && !wallet.data ? '—' : formatPrice(wallet.data?.total, wallet.data?.currency)}
         </Text>
         <View style={styles.balanceFoot}>
-          <Text style={styles.balanceLink}>Open wallet</Text>
-          <Ionicons name="arrow-forward" size={16} color={colors.accentLight} />
+          <Text style={[styles.balanceLink, isDark && { color: colors.textOnPrimary }]}>Open wallet</Text>
+          {/* Dark: the primary fill is a mid blue, where the light pink was about 2:1. White keeps the link readable. */}
+          <Ionicons name="arrow-forward" size={16} color={isDark ? colors.textOnPrimary : colors.accentLight} />
         </View>
       </Pressable>
     </>
@@ -1283,7 +1284,7 @@ const useStyles = makeStyles((c, e) => ({
   // Sections
   sectionTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  seeAll: { color: c.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  seeAll: { color: c.link, fontFamily: fonts.bold, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 
   // Quick actions
   actionsPanel: {
