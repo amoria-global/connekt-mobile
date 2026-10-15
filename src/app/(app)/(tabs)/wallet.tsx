@@ -186,7 +186,7 @@ export default function WalletScreen() {
           {/* A failed refresh keeps the last balance on screen; say so instead of presenting it as current. */}
           {error && data ? (
             <View style={styles.suspensionBanner} accessibilityRole="alert">
-              <Ionicons name="cloud-offline-outline" size={18} color="#92400E" />
+              <Ionicons name="cloud-offline-outline" size={18} color={colors.warning} />
               <View style={styles.suspensionContent}>
                 <Text style={styles.suspensionTitle}>Could not refresh your wallet</Text>
                 <Text style={styles.suspensionDate}>The balance below is the last one we received. Pull down to try again.</Text>
@@ -197,7 +197,7 @@ export default function WalletScreen() {
           {/* Suspension warning banner (salo-run parity) */}
           {data?.wallet?.status === 'SUSPENDED' || data?.wallet?.suspensionReason ? (
             <View style={styles.suspensionBanner}>
-              <Ionicons name="alert-circle" size={18} color="#92400E" />
+              <Ionicons name="alert-circle" size={18} color={colors.warning} />
               <View style={styles.suspensionContent}>
                 <Text style={styles.suspensionTitle}>
                   Suspended: {(data.wallet.suspensionReason || 'Account suspended').replace(/_/g, ' ')}
@@ -229,7 +229,7 @@ export default function WalletScreen() {
           {/* MoneyHero Card (Clean solid card — single authoritative wallet header) */}
           {showOverview && stats && (
             <View style={styles.heroCard}>
-              <View style={styles.heroContent}>
+              <View style={[styles.heroContent, tabbed && styles.heroContentCompact]}>
                 <View style={styles.heroTopRow}>
                   <View style={styles.heroLabelPill}>
                     <Ionicons name="wallet-outline" size={13} color={colors.primary} />
@@ -254,15 +254,36 @@ export default function WalletScreen() {
                   </Pressable>
                 </View>
 
-                <Text style={styles.heroAmount}>
-                  {balanceHidden
-                    ? `${data?.wallet?.currency ? data.wallet.currency + ' ' : '$ '}••••••`
-                    : formatPrice(stats.hero.value, data?.wallet.currency)}
-                </Text>
+                {/* Photographers: amount on the left and Withdraw beside it, as in the prototype, so the hero is a row and not a tall stack. */}
+                <View style={tabbed ? styles.heroRow : undefined}>
+                  <Text
+                    style={[styles.heroAmount, tabbed && styles.heroAmountCompact]}
+                    numberOfLines={tabbed ? 1 : undefined}
+                    adjustsFontSizeToFit={tabbed}
+                    minimumFontScale={0.6}
+                  >
+                    {balanceHidden
+                      ? `${data?.wallet?.currency ? data.wallet.currency + ' ' : '$ '}••••••`
+                      : formatPrice(stats.hero.value, data?.wallet.currency)}
+                  </Text>
+                  {tabbed && canWithdraw ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.heroWithdrawBtn, styles.heroWithdrawInline, pressed && { opacity: 0.88 }]}
+                      onPress={() => router.push('/withdraw' as Href)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Withdraw funds"
+                    >
+                      <Ionicons name="cash-outline" size={15} color="#ffffff" />
+                      <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.25}>
+                        Withdraw funds
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
 
                 {stats.pendingChip && stats.pendingChip.value > 0 ? (
-                  <View style={styles.pendingChip}>
-                    <Ionicons name="time-outline" size={12} color="#92400E" />
+                  <View style={[styles.pendingChip, tabbed && styles.heroChipStart]}>
+                    <Ionicons name="time-outline" size={12} color={colors.warning} />
                     <Text style={styles.pendingChipText}>
                       {stats.pendingChip.label}:{' '}
                       {balanceHidden
@@ -276,15 +297,16 @@ export default function WalletScreen() {
                   <View
                     style={[
                       styles.statusChip,
+                      tabbed && styles.heroChipStart,
                       stats.status === 'SUSPENDED' ? styles.statusSuspended : styles.statusBlocked,
                     ]}
                   >
-                    <Ionicons name="shield-outline" size={12} color="#92400E" />
+                    <Ionicons name="shield-outline" size={12} color={colors.warning} />
                     <Text style={styles.statusChipText}>Wallet {stats.status.toLowerCase()}</Text>
                   </View>
                 ) : null}
 
-                {canWithdraw ? (
+                {canWithdraw && !tabbed ? (
                   <Pressable
                     style={({ pressed }) => [styles.heroWithdrawBtn, pressed && { opacity: 0.88 }]}
                     onPress={() => router.push('/withdraw' as Href)}
@@ -799,13 +821,13 @@ const useStyles = makeStyles((c) => ({
     gap: 10,
     padding: 14,
     borderRadius: radii.lg,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: c.warningBg,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: c.warningLine,
   },
   suspensionContent: { flex: 1, gap: 2 },
-  suspensionTitle: { fontFamily: fonts.bold, fontSize: 13, color: '#92400E' },
-  suspensionDate: { fontFamily: fonts.regular, fontSize: 11, color: '#B45309' },
+  suspensionTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.warning },
+  suspensionDate: { fontFamily: fonts.regular, fontSize: 11, color: c.warning },
 
   // Hero Card (Clean solid card — no gradients)
   heroCard: {
@@ -820,6 +842,11 @@ const useStyles = makeStyles((c) => ({
     textAlign: 'center',
     gap: 8,
   },
+  heroContentCompact: { alignItems: 'stretch', gap: 10 },
+  heroChipStart: { alignSelf: 'flex-start' },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  heroAmountCompact: { flex: 1, fontSize: 30, lineHeight: 38, textAlign: 'left' },
+  heroWithdrawInline: { marginTop: 0, flexShrink: 0 },
   heroLabelPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -833,7 +860,7 @@ const useStyles = makeStyles((c) => ({
   },
   heroLabelText: {
     fontFamily: fonts.bold,
-    color: c.primary,
+    color: c.link,
     fontSize: 11,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -853,12 +880,12 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: radii.full,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: c.warningSoft,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: c.warningLine,
     marginTop: 2,
   },
-  pendingChipText: { fontFamily: fonts.bold, fontSize: 12, color: '#92400E' },
+  pendingChipText: { fontFamily: fonts.bold, fontSize: 12, color: c.warning },
   statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -869,19 +896,19 @@ const useStyles = makeStyles((c) => ({
     marginTop: 4,
   },
   statusSuspended: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: c.warningSoft,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: c.warningLine,
   },
   statusBlocked: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: c.errorSoft,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: c.errorLine,
   },
   statusChipText: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: '#92400E',
+    color: c.warning,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -947,7 +974,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  seeAllText: { fontFamily: fonts.bold, fontSize: 13, color: c.primary },
+  seeAllText: { fontFamily: fonts.bold, fontSize: 13, color: c.link },
 
   directionFilterRow: {
     flexDirection: 'row',
@@ -965,9 +992,10 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Selected = the same brand blue as every other selected control. `c.text` made a bright white pill in dark.
   directionPillActive: {
-    backgroundColor: c.text,
-    borderColor: c.text,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   directionPillText: {
     fontFamily: fonts.bold,
@@ -975,7 +1003,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   directionPillTextActive: {
-    color: c.background,
+    color: c.textOnPrimary,
   },
 
   filterBar: { gap: 6, paddingVertical: 2 },
@@ -1130,7 +1158,7 @@ const useStyles = makeStyles((c) => ({
   pageIndicatorText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: c.primary,
+    color: c.link,
   },
 
   // Quick Links

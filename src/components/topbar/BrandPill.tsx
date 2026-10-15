@@ -25,7 +25,10 @@ export function BrandPill({
         style={styles.mark}
         contentFit="contain"
       />
-      <Text style={styles.text}>Connekyt</Text>
+      {/* The pill sits in a fixed-height bar: at 1.6x text on a 360dp phone the wordmark wrapped to "Connek / yt". */}
+      <Text style={styles.text} numberOfLines={1} maxFontSizeMultiplier={1.1}>
+        Connekyt
+      </Text>
     </>
   );
 

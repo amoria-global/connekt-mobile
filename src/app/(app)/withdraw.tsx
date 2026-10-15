@@ -39,6 +39,7 @@ import {
   type Verification,
   type WithdrawSource,
 } from '@/features/withdrawals/model';
+import { BalanceHero } from '@/features/withdrawals/BalanceHero';
 import { useAsync } from '@/hooks/useAsync';
 import { ensureWithdrawalFaceConsent } from '@/features/privacy/consent';
 import { listWalletMovements, type Movement } from '@/features/wallet/api';
@@ -414,15 +415,11 @@ export default function WithdrawScreen() {
           ) : (
             <>
               {/* Balance */}
-              <View style={styles.hero}>
-                <Text style={styles.heroLabel}>{source?.label ?? 'Available balance'}</Text>
-                <Text style={styles.heroAmount}>{formatDisplay(available, currency)}</Text>
-                {currency.code !== 'USD' && source ? (
-                  <Text style={styles.heroSub}>
-                    {formatDisplay(source.availableBalance, currencyList.find((c) => c.code === 'USD') ?? FALLBACK_CURRENCIES[1])}
-                  </Text>
-                ) : null}
-              </View>
+              <BalanceHero
+                source={source}
+                currency={currency}
+                usd={currencyList.find((c) => c.code === 'USD') ?? FALLBACK_CURRENCIES[1]}
+              />
 
               {sourceList.length > 1 ? (
                 <View style={styles.section}>
@@ -834,15 +831,6 @@ const useStyles = makeStyles((c) => ({
   scroll: { paddingBottom: spacing['3xl'] },
   body: { paddingHorizontal: spacing.xl, gap: spacing.lg, paddingTop: spacing.sm },
   center: { paddingVertical: spacing['3xl'], alignItems: 'center' },
-  hero: {
-    backgroundColor: c.primary,
-    borderRadius: radii.xl,
-    padding: spacing.xl,
-    gap: 4,
-  },
-  heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  heroAmount: { color: '#fff', fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
-  heroSub: { color: 'rgba(255,255,255,0.75)', fontSize: fontSize.sm },
   section: { gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionLabel: {

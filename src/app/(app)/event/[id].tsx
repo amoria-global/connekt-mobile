@@ -29,7 +29,7 @@ import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
 import { useCurrency } from '@/store/currency';
@@ -946,13 +946,21 @@ function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
 }
 
 type BtnVariant = 'primary' | 'accent' | 'success' | 'outline' | 'danger';
-const BTN_STYLES: Record<BtnVariant, { bg: string; fg: string; border?: string }> = {
-  primary: { bg: colors.primary, fg: '#fff' },
-  accent: { bg: colors.accent, fg: '#fff' },
-  success: { bg: '#10B981', fg: '#fff' },
-  danger: { bg: '#EF4444', fg: '#fff' },
-  outline: { bg: colors.surface, fg: colors.text, border: colors.border },
-};
+/** Resolved per render: the module-level `colors` export is the light palette, so an outline button was a solid white slab in dark. */
+function btnStyle(c: ReturnType<typeof useTheme>['colors'], variant: BtnVariant): { bg: string; fg: string; border?: string } {
+  switch (variant) {
+    case 'primary':
+      return { bg: c.primary, fg: c.textOnPrimary };
+    case 'accent':
+      return { bg: c.accent, fg: '#fff' };
+    case 'success':
+      return { bg: '#047857', fg: '#fff' };
+    case 'danger':
+      return { bg: '#B91C1C', fg: '#fff' };
+    default:
+      return { bg: c.surface, fg: c.text, border: c.border };
+  }
+}
 
 function PrimaryBtn({
   icon,
@@ -970,7 +978,8 @@ function PrimaryBtn({
   full?: boolean;
 }) {
   const styles = useStyles();
-  const v = BTN_STYLES[variant];
+  const { colors: themed } = useTheme();
+  const v = btnStyle(themed, variant);
   return (
     <Pressable
       style={({ pressed }) => [
@@ -1023,8 +1032,8 @@ function Chip({ label, tone }: { label: string; tone: 'success' | 'warning' | 'm
   const { colors } = useTheme();
   const styles = useStyles();
   const map = {
-    success: { bg: '#D1FAE5', fg: '#047857' },
-    warning: { bg: '#FEF3C7', fg: '#92400E' },
+    success: { bg: colors.successBg, fg: colors.success },
+    warning: { bg: colors.warningSoft, fg: colors.warning },
     muted: { bg: colors.surfaceMuted, fg: colors.textSoft },
   } as const;
   const c = map[tone];
