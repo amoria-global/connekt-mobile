@@ -106,6 +106,18 @@ const STATUS_PILL: Record<PhotogStatus, { bg: string; fg: string; label: string 
   cancelled: { bg: '#FEE2E2', fg: '#B91C1C', label: 'CANCELLED' },
 };
 
+/**
+ * Dark mode: the light pills are pastel or solid yellow fills, which glare on a navy screen. These are the deep tinted
+ * grounds with light text that the status tokens use elsewhere, one distinct hue per bucket.
+ */
+const STATUS_PILL_DARK: Record<PhotogStatus, { bg: string; fg: string }> = {
+  pending: { bg: '#2C220C', fg: '#FBBF24' },
+  upcoming: { bg: '#152A52', fg: '#8FB4FF' },
+  ongoing: { bg: '#10324A', fg: '#7DD3FC' },
+  completed: { bg: '#10281E', fg: '#4ADE80' },
+  cancelled: { bg: '#2D1719', fg: '#F87171' },
+};
+
 /** "8:20 PM" from an "HH:mm[:ss]" or ISO time. */
 function fmtTime(t?: string): string {
   if (!t) return '';
@@ -722,9 +734,10 @@ function PhotographerEventCard({
   onDismiss: () => void;
 }) {
   const styles = useStyles();
+  const { isDark } = useTheme();
   const s = statusOf(event);
   const booking = (event.bookingStatus ?? '').toUpperCase();
-  const pill = STATUS_PILL[s];
+  const pill = { ...STATUS_PILL[s], ...(isDark ? STATUS_PILL_DARK[s] : null) };
   const isPending = booking === 'PENDING';
   const isAccepted = booking === 'ACCEPTED';
   const canStream = event.hasLiveStream && (s === 'upcoming' || s === 'ongoing');
@@ -1063,7 +1076,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
   },
   filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
-  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.primary },
+  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.link },
   filterBadgeTextActive: { color: '#fff' },
 
   // Search & Sort Row
@@ -1211,11 +1224,11 @@ const useStyles = makeStyles((c) => ({
   },
   actText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff' },
   actBusy: { opacity: 0.6 },
-  actAccept: { backgroundColor: '#10B981', flex: 1 },
-  actDeny: { backgroundColor: '#EF4444', flex: 1 },
+  actAccept: { backgroundColor: '#047857', flex: 1 },
+  actDeny: { backgroundColor: '#B91C1C', flex: 1 },
   actStream: { backgroundColor: '#8B5CF6' },
   actAlbum: { backgroundColor: c.primary },
-  actAcceptedChip: { backgroundColor: '#10B981' },
+  actAcceptedChip: { backgroundColor: '#047857' },
   actQr: { backgroundColor: 'rgba(255,255,255,0.16)' },
   pkgBadge: {
     marginLeft: 'auto',
@@ -1281,7 +1294,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.md,
     marginTop: spacing.md,
   },
-  sheetTermsText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: c.primary, lineHeight: 18 },
+  sheetTermsText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: c.link, lineHeight: 18 },
   sheetNote: {
     fontFamily: fonts.regular,
     fontSize: 13,
@@ -1447,7 +1460,7 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   sortOptionLabelActive: {
-    color: c.primary,
+    color: c.link,
   },
   sortOptionDesc: {
     fontFamily: fonts.regular,

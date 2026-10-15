@@ -833,7 +833,7 @@ const useStyles = makeStyles((c) => ({
   },
   heroLabelText: {
     fontFamily: fonts.bold,
-    color: c.primary,
+    color: c.link,
     fontSize: 11,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -947,7 +947,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  seeAllText: { fontFamily: fonts.bold, fontSize: 13, color: c.primary },
+  seeAllText: { fontFamily: fonts.bold, fontSize: 13, color: c.link },
 
   directionFilterRow: {
     flexDirection: 'row',
@@ -965,9 +965,10 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Selected = the same brand blue as every other selected control. `c.text` made a bright white pill in dark.
   directionPillActive: {
-    backgroundColor: c.text,
-    borderColor: c.text,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   directionPillText: {
     fontFamily: fonts.bold,
@@ -975,7 +976,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   directionPillTextActive: {
-    color: c.background,
+    color: c.textOnPrimary,
   },
 
   filterBar: { gap: 6, paddingVertical: 2 },
@@ -1130,7 +1131,7 @@ const useStyles = makeStyles((c) => ({
   pageIndicatorText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: c.primary,
+    color: c.link,
   },
 
   // Quick Links

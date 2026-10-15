@@ -325,9 +325,14 @@ export function PersistentBottomBar() {
     outputRange: [1, 0.88],
   });
 
+  // Dark: the same brand pink, a step deeper and with a quieter rim, glow and sheen. On a deep navy bar the light-mode
+  // values glare (a neon bubble with a white rim), so only the bubble's own chrome is toned down.
   const bubbleGradient: [string, string] = isDark
-    ? ['#FF3B9E', '#D90B7E']
+    ? ['#E0268F', '#B50B6C']
     : ['#FF2A9D', '#F20C8F'];
+  const bubbleDark = isDark
+    ? { borderColor: 'rgba(255, 255, 255, 0.2)', shadowOpacity: 0.2 }
+    : null;
 
   return (
     <>
@@ -352,7 +357,7 @@ export function PersistentBottomBar() {
             style={[
               StyleSheet.absoluteFill,
               {
-                backgroundColor: colors.elevated,
+                backgroundColor: isDark ? colors.card : colors.elevated,
                 opacity: Platform.OS === 'ios' ? 0.92 : 1,
               },
             ]}
@@ -375,6 +380,7 @@ export function PersistentBottomBar() {
               pointerEvents="none"
               style={[
                 styles.bubbleIndicator,
+                bubbleDark,
                 {
                   transform: [
                     { translateX: bubbleX },
@@ -390,7 +396,7 @@ export function PersistentBottomBar() {
                 end={{ x: 1, y: 1 }}
                 style={styles.bubbleGradient}
               >
-                <View style={styles.bubbleGlassHighlight} />
+                <View style={[styles.bubbleGlassHighlight, isDark && { backgroundColor: 'rgba(255, 255, 255, 0.12)' }]} />
               </LinearGradient>
             </Animated.View>
           )}
