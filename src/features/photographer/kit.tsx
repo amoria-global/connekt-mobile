@@ -137,11 +137,13 @@ export function MetricCard({
   const styles = useStyles();
   const { colors } = useTheme();
   const toneColor = { primary: colors.primary, accent: colors.accent, success: colors.success, warning: colors.warning }[tone];
+  // The icon tile carries the tone too (the prototype tints each tile: blue wallet, amber clock, green check).
+  const toneTile = { primary: colors.tint, accent: colors.tintAccent, success: colors.successBg, warning: colors.warningBg }[tone];
   const body = (
     <>
       <View style={styles.metricTop}>
         {icon ? (
-          <View style={[styles.metricIcon, { backgroundColor: colors.tint }]}>
+          <View style={[styles.metricIcon, { backgroundColor: toneTile }]}>
             <Ionicons name={icon} size={16} color={toneColor} />
           </View>
         ) : null}
@@ -199,7 +201,7 @@ export function ActionButton({
   label: string;
   icon?: IconName;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'tertiary';
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'destructive';
   disabled?: boolean;
   busy?: boolean;
   badge?: number;
@@ -212,7 +214,10 @@ export function ActionButton({
   // Stacking the icon over the label gives it the whole button width.
   const stacked = fontScale > 1.3 && !!icon && !busy;
   const inactive = disabled || busy;
-  const fg = variant === 'primary' ? colors.textOnPrimary : colors.link;
+  // A secondary action with items waiting on the photographer (a badge) takes the accent, as in the prototype.
+  const attention = variant === 'secondary' && !!badge;
+  const fg =
+    variant === 'primary' ? colors.textOnPrimary : variant === 'destructive' ? colors.error : attention ? colors.accent : colors.link;
   return (
     <Pressable
       onPress={inactive ? undefined : onPress}
@@ -223,8 +228,8 @@ export function ActionButton({
         styles.action,
         stacked && styles.actionStacked,
         variant === 'primary' && { backgroundColor: colors.primary, borderColor: colors.primary },
-        variant === 'secondary' && { borderColor: colors.primary },
-        variant === 'tertiary' && { borderColor: 'transparent' },
+        variant === 'secondary' && { borderColor: attention ? colors.accent : colors.primary },
+        (variant === 'tertiary' || variant === 'destructive') && { borderColor: 'transparent' },
         inactive && styles.disabled,
         pressed && !inactive && styles.pressed,
         style,
