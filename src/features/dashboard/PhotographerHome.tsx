@@ -61,8 +61,8 @@ import {
   MetricCard,
   SectionHeader,
   SkeletonCard,
-  StatusBadge,
 } from '@/features/photographer/kit';
+import { BusinessOverview, EarningRow, PriorityCard, ShootCard } from '@/features/photographer/homeParts';
 import { moneyText, signedMoneyText } from '@/features/photographer/money';
 import {
   bucketOf,
@@ -227,6 +227,15 @@ export function PhotographerHome() {
     () => pickUpcoming(eventList, today).filter((e) => bucketOf(e) !== 'pending'),
     [eventList, today],
   );
+  // Priority today: only shoots genuinely dated today. The API carries no delivery deadline or upload state,
+  // so nothing here claims one.
+  const todayShoots = useMemo(
+    () =>
+      eventList
+        .filter((e) => eventDay(e) === today && (bucketOf(e) === 'upcoming' || bucketOf(e) === 'ongoing'))
+        .sort(byStart),
+    [eventList, today],
+  );
   const requests = useMemo(
     () => eventList.filter((e) => bucketOf(e) === 'pending').sort(byStart),
     [eventList],
@@ -288,7 +297,7 @@ export function PhotographerHome() {
             accessibilityState={{ checked: !hidden }}
             style={({ pressed }) => [styles.eye, pressed && { opacity: 0.8 }]}
           >
-            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textSoft} />
+            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={19} color={colors.textSoft} />
           </Pressable>
         </View>
 
@@ -319,7 +328,7 @@ export function PhotographerHome() {
           </View>
         )}
 
-        {/* 3. Actions */}
+        {/* 3. Actions: Create event leads, Share profile is secondary, and the two work queues carry their own colour. */}
         <View style={styles.row}>
           <ActionButton label="Create event" icon="add" variant="primary" onPress={() => open('/event/new')} style={styles.flex} />
           <ActionButton label="Share profile" icon="share-social-outline" onPress={shareProfile} style={styles.flex} />
@@ -328,14 +337,48 @@ export function PhotographerHome() {
           {env.hybridBookingEnabled ? (
             <ActionButton
               label="Opportunities"
+              caption="Booking requests"
               icon="radio-outline"
+              variant="accent"
               badge={openOppCount}
               onPress={() => open('/bookings?tab=opportunities')}
               style={styles.flex}
             />
           ) : null}
-          <ActionButton label="Collaborate" icon="people-outline" onPress={() => open('/collaborate')} style={styles.flex} />
+          <ActionButton
+            label="Collaborate"
+            caption="Other photographers"
+            icon="people-outline"
+            variant="teal"
+            onPress={() => open('/collaborate')}
+            style={styles.flex}
+          />
         </View>
+
+        {/* 3b. Priority today */}
+        {todayShoots.length > 0 ? (
+          <>
+            <SectionHeader
+              title="Priority today"
+              right={
+                todayShoots.length > 1 ? (
+                  <Text style={styles.countChip} accessibilityLabel={`${todayShoots.length} shoots today`}>
+                    {todayShoots.length} today
+                  </Text>
+                ) : undefined
+              }
+            />
+            <PriorityCard
+              title={todayShoots[0].title || 'Photo shoot'}
+              subtitle={todayShoots[0].clientName ? `Client: ${todayShoots[0].clientName}` : undefined}
+              cover={todayShoots[0].coverImage}
+              when={todayShoots[0].startTime ? `Today, ${clock12(todayShoots[0].startTime)}` : 'Today'}
+              status={SHOOT_STATUS[bucketOf(todayShoots[0])]}
+              actionLabel="View shoot"
+              onAction={() => open(`/event/${todayShoots[0].id}`)}
+            />
+          </>
+        ) : null}
 
         {/* 4. Needs your reply */}
         {requests.length > 0 ? (
@@ -351,16 +394,17 @@ export function PhotographerHome() {
               data={requests.slice(0, PREVIEW_LIMIT)}
               keyOf={(e) => String(e.id)}
               renderItem={(e) => (
-                <Card style={styles.noMargin}>
-                  <StatusBadge label="Awaiting your reply" tone="warning" />
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {e.title || 'Booking request'}
-                  </Text>
-                  <Text style={styles.cardMeta} numberOfLines={1}>
-                    {[e.clientName, whenText(e)].filter(Boolean).join(' · ')}
-                  </Text>
-                  <ActionButton label="Review request" variant="primary" onPress={() => open(`/event/${e.id}`)} />
-                </Card>
+                <ShootCard
+                  shoot={{
+                    title: e.title || 'Booking request',
+                    cover: e.coverImage,
+                    status: SHOOT_STATUS.pending,
+                    when: whenText(e),
+                    location: e.location,
+                    client: e.clientName,
+                  }}
+                  actions={<ActionButton label="Review request" variant="primary" compact onPress={() => open(`/event/${e.id}`)} style={styles.flex} />}
+                />
               )}
             />
           </>
@@ -390,49 +434,30 @@ export function PhotographerHome() {
             data={nextShoots.slice(0, PREVIEW_LIMIT)}
             keyOf={(e) => String(e.id)}
             renderItem={(e) => (
-              <Card style={[styles.noMargin, styles.shootCard]}>
-                {e.coverImage ? (
-                  <Image
-                    source={{ uri: e.coverImage }}
-                    style={styles.cover}
-                    contentFit="cover"
-                    transition={150}
-                    accessibilityIgnoresInvertColors
-                  />
-                ) : null}
-                <View style={styles.shootBadge}>
-                  <StatusBadge {...SHOOT_STATUS[bucketOf(e)]} />
-                </View>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {e.title || 'Photo shoot'}
-                </Text>
-                <Text style={styles.cardMeta} numberOfLines={1}>
-                  {whenText(e)}
-                </Text>
-                {e.location ? (
-                  <Text style={styles.cardMeta} numberOfLines={1}>
-                    {e.location}
-                  </Text>
-                ) : null}
-                {e.clientName ? (
-                  <Text style={styles.cardMeta} numberOfLines={1}>
-                    Client: {e.clientName}
-                  </Text>
-                ) : null}
-                <View style={styles.cardActions}>
-                  <ActionButton label="View shoot" onPress={() => open(`/event/${e.id}`)} style={styles.flex} />
-                  {e.clientId ? (
-                    <ActionButton
-                      label="Message"
-                      icon="chatbubble-outline"
-                      onPress={() =>
-                        open(`/conversation/${e.clientId}?name=${encodeURIComponent(e.clientName ?? '')}`)
-                      }
-                      style={styles.flex}
-                    />
-                  ) : null}
-                </View>
-              </Card>
+              <ShootCard
+                shoot={{
+                  title: e.title || 'Photo shoot',
+                  cover: e.coverImage,
+                  status: SHOOT_STATUS[bucketOf(e)],
+                  when: whenText(e),
+                  location: e.location,
+                  client: e.clientName,
+                }}
+                actions={
+                  <>
+                    <ActionButton label="View shoot" compact onPress={() => open(`/event/${e.id}`)} style={styles.flex} />
+                    {e.clientId ? (
+                      <ActionButton
+                        label="Message"
+                        icon="chatbubble-outline"
+                        compact
+                        onPress={() => open(`/conversation/${e.clientId}?name=${encodeURIComponent(e.clientName ?? '')}`)}
+                        style={styles.flex}
+                      />
+                    ) : null}
+                  </>
+                }
+              />
             )}
           />
         )}
@@ -447,32 +472,18 @@ export function PhotographerHome() {
         {analytics.error && !analytics.data ? (
           <ErrorNotice message={analytics.error} onRetry={analytics.refresh} />
         ) : (
-          <HCarousel
-            label="Business overview figures"
-            itemWidth={170}
-            data={[
-              { key: 'earned', label: 'Lifetime earnings', icon: 'cash-outline', value: moneyText(a?.totalEarnings, a ? LEDGER_CURRENCY : undefined, hidden) },
+          <BusinessOverview
+            loading={analytics.loading && !analytics.data}
+            earnings={moneyText(a?.totalEarnings, a ? LEDGER_CURRENCY : undefined, hidden)}
+            earningsCaption="Since you joined"
+            rating={rating}
+            reviewCount={reviewList.length}
+            loadingReviews={reviews.loading}
+            tiles={[
               { key: 'shoots', label: 'Completed shoots', icon: 'camera-outline', value: a ? String(a.completedEvents) : 'N/A' },
               { key: 'clients', label: 'Clients served', icon: 'people-outline', value: a ? String(a.totalClients) : 'N/A' },
               { key: 'bookings', label: 'Bookings', icon: 'calendar-outline', value: a ? String(a.totalBookings) : 'N/A' },
-              { key: 'photos', label: 'Photos uploaded', icon: 'images-outline', value: a ? String(a.totalPhotosUploaded) : 'N/A' },
-              {
-                key: 'rating',
-                label: 'Rating',
-                icon: 'star-outline',
-                value: rating != null ? `${rating.toFixed(1)} / 5` : reviews.loading ? 'N/A' : 'No reviews yet',
-              },
-            ] as const}
-            keyOf={(m) => m.key}
-            renderItem={(m) => (
-              <MetricCard
-                label={m.label}
-                icon={m.icon}
-                value={m.value}
-                loading={analytics.loading && !analytics.data}
-                tone={m.key === 'rating' ? 'accent' : m.key === 'earned' ? 'success' : 'primary'}
-              />
-            )}
+            ]}
           />
         )}
 
@@ -498,35 +509,17 @@ export function PhotographerHome() {
         ) : (
           <Card style={styles.list}>
             {(transactions.data ?? []).slice(0, 3).map((t, i, arr) => (
-              <Pressable
+              <EarningRow
                 key={t.id}
+                title={t.eventName || 'Shoot payment'}
+                when={t.createdAt ? formatDate(t.createdAt) : t.status}
+                amount={signedMoneyText(t.amount, LEDGER_CURRENCY, hidden)}
+                positive={t.amount >= 0}
+                status={{ label: t.status, tone: txTone(t.status) }}
+                divider={i < arr.length - 1}
                 onPress={() => open('/(app)/(tabs)/wallet')}
-                accessibilityRole="button"
-                accessibilityLabel={`${t.eventName}, ${signedMoneyText(t.amount, LEDGER_CURRENCY, hidden)}, ${t.status}`}
-                style={({ pressed }) => [styles.txRow, i < arr.length - 1 && styles.txDivider, pressed && { opacity: 0.85 }]}
-              >
-                <View style={[styles.txIcon, { backgroundColor: t.amount < 0 ? colors.warningBg : colors.successBg }]}>
-                  <Ionicons
-                    name={t.amount < 0 ? 'arrow-up' : 'arrow-down'}
-                    size={16}
-                    color={t.amount < 0 ? colors.warning : colors.success}
-                  />
-                </View>
-                <View style={styles.txText}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>
-                    {t.eventName || 'Shoot payment'}
-                  </Text>
-                  <Text style={styles.cardMeta} numberOfLines={1}>
-                    {t.createdAt ? formatDate(t.createdAt) : t.status}
-                  </Text>
-                </View>
-                <View style={styles.txAmount}>
-                  <Text style={[styles.amount, t.amount >= 0 && { color: colors.success }]}>
-                    {signedMoneyText(t.amount, LEDGER_CURRENCY, hidden)}
-                  </Text>
-                  <StatusBadge label={t.status} tone={txTone(t.status)} />
-                </View>
-              </Pressable>
+                a11y={`${t.eventName}, ${signedMoneyText(t.amount, LEDGER_CURRENCY, hidden)}, ${t.status}`}
+              />
             ))}
           </Card>
         )}
@@ -590,14 +583,14 @@ const useStyles = makeStyles((c, elevation) => ({
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   headerText: { flex: 1, minWidth: 0 },
-  title: { color: c.text, fontSize: 26, fontWeight: '800' },
-  date: { color: c.textMuted, fontSize: 14, marginTop: 2 },
+  title: { color: c.text, fontSize: 23, fontWeight: '800', lineHeight: 28 },
+  date: { color: c.textMuted, fontSize: 13, marginTop: 2 },
   eye: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -612,6 +605,16 @@ const useStyles = makeStyles((c, elevation) => ({
   cardMeta: { color: c.textMuted, fontSize: 13, lineHeight: 18 },
   cardActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   list: { padding: 0, overflow: 'hidden' },
+  countChip: {
+    color: c.textSoft,
+    fontSize: 12,
+    fontWeight: '700',
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+    overflow: 'hidden',
+    backgroundColor: c.surfaceMuted,
+  },
   txRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, minHeight: 56 },
   txDivider: { borderBottomWidth: 1, borderBottomColor: c.borderSoft },
   txIcon: { width: 34, height: 34, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },

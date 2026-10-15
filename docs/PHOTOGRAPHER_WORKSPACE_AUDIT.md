@@ -14,6 +14,7 @@ live-stream experience were not touched.
 | Photographer redesign (Home, Wallet tabs, Events calendar, Analytics, goals, photobooks, paging) | `feat/photographer-workspace-redesign` (`618358c`, `0dd59fb`), merged to `main` as `d8bb37d` | Released to Android over the air on runtime 2.2.2 (update group `c917325e`) |
 | Dark mode, large-text and shared-surface fixes, honest withdraw balance | `feat/photographer-dark-mode` (`a84a377`, `b8ac8f5`, `480aaa8`), merged to `main` as `602ce3b` | **Published on both platforms on runtime 2.2.2:** Android update group `cecb3ebc` (id `01a14030-d09b-7f0f-b3de-f32206e37da6`, from the promote workflow, `production` at `4977516`) and iOS update group `ac5143a4` (id `01a1403a-c386-7c4e-823a-68a6c8f4baec`, from a manual dispatch of `production.yml` with platform `ios`) |
 | iOS store build | Build 41 (2.2.2) in App Review | Waiting for Review when last checked through the App Store Connect API on 2026-10-15 (2.2.1 is the released version) |
+| Visual fidelity pass (compact chrome, priority card, shoot cards, business overview, wallet and analytics composition) | `feat/photographer-visual-fidelity` | **Not merged and not published.** See "Visual fidelity pass" |
 
 What the iOS update reaches: phones running an iOS 2.2.2 build, which today means TestFlight builds 38 to 41. App Store users are on 2.2.1 (runtime 2.2.1) and do not receive it until Apple releases 2.2.2. A phone fetches the update on a launch and runs it from the next launch.
 
@@ -228,6 +229,33 @@ Fix, with the financial rules untouched (no amount, conversion, limit or submiss
 - Verified on the emulator: reported zero shows `RF 0` with `$0.00` beneath; empty shows N/A; unreadable and failed show the error with Try again and no number.
 
 **Not inspected in dark:** event actions beyond Remove and the detail header, the withdraw confirmation, code and selfie steps and a funded balance with a saved payment account (no transaction was started), goal sheets at large text, the coordinator and viewer screens beyond Home and Wallet, tablets, iOS (no iOS tooling here) and any real account. Coordinator and viewer Wallet at large text were not captured.
+
+## Visual fidelity pass (2026-10-15, branch `feat/photographer-visual-fidelity`, unmerged and unpublished)
+
+Trigger: the released app was compared on an iPhone (TestFlight, `IMG_9057-merged.pdf`) against `Connekyt_Photographer_Prototype.docx`. The released UI had the dark palette but not the prototype's composition: an oversized pink bubble in the tab bar, a tall top bar with a raised brand pill, four same-weight outlined buttons, tall repetitive cards, a wide dashed Goals box, pill-shaped statuses, quick-link rows instead of compact tiles, and a plain progress-bar Analytics.
+
+| Area | Before (released) | After (this branch) | Reason |
+|---|---|---|---|
+| Bottom tabs (photographer only) | 60dp pink bubble that floats above the bar and hides the icon | Flat tabs: icon and label always shown, the selected one pink with a short rule under it | Prototype nav is restrained. Other roles keep the bubble, so other dashboards are not redesigned |
+| Top bar (photographer only) | 60dp, raised circles and a raised brand pill | 52dp, wordmark flat and left, outlined currency chip, 40dp round buttons | Less chrome, same slots and the same actions |
+| Home actions | Four equal outlined buttons | Create event filled, Share profile outlined, Opportunities in pink and Collaborate in teal, each with a one line caption | Importance and meaning are visible. The pink one carries the real waiting count |
+| Priority today | None | A card with the photograph, client, time, status and View shoot, shown only for a shoot genuinely dated today, with a "n today" chip when there are several | The API has no delivery deadline or upload state, so no "Gallery due" is claimed. Today's shoots are real data |
+| Shoot and request cards | Cover banner above stacked text | Photograph at the left (an icon tile when there is none), status, date and time, location, client, then compact actions. One card takes the full row, several peek the next | Closer to the prototype card. Payment and "paid in full" lines are not shown, the event feed carries no payment status |
+| Business overview | Six small metric cards in a carousel | Lifetime earnings beside a rating ring, then three counted tiles | Compact. The ring is drawn only from a real rating, and a missing rating says "No reviews yet" |
+| Goals empty state | Large dashed box inside a card | One compact block: icon, two lines, one Set a goal action | Stops dominating the screen |
+| Recent earnings | Pill status under the amount | Icon tile, two line title (no early cut), signed amount, small icon and word status | Dense rows read faster. Status keeps the API's own word |
+| Wallet Overview (photographer) | Hero, tall quick links, grid of pot cards | Compact hero with the Pending release row inside it, one card of breakdown rows, the latest three movements with View all, then compact tiles for Transactions, Payment accounts and Earnings report | Same data, prototype order. Suspension and error banners are unchanged |
+| Wallet Analytics | Progress bars, wide bars | Balance card, pending and withdrawn tiles, a donut with a legend for the balance sources, a period section, bars with faint rules, the peak in pink, a note that no amount is labelled | Clearer hierarchy and legible chart. Still no invented period earnings |
+| Agenda rows | Text only | The real cover photograph when the event has one | Connects the entry to the work |
+| Cards, borders, headings | 16dp padding, faint border, 18sp heading | 12dp padding, the blue hairline border, 17sp heading | Compactness without losing the 44dp touch targets |
+
+New shared pieces, all photographer only: `kit.tsx` (`IconTile`, `StatusText`, accent and teal action variants with a caption, a compact empty state), `charts.tsx` (`SegmentRing`, `ProgressRing`, react-native-svg is already a dependency), `homeParts.tsx` (priority card, shoot card, business overview, earning row). The tab bar and top bar switch on `useRole().isPhotographer` and the other roles render the previous chrome.
+
+Honesty kept: no fabricated names, images, amounts, deadlines or ratings. A rating with no review list shows "Average rating" and never "0 reviews". The Pending release row in the Wallet hero appears only when the wallet reports a pending figure (a reported 0 still shows). Without one it is left out, because an existing test pins that a missing figure is never drawn as $0.00 (my first version drew it and that test failed, so it was corrected). The Withdraw balance rule from the previous pass is untouched.
+
+Verified, on the Android emulator against a fixture backend (not a live account), screenshots read: Home from the top through Recent clients, with a shoot today, a waiting request, a goal and a payout; Wallet Overview and Analytics; the Events week view; light mode on Home; Home at 1.6x text on a 720x1280 screen (actions stack icon over label, no clipping). Found and fixed during that pass: "0 reviews" under a real 4.6 rating, a two word source label cut in the donut legend, and a Pending release row that drew $0.00 for a wallet reporting no pending figure (caught by `walletTab.render.test.tsx`). The pending row itself was seen on the emulator only in the interim version that always drew it, so the final reported-only behaviour is covered by that test and not by a screenshot.
+
+Not verified: iOS (the first iOS check is the tester's TestFlight), a real account, the Wallet and Analytics tabs at 1.6x text, tablet sizes, pixel parity with the prototype. Intentional deviations: the avatar stays at the left of the top bar (it doubles as Back on inner screens), the date and Today strip of the prototype Home is not added, glowing borders are omitted, and the prototype's Delivery pipeline, Booking milestones, "Client paid in full", earnings goal rings, month comparison and "On-time delivery" have no photographer endpoint, so they are absent rather than faked. The incoming booking alert modal is shared and was not redesigned, and it crowds its details card at 1.6x text on a small screen.
 
 ## Remaining dependencies and risks
 

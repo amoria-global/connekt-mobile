@@ -16,7 +16,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, spacing, useTheme } from '@/theme';
 import { useAsync } from '@/hooks/useAsync';
 import {
   getPhotographerPerformance,
@@ -27,7 +27,8 @@ import {
 } from '@/features/analytics/api';
 import type { WalletDTO } from '@/features/wallet/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
-import { ActionButton, Card, ErrorNotice, MetricCard, SectionHeader, SegmentedTabs, SkeletonCard } from './kit';
+import { ActionButton, Card, ErrorNotice, IconTile, MetricCard, SectionHeader, SegmentedTabs, SkeletonCard } from './kit';
+import { SegmentRing } from './charts';
 import { moneyText, percentOf } from './money';
 
 type PeriodKey = Exclude<AnalyticsPeriod, 'custom'>;
@@ -60,12 +61,24 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
     return cards.map((c) => ({ label: c.label, value: c.value, pct: percentOf(c.value, total) }));
   }, [stats]);
 
+  const { colors, isDark } = useTheme();
+  // One hue per source, in a fixed order, so a source keeps its colour while the list changes length.
+  const hues = [colors.primary, colors.accent, isDark ? '#2DD4E4' : '#0E7490', colors.warning, colors.success];
+  const sourceTotal = sources.reduce((sum, x) => sum + x.value, 0);
+
   return (
     <View>
       <Card>
-        <Text style={styles.cardLabel}>Available to withdraw</Text>
-        <Text style={styles.big}>{moneyText(stats?.hero.value, currency)}</Text>
-        <Text style={styles.muted}>Current balance, not a period figure.</Text>
+        <View style={styles.availTop}>
+          <IconTile icon="wallet-outline" tone="primary" size={34} />
+          <View style={styles.availText}>
+            <Text style={styles.cardLabel}>Available to withdraw</Text>
+            <Text style={styles.muted}>Current balance, not a period figure.</Text>
+          </View>
+        </View>
+        <Text style={styles.big} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          {moneyText(stats?.hero.value, currency)}
+        </Text>
       </Card>
       <View style={styles.row}>
         <MetricCard
@@ -89,31 +102,47 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
           <Text style={styles.muted}>Nothing in your available balance yet.</Text>
         </Card>
       ) : (
-        <Card style={styles.sourceCard}>
-          {sources.map((s) => (
-            <View
-              key={s.label}
-              style={styles.sourceRow}
-              accessible
-              accessibilityLabel={`${s.label}, ${moneyText(s.value, currency)}${s.pct != null ? `, ${s.pct} percent` : ''}`}
+        <Card>
+          <View style={styles.sourceWrap}>
+            <SegmentRing
+              size={108}
+              stroke={14}
+              label={`Available balance by source: ${sources.map((x) => `${x.label} ${x.pct ?? 0} percent`).join(', ')}`}
+              segments={sources.map((x, i) => ({ value: x.value, color: hues[i % hues.length] }))}
             >
-              <View style={styles.sourceTop}>
-                <Text style={styles.sourceLabel} numberOfLines={1}>
-                  {s.label}
+              <View style={styles.ringCentre}>
+                <Text style={styles.ringTotal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} maxFontSizeMultiplier={1.2}>
+                  {moneyText(sourceTotal, currency)}
                 </Text>
-                <Text style={styles.sourceValue}>{moneyText(s.value, currency)}</Text>
-                <Text style={styles.sourcePct}>{s.pct != null ? `${s.pct}%` : ''}</Text>
+                <Text style={styles.ringCaption}>Combined</Text>
               </View>
-              <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.max(2, s.pct ?? 0)}%` }]} />
-              </View>
+            </SegmentRing>
+            <View style={styles.sourceList}>
+              {sources.map((x, i) => (
+                <View
+                  key={x.label}
+                  style={styles.sourceRow}
+                  accessible
+                  accessibilityLabel={`${x.label}, ${moneyText(x.value, currency)}${x.pct != null ? `, ${x.pct} percent` : ''}`}
+                >
+                  <View style={[styles.swatch, { backgroundColor: hues[i % hues.length] }]} />
+                  <Text style={styles.sourceLabel} numberOfLines={2}>
+                    {x.label}
+                  </Text>
+                  <Text style={styles.sourceValue} numberOfLines={1}>
+                    {moneyText(x.value, currency)}
+                  </Text>
+                  <Text style={styles.sourcePct}>{x.pct != null ? `${x.pct}%` : ''}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+          </View>
         </Card>
       )}
 
       <SectionHeader title="Activity" subtitle="Pick a period" />
       <SegmentedTabs tabs={PERIODS} value={period} onChange={setPeriod} label="Reporting period" />
+      <View style={styles.tabsGap} />
       {/* Keyed by period: a new period remounts, so a slow answer for the old one can never fill the new one. */}
       <PeriodActivity key={period} period={period} />
 
@@ -194,47 +223,80 @@ export function BarChart({ points }: { points: readonly PerformancePoint[] }) {
   return (
     <Card>
       <View
-        style={styles.chart}
         accessible
         accessibilityRole="image"
         accessibilityLabel={`Payment activity over ${points.length} intervals. Highest: ${top.day}.`}
       >
-        {points.map((p, i) => (
-          <View key={`${p.day}-${i}`} style={styles.barCol}>
-            <View style={styles.barSlot}>
-              <View style={[styles.bar, { height: `${Math.max(3, (p.value1 / max) * 100)}%` }]} />
-            </View>
-            <Text style={styles.barLabel} numberOfLines={1}>
+        <View style={styles.chart}>
+          {/* Faint rules at the peak, the half and the baseline, so bar heights can be compared by eye. */}
+          <View pointerEvents="none" style={styles.rules}>
+            <View style={styles.rule} />
+            <View style={styles.rule} />
+            <View style={[styles.rule, styles.ruleBase]} />
+          </View>
+          {points.map((p, i) => {
+            const isTop = p === top;
+            return (
+              <View key={`${p.day}-${i}`} style={styles.barCol}>
+                <View style={styles.barSlot}>
+                  <View
+                    style={[
+                      styles.bar,
+                      { height: `${Math.max(3, (p.value1 / max) * 100)}%`, backgroundColor: isTop ? colors.accent : colors.primary },
+                    ]}
+                  />
+                </View>
+              </View>
+            );
+          })}
+        </View>
+        <View style={styles.labels}>
+          {points.map((p, i) => (
+            <Text key={`${p.day}-${i}`} style={[styles.barLabel, p === top && styles.barLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
               {p.day}
             </Text>
-          </View>
-        ))}
+          ))}
+        </View>
       </View>
+      <Text style={styles.chartNote}>
+        Bars show relative size, with the highest interval in pink. Payments arrive in different currencies, so no amount is labelled.
+      </Text>
     </Card>
   );
 }
 
 const useStyles = makeStyles((c) => ({
   noticeGap: { marginTop: spacing.md },
+  tabsGap: { height: spacing.md },
 
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, marginTop: spacing.md },
-  cardLabel: { color: c.textSoft, fontSize: 14, fontWeight: '600' },
-  big: { color: c.text, fontSize: 30, fontWeight: '800', marginTop: 2 },
-  muted: { color: c.textMuted, fontSize: 13, lineHeight: 18 },
-  sourceCard: { gap: spacing.md },
-  sourceRow: { gap: 6 },
-  sourceTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sourceLabel: { flex: 1, color: c.text, fontSize: 14, fontWeight: '600' },
-  sourceValue: { color: c.text, fontSize: 14, fontWeight: '700' },
-  sourcePct: { color: c.textMuted, fontSize: 13, minWidth: 40, textAlign: 'right' },
-  track: { height: 6, borderRadius: 3, backgroundColor: c.surfaceMuted, overflow: 'hidden' },
-  fill: { height: 6, borderRadius: 3, backgroundColor: c.primary },
-  chart: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, height: 150 },
-  barCol: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  availTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  availText: { flex: 1, minWidth: 0 },
+  cardLabel: { color: c.textSoft, fontSize: 14, fontWeight: '700' },
+  big: { color: c.text, fontSize: 28, fontWeight: '800', marginTop: spacing.sm },
+  muted: { color: c.textMuted, fontSize: 12.5, lineHeight: 17 },
+  sourceWrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.md },
+  ringCentre: { alignItems: 'center', maxWidth: 80 },
+  ringTotal: { color: c.text, fontSize: 14, fontWeight: '800' },
+  ringCaption: { color: c.textMuted, fontSize: 11 },
+  sourceList: { flex: 1, minWidth: 180, gap: spacing.sm + 2 },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  swatch: { width: 10, height: 10, borderRadius: 3 },
+  sourceLabel: { flex: 1, color: c.text, fontSize: 13.5, fontWeight: '600' },
+  sourceValue: { color: c.text, fontSize: 13.5, fontWeight: '700', maxWidth: '45%' },
+  sourcePct: { color: c.textMuted, fontSize: 12.5, minWidth: 34, textAlign: 'right' },
+  chart: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, height: 120 },
+  rules: { ...{ position: 'absolute' as const, top: 0, bottom: 0, left: 0, right: 0 }, justifyContent: 'space-between' },
+  rule: { height: 1, backgroundColor: c.borderSoft },
+  ruleBase: { backgroundColor: c.border },
+  barCol: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
   barSlot: { flex: 1, width: '100%', justifyContent: 'flex-end' },
   // A bar the full width of a third of the screen read as a slab; slimmer bars keep the relative sizes legible.
-  bar: { width: '58%', alignSelf: 'center', borderRadius: radii.sm, backgroundColor: c.primary },
-  barLabel: { color: c.textMuted, fontSize: 11 },
+  bar: { width: '46%', maxWidth: 34, alignSelf: 'center', borderTopLeftRadius: 6, borderTopRightRadius: 6, minHeight: 3 },
+  labels: { flexDirection: 'row', gap: spacing.sm, marginTop: 6 },
+  barLabel: { flex: 1, textAlign: 'center', color: c.textMuted, fontSize: 11 },
+  barLabelTop: { color: c.text, fontWeight: '700' },
+  chartNote: { color: c.textMuted, fontSize: 11.5, lineHeight: 16, marginTop: spacing.md },
   emptyChart: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
   exportWrap: { gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.xl },
 }));
