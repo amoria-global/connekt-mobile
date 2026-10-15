@@ -10,6 +10,8 @@ import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
  * analytics request must show an error and N/A, never zeros, and a photographer
  * with no reviews must not be shown a rating.
  */
+import '@/test/autoUnmount';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockGet = jest.fn();

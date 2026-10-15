@@ -4,6 +4,8 @@ import { Text } from 'react-native';
 
 import { BarChart, trendCaption } from './WalletAnalytics';
 
+import '@/test/autoUnmount';
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
