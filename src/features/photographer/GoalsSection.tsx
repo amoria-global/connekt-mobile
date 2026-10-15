@@ -68,15 +68,14 @@ export function GoalsSection({ rating, hidden }: { rating: number | null; hidden
       ) : plans.loading && !plans.data ? (
         <SkeletonCard height={120} />
       ) : list.length === 0 ? (
-        <Card>
-          <EmptyNote
-            icon="flag-outline"
-            title="No goals yet"
-            body="Set an earnings target for a week, a month or your own dates."
-            actionLabel="Set a goal"
-            onAction={() => setEditing({ plan: null })}
-          />
-        </Card>
+        <EmptyNote
+          compact
+          icon="flag-outline"
+          title="No goals yet"
+          body="Set an earnings target for a week, a month or your own dates."
+          actionLabel="Set a goal"
+          onAction={() => setEditing({ plan: null })}
+        />
       ) : (
         <HCarousel
           label="Your goals"

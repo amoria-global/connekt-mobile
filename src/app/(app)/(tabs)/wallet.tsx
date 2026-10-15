@@ -52,7 +52,7 @@ import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
-import { SegmentedTabs } from '@/features/photographer/kit';
+import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
@@ -132,6 +132,17 @@ export default function WalletScreen() {
     return items;
   }, [data?.history, pages.items, dashboardRole, activeFilter, directionFilter, activitySearch]);
 
+  // The overview preview ignores the Activity tab's filters: it is simply the latest movements.
+  const recentItems = useMemo(() => {
+    const out: MoneyItem[] = [];
+    for (const m of pages.items) {
+      const item = formatWalletMovement(m, dashboardRole);
+      if (item) out.push(item);
+      if (out.length === 3) break;
+    }
+    return out;
+  }, [pages.items, dashboardRole]);
+
   const totalPages = Math.max(1, Math.ceil(filteredActivityItems.length / PAGE_SIZE));
   const safePage = Math.min(activityPage, totalPages);
   const paginatedActivityItems = useMemo(() => {
@@ -152,6 +163,9 @@ export default function WalletScreen() {
   ];
 
   const visibleCards = stats?.cards.filter((c) => !c.hidden) ?? [];
+  // The pending row appears only when the wallet reports a pending figure (a reported 0 still shows); no figure is never drawn as $0.00.
+  const pendingLabel = stats?.pendingChip?.label ?? 'Pending release';
+  const pendingValue = stats?.pendingChip?.value ?? 0;
   const tabbed = isPhotographer;
   const showOverview = !tabbed || walletTab === 'overview';
   const showAnalytics = tabbed && walletTab === 'analytics';
@@ -228,7 +242,7 @@ export default function WalletScreen() {
 
           {/* MoneyHero Card (Clean solid card — single authoritative wallet header) */}
           {showOverview && stats && (
-            <View style={styles.heroCard}>
+            <View style={[styles.heroCard, tabbed && styles.heroCardCompact]}>
               <View style={[styles.heroContent, tabbed && styles.heroContentCompact]}>
                 <View style={styles.heroTopRow}>
                   <View style={styles.heroLabelPill}>
@@ -281,7 +295,26 @@ export default function WalletScreen() {
                   ) : null}
                 </View>
 
-                {stats.pendingChip && stats.pendingChip.value > 0 ? (
+                {tabbed && stats.pendingChip ? (
+                  <View
+                    style={styles.pendingStrip}
+                    accessible
+                    accessibilityLabel={`${pendingLabel}, ${
+                      balanceHidden ? 'hidden' : formatPrice(pendingValue, data?.wallet.currency)
+                    }, not included in your available balance`}
+                  >
+                    <Ionicons name="time-outline" size={15} color={colors.warning} />
+                    <Text style={styles.pendingStripLabel} maxFontSizeMultiplier={1.2}>
+                      {pendingLabel}
+                    </Text>
+                    <Text style={styles.pendingStripAmount} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                      {balanceHidden ? '••••' : formatPrice(pendingValue, data?.wallet.currency)}
+                    </Text>
+                    <Text style={styles.pendingStripNote} numberOfLines={2} maxFontSizeMultiplier={1.15}>
+                      Not in available balance
+                    </Text>
+                  </View>
+                ) : stats.pendingChip && stats.pendingChip.value > 0 ? (
                   <View style={[styles.pendingChip, tabbed && styles.heroChipStart]}>
                     <Ionicons name="time-outline" size={12} color={colors.warning} />
                     <Text style={styles.pendingChipText}>
@@ -320,7 +353,7 @@ export default function WalletScreen() {
           )}
 
           {/* Quick Links Menu (Top placement for instant access without scrolling) */}
-          {showOverview ? (
+          {showOverview && !tabbed ? (
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionTitle}>Quick links</Text>
             <View style={styles.menuCard}>
@@ -353,7 +386,121 @@ export default function WalletScreen() {
           ) : null}
 
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
-          {showOverview && visibleCards.length > 0 && (
+          {showOverview && tabbed && visibleCards.length > 0 && (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionTitle}>Earnings breakdown</Text>
+              <View style={styles.rowsCard}>
+                {visibleCards.map((card, i) => {
+                  const p = PALETTE[card.color] ?? PALETTE.neutral;
+                  return (
+                    <View
+                      key={card.label}
+                      style={[styles.rowItem, i < visibleCards.length - 1 && styles.rowItemDivider]}
+                      accessible
+                      accessibilityLabel={`${card.label}, ${
+                        balanceHidden ? 'hidden' : formatPrice(card.value, data?.wallet.currency)
+                      }`}
+                    >
+                      <View style={[styles.rowTile, { backgroundColor: p.tint }]}>
+                        <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={15} color={p.bar} />
+                      </View>
+                      <Text style={styles.rowLabel} numberOfLines={1}>
+                        {card.label}
+                      </Text>
+                      <Text style={styles.rowValue} numberOfLines={1}>
+                        {balanceHidden ? '••••' : formatPrice(card.value, data?.wallet.currency)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Photographers: the latest movements, then the two places a payout is managed. */}
+          {showOverview && tabbed ? (
+            <>
+              <View style={styles.sectionBlock}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>Recent activity</Text>
+                  <Pressable
+                    onPress={() => setWalletTab('activity')}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="View all activity"
+                    style={styles.viewAll}
+                  >
+                    <Text style={styles.seeAllText}>View all</Text>
+                  </Pressable>
+                </View>
+                {data?.movementsFailed ? (
+                  <View style={styles.rowsCard}>
+                    <Text style={styles.recentNote} accessibilityRole="alert">
+                      Could not load your history. Pull down to try again.
+                    </Text>
+                  </View>
+                ) : recentItems.length === 0 ? (
+                  <View style={styles.rowsCard}>
+                    <Text style={styles.recentNote}>No movements yet.</Text>
+                  </View>
+                ) : (
+                  <View style={styles.rowsCard}>
+                    {recentItems.map((item, i) => {
+                      const palette = COLOR_MAP[item.color] ?? COLOR_MAP.neutral;
+                      const isIn = item.direction === 'in';
+                      const amount = balanceHidden
+                        ? `${isIn ? '+' : '−'}$ ••••`
+                        : `${isIn ? '+' : '−'}${formatPrice(item.amount, item.originalCurrency || data?.wallet.currency)}`;
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => setSelectedItem(item)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${item.title}, ${amount}, ${formatRelativeTime(item.timestamp)}`}
+                          style={({ pressed }) => [styles.rowItem, i < recentItems.length - 1 && styles.rowItemDivider, pressed && { opacity: 0.85 }]}
+                        >
+                          <View style={[styles.rowTile, { backgroundColor: palette.bg }]}>
+                            <Ionicons name={isIn ? 'arrow-down' : 'arrow-up'} size={15} color={palette.text} />
+                          </View>
+                          <View style={styles.rowBody}>
+                            <Text style={styles.rowLabel} numberOfLines={1}>
+                              {item.title}
+                            </Text>
+                            <Text style={styles.rowMeta} numberOfLines={1}>
+                              {item.tag} · {formatRelativeTime(item.timestamp)}
+                            </Text>
+                          </View>
+                          <Text style={[styles.rowValue, isIn && { color: colors.success }]} numberOfLines={1}>
+                            {amount}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.tiles}>
+                {links.map((l) => (
+                  <Pressable
+                    key={l.label}
+                    onPress={() => router.push(l.href)}
+                    accessibilityRole="button"
+                    accessibilityLabel={l.label === 'Payroll report' ? 'Export earnings report' : l.label}
+                    style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85 }]}
+                  >
+                    <IconTile icon={l.icon} tone="primary" size={30} />
+                    <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+                      {l.label === 'Payroll report' ? 'Earnings report' : l.label}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {showOverview && !tabbed && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
               <Text style={styles.sectionTitle}>
                 {dashboardRole === 'photographer'
@@ -842,7 +989,53 @@ const useStyles = makeStyles((c) => ({
     textAlign: 'center',
     gap: 8,
   },
+  heroCardCompact: { padding: spacing.md + 2, borderRadius: radii.lg, borderColor: c.border },
   heroContentCompact: { alignItems: 'stretch', gap: 10 },
+  pendingStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    columnGap: spacing.sm,
+    rowGap: 2,
+    paddingTop: spacing.sm + 2,
+    borderTopWidth: 1,
+    borderTopColor: c.border,
+  },
+  pendingStripLabel: { fontFamily: fonts.bold, fontSize: 13, color: c.textSoft },
+  pendingStripAmount: { fontFamily: fonts.bold, fontSize: 14, color: c.text },
+  pendingStripNote: { flexShrink: 1, flexBasis: 120, flexGrow: 1, fontSize: 11.5, color: c.textMuted, textAlign: 'right' },
+  rowsCard: {
+    backgroundColor: c.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    overflow: 'hidden',
+  },
+  rowItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, minHeight: 52 },
+  rowItemDivider: { borderBottomWidth: 1, borderBottomColor: c.borderSoft },
+  rowTile: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  rowBody: { flex: 1, minWidth: 0 },
+  rowLabel: { flex: 1, fontFamily: fonts.bold, fontSize: 14, color: c.text },
+  rowMeta: { fontSize: 12, color: c.textMuted, marginTop: 1 },
+  rowValue: { fontFamily: fonts.bold, fontSize: 14, color: c.text, maxWidth: '45%' },
+  recentNote: { padding: spacing.md, fontSize: 13, color: c.textMuted },
+  viewAll: { minHeight: 44, justifyContent: 'center' },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tile: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 52,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.card,
+  },
+  tileText: { flex: 1, minWidth: 0, fontFamily: fonts.bold, fontSize: 13, color: c.text },
   heroChipStart: { alignSelf: 'flex-start' },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   heroAmountCompact: { flex: 1, fontSize: 30, lineHeight: 38, textAlign: 'left' },

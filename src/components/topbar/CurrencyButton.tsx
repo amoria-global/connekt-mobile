@@ -13,7 +13,7 @@ const flagUri = (flag: string) => `https://flagcdn.com/w40/${flag}.png`;
  * dropdown. A compact flag + code chip opens a bottom sheet listing the
  * currencies; the choice is persisted and re-prices every converted amount.
  */
-export function CurrencyButton({ compact }: { compact?: boolean } = {}) {
+export function CurrencyButton({ compact, bar }: { compact?: boolean; bar?: boolean } = {}) {
   const styles = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -29,7 +29,7 @@ export function CurrencyButton({ compact }: { compact?: boolean } = {}) {
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={`Display currency ${currency}. Change currency`}
-        style={({ pressed }) => [styles.chip, compact && styles.chipCompact, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.chip, compact && styles.chipCompact, bar && styles.chipBar, pressed && styles.pressed]}
       >
         {current ? <Image source={{ uri: flagUri(current.flag) }} style={styles.flag} contentFit="cover" /> : null}
         <Text style={styles.code}>{currency}</Text>
@@ -87,6 +87,8 @@ const useStyles = makeStyles((c, e) => ({
     ...e(2),
   },
   chipCompact: { height: 34, minWidth: 34, marginRight: spacing.xs },
+  /** Photographer top bar: a quiet outlined chip, still 40dp tall. */
+  chipBar: { height: 40, minWidth: 40, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: c.border, shadowOpacity: 0, elevation: 0 },
   pressed: { opacity: 0.85 },
   flag: { width: 18, height: 13, borderRadius: 2 },
   code: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.text },
