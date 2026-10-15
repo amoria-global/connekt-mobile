@@ -2,7 +2,7 @@ import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 
-import { BarChart, trendCaption } from './WalletAnalytics';
+import { PaymentTrendChart, trendCaption } from './WalletAnalytics';
 
 import '@/test/autoUnmount';
 
@@ -25,11 +25,11 @@ describe('trendCaption', () => {
   });
 });
 
-describe('BarChart', () => {
+describe('PaymentTrendChart', () => {
   const render = (points: { day: string; value1: number; value2: number }[]) => {
     let r!: TestRenderer.ReactTestRenderer;
     act(() => {
-      r = TestRenderer.create(<BarChart points={points} />);
+      r = TestRenderer.create(<PaymentTrendChart points={points} />);
     });
     return r;
   };

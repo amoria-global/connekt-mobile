@@ -28,7 +28,7 @@ import {
 import type { WalletDTO } from '@/features/wallet/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
 import { ActionButton, Card, ErrorNotice, IconTile, MetricCard, SectionHeader, SegmentedTabs, SkeletonCard } from './kit';
-import { SegmentRing } from './charts';
+import { SegmentRing, TrendChart } from './charts';
 import { moneyText, percentOf } from './money';
 
 type PeriodKey = Exclude<AnalyticsPeriod, 'custom'>;
@@ -191,7 +191,7 @@ function PeriodActivity({ period }: { period: PeriodKey }) {
           caption={trendCaption(t.clients, period)}
         />
       </View>
-      <SectionHeader title="Payment activity" subtitle="Relative size of payments received in each interval" />
+      <SectionHeader title="Payment trend" subtitle="Relative size of payments received in each interval" />
       {perf.error && !perf.data ? (
         <View style={styles.noticeGap}>
           <ErrorNotice message={perf.error} onRetry={perf.refresh} />
@@ -199,13 +199,13 @@ function PeriodActivity({ period }: { period: PeriodKey }) {
       ) : perf.loading && !perf.data ? (
         <SkeletonCard height={150} />
       ) : (
-        <BarChart points={perf.data ?? []} />
+        <PaymentTrendChart points={perf.data ?? []} />
       )}
     </View>
   );
 }
 
-export function BarChart({ points }: { points: readonly PerformancePoint[] }) {
+export function PaymentTrendChart({ points }: { points: readonly PerformancePoint[] }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const max = Math.max(0, ...points.map((p) => p.value1));
@@ -227,29 +227,7 @@ export function BarChart({ points }: { points: readonly PerformancePoint[] }) {
         accessibilityRole="image"
         accessibilityLabel={`Payment activity over ${points.length} intervals. Highest: ${top.day}.`}
       >
-        <View style={styles.chart}>
-          {/* Faint rules at the peak, the half and the baseline, so bar heights can be compared by eye. */}
-          <View pointerEvents="none" style={styles.rules}>
-            <View style={styles.rule} />
-            <View style={styles.rule} />
-            <View style={[styles.rule, styles.ruleBase]} />
-          </View>
-          {points.map((p, i) => {
-            const isTop = p === top;
-            return (
-              <View key={`${p.day}-${i}`} style={styles.barCol}>
-                <View style={styles.barSlot}>
-                  <View
-                    style={[
-                      styles.bar,
-                      { height: `${Math.max(3, (p.value1 / max) * 100)}%`, backgroundColor: isTop ? colors.accent : colors.primary },
-                    ]}
-                  />
-                </View>
-              </View>
-            );
-          })}
-        </View>
+        <TrendChart values={points.map((p) => p.value1)} peakIndex={points.indexOf(top)} />
         <View style={styles.labels}>
           {points.map((p, i) => (
             <Text key={`${p.day}-${i}`} style={[styles.barLabel, p === top && styles.barLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
@@ -259,7 +237,7 @@ export function BarChart({ points }: { points: readonly PerformancePoint[] }) {
         </View>
       </View>
       <Text style={styles.chartNote}>
-        Bars show relative size, with the highest interval in pink. Payments arrive in different currencies, so no amount is labelled.
+        The curve shows relative size, with the highest interval marked in pink. Payments arrive in different currencies, so no amount is labelled.
       </Text>
     </Card>
   );
@@ -293,7 +271,7 @@ const useStyles = makeStyles((c) => ({
   barSlot: { flex: 1, width: '100%', justifyContent: 'flex-end' },
   // A bar the full width of a third of the screen read as a slab; slimmer bars keep the relative sizes legible.
   bar: { width: '46%', maxWidth: 34, alignSelf: 'center', borderTopLeftRadius: 6, borderTopRightRadius: 6, minHeight: 3 },
-  labels: { flexDirection: 'row', gap: spacing.sm, marginTop: 6 },
+  labels: { flexDirection: 'row', marginTop: 6 },
   barLabel: { flex: 1, textAlign: 'center', color: c.textMuted, fontSize: 11 },
   barLabelTop: { color: c.text, fontWeight: '700' },
   chartNote: { color: c.textMuted, fontSize: 11.5, lineHeight: 16, marginTop: spacing.md },
