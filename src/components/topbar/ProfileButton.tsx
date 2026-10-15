@@ -1,10 +1,10 @@
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { User } from '@/features/auth/types';
 import { radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 /** Left slot: circular avatar (photo or initials). Tap → profile. */
-export function ProfileButton({ user, onPress }: { user: User | null; onPress: () => void }) {
+export function ProfileButton({ user, onPress, compact }: { user: User | null; onPress: () => void; compact?: boolean }) {
   const styles = useStyles();
   const initials = (user?.firstName?.[0] ?? user?.email?.[0] ?? '?').toUpperCase();
   return (
@@ -12,7 +12,7 @@ export function ProfileButton({ user, onPress }: { user: User | null; onPress: (
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel="Open your profile"
-      style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.btn, compact && styles.btnCompact, pressed && styles.pressed]}
     >
       {user?.profilePicture ? (
         <Image source={{ uri: user.profilePicture }} style={styles.avatar} contentFit="cover" transition={200} />
@@ -37,6 +37,7 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: c.surface,
     ...e(2),
   },
+  btnCompact: { width: 40, height: 40, borderWidth: 1.5, borderColor: c.border, shadowOpacity: 0, elevation: 0 },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   avatar: { width: '100%', height: '100%', borderRadius: radii.full },
   fallback: { backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
