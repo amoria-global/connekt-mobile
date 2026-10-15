@@ -237,7 +237,7 @@ function GoalForm({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () =
             {field('targetRatings', 'Rating target (0 to 5, optional)', 'e.g. 4.5')}
             {failure ? <ErrorNotice compact message={failure} /> : null}
             <ActionButton label={busy ? 'Saving...' : 'Save goal'} variant="primary" busy={busy} onPress={save} />
-            {plan ? <ActionButton label="Delete goal" variant="tertiary" disabled={busy} onPress={remove} /> : null}
+            {plan ? <ActionButton label="Delete goal" variant="destructive" disabled={busy} onPress={remove} /> : null}
             {busy ? <ActivityIndicator color={colors.primary} /> : null}
           </ScrollView>
         </View>

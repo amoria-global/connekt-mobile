@@ -30,6 +30,7 @@ import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { listPhotobooks, listReceivedPhotobooks, type Photobook } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
+import { chipColors } from '@/features/photobooks/statusChip';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'SENT';
@@ -47,7 +48,7 @@ const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
 };
 
 export default function PhotobooksScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -209,11 +210,12 @@ export default function PhotobooksScreen() {
         ListHeaderComponent={header}
         renderItem={({ item }) => {
           const statusKey = (item.status ?? '').toUpperCase();
-          const tone = STATUS_META[statusKey] ?? {
+          const base = STATUS_META[statusKey] ?? {
             label: item.status || 'Book',
             bg: 'rgba(0,0,0,0.55)',
             fg: '#fff',
           };
+          const tone = { ...base, ...chipColors(base, isDark, colors) };
 
           return (
             <Pressable

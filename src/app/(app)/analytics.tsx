@@ -658,9 +658,23 @@ type StatCardItem = {
                   setPeriod(tab.value);
                   if (tab.value !== 'custom') setCustomApplied(false);
                 }}
-                style={[styles.filterTab, isActive && styles.filterTabActive]}
+                style={[
+                  styles.filterTab,
+                  isActive && styles.filterTabActive,
+                  // Dark: the light-mode "white card on a grey track" inverts into a dim selected pill. Selected = brand fill,
+                  // like every other segmented control on the photographer screens.
+                  isActive && isDark && { backgroundColor: colors.primary },
+                ]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
               >
-                <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    isActive && styles.filterTabTextActive,
+                    isActive && isDark && { color: colors.textOnPrimary },
+                  ]}
+                >
                   {tab.label}
                 </Text>
               </Pressable>
@@ -1191,7 +1205,7 @@ function CardMicroDonut({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={isDark ? 'rgba(255,255,255,0.15)' : colors.borderSoft}
+          stroke={isDark ? colors.surfaceMuted : colors.borderSoft}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -1767,7 +1781,7 @@ function DonutBreakdownChart({
                   cx={70}
                   cy={70}
                   r={ring.r}
-                  stroke={isDark ? 'rgba(255,255,255,0.18)' : colors.borderSoft}
+                  stroke={isDark ? colors.surfaceMuted : colors.borderSoft}
                   strokeWidth={9}
                   fill="none"
                 />

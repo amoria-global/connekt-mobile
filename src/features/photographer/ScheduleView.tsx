@@ -53,8 +53,11 @@ function weekTitle(days: string[]): string {
   const a = parseDayKey(days[0]);
   const b = parseDayKey(days[6]);
   const sameMonth = a.getMonth() === b.getMonth();
-  const left = a.toLocaleDateString(undefined, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' });
-  const right = b.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  // "Oct 12 to 18, 2026" within a month, "Oct 28 to Nov 3, 2026" across two. The old left side lost its month.
+  const left = a.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  const right = sameMonth
+    ? `${b.getDate()}, ${b.getFullYear()}`
+    : b.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
   return `${left} to ${right}`;
 }
 
@@ -429,7 +432,7 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.md,
   },
   rowMain: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, minHeight: TOUCH },
-  time: { width: 64, color: c.primary, fontSize: 13, fontWeight: '800' },
+  time: { width: 64, color: c.link, fontSize: 13, fontWeight: '800' },
   rowText: { flex: 1, minWidth: 0, gap: 4 },
   rowTitle: { color: c.text, fontSize: 16, fontWeight: '700' },
   rowMeta: { color: c.textMuted, fontSize: 13 },
