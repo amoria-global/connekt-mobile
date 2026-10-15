@@ -1,10 +1,31 @@
 import { Platform } from 'react-native';
 import {
   digitalPurchasesEnabled,
+  giftsEnabled,
   isDigitalDeclaration,
   canPayDeclarationHere,
   canShowDigitalPrice,
+  isOwedObligation,
+  isInPersonEvent,
+  canBuyEventTicket,
 } from './policy';
+
+describe('in-person ticket exemption', () => {
+  it('treats a real venue as in-person', () => {
+    expect(isInPersonEvent({ location: 'Kigali Convention Centre' })).toBe(true);
+  });
+  it('never treats a missing or online venue as in-person', () => {
+    expect(isInPersonEvent({})).toBe(false);
+    expect(isInPersonEvent({ location: '  ' })).toBe(false);
+    expect(isInPersonEvent({ location: 'Online' })).toBe(false);
+    expect(isInPersonEvent({ location: 'Zoom' })).toBe(false);
+    expect(isInPersonEvent(undefined)).toBe(false);
+  });
+  it('allows a native ticket purchase only for in-person events', () => {
+    expect(canBuyEventTicket({ location: 'Kigali Arena' })).toBe(true);
+    expect(canBuyEventTicket({ location: 'Virtual livestream' })).toBe(digitalPurchasesEnabled);
+  });
+});
 
 /**
  * The store-billing gate.
@@ -121,5 +142,88 @@ describe('canShowDigitalPrice', () => {
     // pay. Hiding it would make free events look paywalled, which costs the
     // user something real and buys no compliance.
     expect(canShowDigitalPrice(true)).toBe(true);
+  });
+});
+
+describe('isOwedObligation', () => {
+  it('counts only what the declaration handoff accepts as owed', () => {
+    // 90 of 91 unsettled declarations in production were viewers' unfinished
+    // tickets and gifts. Summing them produced a "$132,642 pending" banner.
+    expect(isOwedObligation('BOOKING')).toBe(true);
+    expect(isOwedObligation('PHOTOBOOK_EXTRAS')).toBe(true);
+    for (const t of ['STREAMING', 'GIFT', 'TIP', 'FACE_RECOGNITION', 'ALBUM_SALE', 'DONATION']) {
+      expect(isOwedObligation(t)).toBe(false);
+    }
+  });
+
+  it('does not depend on the digital-purchases flag, which is on in release builds', () => {
+    expect(canPayDeclarationHere('STREAMING')).toBe(false);
+    expect(canPayDeclarationHere('photobook_extras')).toBe(true);
+  });
+});
+
+describe('digitalPurchasesEnabled in a release build', () => {
+  it('stays off on native even when NODE_ENV is not "test"', () => {
+    // The gate used to read `NODE_ENV !== 'test'`, which is true in every
+    // shipped build, so it was open everywhere except under jest.
+    const before = process.env.NODE_ENV;
+    const flag = process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES;
+    try {
+      (process.env as Record<string, string>).NODE_ENV = 'production';
+      delete process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES;
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fresh = require('./policy') as typeof import('./policy');
+        expect(fresh.digitalPurchasesEnabled).toBe(false);
+        expect(fresh.canShowDigitalPrice(false)).toBe(false);
+      });
+    } finally {
+      (process.env as Record<string, string | undefined>).NODE_ENV = before;
+      if (flag !== undefined) process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES = flag;
+    }
+  });
+});
+
+describe('isInPersonEvent with an attendanceMode', () => {
+  it('trusts the server attestation over the venue text', () => {
+    expect(isInPersonEvent({ location: 'Kigali Arena', attendanceMode: 'STREAM_ONLY' })).toBe(false);
+    expect(isInPersonEvent({ location: 'Online', attendanceMode: 'IN_PERSON' })).toBe(true);
+    expect(isInPersonEvent({ location: '', attendanceMode: 'HYBRID' })).toBe(true);
+  });
+
+  it('falls back to the venue text when no mode is sent', () => {
+    expect(isInPersonEvent({ location: 'Kigali Arena' })).toBe(true);
+    expect(isInPersonEvent({ location: 'Zoom' })).toBe(false);
+    expect(isInPersonEvent({ location: 'Kigali Arena', attendanceMode: null })).toBe(true);
+  });
+});
+
+describe('giftsEnabled', () => {
+  it('is on for native builds while every other digital good stays off', () => {
+    // Owner decision 2026-10-12: gifts come back on iOS and Android. Nothing
+    // else is unlocked by it, so the store-billing gate still holds for the rest.
+    expect(giftsEnabled).toBe(true);
+    expect(digitalPurchasesEnabled).toBe(false);
+    expect(canShowDigitalPrice(false)).toBe(false);
+  });
+
+  it('is what both viewer screens gate the gift button on', () => {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const root = path.resolve(__dirname, '..', '..');
+    const files = [
+      path.join(root, 'app', '(public)', 'events', 'live-stream.tsx'),
+      path.join(root, 'features', 'streams', 'viewer', 'screens', 'LiveViewerScreen.tsx'),
+    ];
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8');
+      expect(src).toMatch(/giftsEnabled/);
+      // The gift entry points must not hang off the digital-purchases flag, and
+      // an unregistered viewer must still see the button (web hand-off).
+      expect(src).not.toMatch(/digitalPurchasesEnabled\s*\?\s*openGift/);
+      expect(src).not.toMatch(/canGift=\{digitalPurchasesEnabled\}/);
+      expect(src).not.toMatch(/showGift=\{!!viewerId/);
+      expect(src).not.toMatch(/viewerId && giftsEnabled/);
+    }
   });
 });

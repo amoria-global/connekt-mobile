@@ -21,7 +21,7 @@ export default function GalleryScreen() {
   );
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <ScreenHeader
         title={isPhotographer ? 'My Albums' : 'Galleries'}
         subtitle={isPhotographer ? 'Your photo collections' : 'Photos from your events'}

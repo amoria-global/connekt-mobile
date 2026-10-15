@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
@@ -8,6 +9,8 @@ import ExploreEventsScreen from '@/app/(public)/explore-events';
 export default function EventsScreen() {
   const topBarHeight = useTopBarHeight();
   const { isPhotographer, isCoordinator } = useRole();
+  const params = useLocalSearchParams<{ q?: string; category?: string }>();
+  const initialSearch = (params.q || params.category || '').trim();
 
   if (isPhotographer) {
     /*
@@ -29,14 +32,22 @@ export default function EventsScreen() {
   if (isCoordinator) {
     return (
       <Screen padded={false} edges={[]}>
-        <OwnerEventsDashboard coordinator topInset={topBarHeight} />
+        <OwnerEventsDashboard coordinator initialSearch={initialSearch} topInset={topBarHeight} />
         <TopBar />
       </Screen>
     );
   }
 
-  // Client Events and the Home "Explore Events" quick action deliberately
-  // share one component and one live-viewing flow. This is also safe during
-  // session hydration, before the role is available.
-  return <ExploreEventsScreen />;
+  /*
+   * Client Events Dashboard:
+   * Clients can see all their created events, browse public streams or vetted
+   * photographers via workspace tabs, and tap "+" to launch Direct Booking
+   * or Hybrid Matching with live talent previews and ranked candidate dispatch.
+   */
+  return (
+    <Screen padded={false} edges={[]}>
+      <OwnerEventsDashboard coordinator={false} initialSearch={initialSearch} topInset={topBarHeight} />
+      <TopBar />
+    </Screen>
+  );
 }

@@ -3,7 +3,6 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -21,24 +20,33 @@ import {
   resumeEvent,
   unpublishEvent,
 } from '@/features/events/api';
+import { EventQrSheet } from '@/features/events/EventQrSheet';
 import { SatisfactionSurveySheet } from '@/features/events/SatisfactionSurveySheet';
 import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/events/survey';
 import { submitReview } from '@/features/reviews/api';
+import { convertToDirectRescue } from '@/features/hybrid/api';
+import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
+import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { formatDate } from '@/utils/format';
+import { formatDate, formatPrice } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
+import { useCurrency } from '@/store/currency';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 
 export default function EventDetailScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { ownsEvents, isPhotographer, isCoordinator } = useRole();
-  const { data, loading, error, refresh } = useAsync(useCallback(() => getEvent(id), [id]));
+  const { data, loading, error, refresh } = useAsync(
+    useCallback(() => getEvent(id, isCoordinator), [id, isCoordinator]),
+  );
 
   // Seamless fallback: If the customer/creator endpoint rejects the event
   // (e.g. 400 Bad Request because it's a public event, live stream, or not created
@@ -51,8 +59,11 @@ export default function EventDetailScreen() {
   }, [error, data, id, router]);
 
   const [busy, setBusy] = useState<string | null>(null);
+  const [repostOpen, setRepostOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
   const [surveyOpen, setSurveyOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrJustPublished, setQrJustPublished] = useState(false);
   const [comment, setComment] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -126,7 +137,15 @@ export default function EventDetailScreen() {
       'It becomes visible to everyone on connekyt.com, and guests can find and join it.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Publish', onPress: () => run('publish', () => publishEvent(id, isCoordinator)) },
+        {
+          text: 'Publish',
+          onPress: () =>
+            run('publish', async () => {
+              await publishEvent(id, isCoordinator);
+              setQrJustPublished(true);
+              setQrOpen(true);
+            }),
+        },
       ],
     );
   };
@@ -151,6 +170,11 @@ export default function EventDetailScreen() {
         },
       ],
     );
+  };
+
+  const openQr = () => {
+    setQrJustPublished(false);
+    setQrOpen(true);
   };
 
   const onShare = async () => {
@@ -179,7 +203,9 @@ export default function EventDetailScreen() {
               await unpublishEvent(id, isCoordinator).catch(() => {});
             }
             await deleteEvent(id, isCoordinator);
-            router.back();
+            // Opened from a notification there's nothing to go back to.
+            if (router.canGoBack()) router.back();
+            else router.replace('/(app)/(tabs)/events' as never);
           } catch (e) {
             Alert.alert('Could not delete', isApiError(e) ? e.message : 'Please try again.');
             setBusy(null);
@@ -406,7 +432,7 @@ export default function EventDetailScreen() {
 
   if (loading && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -416,7 +442,7 @@ export default function EventDetailScreen() {
 
   if (error && !data) {
     return (
-      <Screen>
+      <Screen padded={false} edges={[]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -467,11 +493,17 @@ export default function EventDetailScreen() {
   const money = fmtMoney(ev?.price, ev?.currency);
 
   return (
-    <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <Screen padded={false} edges={[]}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Title */}
-        <Text style={styles.eyebrow}>EVENT DETAILS</Text>
-        <Text style={styles.title}>{ev?.title}</Text>
+        <View style={styles.titleWrap}>
+          <Text style={styles.eyebrow}>EVENT DETAILS</Text>
+          <Text style={styles.title}>{ev?.title}</Text>
+        </View>
 
         {/* Hero image with status pills */}
         <View style={styles.hero}>
@@ -538,6 +570,9 @@ export default function EventDetailScreen() {
               <PrimaryBtn icon="radio" label="Live Stream" variant="accent" onPress={onPhotographerGoLive} />
             ) : null}
             <PrimaryBtn icon="share-social" label="Share" variant="outline" onPress={onShare} />
+            {ev?.published ? (
+              <PrimaryBtn icon="qr-code-outline" label="QR code" variant="outline" onPress={openQr} />
+            ) : null}
             {canMarkComplete ? (
               <PrimaryBtn icon="checkmark-done" label="Mark Complete" variant="success" onPress={onPhotographerMarkCompleted} loading={busy === 'photog-complete'} />
             ) : null}
@@ -562,6 +597,65 @@ export default function EventDetailScreen() {
                 <Text style={styles.personName}>{ev.photographerName}</Text>
                 {booking ? <Chip label={booking} tone={booking === 'ACCEPTED' ? 'success' : booking === 'PENDING' ? 'warning' : 'muted'} /> : null}
               </View>
+              {ev.photographerId ? (
+                <Pressable
+                  style={styles.messagePersonBtn}
+                  onPress={() =>
+                    router.push(
+                      `/conversation/${ev.photographerId}?name=${encodeURIComponent(ev.photographerName ?? 'Photographer')}` as never
+                    )
+                  }
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Message ${ev.photographerName}`}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={15} color={colors.primary} />
+                  <Text style={styles.messagePersonBtnText}>Message</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </InfoCard>
+        ) : ownsEvents && isOpenHybrid(ev?.bookingMode, ev?.status, false) ? (
+          (() => {
+            const st = (ev?.status ?? '').toUpperCase();
+            const ended = st === 'HYBRID_TIMEOUT' || st === 'MATCHING_FAILED';
+            const ready = st === 'CANDIDATES_AVAILABLE' || st === 'MATCHES_AWAITING_SELECTION';
+            return (
+              <InfoCard icon="radio-outline" title={`Post My Event · ${friendlyEventStatus(st)}`}>
+                <View style={{ gap: 10 }}>
+                  <Text style={styles.desc}>
+                    {ended
+                      ? "No photographer said yes this time. Post it again with a wider area or budget, or choose a photographer yourself."
+                      : ready
+                        ? 'Photographers who are free for your whole event said yes. Compare them and choose one.'
+                        : 'Matching photographers near you have been alerted. Only those who say yes are shown to you.'}
+                  </Text>
+                  {ended ? (
+                    <>
+                      <PrimaryBtn icon="radio-outline" label="Post again" variant="primary"
+                        onPress={() => setRepostOpen(true)} />
+                      <PrimaryBtn icon="search-outline" label="Find a Photographer instead" variant="outline" loading={busy === 'to-direct'}
+                        onPress={() => run('to-direct', async () => {
+                          await convertToDirectRescue(id);
+                          router.push('/photographers' as never);
+                        })} />
+                    </>
+                  ) : (
+                    <PrimaryBtn icon="people-outline" label={ready ? 'Choose your photographer' : 'See the answers'} variant="primary"
+                      onPress={() => router.push(`/event/candidates?id=${id}` as never)} />
+                  )}
+                </View>
+              </InfoCard>
+            );
+          })()
+        ) : ownsEvents && !['COMPLETED', 'CANCELLED', 'CANCELED'].includes((ev?.status ?? '').toUpperCase()) ? (
+          <InfoCard icon="camera-outline" title="No photographer yet">
+            <View style={{ gap: 10 }}>
+              <Text style={styles.desc}>Choose how you want to book one for this event.</Text>
+              <PrimaryBtn icon="radio-outline" label="Post My Event: let photographers say yes" variant="primary"
+                onPress={() => setRepostOpen(true)} />
+              <PrimaryBtn icon="search-outline" label="Find a Photographer yourself" variant="outline"
+                onPress={() => router.push('/photographers' as never)} />
             </View>
           </InfoCard>
         ) : null}
@@ -607,6 +701,9 @@ export default function EventDetailScreen() {
               <PrimaryBtn icon="create-outline" label="Edit" variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
               <PrimaryBtn icon="earth-outline" label="Geo pricing" variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
               <PrimaryBtn icon="share-social-outline" label="Share" variant="outline" onPress={onShare} />
+              {ev?.published ? (
+                <PrimaryBtn icon="qr-code-outline" label="QR code" variant="outline" onPress={openQr} />
+              ) : null}
               {ownerCanGoLive ? (
                 <PrimaryBtn icon="radio" label="Go Live" variant="accent" onPress={openStreamControl} />
               ) : null}
@@ -697,6 +794,15 @@ export default function EventDetailScreen() {
         </Pressable>
       </Modal>
 
+      <EventQrSheet
+        visible={qrOpen}
+        onClose={() => setQrOpen(false)}
+        eventId={id}
+        title={ev?.title ?? 'Event'}
+        published={!!ev?.published}
+        justPublished={qrJustPublished}
+      />
+
       {/* Satisfaction survey — releases the photographer's survey-held fee */}
       <SatisfactionSurveySheet
         visible={surveyOpen}
@@ -730,6 +836,13 @@ export default function EventDetailScreen() {
         </Pressable>
       </Modal>
 
+      {repostOpen && ev ? (
+        <BookingModeSelector
+          visible={repostOpen}
+          existingEvent={{ id, title: ev.title, eventDate: ev.eventDate, startTime: ev.startTime, endTime: ev.endTime, city: ev.city, venue: ev.location }}
+          onClose={() => { setRepostOpen(false); refresh?.(); }}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -768,6 +881,12 @@ function heroStatus(s: string, published?: boolean): { label: string; bg: string
       return { label: 'CANCELLED', bg: '#FEE2E2', fg: '#B91C1C' };
     case 'PAUSED':
       return { label: 'PAUSED', bg: '#E5E7EB', fg: '#374151' };
+    case 'MATCHES_AWAITING_SELECTION':
+      return { label: 'CANDIDATES READY', bg: '#EDE9FE', fg: '#6D28D9' };
+    case 'HYBRID_MATCHING':
+      return { label: 'MATCHING ACTIVE', bg: '#E0F2FE', fg: '#0284C7' };
+    case 'HYBRID_TIMEOUT':
+      return { label: 'MATCH TIMEOUT', bg: '#FEF3C7', fg: '#B45309' };
     case 'PENDING':
     case 'PROPOSED':
       return { label: 'PENDING', bg: '#FEF3C7', fg: '#92400E' };
@@ -805,8 +924,7 @@ function fmtShortDate(iso?: string): string {
 
 function fmtMoney(amount?: number, currency?: string): string {
   if (amount == null || Number.isNaN(amount)) return '';
-  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency ? `${currency} ` : '';
-  return `${sym}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatPrice(amount, currency);
 }
 
 function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
@@ -958,10 +1076,16 @@ function ProgressStepper({ currentIndex }: { currentIndex: number }) {
 const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
+  scroll: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 120,
+    gap: spacing.lg,
+  },
 
+  titleWrap: { gap: 2 },
   eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
-  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5, marginTop: 2 },
+  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5 },
 
   hero: {
     height: 210,
@@ -1042,6 +1166,23 @@ const useStyles = makeStyles((c) => ({
   },
   personInitial: { fontFamily: fonts.bold, fontSize: 18, color: '#fff' },
   personName: { fontFamily: fonts.bold, fontSize: 16, color: c.text, marginBottom: 4 },
+  messagePersonBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: c.tint,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.primary,
+  },
+  messagePersonBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: c.primary,
+    fontWeight: fontWeight.bold,
+  },
 
   kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   kvLabel: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },

@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -142,6 +143,9 @@ export default function ContentAlbumsScreen() {
           style={styles.searchInput}
           autoCapitalize="none"
           autoCorrect={false}
+          returnKeyType="search"
+          blurOnSubmit={true}
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         {search ? (
           <Pressable onPress={() => setSearch('')} hitSlop={8}>
@@ -153,7 +157,7 @@ export default function ContentAlbumsScreen() {
   );
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
       <FlatList
         data={filtered}
         keyExtractor={(a) => a.id}
@@ -163,6 +167,8 @@ export default function ContentAlbumsScreen() {
           styles.list,
           { paddingBottom: Math.max(insets.bottom + 90, 110) },
         ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
         }

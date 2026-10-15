@@ -1,9 +1,16 @@
-import { PersistentBottomBar } from '@/components/PersistentBottomBar';
+import { approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
 import {
     addNotificationResponseListener,
     registerForPushNotifications,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
+import { GlobalOpportunityCallNotifier } from '@/features/hybrid/GlobalOpportunityCallNotifier';
+import { InAppNotificationWatcher } from '@/features/notifications/InAppNotificationWatcher';
+import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCallNotifier';
+import { showIncomingRequest } from '@/features/bookings/incomingRequests';
+import { useRole } from '@/features/auth/role';
+import { setAudioModeAsync } from '@/utils/safeAudio';
+import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +20,7 @@ import { Platform, View } from 'react-native';
 export default function AppLayout() {
   const { isDark, colors: c } = useTheme();
   const router = useRouter();
+  const { isPhotographer } = useRole();
 
   // Signed-in: register for push notifications and route taps. The (app)
   // group only mounts once authenticated, so this runs at the right time.
@@ -20,14 +28,71 @@ export default function AppLayout() {
   // and only logs "not supported" warnings there).
   useEffect(() => {
     if (Platform.OS === 'web') return;
+    // Silent mode is strictly respected (no sound if mute switch on, vibration only).
+    void setAudioModeAsync({
+      playsInSilentMode: false,
+      interruptionMode: 'mixWithOthers',
+    });
     registerForPushNotifications();
-    const unsubscribe = addNotificationResponseListener((data) => {
+    const unsubscribe = addNotificationResponseListener(async (data, actionIdentifier) => {
+      const candidateId =
+        typeof data.candidateId === 'string'
+          ? data.candidateId
+          : typeof data.referenceId === 'string'
+            ? data.referenceId
+            : undefined;
+
+      // Interactive lock-screen 1-tap actions
+      if (actionIdentifier === 'ACTION_APPROVE' && candidateId) {
+        try {
+          await approveOpportunity(candidateId);
+        } catch (e) {
+          console.warn('[pushAction] Error approving opportunity from notification:', e);
+        }
+        router.push('/bookings?tab=opportunities');
+        return;
+      }
+
+      if (actionIdentifier === 'ACTION_DECLINE' && candidateId) {
+        try {
+          await rejectOpportunity(candidateId);
+        } catch (e) {
+          console.warn('[pushAction] Error declining opportunity from notification:', e);
+        }
+        return;
+      }
+
+      // A direct booking request (its "View & respond" button, kind === 'BOOKING_REQUEST',
+      // or a notification of type 'BOOKING' for a photographer)
+      // opens the full-screen incoming request instead of the event page.
+      const isBookingRequestPush =
+        data.kind === 'BOOKING_REQUEST' ||
+        actionIdentifier === 'VIEW_REQUEST' ||
+        (isPhotographer &&
+          (data.type === 'BOOKING' || data.type === 'EVENT') &&
+          typeof data.referenceId === 'string');
+
+      if (isBookingRequestPush) {
+        const eventId =
+          typeof data.eventId === 'string'
+            ? data.eventId
+            : typeof data.referenceId === 'string'
+              ? data.referenceId
+              : undefined;
+        if (eventId) {
+          showIncomingRequest(eventId);
+          return;
+        }
+      }
+
       // Deep-link to the exact entity the notification is about.
       router.push(
         notificationTarget({
           type: typeof data.type === 'string' ? data.type : undefined,
           referenceId: typeof data.referenceId === 'string' ? data.referenceId : undefined,
           eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+          link: typeof data.link === 'string' ? data.link : undefined,
+          deepLink: typeof data.deepLink === 'string' ? data.deepLink : undefined,
         }),
       );
     });
@@ -46,6 +111,9 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: c.background },
           headerBackButtonDisplayMode: 'minimal', // chevron only, no "‹ Home" text
           headerShadowVisible: false,
+          // Display-currency selector on every headed screen, like the web topbar.
+          // Form screens below opt out.
+          headerRight: () => <CurrencyButton compact />,
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -53,6 +121,7 @@ export default function AppLayout() {
           name="event/new"
           options={{
             title: 'New event',
+            headerRight: () => null,
             presentation: 'formSheet',
             sheetAllowedDetents: [0.6, 1],
             sheetGrabberVisible: true,
@@ -61,11 +130,19 @@ export default function AppLayout() {
         />
         <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
         <Stack.Screen name="event/geo-pricing" options={{ title: 'Geo pricing' }} />
+        <Stack.Screen
+          name="event/hybrid-wizard"
+          options={{
+            headerShown: false,
+            presentation: 'transparentModal',
+            animation: 'fade',
+          }}
+        />
         <Stack.Screen name="photographers" options={{ title: 'Photographers' }} />
         <Stack.Screen name="photographer/[id]" options={{ title: 'Photographer' }} />
         <Stack.Screen name="conversation/[id]" options={{ title: 'Chat' }} />
         <Stack.Screen name="packages" options={{ title: 'My Packages' }} />
-        <Stack.Screen name="package/new" options={{ title: 'New package', presentation: 'modal' }} />
+        <Stack.Screen name="package/new" options={{ title: 'New package', presentation: 'modal', headerRight: () => null }} />
         <Stack.Screen name="streams" options={{ title: 'Live Streams' }} />
         <Stack.Screen name="stream/[id]" options={{ title: 'Stream', headerShown: false }} />
         <Stack.Screen name="stream/control/[id]" options={{ title: 'Go Live', headerShown: false }} />
@@ -77,6 +154,7 @@ export default function AppLayout() {
           name="album/new"
           options={{
             title: 'New album',
+            headerShown: false,
             presentation: 'formSheet',
             sheetAllowedDetents: [0.7, 1],
             sheetGrabberVisible: true,
@@ -121,19 +199,14 @@ export default function AppLayout() {
         <Stack.Screen name="kyc" options={{ headerShown: false }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
         <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
-        <Stack.Screen name="team/index" options={{ title: 'Team' }} />
-        <Stack.Screen name="team/invite" options={{ title: 'Invite member', presentation: 'modal' }} />
-        <Stack.Screen name="team/roles" options={{ title: 'Roles & permissions' }} />
-        <Stack.Screen name="team/role/[id]" options={{ title: 'Role' }} />
-        <Stack.Screen name="team/member/[id]" options={{ title: 'Member' }} />
+        <Stack.Screen name="collaborate/index" options={{ title: 'Collaborate' }} />
+        <Stack.Screen name="collaborate/album/[id]" options={{ title: 'Album' }} />
+        <Stack.Screen name="collaborate/joined/[id]" options={{ title: 'Album' }} />
+        <Stack.Screen name="collaborate/join/[token]" options={{ title: 'Join album' }} />
       </Stack>
-      {/*
-       * Persistent bottom bar across every (app) route. The bar lives
-       * *below* the Stack so it overlays each screen content. Detail
-       * screens already pad their ScrollView contentContainerStyle with
-       * paddingBottom 100+, so the bar doesn't cover anything important.
-       */}
-      <PersistentBottomBar />
+      <GlobalOpportunityCallNotifier />
+      <InAppNotificationWatcher />
+      <BookingRequestCallNotifier />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );

@@ -4,18 +4,19 @@
  * The exact field names from the backend can vary, so we map defensively:
  * unknown fields are simply ignored and the UI shows what it has.
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import type { PickedImage } from '@/services/imagePicker';
 import { appendFile } from '@/utils/upload';
 import type { ApiError, ApiEnvelope } from '@/types';
-import type {
-  CreateEventInput,
-  EventItem,
-  PublicEvent,
-  PublicEventCategory,
-  PublicEventCreator,
-  PublicEventsPage,
-  PublicEventsQuery,
+import {
+  parseAttendanceMode,
+  type CreateEventInput,
+  type EventItem,
+  type PublicEvent,
+  type PublicEventCategory,
+  type PublicEventCreator,
+  type PublicEventsPage,
+  type PublicEventsQuery,
 } from './types';
 
 type RawEvent = Record<string, unknown>;
@@ -46,6 +47,7 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
     endTime: toApiTime(input.endTime || input.startTime),
     eventDate: input.eventDate,
     location: input.location ?? '',
+    attendanceMode: input.attendanceMode,
     eventOrganizer: input.organizer || 'Organizer',
     eventVisibility: input.eventVisibility || 'PUBLIC',
     eventTags: input.tags && input.tags.length ? input.tags.join(',') : input.category,
@@ -58,6 +60,9 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
     maxGuests: input.maxGuests ?? 0,
     notes: '',
   };
+  if (input.eventCategoryId && UUID_RE.test(input.eventCategoryId)) {
+    payload.eventCategoryId = input.eventCategoryId;
+  }
   if (input.photographerId && UUID_RE.test(input.photographerId)) {
     payload.photographerId = input.photographerId;
   }
@@ -103,18 +108,31 @@ function mapEvent(r: RawEvent): EventItem {
   const tagsCsv = str(r.eventTags);
   const tags = tagsCsv ? tagsCsv.split(',').map((t) => t.trim()).filter(Boolean) : undefined;
 
+  const photographerId = str(r.photographerId) ?? str(photographer.id);
+  const clientId =
+    str(r.clientId) ?? str(r.customerId) ?? str(client.id) ?? str(client.customerId);
+
   return {
     id: String(r.id ?? r.slug ?? r.eventId ?? ''),
     title: str(r.title) ?? str(r.name) ?? 'Untitled event',
-    eventDate: str(r.eventDate) ?? str(r.startTime) ?? str(r.date),
-    location: str(r.location) ?? str(r.venue),
+    eventDate: str(r.eventDate) ?? str(r.date) ?? str(r.startDate),
+    location:
+      typeof r.location === 'string'
+        ? str(r.location)
+        : r.location && typeof r.location === 'object'
+          ? str((r.location as any).address) || str((r.location as any).name)
+          : str(r.venue),
+    attendanceMode: parseAttendanceMode(r.attendanceMode),
     status: str(r.eventStatus) ?? str(r.status) ?? str(r.completionStatus),
     category: categoryName,
     categoryId,
     photographerName,
+    photographerId,
     clientName,
+    clientId,
     clientAvatar,
     packageName: str(r.packageName),
+    bookingId: str(r.bookingId),
     hasLiveStream: r.hasLiveStream === true || r.hasLiveStream === 'true' || r.hasLiveStream === 1,
     // Backend returns the event hero as `eventPhoto` on every events
     // endpoint (/customer/events, /coordinator/events, /public/events).
@@ -144,6 +162,14 @@ function mapEvent(r: RawEvent): EventItem {
     completionStatus: str(r.completionStatus),
     albumDelivered: r.albumDelivered === true,
     notes: str(r.notes),
+
+    // Hybrid & Geolocation fields
+    latitude: num(r.latitude),
+    longitude: num(r.longitude),
+    city: str(r.city),
+    minBudget: num(r.minBudget),
+    maxBudget: num(r.maxBudget),
+    bookingMode: str(r.bookingMode),
   };
 }
 
@@ -212,13 +238,24 @@ export async function listPhotographerEvents(): Promise<EventItem[]> {
   // The photographer endpoint returns the full list (no pagination) but in
   // booking/insertion order — sort newest-created first for parity with the
   // other dashboards.
-  const res = await api.get<ApiEnvelope<unknown>>('/photographer/events');
+  // A refused request answers HTTP 200 with action:0. Without requireOk that read
+  // as an empty list and the dashboard said "no events" instead of "could not load".
+  const res = requireOk(await api.get<ApiEnvelope<unknown>>('/photographer/events'));
   return sortByCreatedDesc(unwrapList(res?.data).map(mapEvent).filter((e) => e.id));
 }
 
-export async function getEvent(id: string): Promise<EventItem> {
-  const res = await api.get<ApiEnvelope<RawEvent>>(`/customer/events/${encodeURIComponent(id)}`);
-  return mapEvent((res?.data ?? {}) as RawEvent);
+export async function getEvent(id: string, asCoordinator = false): Promise<EventItem> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  try {
+    const res = await api.get<ApiEnvelope<RawEvent>>(`${base}/${encodeURIComponent(id)}`);
+    return mapEvent((res?.data ?? {}) as RawEvent);
+  } catch (err) {
+    if (asCoordinator) {
+      const fallbackRes = await api.get<ApiEnvelope<RawEvent>>(`/customer/events/${encodeURIComponent(id)}`);
+      return mapEvent((fallbackRes?.data ?? {}) as RawEvent);
+    }
+    throw err;
+  }
 }
 
 // --- Public (no login required) ------------------------------------------
@@ -283,6 +320,7 @@ function mapPublicEvent(r: RawEvent): PublicEvent {
     startTime: str(r.startTime),
     endTime: str(r.endTime),
     location: str(r.location),
+    attendanceMode: parseAttendanceMode(r.attendanceMode),
     eventOrganizer: str(r.eventOrganizer),
     eventTags: str(r.eventTags),
     eventPhoto: str(r.eventPhoto),
@@ -371,8 +409,9 @@ export async function getPublicEventDetailed(id: string): Promise<PublicEvent> {
  * `eventTags`, `priceCurrency`, `maxGuests`, …). Photographer/package IDs are
  * only sent when they are valid UUIDs, to avoid backend "id must not be null".
  */
-export async function createEvent(input: CreateEventInput): Promise<EventItem> {
-  const res = await api.post<ApiEnvelope<RawEvent>>('/customer/events/book', buildEventPayload(input));
+export async function createEvent(input: CreateEventInput, asCoordinator = false): Promise<EventItem> {
+  const base = asCoordinator ? '/coordinator/events/book' : '/customer/events/book';
+  const res = await api.post<ApiEnvelope<RawEvent>>(base, buildEventPayload(input));
   if (res.action !== 1) {
     throw {
       status: 400,
@@ -385,10 +424,11 @@ export async function createEvent(input: CreateEventInput): Promise<EventItem> {
   return mapEvent(ev);
 }
 
-/** Updates an event (web parity: PUT /customer/events/{id}). */
-export async function updateEvent(id: string, input: CreateEventInput): Promise<EventItem> {
+/** Updates an event (web parity: PUT /coordinator/events/{id} or /customer/events/{id}). */
+export async function updateEvent(id: string, input: CreateEventInput, asCoordinator = false): Promise<EventItem> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
   const res = await api.put<ApiEnvelope<RawEvent>>(
-    `/customer/events/${encodeURIComponent(id)}`,
+    `${base}/${encodeURIComponent(id)}`,
     buildEventPayload(input),
   );
   if (res.action !== 1) {
@@ -406,11 +446,12 @@ export async function updateEvent(id: string, input: CreateEventInput): Promise<
  * success, and the event stayed unpublishable (and therefore invisible on the
  * public site) with nothing shown to the user.
  */
-export async function uploadEventPhoto(eventId: string, image: PickedImage): Promise<void> {
+export async function uploadEventPhoto(eventId: string, image: PickedImage, asCoordinator = false): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
   const form = new FormData();
   await appendFile(form, 'file', image);
   const res = await api.post<ApiEnvelope<unknown>>(
-    `/customer/events/${encodeURIComponent(eventId)}/photo`,
+    `${base}/${encodeURIComponent(eventId)}/photo`,
     form,
   );
   if (res?.action !== 1) {
@@ -426,6 +467,14 @@ async function action(path: string, fallback: string): Promise<void> {
   if (res.action !== 1) {
     throw { status: 400, message: res.message || fallback } satisfies ApiError;
   }
+}
+
+/**
+ * Hides a finished event from the photographer's own list (web: POST /photographer/events/{id}/dismiss, a soft
+ * delete; the client and the event itself are untouched). The server only checks that the caller is assigned.
+ */
+export function dismissPhotographerEvent(id: string): Promise<void> {
+  return action(`/photographer/events/${encodeURIComponent(id)}/dismiss`, 'Could not remove the event.');
 }
 
 /** Publishes an event (makes it public/live). */

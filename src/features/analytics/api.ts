@@ -8,7 +8,8 @@
  */
 import { api } from '@/api/client';
 import type { ApiEnvelope } from '@/types';
-import { formatMoney } from '@/utils/format';
+import { isOwedObligation } from '@/features/payments/policy';
+import { formatPrice } from '@/utils/format';
 
 export type AnalyticsStat = { key: string; label: string; value: string };
 
@@ -50,7 +51,7 @@ export async function getAnalytics(role: AnalyticsRole, currency?: string): Prom
         ? '/coordinator/analytics'
         : '/customer/analytics';
 
-  const res = await api.get<ApiEnvelope<Raw>>(path);
+  const res = await api.getOk<ApiEnvelope<Raw>>(path);
   const d = (res?.data ?? {}) as Raw;
 
   const stats: AnalyticsStat[] = [];
@@ -60,7 +61,7 @@ export async function getAnalytics(role: AnalyticsRole, currency?: string): Prom
     stats.push({
       key,
       label: meta.label,
-      value: meta.money ? formatMoney(value, currency) : String(value),
+      value: meta.money ? formatPrice(value, currency) : String(value),
     });
   }
   return stats;
@@ -136,7 +137,7 @@ function defaultCoordinatorAnalytics(): CoordinatorAnalytics {
 }
 
 export async function getCustomerAnalytics(): Promise<CustomerAnalytics> {
-  const res = await api.get<ApiEnvelope<Raw>>('/customer/analytics');
+  const res = await api.getOk<ApiEnvelope<Raw>>('/customer/analytics');
   const d = (res?.data ?? {}) as Raw;
   const def = defaultCustomerAnalytics();
   return {
@@ -181,14 +182,14 @@ function defaultPhotographerAnalytics(): PhotographerAnalytics {
     totalTips: 0,
     pendingPayments: 0,
     bonuses: 0,
-    averageRating: 5,
+    averageRating: 0,
     totalPhotosUploaded: 0,
     unreadNotifications: 0,
   };
 }
 
 export async function getPhotographerAnalytics(): Promise<PhotographerAnalytics> {
-  const res = await api.get<ApiEnvelope<Raw>>('/photographer/analytics');
+  const res = await api.getOk<ApiEnvelope<Raw>>('/photographer/analytics');
   const d = (res?.data ?? {}) as Raw;
   const def = defaultPhotographerAnalytics();
   return {
@@ -212,14 +213,14 @@ export async function getPhotographerTrends(
   from?: string,
   to?: string,
 ): Promise<TrendsMap> {
-  const res = await api.get<ApiEnvelope<Raw>>(
+  const res = await api.getOk<ApiEnvelope<Raw>>(
     `/photographer/analytics/trends?${trendsQuery(period, from, to)}`,
   );
   return mapTrends(res?.data as Raw);
 }
 
 export async function getCoordinatorAnalytics(): Promise<CoordinatorAnalytics> {
-  const res = await api.get<ApiEnvelope<Raw>>('/coordinator/analytics');
+  const res = await api.getOk<ApiEnvelope<Raw>>('/coordinator/analytics');
   const d = (res?.data ?? {}) as Raw;
   const def = defaultCoordinatorAnalytics();
   return {
@@ -238,7 +239,7 @@ export async function getCoordinatorAnalytics(): Promise<CoordinatorAnalytics> {
 
 // ────── Trends (% change per stat for the selected period) ────────────────
 
-export type Trend = { percentage: string; direction: 'up' | 'down' };
+export type Trend = { percentage: string; direction: 'up' | 'down'; value?: number };
 export type TrendsMap = Record<string, Trend>;
 
 export type AnalyticsPeriod = 'today' | 'week' | 'month' | 'custom';
@@ -260,11 +261,32 @@ function mapTrends(raw: Raw | undefined | null): TrendsMap {
     if (!value || typeof value !== 'object') continue;
     const v = value as Raw;
     const pct = num(v.changePercent);
-    out[key] = {
+    const val = num(v.value);
+    const item: Trend = {
       percentage: pct != null ? `${Math.abs(pct).toFixed(1)}%` : '0%',
       direction: v.trend === 'down' ? 'down' : 'up',
+      ...(val != null ? { value: val } : {}),
     };
+    out[key] = item;
   }
+
+  // Cross-alias keys so both short ('events') and full ('totalEvents') are accessible
+  if (out.pending && !out.totalPending) out.totalPending = out.pending;
+  if (out.totalPending && !out.pending) out.pending = out.totalPending;
+
+  if (out.events && !out.totalEvents) out.totalEvents = out.events;
+  if (out.totalEvents && !out.events) out.events = out.totalEvents;
+
+  if (out.photographers && !out.totalPhotographers) out.totalPhotographers = out.photographers;
+  if (out.totalPhotographers && !out.photographers) out.photographers = out.totalPhotographers;
+
+  if (out.totalRevenue && !out.revenue) out.revenue = out.totalRevenue;
+  if (out.revenue && !out.totalRevenue) out.totalRevenue = out.revenue;
+
+  if (out.clients && !out.totalCustomers) out.totalCustomers = out.clients;
+  if (out.customers && !out.totalCustomers) out.totalCustomers = out.customers;
+  if (out.totalCustomers && !out.clients) out.clients = out.totalCustomers;
+
   return out;
 }
 
@@ -273,7 +295,7 @@ export async function getCustomerTrends(
   from?: string,
   to?: string,
 ): Promise<TrendsMap> {
-  const res = await api.get<ApiEnvelope<Raw>>(
+  const res = await api.getOk<ApiEnvelope<Raw>>(
     `/customer/analytics/trends?${trendsQuery(period, from, to)}`,
   );
   return mapTrends(res?.data as Raw);
@@ -284,7 +306,7 @@ export async function getCoordinatorTrends(
   from?: string,
   to?: string,
 ): Promise<TrendsMap> {
-  const res = await api.get<ApiEnvelope<Raw>>(
+  const res = await api.getOk<ApiEnvelope<Raw>>(
     `/coordinator/analytics/trends?${trendsQuery(period, from, to)}`,
   );
   return mapTrends(res?.data as Raw);
@@ -327,13 +349,15 @@ function mapPendingPayment(r: Raw): PendingPayment {
 }
 
 export async function getCustomerPendingPayments(): Promise<PendingPayment[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>('/customer/payments/pending');
+  const res = await api.getOk<ApiEnvelope<Raw[]>>('/customer/payments/pending');
   const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapPendingPayment).filter((p) => p.id);
+  // The endpoint returns every unsettled declaration on the user's events,
+  // including viewers' unfinished tickets and gifts. Those are not owed.
+  return data.map(mapPendingPayment).filter((p) => p.id && isOwedObligation(p.paymentType));
 }
 
 export async function getCoordinatorPendingPayments(): Promise<PendingPayment[]> {
-  const res = await api.get<ApiEnvelope<Raw>>('/coordinator/payments?page=0&size=10');
+  const res = await api.getOk<ApiEnvelope<Raw>>('/coordinator/payments?page=0&size=10');
   const d = (res?.data ?? {}) as Raw;
   const items: Raw[] = Array.isArray(d.content)
     ? (d.content as Raw[])
@@ -346,7 +370,7 @@ export async function getCoordinatorPendingPayments(): Promise<PendingPayment[]>
       return s !== 'COMPLETED' && s !== 'SUCCESS';
     })
     .map(mapPendingPayment)
-    .filter((p) => p.id);
+    .filter((p) => p.id && isOwedObligation(p.paymentType));
 }
 
 // ────── Recent activities + photographers (Client only) ───────────────────
@@ -360,7 +384,7 @@ export type RecentActivity = {
 };
 
 export async function getCustomerRecentActivities(size = 6): Promise<RecentActivity[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(
     `/customer/analytics/recent-activities?size=${size}`,
   );
   const data = Array.isArray(res?.data) ? res.data : [];
@@ -384,7 +408,7 @@ export type RecentPhotographer = {
 };
 
 export async function getCustomerPhotographers(size = 5): Promise<RecentPhotographer[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(
     `/customer/analytics/photographers?size=${size}`,
   );
   const data = Array.isArray(res?.data) ? res.data : [];
@@ -410,7 +434,7 @@ export type RecentPayment = {
 };
 
 export async function getCustomerRecentPayments(size = 5): Promise<RecentPayment[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(
     `/customer/analytics/recent-payments?size=${size}`,
   );
   const data = Array.isArray(res?.data) ? res.data : [];
@@ -450,7 +474,7 @@ export async function getCustomerPerformance(
   } else {
     qs.set('period', period === 'custom' ? 'week' : period);
   }
-  const res = await api.get<ApiEnvelope<Raw[]>>(`/customer/analytics/performance?${qs}`);
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(`/customer/analytics/performance?${qs}`);
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map((d) => ({
     day: str(d.day) ?? '',
@@ -483,7 +507,7 @@ export async function getCoordinatorPerformance(
   } else {
     qs.set('period', period === 'custom' ? 'week' : period);
   }
-  const res = await api.get<ApiEnvelope<Raw[]>>(`/coordinator/analytics/performance?${qs}`);
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(`/coordinator/analytics/performance?${qs}`);
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map((d) => ({
     day: str(d.day) ?? '',
@@ -493,7 +517,7 @@ export async function getCoordinatorPerformance(
 }
 
 export async function getCoordinatorPhotographers(size = 5): Promise<CoordinatorPhotographer[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(`/coordinator/photographers?page=0&size=${size}`);
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(`/coordinator/photographers?page=0&size=${size}`);
   const raw = res?.data;
   const items: Raw[] = Array.isArray(raw)
     ? raw
@@ -518,7 +542,7 @@ export type DashboardActivity = {
 };
 
 export async function getCoordinatorRecentActivities(size = 6): Promise<DashboardActivity[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(`/coordinator/notifications?page=0&size=${size}`);
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(`/coordinator/notifications?page=0&size=${size}`);
   const raw = res?.data;
   const items: Raw[] = Array.isArray(raw)
     ? raw
@@ -556,7 +580,7 @@ export async function getPhotographerPerformance(
   } else {
     qs.set('period', period === 'custom' ? 'week' : period);
   }
-  const res = await api.get<ApiEnvelope<Raw[]>>(`/photographer/performance?${qs}`);
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(`/photographer/performance?${qs}`);
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map((d) => ({
     day: str(d.day) ?? '',
@@ -566,7 +590,7 @@ export async function getPhotographerPerformance(
 }
 
 export async function getPhotographerClients(size = 5): Promise<PhotographerClient[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(`/photographer/clients?page=0&size=${size}`);
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(`/photographer/clients?page=0&size=${size}`);
   const raw = res?.data;
   const items: Raw[] = Array.isArray(raw)
     ? raw
@@ -608,7 +632,7 @@ export function cleanTransactionStatus(raw?: string): string {
 }
 
 export async function getPhotographerRecentTransactions(size = 5): Promise<RecentTransaction[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>(`/photographer/transactions?page=0&size=${size}`);
+  const res = await api.getOk<ApiEnvelope<Raw[]>>(`/photographer/transactions?page=0&size=${size}`);
   const raw = res?.data;
   const items: Raw[] = Array.isArray(raw)
     ? raw

@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -34,12 +35,19 @@ import {
   listNotifications,
   markAllRead,
   markRead,
+  sendBackendTestPush,
   type AppNotification,
   type NotificationType,
 } from '@/features/notifications/api';
+import {
+  checkNotificationDiagnostics,
+  scheduleTestBookingAlert,
+  scheduleTestLockScreenNotification,
+} from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { formatMoney, formatRelativeTime } from '@/utils/format';
+import { formatPrice, formatRelativeTime } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 type FilterOption = 'all' | 'unread' | 'booking' | 'payment_group' | 'album' | 'security';
 type DateGroup = 'Today' | 'Yesterday' | 'This Week' | 'Earlier';
@@ -72,6 +80,8 @@ function cleanNarrative(n: AppNotification) {
 }
 
 export default function NotificationsScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -217,6 +227,85 @@ export default function NotificationsScreen() {
             },
           ]
         : []),
+      {
+        text: 'Test Booking Alert (5s)',
+        onPress: async () => {
+          try {
+            await scheduleTestBookingAlert(5);
+            Alert.alert(
+              'Booking Alert Scheduled',
+              'Lock your phone now! In 5 seconds, an incoming booking request will ring and wake your screen with the "View & respond" button.',
+            );
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Could not schedule booking alert.');
+          }
+        },
+      },
+      {
+        text: 'Test Generic Alert (5s)',
+        onPress: async () => {
+          try {
+            await scheduleTestLockScreenNotification(5);
+            Alert.alert(
+              'Test Alert Scheduled',
+              'Lock your phone now! In 5 seconds, a test alert will wake your screen with sound and notification banner.',
+            );
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Could not schedule test alert.');
+          }
+        },
+      },
+      {
+        text: 'Check Push & Lock-Screen Status',
+        onPress: async () => {
+          try {
+            const diag = await checkNotificationDiagnostics();
+            let msg = `Permissions: ${diag.permissionGranted ? '✅ Granted' : '❌ NOT Granted (' + diag.permissionStatus + ')'}\n`;
+            msg += `Device: ${diag.isDevice ? 'Physical Phone' : 'Simulator'}\n`;
+            msg += `Push Token: ${diag.pushToken ? '✅ Obtained' : '❌ None'}\n`;
+            msg += `Server Registration: ${diag.registeredWithBackend ? '✅ Registered' : '⚠️ Pending / Not Registered'}\n`;
+            if (diag.iosDetails) {
+              msg += `\nLock Screen: ${diag.iosDetails.allowsLockScreen ? '✅ Allowed' : '⚠️ Disabled in iOS Settings'}\n`;
+              msg += `Sounds: ${diag.iosDetails.allowsSound ? '✅ Allowed' : '⚠️ Disabled'}\n`;
+              msg += `Banners: ${diag.iosDetails.allowsAlert ? '✅ Allowed' : '⚠️ Disabled'}\n`;
+            }
+            if (diag.channelsSummary) {
+              msg += `\n${diag.channelsSummary}`;
+            }
+
+            Alert.alert('Lock-Screen Diagnostics', msg, [
+              ...(!diag.permissionGranted || (diag.iosDetails && !diag.iosDetails.allowsLockScreen)
+                ? [
+                    {
+                      text: 'Open Settings',
+                      onPress: () => void Linking.openSettings(),
+                    },
+                  ]
+                : []),
+              { text: 'OK' },
+            ]);
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Could not run diagnostics.');
+          }
+        },
+      },
+      {
+        text: 'Send Server Test Push',
+        onPress: async () => {
+          try {
+            await sendBackendTestPush(
+              'Connekyt Booking Alert',
+              'Test push notification dispatched directly from the Connekyt server.',
+            );
+            Alert.alert(
+              'Server Push Dispatched',
+              'Lock your phone now! The backend has sent a push notification to this account. It should land on your lock screen shortly.',
+            );
+          } catch (e: any) {
+            Alert.alert('Server Push Error', e?.message || 'Could not trigger server push. Verify your device is registered.');
+          }
+        },
+      },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -489,7 +578,7 @@ export default function NotificationsScreen() {
                       {/* Amount pill if monetary */}
                       {item.amount ? (
                         <View style={styles.amountPill}>
-                          <Text style={styles.amountPillText}>+{formatMoney(item.amount)}</Text>
+                          <Text style={styles.amountPillText}>+{formatPrice(item.amount)}</Text>
                         </View>
                       ) : null}
                     </View>

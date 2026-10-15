@@ -43,10 +43,23 @@
  */
 import { Platform } from 'react-native';
 
+// Native builds are OFF, release builds included. A `NODE_ENV !== 'test'` clause
+// used to sit here; it made this true in every shipped build and only false under
+// jest, which is how the store-billing gate described above was silently open.
 export const digitalPurchasesEnabled =
-  Platform.OS === 'web' ||
-  process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES === 'true' ||
-  process.env.NODE_ENV !== 'test';
+  Platform.OS === 'web' || process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES === 'true';
+
+/**
+ * Live-stream gifts are on in every build, native included. This is the owner's
+ * explicit decision (2026-10-12), reversing the native-off gate for gifts only:
+ * viewers expect to gift a creator mid-stream and web already allows it. Hosts
+ * never see the gift button (the studio has none).
+ *
+ * The store-billing risk described above still applies to gifts on a store
+ * binary (Apple 3.1.1, Google Play billing) and is accepted knowingly. Every
+ * other digital good stays behind digitalPurchasesEnabled.
+ */
+export const giftsEnabled = true;
 
 /**
  * Payment-declaration types that pay for DIGITAL goods (stream access, tips,
@@ -71,9 +84,33 @@ export function isDigitalDeclaration(paymentType?: string | null): boolean {
   return !!paymentType && DIGITAL_DECLARATION_TYPES.has(paymentType.toUpperCase());
 }
 
-/** Whether this declaration may be paid from the generic pending-payment UI. */
+/**
+ * Whether this declaration may be paid from the generic pending-payment UI.
+ *
+ * Mirrors PaymentHandoffController: the declaration handoff only carries a
+ * booking or the extra-photos add-on and refuses every digital type
+ * ("This payment can't be completed here."). It must not follow
+ * digitalPurchasesEnabled, which is true on release builds: a pay button the
+ * server always refuses is a dead end. An unclassified type is left to the
+ * server, so a legitimate payment is never silently blocked.
+ */
 export function canPayDeclarationHere(paymentType?: string | null): boolean {
-  return !isDigitalDeclaration(paymentType) || digitalPurchasesEnabled;
+  const t = paymentType?.toUpperCase();
+  if (t === 'PHOTOBOOK_EXTRAS') return true;
+  return !isDigitalDeclaration(t) && t !== 'DONATION';
+}
+
+/**
+ * Whether an unsettled declaration is something the signed-in user OWES.
+ *
+ * A pending STREAMING/GIFT/FACE_RECOGNITION declaration is a viewer's ticket or
+ * purchase attempt that was never completed. It is not a bill: production held
+ * 90 of those against one open booking, so summing them produced a "$132,642 in
+ * pending payments, complete them to avoid cancellations" banner for money
+ * nobody owed. Only the types the handoff accepts count as owed.
+ */
+export function isOwedObligation(paymentType?: string | null): boolean {
+  return canPayDeclarationHere(paymentType);
 }
 
 /**
@@ -90,4 +127,36 @@ export function canPayDeclarationHere(paymentType?: string | null): boolean {
  */
 export function canShowDigitalPrice(isFree: boolean): boolean {
   return isFree || digitalPurchasesEnabled;
+}
+
+/**
+ * Whether an event is a physical, in-person event.
+ *
+ * Both stores exempt tickets and services consumed OUTSIDE the app from their
+ * billing rules (Apple 3.1.3(e), Google's physical goods and services
+ * carve-out). A ticket to a real venue event is that: the live stream is one
+ * way to attend, not the product. A stream-only event has no such venue, so it
+ * is digital content and stays gated.
+ *
+ * Deliberately conservative: no usable venue, or a venue that reads as online,
+ * means NOT in-person. Unknown never unlocks a purchase.
+ */
+const ONLINE_VENUE = /\b(online|virtual|livestream|live stream|stream|zoom|meet|teams|webinar|remote|web|tbd|n\/a|none)\b/i;
+type VenueLike = { location?: string | null; attendanceMode?: string | null } | null;
+export function isInPersonEvent(event?: VenueLike): boolean {
+  // The organizer's attestation (or the server's derivation of it) wins.
+  const mode = event?.attendanceMode;
+  if (mode === 'STREAM_ONLY') return false;
+  if (mode === 'IN_PERSON' || mode === 'HYBRID') return true;
+  const loc = event?.location?.trim();
+  if (!loc || loc.length < 3) return false;
+  return !ONLINE_VENUE.test(loc);
+}
+/**
+ * Whether a stream/event TICKET may be bought in the app: always on web, and
+ * on native only for in-person events (see isInPersonEvent). Every other
+ * digital good is still governed by digitalPurchasesEnabled alone.
+ */
+export function canBuyEventTicket(event?: VenueLike): boolean {
+  return digitalPurchasesEnabled || isInPersonEvent(event);
 }

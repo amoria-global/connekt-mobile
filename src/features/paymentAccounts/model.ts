@@ -42,7 +42,9 @@ type Raw = Record<string, unknown>;
 export function withdrawalMethodsPath(role: Role | undefined): string {
   return role === 'Photographer'
     ? '/photographer/withdrawal-methods'
-    : '/customer/withdrawal-methods';
+    : role === 'Coordinator'
+      ? '/coordinator/withdrawal-methods'
+      : '/customer/withdrawal-methods';
 }
 
 export function mapAccount(r: Raw): PaymentAccount {

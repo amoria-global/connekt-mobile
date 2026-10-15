@@ -19,7 +19,13 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import * as ScreenCapture from 'expo-screen-capture';
+import {
+  preventScreenCapture,
+  allowScreenCapture,
+  enableAppSwitcherProtection,
+  disableAppSwitcherProtection,
+  addScreenshotListener,
+} from '@/utils/screenCapture';
 import { savePhotoToGallery, saveBatchPhotosToGallery } from '@/utils/gallerySaver';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +44,7 @@ import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { spacing, radii, makeStyles, useTheme } from '@/theme';
+import { formatPrice } from '@/utils/format';
 
 const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const WATERMARK_COLS = [0, 1, 2, 3, 4];
@@ -154,21 +161,21 @@ export default function BrowsePhotosScreen() {
   useEffect(() => {
     const hasPhotos = items.length > 0 || previewing !== null;
     if (hasPhotos) {
-      ScreenCapture.preventScreenCaptureAsync('browse-photos').catch(() => {});
+      preventScreenCapture('browse-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.enableAppSwitcherProtectionAsync(0.8).catch(() => {});
+        enableAppSwitcherProtection(0.8);
       }
     } else {
-      ScreenCapture.allowScreenCaptureAsync('browse-photos').catch(() => {});
+      allowScreenCapture('browse-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+        disableAppSwitcherProtection();
       }
     }
 
     return () => {
-      ScreenCapture.allowScreenCaptureAsync('browse-photos').catch(() => {});
+      allowScreenCapture('browse-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+        disableAppSwitcherProtection();
       }
     };
   }, [items.length, previewing]);
@@ -177,21 +184,16 @@ export default function BrowsePhotosScreen() {
     const hasPhotos = items.length > 0 || previewing !== null;
     if (!hasPhotos) return;
 
-    let sub: { remove: () => void } | undefined;
-    try {
-      sub = ScreenCapture.addScreenshotListener(() => {
-        Alert.alert(
-          'Screenshot Restricted',
-          'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
-          [{ text: 'OK' }]
-        );
-      });
-    } catch {
-      // Ignored if unsupported in environment
-    }
+    const sub = addScreenshotListener(() => {
+      Alert.alert(
+        'Screenshot Restricted',
+        'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
+        [{ text: 'OK' }]
+      );
+    });
 
     return () => {
-      sub?.remove();
+      sub.remove();
     };
   }, [items.length, previewing]);
 
@@ -373,7 +375,7 @@ export default function BrowsePhotosScreen() {
               {cartItems.length} photo{cartItems.length === 1 ? '' : 's'}
             </Text>
             <Text style={styles.cartBarTotal}>
-              {sym(cartItems[0]?.buyerCurrency)}{cartTotal.toFixed(2)}
+              {formatPrice(cartTotal, cartItems[0]?.buyerCurrency ?? undefined)}
             </Text>
           </View>
           <Pressable style={styles.cartBarBtn} onPress={() => startCheckout()}>

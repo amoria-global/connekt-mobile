@@ -1,19 +1,30 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRootNavigationState, useRouter, useSegments, type Href } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
   PragatiNarrow_400Regular,
   PragatiNarrow_700Bold,
 } from '@expo-google-fonts/pragati-narrow';
 import { useAuth } from '@/store/auth';
+import { takePendingScanEvent } from '@/features/events/scanIntent';
+import { useCurrency } from '@/store/currency';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdateBanner, UpdatePromptModal } from '@/features/updates';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
-import { colors, useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
+import { useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
+import { AppPreloader } from '@/components/ui/AppPreloader';
+
+// Keep native splash screen visible while fonts and auth bootstrap resolve
+SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.setOptions({
+  duration: 400,
+  fade: true,
+});
 
 /**
  * Default every `<Text>` and `<TextInput>` to Pragati Narrow so the
@@ -127,34 +138,57 @@ function useProtectedRoute() {
     }
     if (termsAccepted === null) return;
 
+    // A scanned event QR outranks the default landing screen: once terms and
+    // sign-in are out of the way, deliver the viewer to the event they scanned.
+    const goOr = (fallback: string) => {
+      takePendingScanEvent()
+        .catch(() => null)
+        .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}` : fallback) as Href));
+    };
+
     if (status === 'authenticated') {
-      if (inAuthGroup || inOnboarding) router.replace('/');
+      if (inAuthGroup || inOnboarding) goOr('/');
       return;
     }
 
-    // Unauthenticated: show onboarding first, then auth — but allow (public).
+    // Unauthenticated: show onboarding intro slides, then auth — but allow (public).
     if (!seen) {
-      if (!inOnboarding && !inPublic) router.replace('/splash');
+      if (!inOnboarding && !inPublic) goOr('/welcome');
     } else if (!inAuthGroup && !inPublic) {
-      router.replace('/login');
+      goOr('/login');
     }
   }, [navigationState?.key, status, seen, termsAccepted, segments, router]);
 }
 
 export default function RootLayout() {
-  const { colors } = useTheme();
-  const status = useAuth((s) => s.status);
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
+  const loadCurrency = useCurrency((s) => s.load);
+  const syncCurrency = useCurrency((s) => s.syncWithAccount);
+  const authStatus = useAuth((s) => s.status);
   const [fontsLoaded] = useFonts({
     PragatiNarrow_400Regular,
     PragatiNarrow_700Bold,
   });
 
+  const [preloaderDone, setPreloaderDone] = useState(false);
+
   useEffect(() => {
     bootstrap();
     loadOnboarding();
-  }, [bootstrap, loadOnboarding]);
+    loadCurrency();
+  }, [bootstrap, loadOnboarding, loadCurrency]);
+
+  // Signed in: adopt the currency saved on the account so web and mobile agree.
+  useEffect(() => {
+    if (authStatus === 'authenticated') syncCurrency();
+  }, [authStatus, syncCurrency]);
+
+  // Hide the native static splash screen immediately so the full-screen video
+  // preloader is revealed and plays from the very first frame
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   // Apply the global Pragati Narrow default ONCE the Google Font has
   // loaded — applying earlier would print the family name as text since
@@ -164,6 +198,8 @@ export default function RootLayout() {
     applyDefaultFont();
   }, [fontsLoaded]);
 
+
+
   useProtectedRoute();
 
   return (
@@ -171,18 +207,20 @@ export default function RootLayout() {
       <NavigationChrome>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          {status === 'idle' || status === 'loading' || !fontsLoaded ? (
-            <View style={styles.splash}>
-              <ActivityIndicator size="large" color={colors.primary} />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(public)" />
+            <Stack.Screen name="(app)" />
+          </Stack>
+          {!preloaderDone ? (
+            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+              <AppPreloader
+                fontsLoaded={fontsLoaded}
+                onFinish={() => setPreloaderDone(true)}
+              />
             </View>
-          ) : (
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(onboarding)" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(public)" />
-              <Stack.Screen name="(app)" />
-            </Stack>
-          )}
+          ) : null}
           {/* OTA in-app update prompt modal & banner */}
           <UpdatePromptModal />
           <UpdateBanner />
@@ -223,11 +261,3 @@ function ThemedStatusBar() {
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
 }
 
-const styles = {
-  splash: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-} as const;

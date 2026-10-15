@@ -10,7 +10,10 @@ function normalizeRole(raw?: string): CustomerType | undefined {
   if (r === 'photographer') return 'Photographer';
   if (r === 'client') return 'Client';
   if (r === 'viewer') return 'Viewer';
-  if (r === 'user') return 'User';
+  // "User" was merged into Client on the backend (V307 moved every account,
+  // and sign-up stores User as Client). This is the retired name of the same
+  // role, not an inference, so a session minted before the merge keeps working.
+  if (r === 'user') return 'Client';
   if (r === 'coordinator' || r === 'event-coordinator') return 'Coordinator';
   return undefined;
 }
@@ -21,7 +24,6 @@ export function useRole(): {
   isPhotographer: boolean;
   isCoordinator: boolean;
   isViewer: boolean;
-  isUser: boolean;
   ownsEvents: boolean;
 } {
   // ROLE INVARIANT: never substitute a role. A missing or unrecognized role
@@ -34,12 +36,7 @@ export function useRole(): {
     isPhotographer: role === 'Photographer',
     isCoordinator: role === 'Coordinator',
     isViewer: role === 'Viewer',
-    /** Mobile/TV consumer role: buys streams & photos, books photographers,
-     *  pays pending payments. */
-    isUser: role === 'User',
-    /** Clients and coordinators create/own events. A `User`'s events are the
-     *  ones created under the hood when they book a photographer, so they also
-     *  get an events list. */
-    ownsEvents: role === 'Client' || role === 'Coordinator' || role === 'User',
+    /** Clients and coordinators create/own events. */
+    ownsEvents: role === 'Client' || role === 'Coordinator',
   };
 }

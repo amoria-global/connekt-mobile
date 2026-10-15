@@ -8,7 +8,7 @@ import { mapAccount, maskAccountNumber, MOBILE_PROVIDER, resolveMobileName, with
 describe('withdrawalMethodsPath', () => {
   it('uses the photographer namespace only for photographers, as the web does', () => {
     expect(withdrawalMethodsPath('Photographer')).toBe('/photographer/withdrawal-methods');
-    expect(withdrawalMethodsPath('Coordinator')).toBe('/customer/withdrawal-methods');
+    expect(withdrawalMethodsPath('Coordinator')).toBe('/coordinator/withdrawal-methods');
     expect(withdrawalMethodsPath('Client')).toBe('/customer/withdrawal-methods');
     expect(withdrawalMethodsPath(undefined)).toBe('/customer/withdrawal-methods');
   });

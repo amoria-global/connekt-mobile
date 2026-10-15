@@ -8,6 +8,7 @@ import type { ApiEnvelope, ApiError } from '@/types';
 import {
   applyRates,
   FALLBACK_CURRENCIES,
+  KNOWN_CURRENCIES,
   mapSource,
   readInitiate,
   readVerify,
@@ -28,16 +29,21 @@ export async function listWithdrawableSources(role: Role | undefined): Promise<W
   return (Array.isArray(res.data) ? res.data : []).map(mapSource);
 }
 
-/** RWF and USD with live rates; falls back to the web's fixed rates. */
+const USD_ONLY = FALLBACK_CURRENCIES.filter((c) => c.code === 'USD');
+
+/** RWF and USD with live rates; USD only when the rates cannot be loaded. */
 export async function getDisplayCurrencies(): Promise<DisplayCurrency[]> {
   try {
     const res = await api.get<ApiEnvelope<Record<string, { rateToUsd?: unknown; symbol?: unknown }>>>(
       '/public/currencies/rates',
       { skipAuth: true },
     );
-    return applyRates(FALLBACK_CURRENCIES, res?.action === 1 ? res.data : null);
+    if (res?.action === 1 && res.data) return applyRates(KNOWN_CURRENCIES, res.data);
+    return USD_ONLY;
   } catch {
-    return FALLBACK_CURRENCIES;
+    // Without live rates a local-currency amount would be converted at a
+    // stale fixed rate, so offer USD only until rates load.
+    return USD_ONLY;
   }
 }
 
@@ -51,7 +57,9 @@ async function postEnvelope(path: string, body: unknown): Promise<Raw> {
     return await api.post<Raw>(path, body);
   } catch (e) {
     const err = e as ApiError;
-    if (err && typeof err === 'object' && 'status' in err && err.status >= 400 && err.status < 500 && err.status !== 401) {
+    // 408 is our own client timeout, not a refusal: the request may have
+    // landed, so it must not read as a wrong code.
+    if (err && typeof err === 'object' && 'status' in err && err.status >= 400 && err.status < 500 && err.status !== 401 && err.status !== 408) {
       return { action: 0, ...err.body, message: err.message };
     }
     throw e;

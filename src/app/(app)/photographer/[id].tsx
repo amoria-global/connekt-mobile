@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { RefreshControl, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +29,8 @@ import { VerifiedAvatar } from '@/components/ui/VerifiedAvatar';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
+import { formatPrice } from '@/utils/format';
+import { useCurrency } from '@/store/currency';
 
 
 function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyphMap; onPress?: () => void; style?: any }) {
@@ -51,6 +53,8 @@ const REPORT_REASONS = [
 ];
 
 export default function PhotographerProfileScreen() {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -239,6 +243,12 @@ export default function PhotographerProfileScreen() {
   });
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(null);
 
+  // Booked dates change when someone books this photographer; reload when
+  // the screen comes back into focus and after the booking sheet closes,
+  // instead of only on month change.
+  const [calendarReload, setCalendarReload] = useState(0);
+  useFocusEffect(useCallback(() => setCalendarReload((n) => n + 1), []));
+
   useEffect(() => {
     if (!id) return;
     const start = new Date(calendarMonth.year, calendarMonth.month, 1);
@@ -248,7 +258,7 @@ export default function PhotographerProfileScreen() {
     const toStr = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
 
     let cancelled = false;
-    getBookedDates(id, fromStr, toStr)
+    getBookedDates(id, fromStr, toStr, { includePartial: true })
       .then((dates) => {
         if (!cancelled) setBookedDates(dates);
       })
@@ -256,7 +266,7 @@ export default function PhotographerProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, calendarMonth.year, calendarMonth.month]);
+  }, [id, calendarMonth.year, calendarMonth.month, calendarReload]);
 
   const now = new Date();
   const isCurrentMonth =
@@ -293,16 +303,13 @@ export default function PhotographerProfileScreen() {
   const pad = (n: number) => String(n).padStart(2, '0');
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
-  const isDateBooked = useCallback(
-    (day: number) => {
+  // The day's booking entry, if any. isFullDay false means partly booked:
+  // shown amber and still bookable; anything else is a full (red) day.
+  const bookingFor = useCallback(
+    (day: number): BookedDate | undefined => {
       const { year, month } = calendarMonth;
       const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
-      return bookedDates.some((b) => {
-        if (!b) return false;
-        if (b.date === dateStr) return true;
-        if (b.eventDate === dateStr) return true;
-        return false;
-      });
+      return bookedDates.find((b) => b && (b.date === dateStr || b.eventDate === dateStr));
     },
     [calendarMonth, bookedDates]
   );
@@ -363,6 +370,15 @@ export default function PhotographerProfileScreen() {
           <View style={[styles.topNav, { top: Math.max(insets.top, 20) }]}>
             <IconButton icon="arrow-left" onPress={() => router.back()} />
             <View style={styles.topNavRight}>
+              <IconButton
+                icon="message-circle"
+                style={{ marginRight: 8 }}
+                onPress={() =>
+                  router.push(
+                    `/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Creator')}` as never
+                  )
+                }
+              />
               <IconButton icon="more-horizontal" style={{ marginRight: 8 }} onPress={onLongPressHeader} />
               <IconButton icon="share-2" style={{ marginRight: 8 }} onPress={handleShare} />
               <IconButton
@@ -444,13 +460,26 @@ export default function PhotographerProfileScreen() {
                 {/* Book Now Card */}
                 <View style={styles.card}>
                   <Text style={styles.cardHeaderEyebrow}>AVAILABLE TO BOOK</Text>
-                  <Pressable 
-                    style={styles.bookButton}
-                    onPress={() => bottomSheetRef.current?.snapToIndex(0)}
-                  >
-                    <Ionicons name="calendar" size={18} color="white" />
-                    <Text style={styles.bookButtonText}>BOOK NOW</Text>
-                  </Pressable>
+                  <View style={styles.bookingActionRow}>
+                    <Pressable 
+                      style={styles.bookButton}
+                      onPress={() => bottomSheetRef.current?.snapToIndex(0)}
+                    >
+                      <Ionicons name="calendar" size={18} color="white" />
+                      <Text style={styles.bookButtonText}>BOOK NOW</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.messagePhotogButton}
+                      onPress={() =>
+                        router.push(
+                          `/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Creator')}` as never
+                        )
+                      }
+                    >
+                      <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
+                      <Text style={styles.messagePhotogText}>MESSAGE</Text>
+                    </Pressable>
+                  </View>
                   <View style={styles.disclaimerRow}>
                     <Ionicons name="shield-checkmark-outline" size={14} color={colors.success} />
                     <Text style={styles.disclaimerText}>No payment to inquire</Text>
@@ -512,7 +541,9 @@ export default function PhotographerProfileScreen() {
                       const dateStr = `${calendarMonth.year}-${pad(calendarMonth.month + 1)}-${pad(day)}`;
                       const isPast = dateStr < todayStr;
                       const isToday = dateStr === todayStr;
-                      const booked = isDateBooked(day);
+                      const entry = bookingFor(day);
+                      const partial = entry?.isFullDay === false;
+                      const booked = !!entry && !partial;
                       const isSelected = selectedCalendarDate &&
                         selectedCalendarDate.getFullYear() === calendarMonth.year &&
                         selectedCalendarDate.getMonth() === calendarMonth.month &&
@@ -525,10 +556,18 @@ export default function PhotographerProfileScreen() {
                           <Pressable
                             disabled={!isAvailable}
                             onPress={() => handleDatePress(day)}
+                            accessibilityLabel={
+                              booked
+                                ? `${day}, fully booked`
+                                : partial && !isPast
+                                  ? `${day}, ${entry?.bookedCount ?? 1} of ${entry?.capacity ?? 2} booked, still available`
+                                  : undefined
+                            }
                             style={[
                               styles.daySquare,
                               isPast && styles.daySquarePast,
                               isAvailable && styles.daySquareAvailable,
+                              isAvailable && partial && styles.daySquarePartial,
                               booked && styles.daySquareBooked,
                               isToday && styles.daySquareToday,
                               isSelected && styles.daySquareSelected,
@@ -539,6 +578,7 @@ export default function PhotographerProfileScreen() {
                                 styles.dayText,
                                 isPast && styles.dayTextPast,
                                 isAvailable && styles.dayTextAvailable,
+                                isAvailable && partial && styles.dayTextPartial,
                                 booked && styles.dayTextBooked,
                                 isToday && styles.dayTextToday,
                                 isSelected && styles.dayTextSelected,
@@ -546,7 +586,7 @@ export default function PhotographerProfileScreen() {
                             >
                               {day}
                             </Text>
-                            {isAvailable && <View style={styles.dayDotAvailable} />}
+                            {isAvailable && <View style={partial ? styles.dayDotPartial : styles.dayDotAvailable} />}
                             {booked && <View style={styles.dayDotBooked} />}
                           </Pressable>
                         </View>
@@ -561,8 +601,12 @@ export default function PhotographerProfileScreen() {
                       <Text style={styles.legendText}>Available (Tap to book)</Text>
                     </View>
                     <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+                      <Text style={styles.legendText}>Partly booked</Text>
+                    </View>
+                    <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                      <Text style={styles.legendText}>Booked</Text>
+                      <Text style={styles.legendText}>Fully booked</Text>
                     </View>
                   </View>
                 </View>
@@ -614,6 +658,7 @@ export default function PhotographerProfileScreen() {
         photographerImage={data?.avatar}
         packages={data?.packages || []}
         initialDate={selectedCalendarDate}
+        onClose={() => setCalendarReload((n) => n + 1)}
       />
 
       {/* Report photographer sheet */}
@@ -682,7 +727,7 @@ export default function PhotographerProfileScreen() {
                     >
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {p.name}
-                        {p.price ? ` · ${p.currency ?? ''} ${p.price}` : ''}
+                        {p.price ? ` · ${formatPrice(p.price, p.currency)}` : ''}
                       </Text>
                     </Pressable>
                   );
@@ -963,16 +1008,39 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: c.surface,
   },
   availabilityBtnText: { color: c.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.sm },
+  bookingActionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   bookButton: {
+    flex: 1.1,
     backgroundColor: c.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: radii.lg,
     gap: 8,
-    marginBottom: spacing.md,
     ...e(2),
+  },
+  messagePhotogButton: {
+    flex: 1,
+    backgroundColor: c.surface,
+    borderWidth: 1.5,
+    borderColor: c.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: radii.lg,
+    gap: 6,
+  },
+  messagePhotogText: {
+    color: c.primary,
+    fontWeight: fontWeight.bold,
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
   bookButtonText: {
     color: '#FFFFFF',
@@ -1065,6 +1133,21 @@ const useStyles = makeStyles((c, e) => ({
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.25)',
   },
+  daySquarePartial: {
+    backgroundColor: 'rgba(245, 158, 11, 0.10)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  dayTextPartial: {
+    color: '#B45309',
+  },
+  dayDotPartial: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#F59E0B',
+    position: 'absolute',
+    bottom: 3,
+  },
   daySquareBooked: {
     backgroundColor: 'rgba(239, 68, 68, 0.08)',
     borderWidth: 1,
@@ -1122,6 +1205,8 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    rowGap: 6,
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,

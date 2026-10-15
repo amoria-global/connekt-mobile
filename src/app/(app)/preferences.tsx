@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -18,6 +21,7 @@ import {
   setPreference,
 } from '@/features/preferences/api';
 import { useAsync } from '@/hooks/useAsync';
+import { openRingingChannelSettings, ringingBypassesDnd } from '@/features/notifications/push';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function PreferencesScreen() {
@@ -36,6 +40,17 @@ export default function PreferencesScreen() {
     for (const t of NOTIFICATION_TOGGLES) next[t.key] = data[t.key] !== 'false';
     setValues(next);
   }, [data]);
+
+  // Android: do booking requests and opportunities ring through Do Not
+  // Disturb? Re-read when the user comes back from the settings page.
+  const [bypassDnd, setBypassDnd] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !isPhotographer) return;
+    const read = () => void ringingBypassesDnd().then(setBypassDnd);
+    read();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && read());
+    return () => sub.remove();
+  }, [isPhotographer]);
 
   const onToggle = (key: string, value: boolean) => {
     setValues((v) => ({ ...v, [key]: value }));
@@ -75,6 +90,32 @@ export default function PreferencesScreen() {
               </View>
             ))}
           </View>
+
+          {Platform.OS === 'android' && isPhotographer && bypassDnd !== null ? (
+            <Pressable
+              style={[styles.card, styles.dndCard]}
+              onPress={() => void openRingingChannelSettings()}
+              accessibilityRole="button"
+              accessibilityLabel="Open Do Not Disturb settings for booking alerts"
+            >
+              <View style={styles.row}>
+                <Ionicons
+                  name={bypassDnd ? 'notifications' : 'notifications-off-outline'}
+                  size={22}
+                  color={bypassDnd ? colors.primary : colors.textMuted}
+                />
+                <View style={styles.rowBody}>
+                  <Text style={styles.rowLabel}>Ring during Do Not Disturb</Text>
+                  <Text style={styles.rowDesc}>
+                    {bypassDnd
+                      ? 'On. Booking requests and opportunities ring even when Do Not Disturb is on.'
+                      : 'Off. Tap, then turn on "Override Do Not Disturb" so booking requests still ring.'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </View>
+            </Pressable>
+          ) : null}
         </ScrollView>
       )}
     </Screen>
@@ -93,6 +134,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: spacing.lg,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
+  dndCard: { marginTop: spacing.lg },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   rowBody: { flex: 1, gap: 2 },
   rowLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },

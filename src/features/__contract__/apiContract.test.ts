@@ -38,8 +38,8 @@ type Call = { method: string; path: string; source: string };
 
 const VERB: Record<string, string> = { get: 'GET', post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' };
 
-function callsIn(relFile: string): Call[] {
-  const src = readFileSync(path.join(ROOT, relFile), 'utf8');
+function callsIn(relFile: string, rewrite: (src: string) => string = (src) => src): Call[] {
+  const src = rewrite(readFileSync(path.join(ROOT, relFile), 'utf8'));
   const calls: Call[] = [];
   // api.get('...'), api.post(`...`, body), etc. First argument only.
   // (?:<[^()]*>)? allows nested generics like <ApiEnvelope<Raw>> before the (.
@@ -95,7 +95,7 @@ describe('mobile auth + KYC requests against the backend contract', () => {
  * screen used to read the photographer path for every role.
  */
 describe('mobile payment accounts against the backend contract', () => {
-  const ROLES = ['Photographer', 'Coordinator', 'Client', 'User', 'Viewer', undefined] as const;
+  const ROLES = ['Photographer', 'Coordinator', 'Client', 'Viewer', undefined] as const;
   const withId = (p: string) => `${p}/00000000-0000-0000-0000-000000000000`;
 
   it.each(ROLES)('every withdrawal-methods call exists for role %s', (role) => {
@@ -125,7 +125,7 @@ describe('mobile payment accounts against the backend contract', () => {
  * the backend has never had; these would have caught it.
  */
 describe('mobile withdraw flow against the backend contract', () => {
-  const ROLES = ['Photographer', 'Coordinator', 'Client', 'User', undefined] as const;
+  const ROLES = ['Photographer', 'Coordinator', 'Client', undefined] as const;
 
   it.each(ROLES)('every withdraw call exists for role %s', (role) => {
     const ns = '/api/remote/' + withdrawNamespace(role);
@@ -162,3 +162,115 @@ describe('contract copy', () => {
     },
   );
 });
+
+/**
+ * Album collaboration replaced the Team. Its client builds every path on a
+ * BASE constant, so substitute it before extracting. Both the owner side
+ * (review, invite, remove) and the collaborator side (join, submit, leave)
+ * must hit routes the backend has.
+ */
+describe('mobile album collaboration against the backend contract', () => {
+  const calls = callsIn('src/features/collab/api.ts', (src) => src.replace(/\$\{BASE\}/g, '/photographer/collab'));
+
+  it('finds both sides of the workflow', () => {
+    const paths = calls.map((c) => `${c.method} ${c.path}`);
+    expect(paths).toContain('POST /api/remote/photographer/collab/albums/X/invites');
+    expect(paths).toContain('POST /api/remote/photographer/collab/submissions/review');
+    expect(paths).toContain('POST /api/remote/photographer/collab/invites/X/accept');
+    expect(paths).toContain('POST /api/remote/photographer/collab/joined/X/submissions');
+    expect(paths).toContain('DELETE /api/remote/photographer/collab/links/X');
+    expect(paths.length).toBe(13);
+  });
+
+  it('every collaboration path exists on the backend', () => {
+    expect(calls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
+
+  it('nothing calls the retired Team management routes', () => {
+    expect(existsSync(path.join(ROOT, 'src/features/teams'))).toBe(false);
+    expect(existsSync(path.join(ROOT, 'src/app/(app)/team'))).toBe(false);
+  });
+});
+
+/**
+ * Dedicated role endpoints: Photographer Payments, Coordinator Clients,
+ * and single-item detail routes.
+ */
+describe('dedicated role endpoints against the backend contract', () => {
+  it('every role-specific payment endpoint exists on the backend', () => {
+    const paymentCalls = [
+      { method: 'GET', path: '/api/remote/customer/payments', source: 'payments' },
+      { method: 'GET', path: '/api/remote/customer/payments/X', source: 'payments' },
+      { method: 'GET', path: '/api/remote/coordinator/payments', source: 'payments' },
+      { method: 'GET', path: '/api/remote/coordinator/payments/X', source: 'payments' },
+      { method: 'GET', path: '/api/remote/photographer/payments', source: 'payments' },
+      { method: 'GET', path: '/api/remote/photographer/payments/X', source: 'payments' },
+    ];
+    expect(paymentCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
+
+  it('every client CRM endpoint exists for both Photographers and Coordinators', () => {
+    const clientCalls = [
+      { method: 'GET', path: '/api/remote/photographer/clients', source: 'clients' },
+      { method: 'GET', path: '/api/remote/photographer/clients/X', source: 'clients' },
+      { method: 'GET', path: '/api/remote/coordinator/clients', source: 'clients' },
+      { method: 'GET', path: '/api/remote/coordinator/clients/X', source: 'clients' },
+    ];
+    expect(clientCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
+
+  it('in-stream tipping route exists on the backend', () => {
+    const tipCalls = [
+      { method: 'POST', path: '/api/remote/streams/X/tip', source: 'streams' },
+    ];
+    expect(tipCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
+});
+
+/**
+ * Hybrid Booking Engine: match-preview, match-request, opportunities,
+ * candidates, select-photographer, convert-to-hybrid.
+ */
+describe('mobile hybrid booking requests against the backend contract', () => {
+  const hybridCalls = callsIn('src/features/hybrid/api.ts', (src) =>
+    src.replace(/\$\{encodeURIComponent\([^)]+\)\}/g, 'X'),
+  );
+
+  it('finds all hybrid matching endpoints in the api client', () => {
+    const paths = hybridCalls.map((c) => `${c.method} ${c.path}`);
+    expect(paths).toContain('POST /api/remote/events/match-preview');
+    expect(paths).toContain('POST /api/remote/events/X/match-request');
+    expect(paths).toContain('GET /api/remote/photographer/opportunities');
+    expect(paths).toContain('POST /api/remote/opportunities/X/approve');
+    expect(paths).toContain('POST /api/remote/opportunities/X/reject');
+    expect(paths).toContain('GET /api/remote/events/X/candidates');
+    expect(paths).toContain('POST /api/remote/events/X/select-photographer');
+    expect(paths).toContain('POST /api/remote/events/X/convert-to-hybrid');
+    expect(paths).toContain('POST /api/remote/events/X/convert-to-direct');
+  });
+
+  it('every hybrid path exists on the backend contract', () => {
+    const missing = hybridCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path} (${c.source})`);
+    expect(missing).toEqual([]);
+  });
+});
+
+/**
+ * Direct Booking Map Filtering & Client Location Detection ("You are here")
+ * Controller: DirectBookingMapController
+ * Commit: 1957e777
+ */
+describe('mobile direct booking map against the backend contract', () => {
+  const mapCalls = callsIn('src/features/photographers/mapApi.ts');
+
+  it('finds the direct booking map endpoint in the api client', () => {
+    const paths = mapCalls.map((c) => `${c.method} ${c.path}`);
+    expect(paths).toContain('GET /api/remote/direct-booking/map');
+  });
+
+  it('every direct booking map path exists on the backend contract', () => {
+    const missing = mapCalls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path} (${c.source})`);
+    expect(missing).toEqual([]);
+  });
+});
+

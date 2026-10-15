@@ -24,8 +24,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { fonts, makeStyles, radii, spacing, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 import type { PhotographerAnalytics } from '@/features/analytics/api';
+import { useCurrency } from '@/store/currency';
 
 export type TimeframeKey = 'today' | 'week' | 'month' | 'all';
 
@@ -68,74 +69,103 @@ export function MultipleDonutOverviewCard({
   subtitle,
   showActionsRow = false,
 }: Props) {
+  // Re-render when the display currency changes (formatPrice reads the store).
+  useCurrency((s) => s.currency);
   const { colors, isDark } = useTheme();
   const styles = useStyles();
   const [viewMode, setViewMode] = useState<ViewMode>('donut');
   const [selectedRing, setSelectedRing] = useState<'outer' | 'middle' | 'inner' | null>(null);
 
-  // Raw values from analytics
-  const totalEarnings = analytics?.totalEarnings ?? 14250;
-  const completedShoots = analytics?.completedEvents ?? 42;
-  const totalClients = analytics?.totalClients ?? 28;
-  const totalTips = analytics?.totalTips ?? 1680;
-  const bonuses = analytics?.bonuses ?? 600;
+  // Raw values from real database analytics
+  const totalEarnings = analytics?.totalEarnings ?? 0;
+  const completedShoots = analytics?.completedEvents ?? 0;
+  const totalClients = analytics?.totalClients ?? 0;
+  const totalTips = analytics?.totalTips ?? 0;
+  const bonuses = analytics?.bonuses ?? 0;
+  const totalPhotos = analytics?.totalPhotosUploaded ?? 0;
+  const totalRewards = totalTips + bonuses;
 
-  // Breakdown distribution aligned with Connekt Brand System:
+  // Authentic breakdown distribution aligned with Connekt Brand System:
   // Ring 1 (Outer): Connekt Signature Accent (#F20C8F) — Photo Sales
   // Ring 2 (Middle): Connekt Brand Blue (#083A85 in light / #3D6FD6 in dark) — Event Bookings
   // Ring 3 (Inner): Connekt Status Emerald/Teal (#0D9488 in light / #2DD4BF in dark) — Tips & Bonuses
   const ringData = useMemo(() => {
-    const p1 = 48;
-    const p2 = 36;
-    const p3 = 16;
+    // Authentic breakdown derived directly from database analytics:
+    const rewards = totalTips + bonuses;
+    const coreRevenue = Math.max(0, totalEarnings - rewards);
 
-    const v1 = Math.round(totalEarnings * 0.48);
-    const v2 = Math.round(totalEarnings * 0.36);
-    const v3 = Math.round((totalTips + bonuses) || totalEarnings * 0.16);
+    const hasEarnings = totalEarnings > 0;
+    // Analytics has no bookings vs photo-sales breakdown, so the two are one
+    // figure. This used to invent a 65/35 split of it.
+    const bookingsRevenue = hasEarnings ? coreRevenue : 0;
+    const photoSalesRevenue: number | null = null;
+
+    let p1 = 0;
+    let p2 = 0;
+    let p3 = 0;
+
+    if (hasEarnings) {
+      p3 = Math.round((rewards / totalEarnings) * 100);
+      p2 = Math.round((bookingsRevenue / totalEarnings) * 100);
+      p1 = Math.max(0, 100 - p2 - p3);
+    } else {
+      // Activity breakdown for new creator from verified counts
+      const totalActivity = totalPhotos + completedShoots + totalClients;
+      if (totalActivity > 0) {
+        p1 = Math.round((totalPhotos / totalActivity) * 100);
+        p2 = Math.round((completedShoots / totalActivity) * 100);
+        p3 = Math.max(0, 100 - p1 - p2);
+      }
+    }
 
     const colorOuter = colors.accent; // #F20C8F
     const colorMiddle = colors.primary; // #083A85 (light) / #3D6FD6 (dark)
     const colorInner = isDark ? '#2DD4BF' : '#0D9488'; // Status Teal / Cyan
+
+    // Real sweep fractions: 0 if 0% so track shows clean empty state for new creators
+    const sweep1 = p1 > 0 ? Math.min(0.92, Math.max(0.06, (p1 / 100) * 0.92)) : 0;
+    const sweep2 = p2 > 0 ? Math.min(0.85, Math.max(0.06, (p2 / 100) * 0.85)) : 0;
+    const sweep3 = p3 > 0 ? Math.min(0.75, Math.max(0.06, (p3 / 100) * 0.75)) : 0;
 
     return {
       outer: {
         key: 'outer' as const,
         pct: p1,
         label: 'Photo Sales',
-        countLabel: `${Math.round(p1 * 5.9)} Sold`,
-        amount: v1,
+        countLabel: `${totalPhotos} Photo${totalPhotos === 1 ? '' : 's'}`,
+        amount: photoSalesRevenue,
         color: colorOuter,
         dimColor: isDark ? 'rgba(242, 12, 143, 0.28)' : 'rgba(242, 12, 143, 0.22)',
         bgColor: isDark ? 'rgba(242, 12, 143, 0.14)' : 'rgba(242, 12, 143, 0.08)',
         borderColor: isDark ? 'rgba(242, 12, 143, 0.45)' : 'rgba(242, 12, 143, 0.3)',
-        sweepFraction: 0.78, // ~280 degrees matching Pinterest
+        sweepFraction: sweep1,
       },
       middle: {
         key: 'middle' as const,
         pct: p2,
-        label: 'Event Bookings',
-        countLabel: `${completedShoots || 36} Shoots`,
-        amount: v2,
+        label: 'Bookings & Photo Sales',
+        countLabel: `${completedShoots} Shoot${completedShoots === 1 ? '' : 's'}`,
+        amount: bookingsRevenue,
         color: colorMiddle,
         dimColor: isDark ? 'rgba(61, 111, 214, 0.28)' : 'rgba(8, 58, 133, 0.22)',
         bgColor: isDark ? 'rgba(61, 111, 214, 0.14)' : 'rgba(8, 58, 133, 0.08)',
         borderColor: isDark ? 'rgba(61, 111, 214, 0.45)' : 'rgba(8, 58, 133, 0.25)',
-        sweepFraction: 0.62, // ~225 degrees matching Pinterest
+        sweepFraction: sweep2,
       },
       inner: {
         key: 'inner' as const,
         pct: p3,
         label: 'Tips & Bonuses',
-        countLabel: `${Math.round(totalClients * 0.8) || 16} Bonuses`,
-        amount: v3,
+        countLabel: rewards > 0 ? formatPrice(rewards, currency) : `${totalClients} Client${totalClients === 1 ? '' : 's'}`,
+        amount: rewards,
         color: colorInner,
         dimColor: isDark ? 'rgba(45, 212, 191, 0.28)' : 'rgba(13, 148, 136, 0.22)',
         bgColor: isDark ? 'rgba(45, 212, 191, 0.14)' : 'rgba(13, 148, 136, 0.08)',
         borderColor: isDark ? 'rgba(45, 212, 191, 0.45)' : 'rgba(13, 148, 136, 0.25)',
-        sweepFraction: 0.33, // ~120 degrees matching Pinterest
+        sweepFraction: sweep3,
       },
     };
-  }, [totalEarnings, completedShoots, totalTips, bonuses, totalClients, colors, isDark]);
+  }, [totalEarnings, completedShoots, totalTips, bonuses, totalPhotos, totalClients, currency, colors, isDark]);
 
   // Center display values based on active selection (dynamic system colors)
   const centerDisplay = useMemo(() => {
@@ -144,7 +174,7 @@ export function MultipleDonutOverviewCard({
         number: `${ringData.outer.pct}`,
         unit: '%',
         subLabel: ringData.outer.countLabel,
-        amount: balanceHidden ? '••••••' : formatMoney(ringData.outer.amount, currency),
+        amount: balanceHidden ? '••••••' : ringData.outer.amount == null ? 'In bookings total' : formatPrice(ringData.outer.amount, currency),
         color: ringData.outer.color,
       };
     }
@@ -153,7 +183,7 @@ export function MultipleDonutOverviewCard({
         number: `${ringData.middle.pct}`,
         unit: '%',
         subLabel: ringData.middle.countLabel,
-        amount: balanceHidden ? '••••••' : formatMoney(ringData.middle.amount, currency),
+        amount: balanceHidden ? '••••••' : formatPrice(ringData.middle.amount, currency),
         color: ringData.middle.color,
       };
     }
@@ -162,17 +192,17 @@ export function MultipleDonutOverviewCard({
         number: `${ringData.inner.pct}`,
         unit: '%',
         subLabel: ringData.inner.countLabel,
-        amount: balanceHidden ? '••••••' : formatMoney(ringData.inner.amount, currency),
+        amount: balanceHidden ? '••••••' : formatPrice(ringData.inner.amount, currency),
         color: ringData.inner.color,
       };
     }
-    // Default: Lead with 48% and "283 Sold" (responsive text color)
-    const goalPct = Math.min(100, Math.max(48, Math.round((totalEarnings / targetEarnings) * 100)));
+    // Default: Display Goal Progress or authentic stream summary
+    const goalPct = Math.min(100, Math.max(0, Math.round((totalEarnings / targetEarnings) * 100)));
     return {
       number: isComparisonMode ? `${goalPct}` : `${ringData.outer.pct}`,
       unit: '%',
-      subLabel: isComparisonMode ? `Goal Progress` : ringData.outer.countLabel,
-      amount: balanceHidden ? '••••••' : formatMoney(totalEarnings, currency),
+      subLabel: isComparisonMode ? 'Goal Progress' : ringData.outer.countLabel,
+      amount: balanceHidden ? '••••••' : formatPrice(totalEarnings, currency),
       color: colors.text,
     };
   }, [selectedRing, ringData, balanceHidden, totalEarnings, currency, isComparisonMode, targetEarnings, colors.text]);
@@ -489,11 +519,12 @@ export function MultipleDonutOverviewCard({
               {/* Start Entrance Value Markers (48, 36, 16) stacked vertically at top */}
               {/* Outer Ring Value (48) */}
               <SvgText
-                x={CENTER_X - 14}
-                y={CENTER_Y - R_OUTER + 5}
+                x={CENTER_X - 16}
+                y={CENTER_Y - R_OUTER + 4}
                 fill={ringData.outer.color}
-                fontSize="12.5"
+                fontSize="11"
                 fontWeight="bold"
+                fontFamily={fonts.bold}
                 textAnchor="end"
               >
                 {ringData.outer.pct}
@@ -501,11 +532,12 @@ export function MultipleDonutOverviewCard({
 
               {/* Middle Ring Value (36) */}
               <SvgText
-                x={CENTER_X - 14}
-                y={CENTER_Y - R_MIDDLE + 5}
+                x={CENTER_X - 16}
+                y={CENTER_Y - R_MIDDLE + 4}
                 fill={ringData.middle.color}
-                fontSize="12.5"
+                fontSize="11"
                 fontWeight="bold"
+                fontFamily={fonts.bold}
                 textAnchor="end"
               >
                 {ringData.middle.pct}
@@ -513,11 +545,12 @@ export function MultipleDonutOverviewCard({
 
               {/* Inner Ring Value (16) */}
               <SvgText
-                x={CENTER_X - 14}
-                y={CENTER_Y - R_INNER + 5}
+                x={CENTER_X - 16}
+                y={CENTER_Y - R_INNER + 4}
                 fill={ringData.inner.color}
-                fontSize="12.5"
+                fontSize="11"
                 fontWeight="bold"
+                fontFamily={fonts.bold}
                 textAnchor="end"
               >
                 {ringData.inner.pct}
@@ -527,13 +560,17 @@ export function MultipleDonutOverviewCard({
             {/* Donut Center Overlay (Large 48% + 283 Sold) */}
             <View style={styles.donutCenterOverlay} pointerEvents="none">
               <View style={styles.centerNumberRow}>
-                <Text style={[styles.centerBigNumber, { color: centerDisplay.color }]}>
+                <Text
+                  style={[styles.centerBigNumber, { color: centerDisplay.color }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {centerDisplay.number}
                 </Text>
                 <Text style={styles.centerPercentSign}>{centerDisplay.unit}</Text>
               </View>
-              <Text style={styles.centerSubLabel}>{centerDisplay.subLabel}</Text>
-              <Text style={styles.centerAmountLabel}>{centerDisplay.amount}</Text>
+              <Text style={styles.centerSubLabel} numberOfLines={1}>{centerDisplay.subLabel}</Text>
+              <Text style={styles.centerAmountLabel} numberOfLines={1}>{centerDisplay.amount}</Text>
             </View>
           </View>
         </View>
@@ -598,7 +635,7 @@ export function MultipleDonutOverviewCard({
             <View style={styles.barItemTop}>
               <Text style={styles.barLabel}>{ringData.outer.label}</Text>
               <Text style={[styles.barValue, { color: ringData.outer.color }]}>
-                {ringData.outer.pct}% · {balanceHidden ? '••••' : formatMoney(ringData.outer.amount, currency)}
+                {ringData.outer.pct}% · {balanceHidden ? '••••' : ringData.outer.amount == null ? 'In bookings total' : formatPrice(ringData.outer.amount, currency)}
               </Text>
             </View>
             <View style={styles.barTrack}>
@@ -615,7 +652,7 @@ export function MultipleDonutOverviewCard({
             <View style={styles.barItemTop}>
               <Text style={styles.barLabel}>{ringData.middle.label}</Text>
               <Text style={[styles.barValue, { color: ringData.middle.color }]}>
-                {ringData.middle.pct}% · {balanceHidden ? '••••' : formatMoney(ringData.middle.amount, currency)}
+                {ringData.middle.pct}% · {balanceHidden ? '••••' : formatPrice(ringData.middle.amount, currency)}
               </Text>
             </View>
             <View style={styles.barTrack}>
@@ -632,7 +669,7 @@ export function MultipleDonutOverviewCard({
             <View style={styles.barItemTop}>
               <Text style={styles.barLabel}>{ringData.inner.label}</Text>
               <Text style={[styles.barValue, { color: ringData.inner.color }]}>
-                {ringData.inner.pct}% · {balanceHidden ? '••••' : formatMoney(ringData.inner.amount, currency)}
+                {ringData.inner.pct}% · {balanceHidden ? '••••' : formatPrice(ringData.inner.amount, currency)}
               </Text>
             </View>
             <View style={styles.barTrack}>
@@ -657,10 +694,14 @@ export function MultipleDonutOverviewCard({
           >
             <Text style={styles.trendCardLabel}>Total Earnings</Text>
             <Text style={styles.trendCardValue}>
-              {balanceHidden ? '••••••' : formatMoney(totalEarnings, currency)}
+              {balanceHidden ? '••••••' : formatPrice(totalEarnings, currency)}
             </Text>
             <Text style={[styles.trendCardSub, { color: isDark ? '#4ADE80' : '#059669' }]}>
-              {isComparisonMode ? `${centerDisplay.number}% Goal Met` : '+14% vs last week'}
+              {isComparisonMode
+                ? `${centerDisplay.number}% Goal Met`
+                : totalEarnings > 0
+                  ? 'Verified Net'
+                  : 'Starting Out'}
             </Text>
           </Pressable>
 
@@ -691,7 +732,7 @@ export function MultipleDonutOverviewCard({
           >
             <Text style={styles.trendCardLabel}>Tips & Bonuses</Text>
             <Text style={styles.trendCardValue}>
-              {balanceHidden ? '••••••' : formatMoney(totalTips + bonuses, currency)}
+              {balanceHidden ? '••••••' : formatPrice(totalTips + bonuses, currency)}
             </Text>
             <Text style={[styles.trendCardSub, { color: isDark ? '#2DD4BF' : '#0D9488' }]}>Rewards tally</Text>
           </Pressable>
@@ -704,9 +745,13 @@ export function MultipleDonutOverviewCard({
           <View style={styles.pieScoreRow}>
             <View style={styles.pieRatingCircle}>
               <Text style={styles.pieRatingNumber}>
-                {(analytics?.averageRating ?? 4.9).toFixed(1)}
+                {(analytics?.averageRating && analytics.averageRating > 0)
+                  ? analytics.averageRating.toFixed(1)
+                  : 'New'}
               </Text>
-              <Text style={styles.pieRatingMax}>/ 5.0</Text>
+              {(analytics?.averageRating && analytics.averageRating > 0) ? (
+                <Text style={styles.pieRatingMax}>/ 5.0</Text>
+              ) : null}
             </View>
             <View style={styles.pieScoreCol}>
               <Text style={styles.pieScoreTitle}>Creator Satisfaction Score</Text>
@@ -715,10 +760,17 @@ export function MultipleDonutOverviewCard({
               </Text>
               <View style={styles.starsRow}>
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <Ionicons key={s} name="star" size={14} color="#F59E0B" />
+                  <Ionicons
+                    key={s}
+                    name={s <= Math.round(analytics?.averageRating ?? 0) ? 'star' : 'star-outline'}
+                    size={14}
+                    color="#F59E0B"
+                  />
                 ))}
                 <Text style={styles.reviewsCountText}>
-                  {analytics?.totalBookings ?? 18} verified reviews
+                  {(analytics?.averageRating && analytics.averageRating > 0)
+                    ? `${analytics?.totalBookings ?? completedShoots} verified bookings`
+                    : 'Awaiting first review'}
                 </Text>
               </View>
             </View>
@@ -848,11 +900,15 @@ const useStyles = makeStyles((c, e) => ({
   },
   donutCenterOverlay: {
     position: 'absolute',
+    left: 92,
+    top: 79,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    width: 140,
-    left: 78,
-    top: 75,
+    paddingHorizontal: 6,
+    gap: 1,
   },
   centerNumberRow: {
     flexDirection: 'row',
@@ -861,30 +917,34 @@ const useStyles = makeStyles((c, e) => ({
   },
   centerBigNumber: {
     fontFamily: fonts.bold,
-    fontSize: 52,
+    fontSize: 32,
     color: c.text,
-    letterSpacing: -1,
-    lineHeight: 56,
+    letterSpacing: -0.5,
+    lineHeight: 36,
+    textAlign: 'center',
   },
   centerPercentSign: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 16,
     color: c.textMuted,
-    marginTop: 4,
-    marginLeft: 2,
+    marginTop: 2,
+    marginLeft: 1,
+    lineHeight: 18,
   },
   centerSubLabel: {
     fontFamily: fonts.bold,
-    fontSize: 13.5,
+    fontSize: 10.5,
     color: c.textSoft,
-    letterSpacing: 0.3,
-    marginTop: 2,
+    letterSpacing: 0.2,
+    lineHeight: 13,
+    textAlign: 'center',
   },
   centerAmountLabel: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: 10,
     color: c.textMuted,
-    marginTop: 2,
+    lineHeight: 12,
+    textAlign: 'center',
   },
 
   // ── Bottom Legend Capsules ────────────────────────────────────────────
@@ -1008,12 +1068,16 @@ const useStyles = makeStyles((c, e) => ({
   pieRatingNumber: {
     fontFamily: fonts.bold,
     fontSize: 22,
+    lineHeight: 25,
     color: '#F59E0B',
+    textAlign: 'center',
   },
   pieRatingMax: {
     fontFamily: fonts.regular,
     fontSize: 10,
+    lineHeight: 12,
     color: c.textMuted,
+    textAlign: 'center',
   },
   pieScoreCol: {
     flex: 1,

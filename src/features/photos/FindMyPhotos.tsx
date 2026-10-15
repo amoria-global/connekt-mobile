@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Image } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as ScreenCapture from 'expo-screen-capture';
-import { downloadAsync, cacheDirectory } from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
+import {
+  preventScreenCapture,
+  allowScreenCapture,
+  enableAppSwitcherProtection,
+  disableAppSwitcherProtection,
+  addScreenshotListener,
+} from '@/utils/screenCapture';
 import {
   ActivityIndicator,
   Alert,
@@ -30,9 +33,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ensureFaceConsent } from '@/features/privacy/consent';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import {
-  albumPurchaseUrl,
   browsePhotosUrl,
-  openWebCheckout,
 } from '@/features/payments/webCheckout';
 import { PhotoCheckoutSheet } from './PhotoCheckoutSheet';
 import { savePhotoToGallery, saveBatchPhotosToGallery } from '@/utils/gallerySaver';
@@ -57,7 +58,7 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
-import { formatMoney } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
@@ -146,7 +147,7 @@ function PhotoCell({
         <View style={styles.cellPriceBadge}>
           <Ionicons name="lock-closed" size={11} color="#FFF" />
           {price != null && price > 0 && (
-            <Text style={styles.cellPriceText}>{formatMoney(price, currency)}</Text>
+            <Text style={styles.cellPriceText}>{formatPrice(price, currency)}</Text>
           )}
         </View>
       )}
@@ -384,6 +385,9 @@ export function FindMyPhotos() {
 
   // --- In-App Checkout & Lightbox & Batch Downloader ---
   const [checkoutVisible, setCheckoutVisible] = useState(false);
+  // Set while the checkout is paying for a free album's extras, so success ships
+  // every selected photo through the free-album download path.
+  const extrasInFlight = useRef<{ allSelectedIds: string[] } | null>(null);
   const [checkoutItems, setCheckoutItems] = useState<MultiAlbumPurchaseItem[]>([]);
   const [checkoutPhotoCount, setCheckoutPhotoCount] = useState(0);
   const [checkoutPhotographerCount, setCheckoutPhotographerCount] = useState(0);
@@ -423,21 +427,21 @@ export function FindMyPhotos() {
     );
 
     if (hasPhotos) {
-      ScreenCapture.preventScreenCaptureAsync('find-my-photos').catch(() => {});
+      preventScreenCapture('find-my-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.enableAppSwitcherProtectionAsync(0.8).catch(() => {});
+        enableAppSwitcherProtection(0.8);
       }
     } else {
-      ScreenCapture.allowScreenCaptureAsync('find-my-photos').catch(() => {});
+      allowScreenCapture('find-my-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+        disableAppSwitcherProtection();
       }
     }
 
     return () => {
-      ScreenCapture.allowScreenCaptureAsync('find-my-photos').catch(() => {});
+      allowScreenCapture('find-my-photos');
       if (Platform.OS === 'ios') {
-        ScreenCapture.disableAppSwitcherProtectionAsync().catch(() => {});
+        disableAppSwitcherProtection();
       }
     };
   }, [faceResults, albumPhotos, freePhotos, previewPhoto]);
@@ -452,21 +456,16 @@ export function FindMyPhotos() {
     );
     if (!hasPhotos) return;
 
-    let sub: { remove: () => void } | undefined;
-    try {
-      sub = ScreenCapture.addScreenshotListener(() => {
-        Alert.alert(
-          'Screenshot Restricted',
-          'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
-          [{ text: 'OK' }]
-        );
-      });
-    } catch {
-      // Ignored if unsupported in environment
-    }
+    const sub = addScreenshotListener(() => {
+      Alert.alert(
+        'Screenshot Restricted',
+        'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
+        [{ text: 'OK' }]
+      );
+    });
 
     return () => {
-      sub?.remove();
+      sub.remove();
     };
   }, [faceResults, albumPhotos, freePhotos, previewPhoto]);
 
@@ -757,18 +756,39 @@ export function FindMyPhotos() {
       return;
     }
 
-    // Extras are purchased on connekyt.com — the app never collects the
-    // payment. Offer to download the free allowance now and hand the extras
-    // over to the web page (this branch is only reachable when
-    // digitalPurchasesEnabled — the Android path returned above).
+    // Extras are paid in the app through the same checkout as paid albums, for
+    // the OVERFLOW photos only (owned photos and the free quota are never
+    // charged). Offer to download the free allowance now or pay for the rest
+    // (this branch is only reachable when digitalPurchasesEnabled — the Android
+    // path returned above).
     const capNum = Number.isFinite(info.cap) ? (info.cap as number) : info.newPicks.length;
     const allowed = [...info.owned, ...info.newPicks.slice(0, capNum)];
     const extrasTotal = Math.round(price * info.overflow);
-    const buyOnWeb = () =>
-      void openWebCheckout(albumPurchaseUrl(code.trim()));
+    const buyExtras = () => {
+      const overflowIds = info.newPicks.slice(capNum);
+      if (!overflowIds.length || !freeAlbumId || !freeAlbumCurrencyId) {
+        setFreeStatusMsg('These extra photos cannot be purchased right now. Please try again.');
+        return;
+      }
+      extrasInFlight.current = { allSelectedIds: Array.from(selectedFreeIds) };
+      setCheckoutItems([
+        {
+          albumId: freeAlbumId,
+          photoIds: overflowIds,
+          amount: Math.round(price * overflowIds.length * 100) / 100,
+          currencyId: freeAlbumCurrencyId,
+        },
+      ]);
+      setCheckoutPhotoCount(overflowIds.length);
+      setCheckoutPhotographerCount(1);
+      setCheckoutCurrencySym(freeAlbumCurrencyAbbr ? `${freeAlbumCurrencyAbbr} ` : '$');
+      setCheckoutTotal(Math.round(price * overflowIds.length * 100) / 100);
+      setCheckoutPendingPhotoIds(overflowIds);
+      setCheckoutVisible(true);
+    };
     Alert.alert(
       'Extra Photos',
-      `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${freeAlbumCurrencyAbbr || ''} ${extrasTotal} and are purchased on connekyt.com.`,
+      `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined)} and are paid for here in the app.`,
       [
         { text: 'Cancel', style: 'cancel' },
         ...(allowed.length
@@ -782,7 +802,7 @@ export function FindMyPhotos() {
                     try {
                       await downloadFreeSelected(allowed);
                       setFreeStatusMsg(
-                        `Done! Buy the ${info.overflow} extra photo${info.overflow === 1 ? '' : 's'} on connekyt.com.`,
+                        `Done! You can pay for the ${info.overflow} extra photo${info.overflow === 1 ? '' : 's'} any time.`,
                       );
                     } catch {
                       setFreeStatusMsg('Some photos could not be downloaded. Please try again.');
@@ -794,7 +814,7 @@ export function FindMyPhotos() {
               },
             ]
           : []),
-        { text: 'Buy extras on connekyt.com', onPress: buyOnWeb },
+        { text: 'Pay for extras', onPress: buyExtras },
       ],
     );
   };
@@ -854,6 +874,22 @@ export function FindMyPhotos() {
     unlockCodeResult: string | null,
     purchasedPhotoIds: string[],
   ) => {
+    if (extrasInFlight.current) {
+      const { allSelectedIds } = extrasInFlight.current;
+      extrasInFlight.current = null;
+      setCheckoutVisible(false);
+      // Mark everything just paid for as owned so a refresh never re-charges,
+      // then ship the whole selection (free quota + extras).
+      setFreeAcquiredIds((prev) => {
+        const next = new Set(prev);
+        allSelectedIds.forEach((id) => next.add(id));
+        return next;
+      });
+      setPurchaseNotice('Payment confirmed. Your extra photos are unlocked and downloading.');
+      void downloadFreeSelected();
+      return;
+    }
+
     const ids = purchasedPhotoIds.length ? purchasedPhotoIds : checkoutPendingPhotoIds;
     const owned = new Set(ids);
 
@@ -1799,7 +1835,7 @@ export function FindMyPhotos() {
                 : <Ionicons name={showPurchase ? 'card-outline' : 'cloud-download-outline'} size={16} color="#FFF" />}
               <Text style={styles.actionBarBtnText}>
                 {showPurchase
-                  ? `Purchase (${freeAlbumCurrencyAbbr || ''} ${extrasTotal} for ${info.overflow} extra)`
+                  ? `Purchase (${formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined)} for ${info.overflow} extra)`
                   : `Download ${downloadableNow}`}
               </Text>
             </Pressable>
@@ -2080,7 +2116,7 @@ export function FindMyPhotos() {
                   <Text style={styles.actionBarBtnText}>
                     Buy {selectedUnpurchased.length}
                     {selectedUnpurchasedTotal > 0
-                      ? ` · ${formatMoney(selectedUnpurchasedTotal, resultCurrency)}`
+                      ? ` · ${formatPrice(selectedUnpurchasedTotal, resultCurrency)}`
                       : ''}
                   </Text>
                 </Pressable>
@@ -2271,7 +2307,10 @@ export function FindMyPhotos() {
       {/* ── In-App Photo Checkout Sheet ── */}
       <PhotoCheckoutSheet
         visible={checkoutVisible}
-        onClose={() => setCheckoutVisible(false)}
+        onClose={() => {
+          extrasInFlight.current = null;
+          setCheckoutVisible(false);
+        }}
         items={checkoutItems}
         photoCount={checkoutPhotoCount}
         photographerCount={checkoutPhotographerCount}
@@ -2468,7 +2507,7 @@ export function FindMyPhotos() {
                           <Ionicons name="card-outline" size={18} color="#FFF" />
                           <Text style={styles.lbBtnText}>
                             Buy ·{' '}
-                            {formatMoney(
+                            {formatPrice(
                               previewPhoto.price,
                               (previewPhoto as any).currencyAbbreviation ||
                                 (previewPhoto as any).currency ||

@@ -7,10 +7,14 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { listStreams } from '@/features/streams/api';
 import { StreamCard } from '@/features/streams/StreamCard';
 import { useAsync } from '@/hooks/useAsync';
+import { useRole } from '@/features/auth/role';
 
 export default function StreamsScreen() {
   const router = useRouter();
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listStreams(), []));
+  const { isCoordinator } = useRole();
+  const { data, loading, error, refresh } = useAsync(
+    useCallback(() => listStreams(isCoordinator), [isCoordinator]),
+  );
 
   return (
     <Screen padded={false}>

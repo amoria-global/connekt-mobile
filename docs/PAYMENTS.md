@@ -1,80 +1,114 @@
 # Payments in the mobile app
 
-## The app does not take payments
+Updated 2026-09-30. Read this, and the backend's `docs/PAYMENTS.md`, before
+changing anything that touches money. Every rule here cost a buyer real money on
+web first.
 
-There is no native payment flow. No phone number collection, no MoMo/card
-picker, no gateway polling, no settlement handling. Every flow that needs money
-opens the connekyt.com web checkout in the in-app browser
-(`src/features/payments/webCheckout.ts`):
+## What the app does
 
-| Flow | Opens |
-|---|---|
-| Find My Photos | `/user/find-my-photos?code=…` |
-| Photo marketplace | `/user/browse-photos[/slug]` |
-| Stream access | `/user/events/join-package?id=…` |
-| Donations / gifts | `/user/donations`, `/user/events/live-stream` |
-| Bookings, archive | `/user/complete-payment?ref=…` (minted handoff token) |
+Payments complete **in the app**. The app collects a mobile-money number or hands
+a card to the gateway page, starts the charge, waits, and settles. There is one
+shared sheet for the JWT-gated payments and one poller for all of them.
 
-**Consequence: the web client owns payment correctness, and this app inherits
-both its fixes and its bugs automatically.** When the web checkout was fixed on
-2026-08-23, mobile buyers were fixed at the same moment with no app release —
-they had been hitting the same defect, because `browsePhotosUrl` opens the very
-page that carried it.
+| Flow | Where | Server contract |
+|---|---|---|
+| Booking balance, photobook extras | `HandoffCheckoutSheet` (PayNowSheet, payment/[id], BookingBottomSheet, event/new, photobook/[id]) | `POST /payments/handoff`, then public `POST /payments/handoff/{token}/initiate` |
+| Archive unlock | `HandoffCheckoutSheet` (album/[id]) | same, type `ARCHIVE` |
+| Donations | `donate.tsx` | public `initiate-donation` |
+| Stream ticket, pay-on-TV | `events/pay.tsx` (`?device=` binds access to the TV) | anonymous-viewer `initiate-payment` / `payment-status` |
+| Gift, registered viewer | `GiftCheckoutSheet` | public `anonymous-viewer/{id}/gift` |
+| Gift, signed-in account | `GiftCheckoutSheet` | `POST /payments/xentripay/initiate-gift` |
+| Photos, free-album extras | `PhotoCheckoutSheet` | public `initiate-multi-album-purchase` |
+| Withdrawals | `withdraw.tsx` | `withdraw/initiate` (never the payout endpoint) |
 
-Nothing in this app needs an OTA update to benefit from a web payment fix.
-Conversely, no fix made here can repair a web payment bug.
+Still on the connekyt.com checkout: group stream packages, and a gift from a
+viewer who has not registered yet (the web page registers one).
 
-## Never send an amount from the client
+## Digital goods are OFF on native builds, except tickets to in-person events
 
-`mintHandoffUrl` deliberately sends no amount. The server derives it (a
-declaration's outstanding balance, the archive fee setting) so a tampered
-client cannot name its own price. Keep it that way.
+`digitalPurchasesEnabled` (`src/features/payments/policy.ts`) is true only on web
+or with `EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES=true`. Gifts, photo purchases,
+archive unlock, photobook extras, pay-on-TV and stream-only tickets are built and
+absent in store builds: no price, no button, no copy pointing elsewhere (Play
+billing, App Store 3.1.1, anti-steering, no Play merchant registration in Rwanda,
+dynamic prices). Bookings and donations are exempt and always on.
 
-## The in-app browser is a separate storage jar
+**Gifts are the second exception (owner decision 2026-10-12).** `giftsEnabled` is true in every build, so viewers see the gift button on the live screens; hosts never do. The store-billing risk above is accepted for gifts only.
 
-Anything the web checkout writes to `localStorage` — buyerId, cart contents,
-the unlock code — is invisible to this app and gone when the sheet closes.
-There is no return deep link, so the app cannot observe a purchase settle.
+**One exception: a ticket to an in-person event.** Both stores exempt tickets
+consumed outside the app (Apple 3.1.3(e), Google's physical goods and services
+rule), so `canBuyEventTicket` allows the in-app XentriPay and PawaPay checkout
+when `isInPersonEvent` is true. The live stream is one way to attend, not the
+product, and the copy says so ("Event ticket (includes live stream)").
 
-Delivery therefore depends on the **emailed unlock code** and on the buyer
-being able to re-unlock by email on the web page. Do not build app UI that
-assumes it can read purchase state back out of the checkout.
+How an event is classified:
+- The backend stores the organizer's attestation as `attendanceMode`
+  (`IN_PERSON`, `HYBRID`, `STREAM_ONLY`) with `attendance_attested_at`, set by the
+  "Guests can attend in person at this venue" checkbox on event creation.
+- A physical claim with no real venue is saved as `STREAM_ONLY` by the server.
+- Events with no stored claim get a mode derived from the venue text, so old
+  events and old clients keep working. Online-sounding venues ("Online", "Zoom",
+  "TBD") are never in person.
+- The app trusts the server's `attendanceMode` first and only falls back to the
+  venue text when it is absent.
 
-## Dead payment code you must not naively wire up
+Stream-only paid events stay gated on native: buyers use web, a group code, or
+"Verify access". Do not widen `canBuyEventTicket` to cover them. No wording makes
+this risk-free, so a lawyer should sign off on the Apple 3.1.3(e) and Google
+readings and the store listing should use the same "event ticket" wording.
 
-These are defined but never called:
+Do not loosen the flag to ship a feature. A `NODE_ENV !== 'test'` clause once made
+it true in every shipped build and false only under jest, so the gate was open
+while its own test passed. A test now pins it off for a production `NODE_ENV`.
+If the merchant entity moves to a country both stores support, revisit the whole
+model, not just the flag.
 
-- `features/photos/api.ts` — `initiateAlbumPurchase`,
-  `initiateMultiAlbumPurchase`, `recordAlbumPurchase`, `getPublicPaymentStatus`
-- `features/streams/api.ts` — `initiatePublicGift`
-- `features/donations/api.ts` — the initiate helpers
+## Rules
 
-A status poller against the **authenticated** endpoint used to sit in
-`features/payments/api.ts` and was removed on 2026-08-23. It had no callers,
-but it was a trap: photo and stream buyers are anonymous, so the authenticated
-route is refused client-side. The identical mistake on web meant no request was
-ever sent, the modal spun for five minutes, and a buyer whose money had already
-been taken was told the payment failed — and offered a retry that would charge
-them again.
+**One poller.** Use `pollStatus` in `src/features/payments/nativeCheckout.ts`. It is
+bounded (150 reads, 2 s apart), keeps going through a failed read, ignores a
+card's early FAILED for 180 s, and ends in `unknown`, never `failed`, when it runs
+out of time. From `unknown`, never offer a retry: the charge may have landed and a
+retry charges again. Tell the buyer to check their phone and their payments.
 
-If you ever do need a status read here:
+**Never send an amount from the client** for a declaration or archive handoff; the
+server derives it. Gifts are priced by `giftCode`. Photo purchases do send an
+amount per album, which the server now checks against photo count times price and
+refuses an underpayment (`PaidAlbumPurchaseService.assertAmountCoversPhotos`).
 
-- Use the **public** endpoint `/public/payments/xentripay/status/{refid}`.
-  A status read is not privileged.
-- Check `action` on the envelope. The backend returns HTTP 200 even for
-  failures, so an HTTP 200 with `action: 0` is a failure.
-- Give every path a terminal state. Never leave an unbounded spinner.
-- Never offer a retry once a charge may have landed. Ask the buyer to check
-  their phone instead.
+**Status reads are public.** Use `/public/payments/xentripay/status/{refid}`, or the
+anonymous-viewer status where access must also unlock. A status read is not
+privileged, and an authenticated-only poll is refused for anonymous buyers: the
+identical mistake on web left the modal spinning for five minutes while a buyer's
+money had already been taken.
+
+**Check `action` on the envelope.** The backend returns HTTP 200 for failures, so a
+200 with `action: 0` is a failure.
+
+**Pass the operator id through untouched.** Guessing a provider charges the wrong
+network. **Do not change gateway routing**: send no country or redirect the web
+receiver does not send.
+
+**Lock the form while a card page is open** so a second tap cannot start a second
+charge.
+
+**Only BOOKING and PHOTOBOOK_EXTRAS are owed** (`isOwedObligation`). The handoff
+refuses every other declaration type with "This payment can't be completed here."
+An unsettled STREAMING, GIFT or FACE_RECOGNITION declaration is a viewer's
+unfinished purchase, not a bill. Summing them once produced a "$132,642 pending"
+banner. The pending endpoint now filters server-side too.
+
+**The in-app browser is a separate storage jar.** Anything the gateway page writes
+to localStorage is invisible here. There is no return deep link, so delivery of
+purchased photos relies on the emailed unlock code.
+
+## Dead payment helpers
+
+`features/photos/api.ts` (`initiateAlbumPurchase`, `recordAlbumPurchase`) and the
+older helpers in `features/donations/api.ts` and `features/streams/api.ts` are
+partly used and partly not. Check for callers before wiring one up, and read the
+backend rules first.
 
 ## Android policy gate
 
-Whether a purchase button may even appear is a separate question — digital
-goods are gated behind `digitalPurchasesEnabled` in
-`src/features/payments/policy.ts`. Check it before adding any new paid surface.
-
-## Backend rules
-
-The full set of payment invariants lives in the backend repo at
-`docs/PAYMENTS.md`. Read it before changing anything that touches money, even
-from here.
+Check `digitalPurchasesEnabled` before adding any paid surface. See above.

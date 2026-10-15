@@ -5,6 +5,7 @@ import {
   isNeedsTotp,
   isNeedsPasswordChange,
   isNeedsRole,
+  normalizeRole,
 } from './api';
 
 jest.mock('@/api/client', () => ({ api: { post: jest.fn(), get: jest.fn() } }));
@@ -138,5 +139,25 @@ describe('resendOtp', () => {
       post.mockResolvedValue(body);
       await expect(resendOtp('c1')).rejects.toMatchObject({ message: expect.stringMatching(/new code/) });
     }
+  });
+});
+
+/**
+ * "User" was merged into Client on the backend (V307). A session or response
+ * minted before that still says User, and it must land on the Client
+ * experience rather than an unknown role with an empty app.
+ */
+describe('normalizeRole', () => {
+  it('reads the retired User role as Client', () => {
+    expect(normalizeRole('User')).toBe('Client');
+    expect(normalizeRole('user')).toBe('Client');
+  });
+
+  it('keeps every live role and still refuses to guess an unknown one', () => {
+    expect(normalizeRole('Client')).toBe('Client');
+    expect(normalizeRole('Event-coordinator')).toBe('Coordinator');
+    expect(normalizeRole('Photographer')).toBe('Photographer');
+    expect(normalizeRole('Viewer')).toBe('Viewer');
+    expect(normalizeRole('Admin')).toBeUndefined();
   });
 });

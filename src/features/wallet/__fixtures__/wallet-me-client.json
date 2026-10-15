@@ -1,0 +1,32 @@
+{
+  "action" : 1,
+  "message" : "Wallet retrieved",
+  "data" : {
+    "id" : "6d4b47ef-2ab7-45ee-8774-0a186f7b6e34",
+    "customerId" : "43ef8a69-d6b5-4e7e-baa9-3f55bb842c79",
+    "customerName" : "SYNTHETIC CLIENT",
+    "customerEmail" : "synthetic-43ef8a69-d6b5-4e7e-baa9-3f55bb842c79@test.invalid",
+    "customerType" : "Unknown",
+    "balanceAvailable" : 0.0000,
+    "balanceBooking" : 0.0000,
+    "balanceTips" : 0.0000,
+    "balanceBonuses" : 0.0000,
+    "balanceGifts" : 0.0000,
+    "balanceStreamFees" : 0.0000,
+    "balanceDonations" : 0.0000,
+    "balanceAdRevenue" : 0.0000,
+    "balancePhotoPurchase" : 0.0000,
+    "heldForDelivery" : 0.0000,
+    "pendingAmount" : 0.0000,
+    "blockedAmount" : 0.0000,
+    "totalWithdrawn" : 0.0000,
+    "totalRefunded" : 0.0000,
+    "clientSpent" : 100.0000,
+    "status" : "ACTIVE",
+    "suspensionReason" : null,
+    "suspendedAt" : null,
+    "lastReconciledAt" : null,
+    "lastDriftAt" : null,
+    "consecutiveDriftCount" : 0
+  }
+}

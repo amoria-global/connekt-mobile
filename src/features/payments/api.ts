@@ -6,7 +6,7 @@
  * the gateway payload can vary by environment.
  */
 import { api } from '@/api/client';
-import type { ApiEnvelope } from '@/types';
+import type { ApiEnvelope, ApiError } from '@/types';
 
 export type PaymentInput = {
   amount: number;
@@ -51,6 +51,8 @@ export async function initiatePayment(input: PaymentInput): Promise<InitiatedPay
 
 export type PaymentRecord = {
   id: string;
+  declarationId?: string;
+  paymentType?: string;
   title: string;
   amount?: number;
   currency?: string;
@@ -64,7 +66,7 @@ function pageContent(data: unknown): Raw[] {
   return Array.isArray(c) ? (c as Raw[]) : [];
 }
 
-export type PaymentsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer' | 'User';
+export type PaymentsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer';
 
 /**
  * Payment-history endpoint by role.
@@ -79,15 +81,16 @@ export type PaymentsRole = 'Client' | 'Photographer' | 'Coordinator' | 'Viewer' 
  */
 function paymentsBase(role: PaymentsRole | undefined): string {
   if (role === 'Coordinator') return '/coordinator/payments';
-  // Photographer / Viewer don't have their own payment-history endpoint
-  // exposed yet; they fall through to the customer path which the
-  // backend serves with role-appropriate filters.
+  if (role === 'Photographer') return '/photographer/payments';
   return '/customer/payments';
 }
 
 function mapPaymentRecord(r: Raw): PaymentRecord {
+  const declarationId = str(r.declarationId) ?? str(r.paymentDeclarationId);
   return {
-    id: String(r.id ?? r.declarationId ?? ''),
+    id: String(declarationId ?? r.id ?? ''),
+    declarationId,
+    paymentType: str(r.paymentType) ?? str(r.type),
     title: str(r.eventName) ?? str(r.eventTitle) ?? str(r.title) ?? str(r.description) ?? 'Payment',
     amount:
       (typeof r.amount === 'number' ? r.amount : undefined) ??
@@ -102,11 +105,106 @@ function mapPaymentRecord(r: Raw): PaymentRecord {
 }
 
 export async function listPayments(role?: PaymentsRole): Promise<PaymentRecord[]> {
-  const res = await api.get<ApiEnvelope<unknown>>(
+  const res = await api.getOk<ApiEnvelope<unknown>>(
     `${paymentsBase(role)}?page=0&size=20`,
   );
   return pageContent(res?.data).map(mapPaymentRecord).filter((p) => p.id);
 }
+
+export type StreamingPayment = {
+  id: string;
+  eventTitle: string;
+  viewerName: string;
+  viewerEmail?: string;
+  date?: string;
+  amount: number;
+  currency: string;
+  method?: string;
+  status: string;
+};
+
+export type StreamingRevenueResult = {
+  totalStreamingRevenue: number;
+  payments: StreamingPayment[];
+};
+
+export type GiftPayment = {
+  id: string;
+  eventTitle: string;
+  amount: number;
+  netAmount: number;
+  currency: string;
+  giftMessage?: string | null;
+  customerPhone?: string;
+  method?: string;
+  status: string;
+  date?: string;
+};
+
+export async function listStreamingPayments(): Promise<StreamingRevenueResult> {
+  const res = await api.getOk<ApiEnvelope<unknown> & { totalStreamingRevenue?: number }>(
+    '/coordinator/payments/streaming',
+  );
+  const items = pageContent(res?.data);
+  const payments: StreamingPayment[] = items.map((p) => ({
+    id: String(p.id ?? ''),
+    eventTitle: str(p.eventTitle) ?? str(p.description) ?? 'Live Stream',
+    viewerName: str(p.viewerName) ?? 'Unknown Viewer',
+    viewerEmail: str(p.viewerEmail),
+    date: str(p.createdAt) ?? str(p.date),
+    amount: typeof p.amount === 'number' ? p.amount : 0,
+    currency: str(p.currencyAbbreviation) ?? str(p.currency) ?? 'RWF',
+    method: str(p.paymentMethod) ?? str(p.method) ?? '-',
+    status: (str(p.status) ?? 'pending').toLowerCase(),
+  }));
+
+  // The wallet's net stream share only. Summing these gross booking-currency
+  // rows as a fallback overstated revenue (and mixed currencies), so a missing
+  // total is 0, not a guess.
+  const totalStreamingRevenue =
+    typeof res?.totalStreamingRevenue === 'number' ? res.totalStreamingRevenue : 0;
+
+  return { totalStreamingRevenue, payments };
+}
+
+export async function listGiftPayments(): Promise<GiftPayment[]> {
+  const res = await api.getOk<ApiEnvelope<unknown>>(
+    '/coordinator/payments?type=GIFT&page=0&size=100',
+  );
+  const items = pageContent(res?.data);
+  return items.map((p) => {
+    const rawAmt =
+      typeof p.amount === 'number'
+        ? p.amount
+        : typeof p.amountInUsd === 'number'
+          ? p.amountInUsd
+          : 0;
+    const rawNet =
+      typeof p.withdrawableAmount === 'number'
+        ? p.withdrawableAmount
+        : typeof p.netAmount === 'number'
+          ? p.netAmount
+          : 0; // never an assumed 65% share; the backend split is configurable
+    return {
+      id: String(p.id ?? ''),
+      eventTitle: str(p.eventTitle) ?? 'Live Stream',
+      amount: rawAmt,
+      netAmount: rawNet,
+      currency: str(p.currencyAbbreviation) ?? str(p.currency) ?? 'RWF',
+      giftMessage: str(p.giftMessage) ?? null,
+      customerPhone:
+        str(p.senderName) ??
+        str(p.viewerName) ??
+        str(p.customerPhone) ??
+        str(p.viewerEmail) ??
+        '',
+      method: str(p.paymentMethod) ?? '-',
+      status: (str(p.status) ?? 'pending').toLowerCase(),
+      date: str(p.paymentCompletedAt) ?? str(p.dueDate) ?? str(p.createdAt),
+    };
+  });
+}
+
 
 export type PaymentDetail = PaymentRecord & {
   paymentType?: string;
@@ -116,15 +214,34 @@ export type PaymentDetail = PaymentRecord & {
   description?: string;
 };
 
-/** Full detail for one payment (web parity: GET /{role}/payments/{id}). */
+export const PAYMENT_NOT_FOUND_MESSAGE =
+  'This payment is no longer available. It may have been cancelled or it belongs to another account.';
+
+/**
+ * Full detail for one payment (web parity: GET /{role}/payments/{id}).
+ *
+ * Coordinators reach this from notifications too ("Payment Failed" on a guest's
+ * gift to their event), which the backend only started serving in
+ * CoordinatorController#getPaymentById. A 404 used to reach the screen as
+ * Spring's raw "No static resource api/remote/..." text, so any 404 is shown as
+ * a plain sentence instead.
+ */
 export async function getPayment(id: string, role?: PaymentsRole): Promise<PaymentDetail> {
-  const res = await api.get<ApiEnvelope<Raw>>(
-    `${paymentsBase(role)}/${encodeURIComponent(id)}`,
-  );
+  let res: ApiEnvelope<Raw> | undefined;
+  try {
+    res = await api.getOk<ApiEnvelope<Raw>>(`${paymentsBase(role)}/${encodeURIComponent(id)}`);
+  } catch (e) {
+    if (e && typeof e === 'object' && (e as ApiError).status === 404) {
+      throw { ...(e as ApiError), message: PAYMENT_NOT_FOUND_MESSAGE } satisfies ApiError;
+    }
+    throw e;
+  }
   const r = (res?.data ?? {}) as Raw;
   const n = (v: unknown) => (typeof v === 'number' ? v : undefined);
+  const declarationId = str(r.declarationId) ?? str(r.paymentDeclarationId);
   return {
     id: String(r.id ?? id),
+    declarationId,
     title: str(r.eventName) ?? str(r.eventTitle) ?? str(r.title) ?? str(r.description) ?? 'Payment',
     amount: n(r.amount) ?? n(r.amountDue) ?? n(r.totalAmount),
     currency: str(r.currency) ?? str(r.currencyCode) ?? str(r.currencyAbbreviation),

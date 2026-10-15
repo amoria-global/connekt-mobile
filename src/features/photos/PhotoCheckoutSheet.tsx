@@ -31,6 +31,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { flagEmoji } from '@/components/ui/PhoneInput';
+import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import { useAuth } from '@/store/auth';
 import {
   detectPaymentCountry,
@@ -52,6 +53,7 @@ import {
 } from '@/features/photos/api';
 import { generateAndSharePhotoInvoice } from './invoicePdf';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { formatPrice } from '@/utils/format';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CARD_GRACE_MS = 180_000; // 3 min grace window for card 3DS / entry
@@ -163,10 +165,8 @@ export function PhotoCheckoutSheet({
       const opts = await getPaymentOptions(cIso2).catch(() => null);
       if (opts) {
         setSupportsCard(opts.supportsCard);
-        if (opts.operators.length > 0) {
-          setOperators(opts.operators);
-          setMethod(opts.operators[0].id.toLowerCase());
-        }
+        if (opts.operators.length > 0) setOperators(opts.operators);
+        setMethod(null);
       }
     } catch {}
   };
@@ -185,6 +185,9 @@ export function PhotoCheckoutSheet({
 
   // Flow & status
   const [stage, setStage] = useState<Stage>('form');
+  // True when we stopped waiting without a verdict. The charge may have landed,
+  // so the failed screen must not offer a retry that could charge twice.
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const [statusNote, setStatusNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -257,14 +260,8 @@ export function PhotoCheckoutSheet({
     return list;
   }, [operators, supportsCard, geo.disableCards]);
 
-  // Default selection if unset
-  useEffect(() => {
-    if (!method && tiles.length > 0) {
-      setMethod(tiles[0].id);
-    }
-  }, [tiles, method]);
-
-  const selectedTile = tiles.find((t) => t.id === method) ?? tiles[0] ?? null;
+  // No silent default: the buyer picks the network (docs/PAYMENTS.md: never guess a provider).
+  const selectedTile = tiles.find((t) => t.id === method) ?? null;
   const isCard = selectedTile?.isCard ?? false;
   const isRwanda = country.toUpperCase() === 'RW';
 
@@ -284,6 +281,7 @@ export function PhotoCheckoutSheet({
     if (!canPay || !selectedTile) return;
     setBusy(true);
     setError(null);
+    setUnconfirmed(false);
     setStage('awaiting');
     setStatusNote(
       isCard ? 'Opening secure checkout window…' : 'Sending payment prompt to your phone…',
@@ -341,6 +339,7 @@ export function PhotoCheckoutSheet({
       }
 
       if (settled !== 'success') {
+        setUnconfirmed(settled === 'pending');
         setStage('failed');
         setError(
           settled === 'failed'
@@ -448,8 +447,7 @@ export function PhotoCheckoutSheet({
             <View style={styles.summary}>
               <Text style={styles.summaryLabel}>AMOUNT TO PAY</Text>
               <Text style={styles.summaryAmount}>
-                {currencySym}
-                {total.toFixed(2)}
+                {formatPrice(total, currencySym || undefined)}
               </Text>
               <Text style={styles.summarySub}>
                 {photoCount} photo{photoCount === 1 ? '' : 's'} from {photographerCount} photographer
@@ -510,47 +508,16 @@ export function PhotoCheckoutSheet({
 
                 {/* Payment Method Selector */}
                 <Text style={styles.sectionHeader}>SELECT PAYMENT METHOD</Text>
-                <View style={styles.methods}>
-                  {tiles.map((tile) => {
-                    const isSelected = selectedTile?.id === tile.id;
-                    const isDisabled =
-                       geo.blocked ||
-                      (tile.isCard ? geo.disableCards : geo.disableMobileMoney);
-
-                    return (
-                      <Pressable
-                        key={tile.id}
-                        style={[
-                          styles.method,
-                          isSelected && styles.methodActive,
-                          isDisabled && styles.methodDisabled,
-                        ]}
-                        onPress={() => !isDisabled && setMethod(tile.id)}
-                        disabled={isDisabled}
-                      >
-                        <Ionicons
-                          name={tile.isCard ? 'card-outline' : 'phone-portrait-outline'}
-                          size={20}
-                          color={isSelected ? colors.primary : colors.textMuted}
-                        />
-                        <Text
-                          style={[
-                            styles.methodLabel,
-                            isSelected && styles.methodLabelActive,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {tile.name}
-                        </Text>
-                        {isSelected && (
-                          <View style={styles.methodCheck}>
-                            <Ionicons name="checkmark" size={12} color={colors.textOnPrimary} />
-                          </View>
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <PaymentMethodPicker
+                  operators={operators}
+                  supportsCard={supportsCard && !geo.disableCards}
+                  selectedId={selectedTile?.id ?? null}
+                  onSelect={setMethod}
+                  country={country}
+                  onCountryChange={selectCountry}
+                  disableMobileMoney={geo.blocked || geo.disableMobileMoney}
+                  disableCards={geo.blocked}
+                />
 
                 {/* Phone number input for Mobile Money */}
                 {!isCard && selectedTile ? (
@@ -617,8 +584,7 @@ export function PhotoCheckoutSheet({
                     color={!canPay ? colors.textMuted : colors.textOnPrimary}
                   />
                   <Text style={[styles.payBtnText, !canPay && styles.payBtnTextDisabled]}>
-                    {isCard ? 'Proceed to Pay' : 'Pay Now'} · {currencySym}
-                    {total.toFixed(2)}
+                    {isCard ? 'Proceed to Pay' : 'Pay Now'} · {formatPrice(total, currencySym || undefined)}
                   </Text>
                 </Pressable>
 
@@ -692,13 +658,17 @@ export function PhotoCheckoutSheet({
             {stage === 'failed' && (
               <View style={styles.statusWrap}>
                 <Ionicons name="close-circle" size={64} color={colors.error} />
-                <Text style={styles.statusTitle}>Payment Not Completed</Text>
+                <Text style={styles.statusTitle}>
+                  {unconfirmed ? 'Payment Not Confirmed Yet' : 'Payment Not Completed'}
+                </Text>
                 <Text style={styles.statusNote}>{error || 'The payment could not be processed.'}</Text>
                 <View style={styles.statusActions}>
-                  <Pressable style={[styles.payBtn, { flex: 1 }]} onPress={retry}>
-                    <Ionicons name="refresh" size={16} color={colors.textOnPrimary} />
-                    <Text style={styles.payBtnText}>Try Again</Text>
-                  </Pressable>
+                  {unconfirmed ? null : (
+                    <Pressable style={[styles.payBtn, { flex: 1 }]} onPress={retry}>
+                      <Ionicons name="refresh" size={16} color={colors.textOnPrimary} />
+                      <Text style={styles.payBtnText}>Try Again</Text>
+                    </Pressable>
+                  )}
                   <Pressable style={styles.ghostBtn} onPress={onClose}>
                     <Text style={styles.ghostBtnText}>Close</Text>
                   </Pressable>

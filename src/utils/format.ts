@@ -1,4 +1,6 @@
-/** Small, dependency-free formatting helpers. */
+import { convertAndFormat, useCurrency } from '@/store/currency';
+
+/** Small formatting helpers. */
 
 /** Format an ISO date string as e.g. "Mon, 3 Jun 2026". Returns '' on bad input. */
 export function formatDate(iso?: string): string {
@@ -34,7 +36,26 @@ export function formatRelativeTime(dateStr?: string): string {
 
 /** Format a numeric amount with a currency code, e.g. "RWF 12,500". */
 export function formatMoney(amount?: number, currency = ''): string {
-  if (amount == null || Number.isNaN(amount)) return `${currency} 0`.trim();
+  // A missing amount is not zero. Showing "0" for it reads as an empty balance.
+  if (amount == null || Number.isNaN(amount)) return 'N/A';
+  // The amount in the currency it is denominated in, which is what convertAndFormat
+  // leaves to this function when no live rate exists. USD reads as it does everywhere else.
+  if (currency === 'USD') {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
   const formatted = amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return `${currency} ${formatted}`.trim();
+}
+
+/**
+ * Like formatMoney, but shown in the currency picked in the top-bar selector,
+ * the way web's formatPrice does. `from` is the currency `amount` is
+ * denominated in (omitted means USD). An unknown `from` falls back to
+ * formatMoney so the amount is never relabelled. Screens that must stay
+ * reactive call useCurrency() so they re-render when the selection changes.
+ */
+export function formatPrice(amount?: number, from?: string): string {
+  if (amount == null || Number.isNaN(amount)) return formatMoney(amount, from);
+  const { currency, currencies } = useCurrency.getState();
+  return convertAndFormat(amount, from, currency, currencies) ?? formatMoney(amount, from);
 }

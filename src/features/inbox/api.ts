@@ -9,6 +9,7 @@
 import { api } from '@/api/client';
 import { env } from '@/config/env';
 import { listPhotographers } from '@/features/photographers/api';
+import { listClients } from '@/features/clients/api';
 import { storage, StorageKeys } from '@/services/storage';
 import { useAuth } from '@/store/auth';
 import type { ApiEnvelope, ApiError, ID } from '@/types';
@@ -210,9 +211,15 @@ export async function listConversations(): Promise<Conversation[]> {
       ? (res as any).data
       : [];
 
+  const cleanSelf = selfId ? selfId.toLowerCase().trim() : undefined;
   return rawList
     .map((r) => mapConversation(r, selfId))
-    .filter((c) => !!c.id && !!c.partnerId);
+    .filter(
+      (c) =>
+        !!c.id &&
+        !!c.partnerId &&
+        (!cleanSelf || c.partnerId.toLowerCase().trim() !== cleanSelf)
+    );
 }
 
 export type Message = {
@@ -310,7 +317,55 @@ export async function getUnreadCount(): Promise<number> {
  * Returns real creators with valid backend UUIDs.
  */
 export async function listChatContacts(userRole?: string): Promise<ChatContact[]> {
+  const isPhotographer = userRole?.toLowerCase() === 'photographer';
   const isCoordinator = userRole?.toLowerCase().includes('coordinator');
+
+  if (isPhotographer) {
+    const [clientsRes, publicPros] = await Promise.allSettled([
+      listClients(),
+      listPhotographers(),
+    ]);
+
+    const contacts: ChatContact[] = [];
+    const seenIds = new Set<string>();
+
+    if (clientsRes.status === 'fulfilled' && Array.isArray(clientsRes.value)) {
+      for (const c of clientsRes.value) {
+        const id = String(c.id ?? '');
+        if (id && !seenIds.has(id.toLowerCase())) {
+          seenIds.add(id.toLowerCase());
+          contacts.push({
+            id,
+            name: c.name || 'Client',
+            avatar: normalizeChatImageUrl(c.avatar),
+            category: c.bookings ? `${c.bookings} booking${c.bookings > 1 ? 's' : ''}` : 'Client',
+            isBooked: true,
+            isVerified: true,
+          });
+        }
+      }
+    }
+
+    if (publicPros.status === 'fulfilled' && Array.isArray(publicPros.value)) {
+      for (const p of publicPros.value) {
+        const id = String(p.id ?? '');
+        if (id && !seenIds.has(id.toLowerCase())) {
+          seenIds.add(id.toLowerCase());
+          contacts.push({
+            id,
+            name: p.name || 'Creator',
+            avatar: normalizeChatImageUrl(p.avatar),
+            category: p.category || (p.specialties && p.specialties[0]) || 'Photography',
+            isBooked: false,
+            isVerified: p.isVerified,
+          });
+        }
+      }
+    }
+
+    return contacts;
+  }
+
   const bookedEndpoint = isCoordinator
     ? '/coordinator/photographers'
     : '/customer/photographers';
