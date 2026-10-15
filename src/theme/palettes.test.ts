@@ -26,14 +26,28 @@ describe.each([
     expect(ratio(p.link, p[ground])).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('wallet chip text reads on the stronger tinted grounds', () => {
+    expect(ratio(p.warning, p.warningSoft)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(p.warning, p.errorSoft)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(['success', 'warning', 'error', 'info'] as const)('%s status text reads on its tinted ground and on a card', (k) => {
+    expect(ratio(p[k], p[`${k}Bg` as const])).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(p[k], p.card)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('white text on the primary fill passes', () => {
     expect(ratio(p.textOnPrimary, p.primary)).toBeGreaterThanOrEqual(4.5);
   });
 });
 
 describe('dark palette layering', () => {
-  it('keeps the page background the splash colour (app.json is a native change)', () => {
-    expect(darkPalette.background).toBe('#0E1117');
+  it('uses the prototype navy ground, not the old neutral graphite', () => {
+    // Hue check: blue channel leads red and green by a clear margin (the old #0E1117 led by only 9).
+    const n = darkPalette.background.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16));
+    expect(b - r).toBeGreaterThanOrEqual(20);
+    expect(b).toBeGreaterThan(g);
   });
 
   it('steps up from page to surface to card to elevated, so cards separate without shadows', () => {

@@ -89,7 +89,7 @@ Status: C complete, P partial, M missing, B blocked by backend, I intentionally 
 | Check | Command | Result |
 |---|---|---|
 | Types | `npx tsc --noEmit` | exit 0 |
-| Tests | `npx jest` | 68 suites passed, 525 tests passed, 1 skipped, exit 0 (after the dark-mode pass; clean `main` was 52 suites, 407 tests) |
+| Tests | `npx jest` | 69 suites passed, 538 tests passed, 1 skipped, exit 0 (after the second dark-mode pass; clean `main` was 52 suites, 407 tests) |
 | Lint | per touched file, `npx eslint <file>` against the same file from `git show af5ef62:<file>` (clean `main`) | no touched file has more errors than on `main`, and every new file is clean; the per-file counts are in "Lint comparison" below |
 | OTA gate | `node scripts/check-ota-compatibility.mjs` | refuses: 41 native dependency versions and the config plugins differ from the installed build, "This branch must NOT be published as an OTA update". `main` already has the same refusal; this work changes no dependency and no `app.json` |
 
@@ -134,39 +134,62 @@ The remaining errors are the React-compiler rules (`set-state-in-effect`, refs d
 
 React-compiler lint errors listed above (identical to `HEAD`). `MultipleDonutOverviewCard.tsx` is now dead code, but `moneyHonesty.test.ts` reads its source, so it was left in place.
 
-## Dark mode review (2026-10-15)
+## Dark mode review (2026-10-15, second pass)
 
-Reference: the three prototype images in `Connekyt_Photographer_Prototype.docx` (deep navy ground, slightly lighter navy cards with a blue hairline, restrained blue and pink accents, muted status pills). The theme already had a dark palette, but it was a neutral graphite (`#161B24` to `#242B37`), so rendering it showed it was not the prototype's look.
+Reference: the three prototype screens in `Connekyt_Photographer_Prototype.docx` (Home and business overview, Wallet overview with the work calendar, Wallet analytics). Their colours were sampled from the images: screens sit on a deep blue-teal (about `#071321` to `#0B1828`), cards one step up (about `#0F2231` to `#132434`), a blue hairline, a mid blue for selection, pink used sparingly, and amber, green and blue only on small status pills and tiles.
 
-Method: the Android emulator (Pixel 5, API 34, system night mode on) running this branch's JavaScript, with the same temporary fixture backend as before (a fake `fetch` plus an auth bypass in the git-ignored sandbox). It proves the app's rendering, not the real server's data. The harness and the `auth.ts` edit were removed afterwards (`git status` shows neither), and font scale, display size and night mode were reset.
+Method: Android emulator (Pixel 5, API 34, system night mode on) running this branch's JavaScript, with a temporary fixture backend (a fake `fetch` plus an auth bypass in the git-ignored sandbox). It proves how the app renders, not what the real server returns. The harness, the `auth.ts` edit and the local servers were removed afterwards, and `git status` and the final diff show neither.
 
-**Dark screens actually inspected, before and after the fixes (screenshots read):**
-- Home (first viewport and scrolled: identity banner, balances revealed, actions, shoots, business overview, goals).
-- Wallet Overview, Wallet Analytics (cards, balance bar, period tabs, payment bars), Wallet Activity (loaded, empty, failed).
-- Events: loading state, Week, Month, Agenda, List (event cards, status pills, conflict banner, selected and unselected view tabs and filter pills).
-- A 360dp-wide screen at 1.6x text: Home and Events (Week). One light-mode pass of Home after the changes, to confirm light is unchanged.
+**What the comparison decided**
 
-**Visual defects found and corrected, each at its cause:**
-
-| Defect (seen in the dark render) | Cause | Fix |
+| Prototype element | Decision | Why |
 |---|---|---|
-| Page text ghosted through the top bar ("Booking earnings $95.50" visible behind the status bar) | Android has no blur, and the bar was 3% transparent over a translucent BlurView | Android: no BlurView and a fully opaque bar. iOS keeps the blur. |
-| Top bar and cards were a flat graphite, not navy | `darkPalette` surfaces had almost no blue | `surface`, `card`, `elevated`, `surfaceMuted`, `border`, `borderSoft`, `textMuted` moved into the navy family, same lightness order. `background` stays `#0E1117` because `app.json`'s dark splash uses that hex and changing it is a native change (it would also trip the OTA gate). |
-| Blue text links (See all, View analytics, tab links) were 3.4:1 on a card | `primary` is a fill colour, used for small text | New `link` token (light `#083A85`, dark `#7FA6F5`, at least 6:1) used by the kit's section links, secondary and tertiary buttons, the wallet's small labels, event badges and the schedule time |
-| The tab bar's active bubble glared (neon pink with a white rim and strong glow) | One set of bubble values for both themes | Dark only: deeper gradient, rim at 20%, glow at 20%, sheen at 12%. Light is unchanged. |
-| Payment bars were full-column blue slabs | Bar width was 100% of its column | 58% width, centred |
-| The selected "All" filter pill in Activity was a bright white pill | `directionPillActive` used `colors.text` as its fill | Brand `primary` with white text, matching every other selected control (light mode also gets a navy selected pill instead of a near-black one) |
-| Event cards: solid yellow UPCOMING and bright green Accepted, with white text at 2.5 to 3.8:1 | Status colours written for light | Dark: deep tinted pill grounds with light text, one hue per status. Accept, Deny and Accepted fills darkened (`#047857`, `#B91C1C`) so white text passes AA in both themes. |
-| Week header read "12 to Oct 18, 2026" | `weekTitle` dropped the month on the left | "Oct 12 to 18, 2026", or "Oct 28 to Nov 3, 2026" across a month. Test added. |
-| At 360dp wide and 1.6x text: the brand pill wrapped to "Connek / yt", metric labels and buttons broke mid-word ("Opportu / nities"), the greeting ended in "J..." | Fixed-height pill and narrow half-width cards with uncapped scaling | Brand wordmark single line with a 1.1x cap; metric and button labels capped at 1.25x; buttons stack icon over label above 1.3x; the greeting may use two lines |
+| Deep blue-teal ground, lighter navy cards, blue hairline | Adopted: new dark surface steps (`#0A1524`, `#0F1D2F`, `#13243A`, `#1A2E47`, `#1B3049`), `#274463` border | This is most of the visual gap, and it is pure palette |
+| Page background exactly the prototype's | Adapted | The native splash (`app.json`) is `#0E1117`; changing it is a native change that would block the OTA gate. The app ground is now navy, and `AppPreloader` still draws the splash hex, so the app fades from the splash colour into navy |
+| Wallet hero as a row (amount and Withdraw side by side) | Adopted, photographers only | It follows the prototype and removes a tall stack. Other roles keep the centred hero |
+| Coloured icon tiles, green incoming amounts, status pills on earnings rows | Adopted on Home (and metric tiles take their tone) | Pure presentation of fields we already have; the status word is the API's own |
+| Status badge on shoot cards | Adopted (same bucket and wording as the Events calendar) | One description of a shoot everywhere |
+| Pink accent on a needs-attention action | Adopted for a secondary action that has waiting items | Restrained: only when a badge count exists |
+| Glowing card borders | Omitted | Decoration that adds a bright edge on every card, and costs legibility on small cards |
+| Donut and ring charts, line charts | Already present on Analytics; tracks recoloured to a navy step | Existing components |
+| Photo thumbnails | Already rendered where the data has `coverImage`; verified with a cover image in the fixture | No new data was invented |
+| The prototype's milestone list with release status | Not built | Blocked by the backend (listed above) |
 
-**Contrast and layering are pinned by tests** (`src/theme/palettes.test.ts`): body, soft, muted and link text at least 4.5:1 on background, surface, card and elevated in both palettes; white on `primary`; the four dark surface steps strictly ascending; a visible card hairline; both palettes keep identical keys.
+**Dark screens actually inspected on the emulator (screenshots read)**
+- Home: full scroll, balances hidden and shown, loading skeletons, shoot card with cover image and status badge, business overview, goals, recent earnings, recent clients.
+- Wallet: Overview, Analytics, Activity (loaded, empty, failed).
+- Main Analytics screen: all charts and rows scrolled end to end, period tabs, and its failed state (the "Try again" banner with the rest kept honest as N/A).
+- Events: loading, Month, Week, Agenda, List.
+- Event detail.
+- Goals: new goal form, empty-save validation, save failure, a successful save, the edit form, the delete confirmation.
+- Received photobooks: shelf, a book's detail, the resubmit confirmation and its result; My photobooks empty state; Albums empty state.
+- Withdraw and Payment accounts, view only (no transaction was started).
+- A client account in dark and light (Home, Wallet) to check the shared top bar, tab bar and palette.
+- The photographer in light (Home, Wallet, Events List) after the changes.
+- Earlier pass: 360dp wide at 1.6x text on Home and Events.
 
-**Scope notes.** The palette, `TopBar` and `PersistentBottomBar` are shared by every role, so the dark navy shift, the opaque Android top bar and the calmer dark bubble apply to the client, coordinator and viewer apps too. Light-mode colours were not changed apart from the selected-pill and the darker accept and deny fills above. No data, calculation or endpoint was touched.
+**Defects found in the dark render and corrected, each at its cause**
 
-**Does the dark theme match the prototype?** Closer, not equal. After the fixes the cards, hairlines, links, pills and top bar read as the same navy family and the status colours are restrained. It does not match on: the page background (still graphite `#0E1117`, see the splash constraint), the prototype's glowing card borders, donut and ring charts, avatars and photo thumbnails, and its icon-led income rows. Those were not built, so no claim of a match is made.
+| Defect | Fix |
+|---|---|
+| Grey slab look: graphite surfaces, no blue | New navy surface steps and cool text (`palettes.ts`) |
+| Status chips and banners (wallet pending and suspended chips, photobook chips, event detail chips) were light pastels or hard-coded hexes | New `warningSoft`, `warningLine`, `errorSoft`, `errorLine` tokens; wallet chips and banner use tokens; `features/photobooks/statusChip.ts` maps photobook chips; event detail chips use tokens |
+| Event detail Share button was a solid white slab | The module-level `colors` export is the light palette; the outline button now reads the theme |
+| Pushed screens' header was a lighter shade than the tab screens | `(app)/_layout.tsx` header uses the same card step and link blue as `TopBar` in dark |
+| Analytics period tabs: selected pill was a dim card | Brand fill with white text in dark; tab role and selected state added |
+| Analytics donut tracks were bright translucent white | Navy track step |
+| Delete goal looked like an ordinary link | New `destructive` variant (error colour), used for Delete goal |
+| "Remove from my list" was low-contrast grey | `textSoft` at semibold |
+| Metric tiles and earnings rows were flat text | Tinted icon tiles, signed green amounts, status pills |
+| Large text and small screens (earlier pass) | See the earlier table |
 
-**Not inspected in dark mode:** the Analytics screen (`/analytics`) and its failed state, event detail, goal create and edit sheets, received photobook shelf and detail, the withdraw and payment-accounts flows, Albums and Photobooks tabs, Agenda at large text, pressed and disabled states on a device, tablet sizes, and iOS (no iOS tooling here). Dark and light were not compared on a real photographer account.
+**Shared components and other roles.** The palette, `TopBar`, `PersistentBottomBar`, the app stack header and `BrandPill` are used by every role. What changed for them: the dark ground and cards are navy instead of graphite, the Android top bar is opaque, the active tab bubble is calmer in dark, and the stack header matches the top bar in dark. Light mode is unchanged: the link token equals `primary` in light, and the client dashboard and wallet in light were compared after the change and look the same. The client dashboard in dark was rendered and is intact. Coordinator and viewer were not rendered; they use the same shared components. The wallet hero row and the home/shoot badges are photographer-only.
+
+**Pinned by tests.** `src/theme/palettes.test.ts` (text, soft, muted and link at least 4.5:1 on every surface in both palettes, the status colours on their tinted grounds and on cards, the stronger chip grounds, navy hue, ascending dark steps, hairline, identical keys) and `src/features/photobooks/statusChip.test.ts` (light unchanged, dark mapping, unknown status untouched), plus the week-title test.
+
+**Does dark match the prototype?** Close in structure and palette, not identical. After the changes the ground, cards, hairlines, tiles, pills, links and charts read as the same navy family, and the layouts follow the prototype (compact wallet hero, tiled icons, status pills). It still differs in the exact page colour (graphite splash constraint is only visible at launch), the glowing borders (deliberately omitted), and the prototype's richer content (milestone release status, which needs backend data). I do not claim a pixel match.
+
+**Not inspected in dark:** Wallet Analytics' failed state, event actions beyond Remove and the detail header, the withdraw confirmation steps and a funded withdraw screen (the fixture has no withdrawable source, so it shows $0.00; that screen shows $0.00 whenever no source has loaded, an existing behaviour I did not change in a financial flow), goal sheets at large text, coordinator and viewer accounts, tablets, iOS (no iOS tooling here) and any real account.
 
 ## Remaining dependencies and risks
 

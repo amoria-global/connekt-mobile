@@ -70,6 +70,12 @@ export const lightPalette = {
   errorBg: '#FEF2F2',
   info: '#1E40AF',
   infoBg: '#EFF6FF',
+
+  /** Stronger tinted grounds and rules for status chips and banners (the wallet's pending and suspended chips). */
+  warningSoft: '#FEF3C7',
+  warningLine: '#FDE68A',
+  errorSoft: '#FEE2E2',
+  errorLine: '#FECACA',
 } as const;
 
 /** The shape every palette must satisfy. */
@@ -84,24 +90,25 @@ export const darkPalette: Palette = {
   link: '#7FA6F5',
 
   // Surfaces — four deliberate steps. These carry elevation on their own,
-  // because shadows do not register on a dark ground.
-  // `background` stays #0E1117: app.json's dark splash is the same hex, and changing it is a native change.
-  // The navy of the Photographer prototype therefore lives in the steps above it.
-  background: '#0E1117',
-  surface: '#121A2A',
-  card: '#172238',
-  surfaceMuted: '#243250',
-  elevated: '#1D2A44',
+  // because shadows do not register on a dark ground. Sampled from the Photographer prototype, whose screens sit on
+  // a deep blue-teal (about #071321 to #0B1828) with cards a step lighter (about #0F2231 to #132434). The native
+  // splash in app.json stays #0E1117 (changing it is a native change); AppPreloader keeps that hex as the splash
+  // continuation, so the app fades from the splash colour into this ground.
+  background: '#0A1524',
+  surface: '#0F1D2F',
+  card: '#13243A',
+  surfaceMuted: '#1A2E47',
+  elevated: '#1B3049',
 
-  // Text — softened whites; pure #FFF on near-black causes halation.
-  text: '#EDF0F5',
-  textSoft: '#C6CCD8',
-  textMuted: '#93A0B8',
+  // Text: softened whites; pure #FFF on near-black causes halation. Slightly cool so it sits on the navy.
+  text: '#EDF2F8',
+  textSoft: '#C4D0E0',
+  textMuted: '#8FA4BF',
   textOnPrimary: '#FFFFFF',
 
-  // Lines — visible enough to define a card edge, quiet enough not to grid up.
-  border: '#2C3C5E',
-  borderSoft: '#1F2C47',
+  // Lines: a blue hairline, visible enough to define a card edge, quiet enough not to grid up.
+  border: '#274463',
+  borderSoft: '#1A304A',
 
   // Tints must be lighter AND more opaque than their light counterparts,
   // otherwise they vanish against the background.
@@ -112,13 +119,18 @@ export const darkPalette: Palette = {
 
   // Status — light foreground on a deep, desaturated tinted ground.
   success: '#4ADE80',
-  successBg: '#10281E',
+  successBg: '#0E2F22',
   warning: '#FBBF24',
-  warningBg: '#2C220C',
+  warningBg: '#33260A',
   error: '#F87171',
-  errorBg: '#2D1719',
+  errorBg: '#341A1D',
   info: '#8FB4FF',
-  infoBg: '#152238',
+  infoBg: '#14335E',
+
+  warningSoft: '#3D2C0A',
+  warningLine: '#5A4210',
+  errorSoft: '#40191D',
+  errorLine: '#6B2A31',
 };
 
 export type ColorSchemeName = 'light' | 'dark';
