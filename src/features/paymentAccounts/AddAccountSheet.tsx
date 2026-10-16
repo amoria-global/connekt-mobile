@@ -34,6 +34,10 @@ import type { Role } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { MOMO_LOGO, operatorLogo } from '@/features/payments/operatorLogos';
+import { CountrySelectModal } from '@/features/payments/CountrySelectModal';
+import { paymentCountryName } from '@/features/payments/countries';
+import { usePaymentEligibility } from '@/features/payments/usePaymentEligibility';
+import { flagEmoji } from '@/components/ui/PhoneInput';
 import { addPaymentAccount, listBanks, validateMobileAccount, type Bank } from './api';
 import { MOBILE_PROVIDER, resolveMobileName, type AccountKind, type PaymentAccount } from './model';
 
@@ -58,7 +62,15 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
   const styles = useStyles();
   const insets = useSafeAreaInsets();
 
-  const [kind, setKind] = useState<AccountKind>('mtn');
+  // The payout networks and the name lookup below are Rwandan (MOBILE_PROVIDER ids), so
+  // Mobile Money is offered only when the country is Rwanda. Banks stay for everyone.
+  const eligibility = usePaymentEligibility(visible);
+  const [countryOpen, setCountryOpen] = useState(false);
+  const checkingCountry = eligibility.mobileMoney === 'loading';
+  const mobileOk = eligibility.country === 'RW';
+  const [pickedKind, setKind] = useState<AccountKind>('mtn');
+  // Derived, so a stale Mobile Money choice can never be saved for another country.
+  const kind: AccountKind = mobileOk || pickedKind === 'bank' ? pickedKind : 'bank';
   const [phone, setPhone] = useState<PhoneValue | null>(null);
   const [phoneKey, setPhoneKey] = useState(0);
   const [holderName, setHolderName] = useState('');
@@ -239,7 +251,22 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
             </View>
           ) : (
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
+              <Pressable
+                style={styles.countryPill}
+                onPress={() => setCountryOpen(true)}
+                disabled={!!busy}
+                accessibilityRole="button"
+                accessibilityLabel={`Country ${eligibility.country ? paymentCountryName(eligibility.country) : 'not set'}. Tap to change.`}
+              >
+                <Text style={styles.countryFlag}>{flagEmoji(eligibility.country)}</Text>
+                <Text style={styles.countryName} numberOfLines={1}>
+                  {checkingCountry ? 'Checking your country...' : eligibility.country ? paymentCountryName(eligibility.country) : 'Choose your country'}
+                </Text>
+                <Text style={styles.countryChange}>Change</Text>
+              </Pressable>
+
               <View style={styles.kindRow} accessibilityRole="radiogroup">
+                {mobileOk ? (
                 <Pressable
                   accessibilityRole="radio"
                   accessibilityState={{ selected: isMobile, expanded: isMobile }}
@@ -253,6 +280,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                   <Text style={[styles.kindLabel, isMobile && styles.kindLabelActive]}>Mobile Money</Text>
                   <Text style={styles.kindHint}>{isMobile ? NETWORKS.find((n) => n.key === kind)?.label : 'Choose your network'}</Text>
                 </Pressable>
+                ) : null}
                 <Pressable
                   accessibilityRole="radio"
                   accessibilityState={{ selected: !isMobile }}
@@ -269,6 +297,13 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                   <Text style={styles.kindHint}>Bank transfer</Text>
                 </Pressable>
               </View>
+              {!mobileOk && !checkingCountry ? (
+                <Text style={styles.muted}>
+                  {eligibility.country
+                    ? `Mobile money payouts are not available in ${paymentCountryName(eligibility.country)}. You can add a bank account.`
+                    : 'We could not confirm your country. Choose it to see mobile money, or add a bank account.'}
+                </Text>
+              ) : null}
 
               {isMobile ? (
                 <View style={styles.networkPanel} accessibilityRole="radiogroup" accessibilityLabel="Mobile money network">
@@ -299,7 +334,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                   <PhoneInput
                     key={phoneKey}
                     label="Mobile money number"
-                    defaultIso2={defaultPhoneIso2}
+                    defaultIso2={eligibility.country ?? defaultPhoneIso2}
                     onChange={setPhone}
                   />
                   <Input
@@ -366,6 +401,16 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
           )}
         </View>
       </KeyboardAvoidingView>
+      <CountrySelectModal
+        visible={countryOpen}
+        selected={eligibility.country}
+        onClose={() => setCountryOpen(false)}
+        onSelect={(iso2) => {
+          setCountryOpen(false);
+          setError(null);
+          void eligibility.changeCountry(iso2);
+        }}
+      />
     </Modal>
   );
 }
@@ -400,6 +445,20 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.surfaceMuted,
   },
   body: { gap: spacing.lg, paddingBottom: spacing.sm },
+  countryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.card,
+  },
+  countryFlag: { fontSize: 18 },
+  countryName: { flex: 1, color: c.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  countryChange: { color: c.primary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   kindRow: { flexDirection: 'row', gap: spacing.sm },
   kind: {
     flex: 1,
