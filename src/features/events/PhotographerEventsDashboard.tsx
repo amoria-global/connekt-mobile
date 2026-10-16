@@ -655,6 +655,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                 onPress={() => setSortSheetOpen(false)}
                 hitSlop={8}
                 style={styles.sortSheetCloseBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
               >
                 <Ionicons name="close" size={20} color={colors.textMuted} />
               </Pressable>
@@ -667,6 +669,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                   <Pressable
                     key={opt.key}
                     style={[styles.sortOptionItem, active && styles.sortOptionItemActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`${opt.label}. ${opt.description}`}
                     onPress={() => {
                       setSortBy(opt.key);
                       setSortSheetOpen(false);
