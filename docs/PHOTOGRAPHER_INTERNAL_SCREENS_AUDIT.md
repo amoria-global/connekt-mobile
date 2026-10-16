@@ -5,7 +5,7 @@ Companion to `PHOTOGRAPHER_WORKSPACE_AUDIT.md`, which covers Home, Wallet, Analy
 
 ## Honest summary
 
-This is still a partial completion of the larger brief (sixth commit on the branch; round six recovered the emulator and closed most device gaps). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
+This is still a partial completion of the larger brief (seventh commit on the branch; rounds six and seven recovered the emulator and closed the device gaps). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
 (other roles are unchanged), and a first set of internal screens was checked on the Android emulator in dark mode
 against a fixture backend. Many screens are NOT individually restyled or verified, and the table below says which.
 The dark-mode pass (earlier) had already moved every internal screen onto the navy palette, so the remaining gap
@@ -106,6 +106,22 @@ Accept on the Events dashboard: the sheet closes and nothing crashes, but the fi
 
 **Not done / still not seen on a device:** the ID photo and review steps of KYC, a real photo from the camera, the Withdraw code step in light mode and at 1.6x, and the withdraw selfie variant. The fixture's fee preview is static, so the amounts on the verification screen (a fee larger than the withdrawal) are fixture artefacts, not app behaviour.
 
+## Round seven: the remaining screens on the emulator (fixture backend)
+
+The emulator was booted first and left idle before Metro started, and it stayed stable for the whole pass. Genuine screenshots were taken of every screen below (kept on the test machine, not committed). Light mode throughout, then 1.6x text on the ones most likely to clip.
+
+**Seen in light mode, normal text:** geo pricing, donate, live streams, manage TVs, blocked accounts, delete account, connect to TV (camera feed black on the emulator), pay on TV (shows the emulator's virtual scene as a stand-in for a QR), transactions, clients, packages, bookings, payment accounts, notifications, gallery, photobooks, edit profile, collaborate, analytics (the headline figures read "N/A" because the fixture has no analytics, not a zero), payroll (Unavailable, never zero), create album, content albums, create photobook, new package (shows "Currencies unavailable. Tap to retry." because the fixture has no currency list).
+
+**Seen at 1.6x text:** geo pricing, donate, manage TVs, delete account, payment accounts, edit profile, bookings, packages, streams, blocked accounts, notifications, gallery, clients, transactions, collaborate, and the Withdraw form and verification code screen.
+
+**Defects found and fixed:**
+- Payment accounts: at 1.6x the "Default" tag squeezed the account name to "MTN Mobile ..." on one line. The name now wraps to two lines and the tag moves under it when needed.
+- Collaborate: at 1.6x the stat labels broke mid-word ("collaborat / ors"). They now stay on one line and shrink to fit.
+
+**KYC, end to end up to the final button (no submission):** details validation ("Select your gender."), consent, selfie with the camera permission granted, "Selfie captured" review, ID photo step with the document type chooser, front and back validation ("Add a photo of the front of your ID." and the back), the system camera and its confirm screen (the emulator's virtual scene, not an identity document), the quality check ("Checking photo..." then "Added"), and the Review and submit summary showing details and photos. **Submit for review was not pressed.** The black frame in the selfie is the emulator camera.
+
+**Withdraw:** the form at 1.6x text, then the code screen at 1.6x text (the destination line wraps without clipping and the fee summary, code boxes and buttons all fit). The fee numbers on that screen come from the fixture, not the app.
+
 ## Route inventory (89 screen files under `src/app`, 95 files with layouts)
 
 Status words follow the brief. D = seen on the Android emulator in dark mode against a fixture backend (earlier rounds). T = covered by a render or unit test over a fake transport. C = read in code only. "Not verified" means exactly that.
@@ -116,19 +132,19 @@ Status words follow the brief. D = seen on the Android emulator in dark mode aga
 | `analytics` | Home, Wallet | Implemented and visually verified (D). Legend now labeled from the backend source |
 | `payroll` | Wallet, Analytics | Implemented, functionally verified (T, 10 tests) and visually verified (D, light, dark, 1.6x). Confirmed zero and populated list: T only |
 | `transactions`, `clients`, `packages`, `bookings`, `payment-accounts`, `notifications`, `gallery`, `photobooks`, `edit-profile`, `collaborate/index` | More, Home, Wallet | Implemented and visually verified (D) |
-| `withdraw` | Wallet | Implemented (duplicate title removed). Visually verified for the form, verification code screen, wrong code and success (D; form and validation also light and 1.6x). Functionally verified through verify, wrong code, unknown outcome, success, refusal and KYC (T, 11 tests, fake API, no real transfer). The code step was not seen in light mode |
+| `withdraw` | Wallet | Implemented (duplicate title removed). Visually verified for the form, verification code screen, wrong code and success (D; form, validation and the code screen also light and 1.6x). Functionally verified through verify, wrong code, unknown outcome, success, refusal and KYC (T, 11 tests, fake API, no real transfer). The success state was not seen in light mode |
 | `event/[id]` | Home, Events | Implemented and visually verified (D, light, dark, 1.6x). Decline sheet now the shared `Sheet` (T) |
 | `event/new` | Home, Events | Implemented and visually verified (D, dark). Submit and failure paths not exercised |
 | `event/candidates` | notifications | Fixed (crash on a response with no `escrowOptions`) and visually verified (D) |
-| `event/geo-pricing`, `donations`, `streams`, `tv-devices`, `blocked-accounts` | profile, More | Implemented (duplicate title removed). Not viewed on a device. Not verified |
+| `event/geo-pricing`, `donations`, `streams`, `tv-devices`, `blocked-accounts` | profile, More | Implemented (duplicate title removed). Visually verified (D, light, and 1.6x for geo pricing, donate, streams, manage TVs, blocked accounts) |
 | `album/[id]`, `album/new`, `content-albums`, `content-album/new` | Events, gallery | Implemented and visually verified (D). Content album options show loading or unavailable (T) |
 | `photobook/new`, `photobook/[id]` | photobooks | Verified within the available environment (D, empty fixture data). Resubmit flow not exercised |
-| `package/new` | packages | Implemented and visually verified (D). Currency unavailable state (T) |
+| `package/new` | packages | Implemented and visually verified (D, light). Currency unavailable state (T, and seen on the device) |
 | `client/[id]`, `conversation/[id]` | clients, inbox | Verified within the available environment (D, empty fixture data) |
 | `payment/[id]` | notifications | Implemented ("Amount unavailable") and visually verified (D) |
 | `payments` | alias of Transactions | Verified within the available environment (D) |
 | `two-factor`, `preferences` | profile | Visually verified (D) |
-| `kyc` | profile, withdraw, banners | Details and selfie steps visually verified (D, light and 1.6x; permission denied and granted). Live camera feed is black on the emulator, no photo taken. ID photo and review steps not seen |
+| `kyc` | profile, withdraw, banners | Every step visually verified (D, light; details and selfie also 1.6x): details validation, consent, selfie with permission denied and granted, ID photo front and back validation, system camera confirm, review summary. Submit not pressed. Camera feed is black on the emulator |
 | `stream/control/[id]` | Events | Visually verified up to "Preparing your camera" (D). Live camera blocked on the emulator |
 | `collaborate/album/[id]` | collaborate | Verified within the available environment (D, empty fixture data) |
 | `collaborate/join/[token]` | pasted invite links, notifications | Functionally verified (T, 11 tests, controlled token, fake API). Visually verified (D, light and 1.6x too). Stale state on token change fixed |
@@ -138,19 +154,19 @@ Status words follow the brief. D = seen on the Android emulator in dark mode aga
 | Events dashboard Decline sheet | Events, event detail | Visually verified (D, keyboard safe). Functionally verified (T, fixture) |
 | Events dashboard Sort sheet | Events list mode | Visually and functionally verified (D dark, light, 1.6x; T order test). Now the shared `Sheet` |
 | Goals sheet, More sheet, themed dialog | Home, bottom bar, many | Visually verified (D; dialog also light and 1.6x). Goals and dialog unit tested |
-| `delete-account` | profile | Read in code (C): type to confirm, no double submit, themed tokens. Not viewed. Not verified visually |
-| `connect-to-tv`, `pay-on-tv` | tv-devices | Read in code (C), themed tokens. Not viewed. Not verified |
+| `delete-account` | profile | Visually verified (D, light and 1.6x). Delete itself was never pressed |
+| `connect-to-tv`, `pay-on-tv` | tv-devices | Visually verified (D, light; manage TVs also 1.6x). `connect-to-tv` and `pay-on-tv` show the emulator camera only, so scanning was not exercised |
 | `photographers`, `photographer/[id]`, `stream/[id]`, `map`, `find-my-photos`, `event/hybrid-wizard`, `wallet/movements` | other roles' flows, notification routing, or no entry point | Not photographer workspace screens (no photographer entry point found, or routing shims). Not changed. Not verified |
 | `(public)/*` (help center, about, privacy policy, terms, trust and safety, contact, feedback, browse photos, explore events, event and scan pages, join, pay) | profile links (privacy, terms) and guest flows | Guest and legal pages shared by every role. Not part of this redesign. Not verified |
 | `(auth)/*`, `(onboarding)/*` | signed out | Out of scope (not an internal photographer screen). Not verified |
 | iOS | none | Not tested at all |
 
-Light mode and 1.6x text were verified for `event/[id]`, `payroll`, the themed dialog, the booking request call screen, join and joined collaboration, the Sort sheet, Withdraw form validation and KYC details and selfie. Every other row is dark mode only.
+Light mode was checked on every screen listed in round seven and 1.6x text on the ones named there. Dark mode on most of them dates from earlier rounds. Screens not named in rounds six or seven (event details, album detail, photobook detail, conversation, client detail, preferences, two-factor, the stream control screen) were checked in dark mode only.
 
 ## Not done, and why
 
-- **Not seen on a device:** KYC ID photo and review steps and a real camera capture (the emulator camera is black), the Withdraw code step in light and 1.6x, and every screen in the table marked dark only or "not verified".
-- **Flows never exercised against any backend:** event creation submit and failure, goal save and delete, photobook resubmit, accept and decline of a real booking, load older transactions, a real withdrawal, joining a real invite. Only the fixture and fake-API tests and fixture screens cover accept, decline, withdraw and join.
+- **Not seen on a device:** light mode and 1.6x text for album detail, photobook detail, conversation, client detail, preferences, two-factor and stream control, and light mode of the Withdraw success state. A real camera capture (the emulator camera is a virtual scene), a real QR scan on connect-to-tv and pay-on-tv, and the KYC Submit result.
+- **Flows never exercised against any backend:** event creation submit and failure, goal save and delete, photobook resubmit, accept and decline of a real booking, load older transactions, a real withdrawal, a real KYC submission, joining a real invite. Only the fixture and fake-API tests and fixture screens cover accept, decline, withdraw and join.
 - **iOS** was not exercised, including a dialog opened over another native Modal.
 - Fixture data only. No live account was used.
 - The web dashboard still labels the series `Current V1/V2` and sums mixed currencies (separate repository, not changed).
