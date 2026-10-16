@@ -216,25 +216,32 @@ export function GiftTray({
                   <Text style={s.tileName} numberOfLines={1}>
                     {g.name}
                   </Text>
+                  <Text
+                    style={s.tilePrice}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {formatGiftUsd(g.amountUsd)}
+                  </Text>
                   {isSel ? (
+                    // A short fixed label: the price is already on the tile, so the pill never
+                    // has to fit "Send USh 7,999" and the tile keeps the same height selected or not.
                     <View style={s.tileSend}>
                       {isSending ? (
                         <ActivityIndicator size="small" color={colors.textOnPrimary} />
                       ) : (
-                        <Text style={s.tileSendText}>Send {formatGiftUsd(g.amountUsd)}</Text>
-                      )}
-                    </View>
-                  ) : (
-                    <>
-                      <Text style={s.tilePrice}>
-                        {formatGiftUsd(g.amountUsd)}
-                      </Text>
-                      {converted && (
-                        <Text style={s.tileLocal} numberOfLines={1}>
-                          {formatGiftUsdBase(g.amountUsd)} USD
+                        <Text style={s.tileSendText} numberOfLines={1} allowFontScaling={false}>
+                          Send
                         </Text>
                       )}
-                    </>
+                    </View>
+                  ) : converted ? (
+                    <Text style={s.tileLocal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                      {formatGiftUsdBase(g.amountUsd)} USD
+                    </Text>
+                  ) : (
+                    <View style={s.tileSpacer} />
                   )}
                 </Pressable>
               );
@@ -329,26 +336,27 @@ const useS = makeStyles((c) => ({
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: radii.md,
     paddingVertical: spacing.md,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    minHeight: 118,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   tileSel: { borderColor: c.accent, backgroundColor: 'rgba(242,12,143,0.14)' },
   tileEmoji: { fontSize: 30, lineHeight: 34 },
-  tileName: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: fontWeight.semibold },
-  tilePrice: { color: '#ffd166', fontSize: fontSize.xs, fontWeight: fontWeight.extrabold },
-  tileLocal: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: fontWeight.semibold },
+  tileName: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: fontWeight.semibold, alignSelf: 'stretch', textAlign: 'center' },
+  tilePrice: { color: '#ffd166', fontSize: fontSize.xs, fontWeight: fontWeight.extrabold, alignSelf: 'stretch', textAlign: 'center' },
+  tileLocal: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: fontWeight.semibold, alignSelf: 'stretch', textAlign: 'center' },
   tileSend: {
     backgroundColor: c.accent,
     borderRadius: radii.full,
     alignSelf: 'stretch',
     alignItems: 'center',
-    paddingVertical: 5,
     marginTop: 2,
-    minHeight: 24,
+    height: 26,
     justifyContent: 'center',
   },
-  tileSendText: { color: c.textOnPrimary, fontSize: 11, fontWeight: fontWeight.extrabold },
+  tileSendText: { color: c.textOnPrimary, fontSize: 12, fontWeight: fontWeight.extrabold, textAlign: 'center' },
+  tileSpacer: { height: 26, marginTop: 2 },
 
   stateBox: {
     minHeight: 160,
