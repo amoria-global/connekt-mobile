@@ -1,145 +1,106 @@
 /**
- * In-app Update Prompt Modal.
+ * Mandatory update prompt.
  *
- * Appears when an OTA update has finished downloading or is downloading,
- * allowing the user to update Connekyt directly with a single tap.
+ * Every update the check finds is required. The prompt blocks the app and has
+ * one action, "Update now". It cannot be dismissed: no close button, no tap
+ * outside, and the hardware back button does nothing. A failed download or
+ * restart shows the reason in the same prompt and the same button retries.
  */
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
-import { useAppUpdates } from './useAppUpdates';
+import { updateNow, useAppUpdates, useUpdateChecks } from './useAppUpdates';
 
 export function UpdatePromptModal() {
-  const {
-    isModalVisible,
-    updateReady,
-    isDownloading,
-    downloadProgress,
-    currentVersion,
-    applyUpdate,
-    closeModal,
-  } = useAppUpdates();
+  const { blocking, updateReady, isDownloading, isChecking, downloadProgress, errorMessage, currentVersion } =
+    useAppUpdates();
   const { colors } = useTheme();
   const styles = useStyles();
-  const [reloading, setReloading] = useState(false);
+  const [working, setWorking] = useState(false);
 
-  // Only show if modal is requested and there's something to show (ready or downloading)
-  if (!isModalVisible || (!updateReady && !isDownloading)) {
-    return null;
-  }
+  // Launch and foreground-resume checks run here, once, for the whole app.
+  useUpdateChecks();
 
-  const handleApply = async () => {
+  if (!blocking) return null;
+
+  const failed = !!errorMessage && !isDownloading && !isChecking;
+  const busy = working || isDownloading || isChecking;
+
+  const handleUpdate = async () => {
+    if (busy) return;
+    setWorking(true);
     try {
-      setReloading(true);
-      await applyUpdate();
-    } catch {
-      setReloading(false);
+      await updateNow();
+    } finally {
+      setWorking(false);
     }
   };
 
   return (
     <Modal
-      visible={isModalVisible}
+      visible
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={closeModal}
+      // Android back must not close a mandatory update.
+      onRequestClose={() => {}}
     >
       <View style={styles.backdrop}>
-        <View style={styles.modalCard}>
-          {/* Top Badge Icon */}
+        <View style={styles.modalCard} accessibilityViewIsModal>
           <View style={styles.iconCircle}>
             <Ionicons
-              name={updateReady ? 'sparkles' : 'cloud-download'}
+              name={failed ? 'alert-circle' : updateReady ? 'sparkles' : 'cloud-download'}
               size={28}
-              color={colors.primary}
+              color={failed ? colors.error : colors.primary}
             />
           </View>
 
-          {/* Pill status */}
-          <View style={styles.pillBadge}>
-            <Text style={styles.pillBadgeText}>
-              {updateReady ? 'UPDATE READY' : 'DOWNLOADING UPDATE'}
-            </Text>
-          </View>
-
-          {/* Title & Body */}
           <Text style={styles.title}>
-            {updateReady ? 'Update Ready to Install' : 'Downloading Update'}
+            {failed ? 'Update did not finish' : 'Update required'}
           </Text>
 
           <Text style={styles.body}>
-            {updateReady
-              ? `A new version of Connekyt (v${currentVersion}) is ready. Restart now to get the latest features, improvements, and bug fixes.`
-              : 'Fetching the latest updates in the background. You can keep using Connekyt while it downloads.'}
+            {failed
+              ? `${errorMessage} Check your connection and try again.`
+              : isDownloading
+                ? 'Downloading the latest version of Connekyt. This only takes a moment.'
+                : `A new version of Connekyt is ready${currentVersion ? ` (current v${currentVersion})` : ''}. Update now to keep using the app.`}
           </Text>
 
-          {/* Download progress bar */}
-          {isDownloading && (
+          {isDownloading ? (
             <View style={styles.progressContainer}>
               <View style={styles.progressTrack}>
                 <View
                   style={[
                     styles.progressFill,
-                    {
-                      width: `${Math.min(
-                        100,
-                        Math.max(10, Math.round((downloadProgress || 0) * 100)),
-                      )}%`,
-                    },
+                    { width: `${Math.min(100, Math.max(10, Math.round((downloadProgress || 0) * 100)))}%` },
                   ]}
                 />
               </View>
               <Text style={styles.progressLabel}>
-                {downloadProgress > 0
-                  ? `Downloading… ${Math.round(downloadProgress * 100)}%`
-                  : 'Preparing update…'}
+                {downloadProgress > 0 ? `Downloading... ${Math.round(downloadProgress * 100)}%` : 'Preparing update...'}
               </Text>
             </View>
-          )}
+          ) : null}
 
-          {/* Actions */}
-          <View style={styles.buttonRow}>
-            {updateReady && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  pressed && styles.pressed,
-                  reloading && styles.btnDisabled,
-                ]}
-                onPress={handleApply}
-                disabled={reloading}
-              >
-                {reloading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="refresh-outline" size={18} color="#fff" />
-                    <Text style={styles.primaryBtnText}>Restart & Update</Text>
-                  </>
-                )}
-              </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed, busy && styles.btnDisabled]}
+            onPress={handleUpdate}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel="Update now"
+            accessibilityState={{ disabled: busy, busy }}
+          >
+            {busy ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="refresh-outline" size={18} color="#fff" />
+                <Text style={styles.primaryBtnText}>Update now</Text>
+              </>
             )}
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                pressed && styles.pressed,
-              ]}
-              onPress={closeModal}
-            >
-              <Text style={styles.secondaryBtnText}>
-                {updateReady ? 'Not Now' : 'Dismiss'}
-              </Text>
-            </Pressable>
-          </View>
+          </Pressable>
         </View>
       </View>
     </Modal>
