@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { StarInput } from '@/components/ui/Stars';
+import { Sheet } from '@/components/ui/Sheet';
 import { useRole } from '@/features/auth/role';
 import { IconTile } from '@/features/photographer/kit';
 import {
@@ -831,29 +832,22 @@ export default function EventDetailScreen() {
       />
 
       {/* Decline-booking reason sheet — Photographer side */}
-      <Modal
+      <Sheet
         visible={declineOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setDeclineOpen(false)}
+        title="Decline booking"
+        subtitle="Share a short reason so the client knows why you're not taking this on."
+        onClose={() => setDeclineOpen(false)}
+        busy={busy === 'decline'}
+        footer={<Button title="Submit decline" onPress={submitDecline} loading={busy === 'decline'} />}
       >
-        <Pressable style={styles.backdrop} onPress={() => setDeclineOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Decline booking</Text>
-            <Text style={styles.sheetHint}>
-              Share a short reason so the client knows why you're not taking this on.
-            </Text>
-            <Input
-              placeholder="e.g. Schedule conflict, location too far, etc."
-              value={declineReason}
-              onChangeText={setDeclineReason}
-              multiline
-              style={styles.commentInput}
-            />
-            <Button title="Submit decline" onPress={submitDecline} loading={busy === 'decline'} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+        <Input
+          placeholder="e.g. Schedule conflict, location too far, etc."
+          value={declineReason}
+          onChangeText={setDeclineReason}
+          multiline
+          style={styles.commentInput}
+        />
+      </Sheet>
 
       {repostOpen && ev ? (
         <BookingModeSelector

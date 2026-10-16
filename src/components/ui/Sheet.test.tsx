@@ -1,6 +1,6 @@
 import React from 'react';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
-import { Modal, Text } from 'react-native';
+import { KeyboardAvoidingView, Modal, Text } from 'react-native';
 
 import { Sheet } from './Sheet';
 
@@ -57,5 +57,17 @@ describe('Sheet', () => {
     closers(r).forEach((c) => act(() => c.props.onPress?.()));
     act(() => r.root.findByType(Modal).props.onRequestClose());
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('Sheet keyboard handling', () => {
+  it('lifts above the keyboard on every platform, not only iOS', () => {
+    const r = mount(
+      <Sheet title="T" onClose={() => {}}>
+        <Text>x</Text>
+      </Sheet>,
+    );
+    const kav = r.root.findByType(KeyboardAvoidingView);
+    expect(kav.props.behavior).toBe('padding');
   });
 });
