@@ -118,7 +118,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { reportContent, reportPublicChatMessage } from '@/features/moderation/api';
 import { useModeration } from '@/features/moderation/useModeration';
-import { isApiError } from '@/store/auth';
+import { isApiError, useAuth } from '@/store/auth';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -902,6 +902,8 @@ export default function PublicLiveStreamScreen() {
   const [giftPay, setGiftPay] = useState<GiftCatalogItem | null>(null);
   // A gift picked before the viewer registered: resumes into the in-app checkout once they have.
   const [pendingGift, setPendingGift] = useState<GiftCatalogItem | null>(null);
+  // A signed-in account pays for a gift as itself, so it never needs the name and email form.
+  const signedIn = useAuth((a) => a.status === 'authenticated');
   const [giftEvents, setGiftEvents] = useState<GiftEvent[]>([]);
 
   // ── Access detection (web parity: lines 595-755) ─────────────────────────
@@ -1618,7 +1620,7 @@ export default function PublicLiveStreamScreen() {
     if (!giftConfirm) return;
     const gift = giftConfirm;
     setGiftConfirm(null);
-    if (viewerId) {
+    if (viewerId || signedIn) {
       setTimeout(() => setGiftPay(gift), MODAL_HANDOFF_MS);
       return;
     }
