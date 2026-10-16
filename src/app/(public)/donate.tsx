@@ -42,12 +42,8 @@ import { getPublicPaymentStatus } from '@/features/photos/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
 import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
-import {
-  detectPaymentCountry,
-  getPaymentOptions,
-  listCurrencies,
-  type PaymentOperator,
-} from '@/features/reference/api';
+import { usePaymentEligibility } from '@/features/payments/usePaymentEligibility';
+import { listCurrencies } from '@/features/reference/api';
 import {
   dialCodeFor,
   formatPhoneE164,
@@ -240,14 +236,11 @@ export default function PublicDonateScreen() {
   const [showDonorDetails, setShowDonorDetails] = useState(false);
 
   // Country & Payment Method (Mirrors PhotoCheckoutSheet)
-  const [country, setCountry] = useState('RW');
+  const eligibility = usePaymentEligibility();
+  const { operators, supportsCard } = eligibility;
+  const country = eligibility.country ?? '';
   const [countryModalOpen, setCountryModalOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
-  const [supportsCard, setSupportsCard] = useState(true);
-  const [operators, setOperators] = useState<PaymentOperator[]>([
-    { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
-    { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' },
-  ]);
   const [method, setMethod] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
 
@@ -257,27 +250,6 @@ export default function PublicDonateScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refid, setRefid] = useState<string | null>(null);
   const pollCancelRef = useRef<(() => void) | null>(null);
-
-  // Load geo payment country and payment options
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const detected = (await detectPaymentCountry().catch(() => undefined)) || 'RW';
-        if (cancelled) return;
-        setCountry(detected);
-        const opts = await getPaymentOptions(detected).catch(() => null);
-        if (cancelled) return;
-        if (opts) {
-          setSupportsCard(opts.supportsCard);
-          if (opts.operators.length > 0) setOperators(opts.operators);
-        }
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -316,8 +288,9 @@ export default function PublicDonateScreen() {
   const isCard = selectedTile?.isCard ?? false;
   const isRwanda = country.toUpperCase() === 'RW';
 
-  const selectCountry = async (cIso2: string) => {
-    setCountry(cIso2);
+  const selectCountry = (cIso2: string) => {
+    setMethod(null);
+    void eligibility.changeCountry(cIso2);
     setCountryModalOpen(false);
     setCountrySearch('');
     const mappedCur = COUNTRY_TO_CURRENCY_CODE[cIso2];
@@ -331,14 +304,6 @@ export default function PublicDonateScreen() {
       if (d.startsWith('0')) d = d.replace(/^0+/, '');
       return d.slice(0, 10);
     });
-    try {
-      const opts = await getPaymentOptions(cIso2).catch(() => null);
-      if (opts) {
-        setSupportsCard(opts.supportsCard);
-        if (opts.operators.length > 0) setOperators(opts.operators);
-        setMethod(null);
-      }
-    } catch {}
   };
 
   const handlePhoneChange = (text: string) => {
@@ -688,6 +653,10 @@ export default function PublicDonateScreen() {
                 supportsCard={supportsCard}
                 selectedId={selectedTile?.id ?? null}
                 onSelect={setMethod}
+                country={country}
+                onCountryChange={selectCountry}
+                mobileMoneyState={eligibility.mobileMoney}
+                onRetry={eligibility.retry}
                 disabled={busy}
               />
 
