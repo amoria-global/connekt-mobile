@@ -87,14 +87,9 @@ export default function ProfileScreen() {
     isDownloading: isDownloadingUpdate,
     currentVersion,
     checkForUpdates,
-    openModal: openUpdateModal,
   } = useAppUpdates();
 
   const handleCheckUpdate = async () => {
-    if (updateReady) {
-      openUpdateModal();
-      return;
-    }
     const result = await checkForUpdates(true);
     if (!result.ready && !result.available) {
       Alert.alert(
