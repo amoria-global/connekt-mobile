@@ -54,6 +54,13 @@ describe('payment eligibility by country', () => {
     expect(e.mobileMoney).toBe('unavailable');
   });
 
+  it('the backend answer for an uncovered country (no supportsCard, no operators) still offers cards', () => {
+    const e = resolveEligibility('NL', { country: 'NL', supportsCard: false, operators: [] });
+    expect(e.supportsCard).toBe(true);
+    expect(e.operators).toEqual([]);
+    expect(e.mobileMoney).toBe('unavailable');
+  });
+
   it('options for a different country than the one asked never apply', () => {
     expect(resolveEligibility('US', rw).operators).toEqual([]);
   });
