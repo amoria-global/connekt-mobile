@@ -25,7 +25,9 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('expo-image', () => ({ Image: () => null }));
 jest.mock('./EventQrSheet', () => ({ EventQrSheet: () => null }));
+// No signed-in user: the themed dialog then falls back to the native alert, which this test spies on.
 jest.mock('@/store/auth', () => ({
+  useAuth: { getState: () => ({ user: null }) },
   isApiError: (e: unknown) => !!e && typeof e === 'object' && 'message' in (e as object),
 }));
 
@@ -123,5 +125,22 @@ describe('photographer events workspace', () => {
     expect(alert).toHaveBeenLastCalledWith('Could not remove', 'You are not authorized to dismiss this event');
     expect(mockGet).not.toHaveBeenCalled(); // no refresh: nothing changed
     alert.mockRestore();
+  });
+
+  it('sorts by title from the Sort sheet and shows the new order', async () => {
+    const r = await mount();
+    const list = r.root.find((n) => n.props?.accessibilityRole === 'tab' && flat(n) === 'List');
+    await act(async () => list.props.onPress());
+    const titleAt = (name: string) => flat(r.root).indexOf(name);
+    await act(async () => byLabel(r, 'Sort events')[0].props.onPress());
+    const option = r.root.findAll((n) => n.props?.accessibilityRole === 'radio' && String(n.props.accessibilityLabel).startsWith('Title (A to Z)'));
+    expect(option.length).toBeGreaterThan(0);
+    expect(option[0].props.accessibilityState).toEqual({ selected: false });
+    await act(async () => option[0].props.onPress());
+    expect(titleAt('Past engagement')).toBeGreaterThan(-1);
+    expect(titleAt('Past engagement')).toBeLessThan(titleAt('Uwase wedding'));
+    await act(async () => byLabel(r, 'Sort events')[0].props.onPress());
+    const again = r.root.findAll((n) => n.props?.accessibilityRole === 'radio' && String(n.props.accessibilityLabel).startsWith('Title (A to Z)'));
+    expect(again[0].props.accessibilityState).toEqual({ selected: true });
   });
 });

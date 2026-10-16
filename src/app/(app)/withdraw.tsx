@@ -401,7 +401,7 @@ export default function WithdrawScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <ScreenHeader title="Withdraw" subtitle="Send your earnings to your mobile money or bank account." />
+        <ScreenHeader title="Withdraw" subtitle="Send your earnings to your mobile money or bank account." duplicatesHeader />
         <View style={styles.body}>
           {loading ? (
             <View style={styles.center}>

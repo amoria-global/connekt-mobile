@@ -8,7 +8,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -228,7 +229,7 @@ export default function GeoPricingScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Geo pricing" />
+      <ScreenHeader duplicatesHeader title="Geo pricing" />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {eventsAsync.data && eventsAsync.data.length > 0 && !packageId ? (
           <View style={styles.eventPickerCard}>

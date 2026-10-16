@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { createPackage, updatePackage, type Package, type ServiceType } from '@/features/packages/api';
 import { listCurrencies } from '@/features/reference/api';
+import { OptionsNote } from '@/components/ui/OptionsNote';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -115,7 +116,8 @@ export default function NewPackageScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>{isEditing ? 'Edit package' : 'New package'}</Text>
+        {/* The native header already says "New package"; the body title stays only for editing. */}
+        {isEditing ? <Text style={styles.title}>Edit package</Text> : null}
 
         {/* Tier */}
         <View style={styles.group}>
@@ -149,6 +151,9 @@ export default function NewPackageScreen() {
           </View>
           <View style={styles.rowItem}>
             <Text style={styles.label}>Currency</Text>
+            {!currencies.data?.length ? (
+              <OptionsNote what="currencies" loading={currencies.loading} onRetry={() => void currencies.refresh()} />
+            ) : null}
             <View style={styles.chips}>
               {(currencies.data ?? []).map((c) => {
                 const active = currencyId === c.id;

@@ -5,7 +5,8 @@
  * creates the booking; payment then goes through the shared checkout.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,7 +60,11 @@ export default function EventCandidatesScreen() {
 
   useEffect(() => {
     syncServerClock();
-    getHybridOptions().then((o) => setEscrowOptions(o.escrowOptions)).catch(() => {});
+    getHybridOptions()
+      .then((o) => {
+        if (Array.isArray(o?.escrowOptions) && o.escrowOptions.length) setEscrowOptions(o.escrowOptions);
+      })
+      .catch(() => {});
     load();
   }, [load]);
 

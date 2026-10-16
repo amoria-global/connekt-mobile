@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -15,6 +14,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -93,7 +93,7 @@ export default function NewEventScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
-  const { isCoordinator } = useRole();
+  const { isCoordinator, isPhotographer } = useRole();
   const user = useAuth((s) => s.user);
   const params = useLocalSearchParams<{
     photographerId?: string;
@@ -623,7 +623,8 @@ export default function NewEventScreen() {
               <Text style={styles.bannerName}>{params.photographerName ?? 'Photographer'}</Text>
               {amount ? <Text style={styles.bannerPrice}>{formatPrice(amount, params.currency)}</Text> : null}
             </View>
-          ) : (
+          ) : // The sheet header already says "New event"; only editing needs the in-body title for photographers.
+          isPhotographer && !isEditing ? null : (
             <Text style={styles.title}>{isEditing ? 'Edit event' : 'New event'}</Text>
           )}
 
@@ -1470,7 +1471,7 @@ const useStyles = makeStyles((c) => ({
   assignName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   assignSub: { fontSize: fontSize.sm, color: c.textMuted },
 
-  multiline: { height: 100, paddingTop: spacing.md, textAlignVertical: 'top' },
+  multiline: { minHeight: 100, paddingTop: spacing.md, textAlignVertical: 'top' },
   serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
   pickerBackdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },

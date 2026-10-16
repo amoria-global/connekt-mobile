@@ -9,7 +9,8 @@
  * rest of the session; it stays on the Events tab with Accept / Decline.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useRole } from '@/features/auth/role';

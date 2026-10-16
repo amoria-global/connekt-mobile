@@ -5,7 +5,6 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
-  Alert,
   BackHandler,
   KeyboardAvoidingView,
   LayoutAnimation,
@@ -17,6 +16,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { BrandPill } from '@/components/topbar/BrandPill';
 import { NotificationButton } from '@/components/topbar/NotificationButton';
 import { Button } from '@/components/ui/Button';

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { getClient, listFavoriteClientIds, toggleFavoriteClient } from '@/features/clients/api';
@@ -249,13 +250,13 @@ const useStyles = makeStyles((c) => ({
   initials: { color: c.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
   name: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text, marginTop: spacing.sm },
   meta: { fontSize: fontSize.sm, color: c.textMuted },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.sm },
   moreBtn: {
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.sm,
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: c.border,
@@ -273,6 +274,7 @@ const useStyles = makeStyles((c) => ({
     marginTop: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    minHeight: 44,
     borderRadius: radii.full,
     backgroundColor: c.primary,
   },
@@ -288,6 +290,7 @@ const useStyles = makeStyles((c) => ({
     marginTop: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    minHeight: 44,
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: c.border,

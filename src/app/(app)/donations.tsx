@@ -48,7 +48,7 @@ export default function DonationsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Donate" subtitle="Support the Connekyt community" />
+      <ScreenHeader duplicatesHeader title="Donate" subtitle="Support the Connekyt community" />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.section}>Suggested amounts</Text>
         <View style={styles.tierRow}>
