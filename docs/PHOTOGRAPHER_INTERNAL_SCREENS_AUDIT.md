@@ -5,7 +5,7 @@ Companion to `PHOTOGRAPHER_WORKSPACE_AUDIT.md`, which covers Home, Wallet, Analy
 
 ## Honest summary
 
-This is still a partial completion of the larger brief (eighth commit on the branch; rounds six to eight recovered the emulator and closed the device gaps). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
+This is still a partial completion of the larger brief (ninth commit on the branch; rounds six to nine recovered the emulator and closed the device gaps). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
 (other roles are unchanged), and a first set of internal screens was checked on the Android emulator in dark mode
 against a fixture backend. Many screens are NOT individually restyled or verified, and the table below says which.
 The dark-mode pass (earlier) had already moved every internal screen onto the navy palette, so the remaining gap
@@ -134,7 +134,31 @@ Seen on the Android emulator (fixture backend, genuine screenshots kept locally)
 
 Light mode needed no fixes on any of these screens. The preferences "Ring during Do Not Disturb" row looked struck through in one screenshot; that is the gesture bar overlapping it at the bottom edge, not the app.
 
-**Not seen:** the Withdraw "Request submitted" result in light mode (the screen was reached in dark in round six; the light attempt this round missed the screen because a deep link did not land, so it is still unchecked).
+**Update (round nine):** the Withdraw "Request submitted" result was then reached on the emulator through the normal flow (amount, donation choice, code screen, Confirm withdrawal, on a fake API) and seen in light mode at normal text and at 1.6x. The title, "REQUEST SUBMITTED" status, explanation, Done and View transactions all stayed visible, legible and unclipped. The code screen was seen in light mode as well.
+
+## Final status summary (round nine closeout)
+
+How to read the statuses used throughout this file: **verified** means seen on the Android emulator against a fake backend (a fixture, never a real account). **Partially verified** means seen in some modes only, or only part of the screen. **Unverified** means not seen on any device.
+
+| Area | Dark | Light | 1.6x text | Notes |
+|---|---|---|---|---|
+| Home, Events, Wallet, Inbox, Profile, More | verified | verified | verified (workspace audit) | |
+| Analytics, Payroll, Transactions, Clients, Packages, Bookings, Payment accounts, Notifications, Gallery, Photobooks | verified | verified | verified (named in rounds seven and eight) | Analytics shows "N/A" and payroll "Unavailable" from the fixture, never zero |
+| Withdraw (form, code screen, wrong code, success) | verified | verified | verified | Fake API, no transfer |
+| Event details, New event, Candidates, Album, Photobook, Conversation, Client, Preferences, Two-factor | verified | verified | verified | |
+| New content album, New album, New photobook, New package | verified | verified | verified for content album and new event; others partially | |
+| Collaborate (index, join, joined, album) | verified | verified | verified | Join is a fixture token |
+| Events Sort, Accept and Decline sheets, call screen, Goals sheet, themed dialog | verified | verified | verified | |
+| KYC (details, selfie, ID front and back, review) | verified | verified | details and selfie verified | Submit never pressed; emulator camera is a virtual scene |
+| Geo pricing, Donate, Streams, Manage TVs, Blocked accounts, Delete account, Edit profile | verified | verified | verified | Delete never pressed |
+| Connect to TV, Pay on TV | verified | verified | not checked (Manage TVs verified) | No real QR scan |
+| Stream control | verified | n/a (dark by design) | verified | Camera not available on emulator |
+| iOS | unverified | unverified | unverified | Never run |
+| Any live backend or account | unverified | unverified | unverified | Fixture only |
+
+Out of scope and left alone: other roles' dashboards and flows, `photographers`, `photographer/[id]`, `stream/[id]`, `map`, `find-my-photos`, `event/hybrid-wizard`, `wallet/movements`, `(public)/*`, `(auth)/*`, `(onboarding)/*`.
+
+Currency and unavailable data: no screen invents a currency or a zero. Payroll and Withdraw balance show an error or "Unavailable" when the figure is unknown. The photographer Performance chart shows only the event count and says why payments are not charted, because the backend sums payments in mixed currencies.
 
 ## Route inventory (89 screen files under `src/app`, 95 files with layouts)
 
@@ -146,7 +170,7 @@ Status words follow the brief. D = seen on the Android emulator in dark mode aga
 | `analytics` | Home, Wallet | Implemented and visually verified (D). Legend now labeled from the backend source |
 | `payroll` | Wallet, Analytics | Implemented, functionally verified (T, 10 tests) and visually verified (D, light, dark, 1.6x). Confirmed zero and populated list: T only |
 | `transactions`, `clients`, `packages`, `bookings`, `payment-accounts`, `notifications`, `gallery`, `photobooks`, `edit-profile`, `collaborate/index` | More, Home, Wallet | Implemented and visually verified (D) |
-| `withdraw` | Wallet | Implemented (duplicate title removed). Visually verified for the form, verification code screen, wrong code and success (D; form, validation and the code screen also light and 1.6x). Functionally verified through verify, wrong code, unknown outcome, success, refusal and KYC (T, 11 tests, fake API, no real transfer). The success state was not seen in light mode |
+| `withdraw` | Wallet | Implemented (duplicate title removed). Visually verified for the form, verification code screen, wrong code and success (D; form, validation and the code screen also light and 1.6x). Functionally verified through verify, wrong code, unknown outcome, success, refusal and KYC (T, 11 tests, fake API, no real transfer). The success state and code screen were also seen in light mode and at 1.6x (round nine) |
 | `event/[id]` | Home, Events | Implemented and visually verified (D, light, dark, 1.6x). Decline sheet now the shared `Sheet` (T) |
 | `event/new` | Home, Events | Implemented and visually verified (D, dark). Submit and failure paths not exercised |
 | `event/candidates` | notifications | Fixed (crash on a response with no `escrowOptions`) and visually verified (D) |
@@ -179,7 +203,7 @@ Light mode was checked on every screen listed in round seven and 1.6x text on th
 
 ## Not done, and why
 
-- **Not seen on a device:** light mode of the Withdraw success state, and scrolled-down content of album detail, photobook detail and conversation with real photos or messages (the fixture has none). A real camera capture (the emulator camera is a virtual scene), a real QR scan on connect-to-tv and pay-on-tv, and the KYC Submit result.
+- **Not seen on a device:** scrolled-down content of album detail, photobook detail and conversation with real photos or messages (the fixture has none). A real camera capture (the emulator camera is a virtual scene), a real QR scan on connect-to-tv and pay-on-tv, and the KYC Submit result.
 - **Flows never exercised against any backend:** event creation submit and failure, goal save and delete, photobook resubmit, accept and decline of a real booking, load older transactions, a real withdrawal, a real KYC submission, joining a real invite. Only the fixture and fake-API tests and fixture screens cover accept, decline, withdraw and join.
 - **iOS** was not exercised, including a dialog opened over another native Modal.
 - Fixture data only. No live account was used.
@@ -192,3 +216,9 @@ Light mode was checked on every screen listed in round seven and 1.6x text on th
 - `npx jest`: 81 suites, 637 passed, 1 skipped (re-run after the final edits). New: `photographerChrome.test.tsx` (6), `dialog.test.tsx` (6), `Sheet.test.tsx` (3), `payrollView.test.ts` (5), `payroll.render.test.tsx` (5). Two existing tests (Goals, Events dashboard) needed their mocks extended for the dialog and Sheet; no assertion was weakened.
 - `npm run lint`: 359 errors, the same files and counts as `main` before this branch (compared per file).
 - Emulator: Pixel 5 API 34, dark mode, fixture backend with a temporary sign-in bypass. The harness and bypass are removed and absent from the diff.
+
+Final pass (round nine), run on the committed tree:
+- `npx tsc --noEmit`: exit 0.
+- `npx jest`: 81 suites, 637 passed, 1 skipped, 0 failed.
+- eslint over every file the branch changed or added (74 files), compared per file with `origin/main`: 43 errors now against 44 on `origin/main` (one fewer), and no file with more errors or warnings than before. A first run flagged two `require()` warnings in the new `joinInvite.render.test.tsx`; they were fixed and the file now has none. The repository's pre-existing lint errors elsewhere are untouched.
+- Branch diff against `origin/main`: only `src/` and `docs/`; no backend, config, lockfile, image or log files; no em or en dashes in added lines; no `console.log`, `debugger` or harness strings; no test file under `src/app`.

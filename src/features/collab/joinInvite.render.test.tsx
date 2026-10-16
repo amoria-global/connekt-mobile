@@ -18,7 +18,14 @@ jest.mock('./api', () => ({
   previewInvite: (...a: unknown[]) => mockPreview(...a),
   acceptInvite: (...a: unknown[]) => mockAccept(...a),
 }));
-jest.mock('./components', () => ({ AlbumCover: () => null, PersonRow: ({ caption }: { caption: string }) => require('react').createElement(require('react-native').Text, null, caption) }));
+jest.mock('./components', () => {
+  const { Text: RNText } = jest.requireActual('react-native');
+  const { createElement } = jest.requireActual('react');
+  return {
+    AlbumCover: () => null,
+    PersonRow: ({ caption }: { caption: string }) => createElement(RNText, null, caption),
+  };
+});
 
 const mockReplace = jest.fn();
 let mockToken = 'TEST-TOKEN';
