@@ -17,7 +17,6 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -26,6 +25,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import {

@@ -2,12 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { StarInput } from '@/components/ui/Stars';
+import { Sheet } from '@/components/ui/Sheet';
 import { useRole } from '@/features/auth/role';
+import { IconTile } from '@/features/photographer/kit';
 import {
   acceptEventBooking,
   confirmCompletion,
@@ -531,28 +534,45 @@ export default function EventDetailScreen() {
 
         {ev?.description ? <Text style={styles.desc}>{ev.description}</Text> : null}
 
-        {/* Detail grid */}
-        <View style={styles.grid}>
-          {ev?.eventDate ? <DetailCard icon="calendar" label="DATE" value={fmtShortDate(ev.eventDate)} /> : null}
-          {ev?.startTime ? (
-            <DetailCard
-              icon="time"
-              label="TIME"
-              value={[fmtTime(ev.startTime), fmtTime(ev.endTime)].filter(Boolean).join(' - ')}
-            />
-          ) : null}
-          {ev?.location ? <DetailCard icon="location" label="LOCATION" value={ev.location} /> : null}
-          {ev?.clientName ? <DetailCard icon="person" label="CLIENT" value={ev.clientName} /> : null}
-          {ev?.photographerName && !ev?.clientName ? (
-            <DetailCard icon="camera" label="PHOTOGRAPHER" value={ev.photographerName} />
-          ) : null}
-          {ev?.packageName ? <DetailCard icon="cube" label="PACKAGE" value={ev.packageName} /> : null}
-          {ev?.category ? <DetailCard icon="pricetag" label="EVENT TYPE" value={ev.category} /> : null}
-          {ev?.maxGuests != null ? (
-            <DetailCard icon="people" label="GUESTS" value={`${ev.guestCount ?? 0} / ${ev.maxGuests}`} />
-          ) : null}
-          {money ? <DetailCard icon="wallet" label="AMOUNT" value={money} /> : null}
-        </View>
+        {/* Details. Photographers get one compact list (icon tile, label, value, hairlines) instead of a grid of
+            tinted cards; every other role keeps the grid. */}
+        {(() => {
+          const rows: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [];
+          if (ev?.eventDate) rows.push({ key: 'date', icon: 'calendar', label: 'DATE', value: fmtShortDate(ev.eventDate) });
+          if (ev?.startTime)
+            rows.push({ key: 'time', icon: 'time', label: 'TIME', value: [fmtTime(ev.startTime), fmtTime(ev.endTime)].filter(Boolean).join(' - ') });
+          if (ev?.location) rows.push({ key: 'loc', icon: 'location', label: 'LOCATION', value: ev.location });
+          if (ev?.clientName) rows.push({ key: 'client', icon: 'person', label: 'CLIENT', value: ev.clientName });
+          if (ev?.photographerName && !ev?.clientName)
+            rows.push({ key: 'photog', icon: 'camera', label: 'PHOTOGRAPHER', value: ev.photographerName });
+          if (ev?.packageName) rows.push({ key: 'pkg', icon: 'cube', label: 'PACKAGE', value: ev.packageName });
+          if (ev?.category) rows.push({ key: 'cat', icon: 'pricetag', label: 'EVENT TYPE', value: ev.category });
+          if (ev?.maxGuests != null)
+            rows.push({ key: 'guests', icon: 'people', label: 'GUESTS', value: `${ev.guestCount ?? 0} / ${ev.maxGuests}` });
+          if (money) rows.push({ key: 'amount', icon: 'wallet', label: 'AMOUNT', value: money });
+          if (isPhotog) {
+            return rows.length ? (
+              <View style={styles.detailPanel}>
+                {rows.map((r, i) => (
+                  <View key={r.key} style={[styles.detailRow, i > 0 && styles.detailRowRule]}>
+                    <IconTile icon={r.icon} size={32} />
+                    <View style={styles.detailRowText}>
+                      <Text style={styles.detailRowLabel}>{r.label}</Text>
+                      <Text style={styles.detailRowValue}>{r.value}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null;
+          }
+          return (
+            <View style={styles.grid}>
+              {rows.map((r) => (
+                <DetailCard key={r.key} icon={r.icon} label={r.label} value={r.value} />
+              ))}
+            </View>
+          );
+        })()}
 
         {/* Primary actions — photographer */}
         {isPhotog && isPending ? (
@@ -812,29 +832,22 @@ export default function EventDetailScreen() {
       />
 
       {/* Decline-booking reason sheet — Photographer side */}
-      <Modal
+      <Sheet
         visible={declineOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setDeclineOpen(false)}
+        title="Decline booking"
+        subtitle="Share a short reason so the client knows why you're not taking this on."
+        onClose={() => setDeclineOpen(false)}
+        busy={busy === 'decline'}
+        footer={<Button title="Submit decline" onPress={submitDecline} loading={busy === 'decline'} />}
       >
-        <Pressable style={styles.backdrop} onPress={() => setDeclineOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Decline booking</Text>
-            <Text style={styles.sheetHint}>
-              Share a short reason so the client knows why you're not taking this on.
-            </Text>
-            <Input
-              placeholder="e.g. Schedule conflict, location too far, etc."
-              value={declineReason}
-              onChangeText={setDeclineReason}
-              multiline
-              style={styles.commentInput}
-            />
-            <Button title="Submit decline" onPress={submitDecline} loading={busy === 'decline'} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+        <Input
+          placeholder="e.g. Schedule conflict, location too far, etc."
+          value={declineReason}
+          onChangeText={setDeclineReason}
+          multiline
+          style={styles.commentInput}
+        />
+      </Sheet>
 
       {repostOpen && ev ? (
         <BookingModeSelector
@@ -1136,6 +1149,18 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  detailPanel: {
+    backgroundColor: c.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: c.border,
+    overflow: 'hidden',
+  },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, minHeight: 52 },
+  detailRowRule: { borderTopWidth: 1, borderTopColor: c.borderSoft },
+  detailRowText: { flex: 1, minWidth: 0 },
+  detailRowLabel: { fontFamily: fonts.bold, fontSize: 11, color: c.textMuted, letterSpacing: 0.6 },
+  detailRowValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 1 },
   detailLabel: { fontFamily: fonts.bold, fontSize: 10, color: c.accent, letterSpacing: 0.6 },
   detailValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 1 },
 

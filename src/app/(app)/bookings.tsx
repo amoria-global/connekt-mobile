@@ -22,7 +22,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -32,6 +31,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
@@ -226,6 +226,7 @@ export default function BookingsScreen() {
   return (
     <Screen padded={false}>
       <UserHeaderBand
+        duplicatesHeader
         title="Bookings"
         subtitle={
           isPhotographer

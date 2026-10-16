@@ -28,27 +28,42 @@ export default function JoinInviteScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useStyles();
-  const [preview, setPreview] = useState<InvitePreview | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [joining, setJoining] = useState(false);
+  // Everything below belongs to one token. State is keyed by it, so a new link can never show the previous album,
+  // error or "joining" spinner, without resetting state inside an effect.
+  const [loaded, setLoaded] = useState<{ token: string; preview: InvitePreview | null; error: string | null } | null>(null);
+  const [joiningToken, setJoiningToken] = useState<string | null>(null);
+  const here = loaded && loaded.token === token ? loaded : null;
+  const preview = here?.preview ?? null;
+  const error = here?.error ?? null;
+  const joining = joiningToken === token;
 
   useEffect(() => {
     if (!token) return;
+    let current = true;
     previewInvite(token)
-      .then(setPreview)
-      .catch((e) => setError(isApiError(e) ? e.message : 'This invite link is not valid.'));
+      .then((p) => current && setLoaded({ token, preview: p, error: null }))
+      .catch(
+        (e) =>
+          current &&
+          setLoaded({ token, preview: null, error: isApiError(e) ? e.message : 'This invite link is not valid.' }),
+      );
+    return () => {
+      current = false;
+    };
   }, [token]);
 
   const join = async () => {
     if (!token) return;
-    setJoining(true);
-    setError(null);
+    setJoiningToken(token);
+    setLoaded((l) => (l && l.token === token ? { ...l, error: null } : l));
     try {
       const albumId = await acceptInvite(token);
       router.replace(`/collaborate/joined/${albumId}` as Href);
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not join this album.');
-      setJoining(false);
+      setLoaded((l) =>
+        l && l.token === token ? { ...l, error: isApiError(e) ? e.message : 'Could not join this album.' } : l,
+      );
+      setJoiningToken(null);
     }
   };
 

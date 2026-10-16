@@ -9,18 +9,9 @@
  *     yet, so those say so instead of drawing a made-up bar.
  */
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
+import { Sheet } from '@/components/ui/Sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import { useAsync } from '@/hooks/useAsync';
@@ -205,43 +196,36 @@ function GoalForm({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () =
   );
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={busy ? undefined : onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHead}>
-            <Text style={styles.sheetTitle} accessibilityRole="header">
-              {plan ? 'Edit goal' : 'New goal'}
-            </Text>
-            <Pressable onPress={onClose} disabled={busy} accessibilityRole="button" accessibilityLabel="Close" style={styles.close}>
-              <Ionicons name="close" size={22} color={colors.text} />
-            </Pressable>
-          </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
-            {field('name', 'Goal name', 'e.g. October earnings', 'default')}
-            <Text style={styles.label}>Period</Text>
-            {/* SegmentedTabs carries its own side margin; cancel the form's padding so it lines up with the fields. */}
-            <View style={{ marginHorizontal: -spacing.lg }}>
-              <SegmentedTabs tabs={PLAN_PERIODS} value={draft.timePeriod} onChange={(v) => set('timePeriod', v)} label="Goal period" />
-            </View>
-            {draft.timePeriod === 'custom' ? (
-              <>
-                {field('customStartDate', 'Start date', 'YYYY-MM-DD', 'default')}
-                {field('customEndDate', 'End date', 'YYYY-MM-DD', 'default')}
-              </>
-            ) : null}
-            {field('targetEarnings', 'Earnings target (USD)', 'e.g. 5000')}
-            {field('targetPending', 'Pending target (USD, optional)', 'e.g. 500')}
-            {field('targetClients', 'Clients target (optional)', 'e.g. 10', 'number-pad')}
-            {field('targetBonuses', 'Bonuses target (USD, optional)', 'e.g. 100')}
-            {field('targetRatings', 'Rating target (0 to 5, optional)', 'e.g. 4.5')}
-            {failure ? <ErrorNotice compact message={failure} /> : null}
-            <ActionButton label={busy ? 'Saving...' : 'Save goal'} variant="primary" busy={busy} onPress={save} />
-            {plan ? <ActionButton label="Delete goal" variant="destructive" disabled={busy} onPress={remove} /> : null}
-            {busy ? <ActivityIndicator color={colors.primary} /> : null}
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    <Sheet
+      title={plan ? 'Edit goal' : 'New goal'}
+      onClose={onClose}
+      busy={busy}
+      footer={
+        <>
+          {failure ? <ErrorNotice compact message={failure} /> : null}
+          <ActionButton label={busy ? 'Saving...' : 'Save goal'} variant="primary" busy={busy} onPress={save} />
+          {plan ? <ActionButton label="Delete goal" variant="destructive" disabled={busy} onPress={remove} /> : null}
+        </>
+      }
+    >
+      {field('name', 'Goal name', 'e.g. October earnings', 'default')}
+      <Text style={styles.label}>Period</Text>
+      {/* SegmentedTabs carries its own side margin; cancel the sheet's padding so it lines up with the fields. */}
+      <View style={{ marginHorizontal: -spacing.lg }}>
+        <SegmentedTabs tabs={PLAN_PERIODS} value={draft.timePeriod} onChange={(v) => set('timePeriod', v)} label="Goal period" />
+      </View>
+      {draft.timePeriod === 'custom' ? (
+        <>
+          {field('customStartDate', 'Start date', 'YYYY-MM-DD', 'default')}
+          {field('customEndDate', 'End date', 'YYYY-MM-DD', 'default')}
+        </>
+      ) : null}
+      {field('targetEarnings', 'Earnings target (USD)', 'e.g. 5000')}
+      {field('targetPending', 'Pending target (USD, optional)', 'e.g. 500')}
+      {field('targetClients', 'Clients target (optional)', 'e.g. 10', 'number-pad')}
+      {field('targetBonuses', 'Bonuses target (USD, optional)', 'e.g. 100')}
+      {field('targetRatings', 'Rating target (0 to 5, optional)', 'e.g. 4.5')}
+    </Sheet>
   );
 }
 
@@ -256,12 +240,6 @@ const useStyles = makeStyles((c) => ({
   note: { color: c.textMuted, fontSize: 12, lineHeight: 16, marginTop: spacing.sm },
   track: { height: 6, borderRadius: 3, backgroundColor: c.surfaceMuted, overflow: 'hidden', marginTop: 6 },
   fill: { height: 6, borderRadius: 3, backgroundColor: c.primary },
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { maxHeight: '92%', backgroundColor: c.background, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl },
-  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg },
-  sheetTitle: { color: c.text, fontSize: 18, fontWeight: '700' },
-  close: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' },
-  form: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
   field: { gap: 4 },
   label: { color: c.textSoft, fontSize: 13, fontWeight: '600' },
   input: {

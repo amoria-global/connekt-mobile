@@ -4,7 +4,8 @@
  * and neither party can message the other until the block is lifted.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
@@ -71,6 +72,7 @@ export default function BlockedAccountsScreen() {
         error={error}
         onRefresh={load}
         title="Blocked accounts"
+        duplicatesHeader
         subtitle="People you've blocked can't message you, and you won't see their messages."
         keyExtractor={(u) => u.id}
         emptyIcon="shield-checkmark-outline"

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { EventsChart } from '@/features/analytics/EventsChart';
 import { useRouter, Stack } from 'expo-router';
 import {
   ActivityIndicator,
@@ -113,7 +114,8 @@ export default function AnalyticsScreen() {
   const [photogData, setPhotogData] = useState<PhotographerAnalytics | null>(null);
   const [photogClients, setPhotogClients] = useState<PhotographerClient[]>([]);
   const [photogTransactions, setPhotogTransactions] = useState<RecentTransaction[]>([]);
-  const [photogPerf, setPhotogPerf] = useState<PerformancePoint[]>([]);
+  // null: not loaded or failed. Never drawn as zeros.
+  const [photogPerf, setPhotogPerf] = useState<PerformancePoint[] | null>(null);
   // Why the headline figures are missing, so a failed load is not shown as zeros.
   const [photogError, setPhotogError] = useState<string | null>(null);
   // Only the newest load may write state: switching period quickly must not let a slow old answer win.
@@ -189,7 +191,7 @@ export default function AnalyticsScreen() {
         if (t.status === 'fulfilled') setTrends(t.value);
         if (clients.status === 'fulfilled') setPhotogClients(clients.value);
         if (transactions.status === 'fulfilled') setPhotogTransactions(transactions.value);
-        if (perf.status === 'fulfilled') setPhotogPerf(perf.value);
+        setPhotogPerf(perf.status === 'fulfilled' ? perf.value : null);
       }
     } finally {
       if (ticket === loadTicket.current) {
@@ -223,7 +225,7 @@ export default function AnalyticsScreen() {
     : isCoordinator
       ? coordPerf
       : isPhotographer
-        ? photogPerf
+        ? (photogPerf ?? [])
         : [];
 
 type StatCardItem = {
@@ -906,7 +908,7 @@ type StatCardItem = {
         {/* Shape 3: Vertical Dual-Column Bar Chart */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionCardTitle}>Performance</Text>
-          <SaloPerformanceChart data={activePerf} height={180} />
+          {isPhotographer ? <EventsChart points={photogPerf} /> : <SaloPerformanceChart data={activePerf} height={180} />}
         </View>
 
         {/* Shape 4: Horizontal Proportion Ribbon Bar */}
