@@ -5,7 +5,8 @@
  * shoot match request rings full-screen like an incoming phone call.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Alert, AppState, type AppStateStatus } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { useRouter } from 'expo-router';
 import { useRole } from '@/features/auth/role';
 import { env } from '@/config/env';

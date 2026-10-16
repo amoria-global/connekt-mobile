@@ -20,7 +20,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments, type Href } from 'expo-router';
 import {
-  Alert,
   Animated,
   Dimensions,
   Keyboard,
@@ -34,6 +33,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRole } from '@/features/auth/role';
 import { listNotifications } from '@/features/notifications/api';

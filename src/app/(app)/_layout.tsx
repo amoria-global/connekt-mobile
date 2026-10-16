@@ -10,6 +10,7 @@ import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCa
 import { showIncomingRequest } from '@/features/bookings/incomingRequests';
 import { useRole } from '@/features/auth/role';
 import { setAudioModeAsync } from '@/utils/safeAudio';
+import { DialogHost } from '@/components/ui/dialog';
 import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
@@ -209,6 +210,7 @@ export default function AppLayout() {
       <GlobalOpportunityCallNotifier />
       <InAppNotificationWatcher />
       <BookingRequestCallNotifier />
+      <DialogHost />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );

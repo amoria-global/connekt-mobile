@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { DataList } from '@/components/ui/DataList';
 import { StatusPill } from '@/components/ui/StatusPill';
