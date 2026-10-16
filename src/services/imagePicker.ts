@@ -2,7 +2,8 @@
  * Cross-platform image picking (camera selfie + library), returning a shape
  * ready for multipart upload. On web, camera falls back to the library picker.
  */
-import { Alert, Linking, Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import * as ImagePicker from 'expo-image-picker';
 
 export type PickedImage = { uri: string; name: string; type: string };

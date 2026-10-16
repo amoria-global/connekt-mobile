@@ -4,7 +4,7 @@
  * photo gallery / camera roll (Apple Photos / Google Photos / Gallery)
  * without requiring intermediate share dialogs.
  */
-import { Alert } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { downloadAsync, cacheDirectory } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 let MediaLibraryModule: typeof import('expo-media-library') | null = null;

@@ -126,4 +126,21 @@ describe('photographer events workspace', () => {
     expect(mockGet).not.toHaveBeenCalled(); // no refresh: nothing changed
     alert.mockRestore();
   });
+
+  it('sorts by title from the Sort sheet and shows the new order', async () => {
+    const r = await mount();
+    const list = r.root.find((n) => n.props?.accessibilityRole === 'tab' && flat(n) === 'List');
+    await act(async () => list.props.onPress());
+    const titleAt = (name: string) => flat(r.root).indexOf(name);
+    await act(async () => byLabel(r, 'Sort events')[0].props.onPress());
+    const option = r.root.findAll((n) => n.props?.accessibilityRole === 'radio' && String(n.props.accessibilityLabel).startsWith('Title (A to Z)'));
+    expect(option.length).toBeGreaterThan(0);
+    expect(option[0].props.accessibilityState).toEqual({ selected: false });
+    await act(async () => option[0].props.onPress());
+    expect(titleAt('Past engagement')).toBeGreaterThan(-1);
+    expect(titleAt('Past engagement')).toBeLessThan(titleAt('Uwase wedding'));
+    await act(async () => byLabel(r, 'Sort events')[0].props.onPress());
+    const again = r.root.findAll((n) => n.props?.accessibilityRole === 'radio' && String(n.props.accessibilityLabel).startsWith('Title (A to Z)'));
+    expect(again[0].props.accessibilityState).toEqual({ selected: true });
+  });
 });

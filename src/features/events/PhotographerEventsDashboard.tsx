@@ -86,7 +86,7 @@ export const SORT_OPTIONS: {
   },
   {
     key: 'title_asc',
-    label: 'Title (A–Z)',
+    label: 'Title (A to Z)',
     description: 'Alphabetical order by event name',
     icon: 'text-outline',
   },
@@ -160,7 +160,6 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
 
   const listRef = useRef<FlatList<EventItem>>(null);
@@ -630,88 +629,45 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         onConfirm={() => declineTarget && onDeclineConfirmed(declineTarget)}
       />
 
-      {/* Sort Options Bottom Sheet */}
-      <Modal
+      {/* Sort options: the shared Sheet scrolls, so large text or a short phone never cuts off the last option. */}
+      <Sheet
         visible={sortSheetOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSortSheetOpen(false)}
+        title="Sort Events"
+        subtitle="Choose an order for your event list"
+        onClose={() => setSortSheetOpen(false)}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
-          <Pressable
-            style={[
-              styles.sortSheet,
-              { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) },
-            ]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={styles.sheetHandle} />
-            <View style={styles.sortSheetHeader}>
-              <View>
-                <Text style={styles.sortSheetTitle}>Sort Events</Text>
-                <Text style={styles.sortSheetSubtitle}>Choose an order for your event list</Text>
-              </View>
+        <View style={styles.sortOptionsList}>
+          {SORT_OPTIONS.map((opt) => {
+            const active = sortBy === opt.key;
+            return (
               <Pressable
-                onPress={() => setSortSheetOpen(false)}
-                hitSlop={8}
-                style={styles.sortSheetCloseBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
+                key={opt.key}
+                style={[styles.sortOptionItem, active && styles.sortOptionItemActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`${opt.label}. ${opt.description}`}
+                onPress={() => {
+                  setSortBy(opt.key);
+                  setSortSheetOpen(false);
+                }}
               >
-                <Ionicons name="close" size={20} color={colors.textMuted} />
+                <View style={[styles.sortOptionIconBox, active && styles.sortOptionIconBoxActive]}>
+                  <Ionicons name={opt.icon} size={18} color={active ? '#fff' : colors.primary} />
+                </View>
+                <View style={styles.sortOptionTextCol}>
+                  <Text style={[styles.sortOptionLabel, active && styles.sortOptionLabelActive]}>{opt.label}</Text>
+                  <Text style={styles.sortOptionDesc}>{opt.description}</Text>
+                </View>
+                {active ? (
+                  <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                ) : (
+                  <View style={styles.sortOptionRadio} />
+                )}
               </Pressable>
-            </View>
-
-            <View style={styles.sortOptionsList}>
-              {SORT_OPTIONS.map((opt) => {
-                const active = sortBy === opt.key;
-                return (
-                  <Pressable
-                    key={opt.key}
-                    style={[styles.sortOptionItem, active && styles.sortOptionItemActive]}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={`${opt.label}. ${opt.description}`}
-                    onPress={() => {
-                      setSortBy(opt.key);
-                      setSortSheetOpen(false);
-                    }}
-                  >
-                    <View
-                      style={[
-                        styles.sortOptionIconBox,
-                        active && styles.sortOptionIconBoxActive,
-                      ]}
-                    >
-                      <Ionicons
-                        name={opt.icon}
-                        size={18}
-                        color={active ? '#fff' : colors.primary}
-                      />
-                    </View>
-                    <View style={styles.sortOptionTextCol}>
-                      <Text
-                        style={[
-                          styles.sortOptionLabel,
-                          active && styles.sortOptionLabelActive,
-                        ]}
-                      >
-                        {opt.label}
-                      </Text>
-                      <Text style={styles.sortOptionDesc}>{opt.description}</Text>
-                    </View>
-                    {active ? (
-                      <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-                    ) : (
-                      <View style={styles.sortOptionRadio} />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+            );
+          })}
+        </View>
+      </Sheet>
     </View>
   );
 }

@@ -54,8 +54,8 @@ export function PersonRow({ person, caption, size = 36 }: { person: Person; capt
         </View>
       )}
       <View style={styles.personText}>
-        <Text style={styles.personName} numberOfLines={1}>{person.name}</Text>
-        {caption ? <Text style={styles.personCaption} numberOfLines={1}>{caption}</Text> : null}
+        <Text style={styles.personName} numberOfLines={2}>{person.name}</Text>
+        {caption ? <Text style={styles.personCaption} numberOfLines={3}>{caption}</Text> : null}
       </View>
     </View>
   );
