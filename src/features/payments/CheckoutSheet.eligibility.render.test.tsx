@@ -29,6 +29,9 @@ const AIRTEL = { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' };
 const text = (n: ReactTestInstance) =>
   n.findAllByType(Text).map((t) => [t.props.children].flat().join('')).join(' | ');
 
+// The hook starts its lookup on a timer, so wait on real time rather than microtasks.
+const settle = () => act(async () => { await new Promise((res) => setTimeout(res, 50)); });
+
 async function mount() {
   const start = jest.fn();
   let r!: TestRenderer.ReactTestRenderer;
@@ -37,7 +40,7 @@ async function mount() {
       <CheckoutSheet visible onClose={() => {}} resetKey="k" start={start} title="Pay" />,
     );
   });
-  await act(async () => {});
+  await settle();
   return { r, start };
 }
 
@@ -88,7 +91,7 @@ describe('checkout sheet by buyer country', () => {
     await act(async () => {
       retry.props.onPress();
     });
-    await act(async () => {});
+    await settle();
     expect(text(r.root)).toContain('Choose your network');
   });
 });
