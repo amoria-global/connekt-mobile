@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { PAYMENT_COUNTRY_LIST, paymentCountryName } from '@/features/payments/countries';
 import { CARDS_LOGO, MOMO_LOGO, operatorLogo } from '@/features/payments/operatorLogos';
+import type { MobileMoneyState } from '@/features/payments/eligibility';
 import type { PaymentOperator } from '@/features/reference/api';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
@@ -29,6 +30,10 @@ type Props = {
   /** Omit onCountryChange to hide the selector (host already has one). */
   country?: string;
   onCountryChange?: (iso2: string) => void;
+  /** From usePaymentEligibility: 'loading' while checking, 'unavailable' when the country has no mobile money. */
+  mobileMoneyState?: MobileMoneyState;
+  /** Offered when mobile money could not be confirmed, so a failed lookup is not final. */
+  onRetry?: () => void;
   disableMobileMoney?: boolean;
   disableCards?: boolean;
   /** Lock while a payment is starting. */
@@ -61,6 +66,8 @@ export function PaymentMethodPicker({
   onSelect,
   country,
   onCountryChange,
+  mobileMoneyState,
+  onRetry,
   disableMobileMoney = false,
   disableCards = false,
   disabled = false,
@@ -102,10 +109,10 @@ export function PaymentMethodPicker({
           onPress={() => setCountryOpen(true)}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel={`Payment country ${paymentCountryName(country)}. Tap to change.`}
+          accessibilityLabel={`Payment country ${country ? paymentCountryName(country) : 'not set'}. Tap to change.`}
         >
           <Text style={styles.flag}>{flagEmoji(country)}</Text>
-          <Text style={styles.countryName} numberOfLines={1}>{paymentCountryName(country)}</Text>
+          <Text style={styles.countryName} numberOfLines={1}>{country ? paymentCountryName(country) : 'Choose your country'}</Text>
           <Text style={styles.countryChange}>Change</Text>
           <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
         </Pressable>
@@ -127,8 +134,10 @@ export function PaymentMethodPicker({
             <Text style={styles.mainSub} numberOfLines={2}>
               {selectedOperator
                 ? selectedOperator.name
-                : disableMobileMoney || operators.length === 0
-                  ? 'Unavailable here'
+                : mobileMoneyState === 'loading'
+                  ? 'Checking your country...'
+                  : disableMobileMoney || operators.length === 0
+                  ? 'Not available in your country'
                   : 'Choose your network'}
             </Text>
           </View>
@@ -185,6 +194,19 @@ export function PaymentMethodPicker({
           </View>
         ) : null}
 
+        {mobileMoneyState === 'unavailable' && onRetry ? (
+          <Pressable
+            onPress={onRetry}
+            disabled={disabled}
+            style={styles.retry}
+            accessibilityRole="button"
+            accessibilityLabel="Check mobile money for my country again"
+          >
+            <Ionicons name="refresh" size={14} color={colors.primary} />
+            <Text style={styles.retryText}>Check again</Text>
+          </Pressable>
+        ) : null}
+
       </View>
 
       {onCountryChange ? (
@@ -233,6 +255,8 @@ export function PaymentMethodPicker({
 }
 
 const useStyles = makeStyles((c) => ({
+  retry: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 44, paddingHorizontal: spacing.sm },
+  retryText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   wrap: { gap: spacing.sm },
   countryPill: {
     flexDirection: 'row',

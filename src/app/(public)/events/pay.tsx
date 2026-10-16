@@ -18,7 +18,7 @@
  *   5. Seamless Transition:
  *      • Auto-unlocks and navigates directly into /events/live-stream on success.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pollStatus } from '@/features/payments/nativeCheckout';
 import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { canBuyEventTicket, isInPersonEvent } from '@/features/payments/policy';
@@ -52,7 +52,8 @@ import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
-import { detectPaymentCountry } from '@/features/reference/api';
+import { keepSelection, onlyOperators } from '@/features/payments/eligibility';
+import { usePaymentEligibility } from '@/features/payments/usePaymentEligibility';
 import {
   dialCodeFor,
   formatPhoneE164,
@@ -65,10 +66,7 @@ import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } fr
 import { formatPrice } from '@/utils/format';
 
 // The stream-ticket endpoint takes MTN or AIRTEL for mobile money, as before.
-const STREAM_OPERATORS = [
-  { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
-  { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' },
-];
+const STREAM_OPERATOR_IDS = ['MTN', 'AIRTEL'] as const;
 
 type Stage = 'contact' | 'payment' | 'awaiting' | 'success' | 'unconfirmed';
 
@@ -145,25 +143,25 @@ function EventPaymentInner() {
   }, [id]);
 
   // Country & phone payment state
-  const [country, setCountry] = useState('RW');
+  const eligibility = usePaymentEligibility();
+  const country = eligibility.country ?? '';
+  const streamOperators = useMemo(
+    () => onlyOperators(eligibility.operators, STREAM_OPERATOR_IDS),
+    [eligibility.operators],
+  );
   const [countryModalOpen, setCountryModalOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'MOBILE_MONEY' | 'CARD'>('MOBILE_MONEY');
-  const [telecomProvider, setTelecomProvider] = useState<'MTN' | 'AIRTEL'>('MTN');
+  // No silent default: the buyer picks the method (docs/PAYMENTS.md: never guess a provider).
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  // Derived, so a method that stops being offered (country change) can never be submitted.
+  const methodId = keepSelection(pickedId, { ...eligibility, operators: streamOperators });
+  const setMethodId = setPickedId;
+  const paymentMethod: 'MOBILE_MONEY' | 'CARD' = methodId === 'card' ? 'CARD' : 'MOBILE_MONEY';
+  const telecomProvider = (methodId === 'airtel' ? 'AIRTEL' : 'MTN') as 'MTN' | 'AIRTEL';
   const [phone, setPhone] = useState('');
 
   // Payment polling state
   const [refid, setRefid] = useState<string | null>(null);
   const pollCancelRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    detectPaymentCountry()
-      .then((c) => {
-        if (c && PAYMENT_COUNTRIES.some((p) => p.iso2 === c.toUpperCase())) {
-          setCountry(c.toUpperCase());
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const eventRaw = event.data;
   const baseFee = effective?.price ?? eventRaw?.streamFee ?? eventRaw?.price ?? 0;
@@ -248,6 +246,10 @@ function EventPaymentInner() {
   const onInitiatePayment = async () => {
     if (!viewerId) return;
     setError(null);
+    if (!methodId) {
+      setError('Choose how you want to pay.');
+      return;
+    }
 
     const formattedPhone = formatPhoneE164(phone, country);
     if (paymentMethod === 'MOBILE_MONEY' && !isPlausibleMobile(phone, country)) {
@@ -433,7 +435,7 @@ function EventPaymentInner() {
                 accessibilityLabel="Select payment country"
               >
                 <Text style={styles.countryFlag}>{flagEmoji(country)}</Text>
-                <Text style={styles.countryCode}>{country}</Text>
+                <Text style={styles.countryCode}>{country || 'Country'}</Text>
                 <Ionicons name="chevron-down" size={14} color={colors.text} />
               </Pressable>
             </View>
@@ -441,21 +443,17 @@ function EventPaymentInner() {
             {/* Payment Method Selector */}
             <Text style={styles.sectionTitle}>Select Payment Method</Text>
             <PaymentMethodPicker
-              operators={STREAM_OPERATORS}
-              supportsCard
-              selectedId={paymentMethod === 'CARD' ? 'card' : telecomProvider.toLowerCase()}
-              onSelect={(id) => {
-                if (id === 'card') {
-                  setPaymentMethod('CARD');
-                } else {
-                  setPaymentMethod('MOBILE_MONEY');
-                  setTelecomProvider(id === 'airtel' ? 'AIRTEL' : 'MTN');
-                }
-              }}
+              operators={streamOperators}
+              supportsCard={eligibility.supportsCard}
+              selectedId={methodId}
+              onSelect={setMethodId}
+              mobileMoneyState={eligibility.mobileMoney === 'loading' ? 'loading' : streamOperators.length > 0 ? 'ready' : 'unavailable'}
+              onRetry={eligibility.retry}
+              disabled={busy}
             />
 
             {/* Mobile Money Details */}
-            {paymentMethod === 'MOBILE_MONEY' ? (
+            {methodId && paymentMethod === 'MOBILE_MONEY' ? (
               <View style={styles.providerBox}>
                 <Text style={styles.inputLabel}>Mobile Phone Number</Text>
                 <View style={styles.phoneInputRow}>
@@ -495,13 +493,15 @@ function EventPaymentInner() {
               title={
                 busy
                   ? 'Processing…'
+                  : !methodId
+                  ? 'Choose a payment method'
                   : paymentMethod === 'MOBILE_MONEY'
                   ? `Pay ${totalLabel} with Mobile Money`
                   : `Pay ${totalLabel} with Card`
               }
               onPress={onInitiatePayment}
               loading={busy}
-              disabled={busy}
+              disabled={busy || !methodId}
             />
 
             <Pressable style={styles.backLink} onPress={() => setStage('contact')}>
@@ -590,7 +590,9 @@ function EventPaymentInner() {
                   key={c.iso2}
                   style={[styles.countryRow, country === c.iso2 && styles.countryRowActive]}
                   onPress={() => {
-                    setCountry(c.iso2);
+                    setMethodId(null);
+                    setPhone('');
+                    void eligibility.changeCountry(c.iso2);
                     setCountryModalOpen(false);
                   }}
                 >
