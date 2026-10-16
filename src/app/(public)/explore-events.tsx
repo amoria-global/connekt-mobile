@@ -57,6 +57,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
+import { LiveButton, LivePill, LiveRing, LiveTwinkle } from '@/components/ui/live';
 import { listPublicEventsDetailed } from '@/features/events/api';
 import {
   isEventEnded,
@@ -764,6 +765,16 @@ export default function ExploreEventsScreen() {
             renderItem={({ item: e }) => {
               const isLive = isEventLive(e, liveStreamIds);
               const isEnded = isEventEnded(e);
+              const storyInner = (
+                <View style={styles.storyInnerGap}>
+                  <Image
+                    source={e.eventPhoto ? { uri: e.eventPhoto } : EVENT_COVER_PLACEHOLDER}
+                    style={styles.storyImage}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                </View>
+              );
               return (
                 <Pressable
                   key={e.id}
@@ -773,33 +784,23 @@ export default function ExploreEventsScreen() {
                   accessibilityLabel={`${e.title}, ${isLive ? 'Live now' : 'Event'}`}
                 >
                   <View style={styles.storyCircleWrapper}>
-                    <LinearGradient
-                      colors={
-                        isLive
-                          ? ['#F58529', '#DD2A7B', '#8134AF']
-                          : isEnded
-                          ? ['#64748B', '#94A3B8']
-                          : ['#4F46E5', '#7C3AED', '#EC4899']
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.storyGradientRing}
-                    >
-                      <View style={styles.storyInnerGap}>
-                        <Image
-                          source={e.eventPhoto ? { uri: e.eventPhoto } : EVENT_COVER_PLACEHOLDER}
-                          style={styles.storyImage}
-                          contentFit="cover"
-                          transition={200}
-                        />
-                      </View>
-                    </LinearGradient>
+                    {isLive ? (
+                      <LiveRing size={68} colors={['#F58529', '#DD2A7B', '#8134AF', '#F58529']} live>
+                        <View style={styles.storyRingPad}>{storyInner}</View>
+                      </LiveRing>
+                    ) : (
+                      <LinearGradient
+                        colors={isEnded ? ['#64748B', '#94A3B8'] : ['#4F46E5', '#7C3AED', '#EC4899']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.storyGradientRing}
+                      >
+                        {storyInner}
+                      </LinearGradient>
+                    )}
 
                     {isLive ? (
-                      <View style={styles.storyLivePill}>
-                        <View style={styles.storyLivePillDot} />
-                        <Text style={styles.storyLivePillText}>LIVE</Text>
-                      </View>
+                      <LivePill size="xs" style={styles.storyLivePill} />
                     ) : !isEnded ? (
                       <View style={styles.storySoonPill}>
                         <Text style={styles.storySoonPillText}>SOON</Text>
@@ -1240,6 +1241,7 @@ function PosterCard({
   const org = organizerInfo(event);
 
   return (
+    <LiveTwinkle active={isLive} radius={radii.lg} style={styles.cardTwinkle}>
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
       <View style={styles.cardMedia}>
         <Image
@@ -1261,10 +1263,7 @@ function PosterCard({
 
         <View style={styles.cardTr}>
           {isLive ? (
-            <View style={[styles.statusBadge, styles.statusLive]}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.statusText}>LIVE</Text>
-            </View>
+            <LivePill size="sm" sparkle />
           ) : isEnded ? (
             <View style={[styles.statusBadge, styles.statusEnded]}>
               <Text style={styles.statusText}>ENDED</Text>
@@ -1360,20 +1359,13 @@ function PosterCard({
           </View>
         ) : isLive ? (
           <View style={styles.cardActionSection}>
-            <Pressable
-              style={({ pressed }) => [styles.watchLiveCardBtn, pressed && { opacity: 0.88 }]}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                onPress();
-              }}
-              accessibilityRole="button"
+            <LiveButton
+              label="Watch Live"
+              size="sm"
+              icon="play"
+              onPress={onPress}
               accessibilityLabel={`Watch ${event.title} live`}
-            >
-              <Ionicons name="play" size={14} color="#FFFFFF" />
-              <Text style={styles.watchLiveBtnText} numberOfLines={1}>
-                Watch Live
-              </Text>
-            </Pressable>
+            />
           </View>
         ) : (
           <View style={styles.cardActionSection}>
@@ -1395,6 +1387,7 @@ function PosterCard({
         )}
       </View>
     </Pressable>
+    </LiveTwinkle>
   );
 }
 
@@ -1610,32 +1603,8 @@ const useStyles = makeStyles((c, e) => ({
     height: '100%',
     borderRadius: 29.5,
   },
-  storyLivePill: {
-    position: 'absolute',
-    bottom: -5,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#E11D48',
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: radii.full,
-    borderWidth: 1.5,
-    borderColor: c.background,
-  },
-  storyLivePillDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#FFFFFF',
-  },
-  storyLivePillText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: fontWeight.extrabold,
-    letterSpacing: 0.5,
-  },
+  storyRingPad: { flex: 1, padding: 2.5 },
+  storyLivePill: { position: 'absolute', bottom: -6, alignSelf: 'center' },
   storySoonPill: {
     position: 'absolute',
     bottom: -5,
@@ -2039,6 +2008,7 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'space-between',
   },
   cardPressed: { opacity: 0.92 },
+  cardTwinkle: { flex: 1 },
   cardMedia: { width: '100%', height: 130, position: 'relative', backgroundColor: c.surfaceMuted },
   cardArt: { width: '100%', height: '100%' },
   cardScrim: {
