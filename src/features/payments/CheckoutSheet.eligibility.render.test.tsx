@@ -57,16 +57,30 @@ describe('checkout sheet by buyer country', () => {
     const t = text(r.root);
     expect(t).toContain('Choose your network');
     expect(t).toContain('Visa & Mastercard');
-    expect(t).not.toContain('Not available in your country');
+    expect(t).not.toContain('not available in this country');
   });
 
-  it('United States: cards only, mobile money marked unavailable, no operator shown', async () => {
+  it('a country with no mobile money (real backend shape, action 0 data): cards only, no Mobile Money tile', async () => {
+    mockDetect.mockResolvedValue('NL');
+    // What getPaymentOptions returns when the backend answers action 0: no supportsCard, no operators.
+    mockOptions.mockResolvedValue({ country: 'NL', supportsCard: false, operators: [] });
+    const { r } = await mount();
+    const t = text(r.root);
+    expect(t).toContain('Visa & Mastercard');
+    expect(t).toContain('Mobile money is not available in this country');
+    expect(t).not.toMatch(/MTN|Airtel/);
+    expect(t).not.toContain('Choose your network');
+    // No disabled Mobile Money tile is left on screen.
+    expect(r.root.findAll((n) => n.props?.accessibilityLabel === 'Mobile Money')).toHaveLength(0);
+  });
+
+  it('United States, lookup rejected: cards only, no operator shown', async () => {
     mockDetect.mockResolvedValue('US');
     mockOptions.mockRejectedValue(new Error('No mobile-money operators registered for this country'));
     const { r } = await mount();
     const t = text(r.root);
-    expect(t).toContain('Not available in your country');
     expect(t).toContain('Visa & Mastercard');
+    expect(t).toContain('Mobile money is not available in this country');
     expect(t).not.toMatch(/MTN|Airtel/);
   });
 
@@ -76,7 +90,7 @@ describe('checkout sheet by buyer country', () => {
     const t = text(r.root);
     expect(mockOptions).not.toHaveBeenCalled();
     expect(t).toContain('Visa & Mastercard');
-    expect(t).toContain('Not available in your country');
+    expect(t).toContain('could not confirm your country');
     expect(t).toContain('Choose your country');
     expect(t).not.toMatch(/MTN|Airtel|Rwanda/);
   });
@@ -86,7 +100,7 @@ describe('checkout sheet by buyer country', () => {
     mockOptions.mockRejectedValueOnce(new Error('timeout'));
     mockOptions.mockResolvedValue({ country: 'RW', supportsCard: true, operators: [MTN, AIRTEL] });
     const { r } = await mount();
-    expect(text(r.root)).toContain('Not available in your country');
+    expect(text(r.root)).toContain('not available in this country');
     const retry = r.root.find((n) => n.props?.accessibilityLabel === 'Check mobile money for my country again');
     await act(async () => {
       retry.props.onPress();

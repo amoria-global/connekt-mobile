@@ -57,7 +57,9 @@ export function resolveEligibility(
   return {
     country: iso,
     operators,
-    supportsCard: options.supportsCard !== false,
+    // Cards are offered in every market. The backend's answer for a country without
+    // mobile money has no supportsCard field at all, so it must not turn cards off.
+    supportsCard: true,
     mobileMoney: operators.length > 0 ? 'ready' : 'unavailable',
   };
 }

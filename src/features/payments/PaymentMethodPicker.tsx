@@ -10,12 +10,12 @@
  * or the lowercased operator id) and never talks to the backend; each host
  * keeps its own state, polling and payload.
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { FlatList, Image, Modal, Pressable, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, Pressable, Text, View } from 'react-native';
 import { flagEmoji } from '@/components/ui/PhoneInput';
-import { PAYMENT_COUNTRY_LIST, paymentCountryName } from '@/features/payments/countries';
+import { CountrySelectModal } from '@/features/payments/CountrySelectModal';
+import { paymentCountryName } from '@/features/payments/countries';
 import { CARDS_LOGO, MOMO_LOGO, operatorLogo } from '@/features/payments/operatorLogos';
 import type { MobileMoneyState } from '@/features/payments/eligibility';
 import type { PaymentOperator } from '@/features/reference/api';
@@ -78,23 +78,16 @@ export function PaymentMethodPicker({
   const cardSelected = selectedId === 'card';
   const [open, setOpen] = useState(!!selectedOperator);
   const [countryOpen, setCountryOpen] = useState(false);
-  const [query, setQuery] = useState('');
 
   const momoOff = disabled || disableMobileMoney || operators.length === 0;
   const cardOff = disabled || disableCards;
   const momoActive = (open || !!selectedOperator) && !momoOff;
-
-  const countries = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return PAYMENT_COUNTRY_LIST;
-    return PAYMENT_COUNTRY_LIST.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.iso2.toLowerCase() === q || c.dial.includes(q.replace(/^\+/, '')),
-    );
-  }, [query]);
+  // A disabled Mobile Money tile is noise: show it only while checking or when there are networks.
+  const showMomo = mobileMoneyState === 'loading' || (operators.length > 0 && !disableMobileMoney);
+  const momoMissing = !showMomo;
 
   const pickCountry = (iso2: string) => {
     setCountryOpen(false);
-    setQuery('');
     if (iso2 !== (country || '').toUpperCase()) {
       setOpen(false);
       onCountryChange?.(iso2);
@@ -120,6 +113,7 @@ export function PaymentMethodPicker({
 
       <View style={styles.mainRow}>
         <View style={styles.tiles}>
+        {showMomo ? (
         <Pressable
           style={[styles.main, momoActive && styles.mainActive, momoOff && styles.off]}
           onPress={() => setOpen((o) => !o)}
@@ -143,6 +137,7 @@ export function PaymentMethodPicker({
           </View>
           <Ionicons name={momoActive ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} style={styles.tileIcon} />
         </Pressable>
+        ) : null}
 
         {supportsCard ? (
           <Pressable
@@ -194,6 +189,14 @@ export function PaymentMethodPicker({
           </View>
         ) : null}
 
+        {momoMissing && mobileMoneyState === 'unavailable' ? (
+          <Text style={styles.unavailable}>
+            {country
+              ? 'Mobile money is not available in this country. You can pay by card.'
+              : 'We could not confirm your country. You can pay by card, or choose your country to see mobile money.'}
+          </Text>
+        ) : null}
+
         {mobileMoneyState === 'unavailable' && onRetry ? (
           <Pressable
             onPress={onRetry}
@@ -210,45 +213,12 @@ export function PaymentMethodPicker({
       </View>
 
       {onCountryChange ? (
-        <Modal visible={countryOpen} animationType="slide" onRequestClose={() => setCountryOpen(false)}>
-          <SafeAreaView style={styles.modal}>
-            <View style={styles.modalHead}>
-              <Text style={styles.modalTitle}>Select country</Text>
-              <Pressable onPress={() => setCountryOpen(false)} hitSlop={10} accessibilityLabel="Close">
-                <Ionicons name="close" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-            <View style={styles.search}>
-              <Ionicons name="search" size={16} color={colors.textMuted} />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search country or dial code"
-                placeholderTextColor={colors.textMuted}
-                style={styles.searchInput}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-            <FlatList
-              data={countries}
-              keyExtractor={(c) => c.iso2}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={<Text style={styles.empty}>No matching country.</Text>}
-              renderItem={({ item }) => {
-                const active = item.iso2 === (country || '').toUpperCase();
-                return (
-                  <Pressable style={[styles.countryRow, active && styles.opActive]} onPress={() => pickCountry(item.iso2)}>
-                    <Text style={styles.flag}>{flagEmoji(item.iso2)}</Text>
-                    <Text style={styles.countryRowName}>{item.name}</Text>
-                    <Text style={styles.dial}>+{item.dial}</Text>
-                    {active ? <Ionicons name="checkmark" size={18} color={colors.primary} /> : null}
-                  </Pressable>
-                );
-              }}
-            />
-          </SafeAreaView>
-        </Modal>
+        <CountrySelectModal
+          visible={countryOpen}
+          selected={country}
+          onClose={() => setCountryOpen(false)}
+          onSelect={pickCountry}
+        />
       ) : null}
     </View>
   );
@@ -256,6 +226,7 @@ export function PaymentMethodPicker({
 
 const useStyles = makeStyles((c) => ({
   retry: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 44, paddingHorizontal: spacing.sm },
+  unavailable: { color: c.textMuted, fontSize: fontSize.sm, lineHeight: 20 },
   retryText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   wrap: { gap: spacing.sm },
   countryPill: {
