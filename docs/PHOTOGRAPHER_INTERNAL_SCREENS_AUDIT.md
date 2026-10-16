@@ -5,7 +5,7 @@ Companion to `PHOTOGRAPHER_WORKSPACE_AUDIT.md`, which covers Home, Wallet, Analy
 
 ## Honest summary
 
-This is still a partial completion of the larger brief (fifth commit on the branch; the last round could not use the emulator, see round five). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
+This is still a partial completion of the larger brief (sixth commit on the branch; round six recovered the emulator and closed most device gaps). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
 (other roles are unchanged), and a first set of internal screens was checked on the Android emulator in dark mode
 against a fixture backend. Many screens are NOT individually restyled or verified, and the table below says which.
 The dark-mode pass (earlier) had already moved every internal screen onto the navy palette, so the remaining gap
@@ -69,7 +69,7 @@ Accept on the Events dashboard: the sheet closes and nothing crashes, but the fi
 
 ## Round five: analytics legend, interaction tests, remaining routes
 
-**Analytics legend (traced end to end).** `Current V1` and `Current V2` are the web dashboard's own placeholder tooltips (`PerformanceChart.tsx`), which the mobile chart copied. The meaning comes from the backend, `PhotographerDashboardController.getPerformanceChart` (`/photographer/performance`): `value1` is the sum of `paidAmount - refundedAmount` over payment declarations created in each bucket for events where this user is the photographer (`EventPaymentDeclarationRepository.sumPaidAmountByPhotographerIdAndDateRange`), and `value2` is the count of the photographer's events in the bucket. The two series use different units and share one Y axis on mobile, so event counts look tiny beside amounts. The amounts are summed as stored with no currency conversion, so no currency is named. The photographer legend now reads "Net payments received" and "Events". Calculations and the shared axis are unchanged. The customer and coordinator endpoints return the same two field names (spent or revenue, and an event count) but were not audited for this screen, so other roles keep the old legend text. The web dashboard still shows `Current V1/V2` (separate repository, not changed).
+**Analytics legend (traced end to end).** `Current V1` and `Current V2` are the web dashboard's own placeholder tooltips (`PerformanceChart.tsx`), which the mobile chart copied. The meaning comes from the backend, `PhotographerDashboardController.getPerformanceChart` (`/photographer/performance`): `value1` is the sum of `paidAmount - refundedAmount` over payment declarations created in each bucket for events where this user is the photographer (`EventPaymentDeclarationRepository.sumPaidAmountByPhotographerIdAndDateRange`), and `value2` is the count of the photographer's events in the bucket. The two series use different units and share one Y axis on mobile, so event counts look tiny beside amounts. The amounts are summed as stored with no currency conversion, so no currency is named. Round five labeled the legend "Net payments received" and "Events"; round six replaced that, see below, because the payment sum can mix currencies. The customer and coordinator endpoints return the same two field names (spent or revenue, and an event count) but were not audited for this screen, so other roles keep the old legend text. The web dashboard still shows `Current V1/V2` (separate repository, not changed).
 
 **Accept and decline, fixture verified.** `PhotographerEventsDashboard.bookings.render.test.tsx` (7 tests, fake transport, not the real backend) renders the real dashboard with a pending booking. Accept posts once to `/photographer/events/p1/accept`, closes the sheet and, after the refresh returns the event as accepted, the Accept control is gone. An HTTP 200 with `action: 0` keeps the booking pending and the sheet open, shows "Could not accept" and does not refresh. Cancel and Back dismiss without a request. The confirm control is disabled while a request runs and only one request is sent. Decline sends the typed reason once, closes the sheet, and the card loses Deny after the refresh. A refused decline keeps the sheet and the typed reason and shows "Could not decline". Back dismisses without a request but is ignored while one is in flight. Limitation: the visible outcome is proved against fixture responses. A real accept or decline was never sent anywhere.
 
@@ -81,7 +81,30 @@ Accept on the Events dashboard: the sheet closes and nothing crashes, but the fi
 
 **KYC.** `LiveSelfieVerification` handles a pending permission, a denied permission that can be asked again, and a permanently blocked one (explanation, Open Settings, and a photo library alternative). `KycVerifyFlow` reports an unavailable camera or library and has a Try again state. Verified by reading the code and the existing stepper, liveness and API tests. The camera and capture steps could not run on the emulator, so they were not exercised. No identity document was used.
 
-**Device checks this round: blocked.** After Chrome and the Edge webviews were closed with the user's approval, the Android emulator repeatedly froze on this 8 GB host once the development client began loading (System UI not responding, `adb` calls and screenshots that never returned, a blank white screen after a display size change). Several fresh boots, including lower memory and a software GPU, did not help. No screenshot of `collaborate/joined/[id]`, `collaborate/join/[token]`, the Sort sheet or the KYC steps was obtained, and no light mode or 1.6x text pass was possible for the round four screens. Those items are marked not verified below. A static review of the round four fixes found no fixed heights or one line clamps that would clip at large text, but that is not a substitute for the check. All temporary harness code was removed afterwards.
+**Device checks in round five: blocked** (the emulator froze). Round six recovered it and the items below were then checked on a device.
+
+## Round six: emulator recovered, analytics chart corrected
+
+**How the emulator was recovered.** Chrome had come back (about 3.8 GB, 34 processes) and left about 1 GB free. Its windows were closed gracefully first, so Chrome saves its session and the tabs reopen with Ctrl+Shift+T, then the Edge webviews were stopped (the user had authorized this). The working order was: boot the emulator first and touch nothing else on the host while it settles, only then start Metro and open the app, and drive `adb` from PowerShell (the Git Bash `adb` client wedged repeatedly). Once the system "not responding" dialog was dismissed with Wait and the app force-stopped and reopened, it stayed stable. Jest or tsc running on the host during the settle period reproduced the freeze.
+
+**Analytics chart (not a mislabel, a data limit).** `/photographer/performance` returns `value1` = sum of `paidAmount - refundedAmount` over the photographer's payment declarations created in each bucket, and `value2` = event count. Each declaration has its own currency (`currency_id`, with `paidAmountUsd` as a separate field), and the endpoint sums `paidAmount` across declarations with no conversion and returns no currency or per-currency split. So `value1` can add RWF to USD and the frontend has nothing to separate it by. The photographer chart therefore no longer draws or labels the payment series at all. It shows only the event count, on its own whole-number axis (`EventsChart`, `eventsChartView.ts`), with a short note that payment amounts are not charted because one total could mix currencies, pointing to Wallet and Transactions. A load that failed is "Events chart unavailable" (never a week of zeros) and a quiet period is "No events in this period". Other roles are unchanged. Tests (`eventsChartView.test.tsx`, 7) fail if the view ever marks the payments comparable, if a payment figure appears in the rendered text or accessibility summary, or if a missing series is drawn as zeros.
+
+**Checked on the Android emulator this round (fixture backend, genuine rendered screenshots, local to the test machine in `C:\tmp\shots`, not committed):**
+- `collaborate/join/[token]`: open invite (dark, light, 1.6x), expired state, invalid link state, and a stale-state bug found and fixed (see below).
+- `collaborate/joined/[id]`: dark, light, 1.6x. Owner caption was cut to one line at 1.6x; it now wraps.
+- Events Sort sheet: dark, light, 1.6x; choosing "Title (A to Z)" re-ordered the list (Agenda item far, Brand shoot, Cancelled gala, Corporate portraits) and showed an active dot on Sort. The sheet is now the shared `Sheet`, so it scrolls on short phones or large text.
+- Withdraw: form with two saved accounts, 25 percent amount, donation choice, the "Check your phone" verification screen with the fee summary and code boxes, a wrong code ("That code is not correct. 2 attempts left."), and the "Request submitted" result. Light and 1.6x: the form and the amount validation message. All on fake responses, no transfer.
+- KYC: details step (dark, light, 1.6x), the date picker, the consent dialog, the selfie step with the camera permission needed state, the system permission prompt, denial (returns to "Camera access required" with Upload from photo library and Cancel, no dead end), and grant (live capture frame renders; the emulator camera feed is black, so no photo was taken). No identity document was used or submitted.
+- Booking request call screen in light mode at 1.6x.
+
+**Defects found and fixed this round:**
+- Join screen kept the previous link's preview and error when the link changed (a pasted second link showed the first album's "expired" page, then a stale "not valid" message under a good invite). State is now keyed by the token. Test added; seen fixed on the device.
+- `Button` used a fixed `height`, so a long label was cut off at large text ("Upload from photo library" lost its second line). It now uses `minHeight`, so it grows. This is a shared control: at normal text sizes nothing changes for any role.
+- The KYC identity consent dialog, image picker and gallery saver permission alerts used the unthemed native alert. They now use the themed dialog for photographers (native for other roles, as before).
+- Sort option "Title (A-Z)" used an en dash; now "Title (A to Z)".
+- Collaboration person captions are no longer cut to one line.
+
+**Not done / still not seen on a device:** the ID photo and review steps of KYC, a real photo from the camera, the Withdraw code step in light mode and at 1.6x, and the withdraw selfie variant. The fixture's fee preview is static, so the amounts on the verification screen (a fee larger than the withdrawal) are fixture artefacts, not app behaviour.
 
 ## Route inventory (89 screen files under `src/app`, 95 files with layouts)
 
@@ -93,7 +116,7 @@ Status words follow the brief. D = seen on the Android emulator in dark mode aga
 | `analytics` | Home, Wallet | Implemented and visually verified (D). Legend now labeled from the backend source |
 | `payroll` | Wallet, Analytics | Implemented, functionally verified (T, 10 tests) and visually verified (D, light, dark, 1.6x). Confirmed zero and populated list: T only |
 | `transactions`, `clients`, `packages`, `bookings`, `payment-accounts`, `notifications`, `gallery`, `photobooks`, `edit-profile`, `collaborate/index` | More, Home, Wallet | Implemented and visually verified (D) |
-| `withdraw` | Wallet | Implemented (duplicate title removed). Visually verified for the amount, account and donation form (D). Functionally verified through verify, wrong code, unknown outcome, success, refusal and KYC (T, 11 tests, fake API, no real transfer). The code step was never seen on a device |
+| `withdraw` | Wallet | Implemented (duplicate title removed). Visually verified for the form, verification code screen, wrong code and success (D; form and validation also light and 1.6x). Functionally verified through verify, wrong code, unknown outcome, success, refusal and KYC (T, 11 tests, fake API, no real transfer). The code step was not seen in light mode |
 | `event/[id]` | Home, Events | Implemented and visually verified (D, light, dark, 1.6x). Decline sheet now the shared `Sheet` (T) |
 | `event/new` | Home, Events | Implemented and visually verified (D, dark). Submit and failure paths not exercised |
 | `event/candidates` | notifications | Fixed (crash on a response with no `escrowOptions`) and visually verified (D) |
@@ -105,15 +128,15 @@ Status words follow the brief. D = seen on the Android emulator in dark mode aga
 | `payment/[id]` | notifications | Implemented ("Amount unavailable") and visually verified (D) |
 | `payments` | alias of Transactions | Verified within the available environment (D) |
 | `two-factor`, `preferences` | profile | Visually verified (D) |
-| `kyc` | profile, withdraw, banners | First step visually verified (D). Permission and camera states verified in code (C) and existing tests. Capture steps: blocked, the emulator camera could not be exercised |
+| `kyc` | profile, withdraw, banners | Details and selfie steps visually verified (D, light and 1.6x; permission denied and granted). Live camera feed is black on the emulator, no photo taken. ID photo and review steps not seen |
 | `stream/control/[id]` | Events | Visually verified up to "Preparing your camera" (D). Live camera blocked on the emulator |
 | `collaborate/album/[id]` | collaborate | Verified within the available environment (D, empty fixture data) |
-| `collaborate/join/[token]` | pasted invite links, notifications | Functionally verified (T, 10 tests, controlled token, fake API). Not seen on a device: blocked, the emulator froze |
-| `collaborate/joined/[id]` | collaborate, notifications | Read in code (C), Withdraw target fixed. Not seen on a device: blocked, the emulator froze. Not verified visually |
+| `collaborate/join/[token]` | pasted invite links, notifications | Functionally verified (T, 11 tests, controlled token, fake API). Visually verified (D, light and 1.6x too). Stale state on token change fixed |
+| `collaborate/joined/[id]` | collaborate, notifications | Visually verified (D, dark, light, 1.6x). Withdraw target 44dp, caption wraps. Upload and withdraw flows never exercised |
 | Booking request call screen (overlay) | incoming booking notification | Fixed (keyboard hid the decline form) and visually verified (D) |
 | Events dashboard Accept sheet | Events | Visually verified (D). Functionally verified (T, fixture) |
 | Events dashboard Decline sheet | Events, event detail | Visually verified (D, keyboard safe). Functionally verified (T, fixture) |
-| Events dashboard Sort sheet | Events list mode | Read in code (C), accessibility roles added. Not seen on a device. Not verified visually |
+| Events dashboard Sort sheet | Events list mode | Visually and functionally verified (D dark, light, 1.6x; T order test). Now the shared `Sheet` |
 | Goals sheet, More sheet, themed dialog | Home, bottom bar, many | Visually verified (D; dialog also light and 1.6x). Goals and dialog unit tested |
 | `delete-account` | profile | Read in code (C): type to confirm, no double submit, themed tokens. Not viewed. Not verified visually |
 | `connect-to-tv`, `pay-on-tv` | tv-devices | Read in code (C), themed tokens. Not viewed. Not verified |
@@ -122,20 +145,20 @@ Status words follow the brief. D = seen on the Android emulator in dark mode aga
 | `(auth)/*`, `(onboarding)/*` | signed out | Out of scope (not an internal photographer screen). Not verified |
 | iOS | none | Not tested at all |
 
-Light mode and 1.6x text were verified only for `event/[id]`, `payroll` and the themed dialog. Every other row is dark mode only.
+Light mode and 1.6x text were verified for `event/[id]`, `payroll`, the themed dialog, the booking request call screen, join and joined collaboration, the Sort sheet, Withdraw form validation and KYC details and selfie. Every other row is dark mode only.
 
 ## Not done, and why
 
-- **Blocked by the host:** the emulator could not be kept alive this round, so there is no new device evidence for `collaborate/joined/[id]`, `collaborate/join/[token]`, the Sort sheet, the KYC capture steps, the Withdraw code step, or light mode and 1.6x text on the round four screens.
-- **Flows never exercised against any backend:** event creation submit and failure, goal save and delete, photobook resubmit, accept and decline of a real booking, load older transactions, a real withdrawal. Only the fixture and fake-API tests above cover accept, decline, withdraw and join.
+- **Not seen on a device:** KYC ID photo and review steps and a real camera capture (the emulator camera is black), the Withdraw code step in light and 1.6x, and every screen in the table marked dark only or "not verified".
+- **Flows never exercised against any backend:** event creation submit and failure, goal save and delete, photobook resubmit, accept and decline of a real booking, load older transactions, a real withdrawal, joining a real invite. Only the fixture and fake-API tests and fixture screens cover accept, decline, withdraw and join.
 - **iOS** was not exercised, including a dialog opened over another native Modal.
 - Fixture data only. No live account was used.
-- The web dashboard also labels the series `Current V1/V2`. Not changed (separate repository).
+- The web dashboard still labels the series `Current V1/V2` and sums mixed currencies (separate repository, not changed).
 - `wallet/movements` is an orphan route with no entry point. Left alone.
 
 ## Verification
 
 - `npx tsc --noEmit`: exit 0.
-- `npx jest`: 80 suites, 628 passed, 1 skipped (re-run after the final edits). New: `photographerChrome.test.tsx` (6), `dialog.test.tsx` (6), `Sheet.test.tsx` (3), `payrollView.test.ts` (5), `payroll.render.test.tsx` (5). Two existing tests (Goals, Events dashboard) needed their mocks extended for the dialog and Sheet; no assertion was weakened.
+- `npx jest`: 81 suites, 637 passed, 1 skipped (re-run after the final edits). New: `photographerChrome.test.tsx` (6), `dialog.test.tsx` (6), `Sheet.test.tsx` (3), `payrollView.test.ts` (5), `payroll.render.test.tsx` (5). Two existing tests (Goals, Events dashboard) needed their mocks extended for the dialog and Sheet; no assertion was weakened.
 - `npm run lint`: 359 errors, the same files and counts as `main` before this branch (compared per file).
 - Emulator: Pixel 5 API 34, dark mode, fixture backend with a temporary sign-in bypass. The harness and bypass are removed and absent from the diff.

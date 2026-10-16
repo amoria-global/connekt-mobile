@@ -21,8 +21,9 @@ jest.mock('./api', () => ({
 jest.mock('./components', () => ({ AlbumCover: () => null, PersonRow: ({ caption }: { caption: string }) => require('react').createElement(require('react-native').Text, null, caption) }));
 
 const mockReplace = jest.fn();
+let mockToken = 'TEST-TOKEN';
 jest.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({ token: 'TEST-TOKEN' }),
+  useLocalSearchParams: () => ({ token: mockToken }),
   useRouter: () => ({ replace: mockReplace, push: jest.fn(), back: jest.fn() }),
 }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -58,6 +59,7 @@ beforeEach(() => {
   mockPreview.mockReset();
   mockAccept.mockReset();
   mockReplace.mockReset();
+  mockToken = 'TEST-TOKEN';
 });
 
 describe('collaboration invite landing', () => {
@@ -135,5 +137,24 @@ describe('collaboration invite landing', () => {
     expect(inert.length).toBeGreaterThan(0);
     expect(mockAccept).toHaveBeenCalledTimes(1);
     await act(async () => release('ca1'));
+  });
+
+  it('drops the previous album and error when the link changes, so nothing stale shows under the new token', async () => {
+    mockPreview.mockResolvedValueOnce(preview('EXPIRED'));
+    const r = await mount();
+    expect(text(r.root)).toContain('This link has expired');
+
+    mockToken = 'OTHER-TOKEN';
+    mockPreview.mockRejectedValueOnce({ status: 404, message: 'This invite link is not valid.' });
+    await act(async () => r.update(<JoinInviteScreen />));
+    expect(mockPreview).toHaveBeenLastCalledWith('OTHER-TOKEN');
+    expect(text(r.root)).toContain('This invite link does not work');
+    expect(text(r.root)).not.toContain('This link has expired');
+
+    mockToken = 'THIRD-TOKEN';
+    mockPreview.mockResolvedValueOnce(preview('OPEN'));
+    await act(async () => r.update(<JoinInviteScreen />));
+    expect(text(r.root)).toContain('Kigali Wedding Expo');
+    expect(text(r.root)).not.toContain('This invite link is not valid.');
   });
 });

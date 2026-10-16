@@ -72,11 +72,12 @@ describe('Button shape', () => {
   it('is a 48dp rounded rectangle for photographers and the 52dp pill for other roles', () => {
     mockPhotographer = true;
     const a = baseStyle(mount(<Button title="Save" onPress={() => {}} />));
-    expect(a.height).toBe(48);
+    expect(a.minHeight).toBe(48);
+    expect(a.height).toBeUndefined(); // a fixed height would clip a long label at large text
     expect(a.borderRadius).toBe(12);
     mockPhotographer = false;
     const b = baseStyle(mount(<Button title="Save" onPress={() => {}} />));
-    expect(b.height).toBe(52);
+    expect(b.minHeight).toBe(52);
     expect(b.borderRadius).toBe(999);
   });
 });
