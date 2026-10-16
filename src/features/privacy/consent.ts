@@ -13,7 +13,8 @@
  * version whenever its text changes materially, so users see the new notice.
  * faceDataConsent.test.ts fails if a screen captures a face without a gate.
  */
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import * as SecureStore from 'expo-secure-store';
 
 const FACE_CONSENT_KEY = 'consent.faceRecognition.v2';

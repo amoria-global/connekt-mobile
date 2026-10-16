@@ -249,33 +249,41 @@ export type PayrollEntry = {
   status?: string;
 };
 
+/**
+ * A figure the backend did not send is `null`, never 0. `total`, `paid` and `pending` are real zeros only when the
+ * response carries a numeric 0. `entries` is `null` when the response has no transactions array at all, and `[]`
+ * only when the backend sent an empty list.
+ */
 export type PayrollReport = {
-  total: number;
-  paid: number;
-  pending: number;
+  total: number | null;
+  paid: number | null;
+  pending: number | null;
   currency?: string;
-  entries: PayrollEntry[];
+  entries: PayrollEntry[] | null;
 };
 
 /** Photographer earnings summary (web parity: GET /photographer/payroll-report). */
 export async function getPayrollReport(): Promise<PayrollReport> {
   const res = await api.getOk<ApiEnvelope<Record<string, unknown>>>('/photographer/payroll-report');
-  const d = (res?.data ?? {}) as Record<string, unknown>;
-  const txs = Array.isArray(d.transactions) ? (d.transactions as Record<string, unknown>[]) : [];
+  const raw = res?.data;
+  const d = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
+  const figure = (v: unknown) => (isFiniteNumber(v) ? v : null);
   return {
-    total: num(d.total),
-    paid: num(d.paid),
-    pending: num(d.pending),
+    total: figure(d.total),
+    paid: figure(d.paid),
+    pending: figure(d.pending),
     currency: str(d.currency) ?? str(d.currencyCode),
-    entries: txs
-      .map((t) => ({
-        id: String(t.id ?? ''),
-        date: str(t.date) ?? str(t.createdAt),
-        description: str(t.description) ?? str(t.eventTitle),
-        type: str(t.type),
-        amount: num(t.amount) || num(t.amountInUsd),
-        status: str(t.status),
-      }))
-      .filter((e) => e.id),
+    entries: Array.isArray(d.transactions)
+      ? (d.transactions as Record<string, unknown>[])
+          .map((t) => ({
+            id: String(t.id ?? ''),
+            date: str(t.date) ?? str(t.createdAt),
+            description: str(t.description) ?? str(t.eventTitle),
+            type: str(t.type),
+            amount: num(t.amount) || num(t.amountInUsd),
+            status: str(t.status),
+          }))
+          .filter((e) => e.id)
+      : null,
   };
 }
