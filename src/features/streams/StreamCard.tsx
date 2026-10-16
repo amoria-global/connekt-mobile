@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { LivePill, LiveTwinkle } from '@/components/ui/live';
 import type { Stream } from './api';
 
 export function StreamCard({ stream }: { stream: Stream }) {
@@ -11,6 +12,7 @@ export function StreamCard({ stream }: { stream: Stream }) {
   const initial = (stream.photographerName || stream.title || 'C').charAt(0).toUpperCase();
 
   return (
+    <LiveTwinkle active={!!stream.isLive} radius={radii.xl}>
     <View style={styles.card}>
       <View style={styles.thumbWrap}>
         <Image
@@ -24,10 +26,7 @@ export function StreamCard({ stream }: { stream: Stream }) {
         {/* Top Badges */}
         <View style={styles.thumbTopRow}>
           {stream.isLive ? (
-            <View style={styles.liveBadge}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.liveText}>LIVE</Text>
-            </View>
+            <LivePill size="sm" sparkle />
           ) : (
             <View style={styles.offAirBadge}>
               <Text style={styles.offAirText}>STANDBY</Text>
@@ -67,6 +66,7 @@ export function StreamCard({ stream }: { stream: Stream }) {
         </View>
       </View>
     </View>
+    </LiveTwinkle>
   );
 }
 

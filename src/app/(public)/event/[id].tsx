@@ -68,6 +68,7 @@ import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } fr
 import { formatDate, formatPrice } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useCurrency } from '@/store/currency';
+import { LiveButton, LivePill } from '@/components/ui/live';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -642,10 +643,7 @@ export default function PublicEventDetailScreen() {
 
           {/* Status pill (web `.ve-status-pill`) */}
           {status.isLive ? (
-            <View style={[styles.statusPill, styles.statusPillLive]}>
-              <View style={styles.pulseRed} />
-              <Text style={styles.statusPillText}>HAPPENING NOW</Text>
-            </View>
+            <LivePill label="HAPPENING NOW" size="md" sparkle style={styles.statusPillPos} />
           ) : status.isCancelled ? (
             <View style={[styles.statusPill, styles.statusPillCancelled]}>
               <Text style={styles.statusPillText}>CANCELLED</Text>
@@ -865,12 +863,14 @@ export default function PublicEventDetailScreen() {
                   {price.amount}
                 </Text>
               </View>
-              <View style={styles.feeBadge}>
-                <Ionicons name="videocam" size={14} color={colors.textOnPrimary} />
-                <Text style={styles.feeBadgeText}>
-                  {status.isLive ? 'Watch live' : 'Live stream'}
-                </Text>
-              </View>
+              {status.isLive ? (
+                <LivePill label="Watch live" size="sm" sparkle style={{ alignSelf: 'center' }} />
+              ) : (
+                <View style={styles.feeBadge}>
+                  <Ionicons name="videocam" size={14} color={colors.textOnPrimary} />
+                  <Text style={styles.feeBadgeText}>Live stream</Text>
+                </View>
+              )}
             </View>
           ) : null}
 
@@ -1076,6 +1076,9 @@ function CtaButton({ cta, onPress }: { cta: Cta; onPress: () => void }) {
   const ctaToneStyles = useCtaToneStyles();
   const { colors } = useTheme();
   const styles = useStyles();
+  if (cta.tone === 'live' && !cta.disabled) {
+    return <LiveButton label={cta.label} sub={cta.sub} icon={cta.icon} onPress={onPress} size="lg" />;
+  }
   return (
     <Pressable
       style={({ pressed }) => [
@@ -1190,7 +1193,7 @@ const useStyles = makeStyles((c, e) => ({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.28)',
   },
-  statusPillLive: { backgroundColor: 'rgba(220,38,38,0.92)' },
+  statusPillPos: { position: 'absolute', bottom: spacing.lg, left: spacing.lg },
   statusPillUpcoming: { backgroundColor: 'rgba(31,107,255,0.55)' },
   statusPillEnded: { backgroundColor: 'rgba(107,114,128,0.78)' },
   statusPillCancelled: { backgroundColor: 'rgba(239,68,68,0.78)' },
@@ -1199,12 +1202,6 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: 11,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.9,
-  },
-  pulseRed: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fff',
   },
 
   coverCat: {
