@@ -68,7 +68,7 @@ export function Stat({ value, label, accent }: { value: number; label: string; a
   return (
     <View style={styles.stat}>
       <Text style={[styles.statValue, accent && value > 0 ? { color: colors.accent } : null]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{label}</Text>
     </View>
   );
 }

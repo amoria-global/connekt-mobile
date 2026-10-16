@@ -130,7 +130,7 @@ export default function PaymentAccountsScreen() {
                       </View>
                       <View style={{ flex: 1, gap: 2 }}>
                         <View style={styles.labelRow}>
-                          <Text style={styles.cardLabel} numberOfLines={1}>{a.label}</Text>
+                          <Text style={styles.cardLabel} numberOfLines={2}>{a.label}</Text>
                           {a.isDefault ? (
                             <View style={styles.defaultPill}>
                               <Text style={styles.defaultText}>Default</Text>
@@ -139,7 +139,7 @@ export default function PaymentAccountsScreen() {
                         </View>
                         <Text style={styles.cardNumber}>{maskAccountNumber(a.accountNumber)}</Text>
                         {a.accountName ? (
-                          <Text style={styles.cardName} numberOfLines={1}>{a.accountName}</Text>
+                          <Text style={styles.cardName} numberOfLines={2}>{a.accountName}</Text>
                         ) : null}
                       </View>
                     </View>
@@ -240,7 +240,7 @@ const useStyles = makeStyles((c) => ({
   cardDefault: { borderColor: c.primary },
   cardTop: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   kindIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  labelRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   cardLabel: { flexShrink: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   defaultPill: {
     paddingHorizontal: spacing.sm,
