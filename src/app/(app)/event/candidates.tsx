@@ -60,7 +60,11 @@ export default function EventCandidatesScreen() {
 
   useEffect(() => {
     syncServerClock();
-    getHybridOptions().then((o) => setEscrowOptions(o.escrowOptions)).catch(() => {});
+    getHybridOptions()
+      .then((o) => {
+        if (Array.isArray(o?.escrowOptions) && o.escrowOptions.length) setEscrowOptions(o.escrowOptions);
+      })
+      .catch(() => {});
     load();
   }, [load]);
 

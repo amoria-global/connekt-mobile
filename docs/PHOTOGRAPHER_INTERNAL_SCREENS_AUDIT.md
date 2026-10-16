@@ -54,6 +54,19 @@ Round three, found by looking at the running app:
 - **A bug I introduced and device testing caught:** `payroll.render.test.tsx` lived under `src/app/(app)/`, so Expo Router bundled it as a route and the app crashed with "Property 'afterEach' doesn't exist". The test now lives in `src/features/wallet/`. No other test file is under `src/app`.
 - **Large text:** payroll's "Unavailable" broke mid-word at 1.6x. It now shrinks to one line.
 
+## Round four: remaining screens on the emulator (dark, fixture backend)
+
+Looked at on the Android emulator this round: booking request call screen, `album/new`, `content-albums`, `content-album/new`, `photobook/new`, `photobook/[id]`, `package/new`, `two-factor`, `preferences`, `kyc` (details step), `payments`, `client/[id]`, `conversation/[id]`, `event/candidates`, `stream/control/[id]`, `payment/[id]`, `collaborate/album/[id]`, `withdraw`, and the Events dashboard (week view, Pending filter, Accept sheet, Decline sheet). All already sit on the navy palette. Defects found and fixed:
+
+- **Keyboard hid the whole decline form (Android).** The booking request call screen, the two Decline sheets (Events dashboard and event detail) and every shared `Sheet` only avoided the keyboard on iOS. On Android the reason field and the Decline button disappeared behind the keyboard. The call screen now pads while the decline box is open. Both Decline sheets now use the shared `Sheet`, and `Sheet` pads on every platform (this also covers the Goals sheet). Seen fixed on the emulator: field and button stay above the keyboard.
+- **`event/candidates` crashed** ("Cannot read property 'map' of undefined") when the hybrid options response had no `escrowOptions`, because the default list was overwritten by `undefined`. The default is now kept unless the response carries a real list.
+- **Blank labelled fields.** `package/new` (Currency) and `content-album/new` (Category, Currency) showed a label with nothing under it when the list was empty or failed. New `OptionsNote` says "Loading ..." or "... unavailable. Tap to retry." and retries on tap. Unit tested.
+- **`package/new`** drops its repeated "New package" body title when creating (kept for editing).
+- **`payment/[id]`** showed a bare dash when the amount was unknown; it now says "Amount unavailable".
+- Booking request call screen: the time range used an en dash, now "14:00 to 16:00".
+
+Accept on the Events dashboard: the sheet closes and nothing crashes, but the fixture backend does not change the event, so the resulting state change is not verified.
+
 ## Coverage matrix
 
 Legend: V = viewed on Android emulator, dark mode, fixture backend (not a live account). Shared = changed through a shared component, not individually viewed. Light mode, 1.6x text, loading and error states were NOT checked on these screens.
@@ -79,12 +92,13 @@ Legend: V = viewed on Android emulator, dark mode, fixture backend (not a live a
 | `analytics` | Home, Wallet | V dark, full scroll. Structure is consistent with the wallet analytics. The Performance legend reads "Current V1 / Current V2", the backend's unlabeled series, left alone because its meaning is not documented |
 | More sheet | bottom bar | V dark. Already a grid of icon tiles with search, no change needed |
 | `donations`, `streams`, `tv-devices`, `blocked-accounts`, `event/geo-pricing` | profile, More | Shared (duplicate title removed), not viewed |
-| `album/new`, `album/[id]`, `content-albums`, `content-album/new`, `photobook/new`, `photobook/[id]`, `conversation/[id]`, `client/[id]`, `collaborate/album/[id]`, `collaborate/joined/[id]`, `collaborate/join/[token]`, `package/new`, `two-factor`, `preferences`, `kyc`, `payment/[id]`, `payments`, `event/new`, `event/candidates`, `stream/control/[id]`, `analytics` | various | Not individually reviewed. Receive the 48dp button and Segmented changes where they use those components |
-| Overlays listed above | various | Not restyled. No shared sheet primitive exists |
+| `album/new`, `content-albums`, `content-album/new`, `photobook/new`, `photobook/[id]`, `conversation/[id]`, `client/[id]`, `collaborate/album/[id]`, `package/new`, `two-factor`, `preferences`, `kyc`, `payment/[id]`, `payments`, `event/candidates`, `stream/control/[id]` | various | V dark in round four (empty or fixture data). Defects fixed are listed above |
+| `collaborate/joined/[id]`, `collaborate/join/[token]` | collaborate | Not individually reviewed |
+| Overlays | various | Decline sheets moved to the shared `Sheet`; Accept sheet seen and consistent; other overlays unchanged |
 
 ## Not done, and why
 
-- **Still not individually reviewed on a device:** `album/new`, `content-albums`, `content-album/new`, `photobook/new`, `photobook/[id]`, `conversation/[id]`, `client/[id]`, `collaborate` sub-screens, `package/new`, `two-factor`, `preferences`, `kyc`, `payment/[id]`, `payments`, `event/candidates`, `stream/control/[id]`, `withdraw` end to end, and the Events dashboard's accept, decline and sort sheets. Earlier dark mode screenshots show most already match the palette.
+- **Still not reviewed on a device:** `collaborate/joined/[id]`, `collaborate/join/[token]`, the Events sort sheet, KYC steps after Details (camera steps cannot run on the emulator, as with `stream/control`'s camera), and `withdraw` past the amount step. Light mode and 1.6x text were not re-checked on the round four screens.
 - **Flows not exercised:** event creation submit and failure, goal save and delete on a live backend, photobook resubmit, accept and reject of a booking, load older transactions on a real account. Only validation and dismissal were driven.
 - **iOS** was not exercised at all, and a dialog opened while another native Modal is open has not been tried on iOS.
 - Fixture data only. No live account was used.
@@ -93,6 +107,6 @@ Legend: V = viewed on Android emulator, dark mode, fixture backend (not a live a
 ## Verification
 
 - `npx tsc --noEmit`: exit 0.
-- `npx jest`: 76 suites, 597 passed, 1 skipped (re-run after the final edits). New: `photographerChrome.test.tsx` (6), `dialog.test.tsx` (6), `Sheet.test.tsx` (3), `payrollView.test.ts` (5), `payroll.render.test.tsx` (5). Two existing tests (Goals, Events dashboard) needed their mocks extended for the dialog and Sheet; no assertion was weakened.
+- `npx jest`: 77 suites, 600 passed, 1 skipped (re-run after the final edits). New: `photographerChrome.test.tsx` (6), `dialog.test.tsx` (6), `Sheet.test.tsx` (3), `payrollView.test.ts` (5), `payroll.render.test.tsx` (5). Two existing tests (Goals, Events dashboard) needed their mocks extended for the dialog and Sheet; no assertion was weakened.
 - `npm run lint`: 359 errors, the same files and counts as `main` before this branch (compared per file).
 - Emulator: Pixel 5 API 34, dark mode, fixture backend with a temporary sign-in bypass. The harness and bypass are removed and absent from the diff.

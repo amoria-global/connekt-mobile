@@ -52,6 +52,7 @@ import {
   listPhotographerEvents,
 } from './api';
 import type { EventItem } from './types';
+import { Sheet } from '@/components/ui/Sheet';
 import { EventQrSheet } from './EventQrSheet';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
@@ -987,32 +988,24 @@ function DeclineBookingSheet({
   onConfirm: () => void;
 }) {
   const styles = useStyles();
-  const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
-      <Pressable style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
-        <Pressable
-          style={[styles.declineSheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <View style={styles.sheetHandle} />
-          <Text style={styles.declineTitle}>Decline booking</Text>
-          <Text style={styles.declineHint}>
-            Share a short reason so {event?.clientName || 'the client'} knows why you&apos;re not taking
-            this on.
-          </Text>
-          <Input
-            placeholder="e.g. Schedule conflict, location too far, etc."
-            value={reason}
-            onChangeText={onChangeReason}
-            multiline
-            style={styles.declineInput}
-          />
-          <Button title="Submit decline" onPress={onConfirm} loading={busy} />
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <Sheet
+      visible={!!event}
+      title="Decline booking"
+      subtitle={`Share a short reason so ${event?.clientName || 'the client'} knows why you're not taking this on.`}
+      onClose={onCancel}
+      busy={busy}
+      footer={<Button title="Submit decline" onPress={onConfirm} loading={busy} />}
+    >
+      <Input
+        placeholder="e.g. Schedule conflict, location too far, etc."
+        value={reason}
+        onChangeText={onChangeReason}
+        multiline
+        style={styles.declineInput}
+      />
+    </Sheet>
   );
 }
 
@@ -1319,15 +1312,6 @@ const useStyles = makeStyles((c) => ({
   sheetConfirmText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
 
   // Decline sheet
-  declineSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  declineTitle: { fontFamily: fonts.bold, fontSize: 20, color: c.text },
-  declineHint: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, lineHeight: 20 },
   declineInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
 
   // Pagination footer & pager bar

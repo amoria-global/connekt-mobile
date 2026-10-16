@@ -32,6 +32,7 @@ import { z } from 'zod';
 import { Screen } from '@/components/ui/Screen';
 import { createContentAlbum, listAlbumCategories } from '@/features/gallery/api';
 import { listCurrencies } from '@/features/reference/api';
+import { OptionsNote } from '@/components/ui/OptionsNote';
 import { useAsync } from '@/hooks/useAsync';
 import { pickFromLibrary, pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
@@ -215,6 +216,10 @@ export default function NewContentAlbumScreen() {
             {categories.loading && !categories.data ? (
               <ActivityIndicator color={colors.primary} style={{ alignSelf: 'flex-start', marginVertical: 6 }} />
             ) : (
+              <>
+                {!cats.length ? (
+                  <OptionsNote what="categories" loading={categories.loading} onRetry={() => void categories.refresh()} />
+                ) : null}
               <View style={styles.chips}>
                 {cats.map((c) => {
                   const active = category === c.value;
@@ -234,6 +239,7 @@ export default function NewContentAlbumScreen() {
                   );
                 })}
               </View>
+              </>
             )}
             {categoryError ? <Text style={styles.err}>{categoryError}</Text> : null}
           </View>
@@ -267,6 +273,9 @@ export default function NewContentAlbumScreen() {
 
               <View style={styles.rowItem}>
                 <FieldLabel text="CURRENCY" required />
+                {!currencies.data?.length ? (
+                  <OptionsNote what="currencies" loading={currencies.loading} onRetry={() => void currencies.refresh()} />
+                ) : null}
                 <View style={styles.chips}>
                   {(currencies.data ?? []).map((c) => {
                     const active = currencyId === c.id;
