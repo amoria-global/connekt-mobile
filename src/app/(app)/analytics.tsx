@@ -906,7 +906,11 @@ type StatCardItem = {
         {/* Shape 3: Vertical Dual-Column Bar Chart */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionCardTitle}>Performance</Text>
-          <SaloPerformanceChart data={activePerf} height={180} />
+          <SaloPerformanceChart
+            data={activePerf}
+            height={180}
+            legend={isPhotographer ? PHOTOGRAPHER_PERFORMANCE_LEGEND : undefined}
+          />
         </View>
 
         {/* Shape 4: Horizontal Proportion Ribbon Bar */}
@@ -2045,12 +2049,22 @@ const ratioStyles = StyleSheet.create({
 
 // ── 4. Salo-run Performance Chart Component (Dual-bar Sun-Sat + Scale) ───────
 
+/**
+ * What the backend's two series are, from `PhotographerDashboardController.getPerformanceChart`: value1 is the sum of
+ * paid minus refunded amounts on payment declarations created in the bucket, value2 is the number of the photographer's
+ * events in the bucket. The amounts are summed as stored, with no currency conversion, so the label names no currency.
+ * Other roles keep the original labels: their endpoints were not audited for this screen.
+ */
+const PHOTOGRAPHER_PERFORMANCE_LEGEND: [string, string] = ['Net payments received', 'Events'];
+
 function SaloPerformanceChart({
   data,
   height = 180,
+  legend,
 }: {
   data: PerformancePoint[];
   height?: number;
+  legend?: [string, string];
 }) {
   const { colors } = useTheme();
   const bar1Color = colors.primary;
@@ -2185,11 +2199,11 @@ function SaloPerformanceChart({
       <View style={[perfStyles.legendRow, { borderTopColor: colors.borderSoft }]}>
         <View style={perfStyles.legendItem}>
           <View style={[perfStyles.legendDot, { backgroundColor: bar1Color }]} />
-          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>Current V1</Text>
+          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>{legend?.[0] ?? 'Current V1'}</Text>
         </View>
         <View style={perfStyles.legendItem}>
           <View style={[perfStyles.legendDot, { backgroundColor: bar2Color }]} />
-          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>Current V2</Text>
+          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>{legend?.[1] ?? 'Current V2'}</Text>
         </View>
       </View>
     </View>
