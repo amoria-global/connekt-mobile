@@ -49,9 +49,9 @@ const useStyles = makeStyles((c, e) => ({
     ...e(2),
   },
   wrapFlat: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radii.md, padding: 3, gap: 3 },
-  segFlat: { minHeight: 42, justifyContent: 'center', paddingVertical: 0, borderRadius: radii.md - 2 },
+  segFlat: { minHeight: 42, justifyContent: 'center', paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: radii.md - 2 },
   segOn: { backgroundColor: c.primary },
   segTextOn: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold },
-  segText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textMuted },
+  segText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textMuted, textAlign: 'center' },
   segTextActive: { color: c.primary, fontWeight: fontWeight.bold },
 }));

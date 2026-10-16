@@ -5,7 +5,7 @@ Companion to `PHOTOGRAPHER_WORKSPACE_AUDIT.md`, which covers Home, Wallet, Analy
 
 ## Honest summary
 
-This is still a partial completion of the larger brief (seventh commit on the branch; rounds six and seven recovered the emulator and closed the device gaps). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
+This is still a partial completion of the larger brief (eighth commit on the branch; rounds six to eight recovered the emulator and closed the device gaps). Round three was checked on the Android emulator after closing Chrome freed enough RAM (the earlier hangs were host memory and CPU, not the app). Route discovery is complete. The shared building blocks are corrected for photographers
 (other roles are unchanged), and a first set of internal screens was checked on the Android emulator in dark mode
 against a fixture backend. Many screens are NOT individually restyled or verified, and the table below says which.
 The dark-mode pass (earlier) had already moved every internal screen onto the navy palette, so the remaining gap
@@ -122,6 +122,20 @@ The emulator was booted first and left idle before Metro started, and it stayed 
 
 **Withdraw:** the form at 1.6x text, then the code screen at 1.6x text (the destination line wraps without clipping and the fee summary, code boxes and buttons all fit). The fee numbers on that screen come from the fixture, not the app.
 
+## Round eight: the dark-only screens in light mode and at 1.6x text
+
+Seen on the Android emulator (fixture backend, genuine screenshots kept locally): in **light mode** album detail, photobook detail, conversation, client detail, preferences, two-factor, stream control (dark by design), event details, new event, new content album and the candidates answers screen. At **1.6x text**: the same set plus a re-check after fixes.
+
+**Defects found and fixed (all shared-control or layout, no behaviour change):**
+- Client detail: the Message, Add to favorites and more buttons overflowed the screen at 1.6x ("Message" cut off on the left, the more button off screen). The row now wraps and centres, and each control has a 44dp minimum.
+- Date and time fields (`DateField`, `TimeField`, shared) had a fixed 52 height, so "Select a time" was cut in half at 1.6x. They now use a minimum height and grow.
+- Event form: the "Who covers this event?" toggle labels touched the segment edges and the multiline description had a fixed height. The shared `Segmented` now pads and centres its labels, and the description grows.
+- New content album: the multiline description had a fixed height; it now grows.
+
+Light mode needed no fixes on any of these screens. The preferences "Ring during Do Not Disturb" row looked struck through in one screenshot; that is the gesture bar overlapping it at the bottom edge, not the app.
+
+**Not seen:** the Withdraw "Request submitted" result in light mode (the screen was reached in dark in round six; the light attempt this round missed the screen because a deep link did not land, so it is still unchecked).
+
 ## Route inventory (89 screen files under `src/app`, 95 files with layouts)
 
 Status words follow the brief. D = seen on the Android emulator in dark mode against a fixture backend (earlier rounds). T = covered by a render or unit test over a fake transport. C = read in code only. "Not verified" means exactly that.
@@ -161,11 +175,11 @@ Status words follow the brief. D = seen on the Android emulator in dark mode aga
 | `(auth)/*`, `(onboarding)/*` | signed out | Out of scope (not an internal photographer screen). Not verified |
 | iOS | none | Not tested at all |
 
-Light mode was checked on every screen listed in round seven and 1.6x text on the ones named there. Dark mode on most of them dates from earlier rounds. Screens not named in rounds six or seven (event details, album detail, photobook detail, conversation, client detail, preferences, two-factor, the stream control screen) were checked in dark mode only.
+Light mode was checked on every screen listed in round seven and 1.6x text on the ones named there. Dark mode on most of them dates from earlier rounds. Round eight added light mode and 1.6x for event details, new event, album detail, photobook detail, conversation, client detail, preferences, two-factor, stream control, new content album and candidates.
 
 ## Not done, and why
 
-- **Not seen on a device:** light mode and 1.6x text for album detail, photobook detail, conversation, client detail, preferences, two-factor and stream control, and light mode of the Withdraw success state. A real camera capture (the emulator camera is a virtual scene), a real QR scan on connect-to-tv and pay-on-tv, and the KYC Submit result.
+- **Not seen on a device:** light mode of the Withdraw success state, and scrolled-down content of album detail, photobook detail and conversation with real photos or messages (the fixture has none). A real camera capture (the emulator camera is a virtual scene), a real QR scan on connect-to-tv and pay-on-tv, and the KYC Submit result.
 - **Flows never exercised against any backend:** event creation submit and failure, goal save and delete, photobook resubmit, accept and decline of a real booking, load older transactions, a real withdrawal, a real KYC submission, joining a real invite. Only the fixture and fake-API tests and fixture screens cover accept, decline, withdraw and join.
 - **iOS** was not exercised, including a dialog opened over another native Modal.
 - Fixture data only. No live account was used.

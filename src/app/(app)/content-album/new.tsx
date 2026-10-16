@@ -491,7 +491,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.background,
   },
   inputError: { borderColor: c.error },
-  multiline: { height: 76, textAlignVertical: 'top', paddingTop: 10 },
+  multiline: { minHeight: 76, textAlignVertical: 'top', paddingTop: 10 },
   err: { fontFamily: fonts.regular, fontSize: 12, color: c.error, marginTop: 2 },
   helper: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, lineHeight: 16 },
 

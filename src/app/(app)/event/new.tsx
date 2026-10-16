@@ -1471,7 +1471,7 @@ const useStyles = makeStyles((c) => ({
   assignName: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   assignSub: { fontSize: fontSize.sm, color: c.textMuted },
 
-  multiline: { height: 100, paddingTop: spacing.md, textAlignVertical: 'top' },
+  multiline: { minHeight: 100, paddingTop: spacing.md, textAlignVertical: 'top' },
   serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
   pickerBackdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
