@@ -66,6 +66,7 @@ import { useCurrency } from '@/store/currency';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { LiveDot, LivePill } from '@/components/ui/live';
 
 const RECENT_SEARCHES_KEY = 'connekt.global_search_recents';
 
@@ -1066,7 +1067,7 @@ export function ClientHome() {
             {searchMatchingLive.length > 0 && (
               <View style={styles.suggestionSection}>
                 <View style={styles.liveSectionHeader}>
-                  <View style={styles.livePulseDotRed} />
+                  <LiveDot size={8} color="#EF4444" />
                   <Text style={styles.liveSectionTitle}>LIVE BROADCASTS NOW</Text>
                 </View>
                 {searchMatchingLive.slice(0, 2).map((ev) => (
@@ -1088,10 +1089,7 @@ export function ClientHome() {
                         {[ev.photographerName, ev.location].filter(Boolean).join(' · ')}
                       </Text>
                     </View>
-                    <View style={styles.watchLiveBadge}>
-                      <Ionicons name="play" size={10} color="#FFFFFF" />
-                      <Text style={styles.watchLiveBadgeText}>Watch</Text>
-                    </View>
+                    <LivePill label="Watch" size="xs" sparkle />
                   </Pressable>
                 ))}
               </View>
@@ -1318,7 +1316,7 @@ export function ClientHome() {
                   {c.label}
                 </Text>
                 {c.isLive && (
-                  <View style={[styles.liveDotSmall, active && styles.liveDotSmallActive]} />
+                  <LiveDot size={6} color={active ? '#FFFFFF' : '#EF4444'} />
                 )}
               </Pressable>
             );
@@ -1427,10 +1425,7 @@ export function ClientHome() {
               </View>
 
               {hasAnyLiveStream ? (
-                <View style={styles.bentoLiveBadge}>
-                  <View style={styles.bentoLiveDot} />
-                  <Text style={styles.bentoLiveBadgeText}>LIVE</Text>
-                </View>
+                <LivePill size="xs" sparkle />
               ) : (
                 <View style={styles.bentoArrowCircle}>
                   <Ionicons name="arrow-forward" size={11} color={colors.textMuted} />
@@ -1766,7 +1761,7 @@ export function ClientHome() {
                     {/* Center Details */}
                     <View style={styles.feedContentCol}>
                       <View style={styles.feedTitleRow}>
-                        {b.isLive && <View style={styles.feedLiveDot} />}
+                        {b.isLive && <LiveDot size={6} color="#EF4444" />}
                         <Text style={styles.feedTitle} numberOfLines={1}>
                           {b.title}
                         </Text>
@@ -1790,10 +1785,7 @@ export function ClientHome() {
                     {/* Right Col: Status Pill & Price & Chevron */}
                     <View style={styles.feedRightCol}>
                       {b.statusType === 'LIVE' ? (
-                        <View style={styles.feedPillLive}>
-                          <View style={styles.feedLiveDot} />
-                          <Text style={styles.feedLivePillText}>LIVE</Text>
-                        </View>
+                        <LivePill size="xs" sparkle />
                       ) : b.statusType === 'PAID' ? (
                         <View style={styles.feedPillPaid}>
                           <Ionicons name="checkmark-circle" size={10} color="#10B981" />
