@@ -54,6 +54,7 @@ import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
+import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -66,7 +67,7 @@ export default function WalletScreen() {
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
 
-  const { isPhotographer, isCoordinator, role } = useRole();
+  const { isPhotographer, isCoordinator, isClient, role } = useRole();
   const user = useAuth((s) => s.user);
   const canWithdraw = isPhotographer || isCoordinator;
 
@@ -166,7 +167,8 @@ export default function WalletScreen() {
   // The pending row appears only when the wallet reports a pending figure (a reported 0 still shows); no figure is never drawn as $0.00.
   const pendingLabel = stats?.pendingChip?.label ?? 'Pending release';
   const pendingValue = stats?.pendingChip?.value ?? 0;
-  const tabbed = isPhotographer;
+  // Photographers and clients get the sectioned wallet; coordinators keep the single long screen.
+  const tabbed = isPhotographer || !!isClient;
   const showOverview = !tabbed || walletTab === 'overview';
   const showAnalytics = tabbed && walletTab === 'analytics';
   const showActivity = !tabbed || walletTab === 'activity';
@@ -231,11 +233,18 @@ export default function WalletScreen() {
                 label="Wallet sections"
                 value={walletTab}
                 onChange={setWalletTab}
-                tabs={[
-                  { key: 'overview', label: 'Overview' },
-                  { key: 'analytics', label: 'Analytics' },
-                  { key: 'activity', label: 'Activity' },
-                ]}
+                tabs={
+                  isPhotographer
+                    ? [
+                        { key: 'overview', label: 'Overview' },
+                        { key: 'analytics', label: 'Analytics' },
+                        { key: 'activity', label: 'Activity' },
+                      ]
+                    : [
+                        { key: 'overview', label: 'Overview' },
+                        { key: 'activity', label: 'Activity' },
+                      ]
+                }
               />
             </View>
           ) : null}
@@ -385,10 +394,17 @@ export default function WalletScreen() {
             </View>
           ) : null}
 
+          {/* Clients: what is still owed, with its own Pay now. */}
+          {showOverview && isClient ? (
+            <View style={styles.sectionBlock}>
+              <ClientPaymentsDue hidden={balanceHidden} version={data} />
+            </View>
+          ) : null}
+
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
           {showOverview && tabbed && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>Earnings breakdown</Text>
+              <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : 'Earnings breakdown'}</Text>
               <View style={styles.rowsCard}>
                 {visibleCards.map((card, i) => {
                   const p = PALETTE[card.color] ?? PALETTE.neutral;
@@ -417,7 +433,7 @@ export default function WalletScreen() {
             </View>
           )}
 
-          {/* Photographers: the latest movements, then the two places a payout is managed. */}
+          {/* The latest movements, then the places money is managed. */}
           {showOverview && tabbed ? (
             <>
               <View style={styles.sectionBlock}>
@@ -449,7 +465,7 @@ export default function WalletScreen() {
                       const palette = COLOR_MAP[item.color] ?? COLOR_MAP.neutral;
                       const isIn = item.direction === 'in';
                       const amount = balanceHidden
-                        ? `${isIn ? '+' : '−'}$ ••••`
+                        ? `${isIn ? '+' : '−'}••••`
                         : `${isIn ? '+' : '−'}${formatPrice(item.amount, item.originalCurrency || data?.wallet.currency)}`;
                       return (
                         <Pressable
