@@ -87,26 +87,32 @@ function paymentsBase(role: PaymentsRole | undefined): string {
 
 function mapPaymentRecord(r: Raw): PaymentRecord {
   const declarationId = str(r.declarationId) ?? str(r.paymentDeclarationId);
+  const own =
+    (typeof r.amount === 'number' ? r.amount : undefined) ??
+    (typeof r.amountDue === 'number' ? r.amountDue : undefined) ??
+    (typeof r.totalAmount === 'number' ? r.totalAmount : undefined);
+  const usd = typeof r.amountInUsd === 'number' ? r.amountInUsd : undefined;
+  const amount = own ?? usd;
+  const rowCurrency = str(r.currency) ?? str(r.currencyCode) ?? str(r.currencyAbbreviation);
   return {
     id: String(declarationId ?? r.id ?? ''),
     declarationId,
     paymentType: str(r.paymentType) ?? str(r.type),
     title: str(r.eventName) ?? str(r.eventTitle) ?? str(r.title) ?? str(r.description) ?? 'Payment',
-    amount:
-      (typeof r.amount === 'number' ? r.amount : undefined) ??
-      (typeof r.amountDue === 'number' ? r.amountDue : undefined) ??
-      (typeof r.totalAmount === 'number' ? r.totalAmount : undefined) ??
-      (typeof r.amountInUsd === 'number' ? r.amountInUsd : undefined),
-    currency:
-      str(r.currency) ?? str(r.currencyCode) ?? str(r.currencyAbbreviation),
+    amount,
+    // amountInUsd is a USD figure whatever the row's own currency is, so it carries USD, never the row's currency.
+    currency: own === undefined && usd !== undefined ? 'USD' : rowCurrency,
     status: str(r.status) ?? str(r.paymentStatus),
     createdAt: str(r.createdAt) ?? str(r.date) ?? str(r.dueDate),
   };
 }
 
+/** listPayments reads one page only; the screens say so rather than present it as the whole history. */
+export const PAYMENTS_PAGE_SIZE = 20;
+
 export async function listPayments(role?: PaymentsRole): Promise<PaymentRecord[]> {
   const res = await api.getOk<ApiEnvelope<unknown>>(
-    `${paymentsBase(role)}?page=0&size=20`,
+    `${paymentsBase(role)}?page=0&size=${PAYMENTS_PAGE_SIZE}`,
   );
   return pageContent(res?.data).map(mapPaymentRecord).filter((p) => p.id);
 }
