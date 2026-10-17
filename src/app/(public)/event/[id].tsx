@@ -37,7 +37,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -69,6 +71,8 @@ import { formatDate, formatPrice } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useCurrency } from '@/store/currency';
 import { LiveButton, LivePill } from '@/components/ui/live';
+import { clearReminder, getReminder, isValidReminderEmail, setReminder } from '@/features/events/reminder';
+import { registerForPushNotifications } from '@/features/notifications/push';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -139,7 +143,7 @@ type Cta = {
    * Purchase CTAs no longer route to an in-app payment funnel — they open
    * the web checkout instead. Only ever set when digitalPurchasesEnabled.
    */
-  action?: 'webCheckout';
+  action?: 'webCheckout' | 'reminder';
   disabled: boolean;
 };
 
@@ -207,7 +211,7 @@ function buildCta(
   }
   if (isUpcoming) {
     if (!isPaid)
-      return { label: 'Get notified', icon: 'notifications', tone: 'reserve', disabled: false };
+      return { label: 'Get notified', icon: 'notifications-outline', tone: 'reserve', disabled: false, action: 'reminder' };
     if (hasPurchasedAccess)
       return { label: 'Access reserved', icon: 'checkmark-circle', tone: 'owned', disabled: true };
     if (!canBuy)
@@ -376,6 +380,82 @@ export default function PublicEventDetailScreen() {
       setVerifyName(fullName);
     }
   }, [currentUser, verifyEmail, verifyName]);
+  // "Get notified": a real reminder held by the backend. Signed in, the person is told by an
+  // in-app notification and a push; as a guest, by one email about 15 minutes before the start.
+  const signedIn = useAuth((s) => s.status === 'authenticated');
+  const [reminderOn, setReminderOn] = useState(false);
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const [reminderAsk, setReminderAsk] = useState(false);
+  const [reminderEmail, setReminderEmail] = useState('');
+  const [reminderError, setReminderError] = useState<string | null>(null);
+  const [reminderNote, setReminderNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const email = (await storage.get('reminderEmail')) ?? '';
+        const on = await getReminder(String(id), { signedIn, email });
+        if (alive) setReminderOn(on);
+      } catch {
+        /* unknown stays off */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [id, signedIn]);
+
+  const flashReminder = (text: string) => {
+    setReminderNote(text);
+    setTimeout(() => setReminderNote(null), 3500);
+  };
+
+  const applyReminder = async (email?: string) => {
+    if (reminderBusy) return;
+    setReminderBusy(true);
+    setReminderError(null);
+    try {
+      const who = { signedIn, email };
+      if (reminderOn) {
+        await clearReminder(String(id), who);
+        setReminderOn(false);
+        flashReminder('Notification turned off.');
+      } else {
+        await setReminder(String(id), who);
+        setReminderOn(true);
+        setReminderAsk(false);
+        if (signedIn) {
+          // The push needs the phone's permission; ask now, while the person just asked for it.
+          void registerForPushNotifications();
+          flashReminder('Done. We will notify you when this event starts.');
+        } else {
+          await storage.set('reminderEmail', email ?? '').catch(() => {});
+          flashReminder(`Done. We will email ${email} when this event starts.`);
+        }
+      }
+    } catch (e) {
+      setReminderError(isApiError(e) ? e.message : 'Could not update your notification. Please try again.');
+    } finally {
+      setReminderBusy(false);
+    }
+  };
+
+  const onReminderPress = async () => {
+    if (reminderBusy) return;
+    if (reminderOn) {
+      await applyReminder((await storage.get('reminderEmail')) ?? undefined);
+      return;
+    }
+    if (signedIn) {
+      await applyReminder();
+      return;
+    }
+    setReminderEmail((await storage.get('reminderEmail')) ?? '');
+    setReminderError(null);
+    setReminderAsk(true);
+  };
+
   const onVerifyAccess = async () => {
     if (!verifyName.trim() || !verifyEmail.includes('@')) {
       setVerifyError('Enter the name and email you used at checkout.');
@@ -549,7 +629,16 @@ export default function PublicEventDetailScreen() {
   if (!data) return null;
 
   const status = deriveStatus(data);
-  const cta = buildCta(data, status, hasPurchasedAccess, viewerId);
+  const baseCta = buildCta(data, status, hasPurchasedAccess, viewerId);
+  const cta =
+    baseCta && baseCta.action === 'reminder'
+      ? {
+          ...baseCta,
+          label: reminderOn ? 'You will be notified' : reminderBusy ? 'Setting up' : 'Get notified',
+          sub: reminderOn ? (reminderBusy ? 'Updating' : 'Tap to turn off') : undefined,
+          icon: (reminderOn ? 'notifications' : 'notifications-outline') as keyof typeof Ionicons.glyphMap,
+        }
+      : baseCta;
   const price = priceLabel(data);
   const organizer = data.creator
     ? `${data.creator.firstName ?? ''} ${data.creator.lastName ?? ''}`.trim() ||
@@ -1004,13 +1093,74 @@ export default function PublicEventDetailScreen() {
           <CtaButton
             cta={cta!}
             onPress={() => {
-              if (cta!.action === 'webCheckout') {
+              if (cta!.action === 'reminder') {
+                void onReminderPress();
+              } else if (cta!.action === 'webCheckout') {
                 router.push(`/(public)/events/pay?id=${id}` as unknown as Href);
               } else if (cta!.href) {
                 router.push(cta!.href);
               }
             }}
           />
+        </View>
+      ) : null}
+
+      {/* Get notified: a guest gives an email; a signed-in member needs nothing here. */}
+      <Modal visible={reminderAsk} transparent animationType="slide" onRequestClose={() => setReminderAsk(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <Pressable style={styles.modalBackdrop} onPress={() => !reminderBusy && setReminderAsk(false)}>
+            <Pressable
+              style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={styles.modalTitle}>Get notified</Text>
+              <Text style={styles.modalHint}>
+                Enter your email and we will send you one message about 15 minutes before this event starts.
+                Signed-in members are notified in the app instead.
+              </Text>
+              <Input
+                label="Email"
+                value={reminderEmail}
+                onChangeText={(v) => {
+                  setReminderEmail(v);
+                  setReminderError(null);
+                }}
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+              />
+              {reminderError ? <Text style={styles.wishMsg}>{reminderError}</Text> : null}
+              <Button
+                title={reminderBusy ? 'Saving…' : 'Notify me'}
+                onPress={() => {
+                  if (!isValidReminderEmail(reminderEmail)) {
+                    setReminderError('Enter a valid email address.');
+                    return;
+                  }
+                  void applyReminder(reminderEmail.trim().toLowerCase());
+                }}
+                loading={reminderBusy}
+              />
+              <Pressable onPress={() => setReminderAsk(false)} style={{ alignSelf: 'center', marginTop: 4 }}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {reminderNote || (reminderError && !reminderAsk) ? (
+        <View
+          pointerEvents="none"
+          accessibilityLiveRegion="polite"
+          style={{ position: 'absolute', left: 16, right: 16, bottom: Math.max(insets.bottom, 16) + 84, alignItems: 'center' }}
+        >
+          <View style={{ backgroundColor: '#0F172A', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 }}>
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14, textAlign: 'center' }}>
+              {reminderNote ?? reminderError}
+            </Text>
+          </View>
         </View>
       ) : null}
 
