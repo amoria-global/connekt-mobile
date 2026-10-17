@@ -2,7 +2,7 @@
  * Photographer discovery (/api/remote/customer/photographers).
  * Mapped defensively; text search is applied client-side over the result set.
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
 
 export type Photographer = {
@@ -126,8 +126,9 @@ export async function listPhotographers(): Promise<Photographer[]> {
   const size = 100;
   const all: any[] = [];
   for (let page = 0; page < 50; page++) {
-    const res = await api.get<ApiEnvelope<any>>(
-      `/public/photographers/list?page=${page}&size=${size}`,
+    // A refused page answers HTTP 200 with action:0; read as an empty page it said "no photographers".
+    const res = requireOk(
+      await api.get<ApiEnvelope<any>>(`/public/photographers/list?page=${page}&size=${size}`),
     );
     const rows = Array.isArray(res?.data?.content)
       ? res.data.content
