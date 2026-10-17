@@ -25,6 +25,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import {
+  PAYMENTS_PAGE_SIZE,
   listPayments,
   listStreamingPayments,
   listGiftPayments,
@@ -37,10 +38,11 @@ import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import type { PendingPayment } from '@/features/analytics/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
-import { formatDate, formatPrice } from '@/utils/format';
+import { formatDate, formatMoney, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { paymentBucket } from '@/features/payments/statusBucket';
+import { summarizePayments } from '@/features/payments/summary';
 
 type Filter = 'all' | 'paid' | 'pending' | 'failed';
 type Section = 'events' | 'streaming' | 'gifts';
@@ -109,21 +111,25 @@ function PaymentsContent() {
   );
 
   const payments: PaymentRecord[] = paymentsData ?? [];
-  const currency = payments.find((p) => p.currency)?.currency;
 
-  const stats = useMemo(() => {
-    let total = 0;
-    let paid = 0;
-    let pending = 0;
-    for (const p of payments) {
-      const amt = p.amount ?? 0;
-      const b = bucketOf(p);
-      if (b !== 'unfinished') total += amt;
-      if (b === 'paid') paid += amt;
-      else if (b === 'pending') pending += amt;
-    }
-    return { total, paid, pending };
-  }, [payments]);
+  // Totals are per currency: adding a RWF and a USD payment and labelling the sum with the first one's
+  // currency invented a figure. Nothing is drawn until the list has loaded, and none after a failed read.
+  const summary = useMemo(
+    () =>
+      paymentsData
+        ? summarizePayments(paymentsData.map((p) => ({ amount: p.amount, currency: p.currency, bucket: bucketOf(p) })))
+        : null,
+    [paymentsData],
+  );
+  const single = summary && summary.totals.length === 1 ? summary.totals[0] : null;
+  const pendingText = summary
+    ? summary.totals
+        .filter((t) => t.pending > 0)
+        .map((t) => (summary.totals.length === 1 ? formatPrice(t.pending, t.currency) : formatMoney(t.pending, t.currency)))
+        .join(' + ')
+    : '';
+  // The list is the latest page only, so it is not the person's all-time spending.
+  const partial = payments.length >= PAYMENTS_PAGE_SIZE;
 
   const counts = useMemo(() => {
     const c = { all: payments.length, paid: 0, pending: 0, failed: 0 };
@@ -234,28 +240,50 @@ function PaymentsContent() {
       {/* Section 1: Event Payments Summary Card */}
       {section === 'events' ? (
         <>
-          <View style={styles.totalCard}>
-            <Text style={styles.totalLabel}>{isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING'}</Text>
-            <Text style={styles.totalValue}>{formatPrice(stats.total, currency)}</Text>
-            <View style={styles.totalSplit}>
-              <View style={styles.totalSplitCell}>
-                <Text style={styles.totalSplitLabel}>Paid</Text>
-                <Text style={styles.totalSplitValue}>{formatPrice(stats.paid, currency)}</Text>
-              </View>
-              <View style={styles.totalDivider} />
-              <View style={styles.totalSplitCell}>
-                <Text style={styles.totalSplitLabel}>Pending</Text>
-                <Text style={styles.totalSplitValue}>{formatPrice(stats.pending, currency)}</Text>
-              </View>
+          {summary && summary.totals.length > 0 ? (
+            <View style={styles.totalCard}>
+              <Text style={styles.totalLabel}>{isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING'}</Text>
+              {single ? (
+                <>
+                  <Text style={styles.totalValue}>{formatPrice(single.total, single.currency)}</Text>
+                  <View style={styles.totalSplit}>
+                    <View style={styles.totalSplitCell}>
+                      <Text style={styles.totalSplitLabel}>Paid</Text>
+                      <Text style={styles.totalSplitValue}>{formatPrice(single.paid, single.currency)}</Text>
+                    </View>
+                    <View style={styles.totalDivider} />
+                    <View style={styles.totalSplitCell}>
+                      <Text style={styles.totalSplitLabel}>Pending</Text>
+                      <Text style={styles.totalSplitValue}>{formatPrice(single.pending, single.currency)}</Text>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.totalMixed}>Several currencies</Text>
+                  {summary.totals.map((t) => (
+                    <View key={t.currency} style={styles.totalCurrencyRow} accessible accessibilityLabel={`${t.currency}: ${formatMoney(t.total, t.currency)} total, ${formatMoney(t.paid, t.currency)} paid, ${formatMoney(t.pending, t.currency)} pending`}>
+                      <Text style={styles.totalSplitLabel}>{t.currency}</Text>
+                      <Text style={styles.totalSplitValue}>{formatMoney(t.total, t.currency)}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+              {summary.uncounted > 0 ? (
+                <Text style={styles.totalNote}>
+                  {summary.uncounted} payment{summary.uncounted === 1 ? '' : 's'} without an amount or currency not included.
+                </Text>
+              ) : null}
+              {partial ? <Text style={styles.totalNote}>Based on your latest {payments.length} payments.</Text> : null}
             </View>
-          </View>
+          ) : null}
 
-          {stats.pending > 0 ? (
+          {pendingText ? (
             <View style={styles.pendingAlert}>
               <Ionicons name="alert-circle" size={20} color="#D97706" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.pendingAlertTitle}>
-                  {formatPrice(stats.pending, currency)} in pending payments
+                  {pendingText} in pending payments
                 </Text>
                 <Text style={styles.pendingAlertSub}>
                   Complete payments to avoid booking cancellations.
@@ -673,6 +701,9 @@ const useStyles = makeStyles((c) => ({
   totalSplitLabel: { fontFamily: fonts.regular, color: 'rgba(255,255,255,0.75)', fontSize: 12 },
   totalSplitValue: { fontFamily: fonts.bold, color: '#fff', fontSize: 16 },
   totalDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.25)' },
+  totalMixed: { fontFamily: fonts.bold, color: '#fff', fontSize: 22, letterSpacing: -0.3 },
+  totalCurrencyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: 6 },
+  totalNote: { fontFamily: fonts.regular, color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 6 },
 
   pendingAlert: {
     flexDirection: 'row',
