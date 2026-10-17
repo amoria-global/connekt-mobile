@@ -4,6 +4,7 @@ import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { PhotographerEventsDashboard } from '@/features/events/PhotographerEventsDashboard';
 import { OwnerEventsDashboard } from '@/features/events/OwnerEventsDashboard';
+import { ClientEventsDashboard } from '@/features/events/ClientEventsDashboard';
 import ExploreEventsScreen from '@/app/(public)/explore-events';
 
 export default function EventsScreen() {
@@ -40,13 +41,13 @@ export default function EventsScreen() {
 
   /*
    * Client Events Dashboard:
-   * Clients can see all their created events, browse public streams or vetted
-   * photographers via workspace tabs, and tap "+" to launch Direct Booking
-   * or Hybrid Matching with live talent previews and ranked candidate dispatch.
+   * Clients see all their created events, can find a photographer or explore
+   * public events, and tap New to launch Direct Booking or Hybrid Matching
+   * with live talent previews and ranked candidate dispatch.
    */
   return (
     <Screen padded={false} edges={[]}>
-      <OwnerEventsDashboard coordinator={false} initialSearch={initialSearch} topInset={topBarHeight} />
+      <ClientEventsDashboard initialSearch={initialSearch} topInset={topBarHeight} />
       <TopBar />
     </Screen>
   );
