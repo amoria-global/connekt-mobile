@@ -65,12 +65,24 @@ export async function syncServerClock(): Promise<void> {
 
 let optionsCache: Promise<HybridOptions> | null = null;
 
+const OPTION_LISTS = ['eventTypes', 'cities', 'budgetPresets', 'photographerTypes', 'photographerSpecialties', 'coverageOptions', 'matchWindowHours'] as const;
+
+/**
+ * A success envelope whose body is not the options object (an empty array, null) used to crash the wizard on the first
+ * `.find`. The wizard already has an error state for a failed load, so a body without its lists is a failed load.
+ */
+export function hasOptionLists(data: unknown): data is HybridOptions {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  return OPTION_LISTS.every((k) => Array.isArray((data as Record<string, unknown>)[k]));
+}
+
 /** The wizard's choices, fetched once per app session. */
 export function getHybridOptions(): Promise<HybridOptions> {
   if (!optionsCache) {
     optionsCache = api.get<ApiEnvelope<HybridOptions>>('/public/hybrid/options')
       .then((res) => {
         assertOk(res, 'Could not load the event options.');
+        if (!hasOptionLists(res.data)) throw { status: 200, message: 'Could not load the event options.' };
         return res.data as HybridOptions;
       })
       .catch((e) => {

@@ -17,6 +17,8 @@ import {
   type RebookInput,
 } from '@/features/photographers/api';
 import { CoverCarousel } from '@/features/photographers/CoverCarousel';
+import { portfolioImages, profileFacts } from '@/features/photographers/profileFacts';
+import { Image } from 'expo-image';
 import { listPhotographerReviews } from '@/features/reviews/api';
 import { useRole } from '@/features/auth/role';
 import { useModeration } from '@/features/moderation/useModeration';
@@ -214,6 +216,8 @@ export default function PhotographerProfileScreen() {
   const reviews = useAsync(useCallback(() => listPhotographerReviews(id), [id]));
   
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const facts = profileFacts(data ?? {});
+  const workImages = useMemo(() => portfolioImages(data ?? {}), [data]);
   const [headerWidth, setHeaderWidth] = useState(400);
 
   const [activeTab, setActiveTab] = useState('Overview');
@@ -221,7 +225,7 @@ export default function PhotographerProfileScreen() {
     { id: 'Overview', icon: 'grid' as const },
     { id: 'Portfolio', icon: 'images' as const },
     { id: 'Reviews', icon: 'chatbubbles' as const },
-    { id: 'Working Experience', icon: 'briefcase' as const },
+    { id: 'About', icon: 'person' as const },
   ];
 
   // Derive carousel images from photographer profile
@@ -348,7 +352,7 @@ export default function PhotographerProfileScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+      <ScrollView bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 104 + insets.bottom }}>
         {/* Cover Carousel & Header Overlay */}
         <View
           style={styles.headerArea}
@@ -403,27 +407,39 @@ export default function PhotographerProfileScreen() {
             
             <View style={styles.roleRow}>
               <Text style={styles.role}>{data?.category || 'Photographer'}</Text>
-              <Text style={styles.dot}>•</Text>
-              <Ionicons name="location-outline" size={12} color="#D1D5DB" />
-              <Text style={styles.location}>{data?.location || 'Unknown'}</Text>
+              {data?.location ? (
+                <>
+                  <Text style={styles.dot}>•</Text>
+                  <Ionicons name="location-outline" size={12} color="#D1D5DB" />
+                  <Text style={styles.location}>{data.location}</Text>
+                </>
+              ) : null}
             </View>
 
             <View style={styles.statsRow}>
-              <Ionicons name="star" size={12} color="#FBBF24" />
-              <Text style={styles.statText}>
-                <Text style={styles.statValue}>{data?.rating ? data.rating.toFixed(1) : '5.0'}</Text> ({data?.reviewCount || 0} reviews)
-              </Text>
-              <Ionicons name="people" size={12} color="#D1D5DB" style={{ marginLeft: 8 }} />
-              <Text style={styles.statText}>
-                <Text style={styles.statValue}>0</Text> Events
-              </Text>
-              <Ionicons name="calendar-outline" size={12} color="#D1D5DB" style={{ marginLeft: 8 }} />
-              <Text style={styles.statText}>Since May 2026</Text>
+              {facts.rating ? (
+                <>
+                  <Ionicons name="star" size={12} color="#FBBF24" />
+                  <Text style={styles.statText}>
+                    <Text style={styles.statValue}>{facts.rating}</Text> ({facts.reviews} {facts.reviews === 1 ? 'review' : 'reviews'})
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.statText}>No reviews yet</Text>
+              )}
+              {facts.shoots ? (
+                <>
+                  <Ionicons name="camera" size={12} color="#D1D5DB" style={{ marginLeft: 8 }} />
+                  <Text style={styles.statText}>
+                    <Text style={styles.statValue}>{facts.shoots}</Text> {facts.shoots === 1 ? 'shoot' : 'shoots'}
+                  </Text>
+                </>
+              ) : null}
             </View>
 
-            <View style={styles.availableBadge}>
-              <View style={styles.availableDot} />
-              <Text style={styles.availableText}>AVAILABLE</Text>
+            <View style={[styles.availableBadge, facts.booked && styles.bookedBadge]}>
+              <View style={[styles.availableDot, facts.booked && styles.bookedDot]} />
+              <Text style={[styles.availableText, facts.booked && styles.bookedText]}>{facts.booked ? 'BOOKED' : 'AVAILABLE'}</Text>
             </View>
           </View>
         </View>
@@ -457,35 +473,6 @@ export default function PhotographerProfileScreen() {
           <View style={styles.tabContent}>
             {activeTab === 'Overview' && (
               <>
-                {/* Book Now Card */}
-                <View style={styles.card}>
-                  <Text style={styles.cardHeaderEyebrow}>AVAILABLE TO BOOK</Text>
-                  <View style={styles.bookingActionRow}>
-                    <Pressable 
-                      style={styles.bookButton}
-                      onPress={() => bottomSheetRef.current?.snapToIndex(0)}
-                    >
-                      <Ionicons name="calendar" size={18} color="white" />
-                      <Text style={styles.bookButtonText}>BOOK NOW</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.messagePhotogButton}
-                      onPress={() =>
-                        router.push(
-                          `/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Creator')}` as never
-                        )
-                      }
-                    >
-                      <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
-                      <Text style={styles.messagePhotogText}>MESSAGE</Text>
-                    </Pressable>
-                  </View>
-                  <View style={styles.disclaimerRow}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color={colors.success} />
-                    <Text style={styles.disclaimerText}>No payment to inquire</Text>
-                  </View>
-                </View>
-
                 {/* Availability Calendar Card */}
                 <View style={styles.card}>
                   <View style={styles.calendarHeaderRow}>
@@ -614,10 +601,18 @@ export default function PhotographerProfileScreen() {
             )}
 
             {activeTab === 'Portfolio' && (
-              <View style={styles.emptyState}>
-                <Ionicons name="images-outline" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyText}>No portfolio images available yet.</Text>
-              </View>
+              workImages.length > 0 ? (
+                <View style={styles.portfolioGrid}>
+                  {workImages.map((uri) => (
+                    <Image key={uri} source={{ uri }} style={styles.portfolioTile} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="images-outline" size={48} color={colors.textMuted} />
+                  <Text style={styles.emptyText}>No portfolio images available yet.</Text>
+                </View>
+              )
             )}
 
             {activeTab === 'Reviews' && (
@@ -641,15 +636,44 @@ export default function PhotographerProfileScreen() {
               </View>
             )}
 
-            {activeTab === 'Working Experience' && (
-              <View style={styles.emptyState}>
-                <Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyText}>No working experience listed.</Text>
-              </View>
+            {activeTab === 'About' && (
+              data?.bio ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardHeaderEyebrow}>ABOUT</Text>
+                  <Text style={styles.aboutText}>{data.bio}</Text>
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="person-outline" size={48} color={colors.textMuted} />
+                  <Text style={styles.emptyText}>This photographer has not added a bio yet.</Text>
+                </View>
+              )
             )}
           </View>
         </View>
       </ScrollView>
+
+      {/* Sticky booking bar: always reachable, clear of the home indicator. */}
+      <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+        <Pressable
+          style={({ pressed }) => [styles.stickyBook, pressed && { opacity: 0.88 }]}
+          onPress={() => bottomSheetRef.current?.snapToIndex(0)}
+          accessibilityRole="button"
+          accessibilityLabel={`Book ${data?.name ?? 'this photographer'}`}
+        >
+          <Ionicons name="calendar" size={18} color="#FFFFFF" />
+          <Text style={styles.stickyBookText}>Book now</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.stickyMessage, pressed && { opacity: 0.88 }]}
+          onPress={() => router.push(`/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Creator')}` as never)}
+          accessibilityRole="button"
+          accessibilityLabel={`Message ${data?.name ?? 'this photographer'}`}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.link} />
+          <Text style={styles.stickyMessageText}>Message</Text>
+        </Pressable>
+      </View>
 
       <BookingBottomSheet
         ref={bottomSheetRef}
@@ -793,6 +817,29 @@ export default function PhotographerProfileScreen() {
 
 const useStyles = makeStyles((c, e) => ({
   container: { flex: 1, backgroundColor: c.background },
+  stickyBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    backgroundColor: c.surface,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+  },
+  stickyBook: { flex: 1.4, minHeight: 48, borderRadius: radii.full, backgroundColor: c.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stickyBookText: { color: c.textOnPrimary, fontSize: 16, fontWeight: '800' },
+  stickyMessage: { flex: 1, minHeight: 48, borderRadius: radii.full, borderWidth: 1.5, borderColor: c.link, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  stickyMessageText: { color: c.link, fontSize: 15, fontWeight: '700' },
+  portfolioGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  portfolioTile: { width: '31.5%', aspectRatio: 1, borderRadius: radii.md, backgroundColor: c.surfaceMuted },
+  aboutText: { color: c.textSoft, fontSize: 15, lineHeight: 22 },
+  bookedBadge: { backgroundColor: 'rgba(45, 28, 4, 0.78)', borderColor: 'rgba(251, 191, 36, 0.6)' },
+  bookedDot: { backgroundColor: '#FBBF24' },
+  bookedText: { color: '#FDE68A' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
   muted: { color: c.textMuted, fontSize: fontSize.sm, marginTop: 10 },
 
@@ -908,12 +955,13 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  // Sits on a dark photograph: light text on a dark ground, in both themes (the theme success colour is dark in light mode).
   availableBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(4, 30, 22, 0.78)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(52, 211, 153, 0.55)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radii.full,
@@ -923,11 +971,11 @@ const useStyles = makeStyles((c, e) => ({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: c.success,
+    backgroundColor: '#34D399',
   },
   availableText: {
-    color: c.success,
-    fontSize: 10,
+    color: '#A7F3D0',
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
   },

@@ -196,7 +196,8 @@ async function fetchAllEventPages(
   const all: RawEvent[] = [];
   for (let page = 0; page < 50; page++) {
     const qs = new URLSearchParams({ page: String(page), size: String(size), ...extraQs });
-    const res = await api.get<ApiEnvelope<unknown>>(`${path}?${qs.toString()}`);
+    // A refused page answers HTTP 200 with action:0; read as an empty page it hid the whole list.
+    const res = requireOk(await api.get<ApiEnvelope<unknown>>(`${path}?${qs.toString()}`));
     const rows = unwrapList(res?.data);
     all.push(...rows);
     const totalPages = (res?.data as { totalPages?: unknown } | undefined)?.totalPages;

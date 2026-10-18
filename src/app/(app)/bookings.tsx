@@ -33,10 +33,10 @@ import {
 } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { ActionButton, Chip, EmptyNote, ErrorNotice, IconTile, SectionHeader, SegmentedTabs, SkeletonCard, StatusBadge } from '@/features/photographer/kit';
 import { Screen } from '@/components/ui/Screen';
 import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
-import { StatusPill } from '@/components/ui/StatusPill';
+import { statusTone } from '@/features/payments/statusBucket';
 import { useRole } from '@/features/auth/role';
 import { acceptBooking, listBookings, rejectBooking, type Booking } from '@/features/bookings/api';
 import {
@@ -227,6 +227,8 @@ export default function BookingsScreen() {
     <Screen padded={false}>
       <UserHeaderBand
         duplicatesHeader
+        hideTitle
+        eyebrow="REQUESTS"
         title="Bookings"
         subtitle={
           isPhotographer
@@ -238,66 +240,39 @@ export default function BookingsScreen() {
       {/* Segmented Control for Photographer (Direct vs Opportunities) */}
       {isPhotographer && env.hybridBookingEnabled && (
         <View style={styles.segmentContainer}>
-          <Pressable
-            style={[styles.segmentBtn, activeTab === 'direct' && styles.segmentBtnActive]}
-            onPress={() => setActiveTab('direct')}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={15}
-              color={activeTab === 'direct' ? colors.primary : colors.textMuted}
-            />
-            <Text style={[styles.segmentText, activeTab === 'direct' && styles.segmentTextActive]}>
-              Direct requests
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.segmentBtn, activeTab === 'opportunities' && styles.segmentBtnActive]}
-            onPress={() => {
-              setActiveTab('opportunities');
-              fetchOpportunities();
+          <SegmentedTabs
+            label="Booking sections"
+            value={activeTab}
+            onChange={(k) => {
+              setActiveTab(k);
+              if (k === 'opportunities') fetchOpportunities();
             }}
-          >
-            <Ionicons
-              name="radio-outline"
-              size={15}
-              color={activeTab === 'opportunities' ? '#F20C8F' : colors.textMuted}
-            />
-            <Text
-              style={[
-                styles.segmentText,
-                activeTab === 'opportunities' && styles.segmentTextActive,
-              ]}
-            >
-              Opportunities
-            </Text>
-            {opportunities.length > 0 && (
-              <View style={styles.badgeCount}>
-                <Text style={styles.badgeCountText}>{opportunities.length}</Text>
-              </View>
-            )}
-          </Pressable>
+            tabs={[
+              { key: 'direct', label: 'Direct requests' },
+              { key: 'opportunities', label: opportunities.length > 0 ? `Opportunities (${opportunities.length})` : 'Opportunities' },
+            ]}
+          />
         </View>
       )}
 
       {/* TAB 1: DIRECT REQUESTS */}
       {activeTab === 'direct' ? (
         loading && !data ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.primary} />
+          <View style={styles.skeletonList}>
+            <SkeletonCard height={120} />
+            <SkeletonCard height={120} />
+            <SkeletonCard height={120} />
           </View>
         ) : error && !data?.length ? (
-          <View style={styles.centered}>
-            <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-            <Text style={styles.muted}>{error}</Text>
+          <View style={styles.stateWrap}>
+            <ErrorNotice message={error} onRetry={refresh} />
           </View>
         ) : !data?.length ? (
-          <View style={styles.centered}>
-            <EmptyState
+          <View style={styles.stateWrap}>
+            <EmptyNote
               icon="briefcase-outline"
               title="No bookings yet"
-              message={
+              body={
                 isPhotographer
                   ? 'New requests from clients land here. Configure your packages to start receiving them.'
                   : 'When you book a photographer, your requests appear here.'
@@ -311,6 +286,10 @@ export default function BookingsScreen() {
               <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
             }
           >
+            <SectionHeader
+              title={isPhotographer ? 'Requests' : 'Your bookings'}
+              subtitle={`${data.length} request${data.length === 1 ? '' : 's'}`}
+            />
             {data.map((b) => {
               const isPending = (b.status ?? '').toUpperCase() === 'PENDING';
               const isRejected = (b.status ?? '').toUpperCase() === 'REJECTED';
@@ -323,7 +302,8 @@ export default function BookingsScreen() {
                   onPress={() => router.push(`/event/${b.id}` as never)}
                 >
                   <View style={styles.cardHead}>
-                    <Text style={styles.eventTitle} numberOfLines={1}>
+                    <IconTile icon="calendar" tone={isRejected ? 'error' : isPending ? 'warning' : 'primary'} size={36} />
+                    <Text style={styles.eventTitle} numberOfLines={3}>
                       {b.eventTitle}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -345,9 +325,13 @@ export default function BookingsScreen() {
                           <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.primary} />
                         </Pressable>
                       ) : null}
-                      <StatusPill status={b.status} />
                     </View>
                   </View>
+                  {b.status ? (
+                    <View style={styles.statusLine}>
+                      <StatusBadge label={b.status.replace(/_/g, ' ')} tone={statusTone(b.status)} />
+                    </View>
+                  ) : null}
 
                   {b.clientName ? <Row icon="person-outline" text={b.clientName} /> : null}
                   {b.photographerName && !b.clientName ? <Row icon="camera-outline" text={b.photographerName} /> : null}
@@ -362,31 +346,19 @@ export default function BookingsScreen() {
                   {/* Photographer Actions on PENDING */}
                   {isPhotographer && isPending ? (
                     <View style={styles.actionRow}>
-                      <Pressable
+                      <ActionButton
+                        compact
+                        variant="destructive"
+                        icon="close"
+                        label="Reject"
+                        disabled={isBusy}
+                        style={styles.actionBtn}
                         onPress={() => {
                           setRejecting(b);
                           setReason('');
                         }}
-                        disabled={isBusy}
-                        style={[styles.action, styles.actionGhost]}
-                      >
-                        <Ionicons name="close" size={16} color={colors.error} />
-                        <Text style={[styles.actionText, { color: colors.error }]}>Reject</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => onAccept(b)}
-                        disabled={isBusy}
-                        style={[styles.action, styles.actionPrimary]}
-                      >
-                        {isBusy ? (
-                          <ActivityIndicator color={colors.textOnPrimary} />
-                        ) : (
-                          <>
-                            <Ionicons name="checkmark" size={16} color={colors.textOnPrimary} />
-                            <Text style={[styles.actionText, styles.actionTextPrimary]}>Accept</Text>
-                          </>
-                        )}
-                      </Pressable>
+                      />
+                      <ActionButton compact variant="primary" icon="checkmark" label="Accept" busy={isBusy} style={styles.actionBtn} onPress={() => onAccept(b)} />
                     </View>
                   ) : null}
 
@@ -400,20 +372,14 @@ export default function BookingsScreen() {
                       <Text style={styles.rescueDesc}>
                         Broadcast this event to other available local photographers with one tap.
                       </Text>
-                      <Pressable
-                        style={styles.rescueBtn}
+                      <ActionButton
+                        compact
+                        variant="accent"
+                        icon="paper-plane-outline"
+                        label="Find Available Matches"
+                        busy={rescuingId === b.eventId}
                         onPress={() => onRescueToHybrid(b.eventId!)}
-                        disabled={rescuingId === b.eventId}
-                      >
-                        {rescuingId === b.eventId ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                          <>
-                            <Ionicons name="paper-plane-outline" size={14} color="#FFFFFF" />
-                            <Text style={styles.rescueBtnText}>Find Available Matches</Text>
-                          </>
-                        )}
-                      </Pressable>
+                      />
                     </View>
                   ) : null}
                 </Pressable>
@@ -441,23 +407,21 @@ export default function BookingsScreen() {
           </View>
           <View style={styles.oppFilters}>
             {([['PENDING_RESPONSE', 'New'], ['APPROVED', 'Waiting for client'], ['ALL', 'History']] as const).map(([k, l]) => (
-              <Pressable key={k} onPress={() => setOppFilter(k)} accessibilityRole="tab" accessibilityState={{ selected: oppFilter === k }}
-                style={[styles.oppFilter, oppFilter === k && styles.oppFilterOn]}>
-                <Text style={[styles.oppFilterText, oppFilter === k && { color: '#fff' }]}>{l}</Text>
-              </Pressable>
+              <Chip key={k} label={l} selected={oppFilter === k} onPress={() => setOppFilter(k)} />
             ))}
           </View>
-          {oppError ? <Text style={styles.muted}>{oppError}</Text> : null}
+          {oppError ? <ErrorNotice message={oppError} onRetry={fetchOpportunities} compact /> : null}
           {loadingOpp && opportunities.length === 0 ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color={colors.primary} />
+            <View style={styles.skeletonList}>
+              <SkeletonCard height={140} />
+              <SkeletonCard height={140} />
             </View>
           ) : opportunities.length === 0 ? (
-            <View style={styles.centered}>
-              <EmptyState
+            <View style={styles.stateWrap}>
+              <EmptyNote
                 icon="radio-outline"
                 title={oppFilter === 'PENDING_RESPONSE' ? 'No open opportunities right now' : oppFilter === 'APPROVED' ? 'Nothing waiting for a client' : 'No history yet'}
-                message={oppFilter === 'PENDING_RESPONSE'
+                body={oppFilter === 'PENDING_RESPONSE'
                   ? 'When a client posts an event that fits your profile and calendar, it appears here and your phone rings. Add your Instagram and city in Profile to be matched more often.'
                   : oppFilter === 'APPROVED' ? 'Opportunities you said yes to wait here until the client chooses.' : 'Past opportunities and their outcomes appear here.'}
               />
@@ -551,65 +515,18 @@ function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: strin
 }
 
 const useStyles = makeStyles((c) => ({
-  segmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: c.surface,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-    gap: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: c.borderSoft,
-  },
-  segmentBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surfaceMuted,
-  },
-  segmentBtnActive: {
-    backgroundColor: c.tint,
-    borderColor: c.primary,
-  },
-  segmentText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: c.textMuted,
-  },
-  segmentTextActive: {
-    color: c.primary,
-    fontWeight: fontWeight.bold,
-  },
-  badgeCount: {
-    backgroundColor: c.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  badgeCountText: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    padding: spacing.xl,
-  },
-  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  list: { padding: spacing.xl, paddingBottom: 120, gap: spacing.md },
+  segmentContainer: { paddingVertical: spacing.sm },
+  skeletonList: { padding: spacing.lg, gap: spacing.md },
+  stateWrap: { flex: 1, padding: spacing.lg, justifyContent: 'center' },
+  actionBtn: { flex: 1 },
+  statusLine: { alignSelf: 'flex-start', marginBottom: 2 },
+  list: { paddingBottom: 120, gap: spacing.md },
   card: {
-    backgroundColor: c.surface,
+    marginHorizontal: spacing.lg,
+    backgroundColor: c.card,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.border,
     padding: spacing.lg,
     gap: 4,
   },
@@ -619,7 +536,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   chatAction: {
     padding: 5,
@@ -630,20 +547,6 @@ const useStyles = makeStyles((c) => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   rowText: { flex: 1, fontSize: fontSize.sm, color: c.textSoft },
   actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  action: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-  },
-  actionGhost: { borderColor: c.error, backgroundColor: c.errorBg },
-  actionPrimary: { borderColor: c.primary, backgroundColor: c.primary },
-  actionText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  actionTextPrimary: { color: c.textOnPrimary },
 
   // Direct-to-hybrid rescue
   rescueCard: {
@@ -661,22 +564,6 @@ const useStyles = makeStyles((c) => ({
   rescueDesc: {
     fontSize: 11,
     color: c.textSoft,
-  },
-  rescueBtn: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: c.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-    marginTop: 4,
-  },
-  rescueBtnText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
   },
 
   // Reject sheet
@@ -716,10 +603,7 @@ const useStyles = makeStyles((c) => ({
     textAlignVertical: 'top',
     marginBottom: spacing.sm,
   },
-  oppExplainer: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 14, backgroundColor: 'rgba(242,12,143,0.08)', marginBottom: 10 },
+  oppExplainer: { flexDirection: 'row', gap: 8, padding: 12, marginHorizontal: spacing.lg, borderRadius: 14, backgroundColor: 'rgba(242,12,143,0.08)', marginBottom: 10 },
   oppExplainerText: { flex: 1, fontSize: 12.5, lineHeight: 18, color: c.textSoft },
-  oppFilters: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
-  oppFilter: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.card },
-  oppFilterOn: { backgroundColor: c.primary, borderColor: c.primary },
-  oppFilterText: { fontSize: 13, fontWeight: '700', color: c.text },
+  oppFilters: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.lg, marginBottom: 12, flexWrap: 'wrap' },
 }));

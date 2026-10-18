@@ -25,6 +25,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { ProgressTrack } from '@/features/client/studio';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,6 +41,13 @@ import { useAuth, isApiError } from '@/store/auth';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
 export type BookingStep = 'select' | 1 | 2 | 3;
+
+/** The three named steps shown on the progress track. */
+const WIZARD_STEPS = [
+  { n: 1, label: 'Event' },
+  { n: 2, label: 'Talent' },
+  { n: 3, label: 'Review' },
+] as const;
 
 export type ExistingHybridEvent = {
   id: string;
@@ -671,7 +679,10 @@ export function BookingModeSelector({
         </View>
         {typeof step === 'number' && (
           <View style={styles.progress}>
-            {[1, 2, 3].map((s) => <View key={s} style={[styles.progressBar, { backgroundColor: step >= s ? accent : colors.surfaceMuted }]} />)}
+            <ProgressTrack
+              label="Posting your event"
+              steps={WIZARD_STEPS.map((s) => ({ key: s.label, label: s.label, state: step > s.n ? 'done' : step === s.n ? 'current' : 'todo' }))}
+            />
           </View>
         )}
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'], gap: spacing.md }} keyboardShouldPersistTaps="handled">
@@ -807,10 +818,8 @@ const useStyles = makeStyles((c, e) => ({
     marginTop: 2,
   },
   progress: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: spacing.lg,
-    marginTop: 4,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   progressBar: {
     flex: 1,

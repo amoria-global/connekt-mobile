@@ -156,11 +156,17 @@ export const gradientsFor = (scheme: ColorSchemeName) =>
         accent: ['#C40A75', '#F20C8F'] as const,
         /** Faint brand wash for hero panels. */
         wash: ['rgba(61,111,214,0.20)', 'rgba(242,12,143,0.14)'] as const,
+        /** Hero action fills (client Book photographer, Pay now). White text reads on every stop (>= 4.5:1). */
+        heroBlue: ['#173A8F', '#2A5FCC'] as const,
+        /** The one secondary hero per screen (Publish offer). */
+        heroViolet: ['#4C1D95', '#9226B8'] as const,
       }
     : {
         brand: ['#083A85', '#0a4da3', '#F20C8F'] as const,
         accent: ['#F20C8F', '#ff4fae'] as const,
         wash: ['rgba(8,58,133,0.08)', 'rgba(242,12,143,0.08)'] as const,
+        heroBlue: ['#083A85', '#1B55B8'] as const,
+        heroViolet: ['#5B21B6', '#A21CAF'] as const,
       };
 
 export type Gradients = ReturnType<typeof gradientsFor>;

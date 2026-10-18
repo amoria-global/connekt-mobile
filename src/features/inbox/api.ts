@@ -6,7 +6,7 @@
  * id used to load history (/chat/messages/{recipientId}) and send
  * new messages (multipart POST to /chat/send with recipientId, content, senderId).
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import { env } from '@/config/env';
 import { listPhotographers } from '@/features/photographers/api';
 import { listClients } from '@/features/clients/api';
@@ -202,7 +202,8 @@ function mapConversation(r: Raw, selfId?: string): Conversation {
 export async function listConversations(): Promise<Conversation[]> {
   const [selfId, res] = await Promise.all([
     getSelfId(),
-    api.get<ApiEnvelope<Raw[]> | Raw[]>('/chat/conversations'),
+    // A refused read is HTTP 200 with action 0; read as an empty list it said the inbox was empty.
+    api.get<ApiEnvelope<Raw[]> | Raw[]>('/chat/conversations').then(requireOk),
   ]);
 
   const rawList: Raw[] = Array.isArray(res)
@@ -255,7 +256,7 @@ function mapMessage(r: Raw, selfId?: string): Message {
 export async function listMessages(partnerId: string): Promise<Message[]> {
   const [selfId, res] = await Promise.all([
     getSelfId(),
-    api.get<ApiEnvelope<Raw[]> | Raw[]>(`/chat/messages/${encodeURIComponent(partnerId)}`),
+    api.get<ApiEnvelope<Raw[]> | Raw[]>(`/chat/messages/${encodeURIComponent(partnerId)}`).then(requireOk),
   ]);
 
   const rawList: Raw[] = Array.isArray(res)
