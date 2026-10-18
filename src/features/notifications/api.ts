@@ -2,7 +2,7 @@
  * Notifications API — Mirrors salo-run notification features and Spring Boot backend endpoints.
  * Supports roles: Client/Customer, Photographer, Coordinator.
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
 
 export type NotificationType =
@@ -153,7 +153,8 @@ export async function listNotifications(
   size = 50,
 ): Promise<AppNotification[]> {
   const roleStr = typeof role === 'string' ? role : role ? 'Photographer' : 'Client';
-  const res = await api.get<ApiEnvelope<unknown>>(`${notificationBase(role)}?page=${page}&size=${size}`);
+  // A refused read is HTTP 200 with action 0; read as an empty page it said no notifications had arrived.
+  const res = requireOk(await api.get<ApiEnvelope<unknown>>(`${notificationBase(role)}?page=${page}&size=${size}`));
   const items = pageContent(res?.data)
     .map((raw) => mapNotification(raw, roleStr))
     .filter((n) => n.id);
