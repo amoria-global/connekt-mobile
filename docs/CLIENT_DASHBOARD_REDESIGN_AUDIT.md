@@ -261,3 +261,51 @@ The directory shows one memoised compact row per photographer (about a third of 
 ## Handoff
 
 Resume with: (1) dark and 1.6x on Payments, profile, wizard, event detail, inbox, conversation, notifications; (2) restyle the "Not redesigned" rows with `ListRow` and `HeroActionCard`; (3) open a photographer account's Home, Wallet and Inbox on the emulator for the shared-component regression check; (4) re-see the directory row at 1.6x.
+
+
+# Third pass, batch 1 (2026-10-18)
+
+Frontend only, nothing merged, pushed or published. **Device used: the Pixel 5 emulator (API 34), not a physical phone**: `adb devices` listed no attached device (USB debugging or authorisation was not available), so the prompt's fallback applied. Synthetic fixture backend (a Node script outside the repo; images are generated PNGs it serves), real login form, dev build.
+
+## 1. Photographer regression check (shared changes from the second pass)
+
+Signed in as a photographer on the fixture and opened each screen. Nothing needed a variant.
+
+| Screen | Light | Dark | Result |
+|---|---|---|---|
+| Home (ActionButton contrast, shared kit) | seen | seen | No regression. Create event keeps white text on navy; the Opportunities and Collaborate captions are legible |
+| Inbox (ConversationRow, requireOk loader) | seen | seen | No regression. Unread row bold with badge; "No messages yet" for an empty thread |
+| Conversation | seen | seen | No regression |
+| Notifications (error state, loader) | seen | seen | No regression. Day groups, unread dots, filter chips as before |
+| Albums list | seen (old UI, before this batch, then after) | not seen | Photographer keeps the primary-coloured controls and gets no hero (see 2) |
+| Album detail | seen after the batch-1 change | not seen | Add Photos, Share, more, face chip unchanged |
+
+Not seen: photographer dark mode for the albums list and album detail, and 1.6x text for any photographer screen.
+
+## 2. Gallery and photobooks
+
+What changed (frontend only; download, share, permissions and the one-shot album load are untouched):
+
+- Albums list: cover cards with the real photo count, the event date and, for a client, the photographer; the client sees the newest unlocked album with a cover as the screen's one gradient hero ("Latest delivery"); accent on the active filter for client and coordinator; skeleton while loading; error with Try again; counts hidden until the list has loaded. A count the API did not send is not drawn (the old card printed "0 photos"), and the filler lines "Event Collection" and "Photo Vault" are gone.
+- Album detail: memoised 3-column grid of thumbnails (the API's `thumbnailUrl` where it sends one), tuned FlatList (windowed, clipped subviews, stable separator), skeleton, date and place chips from the data, status chip tones for dark.
+- Photo viewer (new `PhotoViewer`): swipe between photos on a paged, virtualised strip, full-size file over its thumbnail, counter, previous and next, Save and Share acting on the photo on screen. Used by the album and the photobook.
+- Photobooks list: spine-edged cover cards with the API's own status, real count, photographer or creation date, skeleton, error with Try again. Photobook detail: same grid and viewer.
+
+Found, not changed (needs a decision or the backend):
+
+- Save to Camera Roll in the album saves `url`, which is the thumbnail when the API sends one, not `fullUrl`. A one-word change; left alone because the prompt said keep download unchanged.
+- Photobook media items carry only `fileUrl` (no thumbnail field), so the photobook grid decodes full-size files. Backend follow-up: a `thumbnailUrl` on `MediaItemDTO`.
+- The album and photobook loads are a single response (no paging); with 240 photos the grid is windowed but the payload is whole.
+
+Evidence: render tests for the albums screen (6), the viewer (5), the photobook card (4), the facts helpers (4).
+
+| Screen | Light | Dark | 1.6x | Notes |
+|---|---|---|---|---|
+| Albums (client) | seen | seen | seen | hero, grid, skeleton (dark), error (dark) |
+| Albums (photographer) | seen | not seen | not seen | |
+| Album detail (client) | seen | seen | seen | locked album seen light; empty album not seen on device |
+| Photo viewer (client) | seen at 1.6x | not seen | seen | swipe both ways, next and previous checked by counter |
+| Photobooks list (client) | seen | seen | not seen | |
+| Photobook detail and viewer (client) | not seen after the change | seen | not seen | |
+
+Scroll smoothness with 240 photos: **not measurable here.** The emulator renders in software on a debug bundle (every frame janky, median 150 ms), so those numbers say nothing about a phone. The structural measures are in place (thumbnails, memoised tiles, windowing); a real device run is still owed.
