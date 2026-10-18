@@ -18,6 +18,8 @@ export type Photographer = {
   category?: string;
   specialties?: string[];
   startingPrice?: number;
+  /** Currency of the package the starting price comes from, when the API states it. */
+  startingPriceCurrency?: string;
   currentStatus?: string;
   isVerified?: boolean;
 };
@@ -52,6 +54,9 @@ function mapPhotographer(r: Raw): Photographer {
   const packages = Array.isArray(r.packages) ? r.packages : [];
   const prices = packages.map(p => num(p.price)).filter((p): p is number => p !== undefined);
   const startingPrice = prices.length > 0 ? Math.min(...prices) : undefined;
+  // The currency belongs to the package the starting price comes from, never to a different, dearer one.
+  const cheapest = startingPrice === undefined ? undefined : packages.find((p) => num(p.price) === startingPrice);
+  const startingPriceCurrency = cheapest ? (str(cheapest.currency) ?? str(cheapest.currencyCode) ?? str(cheapest.currencyAbbreviation)) : undefined;
 
   const projects = Array.isArray(r.projects) ? r.projects : [];
   const projectImages = projects
@@ -106,6 +111,7 @@ function mapPhotographer(r: Raw): Photographer {
     category,
     specialties: specialtiesList,
     startingPrice,
+    startingPriceCurrency,
     currentStatus,
     isVerified,
   };

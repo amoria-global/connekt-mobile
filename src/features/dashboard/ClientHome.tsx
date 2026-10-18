@@ -65,6 +65,7 @@ import {
 } from '@/features/photographer/kit';
 import { Thumb, ShootCard } from '@/features/photographer/homeParts';
 import { moneyText } from '@/features/photographer/money';
+import { HeroActionCard } from '@/features/client/studio';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
 import {
   DUE_CURRENCY,
@@ -278,19 +279,18 @@ export function ClientHome() {
 
         {/* 2. Actions */}
         <View style={styles.stack}>
-          <ActionButton
-            label="Book photographer"
-            caption={env.hybridBookingEnabled ? 'Direct booking' : 'Verified pros'}
+          <HeroActionCard
+            title="Book photographer"
+            subtitle={env.hybridBookingEnabled ? 'Direct booking' : 'Verified pros'}
             icon="camera-outline"
-            variant="primary"
             onPress={bookPhotographer}
           />
           {env.hybridBookingEnabled ? (
-            <ActionButton
-              label="Publish offer"
-              caption="Set your budget, match with talent"
+            <HeroActionCard
+              title="Publish offer"
+              subtitle="Set your budget, match with talent"
               icon="document-text-outline"
-              variant="accent"
+              tone="violet"
               onPress={() => {
                 setBookingStep(1);
                 setBookingModeOpen(true);
