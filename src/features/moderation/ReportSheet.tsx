@@ -12,6 +12,7 @@ import { useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { REPORT_REASONS, REPORT_TARGET_LABEL, type ReportTarget } from './api';
 
 type Props = {
@@ -31,6 +32,7 @@ function isApiError(e: unknown): e is { status?: number; message: string } {
 export function ReportSheet({ visible, onClose, targetType, submit, subject }: Props) {
   const styles = useStyles();
   const router = useRouter();
+  const { tr } = useSharedT();
   const reasons = REPORT_REASONS[targetType];
   const [reason, setReason] = useState<string>(reasons[0]);
   const [description, setDescription] = useState('');
@@ -51,7 +53,7 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
     try {
       const message = await submit(reason, description);
       onClose();
-      Alert.alert('Thanks for telling us', message);
+      Alert.alert(tr('Thanks for telling us'), message);
     } catch (e) {
       // Photos and streams are browsable signed-out, but only live chat has an
       // anonymous report path. Everything else needs an account, so say that
@@ -59,18 +61,18 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
       if (isApiError(e) && e.status === 401) {
         onClose();
         Alert.alert(
-          'Sign in to report',
-          'You need a Connekyt account to report this. Signing in lets our team follow up with you.',
+          tr('Sign in to report'),
+          tr('You need a Connekyt account to report this. Signing in lets our team follow up with you.'),
           [
-            { text: 'Not now', style: 'cancel' },
-            { text: 'Sign in', onPress: () => router.push('/login' as Href) },
+            { text: tr('Not now'), style: 'cancel' },
+            { text: tr('Sign in'), onPress: () => router.push('/login' as Href) },
           ],
         );
         return;
       }
       Alert.alert(
-        'Could not submit report',
-        isApiError(e) ? e.message : 'Please check your connection and try again.',
+        tr('Could not submit report'),
+        isApiError(e) ? e.message : tr('Try again'),
       );
     } finally {
       setSubmitting(false);
@@ -83,10 +85,9 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.title}>Report {label}</Text>
+          <Text style={styles.title}>{tr(`Report ${label}`)}</Text>
           <Text style={styles.hint}>
-            {subject ? `Reporting ${subject}. ` : ''}Pick a reason so our team can review it. We
-            look at every report within 24 hours.
+            {subject ? `${subject} — ` : ''}{tr('Pick a reason so our team can review it. We look at every report within 24 hours.')}
           </Text>
 
           <View style={styles.chipRow}>
@@ -100,7 +101,7 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
                   accessibilityState={{ selected: active }}
                   style={[styles.chip, active && styles.chipActive]}
                 >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{r}</Text>
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{tr(r)}</Text>
                 </Pressable>
               );
             })}

@@ -55,12 +55,14 @@ import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 import { env } from '@/config/env';
 
 type Tab = 'direct' | 'opportunities';
 
 export default function BookingsScreen() {
   useCurrency((s) => s.currency);
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -226,11 +228,11 @@ export default function BookingsScreen() {
   return (
     <Screen padded={false}>
       <UserHeaderBand
-        title="Bookings"
+        title={t('bookingsTitle')}
         subtitle={
           isPhotographer
-            ? 'Manage client requests and explore nearby event leads.'
-            : 'Your booking requests to photographers and their status.'
+            ? t('bookingsPhotographerSubtitle')
+            : t('bookingsClientSubtitle')
         }
       />
 
@@ -247,7 +249,7 @@ export default function BookingsScreen() {
               color={activeTab === 'direct' ? colors.primary : colors.textMuted}
             />
             <Text style={[styles.segmentText, activeTab === 'direct' && styles.segmentTextActive]}>
-              Direct requests
+              {t('directRequests')}
             </Text>
           </Pressable>
 
@@ -269,7 +271,7 @@ export default function BookingsScreen() {
                 activeTab === 'opportunities' && styles.segmentTextActive,
               ]}
             >
-              Opportunities
+              {t('opportunities')}
             </Text>
             {opportunities.length > 0 && (
               <View style={styles.badgeCount}>
@@ -295,11 +297,11 @@ export default function BookingsScreen() {
           <View style={styles.centered}>
             <EmptyState
               icon="briefcase-outline"
-              title="No bookings yet"
+              title={t('noBookingsYet')}
               message={
                 isPhotographer
-                  ? 'New requests from clients land here. Configure your packages to start receiving them.'
-                  : 'When you book a photographer, your requests appear here.'
+                  ? t('bookingsPhotographerEmpty')
+                  : t('bookingsClientEmpty')
               }
             />
           </View>
@@ -354,7 +356,7 @@ export default function BookingsScreen() {
                   {b.proposedPrice != null ? (
                     <Row
                       icon="cash-outline"
-                      text={`Proposed ${formatPrice(b.proposedPrice, b.currency)}`}
+                      text={t('proposedPriceLabel', { price: formatPrice(b.proposedPrice, b.currency) })}
                     />
                   ) : null}
 
@@ -370,7 +372,7 @@ export default function BookingsScreen() {
                         style={[styles.action, styles.actionGhost]}
                       >
                         <Ionicons name="close" size={16} color={colors.error} />
-                        <Text style={[styles.actionText, { color: colors.error }]}>Reject</Text>
+                        <Text style={[styles.actionText, { color: colors.error }]}>{t('reject')}</Text>
                       </Pressable>
                       <Pressable
                         onPress={() => onAccept(b)}
@@ -382,7 +384,7 @@ export default function BookingsScreen() {
                         ) : (
                           <>
                             <Ionicons name="checkmark" size={16} color={colors.textOnPrimary} />
-                            <Text style={[styles.actionText, styles.actionTextPrimary]}>Accept</Text>
+                            <Text style={[styles.actionText, styles.actionTextPrimary]}>{t('accept')}</Text>
                           </>
                         )}
                       </Pressable>
@@ -394,10 +396,10 @@ export default function BookingsScreen() {
                     <View style={styles.rescueCard}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <Ionicons name="sparkles" size={14} color={colors.primary} />
-                        <Text style={styles.rescueTitle}>Find another photographer?</Text>
+                        <Text style={styles.rescueTitle}>{t('findAnotherPhotographer')}</Text>
                       </View>
                       <Text style={styles.rescueDesc}>
-                        Broadcast this event to other available local photographers with one tap.
+                        {t('broadcastEventDesc')}
                       </Text>
                       <Pressable
                         style={styles.rescueBtn}
@@ -409,7 +411,7 @@ export default function BookingsScreen() {
                         ) : (
                           <>
                             <Ionicons name="paper-plane-outline" size={14} color="#FFFFFF" />
-                            <Text style={styles.rescueBtnText}>Find Available Matches</Text>
+                            <Text style={styles.rescueBtnText}>{t('findAvailableMatches')}</Text>
                           </>
                         )}
                       </Pressable>
@@ -435,11 +437,11 @@ export default function BookingsScreen() {
           <View style={styles.oppExplainer}>
             <Ionicons name="information-circle-outline" size={16} color="#F20C8F" />
             <Text style={styles.oppExplainerText}>
-              Opportunities come from clients who used Post My Event: you were matched because you are free for the whole event and fit what they asked for. Say yes and the client sees you; they choose one photographer. Direct requests are sent to you by name.
+              {t('opportunitiesExplainer')}
             </Text>
           </View>
           <View style={styles.oppFilters}>
-            {([['PENDING_RESPONSE', 'New'], ['APPROVED', 'Waiting for client'], ['ALL', 'History']] as const).map(([k, l]) => (
+            {([['PENDING_RESPONSE', t('newInvites')], ['APPROVED', t('waitingClient')], ['ALL', t('pastAll')]] as const).map(([k, l]) => (
               <Pressable key={k} onPress={() => setOppFilter(k)} accessibilityRole="tab" accessibilityState={{ selected: oppFilter === k }}
                 style={[styles.oppFilter, oppFilter === k && styles.oppFilterOn]}>
                 <Text style={[styles.oppFilterText, oppFilter === k && { color: '#fff' }]}>{l}</Text>
@@ -455,10 +457,20 @@ export default function BookingsScreen() {
             <View style={styles.centered}>
               <EmptyState
                 icon="radio-outline"
-                title={oppFilter === 'PENDING_RESPONSE' ? 'No open opportunities right now' : oppFilter === 'APPROVED' ? 'Nothing waiting for a client' : 'No history yet'}
-                message={oppFilter === 'PENDING_RESPONSE'
-                  ? 'When a client posts an event that fits your profile and calendar, it appears here and your phone rings. Add your Instagram and city in Profile to be matched more often.'
-                  : oppFilter === 'APPROVED' ? 'Opportunities you said yes to wait here until the client chooses.' : 'Past opportunities and their outcomes appear here.'}
+                title={
+                  oppFilter === 'PENDING_RESPONSE'
+                    ? t('noOpenOpportunities')
+                    : oppFilter === 'APPROVED'
+                      ? t('nothingWaitingClient')
+                      : t('noOpportunityHistory')
+                }
+                message={
+                  oppFilter === 'PENDING_RESPONSE'
+                    ? t('openOpportunitiesEmpty')
+                    : oppFilter === 'APPROVED'
+                      ? t('waitingClientEmpty')
+                      : t('opportunityHistoryEmpty')
+                }
               />
             </View>
           ) : (
@@ -496,21 +508,21 @@ export default function BookingsScreen() {
         />
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>Reject booking</Text>
+          <Text style={styles.sheetTitle}>{t('rejectBookingModalTitle')}</Text>
           <Text style={styles.sheetSub}>
-            Let {rejecting?.clientName ?? 'the client'} know why so they can adjust their request.
+            {t('rejectBookingModalSub', { name: rejecting?.clientName ?? t('theClient') })}
           </Text>
           <TextInput
             value={reason}
             onChangeText={setReason}
-            placeholder="e.g. Already booked that weekend."
+            placeholder={t('rejectBookingPlaceholder')}
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             multiline
             numberOfLines={3}
           />
           <Button
-            title="Send rejection"
+            title={t('sendRejection')}
             onPress={submitReject}
             loading={busyId === rejecting?.id}
             disabled={!reason.trim() || busyId === rejecting?.id}

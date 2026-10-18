@@ -59,6 +59,10 @@ import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/th
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
+import { useLanguage } from '@/hooks/useLanguage';
+import { translate, type TranslationKey } from '@/i18n/translations';
+const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
+
 const DEFAULT_DAYS = [
   { day: 'Sun', value1: 0, value2: 0 },
   { day: 'Mon', value1: 0, value2: 0 },
@@ -77,6 +81,7 @@ const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
 ];
 
 export default function AnalyticsScreen() {
+  useLanguage();
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const insets = useSafeAreaInsets();
@@ -590,17 +595,17 @@ type StatCardItem = {
           hitSlop={12}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={tr('b2_analyticsBack')}
         >
           <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
-        <Text style={styles.topBarTitle}>Analytics</Text>
+        <Text style={styles.topBarTitle}>{tr('b2_analyticsTitle')}</Text>
         <Pressable
           onPress={() => load()}
           hitSlop={12}
           style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Refresh"
+          accessibilityLabel={tr('b2_analyticsRefresh')}
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.primary} />
@@ -650,7 +655,7 @@ type StatCardItem = {
         {period === 'custom' && (
           <View style={styles.customDatesBox}>
             <View style={styles.customDateInputGroup}>
-              <Text style={styles.customDateLabel}>From</Text>
+              <Text style={styles.customDateLabel}>{tr('b2_analyticsFrom')}</Text>
               <TextInput
                 style={styles.customDateInput}
                 placeholder="YYYY-MM-DD"
@@ -664,7 +669,7 @@ type StatCardItem = {
               />
             </View>
             <View style={styles.customDateInputGroup}>
-              <Text style={styles.customDateLabel}>To</Text>
+              <Text style={styles.customDateLabel}>{tr('b2_analyticsTo')}</Text>
               <TextInput
                 style={styles.customDateInput}
                 placeholder="YYYY-MM-DD"
@@ -690,7 +695,7 @@ type StatCardItem = {
                 (!customFrom || !customTo) && styles.customApplyBtnDisabled,
               ]}
             >
-              <Text style={styles.customApplyBtnText}>Apply</Text>
+              <Text style={styles.customApplyBtnText}>{tr('b2_analyticsApply')}</Text>
             </Pressable>
           </View>
         )}
@@ -762,7 +767,7 @@ type StatCardItem = {
                 onPress={() => router.push('/payments' as never)}
                 style={styles.pendingViewAllLink}
               >
-                <Text style={styles.pendingViewAllText}>View All</Text>
+                <Text style={styles.pendingViewAllText}>{tr('b2_analyticsViewAll')}</Text>
                 <Ionicons name="chevron-forward" size={14} color={colors.primary} />
               </Pressable>
             </View>
@@ -795,12 +800,12 @@ type StatCardItem = {
                         </Text>
                         {isFailed && (
                           <View style={styles.pendingStatusBadgeFailed}>
-                            <Text style={styles.pendingStatusBadgeTextFailed}>FAILED</Text>
+                            <Text style={styles.pendingStatusBadgeTextFailed}>{tr('b2_analyticsBadgeFailed')}</Text>
                           </View>
                         )}
                         {payment.status === 'partially_paid' && (
                           <View style={styles.pendingStatusBadgePartial}>
-                            <Text style={styles.pendingStatusBadgeTextPartial}>PARTIAL</Text>
+                            <Text style={styles.pendingStatusBadgeTextPartial}>{tr('b2_analyticsBadgePartial')}</Text>
                           </View>
                         )}
                       </View>
@@ -860,7 +865,7 @@ type StatCardItem = {
 
         {/* Shape 3: Vertical Dual-Column Bar Chart */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionCardTitle}>Performance</Text>
+          <Text style={styles.sectionCardTitle}>{tr('b2_analyticsPerformance')}</Text>
           <SaloPerformanceChart data={activePerf} height={180} />
         </View>
 
@@ -879,12 +884,12 @@ type StatCardItem = {
             {clientPhotographers.length > 0 && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionCardHeaderRow}>
-                  <Text style={styles.sectionCardTitle}>Photographers</Text>
+                  <Text style={styles.sectionCardTitle}>{tr('b2_analyticsStatPhotographers')}</Text>
                   <Pressable
                     onPress={() => router.push('/photographers' as never)}
                     hitSlop={8}
                   >
-                    <Text style={styles.sectionCardSeeAll}>See all</Text>
+                    <Text style={styles.sectionCardSeeAll}>{tr('b2_analyticsSeeAll')}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.listCardBody}>
@@ -905,7 +910,7 @@ type StatCardItem = {
             {/* Recent Activities */}
             {clientActivities.length > 0 && (
               <View style={styles.sectionCard}>
-                <Text style={styles.sectionCardTitle}>Recent Activities</Text>
+                <Text style={styles.sectionCardTitle}>{tr('b2_analyticsRecentActivities')}</Text>
                 <View style={styles.listCardBody}>
                   {clientActivities.map((a) => (
                     <ActivityItemRow key={a.id} type={a.type} title={a.title} createdAt={a.createdAt} />
@@ -918,12 +923,12 @@ type StatCardItem = {
             {clientPayments.length > 0 && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionCardHeaderRow}>
-                  <Text style={styles.sectionCardTitle}>Recent payments</Text>
+                  <Text style={styles.sectionCardTitle}>{tr('b2_analyticsRecentPayments')}</Text>
                   <Pressable
                     onPress={() => router.push('/payments' as never)}
                     hitSlop={8}
                   >
-                    <Text style={styles.sectionCardSeeAll}>See all</Text>
+                    <Text style={styles.sectionCardSeeAll}>{tr('b2_analyticsSeeAll')}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.listCardBody}>
@@ -949,12 +954,12 @@ type StatCardItem = {
             {photogClients.length > 0 && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionCardHeaderRow}>
-                  <Text style={styles.sectionCardTitle}>Clients</Text>
+                  <Text style={styles.sectionCardTitle}>{tr('b2_analyticsStatClients')}</Text>
                   <Pressable
                     onPress={() => router.push('/clients' as never)}
                     hitSlop={8}
                   >
-                    <Text style={styles.sectionCardSeeAll}>See all</Text>
+                    <Text style={styles.sectionCardSeeAll}>{tr('b2_analyticsSeeAll')}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.listCardBody}>
@@ -975,12 +980,12 @@ type StatCardItem = {
             {photogTransactions.length > 0 && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionCardHeaderRow}>
-                  <Text style={styles.sectionCardTitle}>Recent transactions</Text>
+                  <Text style={styles.sectionCardTitle}>{tr('b2_analyticsRecentTransactions')}</Text>
                   <Pressable
                     onPress={() => router.push('/transactions' as never)}
                     hitSlop={8}
                   >
-                    <Text style={styles.sectionCardSeeAll}>See all</Text>
+                    <Text style={styles.sectionCardSeeAll}>{tr('b2_analyticsSeeAll')}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.listCardBody}>
@@ -1006,12 +1011,12 @@ type StatCardItem = {
             {coordPhotographers.length > 0 && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionCardHeaderRow}>
-                  <Text style={styles.sectionCardTitle}>Photographers</Text>
+                  <Text style={styles.sectionCardTitle}>{tr('b2_analyticsStatPhotographers')}</Text>
                   <Pressable
                     onPress={() => router.push('/photographers' as never)}
                     hitSlop={8}
                   >
-                    <Text style={styles.sectionCardSeeAll}>See all</Text>
+                    <Text style={styles.sectionCardSeeAll}>{tr('b2_analyticsSeeAll')}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.listCardBody}>
@@ -1032,7 +1037,7 @@ type StatCardItem = {
             {/* Recent Activities */}
             {coordActivities.length > 0 && (
               <View style={styles.sectionCard}>
-                <Text style={styles.sectionCardTitle}>Recent activity</Text>
+                <Text style={styles.sectionCardTitle}>{tr('b2_analyticsRecentActivity')}</Text>
                 <View style={styles.listCardBody}>
                   {coordActivities.map((a) => (
                     <ActivityItemRow key={a.id} type={a.type} title={a.title} createdAt={a.createdAt} />
@@ -1467,9 +1472,9 @@ function TrendCurveChart({
     >
       <View style={trendStyles.headerRow}>
         <View>
-          <Text style={[trendStyles.headline, { color: colors.text }]}>Trajectory & Flow</Text>
+          <Text style={[trendStyles.headline, { color: colors.text }]}>{tr('b2_analyticsTrendTitle')}</Text>
           <Text style={[trendStyles.subheadline, { color: colors.textMuted }]}>
-            Continuous progression curve
+            {tr('b2_analyticsTrendSubtitle')}
           </Text>
         </View>
         {points.isAllZero ? (
@@ -1485,7 +1490,7 @@ function TrendCurveChart({
           >
             <Ionicons name="time-outline" size={12} color={colors.textMuted} />
             <Text style={[trendStyles.peakPillText, { color: colors.textMuted }]}>
-              No activity yet
+              {tr('b2_analyticsNoActivityYet')}
             </Text>
           </View>
         ) : points.peak ? (
@@ -1599,7 +1604,7 @@ function TrendCurveChart({
             >
               <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
-                0 activity recorded for this period
+                {tr('b2_analyticsZeroActivityPeriod')}
               </Text>
             </View>
           </View>
@@ -1813,7 +1818,7 @@ function DonutBreakdownChart({
         >
           <Ionicons name="information-circle-outline" size={13} color={colors.textMuted} />
           <Text style={{ fontSize: 11, color: colors.textMuted }}>
-            0 allocation events recorded for this timeframe
+            {tr('b2_analyticsZeroAllocationTimeframe')}
           </Text>
         </View>
       )}
@@ -2114,7 +2119,7 @@ function SaloPerformanceChart({
               >
                 <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
                 <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
-                  0 performance recorded for this period
+                  {tr('b2_analyticsZeroPerformancePeriod')}
                 </Text>
               </View>
             </View>
@@ -2138,11 +2143,11 @@ function SaloPerformanceChart({
       <View style={[perfStyles.legendRow, { borderTopColor: colors.borderSoft }]}>
         <View style={perfStyles.legendItem}>
           <View style={[perfStyles.legendDot, { backgroundColor: bar1Color }]} />
-          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>Current V1</Text>
+          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>{tr('b2_analyticsCurrentV1')}</Text>
         </View>
         <View style={perfStyles.legendItem}>
           <View style={[perfStyles.legendDot, { backgroundColor: bar2Color }]} />
-          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>Current V2</Text>
+          <Text style={[perfStyles.legendText, { color: colors.textMuted }]}>{tr('b2_analyticsCurrentV2')}</Text>
         </View>
       </View>
     </View>

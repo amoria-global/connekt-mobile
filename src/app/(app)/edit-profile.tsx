@@ -26,6 +26,7 @@ import {
 import { useRole } from '@/features/auth/role';
 import { pickFromLibrary } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 /**
@@ -45,6 +46,7 @@ function seedPhone(raw: string): ParsedPhone {
 export default function EditProfileScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const router = useRouter();
   const { isCoordinator } = useRole();
   const user = useAuth((s) => s.user);
@@ -148,7 +150,7 @@ export default function EditProfileScreen() {
       updateUser({ profilePicture: url });
     } catch (err) {
       setAvatarOverride(undefined);
-      setError(isApiError(err) ? err.message : 'Could not upload the photo.');
+      setError(isApiError(err) ? err.message : t('b1_editProfileUploadPhotoErr'));
     } finally {
       setUploading(false);
     }
@@ -166,7 +168,7 @@ export default function EditProfileScreen() {
       updateUser({ coverPicture: url });
     } catch (err) {
       setCoverOverride(undefined);
-      setError(isApiError(err) ? err.message : 'Could not upload the cover photo.');
+      setError(isApiError(err) ? err.message : t('b1_editProfileUploadCoverErr'));
     } finally {
       setCoverUploading(false);
     }
@@ -175,11 +177,11 @@ export default function EditProfileScreen() {
   const onSave = async () => {
     setError(null);
     if (!firstName.trim() || !lastName.trim()) {
-      setError('First and last name are required.');
+      setError(t('b1_editProfileNameRequiredErr'));
       return;
     }
     if (phoneValue && phoneValue.nsn && !phoneValue.isValid) {
-      setError('Enter a valid phone number.');
+      setError(t('b1_editProfileInvalidPhoneErr'));
       return;
     }
     // Wire format: full international digits, no '+' ("250788123456").
@@ -204,7 +206,7 @@ export default function EditProfileScreen() {
       updateUser({ firstName: firstName.trim(), lastName: lastName.trim(), phone: phoneDigits });
       router.back();
     } catch (err) {
-      setError(isApiError(err) ? err.message : 'Could not save your changes.');
+      setError(isApiError(err) ? err.message : t('b1_editProfileSaveErr'));
     } finally {
       setSaving(false);
     }
@@ -220,7 +222,7 @@ export default function EditProfileScreen() {
             ) : (
               <View style={[styles.cover, styles.coverFallback]}>
                 <Ionicons name="image-outline" size={26} color={colors.textMuted} />
-                <Text style={styles.coverHint}>Add cover photo</Text>
+                <Text style={styles.coverHint}>{t('b1_editProfileAddCover')}</Text>
               </View>
             )}
             <View style={styles.coverBadge}>
@@ -250,11 +252,11 @@ export default function EditProfileScreen() {
           </Pressable>
 
           <View style={styles.form}>
-            <Input label="First name" value={firstName} onChangeText={setFirstName} />
-            <Input label="Last name" value={lastName} onChangeText={setLastName} />
+            <Input label={t('b1_editProfileFirstName')} value={firstName} onChangeText={setFirstName} />
+            <Input label={t('b1_editProfileLastName')} value={lastName} onChangeText={setLastName} />
             <PhoneInput
               key={`${phoneSeed.country?.iso2 ?? 'RW'}-${phoneSeed.nsn}`}
-              label="Phone"
+              label={t('b1_editProfilePhone')}
               defaultIso2={phoneSeed.country?.iso2 ?? 'RW'}
               initialNsn={phoneSeed.nsn}
               onChange={setPhoneValue}
@@ -263,39 +265,39 @@ export default function EditProfileScreen() {
             {isCoordinator ? (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Organization & Business</Text>
-                  <Text style={styles.sectionSubtitle}>Details shown on events and coordinator profile.</Text>
+                  <Text style={styles.sectionTitle}>{t('b1_editProfileOrgTitle')}</Text>
+                  <Text style={styles.sectionSubtitle}>{t('b1_editProfileOrgSubtitle')}</Text>
                 </View>
                 <Input
-                  label="Organization / Company name"
+                  label={t('b1_editProfileOrgNameLabel')}
                   value={organizationName}
                   onChangeText={setOrganizationName}
-                  placeholder="e.g. Kigali Events Ltd"
+                  placeholder={t('b1_editProfileOrgNamePlaceholder')}
                 />
                 <Input
-                  label="Business type"
+                  label={t('b1_editProfileBizTypeLabel')}
                   value={businessType}
                   onChangeText={setBusinessType}
-                  placeholder="e.g. Event Management / Production"
+                  placeholder={t('b1_editProfileBizTypePlaceholder')}
                 />
                 <Input
-                  label="Business address"
+                  label={t('b1_editProfileBizAddrLabel')}
                   value={businessAddress}
                   onChangeText={setBusinessAddress}
-                  placeholder="e.g. KG 9 Ave, Nyarugenge, Kigali"
+                  placeholder={t('b1_editProfileBizAddrPlaceholder')}
                 />
                 <Input
-                  label="Website"
+                  label={t('b1_editProfileWebsiteLabel')}
                   value={website}
                   onChangeText={setWebsite}
-                  placeholder="https://example.com"
+                  placeholder={t('b1_editProfileWebsitePlaceholder')}
                   autoCapitalize="none"
                 />
                 <Input
-                  label="Tax ID / TIN (Optional)"
+                  label={t('b1_editProfileTaxIdLabel')}
                   value={taxId}
                   onChangeText={setTaxId}
-                  placeholder="e.g. 102345678"
+                  placeholder={t('b1_editProfileTaxIdPlaceholder')}
                   autoCapitalize="none"
                 />
               </>
@@ -303,7 +305,7 @@ export default function EditProfileScreen() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <Button title="Save changes" onPress={onSave} loading={saving} />
+            <Button title={t('b1_editProfileSaveBtn')} onPress={onSave} loading={saving} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

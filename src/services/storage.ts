@@ -38,6 +38,8 @@ export const StorageKeys = {
   termsAccepted: 'terms.accepted',
   /** Display currency chosen in the top-bar selector (see store/currency.ts). */
   displayCurrency: 'display.currency',
+  /** Selected app language ('en' | 'fr' | 'es'). */
+  language: 'app.language',
   /**
    * Anonymous live-chat participants this device has hidden. Anonymous viewers
    * have no account to block server-side, so the block is device-local —

@@ -13,11 +13,13 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 
 export default function PaymentDetailScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { role } = useRole();
@@ -46,9 +48,9 @@ export default function PaymentDetailScreen() {
       <Screen padded={false} edges={[]}>
         <View style={styles.center}>
           <Ionicons name="receipt-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.errorTitle}>Could not open this payment</Text>
+          <Text style={styles.errorTitle}>{t('b2_payDetailErrorTitle')}</Text>
           <Text style={styles.muted}>{error}</Text>
-          <Button title="Try again" variant="ghost" onPress={refresh} />
+          <Button title={t('b2_payDetailTryAgain')} variant="ghost" onPress={refresh} />
         </View>
       </Screen>
     );
@@ -69,25 +71,25 @@ export default function PaymentDetailScreen() {
         </View>
 
         <View style={styles.card}>
-          {data?.paymentType ? <Row label="Type" value={data.paymentType} /> : null}
-          {data?.method ? <Row label="Method" value={data.method} /> : null}
-          {data?.photographerName ? <Row label="Photographer" value={data.photographerName} /> : null}
-          {data?.createdAt ? <Row label="Date" value={formatDate(data.createdAt)} /> : null}
-          {data?.reference ? <Row label="Reference" value={data.reference} mono /> : null}
+          {data?.paymentType ? <Row label={t('b2_payDetailType')} value={data.paymentType} /> : null}
+          {data?.method ? <Row label={t('b2_payDetailMethod')} value={data.method} /> : null}
+          {data?.photographerName ? <Row label={t('b2_payDetailPhotographer')} value={data.photographerName} /> : null}
+          {data?.createdAt ? <Row label={t('b2_payDetailDate')} value={formatDate(data.createdAt)} /> : null}
+          {data?.reference ? <Row label={t('b2_payDetailReference')} value={data.reference} mono /> : null}
         </View>
 
         {data?.description ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Note</Text>
+            <Text style={styles.sectionTitle}>{t('b2_payDetailNote')}</Text>
             <Text style={styles.body}>{data.description}</Text>
           </View>
         ) : null}
 
         {payable ? (
           <View style={styles.section}>
-            <Button title="Pay now" onPress={() => setPaying(true)} />
+            <Button title={t('b2_payDetailPayNow')} onPress={() => setPaying(true)} />
             <Text style={styles.webNote}>
-              The amount due is fixed to your booking balance.
+              {t('b2_payDetailWebNote')}
             </Text>
           </View>
         ) : null}
@@ -97,7 +99,7 @@ export default function PaymentDetailScreen() {
         onClose={() => setPaying(false)}
         onSettled={() => void refresh()}
         handoff={{ type: 'BOOKING_DECLARATION', declarationId: data?.declarationId || id }}
-        title={data?.title ?? 'Payment'}
+        title={data?.title ?? t('b2_payDetailFallbackTitle')}
         subtitle={data?.photographerName}
         amountLabel={data?.amount != null ? formatPrice(data.amount, data.currency) : undefined}
       />

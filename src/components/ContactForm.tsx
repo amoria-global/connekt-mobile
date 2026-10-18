@@ -13,6 +13,7 @@ import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { submitContactMessage } from '@/features/support/api';
 import { isApiError } from '@/store/auth';
 import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 const CHANNELS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string; href: string }[] = [
   { key: 'phone', icon: 'call-outline', label: 'Phone', value: '+250 788 437 347', href: 'tel:+250788437347' },
@@ -45,6 +46,7 @@ export function ContactForm({
 }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState<PhoneValue | null>(null);
@@ -58,12 +60,12 @@ export function ContactForm({
 
   const onSubmit = async () => {
     setError(null);
-    if (!fullName.trim()) return setError('Please enter your full name.');
-    if (!EMAIL_RE.test(email)) return setError('Please enter a valid email address.');
+    if (!fullName.trim()) return setError(tr('Please enter your full name.'));
+    if (!EMAIL_RE.test(email)) return setError(tr('Please enter a valid email address.'));
     // Phone stays optional — but if digits were typed, they must be valid.
-    if (phone && phone.nsn && !phone.isValid) return setError('Please enter a valid phone number.');
-    if (!subject.trim()) return setError('Please give your message a subject.');
-    if (!message.trim()) return setError('Please tell us how we can help.');
+    if (phone && phone.nsn && !phone.isValid) return setError(tr('Please enter a valid phone number.'));
+    if (!subject.trim()) return setError(tr('Please give your message a subject.'));
+    if (!message.trim()) return setError(tr('Please tell us how we can help.'));
     setBusy(true);
     try {
       // Wire format: full international digits ("250788123456"); '-' keeps
@@ -77,7 +79,7 @@ export function ContactForm({
       setSubject(defaultSubject);
       setMessage('');
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not send your message. Please try again.');
+      setError(isApiError(e) ? e.message : tr('Could not send your message. Please try again.'));
     } finally {
       setBusy(false);
     }
@@ -88,13 +90,13 @@ export function ContactForm({
   return (
     <View style={styles.wrap}>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={styles.eyebrow}>{tr(eyebrow)}</Text>
+        <Text style={styles.title}>{tr(title)}</Text>
+        <Text style={styles.subtitle}>{tr(subtitle)}</Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Reach us your way</Text>
+        <Text style={styles.cardTitle}>{tr('Reach us your way')}</Text>
         <View style={styles.channels}>
           {CHANNELS.map((c) => (
             <Pressable key={c.key} style={styles.channel} onPress={() => open(c.href)}>
@@ -102,7 +104,7 @@ export function ContactForm({
                 <Ionicons name={c.icon} size={18} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.channelLabel}>{c.label}</Text>
+                <Text style={styles.channelLabel}>{tr(c.label)}</Text>
                 <Text style={styles.channelValue} numberOfLines={1}>
                   {c.value}
                 </Text>
@@ -114,15 +116,15 @@ export function ContactForm({
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{formTitle}</Text>
+        <Text style={styles.cardTitle}>{tr(formTitle)}</Text>
         {sent ? (
           <View style={styles.successBox}>
             <Ionicons name="checkmark-circle" size={22} color={colors.success} />
             <Text style={styles.successText}>
-              Message sent! We&apos;ll get back to you within 24 hours.
+              {tr('Message sent')}
             </Text>
             <Pressable onPress={() => setSent(false)}>
-              <Text style={styles.sendAnother}>Send another</Text>
+              <Text style={styles.sendAnother}>{tr('Send another')}</Text>
             </Pressable>
           </View>
         ) : (

@@ -27,6 +27,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from '@/utils/
 import type { EventItem } from '@/features/events/types';
 import { formatPrice } from '@/utils/format';
 import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 const RINGTONE = require('../../../assets/sounds/connekyt_ringtone.wav');
 /** Stop ringing after this long even if nobody answers; the screen stays. */
@@ -58,6 +59,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
   const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
 
   const [busy, setBusy] = useState<'accept' | 'decline' | null>(null);
   const [declining, setDeclining] = useState(false);
@@ -99,9 +101,9 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
 
   const start = formatTime(event.startTime);
   const end = formatTime(event.endTime);
-  const time = start ? (end ? `${start} – ${end}` : start) : 'Time to be confirmed';
+  const time = start ? (end ? `${start} – ${end}` : start) : tr('Select a time');
   const price = event.price != null && event.price > 0 ? formatPrice(event.price, event.currency) : undefined;
-  const client = event.clientName || 'A client';
+  const client = event.clientName || tr('Client');
 
   const act = async (kind: 'accept' | 'decline') => {
     stopRinging();
@@ -111,7 +113,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
       if (kind === 'accept') await onAccept(event);
       else await onDecline(event, reason);
     } catch (e: any) {
-      setError(e?.message || (kind === 'accept' ? 'Could not accept this booking.' : 'Could not decline this booking.'));
+      setError(e?.message || tr('Try again'));
       setBusy(null);
     }
   };
@@ -123,7 +125,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          <Text style={styles.eyebrow}>INCOMING BOOKING REQUEST</Text>
+          <Text style={styles.eyebrow}>{tr('INCOMING BOOKING REQUEST')}</Text>
 
           <View style={styles.avatarRing}>
             {event.clientAvatar ? (
@@ -139,7 +141,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
             {client}
           </Text>
           <Text style={styles.title} numberOfLines={2}>
-            wants to book you for {event.title || 'an event'}
+            {event.title || tr('Event')}
           </Text>
 
           <View style={styles.details}>
@@ -155,7 +157,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
           </View>
 
           <Pressable onPress={() => onViewDetails(event)} hitSlop={8} accessibilityRole="link">
-            <Text style={styles.link}>View full details</Text>
+            <Text style={styles.link}>{tr('View full details')}</Text>
           </Pressable>
         </ScrollView>
 
@@ -166,7 +168,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
             <TextInput
               value={reason}
               onChangeText={setReason}
-              placeholder="Reason (optional), e.g. already booked that day"
+              placeholder={tr('Reason (optional), e.g. already booked that day')}
               placeholderTextColor={colors.textMuted}
               style={styles.reason}
               multiline
@@ -179,19 +181,19 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
                 disabled={busy !== null}
                 accessibilityRole="button"
               >
-                <Text style={styles.btnGhostText}>Back</Text>
+                <Text style={styles.btnGhostText}>{tr('Back')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.btn, styles.btnDecline]}
                 onPress={() => act('decline')}
                 disabled={busy !== null}
                 accessibilityRole="button"
-                accessibilityLabel="Decline booking"
+                accessibilityLabel={tr('Decline booking')}
               >
                 {busy === 'decline' ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.btnText}>Decline booking</Text>
+                  <Text style={styles.btnText}>{tr('Decline booking')}</Text>
                 )}
               </Pressable>
             </View>
@@ -199,7 +201,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
         ) : (
           <>
             <Text style={styles.hint}>
-              Accepting confirms you&apos;re available. The client is notified and asked to pay the deposit.
+              {tr("Accepting confirms you're available. The client is notified and asked to pay the deposit.")}
             </Text>
             <View style={styles.actions}>
               <Pressable
@@ -210,24 +212,24 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
                 }}
                 disabled={busy !== null}
                 accessibilityRole="button"
-                accessibilityLabel="Decline"
+                accessibilityLabel={tr('Decline')}
               >
                 <Ionicons name="close" size={22} color="#FFFFFF" />
-                <Text style={styles.btnText}>Decline</Text>
+                <Text style={styles.btnText}>{tr('Decline')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.btn, styles.btnAccept]}
                 onPress={() => act('accept')}
                 disabled={busy !== null}
                 accessibilityRole="button"
-                accessibilityLabel="Accept booking"
+                accessibilityLabel={tr('Accept')}
               >
                 {busy === 'accept' ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
                     <Ionicons name="checkmark" size={22} color="#FFFFFF" />
-                    <Text style={styles.btnText}>Accept</Text>
+                    <Text style={styles.btnText}>{tr('Accept')}</Text>
                   </>
                 )}
               </Pressable>
@@ -241,7 +243,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
               style={styles.later}
               accessibilityRole="button"
             >
-              <Text style={styles.laterText}>Decide later</Text>
+              <Text style={styles.laterText}>{tr('Decide later')}</Text>
             </Pressable>
           </>
         )}

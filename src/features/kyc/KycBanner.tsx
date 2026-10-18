@@ -12,6 +12,7 @@ import { useRole } from '@/features/auth/role';
 import { getKyc } from './api';
 import { getKycBannerConfig } from './bannerConfig';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/store/language';
 import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
 export { getKycBannerConfig, type KycBannerConfig } from './bannerConfig';
@@ -33,6 +34,7 @@ export type KycBannerProps = {
 export function KycBanner({ style }: KycBannerProps) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const { role } = useRole();
   const [dismissed, setDismissed] = useState(false);
@@ -72,7 +74,7 @@ export function KycBanner({ style }: KycBannerProps) {
                 <Text style={[styles.badgeText, { color: cfg.badgeColor }]}>{cfg.badge}</Text>
               </View>
             </View>
-            <Text style={styles.subtitleCategory}>Identity Verification</Text>
+            <Text style={styles.subtitleCategory}>{t('identityVerification')}</Text>
           </View>
 
           <Pressable
@@ -83,7 +85,7 @@ export function KycBanner({ style }: KycBannerProps) {
             }}
             style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}
             accessibilityRole="button"
-            accessibilityLabel="Dismiss verification banner"
+            accessibilityLabel={t('dismissNotice')}
           >
             <Ionicons name="close" size={17} color={colors.textMuted} />
           </Pressable>
@@ -96,7 +98,7 @@ export function KycBanner({ style }: KycBannerProps) {
         <View style={styles.bottomRow}>
           <View style={styles.securityPill}>
             <Ionicons name="shield-checkmark" size={13} color={colors.textMuted} />
-            <Text style={styles.securityText}>Official & Encrypted</Text>
+            <Text style={styles.securityText}>{t('kycOfficialEncrypted')}</Text>
           </View>
 
           <Pressable

@@ -34,6 +34,10 @@ import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { env } from '@/config/env';
 import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapView';
 
+import { useLanguage } from '@/hooks/useLanguage';
+import { translate, type TranslationKey } from '@/i18n/translations';
+const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
+
 const ITEMS_PER_PAGE = 8;
 const ALL_CATEGORIES = 'All Categories';
 const ALL_LOCATIONS = 'All Locations';
@@ -179,6 +183,7 @@ function getCategoryIcon(cat: string): keyof typeof Ionicons.glyphMap {
 }
 
 export default function PhotographersScreen() {
+  useLanguage();
   const { colors, isDark } = useTheme();
   const styles = useStyles();
   const responsive = useResponsive();
@@ -266,7 +271,7 @@ export default function PhotographersScreen() {
 
   const submitInvite = async () => {
     if (!inviteEmail.includes('@')) {
-      Alert.alert('Invalid email', 'Enter a valid email address.');
+      Alert.alert(tr('b2_photogsInvalidEmailTitle'), 'Enter a valid email address.');
       return;
     }
     setInviteSubmitting(true);
@@ -275,9 +280,9 @@ export default function PhotographersScreen() {
       setInviteOpen(false);
       setInviteEmail('');
       setInviteMessage('');
-      Alert.alert('Invitation sent', `An invite was emailed to ${inviteEmail}.`);
+      Alert.alert(tr('b2_photogsInviteSentTitle'), `An invite was emailed to ${inviteEmail}.`);
     } catch (e) {
-      Alert.alert('Could not send invite', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b2_photogsInviteErrorTitle'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setInviteSubmitting(false);
     }
@@ -500,7 +505,7 @@ export default function PhotographersScreen() {
             viewMode === 'list' && styles.viewModeBtnTextActive,
           ]}
         >
-          List
+          {tr('b2_photogsViewList')}
         </Text>
       </Pressable>
 
@@ -519,11 +524,11 @@ export default function PhotographersScreen() {
             viewMode === 'map' && styles.viewModeBtnTextActive,
           ]}
         >
-          Map
+          {tr('b2_photogsViewMap')}
         </Text>
         <View style={styles.liveBadge}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveBadgeText}>LIVE</Text>
+          <Text style={styles.liveBadgeText}>{tr('b2_photogsLiveBadge')}</Text>
         </View>
       </Pressable>
     </View>
@@ -536,13 +541,13 @@ export default function PhotographersScreen() {
         <View style={styles.titleTopRow}>
           <View style={styles.eyebrowPill}>
             <Ionicons name="sparkles" size={10} color={colors.primary} />
-            <Text style={styles.eyebrowText}>VERIFIED PROS</Text>
+            <Text style={styles.eyebrowText}>{tr('b2_photogsVerifiedPros')}</Text>
           </View>
           {renderViewModeSwitcher()}
         </View>
-        <Text style={styles.title}>Find Photographers</Text>
+        <Text style={styles.title}>{tr('b2_photogsTitle')}</Text>
         <Text style={styles.subtitle}>
-          Browse vetted visual creators for your upcoming shoots and events
+          {tr('b2_photogsSubtitle')}
         </Text>
       </View>
 
@@ -560,13 +565,13 @@ export default function PhotographersScreen() {
             <Ionicons name="sparkles" size={16} color="#FFFFFF" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.hybridBannerTitle}>Can't decide? Post your event</Text>
+            <Text style={styles.hybridBannerTitle}>{tr('b2_photogsHybridTitle')}</Text>
             <Text style={styles.hybridBannerDesc}>
-              Broadcast date & budget to available talent with zero rejection risk.
+              {tr('b2_photogsHybridDesc')}
             </Text>
           </View>
           <View style={styles.hybridBannerBtn}>
-            <Text style={styles.hybridBannerBtnText}>Post Brief</Text>
+            <Text style={styles.hybridBannerBtnText}>{tr('b2_photogsHybridBtn')}</Text>
             <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
           </View>
         </Pressable>
@@ -576,7 +581,7 @@ export default function PhotographersScreen() {
       <View style={styles.searchBar}>
         <Ionicons name="search" size={18} color={colors.textMuted} />
         <TextInput
-          placeholder="Search by need (Weddings, Studio, Drone), name..."
+          placeholder={tr('b2_photogsSearchPlaceholder')}
           placeholderTextColor={colors.textMuted}
           value={inputQuery}
           onChangeText={setInputQuery}
@@ -739,7 +744,7 @@ export default function PhotographersScreen() {
           {activeFilterCount > 0 && (
             <Pressable style={styles.resetPill} onPress={clearFilters}>
               <Ionicons name="close-circle" size={13} color={colors.primary} />
-              <Text style={styles.resetPillText}>Reset</Text>
+              <Text style={styles.resetPillText}>{tr('b2_photogsFilterReset')}</Text>
             </Pressable>
           )}
         </ScrollView>
@@ -756,7 +761,7 @@ export default function PhotographersScreen() {
         {isCoordinator && (
           <Pressable style={styles.inviteBtn} onPress={() => setInviteOpen(true)}>
             <Ionicons name="mail" size={12} color="#FFFFFF" />
-            <Text style={styles.inviteBtnText}>Invite Pro</Text>
+            <Text style={styles.inviteBtnText}>{tr('b2_photogsInvitePro')}</Text>
           </Pressable>
         )}
       </View>
@@ -813,8 +818,8 @@ export default function PhotographersScreen() {
       <View style={styles.pagerContainer}>
         {/* Result summary text */}
         <Text style={styles.pagerInfoText}>
-          Showing <Text style={styles.pagerBoldText}>{startItem}–{endItem}</Text> of{' '}
-          <Text style={styles.pagerBoldText}>{filtered.length}</Text> photographers
+          {tr('b2_photogsShowing')} <Text style={styles.pagerBoldText}>{startItem}–{endItem}</Text> of{' '}
+          <Text style={styles.pagerBoldText}>{filtered.length}</Text> {tr('b2_photogsPhotographersWord')}
         </Text>
 
         {/* Pager controls row */}
@@ -837,7 +842,7 @@ export default function PhotographersScreen() {
                 safePage === 0 && styles.pagerBtnTextDisabled,
               ]}
             >
-              Prev
+              {tr('b2_photogsPrev')}
             </Text>
           </Pressable>
 
@@ -883,7 +888,7 @@ export default function PhotographersScreen() {
                 safePage >= totalPages - 1 && styles.pagerBtnTextDisabled,
               ]}
             >
-              Next
+              {tr('b2_photogsNext')}
             </Text>
             <Ionicons
               name="chevron-forward"
@@ -910,8 +915,8 @@ export default function PhotographersScreen() {
           <View style={styles.mapScreenContainer}>
             <View style={styles.mapTopHeader}>
               <View>
-                <Text style={styles.mapTopTitle}>Direct Booking Radar</Text>
-                <Text style={styles.mapTopSubtitle}>Nearby verified creators</Text>
+                <Text style={styles.mapTopTitle}>{tr('b2_photogsMapTitle')}</Text>
+                <Text style={styles.mapTopSubtitle}>{tr('b2_photogsMapSubtitle')}</Text>
               </View>
               {renderViewModeSwitcher()}
             </View>
@@ -924,13 +929,13 @@ export default function PhotographersScreen() {
         ) : loading && !data ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading directory…</Text>
+            <Text style={styles.loadingText}>{tr('b2_photogsLoading')}</Text>
           </View>
         ) : error && !data?.length ? (
           <View style={styles.centered}>
             <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
             <Text style={styles.errorText}>{error}</Text>
-            <Button title="Retry" onPress={refresh} variant="outline" />
+            <Button title={tr('b2_photogsRetry')} onPress={refresh} variant="outline" />
           </View>
         ) : (
           <FlatList
@@ -1007,12 +1012,12 @@ export default function PhotographersScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setInviteOpen(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Invite a photographer</Text>
+            <Text style={styles.modalTitle}>{tr('b2_photogsInviteModalTitle')}</Text>
             <Text style={styles.modalHint}>
-              They will receive an email invitation to register and join your workspace.
+              {tr('b2_photogsInviteModalHint')}
             </Text>
             <TextInput
-              placeholder="photographer@example.com"
+              placeholder={tr('b2_photogsInviteEmailPlaceholder')}
               placeholderTextColor={colors.textMuted}
               value={inviteEmail}
               onChangeText={setInviteEmail}
@@ -1021,7 +1026,7 @@ export default function PhotographersScreen() {
               style={styles.modalInput}
             />
             <TextInput
-              placeholder="Personal note (optional)"
+              placeholder={tr('b2_photogsInviteNotePlaceholder')}
               placeholderTextColor={colors.textMuted}
               value={inviteMessage}
               onChangeText={setInviteMessage}
@@ -1030,7 +1035,7 @@ export default function PhotographersScreen() {
             />
             <View style={styles.modalActions}>
               <Button
-                title="Cancel"
+                title={tr('b2_photogsCancel')}
                 variant="ghost"
                 onPress={() => setInviteOpen(false)}
               />

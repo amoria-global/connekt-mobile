@@ -64,6 +64,10 @@ import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
+import { useLanguage } from '@/hooks/useLanguage';
+import { translate, type TranslationKey } from '@/i18n/translations';
+const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
+
 // The stream-ticket endpoint takes MTN or AIRTEL for mobile money, as before.
 const STREAM_OPERATORS = [
   { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
@@ -97,6 +101,7 @@ function feeLabel(fee: number, code: string | null | undefined, symbol?: string 
 // decided once the event has loaded (see the guard in EventPaymentInner), which
 // also stops a stale deep link to a stream-only event.
 export default function EventPaymentScreen() {
+  useLanguage();
   return <EventPaymentInner />;
 }
 
@@ -183,7 +188,7 @@ function EventPaymentInner() {
   // ── Step 1: Register Viewer ───────────────────────────────────────────────
   const onRegister = async () => {
     if (!formOk) {
-      Alert.alert('Check your details', 'Please enter your name and a valid email address.');
+      Alert.alert(tr('b4_checkDetailsTitle'), 'Please enter your name and a valid email address.');
       return;
     }
     setBusy(true);
@@ -234,11 +239,11 @@ function EventPaymentInner() {
         return;
       }
       Alert.alert(
-        'No Previous Purchase Found',
+        tr('b4_noPrevPurchaseTitle'),
         'We could not find an active pass for this device. Please complete payment or register with the email used at checkout.',
       );
     } catch {
-      Alert.alert('Error', 'Could not verify access right now. Please try again.');
+      Alert.alert(tr('b4_errorTitle'), 'Could not verify access right now. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -387,7 +392,7 @@ function EventPaymentInner() {
                   autoCapitalize="words"
                 />
                 <Input
-                  label="Email address"
+                  label={tr('b4_emailAddressLabel')}
                   placeholder="jane@example.com"
                   value={email}
                   onChangeText={setEmail}
@@ -413,7 +418,7 @@ function EventPaymentInner() {
 
             <Pressable style={styles.reconcileBtn} onPress={onReconcileAccess} disabled={busy}>
               <Ionicons name="sync-outline" size={16} color={colors.primary} />
-              <Text style={styles.reconcileBtnText}>Already paid? Restore access on this device</Text>
+              <Text style={styles.reconcileBtnText}>{tr('b4_alreadyPaidRestoreDevice')}</Text>
             </Pressable>
           </View>
         )}
@@ -439,7 +444,7 @@ function EventPaymentInner() {
             </View>
 
             {/* Payment Method Selector */}
-            <Text style={styles.sectionTitle}>Select Payment Method</Text>
+            <Text style={styles.sectionTitle}>{tr('b4_selectPaymentMethod')}</Text>
             <PaymentMethodPicker
               operators={STREAM_OPERATORS}
               supportsCard
@@ -457,7 +462,7 @@ function EventPaymentInner() {
             {/* Mobile Money Details */}
             {paymentMethod === 'MOBILE_MONEY' ? (
               <View style={styles.providerBox}>
-                <Text style={styles.inputLabel}>Mobile Phone Number</Text>
+                <Text style={styles.inputLabel}>{tr('b4_mobilePhoneNumberLabel')}</Text>
                 <View style={styles.phoneInputRow}>
                   <View style={styles.dialPrefix}>
                     <Text style={styles.dialPrefixText}>+{dialCodeFor(country)}</Text>
@@ -472,14 +477,14 @@ function EventPaymentInner() {
                   />
                 </View>
                 <Text style={styles.hintText}>
-                  A prompt will be sent directly to your phone. Enter your PIN to approve.
+                  {tr('b4_ussdPromptHint')}
                 </Text>
               </View>
             ) : (
               <View style={styles.cardInfoBox}>
                 <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
                 <Text style={styles.cardInfoText}>
-                  Secure 3D-Secure 256-bit encrypted checkout. Card payments are supported in all currencies.
+                  {tr('b4_cardSecurityHint')}
                 </Text>
               </View>
             )}
@@ -505,7 +510,7 @@ function EventPaymentInner() {
             />
 
             <Pressable style={styles.backLink} onPress={() => setStage('contact')}>
-              <Text style={styles.backLinkText}>← Edit Contact Details</Text>
+              <Text style={styles.backLinkText}>{tr('b4_editContactDetails')}</Text>
             </Pressable>
           </View>
         )}
@@ -514,7 +519,7 @@ function EventPaymentInner() {
         {stage === 'awaiting' && (
           <View style={styles.awaitingCard}>
             <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: spacing.md }} />
-            <Text style={styles.awaitingTitle}>Check Your Phone</Text>
+            <Text style={styles.awaitingTitle}>{tr('b4_checkYourPhone')}</Text>
             <Text style={styles.awaitingSub}>
               {paymentMethod === 'CARD' ? (
                 'Complete the card payment in the secure window, then return here.'
@@ -524,14 +529,14 @@ function EventPaymentInner() {
                   <Text style={{ fontWeight: '700', color: colors.text }}>
                     +{dialCodeFor(country)} {phone}
                   </Text>
-                  . Please enter your Mobile Money PIN to approve the payment.
+                  {tr('b4_enterPinToApprove')}
                 </>
               )}
             </Text>
 
             <View style={styles.countdownBox}>
               <Ionicons name="time-outline" size={16} color={colors.textMuted} />
-              <Text style={styles.countdownText}>Waiting for confirmation…</Text>
+              <Text style={styles.countdownText}>{tr('b4_waitingForConfirmation')}</Text>
             </View>
 
           </View>
@@ -541,12 +546,12 @@ function EventPaymentInner() {
         {stage === 'unconfirmed' && (
           <View style={styles.awaitingCard}>
             <Ionicons name="time-outline" size={40} color={colors.textMuted} style={{ marginVertical: spacing.md }} />
-            <Text style={styles.awaitingTitle}>We could not confirm your payment yet</Text>
+            <Text style={styles.awaitingTitle}>{tr('b4_couldNotConfirmPaymentYet')}</Text>
             <Text style={styles.awaitingSub}>
               If you approved the prompt on your phone, your access may still activate. Check your
               phone and try &quot;Already paid? Verify access&quot; in a few minutes before paying again.
             </Text>
-            <Button title="Back" variant="outline" onPress={() => router.back()} />
+            <Button title={tr('b4_back')} variant="outline" onPress={() => router.back()} />
           </View>
         )}
 
@@ -563,7 +568,7 @@ function EventPaymentInner() {
             </Text>
 
             <Button
-              title="Watch Live Stream Now"
+              title={tr('b4_watchLiveStreamNow')}
               onPress={() => {
                 router.replace(
                   `/events/live-stream?id=${id}${viewerId ? `&viewerId=${viewerId}` : ''}` as unknown as Href,
@@ -583,7 +588,7 @@ function EventPaymentInner() {
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Select Payment Country</Text>
+            <Text style={styles.modalTitle}>{tr('b4_selectPaymentCountry')}</Text>
             <ScrollView style={{ maxHeight: 360 }}>
               {PAYMENT_COUNTRIES.map((c) => (
                 <Pressable

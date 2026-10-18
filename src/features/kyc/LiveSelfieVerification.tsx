@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { logKycEvent } from './livenessEngine';
 
 export type LiveSelfieVerificationProps = {
@@ -58,6 +59,7 @@ export function LiveSelfieVerification({
   const styles = useStyles();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const { tr } = useSharedT();
 
   const [permission, requestPermission] = useCameraPermissions();
   const [uiState, setUiState] = useState<SelfieUiState>(() =>
@@ -253,7 +255,7 @@ export function LiveSelfieVerification({
         <View style={styles.iconCircle}>
           <Ionicons name="camera-outline" size={40} color={colors.primary} />
         </View>
-        <Text style={styles.cardTitle}>Camera access is blocked</Text>
+        <Text style={styles.cardTitle}>{tr('Camera access is blocked')}</Text>
         <Text style={styles.cardBody}>
           Camera permission has been blocked in your device settings. Please enable camera access in Settings to take your selfie in the oval, or choose a photo from your library.
         </Text>
@@ -266,7 +268,7 @@ export function LiveSelfieVerification({
         />
         {onCancel ? (
           <Pressable onPress={onCancel} style={styles.cancelBtn}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{tr('Cancel')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -279,7 +281,7 @@ export function LiveSelfieVerification({
         <View style={styles.iconCircle}>
           <Ionicons name="camera-outline" size={40} color={colors.primary} />
         </View>
-        <Text style={styles.cardTitle}>Camera access required</Text>
+        <Text style={styles.cardTitle}>{tr('Camera access required')}</Text>
         <Text style={styles.cardBody}>
           Connekyt requires front camera access to take your selfie inside the oval guide, or you can choose a photo from your library.
         </Text>
@@ -298,7 +300,7 @@ export function LiveSelfieVerification({
         />
         {onCancel ? (
           <Pressable onPress={onCancel} style={styles.cancelBtn}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{tr('Cancel')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -311,7 +313,7 @@ export function LiveSelfieVerification({
       <View style={styles.reviewContainer}>
         <View style={styles.verifiedPill}>
           <Ionicons name="camera" size={16} color="#10B981" />
-          <Text style={styles.verifiedPillText}>Selfie Captured</Text>
+          <Text style={styles.verifiedPillText}>{tr('Selfie Captured')}</Text>
         </View>
 
         <View style={[styles.reviewOval, { width: ovalWidth, height: ovalHeight }]}>
@@ -322,7 +324,7 @@ export function LiveSelfieVerification({
           />
         </View>
 
-        <Text style={styles.reviewTitle}>Review your selfie</Text>
+        <Text style={styles.reviewTitle}>{tr('Review your selfie')}</Text>
         <Text style={styles.reviewSubtitle}>
           Make sure your face is centered, well-lit, and in clear focus.
         </Text>
@@ -331,7 +333,7 @@ export function LiveSelfieVerification({
           <Button title="Continue" onPress={handleConfirm} />
           <Pressable onPress={restartVerification} style={styles.retakeBtn}>
             <Ionicons name="refresh-outline" size={18} color={colors.primary} />
-            <Text style={styles.retakeBtnText}>Retake selfie</Text>
+            <Text style={styles.retakeBtnText}>{tr('Retake selfie')}</Text>
           </Pressable>
         </View>
       </View>
@@ -368,7 +370,7 @@ export function LiveSelfieVerification({
       <View style={styles.topHud}>
         <View style={styles.topNavRow}>
           <View style={styles.progressPill}>
-            <Text style={styles.progressText}>Live Face Scan</Text>
+            <Text style={styles.progressText}>{tr('Live Face Scan')}</Text>
           </View>
           {onCancel ? (
             <Pressable
@@ -376,7 +378,7 @@ export function LiveSelfieVerification({
               style={styles.closeCameraBtn}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Cancel"
+              accessibilityLabel={tr('Cancel')}
             >
               <Ionicons name="close" size={20} color="#FFFFFF" />
             </Pressable>
@@ -408,7 +410,7 @@ export function LiveSelfieVerification({
             <Ionicons name="camera-outline" size={24} color={colors.primary} />
           </View>
           <View style={styles.promptTextWrap}>
-            <Text style={styles.promptTitle}>Position face in oval</Text>
+            <Text style={styles.promptTitle}>{tr('Position face in oval')}</Text>
             <Text style={styles.promptInstruction}>
               Center your face inside the oval guide and tap Take Photo
             </Text>
@@ -420,10 +422,10 @@ export function LiveSelfieVerification({
           style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
           onPress={() => void captureSelfieFromOval()}
           accessibilityRole="button"
-          accessibilityLabel="Take Photo"
+          accessibilityLabel={tr('Take Photo')}
         >
           <Ionicons name="camera" size={22} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Take Photo</Text>
+          <Text style={styles.actionButtonText}>{tr('Take Photo')}</Text>
         </Pressable>
 
         <Pressable
@@ -431,10 +433,10 @@ export function LiveSelfieVerification({
           onPress={() => void pickSelfieFromGallery()}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Choose selfie from photo library"
+          accessibilityLabel={tr('Or choose photo from library')}
         >
           <Ionicons name="images-outline" size={16} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.galleryPickText}>Or choose photo from library</Text>
+          <Text style={styles.galleryPickText}>{tr('Or choose photo from library')}</Text>
         </Pressable>
       </View>
     </View>

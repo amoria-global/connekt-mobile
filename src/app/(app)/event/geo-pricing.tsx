@@ -39,12 +39,165 @@ import {
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
+
+const I18N = {
+  en: {
+    screenTitle: 'Geo pricing',
+    selectEventToPrice: 'Select Event to Price:',
+    introPart1: 'Charge different prices by location. A ',
+    countryBold: 'country',
+    introPart2: ' price beats a ',
+    continentBold: 'continent',
+    introPart3: ' price, which beats your ',
+    defaultBold: 'default',
+    introPart4: '. Anywhere without a rule pays the default',
+    locationPricesCount: (n: number) => `Location prices (${n})`,
+    removeAll: 'Remove all',
+    noLocationPrices: 'No location prices yet. Everyone pays your default price.',
+    continent: 'Continent',
+    country: 'Country',
+    addLocationPrice: 'Add a location price',
+    allTab: 'All',
+    continentsTab: 'Continents',
+    countriesTab: 'Countries',
+    searchPlaceholder: 'Search continent or country (e.g. Africa, Rwanda, UK)...',
+    selectedCount: (n: number) => `Selected (${n}):`,
+    clearAll: 'Clear all',
+    availableCount: (n: number) => `${n} available`,
+    selectAllShown: 'Select all shown',
+    contShort: 'Cont',
+    ctryShort: 'Ctry',
+    noRegionsMatch: (q: string) => `No regions match "${q}".`,
+    priceForMultiple: (n: number) => `Price for ${n} locations`,
+    priceForSingle: (label: string) => `Price for ${label}`,
+    priceLabel: 'Price',
+    currencyLabel: 'Currency',
+    applyPriceToMultiple: (price: string, cur: string, n: number) =>
+      `Apply Price (${price} ${cur}) to ${n} Locations`,
+    savePriceForSingle: (label: string) => `Save Price for ${label}`,
+    savePrice: 'Save Price',
+    pickAtLeastOneError: 'Pick at least one continent or country.',
+    enterValidPriceError: 'Enter a valid price.',
+    couldNotSaveError: 'Could not save the prices.',
+    removeAllTitle: 'Remove all location prices?',
+    removeAllBody:
+      'Are you sure you want to remove all custom location prices? Viewers will pay the default stream price.',
+    cancel: 'Cancel',
+    errorTitle: 'Error',
+    couldNotRemoveAllError: 'Could not remove all location prices.',
+    removePriceTitle: 'Remove price',
+    removePriceBody: (label: string) => `Remove the price for ${label}?`,
+    remove: 'Remove',
+    couldNotRemoveError: 'Could not remove the price.',
+  },
+  fr: {
+    screenTitle: 'Tarification géographique',
+    selectEventToPrice: 'Sélectionner un événement à tarifer :',
+    introPart1: 'Facturez des tarifs différents selon le lieu. Un tarif par ',
+    countryBold: 'pays',
+    introPart2: ' prime sur un tarif par ',
+    continentBold: 'continent',
+    introPart3: ', qui prime sur votre tarif ',
+    defaultBold: 'par défaut',
+    introPart4: '. Toute région sans règle paie le tarif par défaut',
+    locationPricesCount: (n: number) => `Tarifs par lieu (${n})`,
+    removeAll: 'Tout supprimer',
+    noLocationPrices: 'Aucun tarif par lieu pour le moment. Tout le monde paie votre tarif par défaut.',
+    continent: 'Continent',
+    country: 'Pays',
+    addLocationPrice: 'Ajouter un tarif par lieu',
+    allTab: 'Tous',
+    continentsTab: 'Continents',
+    countriesTab: 'Pays',
+    searchPlaceholder: 'Rechercher un continent ou un pays (ex. Afrique, Rwanda, UK)...',
+    selectedCount: (n: number) => `Sélectionnés (${n}) :`,
+    clearAll: 'Tout effacer',
+    availableCount: (n: number) => `${n} disponibles`,
+    selectAllShown: 'Tout sélectionner',
+    contShort: 'Cont',
+    ctryShort: 'Pays',
+    noRegionsMatch: (q: string) => `Aucune région ne correspond à « ${q} ».`,
+    priceForMultiple: (n: number) => `Tarif pour ${n} lieux`,
+    priceForSingle: (label: string) => `Tarif pour ${label}`,
+    priceLabel: 'Tarif',
+    currencyLabel: 'Devise',
+    applyPriceToMultiple: (price: string, cur: string, n: number) =>
+      `Appliquer le tarif (${price} ${cur}) à ${n} lieux`,
+    savePriceForSingle: (label: string) => `Enregistrer le tarif pour ${label}`,
+    savePrice: 'Enregistrer le tarif',
+    pickAtLeastOneError: 'Choisissez au moins un continent ou un pays.',
+    enterValidPriceError: 'Entrez un tarif valide.',
+    couldNotSaveError: "Impossible d'enregistrer les tarifs.",
+    removeAllTitle: 'Supprimer tous les tarifs par lieu ?',
+    removeAllBody:
+      'Voulez-vous vraiment supprimer tous les tarifs personnalisés par lieu ? Les spectateurs paieront le tarif par défaut.',
+    cancel: 'Annuler',
+    errorTitle: 'Erreur',
+    couldNotRemoveAllError: 'Impossible de supprimer tous les tarifs par lieu.',
+    removePriceTitle: 'Supprimer le tarif',
+    removePriceBody: (label: string) => `Supprimer le tarif pour ${label} ?`,
+    remove: 'Supprimer',
+    couldNotRemoveError: 'Impossible de supprimer le tarif.',
+  },
+  es: {
+    screenTitle: 'Precios geográficos',
+    selectEventToPrice: 'Seleccionar evento para fijar precio:',
+    introPart1: 'Cobra diferentes precios según la ubicación. Un precio por ',
+    countryBold: 'país',
+    introPart2: ' supera a un precio por ',
+    continentBold: 'continente',
+    introPart3: ', que supera a tu precio ',
+    defaultBold: 'predeterminado',
+    introPart4: '. Cualquier lugar sin regla paga el predeterminado',
+    locationPricesCount: (n: number) => `Precios por ubicación (${n})`,
+    removeAll: 'Eliminar todos',
+    noLocationPrices: 'Aún no hay precios por ubicación. Todos pagan tu precio predeterminado.',
+    continent: 'Continente',
+    country: 'País',
+    addLocationPrice: 'Añadir precio por ubicación',
+    allTab: 'Todos',
+    continentsTab: 'Continentes',
+    countriesTab: 'Países',
+    searchPlaceholder: 'Buscar continente o país (ej. África, Ruanda, UK)...',
+    selectedCount: (n: number) => `Seleccionados (${n}):`,
+    clearAll: 'Borrar todo',
+    availableCount: (n: number) => `${n} disponibles`,
+    selectAllShown: 'Seleccionar todos los mostrados',
+    contShort: 'Cont',
+    ctryShort: 'País',
+    noRegionsMatch: (q: string) => `Ninguna región coincide con "${q}".`,
+    priceForMultiple: (n: number) => `Precio para ${n} ubicaciones`,
+    priceForSingle: (label: string) => `Precio para ${label}`,
+    priceLabel: 'Precio',
+    currencyLabel: 'Moneda',
+    applyPriceToMultiple: (price: string, cur: string, n: number) =>
+      `Aplicar precio (${price} ${cur}) a ${n} ubicaciones`,
+    savePriceForSingle: (label: string) => `Guardar precio para ${label}`,
+    savePrice: 'Guardar precio',
+    pickAtLeastOneError: 'Elige al menos un continente o país.',
+    enterValidPriceError: 'Ingresa un precio válido.',
+    couldNotSaveError: 'No se pudieron guardar los precios.',
+    removeAllTitle: '¿Eliminar todos los precios por ubicación?',
+    removeAllBody:
+      '¿Seguro que deseas eliminar todos los precios personalizados por ubicación? Los espectadores pagarán el precio predeterminado.',
+    cancel: 'Cancelar',
+    errorTitle: 'Error',
+    couldNotRemoveAllError: 'No se pudieron eliminar todos los precios por ubicación.',
+    removePriceTitle: 'Eliminar precio',
+    removePriceBody: (label: string) => `¿Eliminar el precio para ${label}?`,
+    remove: 'Eliminar',
+    couldNotRemoveError: 'No se pudo eliminar el precio.',
+  },
+} as const;
 
 export default function GeoPricingScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const { language } = useLanguage();
+  const tx = I18N[language] ?? I18N.en;
   const { eventId, packageId } = useLocalSearchParams<{ eventId?: string; packageId?: string }>();
   const { isCoordinator } = useRole();
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);
@@ -150,9 +303,9 @@ export default function GeoPricingScreen() {
 
   const onSave = async () => {
     setError(null);
-    if (selectedLocations.length === 0) return setError('Pick at least one continent or country.');
+    if (selectedLocations.length === 0) return setError(tx.pickAtLeastOneError);
     const p = Number(price);
-    if (!price || Number.isNaN(p) || p < 0) return setError('Enter a valid price.');
+    if (!price || Number.isNaN(p) || p < 0) return setError(tx.enterValidPriceError);
     setSaving(true);
     try {
       await Promise.all(
@@ -173,7 +326,7 @@ export default function GeoPricingScreen() {
       setSearchQuery('');
       config.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the prices.');
+      setError(e instanceof Error ? e.message : tx.couldNotSaveError);
     } finally {
       setSaving(false);
     }
@@ -182,12 +335,12 @@ export default function GeoPricingScreen() {
   const onClearAll = () => {
     if (rules.length === 0) return;
     Alert.alert(
-      'Remove all location prices?',
-      'Are you sure you want to remove all custom location prices? Viewers will pay the default stream price.',
+      tx.removeAllTitle,
+      tx.removeAllBody,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tx.cancel, style: 'cancel' },
         {
-          text: 'Remove all',
+          text: tx.removeAll,
           style: 'destructive',
           onPress: async () => {
             try {
@@ -200,7 +353,7 @@ export default function GeoPricingScreen() {
               );
               config.refresh();
             } catch {
-              Alert.alert('Error', 'Could not remove all location prices.');
+              Alert.alert(tx.errorTitle, tx.couldNotRemoveAllError);
             }
           },
         },
@@ -209,17 +362,17 @@ export default function GeoPricingScreen() {
   };
 
   const onDelete = (rule: GeoPriceRule) => {
-    Alert.alert('Remove price', `Remove the price for ${labelFor(rule)}?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(tx.removePriceTitle, tx.removePriceBody(labelFor(rule)), [
+      { text: tx.cancel, style: 'cancel' },
       {
-        text: 'Remove',
+        text: tx.remove,
         style: 'destructive',
         onPress: async () => {
           try {
             await (isPackage ? deletePackageGeoPrice(activeTargetId, rule.id) : deleteGeoPrice(activeTargetId, rule.id));
             config.refresh();
           } catch {
-            Alert.alert('Error', 'Could not remove the price.');
+            Alert.alert(tx.errorTitle, tx.couldNotRemoveError);
           }
         },
       },
@@ -228,11 +381,11 @@ export default function GeoPricingScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Geo pricing" />
+      <ScreenHeader title={tx.screenTitle} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {eventsAsync.data && eventsAsync.data.length > 0 && !packageId ? (
           <View style={styles.eventPickerCard}>
-            <Text style={styles.eventPickerLabel}>Select Event to Price:</Text>
+            <Text style={styles.eventPickerLabel}>{tx.selectEventToPrice}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -259,9 +412,9 @@ export default function GeoPricingScreen() {
         <View style={styles.introCard}>
           <Ionicons name="earth" size={20} color={colors.primary} />
           <Text style={styles.introText}>
-            Charge different prices by location. A <Text style={styles.bold}>country</Text> price beats a{' '}
-            <Text style={styles.bold}>continent</Text> price, which beats your{' '}
-            <Text style={styles.bold}>default</Text>. Anywhere without a rule pays the default
+            {tx.introPart1}<Text style={styles.bold}>{tx.countryBold}</Text>{tx.introPart2}
+            <Text style={styles.bold}>{tx.continentBold}</Text>{tx.introPart3}
+            <Text style={styles.bold}>{tx.defaultBold}</Text>{tx.introPart4}
             {config.data?.defaultPrice != null
               ? ` (${config.data.defaultPrice} ${defaultCurrency ?? ''})`
               : ''}
@@ -271,17 +424,17 @@ export default function GeoPricingScreen() {
 
         {/* Existing rules */}
         <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Location prices ({rules.length})</Text>
+          <Text style={styles.sectionTitle}>{tx.locationPricesCount(rules.length)}</Text>
           {rules.length > 0 ? (
             <Pressable onPress={onClearAll} hitSlop={6}>
-              <Text style={styles.clearAllLink}>Remove all</Text>
+              <Text style={styles.clearAllLink}>{tx.removeAll}</Text>
             </Pressable>
           ) : null}
         </View>
         {config.loading && !config.data ? (
           <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />
         ) : rules.length === 0 ? (
-          <Text style={styles.muted}>No location prices yet. Everyone pays your default price.</Text>
+          <Text style={styles.muted}>{tx.noLocationPrices}</Text>
         ) : (
           <View style={styles.card}>
             {rules.map((r, i) => (
@@ -295,7 +448,7 @@ export default function GeoPricingScreen() {
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.ruleName}>{regionLabel(r.scopeType, r.scopeValue)}</Text>
-                  <Text style={styles.ruleMeta}>{r.scopeType === 'CONTINENT' ? 'Continent' : 'Country'}</Text>
+                  <Text style={styles.ruleMeta}>{r.scopeType === 'CONTINENT' ? tx.continent : tx.country}</Text>
                 </View>
                 <Text style={styles.rulePrice}>
                   {formatPrice(Number(r.price), r.currencyAbbreviation ?? defaultCurrency ?? undefined)}
@@ -309,7 +462,7 @@ export default function GeoPricingScreen() {
         )}
 
         {/* Add / update rule */}
-        <Text style={styles.sectionTitle}>Add a location price</Text>
+        <Text style={styles.sectionTitle}>{tx.addLocationPrice}</Text>
         <View style={styles.card}>
           {/* Scope Filter Tabs */}
           <View style={styles.segment}>
@@ -320,7 +473,7 @@ export default function GeoPricingScreen() {
                 style={[styles.segBtn, filterTab === s && styles.segBtnActive]}
               >
                 <Text style={[styles.segText, filterTab === s && styles.segTextActive]}>
-                  {s === 'ALL' ? 'All' : s === 'CONTINENT' ? 'Continents' : 'Countries'}
+                  {s === 'ALL' ? tx.allTab : s === 'CONTINENT' ? tx.continentsTab : tx.countriesTab}
                 </Text>
               </Pressable>
             ))}
@@ -328,7 +481,7 @@ export default function GeoPricingScreen() {
 
           {/* Search bar */}
           <Input
-            placeholder="Search continent or country (e.g. Africa, Rwanda, UK)..."
+            placeholder={tx.searchPlaceholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
             leftElement={
@@ -346,10 +499,10 @@ export default function GeoPricingScreen() {
             <View style={styles.selectedLocationsTray}>
               <View style={styles.selectedLocationsHeader}>
                 <Text style={styles.selectedLocationsCount}>
-                  Selected ({selectedLocations.length}):
+                  {tx.selectedCount(selectedLocations.length)}
                 </Text>
                 <Pressable onPress={clearSelectedLocations} hitSlop={6}>
-                  <Text style={styles.clearSelectionLink}>Clear all</Text>
+                  <Text style={styles.clearSelectionLink}>{tx.clearAll}</Text>
                 </Pressable>
               </View>
               <ScrollView
@@ -369,7 +522,7 @@ export default function GeoPricingScreen() {
                       color={colors.primary}
                     />
                     <Text style={styles.selectedTrayChipText}>
-                      {item.label} ({item.scopeType === 'CONTINENT' ? 'Continent' : 'Country'})
+                      {item.label} ({item.scopeType === 'CONTINENT' ? tx.continent : tx.country})
                     </Text>
                     <Ionicons name="close-circle" size={15} color={colors.textMuted} />
                   </Pressable>
@@ -382,11 +535,11 @@ export default function GeoPricingScreen() {
           <View style={styles.locationsListContainer}>
             <View style={styles.locationsListHeaderRow}>
               <Text style={styles.locationsAvailableText}>
-                {filteredRegions.length} available
+                {tx.availableCount(filteredRegions.length)}
               </Text>
               {filteredRegions.length > 1 && filteredRegions.length <= 15 ? (
                 <Pressable onPress={selectAllMatching} hitSlop={6}>
-                  <Text style={styles.selectAllLink}>Select all shown</Text>
+                  <Text style={styles.selectAllLink}>{tx.selectAllShown}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -446,14 +599,14 @@ export default function GeoPricingScreen() {
                           isSelected && styles.geoItemScopeBadgeSelected,
                         ]}
                       >
-                        {item.scopeType === 'CONTINENT' ? 'Cont' : 'Ctry'}
+                        {item.scopeType === 'CONTINENT' ? tx.contShort : tx.ctryShort}
                       </Text>
                     ) : null}
                   </Pressable>
                 );
               })}
               {filteredRegions.length === 0 ? (
-                <Text style={styles.noMatchText}>No regions match "{searchQuery}".</Text>
+                <Text style={styles.noMatchText}>{tx.noRegionsMatch(searchQuery)}</Text>
               ) : null}
             </ScrollView>
           </View>
@@ -461,10 +614,10 @@ export default function GeoPricingScreen() {
           <Input
             label={
               selectedLocations.length > 1
-                ? `Price for ${selectedLocations.length} locations`
+                ? tx.priceForMultiple(selectedLocations.length)
                 : selectedLocations.length === 1
-                  ? `Price for ${selectedLocations[0].label}`
-                  : 'Price'
+                  ? tx.priceForSingle(selectedLocations[0].label)
+                  : tx.priceLabel
             }
             value={price}
             onChangeText={setPrice}
@@ -474,7 +627,7 @@ export default function GeoPricingScreen() {
 
           {currencies.data && currencies.data.length > 0 ? (
             <>
-              <Text style={styles.fieldLabel}>Currency</Text>
+              <Text style={styles.fieldLabel}>{tx.currencyLabel}</Text>
               <View style={styles.chips}>
                 {currencies.data.map((c: Currency) => (
                   <Pressable
@@ -496,10 +649,14 @@ export default function GeoPricingScreen() {
           <Button
             title={
               selectedLocations.length > 1
-                ? `Apply Price (${price || '0'} ${currencies.data?.find((c) => c.id === effectiveCurrencyId)?.code || defaultCurrency || ''}) to ${selectedLocations.length} Locations`
+                ? tx.applyPriceToMultiple(
+                    price || '0',
+                    currencies.data?.find((c) => c.id === effectiveCurrencyId)?.code || defaultCurrency || '',
+                    selectedLocations.length,
+                  )
                 : selectedLocations.length === 1
-                  ? `Save Price for ${selectedLocations[0].label}`
-                  : 'Save Price'
+                  ? tx.savePriceForSingle(selectedLocations[0].label)
+                  : tx.savePrice
             }
             onPress={onSave}
             loading={saving}

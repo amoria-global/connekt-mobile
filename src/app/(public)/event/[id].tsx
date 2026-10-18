@@ -68,6 +68,7 @@ import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } fr
 import { formatDate, formatPrice } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -108,23 +109,26 @@ function formatTime12h(t?: string): string {
   return `${h12}:${m} ${ampm}`;
 }
 
-function priceLabel(e: {
-  streamFee?: number | null;
-  price?: number;
-  streamFeeCurrencyAbbreviation?: string | null;
-  location?: string;
-}): { label: string; amount: string } {
+function priceLabel(
+  e: {
+    streamFee?: number | null;
+    price?: number;
+    streamFeeCurrencyAbbreviation?: string | null;
+    location?: string;
+  },
+  t: ReturnType<typeof useLanguage.getState>['t'],
+): { label: string; amount: string } {
   const code = e.streamFeeCurrencyAbbreviation || 'RWF';
   const paid = (e.streamFee || 0) > 0 || (e.price || 0) > 0;
   // A price is part of the purchase surface, so it goes where the buy button
   // went. "Ticketed" keeps the useful half. Free stays visible. In-person
   // events sell a real-world ticket, so their price stays visible.
-  if (paid && !canShowDigitalPrice(false) && !isInPersonEvent(e)) return { label: '', amount: 'Ticketed' };
+  if (paid && !canShowDigitalPrice(false) && !isInPersonEvent(e)) return { label: '', amount: t('b4_priceTicketed') };
   if (e.streamFee && e.streamFee > 0)
-    return { label: 'From', amount: formatPrice(e.streamFee, code) };
+    return { label: t('b4_priceFrom'), amount: formatPrice(e.streamFee, code) };
   if (e.price && e.price > 0)
-    return { label: 'From', amount: formatPrice(e.price, code) };
-  return { label: '', amount: 'Free' };
+    return { label: t('b4_priceFrom'), amount: formatPrice(e.price, code) };
+  return { label: '', amount: t('b4_priceFree') };
 }
 
 type CtaTone = 'live' | 'reserve' | 'owned' | 'ended' | 'cancelled';
@@ -159,6 +163,7 @@ function buildCta(
   status: ReturnType<typeof deriveStatus>,
   hasPurchasedAccess: boolean,
   viewerId: string | null,
+  t: ReturnType<typeof useLanguage.getState>['t'],
 ): Cta | null {
   const { isCancelled, isCompleted, isLive, isUpcoming, isPaid } = status;
   // Undefined where digital prices are gated off, so the disabled ticket CTA
@@ -169,13 +174,13 @@ function buildCta(
     ? formatPrice(e.price || e.streamFee || 0, e.streamFeeCurrencyAbbreviation || 'RWF')
     : undefined;
   if (isCancelled)
-    return { label: 'Event cancelled', icon: 'close-circle', tone: 'cancelled', disabled: true };
+    return { label: t('b4_ctaCancelled'), icon: 'close-circle', tone: 'cancelled', disabled: true };
   if (isCompleted)
-    return { label: 'Event ended', icon: 'archive', tone: 'ended', disabled: true };
+    return { label: t('b4_ctaEnded'), icon: 'archive', tone: 'ended', disabled: true };
   if (isLive) {
     if (!isPaid)
       return {
-        label: 'Watch live',
+        label: t('b4_ctaWatchLive'),
         icon: 'play-circle',
         tone: 'live',
         disabled: false,
@@ -183,7 +188,7 @@ function buildCta(
       };
     if (hasPurchasedAccess)
       return {
-        label: 'Start watching',
+        label: t('b4_ctaStartWatching'),
         icon: 'play-circle',
         tone: 'live',
         disabled: false,
@@ -194,9 +199,9 @@ function buildCta(
     // be bought in the app. The "Already paid? Verify access" and group-code
     // cards below stay visible, so anyone who already holds access can get in.
     if (!canBuy)
-      return { label: 'Ticket required. Verify below if you have one', sub: price, icon: 'ticket', tone: 'live', disabled: true };
+      return { label: t('b4_ctaTicketRequired'), sub: price, icon: 'ticket', tone: 'live', disabled: true };
     return {
-      label: inPerson ? 'Buy event ticket' : 'Buy access',
+      label: inPerson ? t('b4_ctaBuyEventTicket') : t('b4_ctaBuyAccess'),
       sub: price,
       icon: 'ticket',
       tone: 'live',
@@ -206,13 +211,13 @@ function buildCta(
   }
   if (isUpcoming) {
     if (!isPaid)
-      return { label: 'Get notified', icon: 'notifications', tone: 'reserve', disabled: false };
+      return { label: t('b4_ctaGetNotified'), icon: 'notifications', tone: 'reserve', disabled: false };
     if (hasPurchasedAccess)
-      return { label: 'Access reserved', icon: 'checkmark-circle', tone: 'owned', disabled: true };
+      return { label: t('b4_ctaAccessReserved'), icon: 'checkmark-circle', tone: 'owned', disabled: true };
     if (!canBuy)
-      return { label: 'Ticket required. Verify below if you have one', sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
+      return { label: t('b4_ctaTicketRequired'), sub: price, icon: 'ticket', tone: 'reserve', disabled: true };
     return {
-      label: inPerson ? 'Buy event ticket' : 'Reserve your spot',
+      label: inPerson ? t('b4_ctaBuyEventTicket') : t('b4_ctaReserveSpot'),
       sub: price,
       icon: 'ticket',
       tone: 'reserve',
@@ -255,6 +260,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export default function PublicEventDetailScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -335,7 +341,7 @@ export default function PublicEventDetailScreen() {
         viewerUsername: fingerprint,
       });
       if (!res.ok) {
-        setGroupCodeError(res.message ?? 'This code is not valid for this event.');
+        setGroupCodeError(res.message ?? t('b4_codeNotValid'));
         return;
       }
       if (res.viewerId) {
@@ -352,7 +358,7 @@ export default function PublicEventDetailScreen() {
         `/(public)/events/live-stream?id=${id}${res.viewerId ? `&viewerId=${res.viewerId}` : ''}` as unknown as Href,
       );
     } catch (e) {
-      setGroupCodeError(isApiError(e) ? e.message : 'Could not redeem the code.');
+      setGroupCodeError(isApiError(e) ? e.message : t('b4_couldNotRedeemCode'));
     } finally {
       setGroupCodeBusy(false);
     }
@@ -377,7 +383,7 @@ export default function PublicEventDetailScreen() {
   }, [currentUser, verifyEmail, verifyName]);
   const onVerifyAccess = async () => {
     if (!verifyName.trim() || !verifyEmail.includes('@')) {
-      setVerifyError('Enter the name and email you used at checkout.');
+      setVerifyError(t('b4_verifyEnterNameEmail'));
       return;
     }
     setVerifyBusy(true);
@@ -393,7 +399,7 @@ export default function PublicEventDetailScreen() {
         deviceId: fingerprint,
       });
       if (reg.needsPayment) {
-        setVerifyError("We couldn't find a paid record for this email. Please buy access.");
+        setVerifyError(t('b4_verifyNoPaidRecord'));
         return;
       }
       /*
@@ -419,9 +425,7 @@ export default function PublicEventDetailScreen() {
           accessRes = await checkAnonymousAccessStatus(id, reg.viewerId, fingerprint);
           if (accessRes.active) granted = true;
         } else {
-          setVerifyError(
-            'Your viewer is currently watching on another device. Stop the other session and try again.',
-          );
+          setVerifyError(t('b4_verifyAnotherDevice'));
           return;
         }
       }
@@ -429,9 +433,7 @@ export default function PublicEventDetailScreen() {
         // No clear access — keep the verify modal open so the user sees
         // the error inline instead of getting bounced into the live-
         // stream → back-to-here loop.
-        setVerifyError(
-          "Your access couldn't be confirmed. The payment record may not have settled yet. Try again in a moment, or buy access.",
-        );
+        setVerifyError(t('b4_verifyNotConfirmed'));
         return;
       }
       await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
@@ -441,7 +443,7 @@ export default function PublicEventDetailScreen() {
         `/(public)/events/live-stream?id=${id}&viewerId=${reg.viewerId}` as unknown as Href,
       );
     } catch (e) {
-      setVerifyError(isApiError(e) ? e.message : 'Could not verify access.');
+      setVerifyError(isApiError(e) ? e.message : t('b4_couldNotVerifyAccess'));
     } finally {
       setVerifyBusy(false);
     }
@@ -456,7 +458,7 @@ export default function PublicEventDetailScreen() {
   const [wishSuccess, setWishSuccess] = useState<string | null>(null);
   const onSendWish = async () => {
     if (!wishName.trim() || !wishEmail.includes('@') || !wishMessage.trim()) {
-      setWishError('Please fill in your name, email and message.');
+      setWishError(t('b4_wishFillAll'));
       return;
     }
     setWishBusy(true);
@@ -468,10 +470,10 @@ export default function PublicEventDetailScreen() {
         email: wishEmail.trim(),
         message: wishMessage.trim(),
       });
-      setWishSuccess('Your wish was sent to the event organizer!');
+      setWishSuccess(t('b4_wishSentSuccess'));
       setWishMessage('');
     } catch (e) {
-      setWishError(isApiError(e) ? e.message : 'Could not send your wish. Please try again.');
+      setWishError(isApiError(e) ? e.message : t('b4_wishSendError'));
     } finally {
       setWishBusy(false);
     }
@@ -482,7 +484,7 @@ export default function PublicEventDetailScreen() {
     try {
       await Share.share({
         title: data.title,
-        message: `Check out "${data.title}" on Connekyt\n${SHARE_BASE}${id}`,
+        message: t('b4_shareEventMsg', { title: data.title, url: `${SHARE_BASE}${id}` }),
       });
     } catch { /* user dismissed */ }
   };
@@ -499,12 +501,12 @@ export default function PublicEventDetailScreen() {
               hitSlop={12}
               style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('b4_goBack')}
             >
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </Pressable>
             <View style={styles.topBarPillCenter}>
-              <Text style={styles.topBarPillText}>Event</Text>
+              <Text style={styles.topBarPillText}>{t('b4_eventHeader')}</Text>
             </View>
             <View style={{ width: 40 }} />
           </View>
@@ -525,12 +527,12 @@ export default function PublicEventDetailScreen() {
               hitSlop={12}
               style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('b4_goBack')}
             >
               <Ionicons name="chevron-back" size={24} color={colors.text} />
             </Pressable>
             <View style={styles.topBarPillCenter}>
-              <Text style={styles.topBarPillText}>Event</Text>
+              <Text style={styles.topBarPillText}>{t('b4_eventHeader')}</Text>
             </View>
             <View style={{ width: 40 }} />
           </View>
@@ -539,7 +541,7 @@ export default function PublicEventDetailScreen() {
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.retryBtn} onPress={refresh}>
-            <Text style={styles.retryText}>Try again</Text>
+            <Text style={styles.retryText}>{t('b4_tryAgain')}</Text>
           </Pressable>
         </View>
       </Screen>
@@ -548,8 +550,8 @@ export default function PublicEventDetailScreen() {
   if (!data) return null;
 
   const status = deriveStatus(data);
-  const cta = buildCta(data, status, hasPurchasedAccess, viewerId);
-  const price = priceLabel(data);
+  const cta = buildCta(data, status, hasPurchasedAccess, viewerId, t);
+  const price = priceLabel(data, t);
   const organizer = data.creator
     ? `${data.creator.firstName ?? ''} ${data.creator.lastName ?? ''}`.trim() ||
       data.eventOrganizer
@@ -588,13 +590,13 @@ export default function PublicEventDetailScreen() {
             hitSlop={12}
             style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('b4_goBack')}
           >
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
 
           <View style={styles.topBarPillCenter}>
-            <Text style={styles.topBarPillText}>Event</Text>
+            <Text style={styles.topBarPillText}>{t('b4_eventHeader')}</Text>
           </View>
 
           <View style={styles.topBarActions}>
@@ -603,7 +605,7 @@ export default function PublicEventDetailScreen() {
               onPress={onShare}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Share event"
+              accessibilityLabel={t('b4_shareEvent')}
             >
               <Ionicons name="share-social-outline" size={19} color={colors.text} />
             </Pressable>
@@ -612,7 +614,7 @@ export default function PublicEventDetailScreen() {
               onPress={toggleSaved}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel={isSaved ? 'Remove from saved' : 'Save event'}
+              accessibilityLabel={isSaved ? t('b4_removeFromSaved') : t('b4_saveEvent')}
             >
               <Ionicons
                 name={isSaved ? 'bookmark' : 'bookmark-outline'}
@@ -644,19 +646,19 @@ export default function PublicEventDetailScreen() {
           {status.isLive ? (
             <View style={[styles.statusPill, styles.statusPillLive]}>
               <View style={styles.pulseRed} />
-              <Text style={styles.statusPillText}>HAPPENING NOW</Text>
+              <Text style={styles.statusPillText}>{t('b4_happeningNow')}</Text>
             </View>
           ) : status.isCancelled ? (
             <View style={[styles.statusPill, styles.statusPillCancelled]}>
-              <Text style={styles.statusPillText}>CANCELLED</Text>
+              <Text style={styles.statusPillText}>{t('b4_cancelledUpper')}</Text>
             </View>
           ) : status.isCompleted ? (
             <View style={[styles.statusPill, styles.statusPillEnded]}>
-              <Text style={styles.statusPillText}>ENDED</Text>
+              <Text style={styles.statusPillText}>{t('b4_badgeEnded')}</Text>
             </View>
           ) : (
             <View style={[styles.statusPill, styles.statusPillUpcoming]}>
-              <Text style={styles.statusPillText}>UPCOMING</Text>
+              <Text style={styles.statusPillText}>{t('b4_badgeUpcoming')}</Text>
             </View>
           )}
 
@@ -707,10 +709,10 @@ export default function PublicEventDetailScreen() {
                       hitSlop={8}
                       style={styles.endedReadMoreBtn}
                       accessibilityRole="button"
-                      accessibilityLabel={descExpanded ? 'Show less description' : 'Read more description'}
+                      accessibilityLabel={descExpanded ? t('b4_showLess') : t('b4_readMore')}
                     >
                       <Text style={styles.endedReadMoreText}>
-                        {descExpanded ? 'Show less ↑' : 'Read more ↓'}
+                        {descExpanded ? t('b4_showLess') : t('b4_readMore')}
                       </Text>
                     </Pressable>
                   ) : null}
@@ -721,10 +723,10 @@ export default function PublicEventDetailScreen() {
                 style={({ pressed }) => [styles.endedFindPhotosBtn, pressed && { opacity: 0.88 }]}
                 onPress={() => router.push('/find-photos' as never)}
                 accessibilityRole="button"
-                accessibilityLabel="Find My Photos"
+                accessibilityLabel={t('b4_findMyPhotos')}
               >
                 <Ionicons name="search" size={18} color="#FFFFFF" />
-                <Text style={styles.endedFindPhotosBtnText}>Find My Photos</Text>
+                <Text style={styles.endedFindPhotosBtnText}>{t('b4_findMyPhotos')}</Text>
               </Pressable>
             </View>
           ) : (
@@ -746,28 +748,28 @@ export default function PublicEventDetailScreen() {
           {countdown ? (
             <View style={styles.countdownCard}>
               <Text style={styles.countdownEyebrow}>
-                <Ionicons name="hourglass-outline" size={12} color={colors.primary} /> Starts in
+                <Ionicons name="hourglass-outline" size={12} color={colors.primary} /> {t('b4_startsIn')}
               </Text>
               <View style={styles.countdownGrid}>
                 {countdown.days > 0 ? (
                   <View style={styles.countdownCell}>
                     <Text style={styles.countdownNum}>{pad(countdown.days)}</Text>
                     <Text style={styles.countdownUnit}>
-                      {countdown.days === 1 ? 'day' : 'days'}
+                      {countdown.days === 1 ? t('b4_daySingular') : t('b4_dayPlural')}
                     </Text>
                   </View>
                 ) : null}
                 <View style={styles.countdownCell}>
                   <Text style={styles.countdownNum}>{pad(countdown.hours)}</Text>
-                  <Text style={styles.countdownUnit}>hr</Text>
+                  <Text style={styles.countdownUnit}>{t('b4_hr')}</Text>
                 </View>
                 <View style={styles.countdownCell}>
                   <Text style={styles.countdownNum}>{pad(countdown.minutes)}</Text>
-                  <Text style={styles.countdownUnit}>min</Text>
+                  <Text style={styles.countdownUnit}>{t('b4_min')}</Text>
                 </View>
                 <View style={styles.countdownCell}>
                   <Text style={styles.countdownNum}>{pad(countdown.seconds)}</Text>
-                  <Text style={styles.countdownUnit}>sec</Text>
+                  <Text style={styles.countdownUnit}>{t('b4_sec')}</Text>
                 </View>
               </View>
             </View>
@@ -793,7 +795,7 @@ export default function PublicEventDetailScreen() {
               {data.maxGuests ? (
                 <Row
                   icon="people-outline"
-                  text={`Up to ${data.maxGuests.toLocaleString()} guests`}
+                  text={t('b4_upToGuests', { count: data.maxGuests.toLocaleString() })}
                 />
               ) : null}
             </View>
@@ -802,12 +804,12 @@ export default function PublicEventDetailScreen() {
           {/* About this event (web `.ve-card` about section + `.ve-readmore`) */}
           {!status.isCompleted && desc ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About this event</Text>
+              <Text style={styles.sectionTitle}>{t('b4_aboutThisEvent')}</Text>
               <Text style={styles.bodyText}>{descText}</Text>
               {desc.length > DESC_LIMIT ? (
                 <Pressable onPress={() => setDescExpanded((v) => !v)}>
                   <Text style={styles.readMore}>
-                    {descExpanded ? 'Show less ↑' : 'Read more ↓'}
+                    {descExpanded ? t('b4_showLess') : t('b4_readMore')}
                   </Text>
                 </Pressable>
               ) : null}
@@ -817,7 +819,7 @@ export default function PublicEventDetailScreen() {
           {/* Hosts & crew (web `.ve-hosts-grid`) */}
           {!status.isCompleted && (organizer || data.photographerName || data.photographerId) ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Hosts &amp; crew</Text>
+              <Text style={styles.sectionTitle}>{t('b4_hostsAndCrew')}</Text>
               <View style={styles.hostsGrid}>
                 {organizer ? (
                   <View style={styles.hostCard}>
@@ -825,9 +827,9 @@ export default function PublicEventDetailScreen() {
                       <Ionicons name="mic" size={20} color="#fff" />
                     </View>
                     <View style={styles.hostInfo}>
-                      <Text style={styles.hostRole}>Organized by</Text>
+                      <Text style={styles.hostRole}>{t('b4_organizedBy')}</Text>
                       <Text style={styles.hostName}>{organizer}</Text>
-                      <Text style={styles.hostSub}>Event organizer</Text>
+                      <Text style={styles.hostSub}>{t('b4_eventOrganizerRole')}</Text>
                     </View>
                   </View>
                 ) : null}
@@ -845,9 +847,9 @@ export default function PublicEventDetailScreen() {
                       )}
                     </View>
                     <View style={styles.hostInfo}>
-                      <Text style={styles.hostRole}>Photographer</Text>
+                      <Text style={styles.hostRole}>{t('b4_photographerRole')}</Text>
                       <Text style={styles.hostName}>{data.photographerName}</Text>
-                      <Text style={styles.hostSub}>Capturing the moment</Text>
+                      <Text style={styles.hostSub}>{t('b4_capturingTheMoment')}</Text>
                     </View>
                   </View>
                 ) : null}
@@ -859,7 +861,7 @@ export default function PublicEventDetailScreen() {
           {!status.isCompleted && !status.isCancelled ? (
             <View style={styles.feeCard}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.feeLabel}>{isInPersonEvent(data) ? 'Event ticket (includes live stream)' : 'Stream entry'}</Text>
+                <Text style={styles.feeLabel}>{isInPersonEvent(data) ? t('b4_eventTicketIncludesStream') : t('b4_streamEntry')}</Text>
                 <Text style={styles.feeValue}>
                   {price.label ? `${price.label} ` : ''}
                   {price.amount}
@@ -868,7 +870,7 @@ export default function PublicEventDetailScreen() {
               <View style={styles.feeBadge}>
                 <Ionicons name="videocam" size={14} color={colors.textOnPrimary} />
                 <Text style={styles.feeBadgeText}>
-                  {status.isLive ? 'Watch live' : 'Live stream'}
+                  {status.isLive ? t('b4_ctaWatchLive') : t('b4_liveStreamBadge')}
                 </Text>
               </View>
             </View>
@@ -888,7 +890,7 @@ export default function PublicEventDetailScreen() {
                 <View style={styles.groupCodeCard}>
                   <View style={styles.groupCodeHeader}>
                     <Ionicons name="ticket-outline" size={16} color={colors.primary} />
-                    <Text style={styles.groupCodeTitle}>Have a group invite code?</Text>
+                    <Text style={styles.groupCodeTitle}>{t('b4_haveGroupInviteCode')}</Text>
                   </View>
                   <View style={styles.groupCodeRow}>
                     <TextInput
@@ -897,7 +899,7 @@ export default function PublicEventDetailScreen() {
                         setGroupCode(t);
                         setGroupCodeError('');
                       }}
-                      placeholder="Enter code"
+                      placeholder={t('b4_enterCodePlaceholder')}
                       placeholderTextColor={colors.textMuted}
                       style={styles.groupCodeInput}
                       autoCapitalize="none"
@@ -916,7 +918,7 @@ export default function PublicEventDetailScreen() {
                       {groupCodeBusy ? (
                         <ActivityIndicator color="#fff" size="small" />
                       ) : (
-                        <Text style={styles.groupCodeBtnText}>Redeem</Text>
+                        <Text style={styles.groupCodeBtnText}>{t('b4_redeem')}</Text>
                       )}
                     </Pressable>
                   </View>
@@ -934,20 +936,20 @@ export default function PublicEventDetailScreen() {
               <View style={styles.wishHeader}>
                 <Ionicons name="chatbubble-ellipses" size={18} color={colors.accent} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.wishTitle}>Send a wish to the organizer</Text>
+                  <Text style={styles.wishTitle}>{t('b4_sendWishTitle')}</Text>
                   <Text style={styles.wishSub}>
-                    Your message will appear on screen during the event.
+                    {t('b4_sendWishSub')}
                   </Text>
                 </View>
               </View>
               <Input
-                placeholder="Your name"
+                placeholder={t('b4_yourNamePlaceholder')}
                 value={wishName}
                 onChangeText={setWishName}
                 autoCapitalize="words"
               />
               <Input
-                placeholder="Email"
+                placeholder={t('b4_emailPlaceholder')}
                 value={wishEmail}
                 onChangeText={setWishEmail}
                 autoCapitalize="none"
@@ -956,7 +958,7 @@ export default function PublicEventDetailScreen() {
               <TextInput
                 value={wishMessage}
                 onChangeText={setWishMessage}
-                placeholder="Write your message…"
+                placeholder={t('b4_writeMessagePlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 multiline
                 style={styles.wishTextarea}
@@ -968,7 +970,7 @@ export default function PublicEventDetailScreen() {
                   <Text style={styles.wishSuccessText}>{wishSuccess}</Text>
                 </View>
               ) : null}
-              <Button title={wishBusy ? 'Sending…' : 'Send wish'} onPress={onSendWish} loading={wishBusy} />
+              <Button title={wishBusy ? t('b4_sending') : t('b4_sendWishBtn')} onPress={onSendWish} loading={wishBusy} />
             </View>
           ) : null}
 
@@ -980,7 +982,7 @@ export default function PublicEventDetailScreen() {
             >
               <Ionicons name="heart-outline" size={18} color={colors.accent} />
               <Text style={styles.secondaryText}>
-                {status.isCompleted ? 'Donate' : 'Support this event with a donation'}
+                {status.isCompleted ? t('b4_donate') : t('b4_supportWithDonation')}
               </Text>
             </Pressable>
           ) : null}
@@ -995,10 +997,10 @@ export default function PublicEventDetailScreen() {
               style={styles.stickyVerifyBtn}
               onPress={() => setVerifyOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel="Already paid? Verify access"
+              accessibilityLabel={t('b4_alreadyPaidVerify')}
             >
               <Ionicons name="shield-checkmark-outline" size={15} color={colors.primary} />
-              <Text style={styles.stickyVerifyText}>Already paid? Verify access</Text>
+              <Text style={styles.stickyVerifyText}>{t('b4_alreadyPaidVerify')}</Text>
             </Pressable>
           ) : null}
           <CtaButton
@@ -1023,34 +1025,33 @@ export default function PublicEventDetailScreen() {
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setVerifyOpen(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Verify your access</Text>
+            <Text style={styles.modalTitle}>{t('b4_verifyYourAccessTitle')}</Text>
             <Text style={styles.modalHint}>
-              Enter the name and email you used when buying your ticket. We'll restore access on
-              this device.
+              {t('b4_verifyModalHint')}
             </Text>
             <Input
-              label="Name"
+              label={t('b4_nameLabel')}
               value={verifyName}
               onChangeText={setVerifyName}
-              placeholder="Full name"
+              placeholder={t('b4_fullNamePlaceholder')}
               autoCapitalize="words"
             />
             <Input
-              label="Email"
+              label={t('b4_emailPlaceholder')}
               value={verifyEmail}
               onChangeText={setVerifyEmail}
-              placeholder="you@example.com"
+              placeholder={t('b4_emailExamplePlaceholder')}
               autoCapitalize="none"
               keyboardType="email-address"
             />
             {verifyError ? <Text style={styles.wishMsg}>{verifyError}</Text> : null}
             <Button
-              title={verifyBusy ? 'Checking…' : 'Verify access'}
+              title={verifyBusy ? t('b4_checking') : t('b4_verifyAccessBtn')}
               onPress={onVerifyAccess}
               loading={verifyBusy}
             />
             <Pressable onPress={() => setVerifyOpen(false)} style={{ alignSelf: 'center', marginTop: 4 }}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t('b4_cancel')}</Text>
             </Pressable>
           </Pressable>
         </Pressable>

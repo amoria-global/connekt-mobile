@@ -11,13 +11,23 @@
  * screen once they are in.
  */
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
-import { MODE_META } from './hybridUi';
+import { darkPalette, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import {
+  GlassSurface,
+  glassScrim,
+  glassTile,
+  sheetGlassRadius,
+  useGlassEdge,
+} from '@/components/ui/GlassCard';
 import { pendingPostEvent, postChoiceTarget } from './postEventIntent';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 export { pendingPostEvent };
 
@@ -39,6 +49,8 @@ type Props = {
 export function ExploreChoiceSheet({ visible, onClose, signedIn, onPostEvent, onSignInRequired }: Props) {
   const styles = useStyles();
   const { colors, isDark } = useTheme();
+  const { t, tr } = useSharedT();
+  const glassEdge = useGlassEdge();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -61,11 +73,20 @@ export function ExploreChoiceSheet({ visible, onClose, signedIn, onPostEvent, on
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close">
+      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel={tr('Close')}>
+        {/* Blur the screen behind, so only the sheet reads. Android cannot blur
+            across a modal window, so the scrim colour does the work there. */}
+        <BlurView
+          intensity={Platform.OS === 'ios' ? 30 : 50}
+          tint={isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
         <Pressable
-          style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}
+          style={[styles.sheet, glassEdge, { paddingBottom: insets.bottom + spacing.lg }]}
           onPress={(e) => e.stopPropagation()}
         >
+          <GlassSurface detached strength="thick" style={sheetGlassRadius(radii['2xl'])} />
           {/* Grab Handle */}
           <View style={styles.handleContainer}>
             <View style={styles.handle} />
@@ -73,117 +94,112 @@ export function ExploreChoiceSheet({ visible, onClose, signedIn, onPostEvent, on
 
           {/* Header */}
           <View style={styles.header}>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.title} accessibilityRole="header">Explore Events</Text>
-              <Text style={styles.subtitle}>Post an event to find a photographer, or watch public live streams.</Text>
+            <View style={styles.headerText}>
+              <Text style={styles.title} accessibilityRole="header">{t('exploreSheetTitle')}</Text>
+              <Text style={styles.subtitle}>{t('exploreSheetSubtitle')}</Text>
             </View>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeBtn}>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={tr('Close')} style={styles.closeBtn}>
               <Ionicons name="close" size={18} color={colors.textSoft} />
             </Pressable>
           </View>
 
-          {/* Option 1: Post My Event (Smart Matching) */}
-          <Pressable
-            onPress={post}
-            style={({ pressed }) => [
-              styles.card,
-              styles.cardFeatured,
-              pressed && styles.cardPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Post your event and get matched with available photographers"
-          >
-            <View style={styles.cardHeader}>
-              <View style={[styles.iconBox, { backgroundColor: isDark ? 'rgba(242, 12, 143, 0.16)' : 'rgba(242, 12, 143, 0.08)' }]}>
-                <Ionicons name="calendar" size={20} color="#F20C8F" />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.cardTitle}>Post Your Event</Text>
-                  <View style={[styles.typePill, styles.typePillFeatured]}>
-                    <Ionicons name="flash" size={8} color="#F20C8F" />
-                    <Text style={[styles.typePillText, { color: '#F20C8F' }]}>Faster</Text>
+          <View style={styles.options}>
+            {/* Post My Event (smart matching): brand duotone, the featured choice */}
+            <Pressable
+              onPress={post}
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              accessibilityRole="button"
+              accessibilityLabel={t('explorePostYourEvent')}
+            >
+              {/* Mirrored so the camera sits clear of the words, on the right. */}
+              <Image
+                source={POST_IMAGE}
+                style={[styles.cover, styles.mirror]}
+                contentFit="cover"
+                contentPosition={{ left: '50%', top: '38%' }}
+              />
+              <CardCopy
+                chip={
+                  <View style={styles.chip}>
+                    <Ionicons name="flash" size={10} color="#FFFFFF" />
+                    <Text style={styles.chipText}>{t('exploreFastMatch')}</Text>
                   </View>
-                </View>
-                <Text style={styles.cardDesc}>
-                  Share your event date, location, and budget. Photographers who are free will reply, and you choose who you like.
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </View>
+                }
+                title={t('explorePostYourEvent')}
+                // One line: sign-in, when needed, is asked for right after the tap.
+                subtitle={t('exploreFreePhotographersReply')}
+              />
+            </Pressable>
 
-            <View style={styles.featureList}>
-              <View style={styles.featureItem}>
-                <Ionicons name="notifications-outline" size={14} color={colors.textMuted} />
-                <Text style={styles.featureText}>Photographers who are actually free respond to you</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-                <Text style={styles.featureText}>Only creators available for your date can accept</Text>
-              </View>
-              {!signedIn ? (
-                <View style={styles.featureItem}>
-                  <Ionicons name="log-in-outline" size={14} color={colors.primary} />
-                  <Text style={[styles.featureText, { color: colors.primary, fontWeight: fontWeight.semibold }]}>Quick sign-in to get started</Text>
-                </View>
-              ) : null}
-            </View>
-          </Pressable>
-
-          {/* Option 2: Explore Public Events & Streams */}
-          <Pressable
-            onPress={explore}
-            style={({ pressed }) => [
-              styles.card,
-              pressed && styles.cardPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Explore and watch public events"
-          >
-            <View style={styles.cardHeader}>
-              <View style={[styles.iconBox, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.08)' }]}>
-                <Ionicons name="videocam" size={20} color="#EF4444" />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.cardTitle}>Explore & Watch</Text>
-                  <View style={[styles.typePill, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.06)', borderColor: 'rgba(239, 68, 68, 0.2)' }]}>
+            {/* Explore public events & live streams */}
+            <Pressable
+              onPress={explore}
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              accessibilityRole="button"
+              accessibilityLabel={t('exploreWatchAndExplore')}
+            >
+              <Image source={LIVE_IMAGE} style={styles.cover} contentFit="cover" contentPosition={{ left: '62%', top: '45%' }} />
+              <CardCopy
+                chip={
+                  <View style={[styles.chip, styles.chipLive]}>
                     <View style={styles.liveDot} />
-                    <Text style={[styles.typePillText, { color: '#EF4444' }]}>Live & public</Text>
+                    <Text style={styles.chipText}>{t('exploreLiveAndPublic')}</Text>
                   </View>
-                </View>
-                <Text style={styles.cardDesc}>
-                  Browse public community celebrations, view photo galleries, and join active live streams.
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </View>
-
-            <View style={styles.featureList}>
-              <View style={styles.featureItem}>
-                <Ionicons name="play-circle-outline" size={14} color={colors.textMuted} />
-                <Text style={styles.featureText}>Watch live photography streams in real time</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="compass-outline" size={14} color={colors.textMuted} />
-                <Text style={styles.featureText}>Discover public events and celebrations across Rwanda</Text>
-              </View>
-            </View>
-          </Pressable>
+                }
+                title={t('exploreWatchAndExplore')}
+                subtitle={t('exploreLiveStreamsAndPublic')}
+              />
+            </Pressable>
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
   );
 }
 
+// Both from Unsplash, free under the Unsplash License:
+// a photographer at work by Joshua Hanson (unsplash.com/photos/eWMgNhI_Czw),
+// a concert filmed on a phone by Adam Bentley (unsplash.com/photos/JNuKyKXLh8U).
+const POST_IMAGE = require('../../../assets/images/explore-post.jpg');
+const LIVE_IMAGE = require('../../../assets/images/explore-live.jpg');
+
+/** A card's words: chip, title and one line on a left-to-right fade, plus the arrow. */
+function CardCopy({ chip, title, subtitle }: { chip: React.ReactNode; title: string; subtitle: string }) {
+  const styles = useStyles();
+  return (
+    <>
+      <LinearGradient
+        colors={['rgba(4,10,26,0.82)', 'rgba(4,10,26,0.45)', 'rgba(4,10,26,0)']}
+        locations={[0, 0.55, 1]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.cardBody}>
+        {chip}
+        {/* Words and arrow share one baseline. */}
+        <View style={styles.cardFooter}>
+          <View style={styles.cardText}>
+            <Text style={styles.cardTitle}>{title}</Text>
+            <Text style={styles.cardSub} numberOfLines={1}>{subtitle}</Text>
+          </View>
+          <View style={styles.arrow}>
+            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          </View>
+        </View>
+      </View>
+    </>
+  );
+}
+
 const useStyles = makeStyles((c, e) => ({
   scrim: {
     flex: 1,
-    backgroundColor: c.scrim,
+    backgroundColor: glassScrim(c),
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: c.surface,
+    backgroundColor: 'transparent',
     borderTopLeftRadius: radii['2xl'],
     borderTopRightRadius: radii['2xl'],
     paddingHorizontal: spacing.lg,
@@ -207,120 +223,76 @@ const useStyles = makeStyles((c, e) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingBottom: spacing.xs,
+    justifyContent: 'space-between',
     gap: spacing.md,
+    paddingTop: spacing.xs,
   },
-  eyebrow: {
-    fontSize: 10.5,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.9,
-    color: c.textMuted,
-    textTransform: 'uppercase',
-  },
+  headerText: { flex: 1, gap: 2 },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: fontWeight.extrabold,
     color: c.text,
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 13,
-    color: c.textMuted,
-    lineHeight: 18,
-    marginTop: 2,
-  },
+  subtitle: { fontSize: fontSize.sm, color: c.textSoft },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
+    borderWidth: 1,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
+  options: { gap: spacing.md, paddingTop: spacing.xs },
+
+  // ── Picture cards ────────────────────────────────────────────────────
   card: {
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    borderRadius: radii['2xl'],
-    padding: spacing.lg,
-    gap: spacing.md,
-    backgroundColor: c.card,
-    ...e(1),
+    height: 136,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
+    // No fill: the gradient or photo covers the card, and a dark fill showed
+    // as a navy line along the anti-aliased corners.
+    // A barely-there edge: enough to hold the picture, never a stroke.
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c === darkPalette ? 'rgba(255,255,255,0.14)' : 'rgba(15,18,23,0.08)',
   },
-  cardFeatured: {
-    borderColor: 'rgba(242, 12, 143, 0.28)',
-    backgroundColor: c.card,
-    ...e(1),
+  cardPressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
+  // Explicit size as well as absoluteFill: react-native-web otherwise lays
+  // images out at their intrinsic size.
+  cover: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
+  mirror: { transform: [{ scaleX: -1 }] },
+  cardBody: {
+    flex: 1,
+    justifyContent: 'space-between',
+    padding: spacing.md,
   },
-  cardPressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.985 }],
-  },
-  cardHeader: {
+  cardFooter: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md },
+  chip: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 4,
+    height: 22,
+    paddingHorizontal: 8,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(242,12,143,0.9)',
   },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.md,
+  chipLive: { backgroundColor: 'rgba(220,38,38,0.9)' },
+  chipText: { color: '#FFFFFF', fontSize: 10, fontWeight: fontWeight.extrabold, letterSpacing: 0.8 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
+  cardText: { flex: 1, gap: 3 },
+  cardTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: fontWeight.extrabold, letterSpacing: -0.3 },
+  cardSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12.5, lineHeight: 17 },
+  arrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  typePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    borderWidth: 1,
-  },
-  typePillFeatured: {
-    backgroundColor: 'rgba(242, 12, 143, 0.08)',
-    borderColor: 'rgba(242, 12, 143, 0.22)',
-  },
-  typePillText: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-  },
-  liveDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#EF4444',
-  },
-  cardTitle: {
-    fontSize: 16.5,
-    fontWeight: fontWeight.bold,
-    color: c.text,
-    letterSpacing: -0.3,
-  },
-  cardDesc: {
-    fontSize: 13,
-    color: c.textMuted,
-    lineHeight: 18.5,
-    marginTop: 2,
-  },
-  featureList: {
-    gap: 7,
-    paddingTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.borderSoft,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  featureText: {
-    fontSize: 12.5,
-    color: c.textSoft,
+    // A frosted circle; too small for a real blur to read.
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.4)',
   },
 }));

@@ -8,11 +8,13 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 
 export default function PayrollScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useStyles();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getPayrollReport(), []));
 
@@ -48,18 +50,18 @@ export default function PayrollScreen() {
         }
       >
         <View style={styles.cards}>
-          <Stat label="Total" value={formatPrice(data?.total ?? 0, cur)} tint={colors.primary} />
-          <Stat label="Paid" value={formatPrice(data?.paid ?? 0, cur)} tint={colors.success} />
-          <Stat label="Pending" value={formatPrice(data?.pending ?? 0, cur)} tint={colors.warning} />
+          <Stat label={t('b2_payrollTotal')} value={formatPrice(data?.total ?? 0, cur)} tint={colors.primary} />
+          <Stat label={t('b2_payrollPaid')} value={formatPrice(data?.paid ?? 0, cur)} tint={colors.success} />
+          <Stat label={t('b2_payrollPending')} value={formatPrice(data?.pending ?? 0, cur)} tint={colors.warning} />
         </View>
 
-        <Text style={styles.sectionTitle}>Transactions</Text>
+        <Text style={styles.sectionTitle}>{t('b2_payrollTransactions')}</Text>
         {data?.entries.length ? (
           data.entries.map((e) => (
             <View key={e.id} style={styles.row}>
               <View style={styles.rowBody}>
                 <Text style={styles.rowTitle} numberOfLines={1}>
-                  {e.description || e.type || 'Earning'}
+                  {e.description || e.type || t('b2_payrollEarningFallback')}
                 </Text>
                 {e.date ? <Text style={styles.rowDate}>{formatDate(e.date)}</Text> : null}
               </View>
@@ -70,7 +72,7 @@ export default function PayrollScreen() {
             </View>
           ))
         ) : (
-          <Text style={styles.muted}>No earnings yet.</Text>
+          <Text style={styles.muted}>{t('b2_payrollEmpty')}</Text>
         )}
       </ScrollView>
     </Screen>

@@ -37,49 +37,46 @@ import { useRole } from '@/features/auth/role';
 import { listAlbums, type GalleryItem } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { useLanguage } from '@/store/language';
 
 type AlbumFilter = 'all' | 'event' | 'personal' | 'locked';
 type AlbumSort = 'newest' | 'oldest' | 'photos_desc' | 'name_asc';
 type LayoutMode = 'grid' | 'list';
 
-const SORT_OPTIONS: {
-  key: AlbumSort;
-  label: string;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}[] = [
-  {
-    key: 'newest',
-    label: 'Recently added first',
-    description: 'Latest albums appear at the top',
-    icon: 'sparkles-outline',
-  },
-  {
-    key: 'oldest',
-    label: 'Oldest added first',
-    description: 'Earliest albums appear first',
-    icon: 'time-outline',
-  },
-  {
-    key: 'photos_desc',
-    label: 'Most photos first',
-    description: 'Albums with the highest photo count',
-    icon: 'images-outline',
-  },
-  {
-    key: 'name_asc',
-    label: 'Title (A–Z)',
-    description: 'Alphabetical order by album title',
-    icon: 'text-outline',
-  },
-];
-
 export default function GalleryScreen() {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { role, isPhotographer } = useRole();
+
+  const sortOptions = useMemo(() => [
+    {
+      key: 'newest' as const,
+      label: t('recentlyAddedFirst'),
+      description: t('recentlyAddedDesc'),
+      icon: 'sparkles-outline' as const,
+    },
+    {
+      key: 'oldest' as const,
+      label: t('oldestAddedFirst'),
+      description: t('oldestAddedDesc'),
+      icon: 'time-outline' as const,
+    },
+    {
+      key: 'photos_desc' as const,
+      label: t('mostPhotosFirst'),
+      description: t('mostPhotosDesc'),
+      icon: 'images-outline' as const,
+    },
+    {
+      key: 'name_asc' as const,
+      label: t('titleAZAlbum'),
+      description: t('titleAZAlbumDesc'),
+      icon: 'text-outline' as const,
+    },
+  ], [t]);
 
   const [filter, setFilter] = useState<AlbumFilter>('all');
   const [search, setSearch] = useState('');
@@ -134,15 +131,15 @@ export default function GalleryScreen() {
   const activeSortLabel = useMemo(() => {
     switch (sortBy) {
       case 'photos_desc':
-        return 'Most photos';
+        return t('mostPhotos');
       case 'oldest':
-        return 'Oldest';
+        return t('oldest');
       case 'name_asc':
-        return 'A–Z';
+        return t('aToZ');
       default:
-        return 'Recent';
+        return t('recent');
     }
-  }, [sortBy]);
+  }, [sortBy, t]);
 
   const header = (
     <View style={styles.headerContainer}>
@@ -150,10 +147,10 @@ export default function GalleryScreen() {
       <View style={styles.titleRow}>
         <View style={styles.titleCol}>
           <Text style={styles.titleEyebrow}>
-            {isPhotographer ? 'PHOTOGRAPHY PORTFOLIO' : 'PHOTO VAULT'}
+            {isPhotographer ? t('photographyPortfolio') : t('photoVault')}
           </Text>
           <View style={styles.titleWithBadge}>
-            <Text style={styles.pageTitle}>Albums</Text>
+            <Text style={styles.pageTitle}>{t('albumsTitle')}</Text>
             <View style={styles.totalBadge}>
               <Text style={styles.totalBadgeText}>{albums.length}</Text>
             </View>
@@ -204,12 +201,12 @@ export default function GalleryScreen() {
           const active = filter === f;
           const label =
             f === 'all'
-              ? 'All'
+              ? t('filterAll')
               : f === 'event'
-              ? 'Event Albums'
+              ? t('eventAlbums')
               : f === 'personal'
-              ? 'Personal'
-              : 'Locked';
+              ? t('personalAlbums')
+              : t('lockedAlbums');
           return (
             <Pressable
               key={f}
@@ -237,14 +234,14 @@ export default function GalleryScreen() {
               onPress={() => router.push('/photobooks' as Href)}
             >
               <Ionicons name="book-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.shortcutText}>Photobooks</Text>
+              <Text style={styles.shortcutText}>{t('photobooks')}</Text>
             </Pressable>
             <Pressable
               style={styles.shortcutChip}
               onPress={() => router.push('/content-albums' as Href)}
             >
               <Ionicons name="newspaper-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.shortcutText}>Content</Text>
+              <Text style={styles.shortcutText}>{t('content')}</Text>
             </Pressable>
           </>
         ) : null}
@@ -256,7 +253,7 @@ export default function GalleryScreen() {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search collections by name or type…"
+          placeholder={t('searchAlbumsPlaceholder')}
           placeholderTextColor={colors.textMuted}
           style={styles.searchInput}
           returnKeyType="search"
@@ -318,7 +315,7 @@ export default function GalleryScreen() {
           const isEventKind = kindUpper === 'EVENT';
           const isPaidKind = kindUpper.includes('PAID');
           const isFreeKind = kindUpper.includes('FREE');
-          const badgeLabel = isEventKind ? 'EVENT' : isPaidKind ? 'PAID' : isFreeKind ? 'FREE' : 'ALBUM';
+          const badgeLabel = isEventKind ? t('eventTag') : isPaidKind ? t('paidTag') : isFreeKind ? t('freeTag') : t('albumTag');
 
           if (layoutMode === 'list') {
             return (
@@ -365,8 +362,10 @@ export default function GalleryScreen() {
                     </View>
                     <Text style={styles.listPhotoCount}>
                       {item.photoCount != null
-                        ? `${item.photoCount} photo${item.photoCount === 1 ? '' : 's'}`
-                        : '0 photos'}
+                        ? item.photoCount === 1
+                          ? t('singlePhotoCount', { count: item.photoCount })
+                          : t('photoCount', { count: item.photoCount })
+                        : t('photoCount', { count: 0 })}
                     </Text>
                   </View>
 
@@ -374,7 +373,7 @@ export default function GalleryScreen() {
                     {item.name}
                   </Text>
                   <Text style={styles.listCardSubtitle} numberOfLines={1}>
-                    {isEventKind ? 'Client event collection' : rawKind ? `${rawKind} gallery` : 'Photo collection'}
+                    {isEventKind ? t('clientEventCollection') : rawKind ? `${rawKind} gallery` : t('photoCollection')}
                   </Text>
                 </View>
 
@@ -446,7 +445,7 @@ export default function GalleryScreen() {
                   {item.name}
                 </Text>
                 <Text style={styles.gridCardSubtitle} numberOfLines={1}>
-                  {isEventKind ? 'Event Collection' : rawKind ? `${rawKind} Gallery` : 'Photo Vault'}
+                  {isEventKind ? t('eventCollection') : rawKind ? `${rawKind} Gallery` : t('photoVault')}
                 </Text>
               </View>
             </Pressable>
@@ -456,19 +455,19 @@ export default function GalleryScreen() {
           loading ? (
             <View style={styles.centerBox}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading collections…</Text>
+              <Text style={styles.loadingText}>{t('loadingCollections')}</Text>
             </View>
           ) : error ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBox}>
                 <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
               </View>
-              <Text style={styles.emptyTitle}>Couldn&apos;t load albums</Text>
+              <Text style={styles.emptyTitle}>{t('couldNotLoadAlbums')}</Text>
               <Text style={styles.emptySubtitle}>
-                Please check your network connection and pull down to retry.
+                {t('checkNetworkRetry')}
               </Text>
               <Pressable style={styles.emptyBtn} onPress={refresh}>
-                <Text style={styles.emptyBtnText}>Retry</Text>
+                <Text style={styles.emptyBtnText}>{t('retry')}</Text>
               </Pressable>
             </View>
           ) : (
@@ -477,14 +476,14 @@ export default function GalleryScreen() {
                 <Ionicons name="images-outline" size={40} color={colors.textMuted} />
               </View>
               <Text style={styles.emptyTitle}>
-                {search || filter !== 'all' ? 'No matching collections' : isPhotographer ? 'No albums yet' : 'No galleries shared'}
+                {search || filter !== 'all' ? t('noMatchingCollections') : isPhotographer ? t('noAlbumsYet') : t('noGalleriesShared')}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {search || filter !== 'all'
-                  ? 'Try selecting a different filter or clearing your search query.'
+                  ? t('adjustFilterOrSearch')
                   : isPhotographer
-                  ? 'Create an album to organize client event photos or monetize private galleries.'
-                  : 'Albums delivered by your photographers will appear in this vault.'}
+                  ? t('photographerAlbumsEmpty')
+                  : t('clientAlbumsEmpty')}
               </Text>
               {isPhotographer && !search && filter === 'all' ? (
                 <Pressable
@@ -492,7 +491,7 @@ export default function GalleryScreen() {
                   onPress={() => router.push('/album/new' as Href)}
                 >
                   <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={styles.emptyBtnText}>Create First Album</Text>
+                  <Text style={styles.emptyBtnText}>{t('createFirstAlbum')}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -513,7 +512,7 @@ export default function GalleryScreen() {
           accessibilityLabel="Create new album"
         >
           <Ionicons name="add" size={20} color="#fff" />
-          <Text style={styles.fabText}>New Album</Text>
+          <Text style={styles.fabText}>{t('newAlbum')}</Text>
         </Pressable>
       ) : null}
 
@@ -535,8 +534,8 @@ export default function GalleryScreen() {
             <View style={styles.sheetHandle} />
             <View style={styles.sortSheetHeader}>
               <View>
-                <Text style={styles.sortSheetTitle}>Sort Collections</Text>
-                <Text style={styles.sortSheetSubtitle}>Choose an order for your albums</Text>
+                <Text style={styles.sortSheetTitle}>{t('sortAlbums')}</Text>
+                <Text style={styles.sortSheetSubtitle}>{t('chooseOrderAlbums')}</Text>
               </View>
               <Pressable
                 onPress={() => setSortSheetOpen(false)}
@@ -548,7 +547,7 @@ export default function GalleryScreen() {
             </View>
 
             <View style={styles.sortOptionsList}>
-              {SORT_OPTIONS.map((opt) => {
+              {sortOptions.map((opt) => {
                 const active = sortBy === opt.key;
                 return (
                   <Pressable

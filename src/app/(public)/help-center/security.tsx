@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function SecurityHelpScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('security');
 
   const toggleSection = (id: string) => {
@@ -15,9 +17,9 @@ export default function SecurityHelpScreen() {
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Security</Text>
+          <Text style={styles.title}>{t('b4_hcCatSecurityName')}</Text>
           <Text style={styles.subtitle}>
-            Best practices for keeping your account and data safe
+            {t('b4_hcSecuritySubtitle')}
           </Text>
         </View>
 
@@ -26,20 +28,20 @@ export default function SecurityHelpScreen() {
             style={styles.accordionHeader}
             onPress={() => toggleSection('security')}
           >
-            <Text style={styles.accordionTitle}>Account Security</Text>
+            <Text style={styles.accordionTitle}>{t('b4_hcAccountSecurity')}</Text>
             <Text style={styles.accordionIcon}>{openSection === 'security' ? '−' : '+'}</Text>
           </TouchableOpacity>
 
           {openSection === 'security' && (
             <View style={styles.accordionContent}>
               <Text style={styles.bodyText}>
-                We prioritize your security. Follow these guidelines to keep your account safe:
+                {t('b4_hcSecurityIntro')}
               </Text>
               <View style={[styles.card, { borderColor: '#EF444426', backgroundColor: '#EF44440A' }]}>
-                <Text style={styles.listItem}>• Use a strong, unique password</Text>
-                <Text style={styles.listItem}>• Enable Two-Factor Authentication (if available)</Text>
-                <Text style={styles.listItem}>• Do not share your login details</Text>
-                <Text style={styles.listItem}>• Beware of phishing attempts</Text>
+                <Text style={styles.listItem}>{t('b4_hcSecBullet1')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcSecBullet2')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcSecBullet3')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcSecBullet4')}</Text>
               </View>
             </View>
           )}
@@ -48,14 +50,14 @@ export default function SecurityHelpScreen() {
             style={styles.accordionHeader}
             onPress={() => toggleSection('privacy')}
           >
-            <Text style={styles.accordionTitle}>Data Privacy</Text>
+            <Text style={styles.accordionTitle}>{t('b4_hcDataPrivacy')}</Text>
             <Text style={styles.accordionIcon}>{openSection === 'privacy' ? '−' : '+'}</Text>
           </TouchableOpacity>
 
           {openSection === 'privacy' && (
             <View style={styles.accordionContent}>
               <Text style={styles.bodyText}>
-                Your data is securely stored and never shared with third parties without your consent. We comply with GDPR and CCPA standards.
+                {t('b4_hcDataPrivacyBody')}
               </Text>
             </View>
           )}

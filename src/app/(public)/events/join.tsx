@@ -46,6 +46,7 @@ import { getDeviceId } from '@/utils/deviceId';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { formatPrice } from '@/utils/format';
+import { useLanguage } from '@/store/language';
 
 
 type SavedGroupCode = {
@@ -56,8 +57,13 @@ type SavedGroupCode = {
   remainingInvites: number;
 };
 
-function feeLabel(fee: number, code: string | null | undefined, symbol?: string | null): string {
-  if (!fee || fee <= 0) return 'Free';
+function feeLabel(
+  fee: number,
+  code: string | null | undefined,
+  t: ReturnType<typeof useLanguage.getState>['t'],
+  symbol?: string | null,
+): string {
+  if (!fee || fee <= 0) return t('b4_priceFree');
   return formatPrice(fee, code || 'RWF');
 }
 
@@ -67,6 +73,7 @@ function isExpired(isoDate?: string): boolean {
 }
 
 export default function JoinPackageScreen() {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const { id, codeReady } = useLocalSearchParams<{ id: string; codeReady?: string }>();
@@ -102,7 +109,7 @@ export default function JoinPackageScreen() {
 
   const onRedeem = async () => {
     if (!redeemCode.trim() || !redeemUsername.trim()) {
-      setRedeemError('Please enter the invite code and a display name.');
+      setRedeemError(t('b4_joinEnterCodeAndName'));
       return;
     }
     setRedeemBusy(true);
@@ -116,11 +123,11 @@ export default function JoinPackageScreen() {
       if (!res.ok) {
         const msg = res.message ?? '';
         if (msg.toLowerCase().includes('limit') || msg.toLowerCase().includes('full')) {
-          setRedeemError('This group code has reached its viewer limit.');
+          setRedeemError(t('b4_joinCodeLimitReached'));
         } else if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('invalid')) {
-          setRedeemError('This group code is no longer valid.');
+          setRedeemError(t('b4_joinCodeExpired'));
         } else {
-          setRedeemError(msg || 'Could not redeem the code.');
+          setRedeemError(msg || t('b4_couldNotRedeemCode'));
         }
         return;
       }
@@ -131,7 +138,7 @@ export default function JoinPackageScreen() {
         `/events/live-stream?id=${id}${res.viewerId ? `&viewerId=${res.viewerId}` : ''}` as unknown as Href,
       );
     } catch (e) {
-      setRedeemError(isApiError(e) ? e.message : 'Could not redeem the code.');
+      setRedeemError(isApiError(e) ? e.message : t('b4_couldNotRedeemCode'));
     } finally {
       setRedeemBusy(false);
     }
@@ -151,7 +158,7 @@ export default function JoinPackageScreen() {
       <Screen>
         <View style={styles.centered}>
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.muted}>{error ?? 'Could not load this event.'}</Text>
+          <Text style={styles.muted}>{error ?? t('b4_couldNotLoadEvent')}</Text>
         </View>
       </Screen>
     );
@@ -161,6 +168,7 @@ export default function JoinPackageScreen() {
   const perPersonLabel = feeLabel(
     perPerson,
     data.streamFeeCurrencyAbbreviation,
+    t,
     data.streamFeeCurrencySymbol,
   );
 
@@ -178,23 +186,23 @@ export default function JoinPackageScreen() {
           <View style={styles.codeCard}>
             <View style={styles.codeCardHeader}>
               <Ionicons name="ticket" size={20} color={colors.primary} />
-              <Text style={styles.codeCardTitle}>Your group invite code</Text>
+              <Text style={styles.codeCardTitle}>{t('b4_yourGroupInviteCode')}</Text>
             </View>
             <View style={styles.codeBox}>
               <Text style={styles.codeText} selectable>{savedCode.code}</Text>
             </View>
             <Text style={styles.codeHint}>
-              Share this code with up to {savedCode.remainingInvites} more viewer
-              {savedCode.remainingInvites === 1 ? '' : 's'}. Each person enters it on the event
-              page to join your group stream.
+              {savedCode.remainingInvites === 1
+                ? t('b4_shareGroupCodeHintSingular', { count: savedCode.remainingInvites })
+                : t('b4_shareGroupCodeHintPlural', { count: savedCode.remainingInvites })}
             </Text>
             {savedCode.expiresAt ? (
               <Text style={styles.codeExpiry}>
-                Expires {new Date(savedCode.expiresAt).toLocaleDateString()}
+                {t('b4_expiresDate', { date: new Date(savedCode.expiresAt).toLocaleDateString() })}
               </Text>
             ) : null}
             <Button
-              title="Watch now"
+              title={t('b4_watchNow')}
               onPress={() =>
                 router.replace(
                   `/events/live-stream?id=${id}` as unknown as Href,
@@ -216,10 +224,10 @@ export default function JoinPackageScreen() {
               {data.title}
             </Text>
             <Text style={styles.previewMeta}>
-              {data.location ?? data.eventOrganizer ?? data.eventCategory?.name ?? 'Connekyt event'}
+              {data.location ?? data.eventOrganizer ?? data.eventCategory?.name ?? t('b4_connekytEvent')}
             </Text>
             <Text style={styles.previewFee}>
-              {feeLabel(perPerson, data.streamFeeCurrencyAbbreviation, data.streamFeeCurrencySymbol)} / person
+              {t('b4_perPerson', { price: feeLabel(perPerson, data.streamFeeCurrencyAbbreviation, t, data.streamFeeCurrencySymbol) })}
             </Text>
           </View>
         </View>
@@ -228,9 +236,9 @@ export default function JoinPackageScreen() {
             absent entirely and only the invite-code path below remains. */}
         {!digitalPurchasesEnabled ? (
           <View style={styles.totalCard}>
-            <Text style={styles.totalLabel}>Ticketed event</Text>
+            <Text style={styles.totalLabel}>{t('b4_ticketedEvent')}</Text>
             <Text style={styles.peopleHint}>
-              If you already have access, use your invite code below.
+              {t('b4_useInviteCodeBelow')}
             </Text>
           </View>
         ) : null}
@@ -239,16 +247,16 @@ export default function JoinPackageScreen() {
           <>
             {/* Fee card */}
             <View style={styles.totalCard}>
-              <Text style={styles.totalLabel}>Stream access</Text>
-              <Text style={styles.totalValue}>{perPersonLabel} / person</Text>
+              <Text style={styles.totalLabel}>{t('b4_streamAccess')}</Text>
+              <Text style={styles.totalValue}>{t('b4_perPerson', { price: perPersonLabel })}</Text>
             </View>
 
-            <Button title="Buy access" onPress={onBuy} />
+            <Button title={t('b4_ctaBuyAccess')} onPress={onBuy} />
             <Text style={styles.peopleHint}>
-              Pay for yourself here with mobile money or card. Buying for a group?
+              {t('b4_payForYourselfHint')}
             </Text>
             <Button
-              title="Buy a group package"
+              title={t('b4_buyGroupPackage')}
               variant="outline"
               onPress={() => void openWebCheckout(streamAccessUrl(id))}
             />
@@ -271,17 +279,16 @@ export default function JoinPackageScreen() {
               size={16}
               color={colors.primary}
             />
-            <Text style={styles.redeemToggleText}>Have a group invite code?</Text>
+            <Text style={styles.redeemToggleText}>{t('b4_haveGroupInviteCode')}</Text>
           </Pressable>
 
           {redeemOpen ? (
             <View style={styles.redeemForm}>
               <Text style={styles.redeemHint}>
-                If someone shared a group code with you, enter it below to join their stream
-                without paying separately.
+                {t('b4_redeemSharedCodeHint')}
               </Text>
               <Input
-                placeholder="Invite code"
+                placeholder={t('b4_inviteCodePlaceholder')}
                 value={redeemCode}
                 onChangeText={(t) => {
                   setRedeemCode(t);
@@ -291,7 +298,7 @@ export default function JoinPackageScreen() {
                 autoCorrect={false}
               />
               <Input
-                placeholder="Your display name"
+                placeholder={t('b4_yourDisplayNamePlaceholder')}
                 value={redeemUsername}
                 onChangeText={setRedeemUsername}
                 autoCapitalize="words"
@@ -303,7 +310,7 @@ export default function JoinPackageScreen() {
                 </View>
               ) : null}
               <Button
-                title={redeemBusy ? 'Joining…' : 'Join with invite code'}
+                title={redeemBusy ? t('b4_joining') : t('b4_joinWithInviteCode')}
                 onPress={onRedeem}
                 loading={redeemBusy}
                 disabled={!redeemCode.trim() || !redeemUsername.trim() || redeemBusy}

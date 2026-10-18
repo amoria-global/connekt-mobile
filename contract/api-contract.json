@@ -2512,6 +2512,32 @@
     },
     "pathVariables" : [ "candidateId" ]
   }, {
+    "method" : "POST",
+    "path" : "/api/pawapay/callback",
+    "controller" : "PawapayWebhookController#handleWebhook",
+    "body" : {
+      "type" : "JsonNode"
+    },
+    "params" : [ {
+      "name" : "signature",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/pawapay/webhook",
+    "controller" : "PawapayWebhookController#healthCheck"
+  }, {
+    "method" : "POST",
+    "path" : "/api/pawapay/webhook",
+    "controller" : "PawapayWebhookController#handleWebhook",
+    "body" : {
+      "type" : "JsonNode"
+    },
+    "params" : [ {
+      "name" : "signature",
+      "required" : false
+    } ]
+  }, {
     "method" : "GET",
     "path" : "/api/photographer/opportunities",
     "controller" : "HybridBookingController#getPhotographerOpportunities",
@@ -5448,6 +5474,17 @@
     "body" : {
       "type" : "Map"
     }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/payments/pawapay/callback",
+    "controller" : "PawapayWebhookController#handleWebhook",
+    "body" : {
+      "type" : "JsonNode"
+    },
+    "params" : [ {
+      "name" : "signature",
+      "required" : false
+    } ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/payments/pawapay/webhook",

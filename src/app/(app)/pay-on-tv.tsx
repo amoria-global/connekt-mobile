@@ -31,6 +31,7 @@ import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { isApiError } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
@@ -56,8 +57,8 @@ function extractTarget(scanned: string): { eventId: string; device: string } | n
   return null;
 }
 
-function feeLabel(fee: number, code?: string | null, symbol?: string | null): string {
-  if (!fee || fee <= 0) return 'Free';
+function feeLabel(fee: number, freeText: string, code?: string | null, symbol?: string | null): string {
+  if (!fee || fee <= 0) return freeText;
   return formatPrice(fee, code || 'RWF');
 }
 
@@ -69,6 +70,7 @@ function leaveScreen(router: ReturnType<typeof useRouter>) {
 export default function PayOnTvScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [target, setTarget] = useState<{ eventId: string; device: string } | null>(null);
@@ -79,13 +81,13 @@ export default function PayOnTvScreen() {
     if (handledRef.current) return;
     const parsed = extractTarget(result.data);
     if (!parsed) {
-      setScanError("That QR isn't a Connekyt pay-to-watch code. Point at the code your TV shows.");
+      setScanError(t('b1_payTvInvalidQr'));
       return;
     }
     handledRef.current = true;
     setScanError(null);
     setTarget(parsed);
-  }, []);
+  }, [t]);
 
   const rescan = () => {
     handledRef.current = false;
@@ -112,13 +114,13 @@ export default function PayOnTvScreen() {
           hitSlop={12}
           style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t('b1_payTvCloseA11y')}
         >
           <Ionicons name="close" size={22} color={colors.text} />
         </Pressable>
         <View style={styles.topCopy}>
-          <Text style={styles.title}>Pay on TV</Text>
-          <Text style={styles.subtitle}>Scan the payment QR shown on your TV</Text>
+          <Text style={styles.title}>{t('b1_payTvTitle')}</Text>
+          <Text style={styles.subtitle}>{t('b1_payTvSubtitle')}</Text>
         </View>
         <View style={styles.closeBtnSpacer} />
       </View>
@@ -129,9 +131,9 @@ export default function PayOnTvScreen() {
         </View>
       ) : !permission.granted ? (
         <View style={styles.center}>
-          <Text style={styles.body}>Connekyt needs camera access to scan the QR on your TV.</Text>
-          <Button title="Allow camera access" onPress={requestPermission} />
-          <Button title="Cancel" variant="ghost" onPress={() => leaveScreen(router)} />
+          <Text style={styles.body}>{t('b1_payTvPermBody')}</Text>
+          <Button title={t('b1_payTvAllowCameraBtn')} onPress={requestPermission} />
+          <Button title={t('b1_payTvCancelBtn')} variant="ghost" onPress={() => leaveScreen(router)} />
         </View>
       ) : (
         <View style={styles.cameraWrap}>
@@ -145,7 +147,7 @@ export default function PayOnTvScreen() {
             style={({ pressed }) => [styles.cameraClose, pressed && styles.pressed]}
             onPress={() => leaveScreen(router)}
             accessibilityRole="button"
-            accessibilityLabel="Close scanner"
+            accessibilityLabel={t('b1_payTvCloseScannerA11y')}
           >
             <Ionicons name="close" size={20} color="#fff" />
           </Pressable>
@@ -174,7 +176,8 @@ function PayPanel({
   const router = useRouter();
   const styles = useStyles();
   const { colors, gradients } = useTheme();
-  const [title, setTitle] = useState<string>('This stream');
+  const { t } = useLanguage();
+  const [title, setTitle] = useState<string>('');
   const [fee, setFee] = useState<number>(0);
   const [feeCode, setFeeCode] = useState<string | undefined>();
   const [feeSymbol, setFeeSymbol] = useState<string | undefined>();
@@ -189,12 +192,12 @@ function PayPanel({
       try {
         const ev = await getPublicEventDetailed(eventId);
         if (cancelled) return;
-        setTitle(ev.title || 'This stream');
+        setTitle(ev.title || '');
         setFee(ev.streamFee ?? 0);
         setFeeCode(ev.streamFeeCurrencyAbbreviation ?? undefined);
         setFeeSymbol(ev.streamFeeCurrencySymbol ?? undefined);
       } catch (e) {
-        if (!cancelled) setLoadError(isApiError(e) ? e.message : 'Could not load this stream.');
+        if (!cancelled) setLoadError(isApiError(e) ? e.message : t('b1_payTvLoadErr'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -202,9 +205,10 @@ function PayPanel({
     return () => {
       cancelled = true;
     };
-  }, [eventId]);
+  }, [eventId, t]);
 
-  const totalLabel = feeLabel(fee, feeCode, feeSymbol);
+  const totalLabel = feeLabel(fee, t('b1_payTvFree'), feeCode, feeSymbol);
+  const displayTitle = title || t('b1_payTvDefaultStreamTitle');
 
   // Payment happens in the app (events/pay), keyed to the TV's device id (from
   // the QR) so access lands on the TV. The TV polls access-status and unlocks
@@ -220,7 +224,7 @@ function PayPanel({
   if (loading) {
     return (
       <Screen padded={false} edges={['top']} style={styles.wide}>
-        <ModalChrome title="Pay on TV" subtitle="Loading stream…" onClose={onDone} />
+        <ModalChrome title={t('b1_payTvTitle')} subtitle={t('b1_payTvLoadingSubtitle')} onClose={onDone} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -230,12 +234,12 @@ function PayPanel({
   if (loadError) {
     return (
       <Screen padded={false} edges={['top']} style={styles.wide}>
-        <ModalChrome title="Pay on TV" onClose={onDone} />
+        <ModalChrome title={t('b1_payTvTitle')} onClose={onDone} />
         <View style={styles.center}>
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
           <Text style={styles.body}>{loadError}</Text>
-          <Button title="Scan again" onPress={onBack} />
-          <Button title="Cancel" variant="ghost" onPress={onDone} />
+          <Button title={t('b1_payTvScanAgainBtn')} onPress={onBack} />
+          <Button title={t('b1_payTvCancelBtn')} variant="ghost" onPress={onDone} />
         </View>
       </Screen>
     );
@@ -243,7 +247,7 @@ function PayPanel({
 
   return (
     <Screen padded={false} edges={['top', 'bottom']} style={styles.wide}>
-      <ModalChrome title="Pay on TV" subtitle="Unlock this stream on your Smart TV" onClose={onDone} />
+      <ModalChrome title={t('b1_payTvTitle')} subtitle={t('b1_payTvUnlockSubtitle')} onClose={onDone} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Hero — brand gradient with the amount as the anchor */}
         <LinearGradient
@@ -254,11 +258,11 @@ function PayPanel({
         >
           <View style={styles.tvBadge}>
             <Ionicons name="tv" size={13} color="#fff" />
-            <Text style={styles.tvBadgeText}>PAYING FOR YOUR TV</Text>
+            <Text style={styles.tvBadgeText}>{t('b1_payTvBadge')}</Text>
           </View>
-          <Text style={styles.heroEvent} numberOfLines={2}>{title}</Text>
+          <Text style={styles.heroEvent} numberOfLines={2}>{displayTitle}</Text>
           <View style={styles.heroAmountRow}>
-            <Text style={styles.heroAmountLabel}>Amount</Text>
+            <Text style={styles.heroAmountLabel}>{t('b1_payTvAmountLabel')}</Text>
             <Text style={styles.heroAmount}>{totalLabel}</Text>
           </View>
         </LinearGradient>
@@ -267,16 +271,15 @@ function PayPanel({
           <View style={[styles.statusBox, styles.statusOk]}>
             <Ionicons name="tv-outline" size={22} color={colors.success} />
             <Text style={[styles.statusText, { color: colors.success }]}>
-              Finish the payment in the page that opened. Once it&apos;s confirmed, your TV
-              unlocks on its own, which can take a few seconds. You can close this screen.
+              {t('b1_payTvHandedOffBody')}
             </Text>
           </View>
         ) : digitalPurchasesEnabled ? (
           <>
             <View style={styles.steps}>
-              <Step icon="qr-code-outline" text="Scanned the code your TV is showing." done />
-              <Step icon="card-outline" text="Pay securely in the app." />
-              <Step icon="tv-outline" text="Your TV unlocks automatically once paid." />
+              <Step icon="qr-code-outline" text={t('b1_payTvStep1')} done />
+              <Step icon="card-outline" text={t('b1_payTvStep2')} />
+              <Step icon="tv-outline" text={t('b1_payTvStep3')} />
             </View>
           </>
         ) : (
@@ -286,8 +289,7 @@ function PayPanel({
           <View style={styles.statusBox}>
             <Ionicons name="information-circle" size={22} color={colors.textMuted} />
             <Text style={styles.statusText}>
-              Paid streams can&apos;t be purchased in the app. If you already have an
-              invite code, you can enter it on your TV.
+              {t('b1_payTvDisabledBody')}
             </Text>
           </View>
         )}
@@ -296,19 +298,19 @@ function PayPanel({
       {/* Sticky action bar */}
       <View style={styles.footer}>
         {handedOff ? (
-          <Button title="Done" onPress={onDone} />
+          <Button title={t('b1_payTvDoneBtn')} onPress={onDone} />
         ) : digitalPurchasesEnabled ? (
-          <Button title={`Pay ${totalLabel}`} onPress={onPayOnWeb} />
+          <Button title={t('b1_payTvPayBtn', { amount: totalLabel })} onPress={onPayOnWeb} />
         ) : (
-          <Button title="Close" onPress={onDone} />
+          <Button title={t('b1_payTvCloseBtn')} onPress={onDone} />
         )}
         <Pressable onPress={onBack} style={styles.rescanLink} hitSlop={8}>
           <Ionicons name="qr-code-outline" size={15} color={colors.textMuted} />
-          <Text style={styles.rescanText}>Scan a different TV</Text>
+          <Text style={styles.rescanText}>{t('b1_payTvRescanLink')}</Text>
         </Pressable>
         <View style={styles.secureRow}>
           <Ionicons name="lock-closed" size={11} color={colors.textMuted} />
-          <Text style={styles.note}>Payment is completed securely in the app</Text>
+          <Text style={styles.note}>{t('b1_payTvSecureNote')}</Text>
         </View>
       </View>
     </Screen>
@@ -326,6 +328,7 @@ function ModalChrome({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   return (
     <View style={styles.topBar}>
       <Pressable
@@ -333,7 +336,7 @@ function ModalChrome({
         hitSlop={12}
         style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
         accessibilityRole="button"
-        accessibilityLabel="Close"
+        accessibilityLabel={t('b1_payTvCloseA11y')}
       >
         <Ionicons name="close" size={22} color={colors.text} />
       </Pressable>

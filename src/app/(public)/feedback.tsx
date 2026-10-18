@@ -1,6 +1,7 @@
 import { ScrollView } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { ContactForm } from '@/components/ContactForm';
+import { useLanguage } from '@/hooks/useLanguage';
 
 /**
  * Feedback screen. There is no separate feedback endpoint — feedback goes
@@ -8,17 +9,18 @@ import { ContactForm } from '@/components/ContactForm';
  * subject locked to "Feedback" so the team can triage it.
  */
 export default function FeedbackScreen() {
+  const { t } = useLanguage();
   return (
     <Screen padded={false}>
       <ScrollView>
         <ContactForm
-          eyebrow="Help us improve"
-          title="Share your feedback"
-          subtitle="Found a bug, have an idea, or something didn't feel right? Tell us. Every bit of feedback shapes Connekyt."
+          eyebrow={t('b4_feedbackEyebrow')}
+          title={t('b4_feedbackTitle')}
+          subtitle={t('b4_feedbackSubtitle')}
           defaultSubject="Feedback"
           lockSubject
-          submitLabel="Send feedback"
-          formTitle="Your feedback"
+          submitLabel={t('b4_feedbackSubmit')}
+          formTitle={t('b4_feedbackFormTitle')}
         />
       </ScrollView>
     </Screen>

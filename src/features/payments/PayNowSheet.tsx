@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type PendingPayment } from '@/features/analytics/api';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { canPayDeclarationHere } from '@/features/payments/policy';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
@@ -31,6 +32,7 @@ export function PayNowSheet({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
 
   if (!payment) return null;
@@ -61,13 +63,12 @@ export function PayNowSheet({
           <View style={styles.handle} />
           <View style={styles.headRow}>
             <Text style={styles.title}>{payment.eventName}</Text>
-            <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close">
+            <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('cancel')}>
               <Ionicons name="close" size={22} color={colors.textMuted} />
             </Pressable>
           </View>
           <Text style={styles.note}>
-            This is a purchase a viewer started and has not completed. There is nothing for you to
-            pay.
+            {t('payNowViewerPurchaseNote')}
           </Text>
         </View>
       </View>

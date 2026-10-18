@@ -24,6 +24,7 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { isApiError, useAuth } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
 
 function formatMessageTime(dateStr?: string): string {
@@ -40,6 +41,7 @@ function formatMessageTime(dateStr?: string): string {
 export default function ConversationScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   // `id` is the partner's customerId (UUID) used for chat history and sending
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const router = useRouter();
@@ -58,7 +60,7 @@ export default function ConversationScreen() {
   const [reportUserOpen, setReportUserOpen] = useState(false);
   const [reportMessage, setReportMessage] = useState<Message | null>(null);
 
-  const partnerLabel = name || 'Creator';
+  const partnerLabel = name || t('b3_conv_creator');
 
   // Fetch messages from backend
   const fetchMessages = useCallback(
@@ -71,13 +73,13 @@ export default function ConversationScreen() {
         setError(null);
       } catch (e) {
         if (isInitial) {
-          setError(isApiError(e) ? e.message : 'Failed to load messages');
+          setError(isApiError(e) ? e.message : t('b3_conv_load_failed'));
         }
       } finally {
         if (isInitial) setLoading(false);
       }
     },
-    [id],
+    [id, t],
   );
 
   // Initial load + mark read
@@ -110,40 +112,40 @@ export default function ConversationScreen() {
 
   const onBlock = useCallback(() => {
     Alert.alert(
-      `Block ${partnerLabel}?`,
-      'They will no longer be able to message you, and this conversation disappears from your inbox.',
+      t('b3_conv_block_title', { name: partnerLabel }),
+      t('b3_conv_block_msg'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('b3_conv_cancel'), style: 'cancel' },
         {
-          text: 'Block',
+          text: t('b3_conv_block'),
           style: 'destructive',
           onPress: async () => {
             try {
               await blockAccount(id);
               router.back();
             } catch (e) {
-              Alert.alert('Could not block', isApiError(e) ? e.message : 'Please try again.');
+              Alert.alert(t('b3_conv_could_not_block'), isApiError(e) ? e.message : t('b3_conv_try_again'));
             }
           },
         },
       ],
     );
-  }, [blockAccount, id, partnerLabel, router]);
+  }, [blockAccount, id, partnerLabel, router, t]);
 
   const onHeaderMenu = useCallback(() => {
     Alert.alert(partnerLabel, undefined, [
-      { text: 'Report user', style: 'destructive', onPress: () => setReportUserOpen(true) },
-      { text: 'Block user', style: 'destructive', onPress: onBlock },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('b3_conv_report_user'), style: 'destructive', onPress: () => setReportUserOpen(true) },
+      { text: t('b3_conv_block_user'), style: 'destructive', onPress: onBlock },
+      { text: t('b3_conv_cancel'), style: 'cancel' },
     ]);
-  }, [onBlock, partnerLabel]);
+  }, [onBlock, partnerLabel, t]);
 
   const onLongPressMessage = useCallback((message: Message) => {
-    Alert.alert('Message', message.text, [
-      { text: 'Report message', style: 'destructive', onPress: () => setReportMessage(message) },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('b3_conv_message'), message.text, [
+      { text: t('b3_conv_report_message'), style: 'destructive', onPress: () => setReportMessage(message) },
+      { text: t('b3_conv_cancel'), style: 'cancel' },
     ]);
-  }, []);
+  }, [t]);
 
   const submitUserReport = useCallback(
     (reason: string, description: string) => reportContent('USER', id, reason, description),
@@ -152,10 +154,10 @@ export default function ConversationScreen() {
 
   const submitMessageReport = useCallback(
     async (reason: string, description: string) => {
-      if (!reportMessage) throw { status: 400, message: 'Nothing to report.' };
+      if (!reportMessage) throw { status: 400, message: t('b3_conv_nothing_to_report') };
       return reportContent('DIRECT_MESSAGE', reportMessage.id, reason, description);
     },
-    [reportMessage],
+    [reportMessage, t],
   );
 
   const onSend = async () => {
@@ -184,8 +186,8 @@ export default function ConversationScreen() {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setDraft(text);
       Alert.alert(
-        'Message not sent',
-        isApiError(e) ? e.message : 'Please check your connection and try again.',
+        t('b3_conv_not_sent_title'),
+        isApiError(e) ? e.message : t('b3_conv_not_sent_msg'),
       );
     } finally {
       setSending(false);
@@ -202,7 +204,7 @@ export default function ConversationScreen() {
               onPress={onHeaderMenu}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Conversation options"
+              accessibilityLabel={t('b3_conv_options_a11y')}
             >
               <Ionicons name="ellipsis-horizontal" size={22} color={colors.textOnPrimary} />
             </Pressable>
@@ -226,7 +228,7 @@ export default function ConversationScreen() {
               style={styles.retryBtn}
               onPress={() => void fetchMessages(true)}
             >
-              <Text style={styles.retryText}>Retry</Text>
+              <Text style={styles.retryText}>{t('b3_conv_retry')}</Text>
             </Pressable>
           </View>
         ) : (
@@ -253,7 +255,7 @@ export default function ConversationScreen() {
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
                 <Ionicons name="chatbubble-ellipses-outline" size={36} color={colors.textMuted} />
-                <Text style={styles.empty}>No messages yet. Say hello to {partnerLabel} 👋</Text>
+                <Text style={styles.empty}>{t('b3_conv_empty', { name: partnerLabel })}</Text>
               </View>
             }
           />
@@ -262,7 +264,7 @@ export default function ConversationScreen() {
         <View style={styles.composer}>
           <TextInput
             style={styles.input}
-            placeholder="Type a message…"
+            placeholder={t('b3_conv_placeholder')}
             placeholderTextColor={colors.textMuted}
             value={draft}
             onChangeText={setDraft}

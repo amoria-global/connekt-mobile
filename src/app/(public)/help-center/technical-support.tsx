@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function TechSupportHelpScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('issues');
 
   const toggleSection = (id: string) => {
@@ -15,9 +17,9 @@ export default function TechSupportHelpScreen() {
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Technical Support</Text>
+          <Text style={styles.title}>{t('b4_hcCatTechSupportName')}</Text>
           <Text style={styles.subtitle}>
-            Troubleshoot common issues and get technical help
+            {t('b4_hcTechSubtitle')}
           </Text>
         </View>
 
@@ -26,21 +28,21 @@ export default function TechSupportHelpScreen() {
             style={styles.accordionHeader}
             onPress={() => toggleSection('issues')}
           >
-            <Text style={styles.accordionTitle}>Common Issues</Text>
+            <Text style={styles.accordionTitle}>{t('b4_hcCommonIssues')}</Text>
             <Text style={styles.accordionIcon}>{openSection === 'issues' ? '−' : '+'}</Text>
           </TouchableOpacity>
 
           {openSection === 'issues' && (
             <View style={styles.accordionContent}>
               <View style={[styles.card, { borderColor: '#6366F126', backgroundColor: '#6366F10A' }]}>
-                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4 }]}>Login Issues</Text>
-                <Text style={styles.listItem}>Ensure your email and password are correct. Try resetting your password if you forgot it.</Text>
+                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4 }]}>{t('b4_hcLoginIssuesTitle')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcLoginIssuesDesc')}</Text>
 
-                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4, marginTop: 8 }]}>Upload Errors</Text>
-                <Text style={styles.listItem}>Check if your photo exceeds the 20MB limit or is not in JPG/PNG format.</Text>
+                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4, marginTop: 8 }]}>{t('b4_hcUploadErrorsTitle')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcUploadErrorsDesc')}</Text>
 
-                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4, marginTop: 8 }]}>App Crashing</Text>
-                <Text style={styles.listItem}>Ensure you have the latest version of the Amoria Connekyt app installed.</Text>
+                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4, marginTop: 8 }]}>{t('b4_hcAppCrashingTitle')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcAppCrashingDesc')}</Text>
               </View>
             </View>
           )}
@@ -49,14 +51,14 @@ export default function TechSupportHelpScreen() {
             style={styles.accordionHeader}
             onPress={() => toggleSection('contact')}
           >
-            <Text style={styles.accordionTitle}>Contact Support</Text>
+            <Text style={styles.accordionTitle}>{t('b4_hcContactSupportTitle')}</Text>
             <Text style={styles.accordionIcon}>{openSection === 'contact' ? '−' : '+'}</Text>
           </TouchableOpacity>
 
           {openSection === 'contact' && (
             <View style={styles.accordionContent}>
               <Text style={styles.bodyText}>
-                If you still need help, please reach out to us at support@connekyt.com or use the Contact Us page.
+                {t('b4_hcContactSupportBody')}
               </Text>
             </View>
           )}

@@ -7,10 +7,12 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { listStreams } from '@/features/streams/api';
 import { StreamCard } from '@/features/streams/StreamCard';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/hooks/useLanguage';
 import { useRole } from '@/features/auth/role';
 
 export default function StreamsScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { isCoordinator } = useRole();
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => listStreams(isCoordinator), [isCoordinator]),
@@ -18,7 +20,7 @@ export default function StreamsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Live Streams" subtitle="Watch and support creators" />
+      <ScreenHeader title={t('b2_streamsTitle')} subtitle={t('b2_streamsSubtitle')} />
       <DataList
         data={data}
         loading={loading}
@@ -31,8 +33,8 @@ export default function StreamsScreen() {
           </Pressable>
         )}
         emptyIcon="videocam-outline"
-        emptyTitle="No live streams"
-        emptyMessage="When creators go live, their streams will show up here. Pull to refresh."
+        emptyTitle={t('b2_streamsEmptyTitle')}
+        emptyMessage={t('b2_streamsEmptyMessage')}
       />
     </Screen>
   );

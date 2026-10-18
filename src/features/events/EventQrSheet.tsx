@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { eventQrLink, qrMatrix } from '@/features/events/scanIntent';
 import { fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 const QUIET = 2; // modules of white margin around the code
 const NAVY = '#083A85';
@@ -35,6 +36,7 @@ export function EventQrSheet({
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
   const link = eventQrLink(eventId);
 
   const path = useMemo(() => {
@@ -57,18 +59,18 @@ export function EventQrSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close QR code" />
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={tr('Close')} />
       <View style={[styles.sheet, { backgroundColor: colors.elevated, paddingBottom: spacing.lg + insets.bottom }]}>
         <View style={styles.head}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: colors.text }]}>
-              {justPublished ? 'Your event is live' : 'Event QR code'}
+              {justPublished ? tr('Your event is live') : tr('Event QR code')}
             </Text>
             <Text style={[styles.sub, { color: colors.textMuted }]} numberOfLines={2}>
               {title}
             </Text>
           </View>
-          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={tr('Close')}>
             <Ionicons name="close" size={24} color={colors.textMuted} />
           </Pressable>
         </View>
@@ -83,17 +85,17 @@ export function EventQrSheet({
         </View>
 
         <Text style={[styles.hint, { color: colors.textMuted }]}>
-          Anyone who scans this opens the event page. On a phone they are asked to open the Connekyt app.
+          {tr('Anyone who scans this opens the event page. On a phone they are asked to open the Connekyt app.')}
         </Text>
 
         <Pressable
           onPress={onShare}
           style={[styles.btn, { backgroundColor: NAVY }]}
           accessibilityRole="button"
-          accessibilityLabel="Share event link"
+          accessibilityLabel={tr('Share link')}
         >
           <Ionicons name="share-social" size={18} color="#fff" />
-          <Text style={styles.btnText}>Share link</Text>
+          <Text style={styles.btnText}>{tr('Share link')}</Text>
         </Pressable>
       </View>
     </Modal>

@@ -4,18 +4,19 @@ import { MODE_META } from '@/features/hybrid/hybridUi';
 import { pendingPostEvent } from '@/features/hybrid/postEventIntent';
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Screen } from "@/components/ui/Screen";
 import {
   isNeedsPasswordChange,
   isNeedsTotp,
   isNeedsVerification,
 } from "@/features/auth/api";
 import { AppleButton } from "@/features/auth/AppleButton";
+import { AuthGlassLayout } from "@/features/auth/AuthGlassLayout";
 import { ChooseRoleBottomSheet } from "@/features/auth/ChooseRoleBottomSheet";
 import { GoogleButton } from "@/features/auth/GoogleButton";
 import type { CustomerType } from "@/features/auth/types";
 import { parsePhone } from "@/lib/phoneKit";
 import { isApiError, useAuth } from "@/store/auth";
+import { useLanguage } from "@/store/language";
 import {
   fontSize,
   fontWeight,
@@ -27,25 +28,27 @@ import {
 } from "@/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LinearGradient } from "expo-linear-gradient";
-import { useVideoPlayer, VideoView } from "expo-video";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { z } from "zod";
+import { GlassOnMedia, glassTile } from '@/components/ui/GlassCard';
+import { useVideoPlayer, VideoView } from "expo-video";
 
 const FIND_PHOTOS_VIDEO = require('../../../assets/images/screen3.mp4');
+/** First frame for the video card while the video loads. */
+const SCAN_POSTER = require('../../../assets/images/scan.png');
 const LIVE_IMAGE = require('../../../assets/images/live.png');
 
 const schema = z.object({
@@ -80,6 +83,7 @@ export default function LoginScreen() {
     lastName?: string;
   }>();
   const [serverError, setServerError] = useState<string | null>(null);
+  const { t } = useLanguage();
   const [roleSheetVisible, setRoleSheetVisible] = useState(false);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
@@ -207,275 +211,195 @@ export default function LoginScreen() {
     }
   };
 
-  return (
-    <Screen padded={false}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+  // Guest paths sit on the photo itself, so they are visible on arrival
+  // instead of below the fold under the sign-in form.
+  const guestPaths = (
+    <View style={styles.guestRow}>
+      <Pressable
+        onPress={() => router.push("/find-photos")}
+        style={({ pressed }) => [styles.guestCard, pressed && styles.guestCardPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('findMyPhotos')}. ${t('selfiePhotoLookup')}`}
       >
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          automaticallyAdjustKeyboardInsets
-        >
-          <View style={styles.top}>
-            <View style={styles.header}>
-              <Image
-                source={require("../../../assets/images/logo.png")}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-              <Text style={styles.title}>Welcome back</Text>
-              <Text style={styles.subtitle}>Sign in to your account</Text>
+        <Image source={SCAN_POSTER} style={styles.cover} resizeMode="cover" />
+        <GuestCardVideo source={FIND_PHOTOS_VIDEO} />
+        <GuestCardLabel
+          icon="scan-outline"
+          iconStyle={styles.guestIconAccent}
+          title={t('findMyPhotos')}
+          subtitle={t('aiScan')}
+        />
+      </Pressable>
+      <Pressable
+        onPress={() => setExploreChoiceOpen(true)}
+        style={({ pressed }) => [styles.guestCard, pressed && styles.guestCardPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('exploreEvents')}. ${t('liveStreamsEvents')}`}
+      >
+        <Image source={LIVE_IMAGE} style={styles.cover} resizeMode="cover" />
+        <GuestCardLabel
+          icon="radio-outline"
+          iconStyle={styles.guestIconLive}
+          title={t('exploreEvents')}
+          subtitle={t('liveAndEvents')}
+        />
+      </Pressable>
+    </View>
+  );
+
+  return (
+    <>
+      <AuthGlassLayout
+        title={t('welcomeBack')}
+        subtitle={t('signInToAccount')}
+        bandRatio={0.28}
+        bandFooter={guestPaths}
+        scrollRef={scrollRef}
+        footer={
+          <Pressable
+            style={styles.registerLine}
+            onPress={onRegister}
+            hitSlop={8}
+            accessibilityRole="button"
+          >
+            <Text style={styles.registerText}>
+              {t('notRegisteredYet')} <Text style={styles.link}>{t('createAnAccount')}</Text>
+            </Text>
+          </Pressable>
+        }
+      >
+        {postIntent ? (
+          <View
+            style={styles.postNotice}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+          >
+            <View style={styles.postNoticeIcon}>
+              <Ionicons name={MODE_META.HYBRID.icon} size={18} color={MODE_META.HYBRID.color} />
             </View>
-
-            {postIntent ? (
-              <View
-                style={styles.postNotice}
-                accessibilityRole="alert"
-                accessibilityLiveRegion="polite"
-              >
-                <View style={styles.postNoticeIcon}>
-                  <Ionicons name={MODE_META.HYBRID.icon} size={20} color={MODE_META.HYBRID.color} />
-                </View>
-                <View style={styles.flex}>
-                  <Text style={styles.postNoticeTitle}>Sign in to post your event</Text>
-                  <Text style={styles.postNoticeText}>
-                    Post My Event opens as soon as you are in.{" "}
-                    <Text style={styles.registerLink} onPress={onRegister} accessibilityRole="link">
-                      New here? Create an account
-                    </Text>
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={dismissPostIntent}
-                  hitSlop={10}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel posting my event"
-                >
-                  <Ionicons name="close" size={20} color={colors.textMuted} />
-                </Pressable>
-              </View>
-            ) : null}
-
-            <View style={styles.form}>
-              <Controller
-                control={control}
-                name="email"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    ref={emailRef}
-                    label="Your Email"
-                    autoCapitalize="none"
-                    autoComplete="username"
-                    textContentType="username"
-                    keyboardType="email-address"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.email?.message}
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    label="Password"
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoComplete="current-password"
-                    textContentType="password"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.password?.message}
-                  />
-                )}
-              />
-
-              <Pressable
-                style={styles.forgotWrap}
-                onPress={() =>
-                  router.push({
-                    pathname: "/forgot-password",
-                    params: { email: getValues("email") },
-                  })
-                }
-                hitSlop={8}
-              >
-                <Text style={styles.forgotText}>Forgot your password?</Text>
-              </Pressable>
-
-              {serverError ? (
-                <Text style={styles.serverError}>{serverError}</Text>
-              ) : null}
-
-              <Button
-                title="Log in"
-                onPress={handleSubmit(onSubmit)}
-                loading={isSubmitting}
-              />
-
-              <Pressable
-                style={styles.registerLine}
-                onPress={onRegister}
-                hitSlop={8}
-              >
-                <Text style={styles.registerText}>
-                  Not registered yet?{" "}
-                  <Text style={styles.registerLink}>Create an account</Text>
+            <View style={styles.flex}>
+              <Text style={styles.postNoticeTitle}>{t('signInToPostEvent')}</Text>
+              <Text style={styles.postNoticeText}>
+                {t('postEventOpens')}{" "}
+                <Text style={styles.link} onPress={onRegister} accessibilityRole="link">
+                  {t('newHereCreateAccount')}
                 </Text>
-              </Pressable>
-
-              <View style={styles.divider}>
-                <View style={styles.line} />
-                <Text style={styles.dividerText}>Or continue with</Text>
-                <View style={styles.line} />
-              </View>
-
-              {/* SIGN-IN mode: no role is known here, so this must never create
-                  an account. An unrecognised Google profile is routed to role
-                  selection with its details carried over. */}
-              <GoogleButton
-                mode="login"
-                label="Continue with Google"
-                onNeedsRole={(profile) => {
-                  setPrefilledProfile({
-                    email: profile.email,
-                    firstName: profile.firstName,
-                    lastName: profile.lastName,
-                  });
-                  setRoleSheetVisible(true);
-                }}
-              />
-              {/* Same rule as Google: sign-in never creates an account. The
-                  backend is asked not to register an unknown Apple ID and the
-                  verified profile is carried into role selection. */}
-              <AppleButton
-                mode="login"
-                label="Continue with Apple"
-                onNeedsRole={(profile) => {
-                  setPrefilledProfile({
-                    email: profile.email,
-                    firstName: profile.firstName,
-                    lastName: profile.lastName,
-                  });
-                  setRoleSheetVisible(true);
-                }}
-              />
+              </Text>
             </View>
-
-            <View style={styles.guestSection}>
-              <View style={styles.guestHeaderRow}>
-                <Text style={styles.guestSectionTitle}>
-                  Explore without account
-                </Text>
-                <View style={styles.guestTagPill}>
-                  <Text style={styles.guestTagText}>FREE ACCESS</Text>
-                </View>
-              </View>
-
-              <View style={styles.guestCardsRow}>
-                {/* Find My Photos card */}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.guestCard,
-                    pressed && styles.guestCardPressed,
-                  ]}
-                  onPress={() => router.push("/find-photos")}
-                  accessibilityRole="button"
-                  accessibilityLabel="Find my photos with AI facial recognition"
-                >
-                  <Image
-                    source={require("../../../assets/images/scan.png")}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
-                  />
-                  <GuestCardVideo source={FIND_PHOTOS_VIDEO} />
-                  <LinearGradient
-                    colors={["rgba(8,20,44,0.25)", "rgba(8,20,44,0.92)"]}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <View style={styles.guestCardContent}>
-                    <View style={[styles.badge, styles.badgeAi]}>
-                      <Ionicons name="scan-outline" size={12} color="#F20C8F" />
-                      <Text style={styles.badgeText}>AI SCAN</Text>
-                    </View>
-
-                    <View style={styles.guestCardFooter}>
-                      <View style={styles.guestCardTextCol}>
-                        <Text style={styles.guestCardTitle} numberOfLines={1}>
-                          Find My Photos
-                        </Text>
-                        <Text style={styles.guestCardDesc} numberOfLines={2}>
-                          Selfie photo lookup
-                        </Text>
-                      </View>
-                      <View style={styles.cardArrowWrap}>
-                        <Ionicons
-                          name="arrow-forward"
-                          size={12}
-                          color="#FFFFFF"
-                        />
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
-
-                {/* Explore Events card */}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.guestCard,
-                    pressed && styles.guestCardPressed,
-                  ]}
-                  onPress={() => setExploreChoiceOpen(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Explore events, or post your event to get a photographer"
-                >
-                  <Image
-                    source={LIVE_IMAGE}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
-                  />
-                  <LinearGradient
-                    colors={["rgba(8,20,44,0.25)", "rgba(8,20,44,0.92)"]}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <View style={styles.guestCardContent}>
-                    <View style={[styles.badge, styles.badgeLive]}>
-                      <View style={styles.livePulseDot} />
-                      <Text style={styles.badgeText}>LIVE & EVENTS</Text>
-                    </View>
-
-                    <View style={styles.guestCardFooter}>
-                      <View style={styles.guestCardTextCol}>
-                        <Text style={styles.guestCardTitle} numberOfLines={1}>
-                          Explore Events
-                        </Text>
-                        <Text style={styles.guestCardDesc} numberOfLines={2}>
-                          Live streams & events
-                        </Text>
-                      </View>
-                      <View style={styles.cardArrowWrap}>
-                        <Ionicons
-                          name="arrow-forward"
-                          size={12}
-                          color="#FFFFFF"
-                        />
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
-              </View>
-            </View>
+            <Pressable
+              onPress={dismissPostIntent}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel posting my event"
+            >
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+            </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        ) : null}
+
+        <View style={styles.fields}>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                glass
+                ref={emailRef}
+                label={t('yourEmail')}
+                autoCapitalize="none"
+                autoComplete="username"
+                textContentType="username"
+                keyboardType="email-address"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.email?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                glass
+                label={t('passwordLabel')}
+                secureTextEntry
+                autoCapitalize="none"
+                autoComplete="current-password"
+                textContentType="password"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.password?.message}
+              />
+            )}
+          />
+          <Pressable
+            style={styles.forgot}
+            onPress={() =>
+              router.push({
+                pathname: "/forgot-password",
+                params: { email: getValues("email") },
+              })
+            }
+            hitSlop={10}
+            accessibilityRole="link"
+          >
+            <Text style={styles.forgotText}>{t('forgotYourPassword')}</Text>
+          </Pressable>
+        </View>
+
+        {serverError ? (
+          <Text style={styles.serverError} accessibilityRole="alert">{serverError}</Text>
+        ) : null}
+
+        <Button
+          title={t('logIn')}
+          onPress={handleSubmit(onSubmit)}
+          loading={isSubmitting}
+        />
+
+        <View style={styles.divider}>
+          <View style={styles.line} />
+          <Text style={styles.dividerText}>{t('orContinueWith')}</Text>
+          <View style={styles.line} />
+        </View>
+
+        <View style={styles.social}>
+          {/* SIGN-IN mode: no role is known here, so this must never create
+              an account. An unrecognised Google profile is routed to role
+              selection with its details carried over. */}
+          <GoogleButton
+            mode="login"
+            label={t('continueWithGoogle')}
+            onNeedsRole={(profile) => {
+              setPrefilledProfile({
+                email: profile.email,
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+              });
+              setRoleSheetVisible(true);
+            }}
+          />
+          {/* Same rule as Google: sign-in never creates an account. The
+              backend is asked not to register an unknown Apple ID and the
+              verified profile is carried into role selection. */}
+          <AppleButton
+            mode="login"
+            label={t('continueWithApple')}
+            onNeedsRole={(profile) => {
+              setPrefilledProfile({
+                email: profile.email,
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+              });
+              setRoleSheetVisible(true);
+            }}
+          />
+        </View>
+
+      </AuthGlassLayout>
 
       <ExploreChoiceSheet
         visible={exploreChoiceOpen}
@@ -495,12 +419,13 @@ export default function LoginScreen() {
         onClose={() => setRoleSheetVisible(false)}
         onSelectRole={onSelectRole}
       />
-    </Screen>
+    </>
   );
 }
 
-/** Looping, muted background video for guest cards that won't interrupt device audio. */
+/** Looping, muted background video for a guest card that won't interrupt device audio. */
 function GuestCardVideo({ source }: { source: number }) {
+  const styles = useStyles();
   const player = useVideoPlayer(source, (p) => {
     p.loop = true;
     p.muted = true;
@@ -516,7 +441,7 @@ function GuestCardVideo({ source }: { source: number }) {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <VideoView
         player={player}
-        style={StyleSheet.absoluteFill}
+        style={styles.cover}
         contentFit="cover"
         nativeControls={false}
       />
@@ -524,35 +449,82 @@ function GuestCardVideo({ source }: { source: number }) {
   );
 }
 
-const useStyles = makeStyles((c, e) => ({
+/** A guest card's caption: a strip of dark glass across the bottom of the media. */
+function GuestCardLabel({
+  icon,
+  iconStyle,
+  title,
+  subtitle,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconStyle: StyleProp<ViewStyle>;
+  title: string;
+  subtitle: string;
+}) {
+  const styles = useStyles();
+  return (
+    <GlassOnMedia style={styles.guestLabel} fill="rgba(5,10,24,0.38)">
+      <View style={[styles.guestIcon, iconStyle]}>
+        <Ionicons name={icon} size={14} color="#FFFFFF" />
+      </View>
+      <View style={styles.flex}>
+        <Text style={styles.guestTitle} numberOfLines={1}>{title}</Text>
+        <Text style={styles.guestSub} numberOfLines={1}>{subtitle}</Text>
+      </View>
+    </GlassOnMedia>
+  );
+}
+
+const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
-  // `flexGrow: 1` + `justifyContent: 'space-between'` lets the form sit in
-  // the natural flow on tall devices and pin the signup link to the bottom
-  // edge so guests don't hunt for it. On short devices the scroll view
-  // still lets everything scroll into view.
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  top: { gap: spacing.md },
+  pressed: { opacity: 0.75 },
 
-  header: { alignItems: "center", gap: 2, marginBottom: spacing.sm },
-  logo: { width: 88, height: 44, marginBottom: spacing.xs },
-  title: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
+  // ── Guest paths, on the photo ─────────────────────────────────────────
+  guestRow: { flexDirection: "row", gap: spacing.sm },
+  guestCard: {
+    flex: 1,
+    height: 112,
+    borderRadius: radii.lg,
+    overflow: "hidden",
+    justifyContent: "flex-end",
+    backgroundColor: "#0A1428",
+    // A glass rim, so the media reads as set into the photo, not pasted on.
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
   },
-  subtitle: { fontSize: fontSize.sm, color: c.textMuted },
+  guestCardPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+  // Explicit size as well as absoluteFill: react-native-web otherwise lays
+  // images out at their intrinsic size.
+  cover: { ...StyleSheet.absoluteFill, width: "100%", height: "100%" },
+  guestLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm - 2,
+    // Android fallback: no blur there, so a plain smoked strip.
+    backgroundColor: "rgba(5,10,24,0.62)",
+  },
+  guestIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: radii.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  guestIconAccent: { backgroundColor: "rgba(242,12,143,0.9)" },
+  guestIconLive: { backgroundColor: "rgba(220,38,38,0.9)" },
+  guestTitle: {
+    fontSize: 13,
+    fontFamily: fonts.bold,
+    fontWeight: fontWeight.bold,
+    color: "#FFFFFF",
+  },
+  guestSub: { fontSize: 10, color: "rgba(255,255,255,0.78)", marginTop: 1, letterSpacing: 0.3 },
 
-  form: { gap: spacing.md },
-  forgotWrap: {
-    alignSelf: "flex-end",
-    marginTop: -spacing.xs,
-    marginBottom: spacing.xs,
-  },
+  // ── Sheet content ─────────────────────────────────────────────────────
+  fields: { gap: spacing.md },
+  forgot: { alignSelf: "flex-end", paddingVertical: 2 },
   forgotText: {
     color: c.primary,
     fontSize: fontSize.sm,
@@ -565,164 +537,29 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: "center",
     gap: spacing.md,
     padding: spacing.md,
-    borderRadius: radii.xl,
-    borderWidth: 1.5,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    ...glassTile(c),
     borderColor: MODE_META.HYBRID.color,
-    backgroundColor: c.card,
   },
   postNoticeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: MODE_META.HYBRID.soft,
   },
-  postNoticeTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.extrabold, color: c.text },
-  postNoticeText: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 17, marginTop: 2 },
+  postNoticeTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
+  postNoticeText: { fontSize: fontSize.xs, color: c.textSoft, lineHeight: 17, marginTop: 2 },
+
+  divider: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.border },
+  dividerText: { color: c.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+
+  social: { gap: spacing.sm },
 
   registerLine: { alignSelf: "center", paddingVertical: spacing.xs },
-  registerText: { color: c.textMuted, fontSize: fontSize.sm },
-  registerLink: { color: c.primary, fontWeight: fontWeight.bold },
-
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginVertical: spacing.sm,
-  },
-  line: {
-    flex: 1,
-    height: 2,
-    borderRadius: radii.full,
-    backgroundColor: c.border,
-  },
-  dividerText: {
-    color: c.textSoft,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-
-  // ── Audience-engaging guest exploration cards ──────────────────────────
-  guestSection: {
-    marginTop: spacing.xs,
-    gap: spacing.xs,
-  },
-  guestHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 2,
-    marginBottom: 2,
-  },
-  guestSectionTitle: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: c.textMuted,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  guestTagPill: {
-    backgroundColor: c.tint,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  guestTagText: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    color: c.primary,
-    letterSpacing: 0.5,
-  },
-  guestCardsRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  guestCard: {
-    flex: 1,
-    height: 136,
-    borderRadius: radii.xl,
-    overflow: "hidden",
-    backgroundColor: "#0A1428",
-    borderWidth: 1.5,
-    borderColor: c.border,
-    ...e(2),
-  },
-  guestCardPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.98 }],
-  },
-  guestCardContent: {
-    flex: 1,
-    padding: spacing.sm + 2,
-    justifyContent: "space-between",
-  },
-  badge: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.18)",
-  },
-  badgeAi: {
-    backgroundColor: "rgba(242, 12, 143, 0.25)",
-    borderColor: "rgba(242, 12, 143, 0.5)",
-  },
-  badgeLive: {
-    backgroundColor: "rgba(220, 38, 38, 0.25)",
-    borderColor: "rgba(220, 38, 38, 0.5)",
-  },
-  badgeText: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    color: "#FFFFFF",
-    letterSpacing: 0.6,
-  },
-  livePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#EF4444",
-  },
-  guestCardFooter: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 4,
-  },
-  guestCardTextCol: {
-    flex: 1,
-  },
-  guestCardTitle: {
-    fontSize: 14,
-    fontFamily: fonts.bold,
-    fontWeight: fontWeight.bold,
-    color: "#FFFFFF",
-    letterSpacing: -0.2,
-  },
-  guestCardDesc: {
-    fontSize: 10,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 1,
-    lineHeight: 13,
-  },
-  cardArrowWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: radii.full,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
+  registerText: { color: c.textSoft, fontSize: fontSize.sm },
+  link: { color: c.primary, fontWeight: fontWeight.bold },
 }));

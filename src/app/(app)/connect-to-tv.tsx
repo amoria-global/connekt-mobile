@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { confirmTvPairing } from '@/features/tv/api';
 import { isApiError } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 /** The TV's QR encodes {"code":"AB3K9Z"} — fall back to raw text as the code. */
@@ -28,6 +29,7 @@ function leaveScreen(router: ReturnType<typeof useRouter>) {
 export default function ConnectToTvScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [status, setStatus] = useState<'scanning' | 'connecting' | 'success' | 'error'>('scanning');
@@ -47,10 +49,10 @@ export default function ConnectToTvScreen() {
         setTimeout(() => leaveScreen(router), 1200);
       } catch (err) {
         setStatus('error');
-        setMessage(isApiError(err) ? err.message : 'Could not connect to that TV.');
+        setMessage(isApiError(err) ? err.message : t('b1_connectTvErr'));
       }
     },
-    [router],
+    [router, t],
   );
 
   const tryAgain = () => {
@@ -67,13 +69,13 @@ export default function ConnectToTvScreen() {
           hitSlop={12}
           style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
           accessibilityRole="button"
-          accessibilityLabel="Close"
+          accessibilityLabel={t('b1_connectTvCloseA11y')}
         >
           <Ionicons name="close" size={22} color={colors.text} />
         </Pressable>
         <View style={styles.topCopy}>
-          <Text style={styles.title}>Connect to TV</Text>
-          <Text style={styles.subtitle}>Point your camera at the QR code on your TV</Text>
+          <Text style={styles.title}>{t('b1_connectTvTitle')}</Text>
+          <Text style={styles.subtitle}>{t('b1_connectTvSubtitle')}</Text>
         </View>
         <View style={styles.closeBtnSpacer} />
       </View>
@@ -84,9 +86,9 @@ export default function ConnectToTvScreen() {
         </View>
       ) : !permission.granted ? (
         <View style={styles.center}>
-          <Text style={styles.body}>Connekyt needs camera access to scan your TV's QR code.</Text>
-          <Button title="Allow camera access" onPress={requestPermission} />
-          <Button title="Cancel" variant="ghost" onPress={() => leaveScreen(router)} />
+          <Text style={styles.body}>{t('b1_connectTvPermBody')}</Text>
+          <Button title={t('b1_connectTvAllowCameraBtn')} onPress={requestPermission} />
+          <Button title={t('b1_connectTvCancelBtn')} variant="ghost" onPress={() => leaveScreen(router)} />
         </View>
       ) : status === 'scanning' ? (
         <View style={styles.cameraWrap}>
@@ -100,7 +102,7 @@ export default function ConnectToTvScreen() {
             style={({ pressed }) => [styles.cameraClose, pressed && styles.pressed]}
             onPress={() => leaveScreen(router)}
             accessibilityRole="button"
-            accessibilityLabel="Close scanner"
+            accessibilityLabel={t('b1_connectTvCloseScannerA11y')}
           >
             <Ionicons name="close" size={20} color="#fff" />
           </Pressable>
@@ -110,15 +112,15 @@ export default function ConnectToTvScreen() {
           {status === 'connecting' ? (
             <>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.body}>Connecting to your TV…</Text>
+              <Text style={styles.body}>{t('b1_connectTvConnecting')}</Text>
             </>
           ) : status === 'success' ? (
-            <Text style={styles.successText}>TV connected!</Text>
+            <Text style={styles.successText}>{t('b1_connectTvSuccess')}</Text>
           ) : (
             <>
               <Text style={styles.errorText}>{message}</Text>
-              <Button title="Scan again" onPress={tryAgain} />
-              <Button title="Cancel" variant="ghost" onPress={() => leaveScreen(router)} />
+              <Button title={t('b1_connectTvScanAgainBtn')} onPress={tryAgain} />
+              <Button title={t('b1_connectTvCancelBtn')} variant="ghost" onPress={() => leaveScreen(router)} />
             </>
           )}
         </View>

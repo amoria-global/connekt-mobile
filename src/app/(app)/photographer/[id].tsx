@@ -33,6 +33,10 @@ import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
 
+import { useLanguage } from '@/hooks/useLanguage';
+import { translate, type TranslationKey } from '@/i18n/translations';
+const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
+
 function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyphMap; onPress?: () => void; style?: any }) {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -53,6 +57,7 @@ const REPORT_REASONS = [
 ];
 
 export default function PhotographerProfileScreen() {
+  useLanguage();
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
@@ -124,7 +129,7 @@ export default function PhotographerProfileScreen() {
       else await unbookmarkPhotographer(id);
       setIsBookmarked(next);
     } catch (e) {
-      Alert.alert('Could not update bookmark', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b2_photogBookmarkErrorTitle'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setBookmarkBusy(false);
     }
@@ -136,9 +141,9 @@ export default function PhotographerProfileScreen() {
       await reportPhotographer(id, reportReason, reportDescription);
       setReportOpen(false);
       setReportDescription('');
-      Alert.alert('Report submitted', 'Our team will review the report shortly.');
+      Alert.alert(tr('b2_photogReportSubmittedTitle'), 'Our team will review the report shortly.');
     } catch (e) {
-      Alert.alert('Could not submit report', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b2_photogReportErrorTitle'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setReportSubmitting(false);
     }
@@ -146,11 +151,11 @@ export default function PhotographerProfileScreen() {
 
   const submitRebook = async () => {
     if (!rebookPackageId) {
-      Alert.alert('Pick a package', 'Choose one of the photographer’s packages first.');
+      Alert.alert(tr('b2_photogRebookPickPkgTitle'), 'Choose one of the photographer’s packages first.');
       return;
     }
     if (!rebookTitle.trim() || !rebookDate.trim() || !rebookStart.trim() || !rebookEnd.trim() || !rebookLocation.trim()) {
-      Alert.alert('Missing fields', 'Title, date, start/end time, and location are required.');
+      Alert.alert(tr('b2_photogRebookMissingTitle'), 'Title, date, start/end time, and location are required.');
       return;
     }
     setRebookSubmitting(true);
@@ -167,9 +172,9 @@ export default function PhotographerProfileScreen() {
       };
       await rebookPhotographer(input, isCoordinator);
       setRebookOpen(false);
-      Alert.alert('Rebook submitted', 'Your rebooking request has been sent to the photographer.');
+      Alert.alert(tr('b2_photogRebookSubmittedTitle'), 'Your rebooking request has been sent to the photographer.');
     } catch (e) {
-      Alert.alert('Could not rebook', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b2_photogRebookErrorTitle'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setRebookSubmitting(false);
     }
@@ -188,7 +193,7 @@ export default function PhotographerProfileScreen() {
             try {
               await block(id);
             } catch (e) {
-              Alert.alert('Could not block', isApiError(e) ? e.message : 'Please try again.');
+              Alert.alert(tr('b2_photogBlockErrorTitle'), isApiError(e) ? e.message : 'Please try again.');
             }
           },
         },
@@ -199,7 +204,7 @@ export default function PhotographerProfileScreen() {
   // Long-press → action menu. Report AND block, matching every other
   // user-profile surface (Play requires both for user-to-user content).
   const onLongPressHeader = () => {
-    Alert.alert('Photographer actions', undefined, [
+    Alert.alert(tr('b2_photogActionsTitle'), undefined, [
       { text: 'Rebook', onPress: () => setRebookOpen(true) },
       { text: 'Report', style: 'destructive', onPress: () => setReportOpen(true) },
       isBlocked
@@ -337,7 +342,7 @@ export default function PhotographerProfileScreen() {
         <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
         <Text style={styles.muted}>{error}</Text>
         <Pressable onPress={() => router.back()} style={{ marginTop: 20 }}>
-          <Text style={{ color: colors.primary }}>Go Back</Text>
+          <Text style={{ color: colors.primary }}>{tr('b2_photogGoBack')}</Text>
         </Pressable>
       </View>
     );
@@ -415,15 +420,15 @@ export default function PhotographerProfileScreen() {
               </Text>
               <Ionicons name="people" size={12} color="#D1D5DB" style={{ marginLeft: 8 }} />
               <Text style={styles.statText}>
-                <Text style={styles.statValue}>0</Text> Events
+                <Text style={styles.statValue}>0</Text> {tr('b2_photogEventsLabel')}
               </Text>
               <Ionicons name="calendar-outline" size={12} color="#D1D5DB" style={{ marginLeft: 8 }} />
-              <Text style={styles.statText}>Since May 2026</Text>
+              <Text style={styles.statText}>{tr('b2_photogSinceDate')}</Text>
             </View>
 
             <View style={styles.availableBadge}>
               <View style={styles.availableDot} />
-              <Text style={styles.availableText}>AVAILABLE</Text>
+              <Text style={styles.availableText}>{tr('b2_photogAvailableBadge')}</Text>
             </View>
           </View>
         </View>
@@ -459,14 +464,14 @@ export default function PhotographerProfileScreen() {
               <>
                 {/* Book Now Card */}
                 <View style={styles.card}>
-                  <Text style={styles.cardHeaderEyebrow}>AVAILABLE TO BOOK</Text>
+                  <Text style={styles.cardHeaderEyebrow}>{tr('b2_photogAvailableToBook')}</Text>
                   <View style={styles.bookingActionRow}>
                     <Pressable 
                       style={styles.bookButton}
                       onPress={() => bottomSheetRef.current?.snapToIndex(0)}
                     >
                       <Ionicons name="calendar" size={18} color="white" />
-                      <Text style={styles.bookButtonText}>BOOK NOW</Text>
+                      <Text style={styles.bookButtonText}>{tr('b2_photogBookNow')}</Text>
                     </Pressable>
                     <Pressable
                       style={styles.messagePhotogButton}
@@ -477,19 +482,19 @@ export default function PhotographerProfileScreen() {
                       }
                     >
                       <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
-                      <Text style={styles.messagePhotogText}>MESSAGE</Text>
+                      <Text style={styles.messagePhotogText}>{tr('b2_photogMessage')}</Text>
                     </Pressable>
                   </View>
                   <View style={styles.disclaimerRow}>
                     <Ionicons name="shield-checkmark-outline" size={14} color={colors.success} />
-                    <Text style={styles.disclaimerText}>No payment to inquire</Text>
+                    <Text style={styles.disclaimerText}>{tr('b2_photogNoPaymentToInquire')}</Text>
                   </View>
                 </View>
 
                 {/* Availability Calendar Card */}
                 <View style={styles.card}>
                   <View style={styles.calendarHeaderRow}>
-                    <Text style={styles.cardHeaderEyebrow}>AVAILABILITY</Text>
+                    <Text style={styles.cardHeaderEyebrow}>{tr('b2_photogAvailability')}</Text>
                     
                     <View style={styles.monthNav}>
                       <Pressable 
@@ -598,15 +603,15 @@ export default function PhotographerProfileScreen() {
                   <View style={styles.legendRow}>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                      <Text style={styles.legendText}>Available (Tap to book)</Text>
+                      <Text style={styles.legendText}>{tr('b2_photogLegendAvailable')}</Text>
                     </View>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-                      <Text style={styles.legendText}>Partly booked</Text>
+                      <Text style={styles.legendText}>{tr('b2_photogLegendPartial')}</Text>
                     </View>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                      <Text style={styles.legendText}>Fully booked</Text>
+                      <Text style={styles.legendText}>{tr('b2_photogLegendBooked')}</Text>
                     </View>
                   </View>
                 </View>
@@ -616,7 +621,7 @@ export default function PhotographerProfileScreen() {
             {activeTab === 'Portfolio' && (
               <View style={styles.emptyState}>
                 <Ionicons name="images-outline" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyText}>No portfolio images available yet.</Text>
+                <Text style={styles.emptyText}>{tr('b2_photogEmptyPortfolio')}</Text>
               </View>
             )}
 
@@ -635,7 +640,7 @@ export default function PhotographerProfileScreen() {
                 ) : (
                   <View style={styles.emptyState}>
                     <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
-                    <Text style={styles.emptyText}>No reviews yet.</Text>
+                    <Text style={styles.emptyText}>{tr('b2_photogEmptyReviews')}</Text>
                   </View>
                 )}
               </View>
@@ -644,7 +649,7 @@ export default function PhotographerProfileScreen() {
             {activeTab === 'Working Experience' && (
               <View style={styles.emptyState}>
                 <Ionicons name="briefcase-outline" size={48} color={colors.textMuted} />
-                <Text style={styles.emptyText}>No working experience listed.</Text>
+                <Text style={styles.emptyText}>{tr('b2_photogEmptyExperience')}</Text>
               </View>
             )}
           </View>
@@ -670,9 +675,9 @@ export default function PhotographerProfileScreen() {
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setReportOpen(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Report photographer</Text>
+            <Text style={styles.sheetTitle}>{tr('b2_photogReportModalTitle')}</Text>
             <Text style={styles.sheetHint}>
-              Pick a reason and add details so our team can take action.
+              {tr('b2_photogReportModalHint')}
             </Text>
             <View style={styles.chipRow}>
               {REPORT_REASONS.map((r) => {
@@ -689,13 +694,13 @@ export default function PhotographerProfileScreen() {
               })}
             </View>
             <Input
-              placeholder="Describe what happened (optional)"
+              placeholder={tr('b2_photogReportPlaceholder')}
               value={reportDescription}
               onChangeText={setReportDescription}
               multiline
               style={styles.modalInput}
             />
-            <Button title="Submit report" onPress={submitReport} loading={reportSubmitting} />
+            <Button title={tr('b2_photogSubmitReport')} onPress={submitReport} loading={reportSubmitting} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -710,12 +715,12 @@ export default function PhotographerProfileScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setRebookOpen(false)}>
           <Pressable style={[styles.sheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.sheetTitle}>Rebook photographer</Text>
+              <Text style={styles.sheetTitle}>{tr('b2_photogRebookModalTitle')}</Text>
               <Text style={styles.sheetHint}>
                 Book this photographer again for a new event. Backend enforces that you’ve worked
                 with them before.
               </Text>
-              <Text style={styles.formLabel}>Package</Text>
+              <Text style={styles.formLabel}>{tr('b2_photogRebookPackageLabel')}</Text>
               <View style={styles.chipRow}>
                 {(data?.packages ?? []).map((p) => {
                   const active = p.id === rebookPackageId;
@@ -734,14 +739,14 @@ export default function PhotographerProfileScreen() {
                 })}
               </View>
               <Input
-                label="Event title"
+                label={tr('b2_photogRebookEventTitle')}
                 value={rebookTitle}
                 onChangeText={setRebookTitle}
-                placeholder="e.g. Eric & Diana Reception"
+                placeholder={tr('b2_photogRebookEventTitlePlaceholder')}
                 style={styles.modalInput}
               />
               <Input
-                label="Event date (YYYY-MM-DD)"
+                label={tr('b2_photogRebookEventDate')}
                 value={rebookDate}
                 onChangeText={setRebookDate}
                 placeholder="2026-08-12"
@@ -749,7 +754,7 @@ export default function PhotographerProfileScreen() {
                 style={styles.modalInput}
               />
               <Input
-                label="Start time (HH:mm)"
+                label={tr('b2_photogRebookStartTime')}
                 value={rebookStart}
                 onChangeText={setRebookStart}
                 placeholder="15:00"
@@ -757,7 +762,7 @@ export default function PhotographerProfileScreen() {
                 style={styles.modalInput}
               />
               <Input
-                label="End time (HH:mm)"
+                label={tr('b2_photogRebookEndTime')}
                 value={rebookEnd}
                 onChangeText={setRebookEnd}
                 placeholder="20:00"
@@ -765,14 +770,14 @@ export default function PhotographerProfileScreen() {
                 style={styles.modalInput}
               />
               <Input
-                label="Location"
+                label={tr('b2_photogRebookLocation')}
                 value={rebookLocation}
                 onChangeText={setRebookLocation}
-                placeholder="Venue + city"
+                placeholder={tr('b2_photogRebookLocationPlaceholder')}
                 style={styles.modalInput}
               />
               <Input
-                label="Notes (optional)"
+                label={tr('b2_photogRebookNotes')}
                 value={rebookNotes}
                 onChangeText={setRebookNotes}
                 multiline

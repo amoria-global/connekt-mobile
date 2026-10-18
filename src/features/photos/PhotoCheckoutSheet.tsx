@@ -54,6 +54,7 @@ import {
 import { generateAndSharePhotoInvoice } from './invoicePdf';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CARD_GRACE_MS = 180_000; // 3 min grace window for card 3DS / entry
@@ -114,6 +115,7 @@ export function PhotoCheckoutSheet({
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
+  const { tr } = useSharedT();
 
   // Country & operator data
   const [country, setCountry] = useState('RW');
@@ -445,7 +447,7 @@ export function PhotoCheckoutSheet({
           >
             {/* Amount summary */}
             <View style={styles.summary}>
-              <Text style={styles.summaryLabel}>AMOUNT TO PAY</Text>
+              <Text style={styles.summaryLabel}>{tr('AMOUNT TO PAY')}</Text>
               <Text style={styles.summaryAmount}>
                 {formatPrice(total, currencySym || undefined)}
               </Text>
@@ -468,25 +470,25 @@ export function PhotoCheckoutSheet({
                 ) : null}
 
                 {/* Payer details */}
-                <Text style={styles.sectionHeader}>BUYER DETAILS</Text>
+                <Text style={styles.sectionHeader}>{tr('BUYER DETAILS')}</Text>
 
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>FULL NAME *</Text>
+                  <Text style={styles.fieldLabel}>{tr('FULL NAME *')}</Text>
                   <TextInput
                     value={name}
                     onChangeText={setName}
-                    placeholder="Your Full Name"
+                    placeholder={tr('Your Full Name')}
                     placeholderTextColor={colors.textMuted}
                     style={[styles.input, name.length > 0 && !nameOk && styles.inputError]}
                     autoCapitalize="words"
                   />
                   {name.length > 0 && !nameOk ? (
-                    <Text style={styles.inputErrorText}>Please enter your full name.</Text>
+                    <Text style={styles.inputErrorText}>{tr('Please enter your full name.')}</Text>
                   ) : null}
                 </View>
 
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>EMAIL ADDRESS *</Text>
+                  <Text style={styles.fieldLabel}>{tr('EMAIL ADDRESS *')}</Text>
                   <TextInput
                     value={email}
                     onChangeText={setEmail}
@@ -498,7 +500,7 @@ export function PhotoCheckoutSheet({
                     style={[styles.input, email.length > 0 && !emailOk && styles.inputError]}
                   />
                   {email.length > 0 && !emailOk ? (
-                    <Text style={styles.inputErrorText}>Please enter a valid email address.</Text>
+                    <Text style={styles.inputErrorText}>{tr('Please enter a valid email address.')}</Text>
                   ) : (
                     <Text style={styles.helper}>
                       Receipt and permanent unlock code will be sent to this email.
@@ -507,7 +509,7 @@ export function PhotoCheckoutSheet({
                 </View>
 
                 {/* Payment Method Selector */}
-                <Text style={styles.sectionHeader}>SELECT PAYMENT METHOD</Text>
+                <Text style={styles.sectionHeader}>{tr('SELECT PAYMENT METHOD')}</Text>
                 <PaymentMethodPicker
                   operators={operators}
                   supportsCard={supportsCard && !geo.disableCards}

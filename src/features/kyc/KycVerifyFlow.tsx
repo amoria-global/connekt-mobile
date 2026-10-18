@@ -38,6 +38,7 @@ import {
 import { isApiError } from '@/store/auth';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { LiveSelfieVerification } from './LiveSelfieVerification';
 import {
   validateDocType,
@@ -171,6 +172,7 @@ export function KycVerifyFlow({
 }: KycVerifyFlowProps) {
   const styles = useStyles();
   const { colors, isDark } = useTheme();
+  const { tr, t } = useSharedT();
   const reducedMotion = useReducedMotion();
   const { width } = useWindowDimensions();
   const router = useRouter();
@@ -657,22 +659,22 @@ export function KycVerifyFlow({
       <Header
         icon="cloud-offline-outline"
         iconColor={colors.textMuted}
-        title="Couldn't load your status"
-        subtitle={error ?? 'Check your connection and try again.'}
+        title={tr("Couldn't load your status")}
+        subtitle={error ?? tr('Check your connection and try again.')}
       />
     );
-    footer = <Button title="Try again" onPress={() => void onRefresh()} loading={loading} />;
+    footer = <Button title={tr('Try again')} onPress={() => void onRefresh()} loading={loading} />;
   } else if (stage === 'overview' && status === 'APPROVED') {
     centered = true;
     header = (
       <Header
         icon="shield-checkmark"
         iconColor={colors.success}
-        title="You're verified"
-        subtitle="Your identity has been confirmed. There's nothing else you need to do."
+        title={tr("You're verified")}
+        subtitle={tr("Your identity has been confirmed. There's nothing else you need to do.")}
       />
     );
-    footer = <Button title="Done" onPress={onExit} />;
+    footer = <Button title={tr('Done')} onPress={onExit} />;
   } else if (stage === 'overview' && status === 'PENDING') {
     centered = true;
     const submitted = formatDate(kyc?.submittedAt);
@@ -680,8 +682,8 @@ export function KycVerifyFlow({
       <Header
         icon="time-outline"
         iconColor={colors.primary}
-        title="We're reviewing your details"
-        subtitle="This usually takes a few hours. We'll let you know as soon as it's done."
+        title={tr("We're reviewing your details")}
+        subtitle={tr("This usually takes a few hours. We'll let you know as soon as it's done.")}
       />
     );
     body = (
@@ -689,24 +691,24 @@ export function KycVerifyFlow({
         {submitted ? <Text style={styles.meta}>Submitted {submitted}</Text> : null}
         {kyc?.fullLegalName ? (
           <View style={{ width: '100%', marginTop: spacing.md, padding: spacing.md, backgroundColor: colors.card, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border }}>
-            <ReviewRow label="Legal name" value={kyc.fullLegalName} />
-            {kyc.dob ? <ReviewRow label="Date of birth" value={formatDate(kyc.dob) || kyc.dob} /> : null}
-            {kyc.phone ? <ReviewRow label="Phone" value={kyc.phone} /> : null}
+            <ReviewRow label={tr('Legal name')} value={kyc.fullLegalName} />
+            {kyc.dob ? <ReviewRow label={tr('Date of birth')} value={formatDate(kyc.dob) || kyc.dob} /> : null}
+            {kyc.phone ? <ReviewRow label={tr('Phone')} value={kyc.phone} /> : null}
             {kyc.documentType ? (
               <ReviewRow
-                label="Document"
-                value={DOCUMENT_LABEL[kyc.documentType as DocumentTypeOption] ?? kyc.documentType}
+                label={tr('Document')}
+                value={tr(DOCUMENT_LABEL[kyc.documentType as DocumentTypeOption] ?? kyc.documentType)}
               />
             ) : null}
-            <ReviewRow label="Status" value="Pending Admin Review" />
+            <ReviewRow label={tr('Status')} value={tr('Pending Admin Review')} />
           </View>
         ) : null}
       </View>
     );
     footer = (
       <>
-        <Button title="Check status" variant="outline" onPress={() => void onRefresh()} loading={loading} />
-        <TextLink label="Back to home" onPress={onExit} />
+        <Button title={tr('Check status')} variant="outline" onPress={() => void onRefresh()} loading={loading} />
+        <TextLink label={tr('Back to home')} onPress={onExit} />
       </>
     );
   } else if (stage === 'submitted') {
@@ -715,13 +717,13 @@ export function KycVerifyFlow({
       <Header
         icon="checkmark-circle"
         iconColor={colors.success}
-        title="Submitted for review"
-        subtitle="We'll let you know once your identity is confirmed, usually within a few hours."
+        title={tr('Submitted for review')}
+        subtitle={tr("We'll let you know once your identity is confirmed, usually within a few hours.")}
       />
     );
-    footer = <Button title="Done" onPress={onExit} />;
+    footer = <Button title={tr('Done')} onPress={onExit} />;
   } else if (stage === 1 || stage === 'overview') {
-    header = <Header title={STEP_COPY[1].title} subtitle={STEP_COPY[1].subtitle} />;
+    header = <Header title={tr(STEP_COPY[1].title)} subtitle={tr(STEP_COPY[1].subtitle)} />;
     body = (
       <>
         {status === 'REJECTED' && kyc?.rejectionReason ? (
@@ -729,8 +731,8 @@ export function KycVerifyFlow({
         ) : null}
         <View>
           <Input
-            label="Full legal name"
-            placeholder="As printed on your ID"
+            label={tr('Full legal name')}
+            placeholder={tr('As printed on your ID')}
             value={fullLegalName}
             onChangeText={(v) => {
               setFullLegalName(v);
@@ -741,16 +743,16 @@ export function KycVerifyFlow({
             textContentType="name"
             returnKeyType="next"
           />
-          <Text style={styles.helper}>No nicknames or initials unless they're on your ID.</Text>
+          <Text style={styles.helper}>{tr("No nicknames or initials unless they're on your ID.")}</Text>
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Gender</Text>
-          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Gender">
+          <Text style={styles.label}>{tr('Gender')}</Text>
+          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={tr('Gender')}>
             {GENDERS.map((g) => (
               <Chip
                 key={g}
-                label={g}
+                label={tr(g)}
                 selected={gender === g}
                 onPress={() => {
                   setGender(g);
@@ -763,23 +765,23 @@ export function KycVerifyFlow({
 
         <View>
           <DateField
-            label="Date of birth"
+            label={tr('Date of birth')}
             value={dob}
             onChange={(v) => {
               setDob(v);
               setStepError(null);
             }}
-            placeholder="Select date of birth"
+            placeholder={tr('Select date of birth')}
             maximumDate={maxDobDate}
             minimumDate={minDobDate}
             initialPickerDate={initialDobPickerDate}
           />
-          <Text style={styles.helper}>You must be at least 18 years old to verify.</Text>
+          <Text style={styles.helper}>{tr('You must be at least 18 years old to verify.')}</Text>
         </View>
 
         <PhoneInput
           key={`${phoneSeed.country?.iso2 ?? 'RW'}-${phoneSeed.nsn}`}
-          label="Phone number"
+          label={tr('Phone number')}
           defaultIso2={phoneSeed.country?.iso2 ?? 'RW'}
           initialNsn={phoneSeed.nsn}
           onChange={(val) => {
@@ -789,8 +791,8 @@ export function KycVerifyFlow({
         />
 
         <Input
-          label="Home address (optional)"
-          placeholder="Street, city, country"
+          label={tr('Home address (optional)')}
+          placeholder={tr('Street, city, country')}
           value={locationAddress}
           onChangeText={setLocationAddress}
           autoCapitalize="words"
@@ -799,9 +801,9 @@ export function KycVerifyFlow({
         />
       </>
     );
-    footer = <Button title="Continue" onPress={() => continueFrom(1)} />;
+    footer = <Button title={tr('Continue')} onPress={() => continueFrom(1)} />;
   } else if (stage === 2) {
-    header = <Header title={STEP_COPY[2].title} subtitle={STEP_COPY[2].subtitle} />;
+    header = <Header title={tr(STEP_COPY[2].title)} subtitle={tr(STEP_COPY[2].subtitle)} />;
     body = (
       <>
         <LiveSelfieVerification
@@ -830,7 +832,7 @@ export function KycVerifyFlow({
           <Text style={styles.errorText}>
             {tokenError}{' '}
             <Text style={styles.inlineLink} onPress={() => void fetchChallenge()} accessibilityRole="link">
-              Try again
+              {tr('Try again')}
             </Text>
           </Text>
         ) : null}
@@ -838,16 +840,16 @@ export function KycVerifyFlow({
     );
     footer = null;
   } else if (stage === 3) {
-    header = <Header title={STEP_COPY[3].title} subtitle={STEP_COPY[3].subtitle} />;
+    header = <Header title={tr(STEP_COPY[3].title)} subtitle={tr(STEP_COPY[3].subtitle)} />;
     body = (
       <>
         <View style={styles.field}>
-          <Text style={styles.label}>Document type</Text>
-          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Document type">
+          <Text style={styles.label}>{tr('Document type')}</Text>
+          <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={tr('Document type')}>
             {DOCUMENT_TYPES.map((d) => (
               <Chip
                 key={d.id}
-                label={d.label}
+                label={tr(d.label)}
                 icon={d.icon}
                 selected={documentType === d.id}
                 onPress={() => handleSelectDocumentType(d.id)}
@@ -857,8 +859,8 @@ export function KycVerifyFlow({
         </View>
 
         <DocumentSlot
-          label={needsBack ? 'Front' : 'Photo page'}
-          hint="Name, photo and ID number clearly readable"
+          label={needsBack ? tr('Front side') : tr('Photo page')}
+          hint={tr('Name, photo and ID number clearly readable')}
           photo={front}
           validation={frontValidation}
           onCamera={() => void capture('front', 'camera')}
@@ -867,8 +869,8 @@ export function KycVerifyFlow({
         {needsBack ? (
           <>
             <DocumentSlot
-              label="Back"
-              hint="Barcode and issue date fully in frame"
+              label={tr('Back side')}
+              hint={tr('Barcode and issue date fully in frame')}
               photo={back}
               validation={backValidation}
               onCamera={() => void capture('back', 'camera')}
@@ -882,7 +884,7 @@ export function KycVerifyFlow({
                 accessibilityLabel="Swap front and back photos"
               >
                 <Ionicons name="swap-vertical" size={16} color={colors.primary} />
-                <Text style={styles.swapSidesText}>Swap front and back</Text>
+                <Text style={styles.swapSidesText}>{tr('Swap front and back')}</Text>
               </Pressable>
             ) : null}
           </>
@@ -891,22 +893,22 @@ export function KycVerifyFlow({
     );
     footer = (
       <Button
-        title="Continue"
+        title={tr('Continue')}
         onPress={() => continueFrom(3)}
         loading={frontValidation?.validating || backValidation?.validating}
       />
     );
   } else if (stage === 4) {
-    header = <Header title={STEP_COPY[4].title} subtitle={STEP_COPY[4].subtitle} />;
+    header = <Header title={tr(STEP_COPY[4].title)} subtitle={tr(STEP_COPY[4].subtitle)} />;
     body = (
       <>
         <View>
-          <SectionHead title="Details" onEdit={() => go(1)} disabled={submitting} />
-          <ReviewRow label="Legal name" value={fullLegalName.trim()} />
-          <ReviewRow label="Gender" value={gender} />
-          {dob ? <ReviewRow label="Date of birth" value={formatDate(dob) || dob} /> : null}
+          <SectionHead title={tr('Details')} onEdit={() => go(1)} disabled={submitting} />
+          <ReviewRow label={tr('Legal name')} value={fullLegalName.trim()} />
+          <ReviewRow label={tr('Gender')} value={tr(gender)} />
+          {dob ? <ReviewRow label={tr('Date of birth')} value={formatDate(dob) || dob} /> : null}
           <ReviewRow
-            label="Phone"
+            label={tr('Phone')}
             value={
               phoneValue?.e164 ||
               (phoneSeed.country && phoneSeed.nsn
@@ -914,21 +916,21 @@ export function KycVerifyFlow({
                 : defaultPhone || '—')
             }
           />
-          {locationAddress.trim() ? <ReviewRow label="Address" value={locationAddress.trim()} /> : null}
-          <ReviewRow label="Document" value={DOCUMENT_LABEL[documentType]} />
+          {locationAddress.trim() ? <ReviewRow label={tr('Address')} value={locationAddress.trim()} /> : null}
+          <ReviewRow label={tr('Document')} value={tr(DOCUMENT_LABEL[documentType])} />
         </View>
 
         <View>
-          <SectionHead title="Photos" onEdit={() => go(2)} disabled={submitting} />
+          <SectionHead title={tr('Photos')} onEdit={() => go(2)} disabled={submitting} />
           <View style={styles.thumbs}>
-            {selfie ? <Thumb uri={selfie.uri} label="Selfie" round /> : null}
-            {front ? <Thumb uri={front.uri} label={needsBack ? 'ID front' : 'Photo page'} /> : null}
-            {needsBack && back ? <Thumb uri={back.uri} label="ID back" /> : null}
+            {selfie ? <Thumb uri={selfie.uri} label={tr('Selfie')} round /> : null}
+            {front ? <Thumb uri={front.uri} label={tr(needsBack ? 'ID front' : 'Photo page')} /> : null}
+            {needsBack && back ? <Thumb uri={back.uri} label={tr('ID back')} /> : null}
           </View>
         </View>
 
         <Text style={styles.legal}>
-          By submitting, you confirm these documents are genuine and belong to you.
+          {tr('By submitting, you confirm these documents are genuine and belong to you.')}
         </Text>
         {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
       </>
@@ -940,7 +942,7 @@ export function KycVerifyFlow({
             {submitError}
           </Text>
         ) : null}
-        <Button title="Submit for review" onPress={() => void handleSubmit()} loading={submitting} />
+        <Button title={tr('Submit for review')} onPress={() => void handleSubmit()} loading={submitting} />
       </>
     );
   }
@@ -1021,12 +1023,13 @@ export function KycStepper({
   disabled?: boolean;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
 
   return (
     <View
       style={styles.stepperContainer}
       accessibilityRole="progressbar"
-      accessibilityLabel={`Step ${currentStep} of ${TOTAL_STEPS}: ${STEPS[currentStep - 1]?.label}`}
+      accessibilityLabel={`Step ${currentStep} of ${TOTAL_STEPS}: ${tr(STEPS[currentStep - 1]?.label)}`}
     >
       {STEPS.map((step, index) => {
         const isPassed = step.id < currentStep;
@@ -1042,7 +1045,7 @@ export function KycStepper({
             onPress={() => onSelectStep?.(step.id)}
             accessibilityRole="button"
             accessibilityState={{ selected: isActive, disabled: !canPress }}
-            accessibilityLabel={`Step ${step.id}: ${step.label}, ${
+            accessibilityLabel={`Step ${step.id}: ${tr(step.label)}, ${
               isPassed ? 'completed, tap to return' : isActive ? 'current step' : 'upcoming'
             }`}
           >
@@ -1101,7 +1104,7 @@ export function KycStepper({
                 isRemaining && styles.stepLabelRemaining,
               ]}
             >
-              {step.label}
+              {tr(step.label)}
             </Text>
           </Pressable>
         );
@@ -1197,6 +1200,7 @@ function DocumentSlot({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
 
   const isInvalid = Boolean(
     photo &&
@@ -1213,20 +1217,20 @@ function DocumentSlot({
         {photo && validation?.validating ? (
           <View style={styles.validatingRow}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.validatingText}>Checking photo...</Text>
+            <Text style={styles.validatingText}>{tr('Checking photo...')}</Text>
           </View>
         ) : isInvalid ? (
           <View style={styles.badgeError}>
             <Ionicons name="alert-circle" size={14} color={colors.error} />
-            <Text style={styles.badgeErrorText}>Issue detected</Text>
+            <Text style={styles.badgeErrorText}>{tr('Issue detected')}</Text>
           </View>
         ) : photo ? (
           <View style={styles.added}>
             <Ionicons name="checkmark-circle" size={16} color={colors.success} />
             <Text style={styles.addedText}>
               {validation?.status === 'MATCH' || validation?.status === 'SIDE_MATCH'
-                ? 'Verified'
-                : 'Added'}
+                ? tr('Verified')
+                : tr('Added')}
             </Text>
           </View>
         ) : null}
@@ -1251,7 +1255,7 @@ function DocumentSlot({
             <View style={styles.docIconWrap}>
               <Ionicons name="scan-outline" size={32} color={colors.primary} />
             </View>
-            <Text style={styles.framePrompt}>Tap to take a photo</Text>
+            <Text style={styles.framePrompt}>{tr('Tap to take a photo')}</Text>
             <Text style={styles.frameHint}>{hint}</Text>
           </>
         )}
@@ -1266,11 +1270,11 @@ function DocumentSlot({
 
       <View style={styles.slotActions}>
         <Pressable onPress={onCamera} hitSlop={8} accessibilityRole="button">
-          <Text style={styles.link}>{photo ? 'Retake photo' : 'Take photo'}</Text>
+          <Text style={styles.link}>{photo ? tr('Retake photo') : tr('Take photo')}</Text>
         </Pressable>
         <Text style={styles.slotActionDivider}>·</Text>
         <Pressable onPress={onLibrary} hitSlop={8} accessibilityRole="button">
-          <Text style={styles.link}>{photo ? 'Choose other' : 'Upload from library'}</Text>
+          <Text style={styles.link}>{photo ? tr('Choose other') : tr('Upload from library')}</Text>
         </Pressable>
       </View>
     </View>
@@ -1279,6 +1283,7 @@ function DocumentSlot({
 
 function SectionHead({ title, onEdit, disabled }: { title: string; onEdit: () => void; disabled?: boolean }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   return (
     <View style={styles.sectionHead}>
       <Text style={styles.sectionTitle} accessibilityRole="header">
@@ -1291,7 +1296,7 @@ function SectionHead({ title, onEdit, disabled }: { title: string; onEdit: () =>
         accessibilityRole="button"
         accessibilityLabel={`Edit ${title.toLowerCase()}`}
       >
-        <Text style={styles.link}>Edit</Text>
+        <Text style={styles.link}>{tr('Edit')}</Text>
       </Pressable>
     </View>
   );

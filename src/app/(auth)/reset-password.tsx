@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { AuthGlassLayout, useAuthLinkStyles } from '@/features/auth/AuthGlassLayout';
 import { Input } from '@/components/ui/Input';
-import { Screen } from '@/components/ui/Screen';
 import { exchangeRecoveryCode, setNewPassword } from '@/features/auth/api';
 import { storage, StorageKeys } from '@/services/storage';
 import { isApiError } from '@/store/auth';
-import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
+import { useLanguage } from '@/store/language';
 
 export default function ResetPasswordScreen() {
-  const styles = useStyles();
+  const links = useAuthLinkStyles();
   const router = useRouter();
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{ email?: string; code?: string }>();
   
   const [email, setEmail] = useState(params.email ?? '');
@@ -78,89 +79,74 @@ export default function ResetPasswordScreen() {
 
   if (success) {
     return (
-      <Screen>
-        <View style={styles.successWrap}>
-          <Text style={styles.title}>Password Reset</Text>
-          <Text style={styles.subtitle}>
-            Your password has been successfully reset. You can now sign in with your new password.
-          </Text>
-          <Button title="Sign In" onPress={() => router.replace('/login')} style={{ width: '100%' }} />
-        </View>
-      </Screen>
+      <AuthGlassLayout
+        title={t('passwordResetSuccessTitle')}
+        subtitle={t('passwordResetSuccessSub')}
+        centered
+      >
+        <Button title={t('signInBtn')} onPress={() => router.replace('/login')} />
+      </AuthGlassLayout>
     );
   }
 
   return (
-    <Screen>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Create New Password</Text>
-          <Text style={styles.subtitle}>
-            Please create a new secure password for your account.
-          </Text>
+    <AuthGlassLayout
+      title={t('resetPasswordTitle')}
+      subtitle={t('newPasswordSubtitle')}
+    >
+      <Input
+        glass
+        label={t('email')}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+        keyboardType="email-address"
+        editable={!params.email}
+      />
 
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoComplete="email"
-            textContentType="emailAddress"
-            keyboardType="email-address"
-            editable={!params.email}
-          />
-          
-          <Input
-            label="Reset code or link"
-            placeholder="Paste the link from your email, or the SMS code"
-            textContentType="oneTimeCode"
-            autoComplete="one-time-code"
-            value={code}
-            onChangeText={setCode}
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!params.code}
-          />
+      <Input
+        glass
+        label={t('codeOrToken')}
+        placeholder="Paste the link from your email, or the SMS code"
+        textContentType="oneTimeCode"
+        autoComplete="one-time-code"
+        value={code}
+        onChangeText={setCode}
+        autoCapitalize="none"
+        autoCorrect={false}
+        editable={!params.code}
+      />
 
-          <Input
-            label="New Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="newPassword"
-            autoComplete="new-password"
-            autoCapitalize="none"
-          />
+      <Input
+        glass
+        label={t('newPassword')}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        textContentType="newPassword"
+        autoComplete="new-password"
+        autoCapitalize="none"
+      />
 
-          <Input
-            label="Confirm Password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            textContentType="newPassword"
-            autoComplete="new-password"
-            autoCapitalize="none"
-            error={error ?? undefined}
-          />
+      <Input
+        glass
+        label={t('confirmPassword')}
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        secureTextEntry
+        textContentType="newPassword"
+        autoComplete="new-password"
+        autoCapitalize="none"
+        error={error ?? undefined}
+      />
 
-          <Button title="Reset Password" onPress={onSubmit} loading={submitting} />
+      <Button title={t('saveAndContinue')} onPress={onSubmit} loading={submitting} />
 
-          <Button 
-            title="Cancel" 
-            variant="outline" 
-            onPress={() => router.back()} 
-            style={{ marginTop: spacing.sm }} 
-          />
-        </View>
-      </KeyboardAvoidingView>
-    </Screen>
+      <Pressable onPress={() => router.back()} style={links.linkRow} hitSlop={8}>
+        <Text style={links.link}>{t('cancel')}</Text>
+      </Pressable>
+    </AuthGlassLayout>
   );
 }
-
-const useStyles = makeStyles((c) => ({
-  flex: { flex: 1 },
-  container: { flex: 1, justifyContent: 'center', gap: spacing.md },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
-  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22, marginBottom: spacing.sm },
-  successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl },
-}));
