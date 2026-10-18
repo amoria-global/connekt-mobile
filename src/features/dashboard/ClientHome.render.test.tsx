@@ -179,6 +179,27 @@ describe('client home as rendered', () => {
     expect(last.payment?.id).toBe('p1');
   });
 
+  it('two open payments under one event title are not guessed: Review payments, not Pay now, on the event', async () => {
+    serve({
+      events: ok([{ id: 'e1', title: 'Yubire Wedding', eventDate: inDays(3) }]),
+      pending: ok([
+        { id: 'p1', eventTitle: 'Yubire Wedding', photographerName: 'Eric M', amountInUsd: 100, paidAmountInUsd: 0, status: 'PENDING' },
+        { id: 'p2', eventTitle: 'Yubire Wedding', photographerName: 'Eric M', amountInUsd: 200, paidAmountInUsd: 0, status: 'PENDING' },
+      ]),
+    });
+    const r = await mount();
+    const text = flat(r.root);
+    // The event cards offer no direct Pay now; the Action required cards each carry their own payment.
+    const eventCardPay = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.findAllByType(Text).some((t) => t.props.children === 'Review payments'));
+    expect(eventCardPay.length).toBeGreaterThan(0);
+    const review = eventCardPay[0];
+    await act(async () => {
+      review.props.onPress();
+    });
+    expect(mockPush).toHaveBeenCalledWith('/payments');
+    expect(text).toContain('Action required');
+  });
+
   it('an event that carries a stream is not called live', async () => {
     serve({ events: ok([{ id: 'e1', title: 'Gala', eventDate: inDays(2), hasLiveStream: true, streamStatus: 'disconnected' }]) });
     const r = await mount();

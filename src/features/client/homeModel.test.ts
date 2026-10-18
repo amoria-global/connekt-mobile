@@ -4,7 +4,6 @@ import {
   clientStatus,
   countdownLabel,
   daysUntil,
-  dueForEvent,
   isLiveNow,
   payable,
   pickNextEvent,
@@ -94,11 +93,5 @@ describe('amounts due', () => {
     const list = [pay({ id: 'a', amount: 100, paidAmount: 40 }), pay({ id: 'b', amount: 50, status: 'failed' })];
     expect(totalDue(list)).toBe(110);
     expect(payable(list)[0].id).toBe('b');
-  });
-  it('matches a payment to its event by title and never by a guess', () => {
-    const list = [pay({ eventName: ' Yubire Wedding ' })];
-    expect(dueForEvent({ title: 'yubire wedding' }, list)).toBeDefined();
-    expect(dueForEvent({ title: 'Other event' }, list)).toBeUndefined();
-    expect(dueForEvent({ title: '' }, list)).toBeUndefined();
   });
 });
