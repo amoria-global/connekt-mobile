@@ -207,17 +207,20 @@ Gradients: one blue hero and at most one violet secondary on Home, nowhere else.
 | Home | `features/dashboard/ClientHome.tsx` | Yes (heroes, Review payments on ambiguity) | render 14 | seen | seen | seen | Done |
 | Events | `features/events/ClientEventsDashboard.tsx` | Yes | render 11, model | seen | seen | seen | Done |
 | Wallet | `(tabs)/wallet.tsx`, `ClientPaymentsDue` | Yes | render | seen | seen | seen | Done |
-| Payments | `payments.tsx` | Honesty fixed (per-currency totals, Pay now from the feed), not restyled | render 9 | seen | not seen | not seen | Partial |
-| Photographers directory | `photographers.tsx`, `PhotographerRow` | Yes (compact rows, real price currency) | row 8, pricing | seen | seen | seen (price truncated, fixed, not re-seen) | Done |
+| Payments | `payments.tsx` | Yes (heroBlue summary, SegmentedTabs, Chip, ListRow, StatusBadge, SkeletonCard, ErrorNotice) | render 11 | seen | seen | seen | Done |
+| Photographers directory | `photographers.tsx`, `PhotographerRow` | Yes (compact rows, real price currency) | row 8, pricing | seen | seen | seen (re-verified full price at 1.6x in light and dark) | Done |
 | Photographer profile | `photographer/[id].tsx` | Yes (real facts, portfolio grid, About, sticky Book now) | render 8, facts | seen | not seen | not seen | Partial |
 | Booking wizard (hybrid) | `BookingModeSelector.tsx` | Progress track and options guard; step logic and payload untouched | existing 19, shape | seen (step 1) | not seen | not seen | Partial |
-| Direct booking form | `event/new.tsx` | Audited, not restyled | existing | not seen | not seen | not seen | Not redesigned |
-| Event detail | `event/[id].tsx` | Truthful track, danger zone | track 5 | seen | not seen | not seen | Partial |
-| Inbox | `(tabs)/inbox.tsx`, `ConversationRow` | Yes | row 8 | seen | not seen | not seen | Partial |
-| Conversation | `conversation/[id].tsx` | Accessibility, 44dp send, 12pt time, bubbles on card colour | render 6 | seen | not seen | not seen | Partial |
-| Notifications | `notifications.tsx` | Error state; layout was already grouped by day | render 4 | seen | not seen | not seen | Partial |
+| Direct booking form | `event/new.tsx` | Yes (heroBlue booking banner, EVENT/WHEN/ABOUT eyebrows, accent active chips, KeyboardAvoidingView + sticky CTA) | existing | seen | seen | seen | Done |
+| Event detail | `event/[id].tsx` | Truthful track, danger zone | track 5 | seen (incl. Danger zone) | seen (incl. Danger zone) | seen (incl. Danger zone) | Done |
+| Inbox | `(tabs)/inbox.tsx`, `ConversationRow` | Yes | row 8 | seen | seen (photographer) | not seen | Partial |
+| Conversation | `conversation/[id].tsx` | Accessibility, 44dp send, 12pt time, bubbles on card colour | render 6 | seen | seen (photographer) | not seen | Partial |
+| Notifications | `notifications.tsx` | Error state; layout was already grouped by day | render 4 | seen | seen (photographer) | not seen | Partial |
 | Profile | `(tabs)/profile.tsx` | Honest client figures, tab roles | stats 16 | not seen | not seen | not seen | Partial |
-| Gallery, photobooks, content albums, bookings, candidates, donations, transactions, edit profile, preferences, two-factor, blocked, delete account | various | Audited, not restyled (loader hardened for albums) | existing | not seen | not seen | not seen | Not redesigned |
+| Gallery, albums | `gallery.tsx`, `album/[id].tsx`, `PhotoViewer` | Yes (hero latest delivery, 3-col thumbnail grid, swipe viewer, skeleton, error/retry) | render 6, viewer 5, facts 4 | seen | seen | seen | Done |
+| Photobooks | `photobooks.tsx`, `photobook/[id].tsx` | Yes (spine cover cards, real count/status, 3-col grid, swipe viewer, skeleton, error/retry) | card 4 | seen | seen | not seen | Partial |
+| Bookings | `bookings.tsx` | Yes (UserHeaderBand hideTitle, SegmentedTabs, SectionHeader, IconTile, StatusBadge, ActionButton, SkeletonCard, ErrorNotice) | existing | seen (incl. error + retry) | seen | seen | Done |
+| Content albums, candidates, donations, transactions, edit profile, preferences, two-factor, blocked, delete account | various | Audited, not restyled | existing | not seen | not seen | not seen | Not redesigned |
 | More sheet, tab bar | `PersistentBottomBar.tsx` | Audited, untouched (shared by every role) | existing | seen | seen | not seen | Audited |
 | iOS | all | not run (no iOS tooling) | | | | | Not verified |
 
@@ -309,3 +312,38 @@ Evidence: render tests for the albums screen (6), the viewer (5), the photobook 
 | Photobook detail and viewer (client) | not seen after the change | seen | not seen | |
 
 Scroll smoothness with 240 photos: **not measurable here.** The emulator renders in software on a debug bundle (every frame janky, median 150 ms), so those numbers say nothing about a phone. The structural measures are in place (thumbnails, memoised tiles, windowing); a real device run is still owed.
+
+## 3. Payments, bookings and direct booking form
+
+What changed (frontend only; all payment lookup, booking actions, form validation and API payloads are untouched):
+
+- **Payments (`src/app/(app)/payments.tsx`, commit `8ee478b`)**:
+  - Summary block converted to the screen's single `LinearGradient` (`gradients.heroBlue`) with white contrast text, keeping per-currency honesty (`Several currencies` with per-currency rows, latest-20 note, and uncounted note).
+  - Coordinator/client sub-tabs (`Events`, `Subscriptions`, `Gifts`) switched to shared `SegmentedTabs`; status filters (`All`, `Completed`, `Pending`, `Failed`) switched to shared `Chip` with pink accent active state (`#F20C8F`).
+  - Payment history, subscription, and gift rows converted to shared `ListRow` with `IconTile` leading icon, `StatusBadge` (`statusTone`) and `ActionButton` for `Pay now` / `Receipt` / `Renew`.
+  - Loading state uses `SkeletonCard` rows; error state uses `ErrorNotice` with `Try again`; empty states use `EmptyNote` (with `Clear filter` when filtered).
+  - Added 2 new render cases in `src/features/payments/paymentsScreen.render.test.tsx` (skeleton loading state, error with retry callback; 11 cases total).
+- **Bookings (`src/app/(app)/bookings.tsx`, commit `5133862`)**:
+  - `UserHeaderBand` given an optional `hideTitle` prop (`src/components/ui/UserHeaderBand.tsx`) so screens that already sit inside the stack header (`Bookings`, `Payments`) do not print the title twice; also fixed a conditional `useRole()` call in `UserHeaderBand` so the hook always runs unconditionally.
+  - Photographer/client mode toggle switched to `SegmentedTabs` (fixed double horizontal padding); list header uses `SectionHeader` (`Your bookings` / `Booking requests` with count subtitle).
+  - Cards restyled onto `c.card` / `c.border` surfaces with `IconTile` leading badge, `StatusBadge` (`statusTone`), and `ActionButton` for `Decline` / `Accept` / `Pay now`.
+  - Loading state uses `SkeletonCard`; error state uses `ErrorNotice` with `Try again`; empty state uses `EmptyNote` with `Find a Photographer` CTA.
+- **Direct booking form (`src/app/(app)/event/new.tsx`, commit `5133862`)**:
+  - Wrapped in `KeyboardAvoidingView` with a sticky bottom action bar (`styles.stickyBar`) holding the primary CTA (`Book & pay …` / `Create event` / `Save changes`).
+  - Direct-booking photographer banner converted to the screen's single `LinearGradient` (`gradients.heroBlue`) with high-contrast white labels (`#FFFFFF` / `rgba(255,255,255,0.82)` — fixing dark-blue text on blue gradient in dark mode).
+  - Form sections grouped under pink `EVENT`, `WHEN`, and `ABOUT` eyebrows (`c.accent`), `c.card` / `c.border` surfaces on cover picker and inputs, pink `#F20C8F` active state on category chips for non-photographer roles, and bottom-aligned side-by-side time fields (`justifyContent: 'flex-end'` on `rowItem`) so `Start time` and `End time (optional)` boxes stay aligned when the label wraps at `1.6x`.
+
+| Screen | Light | Dark | 1.6x | Notes |
+|---|---|---|---|---|
+| Payments (`connekt:///payments`) | seen | seen | seen | `heroBlue` summary (`Several currencies`: `RWF 50,000` + `$205.00`), pending alert `$120.00`, `SegmentedTabs`, pink `All` chip, `ListRow` + `StatusBadge` + `Pay now` / `Receipt` |
+| Bookings (`connekt:///bookings`) | seen | seen | seen | `REQUESTS` eyebrow (no duplicate title), `Your bookings / 3 requests`, `PENDING` / `ACCEPTED` / `REJECTED` `StatusBadge`, `Find Available Matches` rescue card, plus error state (`ErrorNotice` + `Try again` recovery) verified |
+| Direct booking form (`connekt:///event/new?...`) | seen | seen | seen | `heroBlue` booking banner (`BOOKING / Aline Mutesi / RWF 850,000`), `EVENT` / `WHEN` / `ABOUT` eyebrows, pink `#F20C8F` active `Weddings` chip, aligned `Start time` / `End time (optional)` inputs at `1.6x`, sticky `Book & pay RWF 850,000` bar |
+
+## 4. Second-pass re-verification (directory 1.6x price and event Danger zone)
+
+Both items that were fixed in code during the second pass but not yet re-seen on device were opened and screenshot-verified on the emulator:
+
+| Item | Light | Dark | 1.6x | Result |
+|---|---|---|---|---|
+| Photographer directory price at `1.6x` (`connekt:///photographers`) | seen at `1.6x` | seen at `1.6x` | seen | Footer stacks price (`From RWF 850,000`, `From RWF 180,000`, `From $250.00`) above the `View profile ->` pill; zero `"Fro..."` truncation in either theme |
+| Event `Danger zone` (`connekt:///event/e-del`, deletable fixture event) | seen | seen | seen | `Manage` card shows primary/outline action buttons (`Publish`, `Edit`, `Geo pricing`, `Share`, `Rate`), followed by a hairline divider, `DANGER ZONE` eyebrow, and quiet outlined red `Delete event` button (`dangerOutline`) |
