@@ -12,6 +12,7 @@ export function UserHeaderBand({
   title,
   subtitle,
   duplicatesHeader,
+  hideTitle: forceHideTitle,
   children,
 }: {
   eyebrow?: string;
@@ -19,10 +20,13 @@ export function UserHeaderBand({
   subtitle?: string;
   /** The native stack header already shows `title`; photographer screens then drop the repeat. */
   duplicatesHeader?: boolean;
+  /** Drops the title for every role (the screen's native header already says it). Default behaviour is unchanged. */
+  hideTitle?: boolean;
   children?: React.ReactNode;
 }) {
   const styles = useStyles();
-  const hideTitle = useRole().isPhotographer && duplicatesHeader;
+  const { isPhotographer } = useRole();
+  const hideTitle = forceHideTitle || (isPhotographer && duplicatesHeader);
 
   return (
     <View style={styles.wrap}>
