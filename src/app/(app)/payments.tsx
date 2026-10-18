@@ -12,7 +12,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -21,7 +20,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ActionButton, Chip, EmptyNote, ErrorNotice, SectionHeader, SegmentedTabs, SkeletonCard, StatusBadge } from '@/features/photographer/kit';
+import { ListRow } from '@/features/client/studio';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import {
@@ -66,17 +67,22 @@ function bucketOf(p: { status?: string; paymentType?: string }): RowBucket {
   return b === 'pending' && !isOwedObligation(p.paymentType) ? 'unfinished' : b;
 }
 
-const STATUS_TONE: Record<RowBucket, { bg: string; fg: string; label: string }> = {
-  unfinished: { bg: '#E5E7EB', fg: '#4B5563', label: 'Not completed' },
-  paid: { bg: '#D1FAE5', fg: '#047857', label: 'Paid' },
-  pending: { bg: '#FEF3C7', fg: '#92400E', label: 'Pending' },
-  failed: { bg: '#FEE2E2', fg: '#B91C1C', label: 'Failed' },
+const STATUS_TONE: Record<RowBucket, { tone: 'success' | 'warning' | 'error' | 'neutral'; rowTone: 'primary' | 'success' | 'warning' | 'error'; label: string }> = {
+  unfinished: { tone: 'neutral', rowTone: 'primary', label: 'Not completed' },
+  paid: { tone: 'success', rowTone: 'success', label: 'Paid' },
+  pending: { tone: 'warning', rowTone: 'warning', label: 'Pending' },
+  failed: { tone: 'error', rowTone: 'error', label: 'Failed' },
 };
+
+/** Spacing between payment rows (rows are margin-inset cards, so the separator is only vertical). */
+function RowGap() {
+  return <View style={{ height: spacing.sm }} />;
+}
 
 function PaymentsContent() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { colors } = useTheme();
+  const { colors, gradients } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const { role, isCoordinator } = useRole();
@@ -191,202 +197,162 @@ function PaymentsContent() {
     }
   };
 
+  const retryCurrent = () => onRefresh();
+
   const header = (
-    <View style={styles.header}>
-      <Text style={styles.eyebrow}>FINANCE</Text>
-      <Text style={styles.title}>Payments</Text>
-      <Text style={styles.subtitle}>
-        {isCoordinator
-          ? 'Manage event payments, streaming revenue, and gifts.'
-          : 'Your event payments and purchases.'}
-      </Text>
+    <View>
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>FINANCE</Text>
+        <Text style={styles.subtitle}>
+          {isCoordinator
+            ? 'Manage event payments, streaming revenue, and gifts.'
+            : 'Your event payments and purchases.'}
+        </Text>
 
-      {/* Role-aware Section Switcher for Coordinators */}
-      {isCoordinator ? (
-        <View style={styles.sectionTabs}>
-          <Pressable
-            style={[styles.sectionTab, section === 'events' && styles.sectionTabActive]}
-            onPress={() => setSection('events')}
-          >
-            <Ionicons
-              name="card-outline"
-              size={15}
-              color={section === 'events' ? '#fff' : colors.textMuted}
-            />
-            <Text style={[styles.sectionTabText, section === 'events' && styles.sectionTabTextActive]}>
-              Event Payments
-            </Text>
-          </Pressable>
+        {/* Role-aware Section Switcher for Coordinators */}
+        {isCoordinator ? (
+          <SegmentedTabs
+            label="Payment sections"
+            value={section}
+            onChange={setSection}
+            tabs={[
+              { key: 'events', label: 'Events' },
+              { key: 'streaming', label: 'Streams' },
+              { key: 'gifts', label: 'Gifts' },
+            ]}
+          />
+        ) : null}
 
-          <Pressable
-            style={[styles.sectionTab, section === 'streaming' && styles.sectionTabActive]}
-            onPress={() => setSection('streaming')}
-          >
-            <Ionicons
-              name="radio-outline"
-              size={15}
-              color={section === 'streaming' ? '#fff' : colors.textMuted}
-            />
-            <Text style={[styles.sectionTabText, section === 'streaming' && styles.sectionTabTextActive]}>
-              Stream Revenue
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.sectionTab, section === 'gifts' && styles.sectionTabActive]}
-            onPress={() => setSection('gifts')}
-          >
-            <Ionicons
-              name="heart-outline"
-              size={15}
-              color={section === 'gifts' ? '#fff' : colors.textMuted}
-            />
-            <Text style={[styles.sectionTabText, section === 'gifts' && styles.sectionTabTextActive]}>
-              Gift Earnings
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {/* Section 1: Event Payments Summary Card */}
-      {section === 'events' ? (
-        <>
-          {summary && summary.totals.length > 0 ? (
-            <View style={styles.totalCard}>
-              <Text style={styles.totalLabel}>{isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING'}</Text>
-              {single ? (
-                <>
-                  <Text style={styles.totalValue}>{formatPrice(single.total, single.currency)}</Text>
-                  <View style={styles.totalSplit}>
-                    <View style={styles.totalSplitCell}>
-                      <Text style={styles.totalSplitLabel}>Paid</Text>
-                      <Text style={styles.totalSplitValue}>{formatPrice(single.paid, single.currency)}</Text>
+        {/* Section 1: Event Payments Summary (the one gradient hero on this screen) */}
+        {section === 'events' ? (
+          <>
+            {summary && summary.totals.length > 0 ? (
+              <LinearGradient colors={gradients.heroBlue} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.totalCard}>
+                <Text style={styles.totalLabel}>{isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING'}</Text>
+                {single ? (
+                  <>
+                    <Text style={styles.totalValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{formatPrice(single.total, single.currency)}</Text>
+                    <View style={styles.totalSplit}>
+                      <View style={styles.totalSplitCell}>
+                        <Text style={styles.totalSplitLabel}>Paid</Text>
+                        <Text style={styles.totalSplitValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(single.paid, single.currency)}</Text>
+                      </View>
+                      <View style={styles.totalDivider} />
+                      <View style={styles.totalSplitCell}>
+                        <Text style={styles.totalSplitLabel}>Pending</Text>
+                        <Text style={styles.totalSplitValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(single.pending, single.currency)}</Text>
+                      </View>
                     </View>
-                    <View style={styles.totalDivider} />
-                    <View style={styles.totalSplitCell}>
-                      <Text style={styles.totalSplitLabel}>Pending</Text>
-                      <Text style={styles.totalSplitValue}>{formatPrice(single.pending, single.currency)}</Text>
-                    </View>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.totalMixed}>Several currencies</Text>
-                  {summary.totals.map((t) => (
-                    <View key={t.currency} style={styles.totalCurrencyRow} accessible accessibilityLabel={`${t.currency}: ${formatMoney(t.total, t.currency)} total, ${formatMoney(t.paid, t.currency)} paid, ${formatMoney(t.pending, t.currency)} pending`}>
-                      <Text style={styles.totalSplitLabel}>{t.currency}</Text>
-                      <Text style={styles.totalSplitValue}>{formatMoney(t.total, t.currency)}</Text>
-                    </View>
-                  ))}
-                </>
-              )}
-              {summary.uncounted > 0 ? (
-                <Text style={styles.totalNote}>
-                  {summary.uncounted} payment{summary.uncounted === 1 ? '' : 's'} without an amount or currency not included.
-                </Text>
-              ) : null}
-              {partial ? <Text style={styles.totalNote}>Based on your latest {payments.length} payments.</Text> : null}
-            </View>
-          ) : null}
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.totalMixed}>Several currencies</Text>
+                    {summary.totals.map((t) => (
+                      <View key={t.currency} style={styles.totalCurrencyRow} accessible accessibilityLabel={`${t.currency}: ${formatMoney(t.total, t.currency)} total, ${formatMoney(t.paid, t.currency)} paid, ${formatMoney(t.pending, t.currency)} pending`}>
+                        <Text style={styles.totalSplitLabel}>{t.currency}</Text>
+                        <Text style={styles.totalSplitValue}>{formatMoney(t.total, t.currency)}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+                {summary.uncounted > 0 ? (
+                  <Text style={styles.totalNote}>
+                    {summary.uncounted} payment{summary.uncounted === 1 ? '' : 's'} without an amount or currency not included.
+                  </Text>
+                ) : null}
+                {partial ? <Text style={styles.totalNote}>Based on your latest {payments.length} payments.</Text> : null}
+              </LinearGradient>
+            ) : null}
 
-          {pendingText ? (
-            <View style={styles.pendingAlert}>
-              <Ionicons name="alert-circle" size={20} color="#D97706" />
+            {pendingText ? (
+              <View style={styles.pendingAlert} accessible accessibilityLabel={`${pendingText} in pending payments. Complete payments to avoid booking cancellations.`}>
+                <Ionicons name="alert-circle" size={20} color={colors.warning} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pendingAlertTitle}>{pendingText} in pending payments</Text>
+                  <Text style={styles.pendingAlertSub}>Complete payments to avoid booking cancellations.</Text>
+                </View>
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        {/* Section 2: Stream Revenue Summary Card */}
+        {section === 'streaming' ? (
+          <View style={styles.streamCard}>
+            <View style={styles.streamCardHead}>
+              <View style={styles.streamBadgeIcon}>
+                <Ionicons name="radio" size={20} color="#fff" />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.pendingAlertTitle}>
-                  {pendingText} in pending payments
-                </Text>
-                <Text style={styles.pendingAlertSub}>
-                  Complete payments to avoid booking cancellations.
-                </Text>
+                <Text style={styles.streamEyebrow}>CONNEKTLIVE</Text>
+                <Text style={styles.streamCardTitle}>Live Stream Revenue</Text>
+                <Text style={styles.streamCardSub}>Ticketed stream entry fees</Text>
               </View>
             </View>
-          ) : null}
+            <View style={styles.streamDivider} />
+            <View style={styles.streamCardBottom}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.streamBottomLabel}>Total Stream Revenue</Text>
+                <Text style={styles.streamBottomValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(totalStreamingRevenue, 'RWF')}</Text>
+              </View>
+              <ActionButton compact variant="primary" icon="cash-outline" label="Withdraw" onPress={() => router.push('/withdraw' as Href)} />
+            </View>
+          </View>
+        ) : null}
 
-          {/* Filter Pills */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-          >
-            {(['all', 'paid', 'pending', 'failed'] as const).map((f) => {
-              const active = filter === f;
-              return (
-                <Pressable
-                  key={f}
-                  onPress={() => setFilter(f)}
-                  style={[styles.pill, active && styles.pillActive]}
-                >
-                  <Text style={[styles.pillText, active && styles.pillTextActive]}>
-                    {f === 'all' ? 'All' : STATUS_TONE[f].label}
-                  </Text>
-                  <View style={[styles.badge, active && styles.badgeActive]}>
-                    <Text style={[styles.badgeText, active && styles.badgeTextActive]}>
-                      {counts[f]}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+        {/* Section 3: Gift Earnings Summary Card */}
+        {section === 'gifts' ? (
+          <View style={styles.streamCard}>
+            <View style={styles.streamCardHead}>
+              <View style={styles.streamBadgeIcon}>
+                <Ionicons name="heart" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.streamEyebrow}>CONNEKTLIVE GIFTS</Text>
+                <Text style={styles.streamCardTitle}>Viewer Gift Earnings</Text>
+                <Text style={styles.streamCardSub}>65% withdrawable share</Text>
+              </View>
+            </View>
+            <View style={styles.streamDivider} />
+            <View style={styles.streamCardBottom}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.streamBottomLabel}>Total Gift Revenue</Text>
+                <Text style={styles.giftBottomValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(totalGiftRevenue, 'RWF')}</Text>
+              </View>
+              <ActionButton compact variant="primary" icon="cash-outline" label="Withdraw" onPress={() => router.push('/withdraw' as Href)} />
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      {section === 'events' ? (
+        <>
+          <SectionHeader
+            title="Activity"
+            subtitle={paymentsData ? `${payments.length} payment${payments.length === 1 ? '' : 's'}${partial ? ' (latest)' : ''}` : undefined}
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {(['all', 'paid', 'pending', 'failed'] as const).map((f) => (
+              <Chip key={f} label={f === 'all' ? 'All' : STATUS_TONE[f].label} selected={filter === f} count={counts[f]} onPress={() => setFilter(f)} />
+            ))}
           </ScrollView>
         </>
-      ) : null}
+      ) : (
+        <SectionHeader title={section === 'streaming' ? 'Stream payments' : 'Gifts received'} />
+      )}
+    </View>
+  );
 
-      {/* Section 2: Stream Revenue Summary Card */}
-      {section === 'streaming' ? (
-        <View style={styles.streamCard}>
-          <View style={styles.streamCardHead}>
-            <View style={styles.streamBadgeIcon}>
-              <Ionicons name="radio" size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.streamEyebrow}>CONNEKTLIVE</Text>
-              <Text style={styles.streamCardTitle}>Live Stream Revenue</Text>
-              <Text style={styles.streamCardSub}>Ticketed stream entry fees</Text>
-            </View>
-            <Pressable
-              style={styles.withdrawBtn}
-              onPress={() => router.push('/withdraw' as Href)}
-            >
-              <Ionicons name="cash-outline" size={14} color="#fff" />
-              <Text style={styles.withdrawBtnText}>Withdraw</Text>
-            </Pressable>
-          </View>
-          <View style={styles.streamDivider} />
-          <View style={styles.streamCardBottom}>
-            <Text style={styles.streamBottomLabel}>Total Stream Revenue</Text>
-            <Text style={styles.streamBottomValue}>{formatPrice(totalStreamingRevenue, 'RWF')}</Text>
-          </View>
-        </View>
-      ) : null}
-
-      {/* Section 3: Gift Earnings Summary Card */}
-      {section === 'gifts' ? (
-        <View style={styles.giftCard}>
-          <View style={styles.giftCardHead}>
-            <View style={styles.giftBadgeIcon}>
-              <Ionicons name="heart" size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.giftEyebrow}>CONNEKTLIVE GIFTS</Text>
-              <Text style={styles.giftCardTitle}>Viewer Gift Earnings</Text>
-              <Text style={styles.giftCardSub}>65% withdrawable share</Text>
-            </View>
-            <Pressable
-              style={styles.withdrawBtn}
-              onPress={() => router.push('/withdraw' as Href)}
-            >
-              <Ionicons name="cash-outline" size={14} color="#fff" />
-              <Text style={styles.withdrawBtnText}>Withdraw</Text>
-            </Pressable>
-          </View>
-          <View style={styles.giftDivider} />
-          <View style={styles.giftCardBottom}>
-            <Text style={styles.giftBottomLabel}>Total Gift Revenue</Text>
-            <Text style={styles.giftBottomValue}>{formatPrice(totalGiftRevenue, 'RWF')}</Text>
-          </View>
-        </View>
-      ) : null}
+  const skeletons = (
+    <View style={styles.skeletons}>
+      <SkeletonCard height={72} />
+      <SkeletonCard height={72} />
+      <SkeletonCard height={72} />
+    </View>
+  );
+  const errorBlock = (message: string) => (
+    <View style={styles.emptyWrap}>
+      <ErrorNotice message={message} onRetry={retryCurrent} />
     </View>
   );
 
@@ -398,101 +364,62 @@ function PaymentsContent() {
           keyExtractor={(p) => p.id}
           ListHeaderComponent={header}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={currentLoading}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
+          ItemSeparatorComponent={RowGap}
+          refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
             const b = bucketOf(item);
             const tone = STATUS_TONE[b];
             const isPending = b === 'pending';
             const isFailed = b === 'failed' && isOwedObligation(item.paymentType);
+            const dateText = item.createdAt ? formatDate(item.createdAt) : undefined;
 
             return (
-              <Pressable
-                style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
-                onPress={() => router.push(`/payment/${item.id}` as Href)}
-              >
-                <View style={[styles.rowIcon, { backgroundColor: tone.bg }]}>
-                  <Ionicons name="card" size={18} color={tone.fg} />
-                </View>
-
-                <View style={styles.rowBody}>
-                  <Text style={styles.rowTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  {item.createdAt ? (
-                    <Text style={styles.rowDate}>{formatDate(item.createdAt)}</Text>
-                  ) : null}
-                </View>
-
-                <View style={styles.rowRight}>
-                  {item.amount != null ? (
-                    <Text style={styles.rowAmount}>
-                      {formatPrice(item.amount, item.currency)}
-                    </Text>
-                  ) : null}
-
-                  {isPending || isFailed ? (
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.payNowBtn,
-                        isFailed && styles.retryBtn,
-                        pressed && { opacity: 0.8 },
-                      ]}
-                      disabled={payChecking}
-                      accessibilityRole="button"
-                      accessibilityState={{ busy: payChecking, disabled: payChecking }}
-                      accessibilityLabel={`${isFailed ? 'Retry' : 'Pay now'}, ${item.title}`}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        void onOpenPayNow(item);
-                      }}
-                    >
-                      <Ionicons
-                        name={isFailed ? 'refresh-outline' : 'card-outline'}
-                        size={12}
-                        color="#fff"
-                      />
-                      <Text style={styles.payNowBtnText}>
-                        {isFailed ? 'Retry' : 'Pay Now'}
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <View style={[styles.statusChip, { backgroundColor: tone.bg }]}>
-                      <Text style={[styles.statusChipText, { color: tone.fg }]}>
-                        {tone.label}
-                      </Text>
+              <View style={styles.rowCard}>
+                <ListRow
+                  icon="card"
+                  tone={tone.rowTone}
+                  title={item.title}
+                  meta={dateText}
+                  onPress={() => router.push(`/payment/${item.id}` as Href)}
+                  trailing={
+                    <View style={styles.rowRight}>
+                      {item.amount != null ? <Text style={styles.rowAmount}>{formatPrice(item.amount, item.currency)}</Text> : null}
+                      {isPending || isFailed ? (
+                        <Pressable
+                          style={({ pressed }) => [styles.payNowBtn, isFailed && styles.retryBtn, pressed && { opacity: 0.8 }]}
+                          disabled={payChecking}
+                          accessibilityRole="button"
+                          accessibilityState={{ busy: payChecking, disabled: payChecking }}
+                          accessibilityLabel={`${isFailed ? 'Retry' : 'Pay now'}, ${item.title}`}
+                          hitSlop={8}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            void onOpenPayNow(item);
+                          }}
+                        >
+                          <Ionicons name={isFailed ? 'refresh-outline' : 'card-outline'} size={12} color="#fff" />
+                          <Text style={styles.payNowBtnText}>{isFailed ? 'Retry' : 'Pay Now'}</Text>
+                        </Pressable>
+                      ) : (
+                        <StatusBadge label={tone.label} tone={tone.tone} />
+                      )}
                     </View>
-                  )}
-                </View>
-              </Pressable>
+                  }
+                />
+              </View>
             );
           }}
           ListEmptyComponent={
             currentLoading ? (
-              <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
+              skeletons
             ) : paymentsError ? (
-              <View style={{ paddingTop: spacing.xl }}>
-                <EmptyState
-                  icon="cloud-offline-outline"
-                  title="Couldn't load payments"
-                  message="Pull to refresh and try again."
-                />
-              </View>
+              errorBlock("Couldn't load payments. Check your connection and try again.")
             ) : (
-              <View style={{ paddingTop: spacing.xl }}>
-                <EmptyState
+              <View style={styles.emptyWrap}>
+                <EmptyNote
                   icon="card-outline"
                   title={filter === 'all' ? 'No payments yet' : 'Nothing here'}
-                  message={
-                    filter === 'all'
-                      ? 'Your event payments and purchases will appear here.'
-                      : 'No payments match this filter.'
-                  }
+                  body={filter === 'all' ? 'Your event payments and purchases will appear here.' : 'No payments match this filter.'}
                 />
               </View>
             )
@@ -504,74 +431,36 @@ function PaymentsContent() {
           keyExtractor={(item) => item.id}
           ListHeaderComponent={header}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={currentLoading}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
+          ItemSeparatorComponent={RowGap}
+          refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
             const isCompleted = item.status === 'completed';
-            const statusTone = isCompleted
-              ? { bg: '#D1FAE5', fg: '#047857', label: 'Completed' }
-              : { bg: '#FEF3C7', fg: '#92400E', label: item.status.toUpperCase() };
-
+            const meta = [item.eventTitle, `Method: ${item.method}`, item.date ? formatDate(item.date) : null].filter(Boolean).join(' · ');
             return (
-              <View style={styles.streamRow}>
-                <View style={styles.streamRowHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.streamViewerName}>{item.viewerName}</Text>
-                    {item.viewerEmail ? (
-                      <Text style={styles.streamViewerEmail}>{item.viewerEmail}</Text>
-                    ) : null}
-                  </View>
-                  <View style={[styles.statusChip, { backgroundColor: statusTone.bg }]}>
-                    <Text style={[styles.statusChipText, { color: statusTone.fg }]}>
-                      {statusTone.label}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.streamRowMeta}>
-                  <View style={styles.streamRowMetaItem}>
-                    <Ionicons name="radio" size={13} color={colors.accent} />
-                    <Text style={styles.streamEventTitle} numberOfLines={1}>
-                      {item.eventTitle}
-                    </Text>
-                  </View>
-                  <Text style={styles.streamRowAmount}>
-                    {formatPrice(item.amount, item.currency)}
-                  </Text>
-                </View>
-
-                <View style={styles.streamRowFooter}>
-                  <Text style={styles.streamFooterText}>Method: {item.method}</Text>
-                  {item.date ? (
-                    <Text style={styles.streamFooterText}>{formatDate(item.date)}</Text>
-                  ) : null}
-                </View>
+              <View style={styles.rowCard}>
+                <ListRow
+                  icon="radio"
+                  tone={isCompleted ? 'success' : 'warning'}
+                  title={item.viewerName}
+                  meta={meta}
+                  trailing={
+                    <View style={styles.rowRight}>
+                      <Text style={styles.rowAmount}>{formatPrice(item.amount, item.currency)}</Text>
+                      <StatusBadge label={isCompleted ? 'Completed' : item.status.toUpperCase()} tone={isCompleted ? 'success' : 'warning'} />
+                    </View>
+                  }
+                />
               </View>
             );
           }}
           ListEmptyComponent={
             currentLoading ? (
-              <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
+              skeletons
             ) : streamingError ? (
-              <View style={{ paddingTop: spacing.xl }}>
-                <EmptyState
-                  icon="cloud-offline-outline"
-                  title="Couldn't load stream revenue"
-                  message="Pull down to refresh and try again."
-                />
-              </View>
+              errorBlock("Couldn't load stream revenue. Check your connection and try again.")
             ) : (
-              <View style={{ paddingTop: spacing.xl }}>
-                <EmptyState
-                  icon="radio-outline"
-                  title="No stream revenue yet"
-                  message="Ticket fees from ConnektLive viewers will appear here."
-                />
+              <View style={styles.emptyWrap}>
+                <EmptyNote icon="radio-outline" title="No stream revenue yet" body="Ticket fees from ConnektLive viewers will appear here." />
               </View>
             )
           }
@@ -582,70 +471,36 @@ function PaymentsContent() {
           keyExtractor={(item) => item.id}
           ListHeaderComponent={header}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={currentLoading}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
+          ItemSeparatorComponent={RowGap}
+          refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
             const isCompleted = item.status === 'completed';
-            const statusTone = isCompleted
-              ? { bg: '#D1FAE5', fg: '#047857', label: 'Completed' }
-              : { bg: '#FEF3C7', fg: '#92400E', label: item.status.toUpperCase() };
-
+            const meta = [item.eventTitle, item.giftMessage ? `\u201C${item.giftMessage}\u201D` : null, item.date ? formatDate(item.date) : null].filter(Boolean).join(' · ');
             return (
-              <View style={styles.giftRow}>
-                <View style={styles.giftRowHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.giftSender}>
-                      {item.customerPhone || 'Anonymous Viewer'}
-                    </Text>
-                    <Text style={styles.giftEvent}>{item.eventTitle}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                    <Text style={styles.giftNetAmount}>
-                      {formatPrice(item.netAmount, item.currency)}
-                    </Text>
-                    <View style={[styles.statusChip, { backgroundColor: statusTone.bg }]}>
-                      <Text style={[styles.statusChipText, { color: statusTone.fg }]}>
-                        {statusTone.label}
-                      </Text>
+              <View style={styles.rowCard}>
+                <ListRow
+                  icon="heart"
+                  tone={isCompleted ? 'accent' : 'warning'}
+                  title={item.customerPhone || 'Anonymous Viewer'}
+                  meta={meta}
+                  trailing={
+                    <View style={styles.rowRight}>
+                      <Text style={styles.giftNetAmount}>{formatPrice(item.netAmount, item.currency)}</Text>
+                      <StatusBadge label={isCompleted ? 'Completed' : item.status.toUpperCase()} tone={isCompleted ? 'success' : 'warning'} />
                     </View>
-                  </View>
-                </View>
-
-                {item.giftMessage ? (
-                  <View style={styles.giftMessageWrap}>
-                    <Text style={styles.giftMessage}>&ldquo;{item.giftMessage}&rdquo;</Text>
-                  </View>
-                ) : null}
-
-                {item.date ? (
-                  <Text style={styles.giftDate}>{formatDate(item.date)}</Text>
-                ) : null}
+                  }
+                />
               </View>
             );
           }}
           ListEmptyComponent={
             currentLoading ? (
-              <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
+              skeletons
             ) : giftsError ? (
-              <View style={{ paddingTop: spacing.xl }}>
-                <EmptyState
-                  icon="cloud-offline-outline"
-                  title="Couldn't load gifts"
-                  message="Pull down to refresh and try again."
-                />
-              </View>
+              errorBlock("Couldn't load gifts. Check your connection and try again.")
             ) : (
-              <View style={{ paddingTop: spacing.xl }}>
-                <EmptyState
-                  icon="heart-outline"
-                  title="No gifts received yet"
-                  message="Gifts sent by live-stream viewers will appear here."
-                />
+              <View style={styles.emptyWrap}>
+                <EmptyNote icon="heart-outline" title="No gifts received yet" body="Gifts sent by live-stream viewers will appear here." />
               </View>
             )
           }
@@ -667,12 +522,15 @@ function PaymentsContent() {
 }
 
 const useStyles = makeStyles((c) => ({
-  list: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.md },
+  list: { paddingBottom: 120 },
+  rowCard: { marginHorizontal: spacing.lg, backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft, overflow: 'hidden' },
+  skeletons: { paddingHorizontal: spacing.lg, gap: spacing.sm },
+  emptyWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 
-  header: { paddingTop: spacing.md, gap: spacing.md },
+  header: { paddingTop: spacing.md, gap: spacing.md, paddingHorizontal: spacing.lg },
   eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
   title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5, marginTop: 2 },
-  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, marginTop: -6 },
+  subtitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, marginTop: -4 },
 
   sectionTabs: {
     flexDirection: 'row',
@@ -707,7 +565,6 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.xl,
     padding: spacing.xl,
     gap: 4,
-    backgroundColor: c.primary,
   },
   totalLabel: { fontFamily: fonts.bold, color: 'rgba(255,255,255,0.8)', fontSize: 11, letterSpacing: 1 },
   totalValue: { fontFamily: fonts.bold, color: '#fff', fontSize: 32, letterSpacing: -0.5 },
@@ -724,16 +581,16 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: c.warningBg,
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: c.warning,
     borderRadius: radii.lg,
     padding: spacing.md,
   },
-  pendingAlertTitle: { fontFamily: fonts.bold, fontSize: 13, color: '#92400E' },
-  pendingAlertSub: { fontFamily: fonts.regular, fontSize: 11, color: '#B45309', marginTop: 1 },
+  pendingAlertTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.text },
+  pendingAlertSub: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, marginTop: 1 },
 
-  filterRow: { gap: 8, paddingVertical: 2 },
+  filterRow: { gap: 8, paddingTop: 2, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -772,8 +629,8 @@ const useStyles = makeStyles((c) => ({
   rowBody: { flex: 1, gap: 2 },
   rowTitle: { fontFamily: fonts.bold, fontSize: 15, color: c.text },
   rowDate: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
-  rowRight: { alignItems: 'flex-end', gap: 6 },
-  rowAmount: { fontFamily: fonts.bold, fontSize: 15, color: c.primary },
+  rowRight: { alignItems: 'flex-end', gap: 4 },
+  rowAmount: { fontFamily: fonts.bold, fontSize: 15, color: c.text },
 
   payNowBtn: {
     flexDirection: 'row',
