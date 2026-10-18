@@ -260,11 +260,11 @@ export function ActionButton({
         <Ionicons name={icon} size={18} color={fg} />
       ) : null}
       {caption ? (
-        <View style={styles.actionTextCol}>
-          <Text style={[styles.actionText, styles.actionTextLeft, { color: fg }]} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+        <View style={[styles.actionTextCol, stacked && { alignItems: 'center' }]}>
+          <Text style={[styles.actionText, styles.actionTextLeft, stacked && { textAlign: 'center' }, { color: fg }]} numberOfLines={1} maxFontSizeMultiplier={1.25}>
             {label}
           </Text>
-          <Text style={styles.actionCaption} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          <Text style={[styles.actionCaption, stacked && { textAlign: 'center' }, variant === 'primary' && { color: colors.textOnPrimary, opacity: 0.85 }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
             {caption}
           </Text>
         </View>
