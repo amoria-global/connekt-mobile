@@ -8,6 +8,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Variant = 'primary' | 'accent' | 'ghost' | 'outline' | 'danger';
 
@@ -22,6 +23,7 @@ export function Button({ title, variant = 'primary', loading, disabled, style, t
   const variantStyles = useVariantStyles();
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const isDisabled = disabled || loading;
   const isOutlined = variant === 'ghost' || variant === 'outline';
   return (
@@ -40,7 +42,7 @@ export function Button({ title, variant = 'primary', loading, disabled, style, t
       {loading ? (
         <ActivityIndicator color={isOutlined ? colors.primary : colors.textOnPrimary} />
       ) : (
-        <Text style={[styles.label, isOutlined && styles.labelGhost, textStyle]}>{title}</Text>
+        <Text style={[styles.label, isOutlined && styles.labelGhost, textStyle]}>{tr(title)}</Text>
       )}
     </Pressable>
   );

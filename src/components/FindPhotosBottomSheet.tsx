@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/store/auth';
 import { makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 interface Props {
   visible: boolean;
@@ -18,6 +19,7 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { tr } = useSharedT();
   const status = useAuth((s) => s.status);
   const isLoggedIn = status === 'authenticated';
 
@@ -38,12 +40,12 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
         style={[StyleSheet.absoluteFill, styles.backdrop]} 
         onPress={onClose}
         accessibilityRole="button"
-        accessibilityLabel="Close"
+        accessibilityLabel={tr('Close')}
       />
       <View style={styles.sheetWrapper} pointerEvents="box-none">
         <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetHeaderTitle}>What would you like to do?</Text>
+          <Text style={styles.sheetHeaderTitle}>{tr('What would you like to do?')}</Text>
           
           {/* Get Your Photos Option */}
           <Pressable 
@@ -57,8 +59,8 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
               <Ionicons name="scan-outline" size={28} color={colors.primary} />
             </View>
             <View style={styles.sheetTextWrap}>
-              <Text style={styles.sheetTitle}>Get Your Photos</Text>
-              <Text style={styles.sheetSub}>AI face scan from your events</Text>
+              <Text style={styles.sheetTitle}>{tr('Get Your Photos')}</Text>
+              <Text style={styles.sheetSub}>{tr('AI face scan from your events')}</Text>
             </View>
           </Pressable>
 
@@ -77,8 +79,8 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
                   <Ionicons name="apps" size={28} color={colors.accent} />
                 </View>
                 <View style={styles.sheetTextWrap}>
-                  <Text style={styles.sheetTitle}>Browse Photos</Text>
-                  <Text style={styles.sheetSub}>Stock photos by category, paid per photo</Text>
+                  <Text style={styles.sheetTitle}>{tr('Browse Photos')}</Text>
+                  <Text style={styles.sheetSub}>{tr('Stock photos by category, paid per photo')}</Text>
                 </View>
               </Pressable>
             </>

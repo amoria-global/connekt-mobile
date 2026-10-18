@@ -18,6 +18,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 
 const FALLBACK_TIERS = [1000, 5000, 10000, 25000];
 
@@ -25,10 +26,11 @@ export default function DonationsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useStyles();
   const history = useAsync(useCallback(() => listDonations(), []));
   const tiersAsync = useAsync(useCallback(() => getDonationTiers(), []));
-  const tiers = tiersAsync.data?.length ? tiersAsync.data.map((t) => t.amount) : FALLBACK_TIERS;
+  const tiers = tiersAsync.data?.length ? tiersAsync.data.map((tier) => tier.amount) : FALLBACK_TIERS;
 
   const router = useRouter();
   // The donate screen completes the payment in the app; refresh the history
@@ -48,42 +50,42 @@ export default function DonationsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Donate" subtitle="Support the Connekyt community" />
+      <ScreenHeader title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} />
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.section}>Suggested amounts</Text>
+        <Text style={styles.section}>{t('b2_donationsSuggestedAmounts')}</Text>
         <View style={styles.tierRow}>
-          {tiers.map((t) => (
-            <View key={t} style={styles.tier}>
-              <Text style={styles.tierText}>{formatPrice(t, 'RWF')}</Text>
+          {tiers.map((tier) => (
+            <View key={tier} style={styles.tier}>
+              <Text style={styles.tierText}>{formatPrice(tier, 'RWF')}</Text>
             </View>
           ))}
         </View>
 
         <Button
-          title="Donate"
+          title={t('b2_donationsButton')}
           onPress={onDonate}
         />
 
-        <Text style={styles.historyTitle}>Your donations</Text>
+        <Text style={styles.historyTitle}>{t('b2_donationsHistoryTitle')}</Text>
         {history.loading && !history.data ? (
           <ActivityIndicator color={colors.primary} />
         ) : history.data?.length ? (
-          history.data.map((d) => <DonationRow key={d.id} donation={d} />)
+          history.data.map((d) => <DonationRow key={d.id} donation={d} fallbackLabel={t('b2_donationsFallbackRow')} />)
         ) : (
-          <Text style={styles.muted}>You haven&apos;t donated yet.</Text>
+          <Text style={styles.muted}>{t('b2_donationsEmpty')}</Text>
         )}
       </ScrollView>
     </Screen>
   );
 }
 
-function DonationRow({ donation }: { donation: Donation }) {
+function DonationRow({ donation, fallbackLabel }: { donation: Donation; fallbackLabel: string }) {
   const styles = useStyles();
   return (
     <View style={styles.row}>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowMsg} numberOfLines={1}>
-          {donation.message || 'Donation'}
+          {donation.message || fallbackLabel}
         </Text>
         {donation.createdAt ? <Text style={styles.rowDate}>{formatDate(donation.createdAt)}</Text> : null}
       </View>

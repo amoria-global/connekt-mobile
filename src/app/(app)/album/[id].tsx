@@ -57,6 +57,72 @@ import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
+import { useLanguage } from '@/hooks/useLanguage';
+const ALB_MAP: Record<string, { fr: string; es: string }> = {
+  'Cancel': { fr: 'Annuler', es: 'Cancelar' },
+  'Change': { fr: 'Modifier', es: 'Cambiar' },
+  'Choose an event booking…': { fr: 'Choisir une réservation d’événement…', es: 'Elegir una reserva de evento…' },
+  'Clear all': { fr: 'Tout effacer', es: 'Borrar todo' },
+  'Create Album': { fr: 'Créer l’album', es: 'Crear álbum' },
+  'Event Album': { fr: 'Album d’événement', es: 'Álbum de evento' },
+  'FREE': { fr: 'GRATUIT', es: 'GRATIS' },
+  'FREE Album Details': { fr: 'Détails de l’album GRATUIT', es: 'Detalles del álbum GRATIS' },
+  'NEW COLLECTION': { fr: 'NOUVELLE COLLECTION', es: 'NUEVA COLECCIÓN' },
+  'PAID': { fr: 'PAYANT', es: 'DE PAGO' },
+  'PAID Album Details': { fr: 'Détails de l’album PAYANT', es: 'Detalles del álbum DE PAGO' },
+  'Personal Album': { fr: 'Album personnel', es: 'Álbum personal' },
+  'Select Event': { fr: 'Sélectionner un événement', es: 'Seleccionar evento' },
+  '• Album expires in 60 days with warning': { fr: '• L’album expire dans 60 jours avec avertissement', es: '• El álbum caduca en 60 días con aviso' },
+  '• Full-resolution downloads enabled': { fr: '• Téléchargements haute résolution activés', es: '• Descargas en alta resolución habilitadas' },
+  '• Indexed for facial-recognition search': { fr: '• Indexé pour la recherche par reconnaissance faciale', es: '• Indexado para búsqueda por reconocimiento facial' },
+  '• NOT indexed on public face search': { fr: '• NON indexé dans la recherche faciale publique', es: '• NO indexado en la búsqueda facial pública' },
+  '• Platform takes 30% commission per sale': { fr: '• La plateforme prélève 30 % de commission par vente', es: '• La plataforma toma un 30% de comisión por venta' },
+  '• Recipient receives email with access code': { fr: '• Le destinataire reçoit un e-mail avec le code d’accès', es: '• El destinatario recibe un correo con el código de acceso' },
+  'ALBUM DETAILS': { fr: 'DÉTAILS DE L’ALBUM', es: 'DETALLES DEL ÁLBUM' },
+  'ALBUM TITLE': { fr: 'TITRE DE L’ALBUM', es: 'TÍTULO DEL ÁLBUM' },
+  'DESCRIPTION (OPTIONAL)': { fr: 'DESCRIPTION (OPTIONNEL)', es: 'DESCRIPCIÓN (OPCIONAL)' },
+  'EVENT BOOKING': { fr: 'RÉSERVATION D’ÉVÉNEMENT', es: 'RESERVA DE EVENTO' },
+  'ALBUM TYPE': { fr: 'TYPE D’ALBUM', es: 'TIPO DE ÁLBUM' },
+  'PRICING & ACCESS': { fr: 'TARIFICATION ET ACCÈS', es: 'PRECIOS Y ACCESO' },
+  'PRICE PER PHOTO': { fr: 'PRIX PAR PHOTO', es: 'PRECIO POR FOTO' },
+  'CURRENCY': { fr: 'DEVISE', es: 'MONEDA' },
+  'RECIPIENT EMAIL': { fr: 'E-MAIL DU DESTINATAIRE', es: 'CORREO DEL DESTINATARIO' },
+  'RECIPIENT NAME (OPTIONAL)': { fr: 'NOM DU DESTINATAIRE (OPTIONNEL)', es: 'NOMBRE DEL DESTINATARIO (OPCIONAL)' },
+  'COVER PHOTO (OPTIONAL)': { fr: 'PHOTO DE COUVERTURE (OPTIONNEL)', es: 'FOTO DE PORTADA (OPCIONAL)' },
+  'ALBUM PHOTOS': { fr: 'PHOTOS DE L’ALBUM', es: 'FOTOS DEL ÁLBUM' },
+  'Ready to upload': { fr: 'Prêt à téléverser', es: 'Listo para subir' },
+  'Add Photos': { fr: 'Ajouter des photos', es: 'Añadir fotos' },
+  'Album Options': { fr: 'Options de l’album', es: 'Opciones del álbum' },
+  'Copy public web viewing link': { fr: 'Copier le lien public de visionnage', es: 'Copiar enlace público de visualización' },
+  'Couldn&apos;t load album': { fr: 'Impossible de charger l’album', es: 'No se pudo cargar el álbum' },
+  'Delete Album': { fr: 'Supprimer l’album', es: 'Eliminar álbum' },
+  'Email gallery access link directly': { fr: 'Envoyer le lien d’accès par e-mail', es: 'Enviar enlace de acceso por correo' },
+  'Face-AI Indexing': { fr: 'Indexation IA faciale', es: 'Indexación facial con IA' },
+  'LOCKED': { fr: 'VERROUILLÉ', es: 'BLOQUEADO' },
+  'Loading album…': { fr: 'Chargement de l’album…', es: 'Cargando álbum…' },
+  'Locked': { fr: 'Verrouillé', es: 'Bloqueado' },
+  'PHOTOS': { fr: 'PHOTOS', es: 'FOTOS' },
+  'Permanently remove this collection': { fr: 'Supprimer définitivement cette collection', es: 'Eliminar permanentemente esta colección' },
+  'Photographer': { fr: 'Photographe', es: 'Fotógrafo' },
+  'Photos are in cold storage. Contact support to restore this album.': { fr: 'Les photos sont archivées. Contactez le support pour restaurer cet album.', es: 'Las fotos están archivadas. Contacta con soporte para restaurar este álbum.' },
+  'Publish to Connekt stock catalog': { fr: 'Publier dans le catalogue Connekt', es: 'Publicar en el catálogo de Connekt' },
+  'Retry': { fr: 'Réessayer', es: 'Reintentar' },
+  'Save to Camera Roll': { fr: 'Enregistrer dans la pellicule', es: 'Guardar en el carrete' },
+  'Send to Client': { fr: 'Envoyer au client', es: 'Enviar al cliente' },
+  'Share': { fr: 'Partager', es: 'Compartir' },
+  'Share Album Link': { fr: 'Partager le lien de l’album', es: 'Compartir enlace del álbum' },
+  'Submit for Review': { fr: 'Soumettre pour examen', es: 'Enviar a revisión' },
+  'This album has no photos': { fr: 'Cet album ne contient aucune photo', es: 'Este álbum no tiene fotos' },
+  'This album is locked': { fr: 'Cet album est verrouillé', es: 'Este álbum está bloqueado' },
+  'Unlock this album to view and download all high-resolution photos.': { fr: 'Déverrouillez cet album pour voir et télécharger toutes les photos haute résolution.', es: 'Desbloquea este álbum para ver y descargar todas las fotos en alta resolución.' },
+  'Upload Photos': { fr: 'Téléverser des photos', es: 'Subir fotos' }
+};
+const trAlb = (s: string) => {
+  const lang = useLanguage.getState().language;
+  if (lang === 'en') return s;
+  return ALB_MAP[s]?.[lang] ?? s;
+};
+
 const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> = {
   DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
   PENDING_APPROVAL: { label: 'Pending review', bg: '#FEF3C7', fg: '#92400E' },
@@ -65,6 +131,7 @@ const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> =
 };
 
 export default function AlbumDetailScreen() {
+  useLanguage();
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
@@ -281,7 +348,7 @@ export default function AlbumDetailScreen() {
         </View>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.muted}>Loading album…</Text>
+          <Text style={styles.muted}>{trAlb('Loading album…')}</Text>
         </View>
       </Screen>
     );
@@ -303,10 +370,10 @@ export default function AlbumDetailScreen() {
         </View>
         <View style={styles.center}>
           <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
-          <Text style={styles.errorTitle}>Couldn&apos;t load album</Text>
+          <Text style={styles.errorTitle}>{trAlb('Couldn&apos;t load album')}</Text>
           <Text style={styles.muted}>{error}</Text>
           <Pressable style={styles.retryBtn} onPress={refresh}>
-            <Text style={styles.retryBtnText}>Retry</Text>
+            <Text style={styles.retryBtnText}>{trAlb('Retry')}</Text>
           </Pressable>
         </View>
       </Screen>
@@ -440,7 +507,7 @@ export default function AlbumDetailScreen() {
                   {data?.locked ? (
                     <View style={styles.lockBadge}>
                       <Ionicons name="lock-closed" size={10} color="#fff" />
-                      <Text style={styles.lockText}>LOCKED</Text>
+                      <Text style={styles.lockText}>{trAlb('LOCKED')}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -494,7 +561,7 @@ export default function AlbumDetailScreen() {
                 {data?.locked ? (
                   <View style={[styles.metaChip, styles.metaChipLocked]}>
                     <Ionicons name="lock-closed" size={12} color="#D97706" />
-                    <Text style={[styles.metaChipText, { color: '#D97706' }]}>Locked</Text>
+                    <Text style={[styles.metaChipText, { color: '#D97706' }]}>{trAlb('Locked')}</Text>
                   </View>
                 ) : null}
               </View>
@@ -518,7 +585,7 @@ export default function AlbumDetailScreen() {
                   <Text style={styles.photographerName} numberOfLines={1}>
                     {data.photographer}
                   </Text>
-                  <Text style={styles.photographerRole}>Photographer</Text>
+                  <Text style={styles.photographerRole}>{trAlb('Photographer')}</Text>
                 </View>
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
@@ -555,7 +622,7 @@ export default function AlbumDetailScreen() {
                   ) : (
                     <>
                       <Ionicons name="cloud-upload" size={17} color="#fff" />
-                      <Text style={styles.primaryActionText}>Add Photos</Text>
+                      <Text style={styles.primaryActionText}>{trAlb('Add Photos')}</Text>
                     </>
                   )}
                 </Pressable>
@@ -566,7 +633,7 @@ export default function AlbumDetailScreen() {
                   hitSlop={4}
                 >
                   <Ionicons name="share-social-outline" size={16} color={colors.text} />
-                  <Text style={styles.secondaryActionText}>Share</Text>
+                  <Text style={styles.secondaryActionText}>{trAlb('Share')}</Text>
                 </Pressable>
 
                 <Pressable
@@ -605,11 +672,11 @@ export default function AlbumDetailScreen() {
                 <View style={styles.lockedIconBox}>
                   <Ionicons name="lock-closed" size={26} color={colors.primary} />
                 </View>
-                <Text style={styles.lockedTitle}>This album is locked</Text>
+                <Text style={styles.lockedTitle}>{trAlb('This album is locked')}</Text>
                 {digitalPurchasesEnabled ? (
                   <>
                     <Text style={styles.lockedMsg}>
-                      Unlock this album to view and download all high-resolution photos.
+                      {trAlb('Unlock this album to view and download all high-resolution photos.')}
                     </Text>
                     <Button
                       title={
@@ -622,7 +689,7 @@ export default function AlbumDetailScreen() {
                   </>
                 ) : (
                   <Text style={styles.lockedMsg}>
-                    Photos are in cold storage. Contact support to restore this album.
+                    {trAlb('Photos are in cold storage. Contact support to restore this album.')}
                   </Text>
                 )}
               </View>
@@ -632,7 +699,7 @@ export default function AlbumDetailScreen() {
             {!locked && images.length > 0 ? (
               <View style={styles.photosSectionHead}>
                 <View style={styles.photosCountGroup}>
-                  <Text style={styles.photosSectionTitle}>PHOTOS</Text>
+                  <Text style={styles.photosSectionTitle}>{trAlb('PHOTOS')}</Text>
                   <View style={styles.photosCountBadge}>
                     <Text style={styles.photosCountBadgeText}>{images.length}</Text>
                   </View>
@@ -693,7 +760,7 @@ export default function AlbumDetailScreen() {
               <View style={styles.emptyIconBox}>
                 <Ionicons name="camera-outline" size={32} color={colors.textMuted} />
               </View>
-              <Text style={styles.emptyTitle}>This album has no photos</Text>
+              <Text style={styles.emptyTitle}>{trAlb('This album has no photos')}</Text>
               <Text style={styles.emptySubtitle}>
                 {isPhotographer
                   ? 'Add your high-resolution photos to deliver them to clients or enable facial search.'
@@ -706,7 +773,7 @@ export default function AlbumDetailScreen() {
                   disabled={busy === 'add'}
                 >
                   <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={styles.emptyActionText}>Upload Photos</Text>
+                  <Text style={styles.emptyActionText}>{trAlb('Upload Photos')}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -832,7 +899,7 @@ export default function AlbumDetailScreen() {
                 ) : (
                   <>
                     <Ionicons name="download-outline" size={16} color="#fff" />
-                    <Text style={styles.pillSaveText}>Save to Camera Roll</Text>
+                    <Text style={styles.pillSaveText}>{trAlb('Save to Camera Roll')}</Text>
                   </>
                 )}
               </Pressable>
@@ -881,7 +948,7 @@ export default function AlbumDetailScreen() {
 
             <View style={styles.sheetHeader}>
               <View>
-                <Text style={styles.sheetTitle}>Album Options</Text>
+                <Text style={styles.sheetTitle}>{trAlb('Album Options')}</Text>
                 <Text style={styles.sheetSubtitle}>{data?.name}</Text>
               </View>
               <Pressable
@@ -906,8 +973,8 @@ export default function AlbumDetailScreen() {
                   <Ionicons name="share-social-outline" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.sheetItemText}>
-                  <Text style={styles.sheetItemLabel}>Share Album Link</Text>
-                  <Text style={styles.sheetItemDesc}>Copy public web viewing link</Text>
+                  <Text style={styles.sheetItemLabel}>{trAlb('Share Album Link')}</Text>
+                  <Text style={styles.sheetItemDesc}>{trAlb('Copy public web viewing link')}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </Pressable>
@@ -923,8 +990,8 @@ export default function AlbumDetailScreen() {
                     <Ionicons name="paper-plane-outline" size={18} color={colors.primary} />
                   </View>
                   <View style={styles.sheetItemText}>
-                    <Text style={styles.sheetItemLabel}>Send to Client</Text>
-                    <Text style={styles.sheetItemDesc}>Email gallery access link directly</Text>
+                    <Text style={styles.sheetItemLabel}>{trAlb('Send to Client')}</Text>
+                    <Text style={styles.sheetItemDesc}>{trAlb('Email gallery access link directly')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </Pressable>
@@ -941,7 +1008,7 @@ export default function AlbumDetailScreen() {
                     <Ionicons name="scan-outline" size={18} color={colors.primary} />
                   </View>
                   <View style={styles.sheetItemText}>
-                    <Text style={styles.sheetItemLabel}>Face-AI Indexing</Text>
+                    <Text style={styles.sheetItemLabel}>{trAlb('Face-AI Indexing')}</Text>
                     <Text style={styles.sheetItemDesc}>
                       {faceStatus?.collection?.faceCount
                         ? `${faceStatus.collection.faceCount} faces indexed · tap to re-sync`
@@ -963,8 +1030,8 @@ export default function AlbumDetailScreen() {
                     <Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />
                   </View>
                   <View style={styles.sheetItemText}>
-                    <Text style={styles.sheetItemLabel}>Submit for Review</Text>
-                    <Text style={styles.sheetItemDesc}>Publish to Connekt stock catalog</Text>
+                    <Text style={styles.sheetItemLabel}>{trAlb('Submit for Review')}</Text>
+                    <Text style={styles.sheetItemDesc}>{trAlb('Publish to Connekt stock catalog')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </Pressable>
@@ -982,9 +1049,9 @@ export default function AlbumDetailScreen() {
                   </View>
                   <View style={styles.sheetItemText}>
                     <Text style={[styles.sheetItemLabel, { color: '#DC2626' }]}>
-                      Delete Album
+                      {trAlb('Delete Album')}
                     </Text>
-                    <Text style={styles.sheetItemDesc}>Permanently remove this collection</Text>
+                    <Text style={styles.sheetItemDesc}>{trAlb('Permanently remove this collection')}</Text>
                   </View>
                 </Pressable>
               ) : null}

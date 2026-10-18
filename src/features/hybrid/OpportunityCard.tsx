@@ -6,6 +6,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage, type TranslationKey } from '@/store/language';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import type { PhotographerOpportunity } from './types';
 import { budgetLabel, countdownString, EventStartClock, hhmm, MODE_META, useCountdown } from './hybridUi';
@@ -19,24 +20,26 @@ type Props = {
   highlighted?: boolean;
 };
 
-const STATUS: Record<string, { text: string; color: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = {
-  INVITED: { text: 'New nearby opportunity', color: '#F20C8F', icon: 'radio-outline' },
-  APPROVED: { text: 'You said yes · client choosing', color: '#1E40AF', icon: 'hourglass-outline' },
-  SELECTED: { text: 'You were selected', color: '#047857', icon: 'trophy-outline' },
-  NOT_SELECTED: { text: 'Client chose someone else', color: '#6A6D76', icon: 'person-outline' },
-  REJECTED: { text: 'You passed', color: '#6A6D76', icon: 'close-circle-outline' },
-  EXPIRED: { text: 'Time ran out', color: '#6A6D76', icon: 'timer-outline' },
-  WITHDRAWN: { text: 'Closed by the client', color: '#6A6D76', icon: 'lock-closed-outline' },
-  NO_LONGER_AVAILABLE: { text: 'Released: your calendar overlaps', color: '#6A6D76', icon: 'calendar-outline' },
+const STATUS: Record<string, { key: TranslationKey; color: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = {
+  INVITED: { key: 'oppInvited', color: '#F20C8F', icon: 'radio-outline' },
+  APPROVED: { key: 'oppApproved', color: '#1E40AF', icon: 'hourglass-outline' },
+  SELECTED: { key: 'oppSelected', color: '#047857', icon: 'trophy-outline' },
+  NOT_SELECTED: { key: 'oppNotSelected', color: '#6A6D76', icon: 'person-outline' },
+  REJECTED: { key: 'oppRejected', color: '#6A6D76', icon: 'close-circle-outline' },
+  EXPIRED: { key: 'oppExpired', color: '#6A6D76', icon: 'timer-outline' },
+  WITHDRAWN: { key: 'oppWithdrawn', color: '#6A6D76', icon: 'lock-closed-outline' },
+  NO_LONGER_AVAILABLE: { key: 'oppNoLongerAvailable', color: '#6A6D76', icon: 'calendar-outline' },
 };
 
-const prettyDate = (d: string) => {
+const prettyDate = (d: string, lang: string) => {
   const t = Date.parse(`${d.slice(0, 10)}T00:00:00`);
-  return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : d;
+  const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-GB';
+  return Number.isFinite(t) ? new Date(t).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : d;
 };
 
 export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, busy, highlighted }: Props) {
   const { colors } = useTheme();
+  const { language, t } = useLanguage();
   const styles = useStyles();
   const open = (o.status ?? 'INVITED') === 'INVITED';
   const left = useCountdown(open ? o.responseDeadlineAt || o.candidateExpiresAt : null);
@@ -54,7 +57,7 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
       <View style={styles.headerRow}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
           <Ionicons name={st.icon} size={13} color={st.color} />
-          <Text style={[styles.eyebrow, { color: st.color }]} numberOfLines={1}>{st.text.toUpperCase()}</Text>
+          <Text style={[styles.eyebrow, { color: st.color }]} numberOfLines={1}>{t(st.key).toUpperCase()}</Text>
         </View>
         {open && left ? (
           <View style={[styles.timer, urgent && { backgroundColor: colors.errorBg }]} accessibilityLabel={`Time left to answer ${countdownString(left)}`}>
@@ -68,9 +71,9 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
       {o.eventType ? <Text style={styles.sub}>{o.eventType}</Text> : null}
 
       <View style={styles.facts}>
-        <Fact icon="calendar-outline" text={o.eventDate ? prettyDate(o.eventDate) : 'Date to be confirmed'} />
+        <Fact icon="calendar-outline" text={o.eventDate ? prettyDate(o.eventDate, language) : t('oppDateTbc')} />
         <Fact icon="time-outline" text={`${hhmm(o.startTime)}${o.endTime ? `–${hhmm(o.endTime)}` : ''}${o.durationLabel ? ` · ${o.durationLabel}` : ''}`} strong={!!o.durationLabel} />
-        <Fact icon="location-outline" text={`${o.city || o.venue || 'Location shared on booking'}${o.distanceLabel ? ` · ${o.distanceLabel}` : ''}`} />
+        <Fact icon="location-outline" text={`${o.city || o.venue || t('oppLocationSharedOnBooking')}${o.distanceLabel ? ` · ${o.distanceLabel}` : ''}`} />
         {budget ? <Fact icon="cash-outline" text={budget} /> : null}
       </View>
 
@@ -92,15 +95,15 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
       {open ? (
         <View style={styles.actions}>
           <Pressable onPress={() => onReject(o)} disabled={busy || expired} style={[styles.secondary, (busy || expired) && styles.disabled]}
-            accessibilityRole="button" accessibilityLabel="Not this time">
-            <Text style={styles.secondaryText}>Not this time</Text>
+            accessibilityRole="button" accessibilityLabel={t('oppNotThisTime')}>
+            <Text style={styles.secondaryText}>{t('oppNotThisTime')}</Text>
           </Pressable>
           <Pressable onPress={() => onApprove(o)} disabled={busy || expired} style={[styles.primary, (busy || expired) && styles.disabled]}
-            accessibilityRole="button" accessibilityLabel="Yes, I'm available">
+            accessibilityRole="button" accessibilityLabel={t('oppYesAvailable')}>
             {busy ? <ActivityIndicator color="#fff" /> : (
               <>
                 <Ionicons name="checkmark" size={18} color="#fff" />
-                <Text style={styles.primaryText}>{expired ? 'Time is up' : "Yes, I'm available"}</Text>
+                <Text style={styles.primaryText}>{expired ? t('oppTimeIsUp') : t('oppYesAvailable')}</Text>
               </>
             )}
           </Pressable>

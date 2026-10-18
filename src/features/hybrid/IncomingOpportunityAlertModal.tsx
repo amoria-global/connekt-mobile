@@ -26,6 +26,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from '@/utils/
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
+import { useSharedT } from '@/i18n/sharedStrings';
 import type { PhotographerOpportunity } from './types';
 import { countdownString, useCountdown } from './hybridUi';
 
@@ -52,6 +53,7 @@ export function IncomingOpportunityAlertModal({
   const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
 
   const [busyAction, setBusyAction] = useState<'approve' | 'reject' | null>(null);
 
@@ -201,7 +203,7 @@ export function IncomingOpportunityAlertModal({
         <View style={styles.topBar}>
           <View style={styles.liveBadge}>
             <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseScale }] }]} />
-            <Text style={styles.liveText}>NEW NEARBY OPPORTUNITY</Text>
+            <Text style={styles.liveText}>{tr('NEW NEARBY OPPORTUNITY')}</Text>
           </View>
 
           <View style={styles.timerBadge}>
@@ -214,7 +216,7 @@ export function IncomingOpportunityAlertModal({
             hitSlop={12}
             style={styles.closeBtn}
             accessibilityRole="button"
-            accessibilityLabel="Dismiss to decide later"
+            accessibilityLabel={tr('Close')}
           >
             <Ionicons name="close" size={18} color={colors.textMuted} />
           </Pressable>
@@ -237,17 +239,17 @@ export function IncomingOpportunityAlertModal({
 
             <View style={styles.clientRow}>
               <Ionicons name="radio-outline" size={13} color={colors.textMuted} />
-              <Text style={styles.clientText}>Post My Event · you were matched to this event</Text>
+              <Text style={styles.clientText}>{tr('Post My Event · you were matched to this event')}</Text>
             </View>
           </View>
 
           {/* HERO PAYOUT CARD */}
           <View style={styles.payoutCard}>
             <View style={styles.payoutHeader}>
-              <Text style={styles.payoutLabel}>CLIENT'S BUDGET</Text>
+              <Text style={styles.payoutLabel}>{tr("CLIENT'S BUDGET")}</Text>
               <View style={styles.escrowBadge}>
                 <Ionicons name="shield-checkmark" size={11} color={colors.primary} />
-                <Text style={styles.escrowBadgeText}>PAID VIA ESCROW IF CHOSEN</Text>
+                <Text style={styles.escrowBadgeText}>{tr('PAID VIA ESCROW IF CHOSEN')}</Text>
               </View>
             </View>
 

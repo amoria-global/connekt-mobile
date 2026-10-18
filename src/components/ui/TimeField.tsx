@@ -3,6 +3,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 export type TimeFieldProps = {
   label?: string;
@@ -29,6 +30,7 @@ const pretty = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', m
 export function TimeField({ label, value, onChange, error, placeholder = 'Select a time' }: TimeFieldProps) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const time = fromHM(value);
   const [show, setShow] = useState(false);
   const [temp, setTemp] = useState<Date>(time ?? new Date());
@@ -40,12 +42,12 @@ export function TimeField({ label, value, onChange, error, placeholder = 'Select
 
   return (
     <View style={styles.wrap}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={styles.label}>{tr(label)}</Text> : null}
       <Pressable onPress={open} style={[styles.field, !!error && styles.fieldError]}>
-        <Text style={[styles.value, !time && styles.placeholder]}>{time ? pretty(time) : placeholder}</Text>
+        <Text style={[styles.value, !time && styles.placeholder]}>{time ? pretty(time) : tr(placeholder)}</Text>
         <Ionicons name="time-outline" size={20} color={colors.textMuted} />
       </Pressable>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={styles.error}>{tr(error)}</Text> : null}
 
       {Platform.OS === 'android' && show ? (
         <DateTimePicker
@@ -65,9 +67,9 @@ export function TimeField({ label, value, onChange, error, placeholder = 'Select
             <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
               <View style={styles.sheetHeader}>
                 <Pressable onPress={() => setShow(false)} hitSlop={8}>
-                  <Text style={styles.cancel}>Cancel</Text>
+                  <Text style={styles.cancel}>{tr('Cancel')}</Text>
                 </Pressable>
-                <Text style={styles.sheetTitle}>{label ?? 'Select time'}</Text>
+                <Text style={styles.sheetTitle}>{tr(label ?? 'Select a time')}</Text>
                 <Pressable
                   onPress={() => {
                     onChange(toHM(temp));
@@ -75,7 +77,7 @@ export function TimeField({ label, value, onChange, error, placeholder = 'Select
                   }}
                   hitSlop={8}
                 >
-                  <Text style={styles.done}>Done</Text>
+                  <Text style={styles.done}>{tr('Done')}</Text>
                 </Pressable>
               </View>
               <DateTimePicker

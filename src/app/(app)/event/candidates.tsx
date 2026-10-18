@@ -18,6 +18,7 @@ import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { isMatchBooked } from '@/features/hybrid/status';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { isApiError } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { formatPrice } from '@/utils/format';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
@@ -27,6 +28,7 @@ export default function EventCandidatesScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id?: string; eventId?: string }>();
   const eventId = params.id || params.eventId || '';
@@ -50,12 +52,12 @@ export default function EventCandidatesScreen() {
       setData(await listEventCandidates(eventId));
       setError(null);
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not load the photographers who answered.');
+      setError(isApiError(e) ? e.message : t('b3_cand_load_err'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [eventId]);
+  }, [eventId, t]);
 
   useEffect(() => {
     syncServerClock();
@@ -85,7 +87,7 @@ export default function EventCandidatesScreen() {
       else router.replace(`/event/${eventId}` as never);
     } catch (e) {
       setChoosing(null);
-      Alert.alert('Could not book', isApiError(e) ? e.message : 'Could not confirm this photographer. Please try again.');
+      Alert.alert(t('b3_cand_could_not_book'), isApiError(e) ? e.message : t('b3_cand_could_not_confirm'));
       load();
     } finally {
       setSubmitting(false);
@@ -98,7 +100,7 @@ export default function EventCandidatesScreen() {
       await convertToDirectRescue(eventId);
       router.replace('/photographers' as never);
     } catch (e) {
-      Alert.alert('Could not switch', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(t('b3_cand_could_not_switch'), isApiError(e) ? e.message : t('b3_conv_try_again'));
     } finally {
       setConverting(false);
     }
@@ -114,20 +116,20 @@ export default function EventCandidatesScreen() {
   } else if (candidates.length > 0) {
     content = (
       <View style={{ gap: spacing.lg }}>
-        {TIERS.filter((t) => candidates.some((c) => c.recommendationTier === t)).map((t) => (
-          <View key={t} style={{ gap: spacing.sm }}>
+        {TIERS.filter((tTier) => candidates.some((c) => c.recommendationTier === tTier)).map((tTier) => (
+          <View key={tTier} style={{ gap: spacing.sm }}>
             <View>
-              <Text style={[styles.tierTitle, { color: TIER_META[t].color }]} accessibilityRole="header">{TIER_META[t].label.toUpperCase()}</Text>
-              <Text style={styles.hint}>{TIER_META[t].hint}</Text>
+              <Text style={[styles.tierTitle, { color: TIER_META[tTier].color }]} accessibilityRole="header">{TIER_META[tTier].label.toUpperCase()}</Text>
+              <Text style={styles.hint}>{TIER_META[tTier].hint}</Text>
             </View>
-            {candidates.filter((c) => c.recommendationTier === t).map((c) => (
+            {candidates.filter((c) => c.recommendationTier === tTier).map((c) => (
               <CandidateCard key={c.candidateId} candidate={c}
                 onSelect={(cand) => { setEscrow(50); setChoosing(cand); }}
                 onViewProfile={(cand) => router.push(`/photographer/${cand.photographerId}` as never)} />
             ))}
           </View>
         ))}
-        <Text style={styles.hint}>Groups show how closely each photographer fits your request. They are a recommendation, not a guarantee of quality.</Text>
+        <Text style={styles.hint}>{t('b3_cand_groups_hint')}</Text>
       </View>
     );
   } else if (isMatchBooked(data)) {
@@ -135,16 +137,16 @@ export default function EventCandidatesScreen() {
     content = (
       <View style={styles.empty}>
         <View style={[styles.emptyIcon, { backgroundColor: '#D1FAE5' }]}><Ionicons name="checkmark" size={30} color="#047857" /></View>
-        <Text style={styles.emptyTitle}>A photographer is booked for this event</Text>
-        <Text style={[styles.hint, { textAlign: 'center' }]}>Answers are closed. The booking and its first payment are on the event page.</Text>
+        <Text style={styles.emptyTitle}>{t('b3_cand_booked_title')}</Text>
+        <Text style={[styles.hint, { textAlign: 'center' }]}>{t('b3_cand_booked_hint')}</Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' }}>
           {payHandoff?.declarationId ? (
             <Pressable onPress={() => setCheckoutOpen(true)} style={styles.primary} accessibilityRole="button">
-              <Text style={styles.primaryText}>Pay first payment</Text>
+              <Text style={styles.primaryText}>{t('b3_cand_pay_first')}</Text>
             </Pressable>
           ) : null}
           <Pressable onPress={() => router.replace(`/event/${eventId}` as never)} style={payHandoff?.declarationId ? styles.secondary : styles.primary} accessibilityRole="button">
-            <Text style={payHandoff?.declarationId ? styles.secondaryText : styles.primaryText}>View event</Text>
+            <Text style={payHandoff?.declarationId ? styles.secondaryText : styles.primaryText}>{t('b3_cand_view_event')}</Text>
           </Pressable>
         </View>
       </View>
@@ -153,9 +155,11 @@ export default function EventCandidatesScreen() {
     content = (
       <View style={styles.empty}>
         <View style={[styles.emptyIcon, { backgroundColor: MODE_META.HYBRID.soft }]}><Ionicons name="radio-outline" size={30} color={MODE_META.HYBRID.color} /></View>
-        <Text style={styles.emptyTitle}>Waiting for photographers to answer</Text>
+        <Text style={styles.emptyTitle}>{t('b3_cand_waiting_title')}</Text>
         <Text style={[styles.hint, { textAlign: 'center' }]}>
-          {data?.pendingCount ?? 0} photographer{data?.pendingCount === 1 ? ' is' : 's are'} deciding now. Anyone who passes is replaced by the next best match. We'll notify you as soon as someone says yes.
+          {data?.pendingCount === 1
+            ? t('b3_cand_waiting_one')
+            : t('b3_cand_waiting_many', { count: data?.pendingCount ?? 0 })}
         </Text>
       </View>
     );
@@ -165,15 +169,15 @@ export default function EventCandidatesScreen() {
         <View style={styles.warn}>
           <Ionicons name="hourglass-outline" size={18} color="#B45309" />
           <Text style={[styles.body, { flex: 1 }]}>
-            {data.status === 'MATCHING_FAILED' ? 'Nobody fit this event when it was posted.' : 'Matching ended without a photographer saying yes.'} Post it again with a wider area or budget, or book one yourself.
+            {data.status === 'MATCHING_FAILED' ? t('b3_cand_nobody_fit') : t('b3_cand_matching_ended')} {t('b3_cand_repost_prompt')}
           </Text>
         </View>
         {data.canRepost ? (
           <Pressable onPress={() => setRepostOpen(true)} style={[styles.choice, { borderColor: MODE_META.HYBRID.color, backgroundColor: MODE_META.HYBRID.soft }]} accessibilityRole="button">
             <Ionicons name="radio-outline" size={20} color={MODE_META.HYBRID.color} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.choiceTitle}>Post again</Text>
-              <Text style={styles.hint}>Change the area, budget or type and alert photographers again.</Text>
+              <Text style={styles.choiceTitle}>{t('b3_cand_post_again')}</Text>
+              <Text style={styles.hint}>{t('b3_cand_repost_hint')}</Text>
             </View>
           </Pressable>
         ) : null}
@@ -181,8 +185,8 @@ export default function EventCandidatesScreen() {
           <Pressable onPress={switchToDirect} disabled={converting} style={[styles.choice, { borderColor: MODE_META.DIRECT.color, backgroundColor: MODE_META.DIRECT.soft }]} accessibilityRole="button">
             <Ionicons name="search" size={20} color={MODE_META.DIRECT.color} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.choiceTitle}>{converting ? 'Switching…' : 'Find a Photographer instead'}</Text>
-              <Text style={styles.hint}>Browse photographers and send a request yourself.</Text>
+              <Text style={styles.choiceTitle}>{converting ? t('b3_cand_switching') : t('b3_cand_find_instead')}</Text>
+              <Text style={styles.hint}>{t('b3_cand_browse_hint')}</Text>
             </View>
           </Pressable>
         ) : null}
@@ -194,12 +198,12 @@ export default function EventCandidatesScreen() {
     <Screen padded={false}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 16) }]}>
-        <Pressable onPress={goBack} hitSlop={12} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel="Go back">
+        <Pressable onPress={goBack} hitSlop={12} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={t('b3_cand_go_back')}>
           <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.eyebrow, { color: MODE_META.HYBRID.color }]}>POST MY EVENT · ANSWERS</Text>
-          <Text style={styles.title} numberOfLines={1} accessibilityRole="header">{data?.eventTitle || 'Your event'}</Text>
+          <Text style={[styles.eyebrow, { color: MODE_META.HYBRID.color }]}>{t('b3_cand_eyebrow')}</Text>
+          <Text style={styles.title} numberOfLines={1} accessibilityRole="header">{data?.eventTitle || t('b3_cand_your_event')}</Text>
         </View>
       </View>
 
@@ -212,10 +216,10 @@ export default function EventCandidatesScreen() {
             {budget ? <Text style={styles.body}><Ionicons name="cash-outline" size={13} /> {budget}</Text> : null}
             <View style={styles.counts}>
               {([
-                [candidates.length, 'said yes', '#047857'],
-                [data.pendingCount ?? 0, 'deciding', colors.info],
-                [data.declinedCount ?? 0, 'passed', colors.textMuted],
-                [(data.expiredCount ?? 0) + (data.noLongerAvailableCount ?? 0), 'missed it', colors.textMuted],
+                [candidates.length, t('b3_cand_said_yes'), '#047857'],
+                [data.pendingCount ?? 0, t('b3_cand_deciding'), colors.info],
+                [data.declinedCount ?? 0, t('b3_cand_passed'), colors.textMuted],
+                [(data.expiredCount ?? 0) + (data.noLongerAvailableCount ?? 0), t('b3_cand_missed_it'), colors.textMuted],
               ] as [number, string, string][]).map(([n, l, c]) => (
                 <Text key={l} style={styles.count}><Text style={{ color: c, fontWeight: fontWeight.extrabold }}>{n}</Text> {l}</Text>
               ))}
@@ -223,8 +227,8 @@ export default function EventCandidatesScreen() {
             {active && data.windowExpiresAt ? (
               <View style={styles.window}>
                 <Ionicons name="time-outline" size={13} color={MODE_META.HYBRID.color} />
-                <Text style={styles.windowText}>Answers close in </Text>
-                <CountdownText to={data.windowExpiresAt} doneText="a moment" style={styles.windowText} />
+                <Text style={styles.windowText}>{t('b3_cand_answers_close_in')}</Text>
+                <CountdownText to={data.windowExpiresAt} doneText={t('b3_cand_a_moment')} style={styles.windowText} />
               </View>
             ) : null}
           </View>
@@ -236,22 +240,22 @@ export default function EventCandidatesScreen() {
       <Modal visible={!!choosing} transparent animationType="fade" onRequestClose={() => !submitting && setChoosing(null)}>
         <Pressable style={styles.scrim} onPress={() => !submitting && setChoosing(null)}>
           <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={() => {}}>
-            <Text style={styles.sheetTitle}>Book {choosing?.name}?</Text>
-            <Text style={styles.body}>We check they are still free for the whole event, then create your booking. How much do you want to pay now?</Text>
+            <Text style={styles.sheetTitle}>{t('b3_cand_book_name', { name: choosing?.name ?? '' })}</Text>
+            <Text style={styles.body}>{t('b3_cand_book_body')}</Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               {escrowOptions.map((p) => (
                 <Pressable key={p} onPress={() => setEscrow(p)} accessibilityRole="radio" accessibilityState={{ checked: escrow === p }}
                   style={[styles.escrow, escrow === p && { borderColor: colors.primary, backgroundColor: colors.tint }]}>
                   <Text style={styles.escrowPct}>{p}%</Text>
-                  <Text style={styles.hint}>{p === 100 ? 'Pay in full' : 'Now, rest later'}</Text>
+                  <Text style={styles.hint}>{p === 100 ? t('b3_cand_pay_full') : t('b3_cand_now_rest_later')}</Text>
                 </Pressable>
               ))}
             </View>
-            <Text style={styles.hint}><Ionicons name="shield-checkmark" size={12} color="#047857" /> Held by Connekyt and released by milestones: event day, then delivery.</Text>
+            <Text style={styles.hint}><Ionicons name="shield-checkmark" size={12} color="#047857" /> {t('b3_cand_escrow_note')}</Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <Pressable onPress={() => setChoosing(null)} disabled={submitting} style={styles.secondary} accessibilityRole="button"><Text style={styles.secondaryText}>Cancel</Text></Pressable>
+              <Pressable onPress={() => setChoosing(null)} disabled={submitting} style={styles.secondary} accessibilityRole="button"><Text style={styles.secondaryText}>{t('b3_conv_cancel')}</Text></Pressable>
               <Pressable onPress={confirmChoice} disabled={submitting} style={styles.primary} accessibilityRole="button">
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Book and pay {escrow}%</Text>}
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('b3_cand_book_and_pay_pct', { pct: escrow })}</Text>}
               </Pressable>
             </View>
           </Pressable>
@@ -271,13 +275,13 @@ export default function EventCandidatesScreen() {
           visible={checkoutOpen}
           onClose={() => setCheckoutOpen(false)}
           handoff={{ type: 'BOOKING_DECLARATION', declarationId: payHandoff.declarationId }}
-          title="First payment"
+          title={t('b3_cand_first_payment')}
           subtitle={payHandoff.name}
           amountLabel={formatPrice(payHandoff.depositAmount ?? 0, payHandoff.currency)}
           onSettled={() => {
             setCheckoutOpen(false);
-            Alert.alert('Booked', `${payHandoff.name} is booked. Your payment is held by Connekyt and released by milestones.`, [
-              { text: 'View event', onPress: () => router.replace(`/event/${eventId}` as never) },
+            Alert.alert(t('b3_cand_booked_alert_title'), t('b3_cand_booked_alert_msg', { name: payHandoff.name }), [
+              { text: t('b3_cand_view_event'), onPress: () => router.replace(`/event/${eventId}` as never) },
             ]);
           }}
         />

@@ -2,7 +2,10 @@ import React from 'react';
 import { useRouter } from 'expo-router';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 export default function HybridWizardScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
 
   return (

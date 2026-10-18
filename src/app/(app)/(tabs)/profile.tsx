@@ -39,6 +39,10 @@ import {
 import { pickFromLibrary } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { useAppUpdates } from '@/features/updates';
+import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
+import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
+import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
+import { useCurrency } from '@/store/currency';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type ProfileTab = 'details' | 'settings' | 'account';
@@ -61,6 +65,10 @@ export default function ProfileScreen() {
   const styles = useStyles();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
+  const { language, t } = useLanguage();
+  const currency = useCurrency((s) => s.currency);
+  const currencies = useCurrency((s) => s.currencies);
+  const currentCurrency = currencies.find((c) => c.code === currency);
 
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
@@ -70,6 +78,11 @@ export default function ProfileScreen() {
   const [coverUploading, setCoverUploading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>('details');
+  const [languageSheetOpen, setLanguageSheetOpen] = useState(false);
+  const [currencySheetOpen, setCurrencySheetOpen] = useState(false);
+
+  const currentLanguageInfo =
+    SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   const fullName =
     [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Connekyt User';
@@ -348,7 +361,7 @@ export default function ProfileScreen() {
           ) : null}
 
           <Text style={styles.joinedText}>
-            Member since {formatJoinedDate(user?.joinedFrom)}
+            {t('memberSince', { date: formatJoinedDate(user?.joinedFrom) })}
           </Text>
         </View>
 
@@ -358,14 +371,14 @@ export default function ProfileScreen() {
             style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
             onPress={() => router.push('/edit-profile' as Href)}
           >
-            <Text style={styles.actionBtnText}>Edit profile</Text>
+            <Text style={styles.actionBtnText}>{t('editProfile')}</Text>
           </Pressable>
 
           <Pressable
             style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
             onPress={() => router.push('/(app)/(tabs)/wallet' as Href)}
           >
-            <Text style={styles.actionBtnText}>Wallet</Text>
+            <Text style={styles.actionBtnText}>{t('wallet')}</Text>
           </Pressable>
 
           {!isVerified ? (
@@ -378,7 +391,7 @@ export default function ProfileScreen() {
               onPress={() => router.push('/kyc' as Href)}
             >
               <Text style={styles.actionBtnAccentText}>
-                {kycStatus === 'PENDING' ? 'KYC Pending' : 'Verify'}
+                {kycStatus === 'PENDING' ? t('kycPending') : t('verify')}
               </Text>
             </Pressable>
           ) : (
@@ -386,7 +399,7 @@ export default function ProfileScreen() {
               style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
               onPress={() => router.push('/gallery' as Href)}
             >
-              <Text style={styles.actionBtnText}>Gallery</Text>
+              <Text style={styles.actionBtnText}>{t('gallery')}</Text>
             </Pressable>
           )}
         </View>
@@ -398,9 +411,9 @@ export default function ProfileScreen() {
             onPress={() => router.push('/edit-profile' as Href)}
           >
             <View style={styles.setupBannerTextWrap}>
-              <Text style={styles.setupBannerTitle}>Complete your profile</Text>
+              <Text style={styles.setupBannerTitle}>{t('completeYourProfile')}</Text>
               <Text style={styles.setupBannerSub}>
-                Your profile is {completion}% finished. Tap to add details.
+                {t('profileCompletionSub', { count: completion })}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -480,41 +493,41 @@ export default function ProfileScreen() {
           {activeTab === 'details' && (
             <View style={styles.detailsList}>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Full Name</Text>
+                <Text style={styles.detailLabel}>{t('fullName')}</Text>
                 <Text style={styles.detailValue}>{fullName}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Username</Text>
+                <Text style={styles.detailLabel}>{t('username')}</Text>
                 <Text style={styles.detailValue}>@{username}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Email</Text>
+                <Text style={styles.detailLabel}>{t('email')}</Text>
                 <Text style={styles.detailValue} numberOfLines={1}>
                   {user?.email || '—'}
                 </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Phone</Text>
+                <Text style={styles.detailLabel}>{t('phone')}</Text>
                 <Text style={styles.detailValue}>{user?.phone || 'Not provided'}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Location</Text>
+                <Text style={styles.detailLabel}>{t('location')}</Text>
                 <Text style={styles.detailValue}>{user?.address || 'Rwanda'}</Text>
               </View>
               {isCoordinator && user?.organizationName ? (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Organization</Text>
+                  <Text style={styles.detailLabel}>{t('organization')}</Text>
                   <Text style={styles.detailValue}>{user.organizationName}</Text>
                 </View>
               ) : null}
               {isPhotographer && user?.specialty ? (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Specialty</Text>
+                  <Text style={styles.detailLabel}>{t('specialty')}</Text>
                   <Text style={styles.detailValue}>{user.specialty}</Text>
                 </View>
               ) : null}
               <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
-                <Text style={styles.detailLabel}>Account Type</Text>
+                <Text style={styles.detailLabel}>{t('accountType')}</Text>
                 <Text style={styles.detailValue}>{role || 'Client'}</Text>
               </View>
 
@@ -522,7 +535,7 @@ export default function ProfileScreen() {
                 style={styles.editDetailsFullBtn}
                 onPress={() => router.push('/edit-profile' as Href)}
               >
-                <Text style={styles.editDetailsFullBtnText}>Edit personal information</Text>
+                <Text style={styles.editDetailsFullBtnText}>{t('editPersonalInfo')}</Text>
               </Pressable>
             </View>
           )}
@@ -530,52 +543,64 @@ export default function ProfileScreen() {
           {activeTab === 'settings' && (
             <View style={styles.menuList}>
               <MenuRow
+                icon="globe-outline"
+                label={t('languagePreference')}
+                hint={currentLanguageInfo.nativeLabel}
+                onPress={() => setLanguageSheetOpen(true)}
+              />
+              <MenuRow
+                icon="cash-outline"
+                label={t('currencyPreference')}
+                hint={`${currency}${currentCurrency ? ` · ${currentCurrency.name}` : ''}`}
+                onPress={() => setCurrencySheetOpen(true)}
+              />
+              <MenuRow
                 icon="options-outline"
-                label="Notification settings"
-                hint="Push & email alerts"
+                label={t('notificationSettings')}
+                hint={t('notificationSettingsHint')}
                 onPress={() => router.push('/preferences' as Href)}
               />
               <MenuRow
                 icon="notifications-outline"
-                label="Notifications history"
-                hint="Recent activity"
+                label={t('notificationsHistory')}
+                hint={t('notificationsHistoryHint')}
                 onPress={() => router.push('/notifications' as Href)}
               />
               <MenuRow
                 icon="card-outline"
-                label="Payment accounts"
-                hint="Mobile money & bank for withdrawals"
+                label={t('paymentAccounts')}
+                hint={t('paymentAccountsHint')}
                 onPress={() => router.push('/payment-accounts' as Href)}
               />
               <MenuRow
                 icon="lock-closed-outline"
-                label="Two-factor authentication"
-                hint="Extra sign-in security"
+                label={t('twoFactorAuth')}
+                hint={t('twoFactorAuthHint')}
                 onPress={() => router.push('/two-factor' as Href)}
               />
               <MenuRow
                 icon="tv-outline"
-                label="Connected TV devices"
-                hint="Pair a screen"
+                label={t('connectedTvDevices')}
+                hint={t('connectedTvDevicesHint')}
                 onPress={() => router.push('/tv-devices' as Href)}
               />
               <MenuRow
                 icon="ban-outline"
-                label="Blocked accounts"
+                label={t('blockedAccounts')}
                 onPress={() => router.push('/blocked-accounts' as Href)}
               />
               {isPhotographer && (
                 <MenuRow
                   icon="people-circle-outline"
-                  label="Collaborate"
-                  hint="Albums you share with photographers"
+                  label={t('menuCollaborate')}
+                  hint={t('collaborateHint')}
                   onPress={() => router.push('/collaborate' as Href)}
                 />
               )}
               <MenuRow
                 icon="bar-chart-outline"
-                label="Analytics dashboard"
-                hint="Performance overview"
+                label={t('analyticsDashboard')}
+                hint={t('analyticsDashboardHint')}
                 last
                 onPress={() => router.push('/analytics' as Href)}
               />
@@ -592,12 +617,12 @@ export default function ProfileScreen() {
                 <View style={styles.menuItemLeft}>
                   <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
                   <View>
-                    <Text style={styles.menuItemLabel}>Identity verification</Text>
+                    <Text style={styles.menuItemLabel}>{t('identityVerification')}</Text>
                     <Text style={styles.menuItemHint}>
                       {isVerified
-                        ? 'KYC Verified'
+                        ? t('kycApproved')
                         : kycStatus === 'PENDING'
-                        ? 'Under review'
+                        ? t('kycPending')
                         : 'Action required'}
                     </Text>
                   </View>
@@ -607,7 +632,7 @@ export default function ProfileScreen() {
                     <KycBadge kycStatus="APPROVED" size="sm" />
                   ) : (
                     <Text style={styles.verifyActionLink}>
-                      {kycStatus === 'PENDING' ? 'Pending' : 'Verify'}
+                      {kycStatus === 'PENDING' ? t('kycPending') : t('verify')}
                     </Text>
                   )}
                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -623,7 +648,7 @@ export default function ProfileScreen() {
                 <View style={styles.menuItemLeft}>
                   <Ionicons name="cloud-download-outline" size={20} color={colors.primary} />
                   <View>
-                    <Text style={styles.menuItemLabel}>App update</Text>
+                    <Text style={styles.menuItemLabel}>{t('appUpdate')}</Text>
                     <Text style={styles.menuItemHint}>
                       {updateReady
                         ? 'Update ready · Tap to restart'
@@ -651,12 +676,12 @@ export default function ProfileScreen() {
 
               <MenuRow
                 icon="document-text-outline"
-                label="Privacy policy"
+                label={t('privacyPolicy')}
                 onPress={() => router.push('/privacy-policy' as Href)}
               />
               <MenuRow
                 icon="reader-outline"
-                label="Terms of service"
+                label={t('termsOfService')}
                 onPress={() => router.push('/terms-of-service' as Href)}
               />
 
@@ -664,7 +689,7 @@ export default function ProfileScreen() {
               <Pressable style={styles.menuItemRow} onPress={() => logout()}>
                 <View style={styles.menuItemLeft}>
                   <Ionicons name="log-out-outline" size={20} color={colors.error} />
-                  <Text style={[styles.menuItemLabel, { color: colors.error }]}>Sign out</Text>
+                  <Text style={[styles.menuItemLabel, { color: colors.error }]}>{t('menuSignOut')}</Text>
                 </View>
               </Pressable>
 
@@ -673,13 +698,21 @@ export default function ProfileScreen() {
                 style={styles.deleteLinkRow}
                 onPress={() => router.push('/delete-account' as Href)}
               >
-                <Text style={styles.deleteLinkText}>Delete account</Text>
+                <Text style={styles.deleteLinkText}>{t('deleteAccount')}</Text>
               </Pressable>
             </View>
           )}
         </View>
       </ScrollView>
       <TopBar />
+      <LanguageSelectorSheet
+        visible={languageSheetOpen}
+        onClose={() => setLanguageSheetOpen(false)}
+      />
+      <CurrencySelectorSheet
+        visible={currencySheetOpen}
+        onClose={() => setCurrencySheetOpen(false)}
+      />
     </Screen>
   );
 }

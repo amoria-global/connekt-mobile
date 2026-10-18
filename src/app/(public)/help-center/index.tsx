@@ -2,58 +2,60 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles, useTheme } from '@/theme';
-
-const categories = [
-  {
-    id: 'my-account',
-    name: 'My Account',
-    icon: 'person-outline', // Note: replace with Ionicons if available, or just generic text if not. Assuming we can just rely on typography or generic icons. Actually, since we don't know the exact icon set, we'll use text or basic emojis if icons fail. Or use Expo vector icons. Let's use simple shapes or leave out complex icons if not installed.
-    articles: 12,
-    description: 'Manage your account settings',
-    color: '#3B82F6',
-  },
-  {
-    id: 'payment',
-    name: 'Payment',
-    articles: 8,
-    description: 'Payment and billing information',
-    color: '#10B981',
-  },
-  {
-    id: 'security',
-    name: 'Security',
-    articles: 6,
-    description: 'Keep your account secure',
-    color: '#EF4444',
-  },
-  {
-    id: 'payment-methods',
-    name: 'Payment Methods',
-    articles: 5,
-    description: 'Available payment options',
-    color: '#F59E0B',
-  },
-  {
-    id: 'booking',
-    name: 'Booking',
-    articles: 10,
-    description: 'Book and manage photographers',
-    color: '#B83AB6',
-  },
-  {
-    id: 'technical-support',
-    name: 'Technical Support',
-    articles: 7,
-    description: 'Technical help and support',
-    color: '#6366F1',
-  },
-];
 
 export default function HelpCenterScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
+
+  const categories = [
+    {
+      id: 'my-account',
+      name: t('b4_hcCatMyAccountName'),
+      icon: 'person-outline',
+      articles: 12,
+      description: t('b4_hcCatMyAccountDesc'),
+      color: '#3B82F6',
+    },
+    {
+      id: 'payment',
+      name: t('b4_hcCatPaymentName'),
+      articles: 8,
+      description: t('b4_hcCatPaymentDesc'),
+      color: '#10B981',
+    },
+    {
+      id: 'security',
+      name: t('b4_hcCatSecurityName'),
+      articles: 6,
+      description: t('b4_hcCatSecurityDesc'),
+      color: '#EF4444',
+    },
+    {
+      id: 'payment-methods',
+      name: t('b4_hcCatPaymentMethodsName'),
+      articles: 5,
+      description: t('b4_hcCatPaymentMethodsDesc'),
+      color: '#F59E0B',
+    },
+    {
+      id: 'booking',
+      name: t('b4_hcCatBookingName'),
+      articles: 10,
+      description: t('b4_hcCatBookingDesc'),
+      color: '#B83AB6',
+    },
+    {
+      id: 'technical-support',
+      name: t('b4_hcCatTechSupportName'),
+      articles: 7,
+      description: t('b4_hcCatTechSupportDesc'),
+      color: '#6366F1',
+    },
+  ];
 
   const handleCategoryPress = (id: string) => {
     router.push(`/help-center/${id}` as unknown as any);
@@ -63,15 +65,15 @@ export default function HelpCenterScreen() {
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.hero}>
-          <Text style={styles.title}>How can we help you today?</Text>
+          <Text style={styles.title}>{t('b4_hcHeroTitle')}</Text>
           <Text style={styles.subtitle}>
-            Search articles, get answers, or jump into a conversation.
+            {t('b4_hcHeroSubtitle')}
           </Text>
 
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search for articles..."
+              placeholder={t('b4_hcSearchPlaceholder')}
               placeholderTextColor={colors.textMuted}
               value={searchTerm}
               onChangeText={setSearchTerm}
@@ -82,15 +84,15 @@ export default function HelpCenterScreen() {
         <View style={styles.statsStrip}>
           <View style={styles.statItem}>
             <Text style={styles.statNum}>48+</Text>
-            <Text style={styles.statLabel}>Articles</Text>
+            <Text style={styles.statLabel}>{t('b4_hcStatArticles')}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNum}>24/7</Text>
-            <Text style={styles.statLabel}>Support</Text>
+            <Text style={styles.statLabel}>{t('b4_hcStatSupport')}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statNum}>&lt;2h</Text>
-            <Text style={styles.statLabel}>Response</Text>
+            <Text style={styles.statLabel}>{t('b4_hcStatResponse')}</Text>
           </View>
         </View>
 
@@ -108,7 +110,7 @@ export default function HelpCenterScreen() {
               <Text style={styles.cardDesc}>{cat.description}</Text>
               <View style={styles.cardFooter}>
                 <Text style={[styles.articleCount, { color: cat.color }]}>
-                  {cat.articles} articles
+                  {t('b4_hcArticleCount').replace('{count}', String(cat.articles))}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -117,22 +119,22 @@ export default function HelpCenterScreen() {
 
         {/* Still need help? — contact / feedback (web parity). */}
         <View style={styles.helpFooter}>
-          <Text style={styles.helpFooterTitle}>Still need help?</Text>
+          <Text style={styles.helpFooterTitle}>{t('b4_hcStillNeedHelpTitle')}</Text>
           <Text style={styles.helpFooterText}>
-            Can&apos;t find what you&apos;re looking for? Reach our team or send feedback.
+            {t('b4_hcStillNeedHelpText')}
           </Text>
           <View style={styles.helpFooterRow}>
             <TouchableOpacity
               style={[styles.helpFooterBtn, styles.helpFooterBtnPrimary]}
               onPress={() => router.push('/contact_us' as unknown as any)}
             >
-              <Text style={styles.helpFooterBtnPrimaryText}>Contact us</Text>
+              <Text style={styles.helpFooterBtnPrimaryText}>{t('b4_hcContactUsBtn')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.helpFooterBtn}
               onPress={() => router.push('/feedback' as unknown as any)}
             >
-              <Text style={styles.helpFooterBtnText}>Send feedback</Text>
+              <Text style={styles.helpFooterBtnText}>{t('b4_hcSendFeedbackBtn')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { EmptyState } from './EmptyState';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Props<T> = {
   data: T[] | null;
@@ -52,6 +53,7 @@ export function DataList<T>({
 }: Props<T>): ReactElement {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   if (loading && !data) {
     return (
       <View style={[styles.centered, { paddingTop: topInset }]}>
@@ -64,7 +66,7 @@ export function DataList<T>({
     return (
       <View style={[styles.centered, { paddingTop: topInset }]}>
         <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>{tr(error)}</Text>
         {/* This branch renders no list, so there is nothing to pull — without an
             explicit control the user's only way out is to leave the screen. */}
         <Pressable
@@ -73,7 +75,7 @@ export function DataList<T>({
           accessibilityRole="button"
         >
           <Ionicons name="refresh" size={16} color={colors.textOnPrimary} />
-          <Text style={styles.retryText}>Try again</Text>
+          <Text style={styles.retryText}>{tr('Try again')}</Text>
         </Pressable>
       </View>
     );
@@ -82,8 +84,8 @@ export function DataList<T>({
   const header =
     title || headerExtra ? (
       <View style={styles.header}>
-        {title ? <Text style={styles.title}>{title}</Text> : null}
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {title ? <Text style={styles.title}>{tr(title)}</Text> : null}
+        {subtitle ? <Text style={styles.subtitle}>{tr(subtitle)}</Text> : null}
         {headerExtra ? <View style={styles.headerExtra}>{headerExtra}</View> : null}
       </View>
     ) : null;

@@ -3,6 +3,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 export type DateFieldProps = {
   label?: string;
@@ -41,6 +42,7 @@ export function DateField({
 }: DateFieldProps) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const date = fromYMD(value);
   const [show, setShow] = useState(false);
   const defaultDate = initialPickerDate ?? (maximumDate && maximumDate < new Date() ? maximumDate : new Date());
@@ -53,12 +55,12 @@ export function DateField({
 
   return (
     <View style={styles.wrap}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={styles.label}>{tr(label)}</Text> : null}
       <Pressable onPress={open} style={[styles.field, !!error && styles.fieldError]}>
-        <Text style={[styles.value, !date && styles.placeholder]}>{date ? pretty(date) : placeholder}</Text>
+        <Text style={[styles.value, !date && styles.placeholder]}>{date ? pretty(date) : tr(placeholder)}</Text>
         <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
       </Pressable>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={styles.error}>{tr(error)}</Text> : null}
 
       {/* Android shows a native dialog directly. */}
       {Platform.OS === 'android' && show ? (
@@ -82,9 +84,9 @@ export function DateField({
             <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
               <View style={styles.sheetHeader}>
                 <Pressable onPress={() => setShow(false)} hitSlop={8}>
-                  <Text style={styles.cancel}>Cancel</Text>
+                  <Text style={styles.cancel}>{tr('Cancel')}</Text>
                 </Pressable>
-                <Text style={styles.sheetTitle}>{label ?? 'Select date'}</Text>
+                <Text style={styles.sheetTitle}>{tr(label ?? 'Select a date')}</Text>
                 <Pressable
                   onPress={() => {
                     onChange(toYMD(temp));
@@ -92,7 +94,7 @@ export function DateField({
                   }}
                   hitSlop={8}
                 >
-                  <Text style={styles.done}>Done</Text>
+                  <Text style={styles.done}>{tr('Done')}</Text>
                 </Pressable>
               </View>
               <DateTimePicker

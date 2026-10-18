@@ -28,7 +28,13 @@ import {
   Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Button } from '@/components/ui/Button';
+import { BlurTargetView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GlassCard, GlassLayer, GlassSurface, glassClear, glassTile } from '@/components/ui/GlassCard';
+import { AUTH_BACKDROP } from '@/features/auth/backdrop';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ensureFaceConsent } from '@/features/privacy/consent';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
@@ -59,6 +65,8 @@ import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imageP
 import { isApiError, useAuth } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
+import { useLanguage } from '@/store/language';
+import { tp } from '@/i18n/plural';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
@@ -75,7 +83,7 @@ function maskEmail(email: string) {
 async function downloadAndShare(url: string, filename: string) {
   await savePhotoToGallery(url, filename, {
     notifyOnSuccess: true,
-    customSuccessMessage: 'High-resolution photo saved directly to your Photos gallery.',
+    customSuccessMessage: useLanguage.getState().t('fmp_hiResSaved'),
   });
 }
 
@@ -113,6 +121,7 @@ function PhotoCell({
   selectionMode?: boolean;
 }) {
   const styles = useStyles();
+  const { t } = useLanguage();
   return (
     <Pressable
       style={[
@@ -140,7 +149,7 @@ function PhotoCell({
       {owned && (
         <View style={styles.cellOwnedBadge}>
           <Ionicons name="checkmark-circle" size={12} color="#FFF" />
-          <Text style={styles.cellOwnedText}>OWNED</Text>
+          <Text style={styles.cellOwnedText}>{t('fmp_owned')}</Text>
         </View>
       )}
       {locked && !owned && (
@@ -153,7 +162,7 @@ function PhotoCell({
       )}
       {!locked && !owned && (price == null || price === 0) && (
         <View style={styles.cellFreeBadge}>
-          <Text style={styles.cellFreeText}>FREE</Text>
+          <Text style={styles.cellFreeText}>{t('fmp_free')}</Text>
         </View>
       )}
 
@@ -172,7 +181,7 @@ function PhotoCell({
           hitSlop={8}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: !!selected }}
-          accessibilityLabel={selected ? 'Deselect photo' : 'Select photo'}
+          accessibilityLabel={selected ? t('fmp_deselectPhoto') : t('fmp_selectPhoto')}
         >
           {selected ? (
             <Ionicons name="checkmark" size={14} color="#FFF" />
@@ -189,7 +198,7 @@ function PhotoCell({
             onPreview();
           }}
           hitSlop={8}
-          accessibilityLabel="Preview photo full screen"
+          accessibilityLabel={t('fmp_previewFullScreen')}
         >
           <Ionicons name="expand-outline" size={13} color="#FFF" />
         </Pressable>
@@ -272,10 +281,15 @@ function OtpInput({ value, onChange, error }: {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function FindMyPhotos() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  // Entry screen: the video the glass cards blur (Android needs the ref).
+  const connectBg = useRef<View>(null);
+  // Results, album and free pages: the blurred photo their glass blurs.
+  const resultsBg = useRef<View>(null);
   const router = useRouter();
 
   const user = useAuth((s) => s.user);
@@ -458,8 +472,8 @@ export function FindMyPhotos() {
 
     const sub = addScreenshotListener(() => {
       Alert.alert(
-        'Screenshot Restricted',
-        'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
+        t('fmp_screenshotTitle'),
+        t('fmp_screenshotBody'),
         [{ text: 'OK' }]
       );
     });
@@ -523,15 +537,15 @@ export function FindMyPhotos() {
       console.warn('[performSearch] Face search error:', err);
       let msg = isApiError(err)
         ? err.message
-        : err?.message || (typeof err === 'string' ? err : 'Search failed. Please try again.');
+        : err?.message || (typeof err === 'string' ? err : t('fmp_errSearch'));
       if (msg.toLowerCase().includes('network connection was lost') || msg.toLowerCase().includes('-1005')) {
-        msg = 'The network connection was lost. Please check your internet connection and try again.';
+        msg = t('fmp_errNetwork');
       } else {
         msg = msg
           .replace(/\s*\(at [^)]+\)/g, '')
           .replace(/^fetch failed:\s*/i, '')
           .replace(/^UnexpectedException:\s*/i, '')
-          .trim() || 'Search failed. Please try again.';
+          .trim() || t('fmp_errSearch');
       }
       setSearchError(msg);
     } finally {
@@ -542,7 +556,7 @@ export function FindMyPhotos() {
 
   const handleFindMyPhotos = () => {
     if (!selfie) {
-      setSearchError('Please take a selfie or upload a photo first.');
+      setSearchError(t('fmp_errNeedPhoto'));
       return;
     }
     performSearch(selfie, code);
@@ -553,7 +567,7 @@ export function FindMyPhotos() {
   const handleAccessGallery = async () => {
     const trimmed = code.trim();
     if (!trimmed) {
-      setAlbumError('Please enter an invite code.');
+      setAlbumError(t('fmp_errNeedCode'));
       return;
     }
     Keyboard.dismiss();
@@ -577,7 +591,7 @@ export function FindMyPhotos() {
         setAlbumFilteredIds(null);
       }
     } catch {
-      setAlbumError('Invalid invite code or album not found. Please check and try again.');
+      setAlbumError(t('fmp_errBadCode'));
     } finally {
       setAlbumLoading(false);
     }
@@ -587,7 +601,7 @@ export function FindMyPhotos() {
 
   const handleFreeRequestAccess = async () => {
     if (!freeEmail.trim()) {
-      setFreeError('Please enter your email address.');
+      setFreeError(t('fmp_errNeedEmail'));
       return;
     }
     Keyboard.dismiss();
@@ -599,9 +613,9 @@ export function FindMyPhotos() {
     } catch (err) {
       const msg = isApiError(err) ? err.message : String(err);
       if (msg.toLowerCase().includes('not authorized') || (msg.toLowerCase().includes('email') && msg.toLowerCase().includes('match'))) {
-        setFreeError('This email was not invited to this album.');
+        setFreeError(t('fmp_errNotInvited'));
       } else {
-        setFreeError(msg || 'Failed to send code. Please try again.');
+        setFreeError(msg || t('fmp_errSendCode'));
       }
     } finally {
       setFreeLoading(false);
@@ -610,7 +624,7 @@ export function FindMyPhotos() {
 
   const handleFreeVerify = async () => {
     if (freeOtp.length < 6) {
-      setFreeError('Please enter the 6-digit code.');
+      setFreeError(t('fmp_errNeedOtp'));
       return;
     }
     Keyboard.dismiss();
@@ -632,11 +646,11 @@ export function FindMyPhotos() {
     } catch (err) {
       const msg = isApiError(err) ? err.message : String(err);
       if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('otp')) {
-        setFreeError('Invalid code. Please try again.');
+        setFreeError(t('fmp_errBadOtp'));
       } else if (msg.toLowerCase().includes('expired')) {
-        setFreeError('Code expired. Tap Resend to get a new one.');
+        setFreeError(t('fmp_errOtpExpired'));
       } else {
-        setFreeError(msg || 'Verification failed. Please try again.');
+        setFreeError(msg || t('fmp_errVerify'));
       }
     } finally {
       setFreeLoading(false);
@@ -674,16 +688,16 @@ export function FindMyPhotos() {
       : freePhotos.filter((p) => selectedFreeIds.has(p.id));
     if (!toDownload.length) return;
     setDownloadingBatch(true);
-    setBatchProgress(`Saving 1 of ${toDownload.length} to Photos…`);
+    setBatchProgress(t('fmp_savingProgress', { current: 1, total: toDownload.length }));
     try {
       const items = toDownload.map((photo) => ({ url: photo.url, filename: `photo-${photo.id}.jpg` }));
       const res = await saveBatchPhotosToGallery(items, (curr, total) => {
-        setBatchProgress(`Saving ${curr} of ${total} to Photos…`);
+        setBatchProgress(t('fmp_savingProgress', { current: curr, total }));
       });
       if (res.saved > 0) {
         Alert.alert(
-          'Saved to Photos',
-          `Successfully saved ${res.saved} photo${res.saved !== 1 ? 's' : ''} directly to your Photos gallery.`,
+          t('fmp_savedToPhotos'),
+          tp(t, 'fmp_savedBody', res.saved),
           [{ text: 'OK' }]
         );
       }
@@ -694,7 +708,7 @@ export function FindMyPhotos() {
         return next;
       });
     } catch {
-      Alert.alert('Download Error', 'Some photos could not be saved to Photos. Please check permissions.');
+      Alert.alert(t('fmp_errDownloadTitle'), t('fmp_errDownloadPerm'));
     } finally {
       setDownloadingBatch(false);
       setBatchProgress(null);
@@ -704,7 +718,7 @@ export function FindMyPhotos() {
   const handleFreeDownload = async () => {
     const info = getCappedSelectionInfo();
     if (info.total === 0) {
-      setFreeStatusMsg('Select at least one photo to download.');
+      setFreeStatusMsg(t('fmp_errSelectOne'));
       return;
     }
     const price = freeAlbumPricePerExtra || 0;
@@ -712,12 +726,12 @@ export function FindMyPhotos() {
     // No overflow — pure free download
     if (info.overflow === 0) {
       setFreeDownloading(true);
-      setFreeStatusMsg(`Downloading ${info.total} photo${info.total !== 1 ? 's' : ''}…`);
+      setFreeStatusMsg(tp(t, 'fmp_downloadingN', info.total));
       try {
         await downloadFreeSelected();
-        setFreeStatusMsg('Done! Your photos are ready.');
+        setFreeStatusMsg(t('fmp_doneReady'));
       } catch {
-        setFreeStatusMsg('Some photos could not be downloaded. Please try again.');
+        setFreeStatusMsg(t('fmp_errSomeFailed'));
       } finally {
         setFreeDownloading(false);
       }
@@ -731,19 +745,19 @@ export function FindMyPhotos() {
       const cap = info.cap as number;
       const allowed = [...info.owned, ...info.newPicks.slice(0, cap)];
       if (!allowed.length) {
-        setFreeStatusMsg(`You've already used your ${cap} free download(s) from this album.`);
+        setFreeStatusMsg(t('fmp_freeUsed', { cap }));
         return;
       }
       setFreeDownloading(true);
-      setFreeStatusMsg(`Downloading ${allowed.length} photo${allowed.length !== 1 ? 's' : ''}…`);
+      setFreeStatusMsg(tp(t, 'fmp_downloadingN', allowed.length));
       try {
         await downloadFreeSelected(allowed);
         setFreeStatusMsg(
-          `Done! ${allowed.length} photo${allowed.length !== 1 ? 's' : ''} ready. ` +
-            `${info.overflow} more exceed${info.overflow === 1 ? 's' : ''} your free quota of ${cap}.`,
+          `${tp(t, 'fmp_doneN', allowed.length)} ` +
+            tp(t, 'fmp_overQuota', info.overflow, { cap }),
         );
       } catch {
-        setFreeStatusMsg('Some photos could not be downloaded. Please try again.');
+        setFreeStatusMsg(t('fmp_errSomeFailed'));
       } finally {
         setFreeDownloading(false);
       }
@@ -752,7 +766,7 @@ export function FindMyPhotos() {
 
     // Overflow but no price — polite block
     if (!(price > 0)) {
-      setFreeStatusMsg(`You can download at most ${info.cap} new photo(s) for free from this album.`);
+      setFreeStatusMsg(t('fmp_freeAtMost', { cap: info.cap }));
       return;
     }
 
@@ -767,7 +781,7 @@ export function FindMyPhotos() {
     const buyExtras = () => {
       const overflowIds = info.newPicks.slice(capNum);
       if (!overflowIds.length || !freeAlbumId || !freeAlbumCurrencyId) {
-        setFreeStatusMsg('These extra photos cannot be purchased right now. Please try again.');
+        setFreeStatusMsg(t('fmp_errExtrasUnavailable'));
         return;
       }
       extrasInFlight.current = { allSelectedIds: Array.from(selectedFreeIds) };
@@ -787,25 +801,25 @@ export function FindMyPhotos() {
       setCheckoutVisible(true);
     };
     Alert.alert(
-      'Extra Photos',
-      `${info.overflow} photo${info.overflow !== 1 ? 's' : ''} in your selection exceed your free quota.\n\nExtras cost ${formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined)} and are paid for here in the app.`,
+      t('fmp_extrasTitle'),
+      tp(t, 'fmp_extrasBody', info.overflow, { price: formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined) }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('fmp_cancel'), style: 'cancel' },
         ...(allowed.length
           ? [
               {
-                text: `Download ${allowed.length} free`,
+                text: t('fmp_downloadNFree', { count: allowed.length }),
                 onPress: () => {
                   void (async () => {
                     setFreeDownloading(true);
-                    setFreeStatusMsg(`Downloading ${allowed.length} photo${allowed.length !== 1 ? 's' : ''}…`);
+                    setFreeStatusMsg(tp(t, 'fmp_downloadingN', allowed.length));
                     try {
                       await downloadFreeSelected(allowed);
                       setFreeStatusMsg(
-                        `Done! You can pay for the ${info.overflow} extra photo${info.overflow === 1 ? '' : 's'} any time.`,
+                        tp(t, 'fmp_payLater', info.overflow),
                       );
                     } catch {
-                      setFreeStatusMsg('Some photos could not be downloaded. Please try again.');
+                      setFreeStatusMsg(t('fmp_errSomeFailed'));
                     } finally {
                       setFreeDownloading(false);
                     }
@@ -814,7 +828,7 @@ export function FindMyPhotos() {
               },
             ]
           : []),
-        { text: 'Pay for extras', onPress: buyExtras },
+        { text: t('fmp_payForExtras'), onPress: buyExtras },
       ],
     );
   };
@@ -823,7 +837,7 @@ export function FindMyPhotos() {
   const openPurchaseFor = (photos: (AlbumPhotoItem | FoundPhoto)[], defaultAlbumId?: string) => {
     const payable = photos.filter((p) => !p.isPurchased && (p.price ?? 0) > 0);
     if (!payable.length) {
-      setPurchaseNotice('You already own all selected photos.');
+      setPurchaseNotice(t('fmp_alreadyOwnAll'));
       return;
     }
 
@@ -885,7 +899,7 @@ export function FindMyPhotos() {
         allSelectedIds.forEach((id) => next.add(id));
         return next;
       });
-      setPurchaseNotice('Payment confirmed. Your extra photos are unlocked and downloading.');
+      setPurchaseNotice(t('fmp_extrasPaid'));
       void downloadFreeSelected();
       return;
     }
@@ -906,7 +920,7 @@ export function FindMyPhotos() {
     }
 
     setPurchaseNotice(
-      `Purchase successful! Unlocked ${ids.length} photo${ids.length !== 1 ? 's' : ''}. Tap to download.`,
+      tp(t, 'fmp_purchaseOk', ids.length),
     );
 
     setSelectedAlbumIds((prev) => {
@@ -955,21 +969,21 @@ export function FindMyPhotos() {
         .filter((i): i is { url: string; filename: string } => i !== null);
 
       const res = await saveBatchPhotosToGallery(items, (curr, total) => {
-        setBatchProgress(`Saving ${curr} of ${total} to Photos…`);
+        setBatchProgress(t('fmp_savingProgress', { current: curr, total }));
       });
 
       if (res.saved > 0) {
         Alert.alert(
-          'Saved to Photos',
-          `Successfully saved ${res.saved} high-resolution photo${res.saved > 1 ? 's' : ''} directly to your device gallery.`,
+          t('fmp_savedToPhotos'),
+          tp(t, 'fmp_savedHiRes', res.saved),
           [{ text: 'OK' }]
         );
-        setPurchaseNotice(`Saved ${res.saved} photo${res.saved !== 1 ? 's' : ''} to Photos.`);
+        setPurchaseNotice(tp(t, 'fmp_savedShort', res.saved));
       } else {
-        setPurchaseNotice('Could not save photos. Please verify your photo permissions.');
+        setPurchaseNotice(t('fmp_errSaveFailed'));
       }
     } catch {
-      setPurchaseNotice('Some photos could not be saved. Please try again.');
+      setPurchaseNotice(t('fmp_errSomeNotSaved'));
     } finally {
       setDownloadingBatch(false);
       setBatchProgress(null);
@@ -987,9 +1001,9 @@ export function FindMyPhotos() {
 
   const handleUnlock = async () => {
     const id = unlockIdentifier.trim();
-    if (!id) { setUnlockError('Enter your email or unlock code.'); return; }
+    if (!id) { setUnlockError(t('fmp_errUnlockNeedId')); return; }
     const aId = unlockForAlbumId ?? albumId ?? faceResults?.[0]?.albumId ?? null;
-    if (!aId) { setUnlockError('No album in scope. Load an album first.'); return; }
+    if (!aId) { setUnlockError(t('fmp_errUnlockNoAlbum')); return; }
 
     setUnlocking(true);
     setUnlockError(null);
@@ -1003,11 +1017,11 @@ export function FindMyPhotos() {
         const owned = new Set(res.purchasedPhotoIds);
         setAlbumPhotos((prev) => prev?.map((p) => owned.has(p.id) ? { ...p, isPurchased: true } : p) ?? prev);
         setFaceResults((prev) => prev?.map((p) => owned.has(p.id) ? { ...p, isPurchased: true } : p) ?? prev);
-        setPurchaseNotice(`Unlocked ${res.purchasedPhotoIds.length} photo(s). Tap to download.`);
+        setPurchaseNotice(t('fmp_unlockedN', { count: res.purchasedPhotoIds.length }));
       }
       setUnlockOpen(false);
     } catch (err) {
-      setUnlockError(isApiError(err) ? err.message : 'Could not unlock. Check your code or email.');
+      setUnlockError(isApiError(err) ? err.message : t('fmp_errUnlock'));
     } finally {
       setUnlocking(false);
     }
@@ -1023,12 +1037,12 @@ export function FindMyPhotos() {
     try {
       const results = await faceSearch(img, code.trim());
       if (!results.length) {
-        Alert.alert('No Matches', 'No photos matching your face were found in this album.');
+        Alert.alert(t('fmp_noMatchesTitle'), t('fmp_noMatchesAlbum'));
         return;
       }
       setAlbumFilteredIds(new Set(results.map((p) => p.id as string)));
     } catch {
-      Alert.alert('Scan Failed', 'Could not complete face scan. Please try again.');
+      Alert.alert(t('fmp_scanFailedTitle'), t('fmp_scanFailedBody'));
     } finally {
       setAlbumFaceScanning(false);
     }
@@ -1036,12 +1050,12 @@ export function FindMyPhotos() {
 
   const handleAlbumFaceScan = () => {
     Alert.alert(
-      'Find My Photos',
-      'Use facial recognition to show only photos matching your face in this album.',
+      t('fmp_title'),
+      t('fmp_albumScanBody'),
       [
-        { text: 'Take Selfie', onPress: () => void doAlbumScan(takeSelfie) },
-        { text: 'Upload from Library', onPress: () => void doAlbumScan(pickFromLibrary) },
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('fmp_takeSelfie'), onPress: () => void doAlbumScan(takeSelfie) },
+        { text: t('fmp_uploadFromLibrary'), onPress: () => void doAlbumScan(pickFromLibrary) },
+        { text: t('fmp_cancel'), style: 'cancel' },
       ]
     );
   };
@@ -1049,18 +1063,18 @@ export function FindMyPhotos() {
   // ─── Report a photo ───────────────────────────────────────────────────────
 
   const onLongPressPhoto = (photoId: string, subject?: string) => {
-    Alert.alert('Photo actions', undefined, [
+    Alert.alert(t('fmp_photoActions'), undefined, [
       {
-        text: 'Report photo',
+        text: t('fmp_reportPhoto'),
         style: 'destructive',
         onPress: () => setReportPhoto({ id: photoId, subject }),
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('fmp_cancel'), style: 'cancel' },
     ]);
   };
 
   const submitPhotoReport = async (reason: string, description: string) => {
-    if (!reportPhoto) throw { status: 400, message: 'Nothing to report.' };
+    if (!reportPhoto) throw { status: 400, message: t('fmp_nothingToReport') };
     return reportContent('PHOTO', reportPhoto.id, reason, description);
   };
 
@@ -1119,17 +1133,15 @@ export function FindMyPhotos() {
 
   const renderConnect = () => (
     <View style={styles.flatContainer}>
-      {/* Badge + hero */}
-      <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-        <View style={styles.badgeWrap}>
-          <Text style={styles.badgeText}>FACE RECOGNITION</Text>
-        </View>
-        <Text style={styles.heroTitle}>Find Your Photos</Text>
-        <Text style={styles.lead}>
-          Take a selfie or upload a photo to instantly find every photo you appear in.
-        </Text>
+      {/* Heading, straight on the video */}
+      <View style={styles.connectHeading}>
+        <Text style={styles.badgeText}>{t('fmp_eyebrow')}</Text>
+        <Text style={styles.heroTitle} accessibilityRole="header">{t('fmp_heading')}</Text>
+        <Text style={styles.lead}>{t('fmp_lead')}</Text>
       </View>
 
+      {/* Card 1: scan your face */}
+      <GlassCard strength="regular" blurTarget={connectBg} elevated style={styles.connectCard}>
       {/* Scanning animation - clean solid bar, NO gradients */}
       {searching && selfie ? (
         <View style={styles.scanningWrap}>
@@ -1166,21 +1178,21 @@ export function FindMyPhotos() {
 
           <Text style={styles.scanningTitle}>
             {scanProgress < 25
-              ? 'Uploading photo...'
+              ? t('fmp_scanUploading')
               : scanProgress < 65
-                ? 'Analyzing facial features...'
+                ? t('fmp_scanAnalyzing')
                 : scanProgress < 95
-                  ? (code.trim() ? `Scanning album ${code.trim()}...` : 'Scanning event galleries...')
-                  : 'Matching your photos...'}
+                  ? (code.trim() ? t('fmp_scanAlbum', { code: code.trim() }) : t('fmp_scanGalleries'))
+                  : t('fmp_scanMatching')}
           </Text>
           <Text style={styles.scanningSubText}>
             {scanProgress < 25
-              ? 'Preparing your photo for secure AI lookup'
+              ? t('fmp_scanSubUploading')
               : scanProgress < 65
-                ? 'Detecting landmarks and facial geometry'
+                ? t('fmp_scanSubAnalyzing')
                 : scanProgress < 95
-                  ? (code.trim() ? 'Searching photos in this event' : 'Comparing face embeddings across galleries')
-                  : 'Almost done, ranking your best matches'}
+                  ? (code.trim() ? t('fmp_scanSubEvent') : t('fmp_scanSubGalleries'))
+                  : t('fmp_scanSubMatching')}
           </Text>
         </View>
 
@@ -1192,13 +1204,13 @@ export function FindMyPhotos() {
           </View>
           <View style={styles.selfieReadyPill}>
             <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-            <Text style={styles.selfieReadyText}>Photo ready to scan</Text>
+            <Text style={styles.selfieReadyText}>{t('fmp_photoReady')}</Text>
           </View>
           <Pressable
             onPress={() => { setSelfie(null); setActiveOption(null); setFaceResults(null); setSearchError(null); }}
             style={styles.changeSelfieBtn}
           >
-            <Text style={styles.changeSelfieBtnText}>Change photo</Text>
+            <Text style={styles.changeSelfieBtnText}>{t('fmp_changePhoto')}</Text>
           </Pressable>
         </View>
 
@@ -1216,8 +1228,8 @@ export function FindMyPhotos() {
             <View style={[styles.webIconWrap, { backgroundColor: colors.tint }]}>
               <Ionicons name="camera-outline" size={26} color={colors.primary} />
             </View>
-            <Text style={styles.webPickTitle}>Take Selfie</Text>
-            <Text style={styles.webPickSub}>Use camera</Text>
+            <Text style={styles.webPickTitle}>{t('fmp_takeSelfie')}</Text>
+            <Text style={styles.webPickSub}>{t('fmp_useCamera')}</Text>
           </Pressable>
 
           <Pressable
@@ -1231,8 +1243,8 @@ export function FindMyPhotos() {
             <View style={[styles.webIconWrap, { backgroundColor: colors.tintAccent }]}>
               <Ionicons name="arrow-up-outline" size={26} color={colors.accent} />
             </View>
-            <Text style={styles.webPickTitle}>Upload Photo</Text>
-            <Text style={styles.webPickSub}>From gallery</Text>
+            <Text style={styles.webPickTitle}>{t('fmp_uploadPhoto')}</Text>
+            <Text style={styles.webPickSub}>{t('fmp_fromGallery')}</Text>
           </Pressable>
 
           {Boolean(user) && (
@@ -1249,8 +1261,8 @@ export function FindMyPhotos() {
               <View style={[styles.webIconWrap, { backgroundColor: colors.tint }]}>
                 <Ionicons name="grid-outline" size={26} color={colors.primary} />
               </View>
-              <Text style={styles.webPickTitle}>Browse Photos</Text>
-              <Text style={styles.webPickSub}>Stock library</Text>
+              <Text style={styles.webPickTitle}>{t('fmp_browsePhotos')}</Text>
+              <Text style={styles.webPickSub}>{t('fmp_stockLibrary')}</Text>
             </Pressable>
           )}
         </View>
@@ -1265,7 +1277,7 @@ export function FindMyPhotos() {
           ]}
           onPress={handleFindMyPhotos}
           accessibilityRole="button"
-          accessibilityLabel="Find My Photos"
+          accessibilityLabel={t('fmp_title')}
         >
           <Ionicons
             name="search"
@@ -1273,36 +1285,29 @@ export function FindMyPhotos() {
             color={!selfie ? colors.textMuted : colors.textOnPrimary}
           />
           <Text style={[styles.webFindBtnText, !selfie && styles.webFindBtnTextDisabled]}>
-            Find My Photos
+            {t('fmp_title')}
           </Text>
         </Pressable>
       )}
 
       {searchError ? <Text style={styles.error}>{searchError}</Text> : null}
+      </GlassCard>
 
-      {/* OR divider */}
-      {!searching && (
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
-        </View>
-      )}
+      {/* "or", between the two cards */}
+      {!searching && <Text style={styles.connectOr}>{t('fmp_or')}</Text>}
 
-      {/* Invite code */}
+      {/* Card 2: invite code */}
       {!searching && (
-        <>
-          <Text style={styles.inviteHeading}>Have an invite code?</Text>
-          <Text style={styles.inviteSubText}>
-            Enter it to jump straight into that event&apos;s gallery.
-          </Text>
+        <GlassCard strength="regular" blurTarget={connectBg} elevated style={styles.connectCard}>
+          <Text style={styles.inviteHeading}>{t('fmp_inviteHeading')}</Text>
+          <Text style={styles.inviteSubText}>{t('fmp_inviteSub')}</Text>
 
           <TextInput
-            placeholder="Enter invite code"
+            placeholder={t('fmp_invitePlaceholder')}
             value={code}
             onChangeText={(t) => { setCode(t); setAlbumError(null); }}
             autoCapitalize="characters"
-            style={styles.codeInput}
+            style={styles.inviteInput}
             placeholderTextColor={colors.textMuted}
             returnKeyType="go"
             onSubmitEditing={handleAccessGallery}
@@ -1310,16 +1315,18 @@ export function FindMyPhotos() {
 
           {albumError ? <Text style={styles.error}>{albumError}</Text> : null}
 
+          {/* Secondary to "Find My Photos": one filled button per screen. */}
           <Pressable
-            style={[styles.accessBtn, albumLoading && { opacity: 0.6 }]}
+            style={({ pressed }) => [styles.accessBtnOutline, (albumLoading || pressed) && { opacity: 0.6 }]}
             onPress={handleAccessGallery}
             disabled={albumLoading}
+            accessibilityRole="button"
           >
             {albumLoading
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Text style={styles.accessBtnText}>Access Gallery</Text>}
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Text style={styles.accessBtnOutlineText}>{t('fmp_accessGallery')}</Text>}
           </Pressable>
-        </>
+        </GlassCard>
       )}
     </View>
   );
@@ -1348,18 +1355,18 @@ export function FindMyPhotos() {
         <View style={styles.albumHeader}>
           <View style={styles.albumBadge}>
             <Ionicons name="camera" size={11} color={colors.primary} />
-            <Text style={styles.albumBadgeText}>PHOTO ALBUM</Text>
+            <Text style={styles.albumBadgeText}>{t('fmp_photoAlbum')}</Text>
           </View>
-          <Text style={styles.albumTitle}>{albumTitle || 'Event Album'}</Text>
+          <Text style={styles.albumTitle}>{albumTitle || t('fmp_eventAlbum')}</Text>
           {albumPhotographerName ? (
             <Text style={styles.albumSub}>
-              by <Text style={{ color: colors.text, fontWeight: '700' }}>{albumPhotographerName}</Text>
+              {t('fmp_by')} <Text style={{ color: colors.text, fontWeight: '700' }}>{albumPhotographerName}</Text>
             </Text>
           ) : null}
           <Text style={styles.albumCount}>
             {albumFilteredIds !== null
-              ? `${displayedPhotos.length} of ${photos.length} photo${photos.length !== 1 ? 's' : ''} matched`
-              : `${photos.length} photo${photos.length !== 1 ? 's' : ''}`}
+              ? tp(t, 'fmp_matchedOf', photos.length, { shown: displayedPhotos.length })
+              : tp(t, 'fmp_photosN', photos.length)}
           </Text>
           <Text style={styles.albumHint}>
             Tap photos to select · Tap ⤢ to preview full-screen · Long-press to report
@@ -1374,7 +1381,7 @@ export function FindMyPhotos() {
               {albumFaceScanning
                 ? <ActivityIndicator size="small" color="#fff" />
                 : <Ionicons name="person-circle-outline" size={15} color="#fff" />}
-              <Text style={styles.scanInAlbumBtnText}>Find My Photos (Face Scan)</Text>
+              <Text style={styles.scanInAlbumBtnText}>{t('fmp_albumFaceScan')}</Text>
             </Pressable>
             {albumFilteredIds !== null && (
               <Pressable
@@ -1382,7 +1389,7 @@ export function FindMyPhotos() {
                 onPress={() => setAlbumFilteredIds(null)}
               >
                 <Ionicons name="grid-outline" size={15} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.showAllBtnText}>Show All ({photos.length})</Text>
+                <Text style={styles.showAllBtnText}>{t('fmp_showAllN', { count: photos.length })}</Text>
               </Pressable>
             )}
             <Pressable
@@ -1390,7 +1397,7 @@ export function FindMyPhotos() {
               onPress={() => openUnlock(albumId)}
             >
               <Ionicons name="lock-open-outline" size={15} color="#7be0e5" />
-              <Text style={styles.unlockPillBtnText}>Already paid? Unlock</Text>
+              <Text style={styles.unlockPillBtnText}>{t('fmp_alreadyPaidUnlock')}</Text>
             </Pressable>
           </View>
 
@@ -1409,8 +1416,8 @@ export function FindMyPhotos() {
                 )}
                 <Text style={styles.batchDownloadBtnText}>
                   {downloadingBatch
-                    ? (batchProgress || 'Downloading…')
-                    : `Download All Owned (${allPurchased.length})`}
+                    ? (batchProgress || t('fmp_downloading'))
+                    : t('fmp_downloadAllOwned', { count: allPurchased.length })}
                 </Text>
               </Pressable>
             )}
@@ -1437,8 +1444,8 @@ export function FindMyPhotos() {
                 />
                 <Text style={styles.shortcutBtnText}>
                   {selectedAlbumIds.size === unpurchasedInAlbum.length
-                    ? 'Deselect All'
-                    : `Select All (${unpurchasedInAlbum.length})`}
+                    ? t('fmp_deselectAll')
+                    : t('fmp_selectAllN', { count: unpurchasedInAlbum.length })}
                 </Text>
               </Pressable>
             )}
@@ -1488,11 +1495,11 @@ export function FindMyPhotos() {
               ]}
               onPress={() => setVisibleAlbumCount((prev) => prev + 24)}
               accessibilityRole="button"
-              accessibilityLabel="Load more album photos"
+              accessibilityLabel={t('fmp_loadMoreAlbum')}
             >
               <Ionicons name="arrow-down-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.loadMoreBtnText}>
-                Load More Photos ({displayedPhotos.length} of {allFiltered.length})
+                {t('fmp_loadMoreN', { shown: displayedPhotos.length, count: allFiltered.length })}
               </Text>
             </Pressable>
 
@@ -1504,9 +1511,9 @@ export function FindMyPhotos() {
                 ]}
                 onPress={() => setVisibleAlbumCount(allFiltered.length)}
                 accessibilityRole="button"
-                accessibilityLabel="Show all album photos"
+                accessibilityLabel={t('fmp_showAllAlbum')}
               >
-                <Text style={styles.showAllPillBtnText}>Show All ({allFiltered.length})</Text>
+                <Text style={styles.showAllPillBtnText}>{t('fmp_showAllN', { count: allFiltered.length })}</Text>
               </Pressable>
             )}
           </View>
@@ -1514,11 +1521,12 @@ export function FindMyPhotos() {
 
         {/* Selection action bar */}
         {selectedAlbumIds.size > 0 && (
-          <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) + spacing.sm }]}>
+          <View style={[styles.actionBar, { paddingBottom: spacing.md }]}>
+            <GlassSurface strength="thick" blurTarget={resultsBg} style={styles.actionBarGlass} />
             <View style={styles.actionBarTopRow}>
-              <Text style={styles.actionBarCount}>{selectedAlbumIds.size} photo{selectedAlbumIds.size !== 1 ? 's' : ''} selected</Text>
+              <Text style={styles.actionBarCount}>{tp(t, 'fmp_selectedN', selectedAlbumIds.size)}</Text>
               <Pressable onPress={() => setSelectedAlbumIds(new Set())} hitSlop={8}>
-                <Text style={styles.actionBarClearText}>Clear</Text>
+                <Text style={styles.actionBarClearText}>{t('fmp_clear')}</Text>
               </Pressable>
             </View>
 
@@ -1535,7 +1543,7 @@ export function FindMyPhotos() {
                     <Ionicons name="cloud-download-outline" size={16} color="#FFF" />
                   )}
                   <Text style={styles.actionBarBtnText}>
-                    {downloadingBatch ? (batchProgress || 'Saving…') : `Download ${selectedPurchased.length}`}
+                    {downloadingBatch ? (batchProgress || t('fmp_saving')) : t('fmp_downloadN', { count: selectedPurchased.length })}
                   </Text>
                 </Pressable>
               )}
@@ -1546,7 +1554,7 @@ export function FindMyPhotos() {
                 >
                   <Ionicons name="card-outline" size={16} color="#FFF" />
                   <Text style={styles.actionBarBtnText}>
-                    Buy {selectedUnpurchased.length} · {albumCurrencyAbbr}{' '}
+                    {t('fmp_buyN', { count: selectedUnpurchased.length })} · {albumCurrencyAbbr}{' '}
                     {selectedUnpurchased.reduce((s, p) => s + (p.price ?? 0), 0)}
                   </Text>
                 </Pressable>
@@ -1571,20 +1579,20 @@ export function FindMyPhotos() {
     <View style={styles.freeCard}>
       <Text style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>📸</Text>
       <View style={styles.albumBadge}>
-        <Text style={styles.albumBadgeText}>FREE ALBUM</Text>
+        <Text style={styles.albumBadgeText}>{t('fmp_freeAlbum')}</Text>
       </View>
       {freeTitle ? <Text style={styles.albumTitle}>{freeTitle}</Text> : null}
       {freePhotographer ? (
         <Text style={styles.albumSub}>
-          by <Text style={{ color: colors.text, fontWeight: '700' }}>{freePhotographer}</Text>
+          {t('fmp_by')} <Text style={{ color: colors.text, fontWeight: '700' }}>{freePhotographer}</Text>
         </Text>
       ) : null}
       <Text style={[styles.subLead, { marginTop: 16, marginBottom: 24 }]}>
-        This album requires email verification to view your photos.
+        {t('fmp_needsEmail')}
       </Text>
 
       <TextInput
-        placeholder="Enter your email address"
+        placeholder={t('fmp_emailPlaceholder')}
         value={freeEmail}
         onChangeText={(t) => { setFreeEmail(t); setFreeError(''); }}
         keyboardType="email-address"
@@ -1604,14 +1612,14 @@ export function FindMyPhotos() {
       >
         {freeLoading
           ? <ActivityIndicator size="small" color="#fff" />
-          : <Text style={styles.accessBtnText}>Request Access</Text>}
+          : <Text style={styles.accessBtnText}>{t('fmp_requestAccess')}</Text>}
       </Pressable>
 
       <Pressable
         style={{ marginTop: 16 }}
         onPress={() => { setFreeFlow('idle'); setFreeError(''); }}
       >
-        <Text style={styles.ghostLink}>← Back to invite code</Text>
+        <Text style={styles.ghostLink}>{t('fmp_backToCode')}</Text>
       </Pressable>
     </View>
   );
@@ -1620,9 +1628,9 @@ export function FindMyPhotos() {
 
   const renderFreeOtp = () => (
     <View style={styles.freeCard}>
-      <Text style={styles.albumTitle}>Enter Verification Code</Text>
+      <Text style={styles.albumTitle}>{t('fmp_enterOtpTitle')}</Text>
       <Text style={[styles.subLead, { marginVertical: 12 }]}>
-        We sent a 6-digit code to{'\n'}
+        {t('fmp_otpSent')}{'\n'}
         <Text style={{ color: colors.text, fontWeight: '600' }}>{maskEmail(freeEmail)}</Text>
       </Text>
 
@@ -1637,16 +1645,16 @@ export function FindMyPhotos() {
       >
         {freeLoading
           ? <ActivityIndicator size="small" color="#fff" />
-          : <Text style={styles.accessBtnText}>Verify</Text>}
+          : <Text style={styles.accessBtnText}>{t('fmp_verify')}</Text>}
       </Pressable>
 
       <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 16 }}>
-        Didn't receive it?{' '}
+        {t('fmp_noCode')}{' '}
         <Text
           style={{ color: colors.primary, textDecorationLine: 'underline' }}
           onPress={handleFreeResend}
         >
-          Resend
+          {t('fmp_resend')}
         </Text>
       </Text>
 
@@ -1654,7 +1662,7 @@ export function FindMyPhotos() {
         style={{ marginTop: 12 }}
         onPress={() => { setFreeFlow('email'); setFreeOtp(''); setFreeError(''); }}
       >
-        <Text style={styles.ghostLink}>← Change email</Text>
+        <Text style={styles.ghostLink}>{t('fmp_changeEmail')}</Text>
       </Pressable>
     </View>
   );
@@ -1682,12 +1690,12 @@ export function FindMyPhotos() {
         <View style={styles.albumHeader}>
           <View style={styles.albumBadge}>
             <Ionicons name="camera" size={11} color={colors.primary} />
-            <Text style={styles.albumBadgeText}>FREE ALBUM</Text>
+            <Text style={styles.albumBadgeText}>{t('fmp_freeAlbum')}</Text>
           </View>
           <Text style={styles.albumTitle}>{freeTitle}</Text>
           {freePhotographer ? (
             <Text style={styles.albumSub}>
-              by <Text style={{ color: '#fff', fontWeight: '700' }}>{freePhotographer}</Text>
+              {t('fmp_by')} <Text style={{ color: '#fff', fontWeight: '700' }}>{freePhotographer}</Text>
             </Text>
           ) : null}
 
@@ -1702,8 +1710,8 @@ export function FindMyPhotos() {
             </Text>
           )}
 
-          <Text style={styles.albumCount}>{freePhotos.length} photo{freePhotos.length !== 1 ? 's' : ''}</Text>
-          <Text style={styles.albumHint}>Tap photos to select · Long-press to report</Text>
+          <Text style={styles.albumCount}>{tp(t, 'fmp_photosN', freePhotos.length)}</Text>
+          <Text style={styles.albumHint}>{t('fmp_freeHint')}</Text>
 
           {!isCapped && freePhotos.length > 1 && selectedFreeIds.size < freePhotos.length && (
             <Pressable
@@ -1711,20 +1719,20 @@ export function FindMyPhotos() {
               onPress={() => setSelectedFreeIds(new Set(freePhotos.map((p) => p.id)))}
             >
               <Ionicons name="checkmark-done-outline" size={14} color="#fff" />
-              <Text style={styles.selectAllBtnText}>Select all</Text>
+              <Text style={styles.selectAllBtnText}>{t('fmp_selectAll')}</Text>
             </Pressable>
           )}
 
           {isCapped && (
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 6, lineHeight: 18 }}>
               {freeMaxDownloads !== null && (
-                <>Free up to <Text style={{ color: '#fff', fontWeight: '700' }}>{freeMaxDownloads}</Text> new photo{freeMaxDownloads !== 1 ? 's' : ''}.</>
+                <>{tp(t, 'fmp_freeUpTo', freeMaxDownloads)}</>
               )}
               {freeAlbumPricePerExtra > 0 && (
-                <> Extras cost <Text style={{ color: '#fff', fontWeight: '700' }}>{freeAlbumCurrencyAbbr || ''} {freeAlbumPricePerExtra}</Text> each.</>
+                <> {t('fmp_extrasEach', { price: `${freeAlbumCurrencyAbbr || ''} ${freeAlbumPricePerExtra}`.trim() })}</>
               )}
               {freeAcquiredIds.size > 0 && (
-                <> You already own <Text style={{ color: '#fff', fontWeight: '700' }}>{freeAcquiredIds.size}</Text>, free to re-download.</>
+                <> {t('fmp_alreadyOwnN', { count: freeAcquiredIds.size })}</>
               )}
             </Text>
           )}
@@ -1753,7 +1761,7 @@ export function FindMyPhotos() {
                   size={cell}
                   owned={owned}
                   selected={selected && !owned}
-                  watermarkText={isCapped && !owned ? `PREVIEW · ${freePhotographer || 'PHOTOGRAPHER'}` : undefined}
+                  watermarkText={isCapped && !owned ? t('fmp_previewWatermark', { name: freePhotographer || t('fmp_photographerUpper') }) : undefined}
                   selectionMode={totalSelected > 0}
                   onPress={() => {
                     if (totalSelected > 0) {
@@ -1793,11 +1801,11 @@ export function FindMyPhotos() {
               ]}
               onPress={() => setVisibleFreeCount((prev) => prev + 24)}
               accessibilityRole="button"
-              accessibilityLabel="Load more free photos"
+              accessibilityLabel={t('fmp_loadMoreFree')}
             >
               <Ionicons name="arrow-down-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.loadMoreBtnText}>
-                Load More Photos ({displayedFreePhotos.length} of {freePhotos.length})
+                {t('fmp_loadMoreN', { shown: displayedFreePhotos.length, count: freePhotos.length })}
               </Text>
             </Pressable>
 
@@ -1809,9 +1817,9 @@ export function FindMyPhotos() {
                 ]}
                 onPress={() => setVisibleFreeCount(freePhotos.length)}
                 accessibilityRole="button"
-                accessibilityLabel="Show all free photos"
+                accessibilityLabel={t('fmp_showAllFree')}
               >
-                <Text style={styles.showAllPillBtnText}>Show All ({freePhotos.length})</Text>
+                <Text style={styles.showAllPillBtnText}>{t('fmp_showAllN', { count: freePhotos.length })}</Text>
               </Pressable>
             )}
           </View>
@@ -1819,7 +1827,8 @@ export function FindMyPhotos() {
 
         {/* Bottom action bar */}
         {totalSelected > 0 && (
-          <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) + spacing.sm }]}>
+          <View style={[styles.actionBar, { paddingBottom: spacing.md }]}>
+            <GlassSurface strength="thick" blurTarget={resultsBg} style={styles.actionBarGlass} />
             <Text style={styles.actionBarCount}>{totalSelected} selected</Text>
             <Pressable
               style={[
@@ -1835,12 +1844,12 @@ export function FindMyPhotos() {
                 : <Ionicons name={showPurchase ? 'card-outline' : 'cloud-download-outline'} size={16} color="#FFF" />}
               <Text style={styles.actionBarBtnText}>
                 {showPurchase
-                  ? `Purchase (${formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined)} for ${info.overflow} extra)`
-                  : `Download ${downloadableNow}`}
+                  ? t('fmp_purchaseExtras', { price: formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined), count: info.overflow })
+                  : t('fmp_downloadN', { count: downloadableNow })}
               </Text>
             </Pressable>
             <Pressable onPress={() => setSelectedFreeIds(new Set())}>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 4 }}>Clear</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 4 }}>{t('fmp_clear')}</Text>
             </Pressable>
           </View>
         )}
@@ -1863,14 +1872,14 @@ export function FindMyPhotos() {
       return (
         <EmptyState
           icon="images-outline"
-          title="No Matching Photos Found"
+          title={t('fmp_noMatchTitle')}
           message={
             code.trim()
-              ? `We couldn't find your face in album "${code.trim()}". Make sure your face is clearly visible, well-lit, and try again.`
-              : "We couldn't find your face in any published galleries. Make sure your face is clearly visible, well-lit, and try again."
+              ? t('fmp_noMatchAlbum', { code: code.trim() })
+              : t('fmp_noMatchAny')
           }
           action={{
-            label: 'Try Again',
+            label: t('fmp_tryAgain'),
             onPress: () => {
               setFaceResults(null);
               setSelfie(null);
@@ -1899,109 +1908,97 @@ export function FindMyPhotos() {
 
     return (
       <View style={{ flex: 1 }}>
-        <View style={styles.albumHeader}>
-          <View style={styles.albumBadge}>
-            <Text style={styles.albumBadgeText}>MATCHES FOUND</Text>
-          </View>
-          <Text style={styles.albumTitle}>
-            {results.length} Photo{results.length !== 1 ? 's' : ''} Found
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsEyebrow}>{t('fmp_matchesFound')}</Text>
+          <Text style={styles.resultsTitle} accessibilityRole="header">
+            {tp(t, 'fmp_photosOfYou', results.length)}
           </Text>
-          <Text style={styles.albumHint}>
+          <Text style={styles.resultsHint}>
             {isSelectionMode
-              ? `${selectedResultIds.size} of ${results.length} selected`
+              ? t('fmp_selectedOf', { selected: selectedResultIds.size, count: results.length })
               : hasMoreResults
-              ? `Showing ${displayedResults.length} of ${results.length} photos · Tap to preview or select`
-              : 'Tap a photo to preview, or tap the checkbox to select'}
+              ? t('fmp_showingOf', { shown: displayedResults.length, count: results.length })
+              : t('fmp_resultsHint')}
           </Text>
+        </View>
 
-          {/* Top Actions: Search with another photo & Unlock with code */}
-          <View style={styles.resultsActionsRow}>
+        {/* One row of glass chips instead of a stack of buttons. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipScroll}
+          contentContainerStyle={styles.chipRow}
+        >
+          {allPurchased.length > 0 && (
             <Pressable
-              style={({ pressed }) => [
-                styles.resultsActionBtn,
-                pressed && styles.resultsActionBtnPressed,
-              ]}
+              style={({ pressed }) => [styles.chip, styles.chipOwned, pressed && styles.chipPressed]}
+              onPress={() => handleBatchDownload(allPurchased)}
+              disabled={downloadingBatch}
+              accessibilityRole="button"
+            >
+              {downloadingBatch ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Ionicons name="cloud-download-outline" size={15} color="#FFF" />
+              )}
+              <Text style={[styles.chipText, styles.chipOwnedText]}>
+                {downloadingBatch ? (batchProgress || t('fmp_downloading')) : t('fmp_downloadOwnedN', { count: allPurchased.length })}
+              </Text>
+            </Pressable>
+          )}
+
+          {unpurchasedInResults.length > 0 && (
+            <Pressable
+              style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
               onPress={() => {
-                setFaceResults(null);
-                setSelfie(null);
-                setActiveOption(null);
-                setSearchError(null);
+                if (selectedResultIds.size === unpurchasedInResults.length) {
+                  setSelectedResultIds(new Set());
+                } else {
+                  setSelectedResultIds(new Set(unpurchasedInResults.map((p) => p.id as string)));
+                }
               }}
               accessibilityRole="button"
-              accessibilityLabel="Search with Another Photo"
             >
-              <Ionicons name="camera-reverse-outline" size={15} color={colors.primary} />
-              <Text style={styles.resultsActionBtnText}>Search with Another Photo</Text>
+              <Ionicons
+                name={selectedResultIds.size === unpurchasedInResults.length ? 'close-circle-outline' : 'checkbox-outline'}
+                size={15}
+                color={colors.primary}
+              />
+              <Text style={styles.chipText}>
+                {selectedResultIds.size === unpurchasedInResults.length
+                  ? t('fmp_deselectAllLower')
+                  : t('fmp_selectAllLowerN', { count: unpurchasedInResults.length })}
+              </Text>
             </Pressable>
-
-            {targetAlbumId ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.resultsActionBtn,
-                  pressed && styles.resultsActionBtnPressed,
-                ]}
-                onPress={() => openUnlock(targetAlbumId)}
-                accessibilityRole="button"
-                accessibilityLabel="Unlock with Code"
-              >
-                <Ionicons name="key-outline" size={15} color={colors.primary} />
-                <Text style={styles.resultsActionBtnText}>Unlock with Code</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          {/* Quick Shortcuts: Download All Owned / Select All Unpurchased */}
-          {(allPurchased.length > 0 || unpurchasedInResults.length > 0) && (
-            <View style={styles.quickShortcutsRow}>
-              {allPurchased.length > 0 && (
-                <Pressable
-                  style={styles.batchDownloadBtn}
-                  onPress={() => handleBatchDownload(allPurchased)}
-                  disabled={downloadingBatch}
-                >
-                  {downloadingBatch ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Ionicons name="cloud-download-outline" size={15} color="#FFF" />
-                  )}
-                  <Text style={styles.batchDownloadBtnText}>
-                    {downloadingBatch
-                      ? (batchProgress || 'Downloading…')
-                      : `Download All Owned (${allPurchased.length})`}
-                  </Text>
-                </Pressable>
-              )}
-
-              {unpurchasedInResults.length > 0 && (
-                <Pressable
-                  style={styles.shortcutBtn}
-                  onPress={() => {
-                    if (selectedResultIds.size === unpurchasedInResults.length) {
-                      setSelectedResultIds(new Set());
-                    } else {
-                      setSelectedResultIds(new Set(unpurchasedInResults.map((p) => p.id as string)));
-                    }
-                  }}
-                >
-                  <Ionicons
-                    name={
-                      selectedResultIds.size === unpurchasedInResults.length
-                        ? 'close-circle-outline'
-                        : 'checkbox-outline'
-                    }
-                    size={15}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.shortcutBtnText}>
-                    {selectedResultIds.size === unpurchasedInResults.length
-                      ? 'Deselect All'
-                      : `Select All (${unpurchasedInResults.length})`}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
           )}
-        </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+            onPress={() => {
+              setFaceResults(null);
+              setSelfie(null);
+              setActiveOption(null);
+              setSearchError(null);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t('fmp_searchAnother')}
+          >
+            <Ionicons name="camera-reverse-outline" size={15} color={colors.primary} />
+            <Text style={styles.chipText}>{t('fmp_newSearch')}</Text>
+          </Pressable>
+
+          {targetAlbumId ? (
+            <Pressable
+              style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+              onPress={() => openUnlock(targetAlbumId)}
+              accessibilityRole="button"
+              accessibilityLabel={t('fmp_unlockWithCode')}
+            >
+              <Ionicons name="key-outline" size={15} color={colors.primary} />
+              <Text style={styles.chipText}>{t('fmp_unlockWithCode')}</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
 
         {purchaseNotice ? (
           <View style={styles.noticeBanner}>
@@ -2054,11 +2051,11 @@ export function FindMyPhotos() {
                 setVisibleResultsCount((prev) => Math.min(results.length, prev + 16))
               }
               accessibilityRole="button"
-              accessibilityLabel="Load more photos"
+              accessibilityLabel={t('fmp_loadMore')}
             >
               <Ionicons name="arrow-down-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.loadMoreBtnText}>
-                Load More Photos ({displayedResults.length} of {results.length})
+                {t('fmp_loadMoreN', { shown: displayedResults.length, count: results.length })}
               </Text>
             </Pressable>
 
@@ -2070,9 +2067,9 @@ export function FindMyPhotos() {
                 ]}
                 onPress={() => setVisibleResultsCount(results.length)}
                 accessibilityRole="button"
-                accessibilityLabel="Show all photos"
+                accessibilityLabel={t('fmp_showAll')}
               >
-                <Text style={styles.showAllPillBtnText}>Show All ({results.length})</Text>
+                <Text style={styles.showAllPillBtnText}>{t('fmp_showAllN', { count: results.length })}</Text>
               </Pressable>
             )}
           </View>
@@ -2080,13 +2077,14 @@ export function FindMyPhotos() {
 
         {/* Selection bar */}
         {isSelectionMode && (
-          <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) + spacing.sm }]}>
+          <View style={[styles.actionBar, { paddingBottom: spacing.md }]}>
+            <GlassSurface strength="thick" blurTarget={resultsBg} style={styles.actionBarGlass} />
             <View style={styles.actionBarTopRow}>
               <Text style={styles.actionBarCount}>
-                {selectedResultIds.size} photo{selectedResultIds.size !== 1 ? 's' : ''} selected
+                {tp(t, 'fmp_selectedN', selectedResultIds.size)}
               </Text>
               <Pressable onPress={() => setSelectedResultIds(new Set())} hitSlop={8}>
-                <Text style={styles.actionBarClearText}>Clear</Text>
+                <Text style={styles.actionBarClearText}>{t('fmp_clear')}</Text>
               </Pressable>
             </View>
 
@@ -2103,7 +2101,7 @@ export function FindMyPhotos() {
                     <Ionicons name="cloud-download-outline" size={16} color="#FFF" />
                   )}
                   <Text style={styles.actionBarBtnText}>
-                    {downloadingBatch ? (batchProgress || 'Saving…') : `Download ${selectedPurchased.length}`}
+                    {downloadingBatch ? (batchProgress || t('fmp_saving')) : t('fmp_downloadN', { count: selectedPurchased.length })}
                   </Text>
                 </Pressable>
               )}
@@ -2114,7 +2112,7 @@ export function FindMyPhotos() {
                 >
                   <Ionicons name="card-outline" size={16} color="#FFF" />
                   <Text style={styles.actionBarBtnText}>
-                    Buy {selectedUnpurchased.length}
+                    {t('fmp_buyN', { count: selectedUnpurchased.length })}
                     {selectedUnpurchasedTotal > 0
                       ? ` · ${formatPrice(selectedUnpurchasedTotal, resultCurrency)}`
                       : ''}
@@ -2136,10 +2134,84 @@ export function FindMyPhotos() {
   const showFaceResults = !showFreeFlow && !showAlbum && faceResults !== null;
   const showConnect = !showFreeFlow && !showAlbum && !showFaceResults;
 
+  // Same preview rules as the grid: an unpaid photo only ever appears stamped.
+  const ambientPhoto = showFaceResults
+    ? faceResults?.[0]
+    : showAlbum
+      ? albumPhotos?.[0]
+      : freePhotos[0];
+  const ambientUri = ambientPhoto?.thumbnailUrl
+    ? (ambientPhoto as { isPurchased?: boolean }).isPurchased
+      ? ambientPhoto.thumbnailUrl
+      : stampPreviewUrl(ambientPhoto.thumbnailUrl, viewerId)
+    : undefined;
+  const ambientSource = ambientUri ? { uri: ambientUri } : AUTH_BACKDROP;
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: showConnect ? '#000000' : colors.background }}>
       <Stack.Screen options={{ headerShown: false }} />
 
+      {showConnect ? (
+        // Entry: a full page over the face-scan video, its actions on glass cards.
+        <>
+          <StatusBar style="light" />
+          <BlurTargetView ref={connectBg} style={StyleSheet.absoluteFill} pointerEvents="none">
+            <ScanVideo />
+            {/* Calms the video so white type and glass both stay readable. */}
+            <LinearGradient
+              colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.6)']}
+              locations={[0, 0.35, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          </BlurTargetView>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+          >
+            <ScrollView
+              contentContainerStyle={[
+                styles.connectScroll,
+                { paddingTop: insets.top + 64, paddingBottom: insets.bottom + spacing.xl },
+              ]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              automaticallyAdjustKeyboardInsets
+            >
+              {renderConnect()}
+            </ScrollView>
+          </KeyboardAvoidingView>
+          <View style={[styles.connectTopBar, { paddingTop: insets.top + spacing.sm }]}>
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+              hitSlop={8}
+              style={({ pressed }) => [styles.connectBack, glassClear, pressed && { opacity: 0.7 }]}
+              accessibilityRole="button"
+              accessibilityLabel={t('fmp_goBack')}
+            >
+              <GlassLayer fill="rgba(0,0,0,0.22)" />
+              <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        </>
+      ) : (
+      <>
+      {/* Ambient backdrop: the first photo on the page, blurred to colour and
+          washed toward the theme, so the glass above it has something to frost. */}
+      <BlurTargetView ref={resultsBg} style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Image
+          source={ambientSource}
+          style={{ ...StyleSheet.absoluteFill, width: '100%', height: '100%' }}
+          contentFit="cover"
+          blurRadius={48}
+        />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: isDark ? 'rgba(14,17,23,0.74)' : 'rgba(244,246,251,0.7)' },
+          ]}
+        />
+      </BlurTargetView>
       {/* Top Bar in head — full-width rounded bar */}
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
         <View style={styles.topBarPill}>
@@ -2154,13 +2226,13 @@ export function FindMyPhotos() {
             hitSlop={12}
             style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
             accessibilityRole="button"
-            accessibilityLabel={showFaceResults || showAlbum || showFreeFlow ? 'Back' : 'Go back'}
+            accessibilityLabel={showFaceResults || showAlbum || showFreeFlow ? t('fmp_back') : t('fmp_goBack')}
           >
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
 
           <View style={styles.topBarPillCenter}>
-            <Text style={styles.topBarPillText}>Find My Photos</Text>
+            <Text style={styles.topBarPillText}>{t('fmp_title')}</Text>
           </View>
 
           <View style={styles.topBarSpacer} />
@@ -2203,9 +2275,10 @@ export function FindMyPhotos() {
           {showFreeFlow && freeFlow === 'verified' && renderFreeGrid()}
           {showAlbum && renderAlbumGrid()}
           {showFaceResults && renderFaceResults()}
-          {showConnect && renderConnect()}
         </ScrollView>
       </KeyboardAvoidingView>
+      </>
+      )}
 
       {/* ── Clean Customized No Matches Modal ── */}
       <Modal
@@ -2227,7 +2300,7 @@ export function FindMyPhotos() {
               style={({ pressed }) => [styles.customModalClose, pressed && styles.customModalClosePressed]}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Close"
+              accessibilityLabel={t('fmp_close')}
             >
               <Ionicons name="close" size={18} color={colors.textMuted} />
             </Pressable>
@@ -2236,10 +2309,10 @@ export function FindMyPhotos() {
               <Ionicons name="search-outline" size={28} color={colors.primary} />
             </View>
 
-            <Text style={styles.customModalTitle}>No Photos Found</Text>
+            <Text style={styles.customModalTitle}>{t('fmp_noPhotosTitle')}</Text>
 
             <Text style={styles.customModalMessage}>
-              We couldn&apos;t find any photos matching your selfie. Please try again with another photo or different lighting.
+              {t('fmp_noPhotosBody')}
             </Text>
 
             <Pressable
@@ -2249,9 +2322,9 @@ export function FindMyPhotos() {
               ]}
               onPress={() => setNoMatchesOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel="Try Again"
+              accessibilityLabel={t('fmp_tryAgain')}
             >
-              <Text style={styles.customModalBtnText}>Try Again</Text>
+              <Text style={styles.customModalBtnText}>{t('fmp_tryAgain')}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -2262,16 +2335,16 @@ export function FindMyPhotos() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { marginTop: 'auto', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderRadius: 0 }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Unlock Photos</Text>
+              <Text style={styles.modalTitle}>{t('fmp_unlockTitle')}</Text>
               <Pressable onPress={() => setUnlockOpen(false)}>
                 <Ionicons name="close" size={24} color={colors.text} />
               </Pressable>
             </View>
             <Text style={styles.modalSub}>
-              Enter the email address you purchased with, or the unlock code from your receipt email.
+              {t('fmp_unlockBody')}
             </Text>
             <TextInput
-              placeholder="Email or Unlock Code"
+              placeholder={t('fmp_unlockPlaceholder')}
               value={unlockIdentifier}
               onChangeText={setUnlockIdentifier}
               autoCapitalize="none"
@@ -2280,13 +2353,13 @@ export function FindMyPhotos() {
             />
             {unlockError ? <Text style={styles.errorText}>{unlockError}</Text> : null}
             <Button
-              title="Unlock & Download"
+              title={t('fmp_unlockAndDownload')}
               onPress={handleUnlock}
               loading={unlocking}
               style={{ marginTop: spacing.md }}
             />
             <Button
-              title="Cancel"
+              title={t('fmp_cancel')}
               variant="ghost"
               onPress={() => setUnlockOpen(false)}
               style={{ marginTop: spacing.xs }}
@@ -2349,7 +2422,7 @@ export function FindMyPhotos() {
                 }}
                 style={styles.lightboxIconBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Report photo"
+                accessibilityLabel={t('fmp_reportPhoto')}
                 hitSlop={8}
               >
                 <Ionicons name="flag-outline" size={20} color="#FFF" />
@@ -2358,7 +2431,7 @@ export function FindMyPhotos() {
                 onPress={() => setPreviewPhoto(null)}
                 style={styles.lightboxIconBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Close preview"
+                accessibilityLabel={t('fmp_closePreview')}
                 hitSlop={8}
               >
                 <Ionicons name="close" size={26} color="#FFF" />
@@ -2404,7 +2477,7 @@ export function FindMyPhotos() {
                 {previewPhoto.isPurchased && (
                   <View style={styles.lightboxOwnedPill}>
                     <Ionicons name="checkmark-circle" size={15} color="#10B981" />
-                    <Text style={styles.lightboxOwnedText}>OWNED · FULL RESOLUTION</Text>
+                    <Text style={styles.lightboxOwnedText}>{t('fmp_ownedFullRes')}</Text>
                   </View>
                 )}
               </View>
@@ -2415,14 +2488,14 @@ export function FindMyPhotos() {
               <View style={styles.lightboxFooter}>
                 <View style={{ gap: 2 }}>
                   <Text style={styles.lightboxTitle} numberOfLines={1}>
-                    {(previewPhoto as FoundPhoto).eventTitle || albumTitle || 'Photo Preview'}
+                    {(previewPhoto as FoundPhoto).eventTitle || albumTitle || t('fmp_photoPreview')}
                   </Text>
                   <Text style={styles.lightboxPhotographer}>
-                    by{' '}
+                    {t('fmp_by')}{' '}
                     <Text style={{ color: '#fff', fontWeight: '700' }}>
                       {(previewPhoto as FoundPhoto).photographerName ||
                         albumPhotographerName ||
-                        'Photographer'}
+                        t('fmp_photographer')}
                     </Text>
                   </Text>
                 </View>
@@ -2438,7 +2511,7 @@ export function FindMyPhotos() {
                       }}
                     >
                       <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
-                      <Text style={styles.lbBtnText}>Download High-Res</Text>
+                      <Text style={styles.lbBtnText}>{t('fmp_downloadHiRes')}</Text>
                     </Pressable>
                   ) : (previewPhoto.price ?? 0) === 0 ? (
                     <Pressable
@@ -2453,7 +2526,7 @@ export function FindMyPhotos() {
                       }}
                     >
                       <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
-                      <Text style={styles.lbBtnText}>Download Free</Text>
+                      <Text style={styles.lbBtnText}>{t('fmp_downloadFree')}</Text>
                     </Pressable>
                   ) : (
                     <>
@@ -2487,8 +2560,8 @@ export function FindMyPhotos() {
                         <Text style={styles.lbBtnText}>
                           {selectedAlbumIds.has(previewPhoto.id as string) ||
                           selectedResultIds.has(previewPhoto.id as string)
-                            ? 'Selected'
-                            : 'Select'}
+                            ? t('fmp_selected')
+                            : t('fmp_select')}
                         </Text>
                       </Pressable>
 
@@ -2506,7 +2579,7 @@ export function FindMyPhotos() {
                         >
                           <Ionicons name="card-outline" size={18} color="#FFF" />
                           <Text style={styles.lbBtnText}>
-                            Buy ·{' '}
+                            {t('fmp_buy')} ·{' '}
                             {formatPrice(
                               previewPhoto.price,
                               (previewPhoto as any).currencyAbbreviation ||
@@ -2528,6 +2601,28 @@ export function FindMyPhotos() {
   );
 }
 
+/** Looping, muted face-scan video behind the entry screen; never pauses the user's music. */
+const SCAN_VIDEO = require('../../../assets/images/screen3.mp4');
+
+function ScanVideo() {
+  const player = useVideoPlayer(SCAN_VIDEO, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.audioMixingMode = 'mixWithOthers';
+    p.play();
+  });
+  return (
+    <VideoView
+      player={player}
+      // Explicit size as well as absoluteFill: react-native-web otherwise lays
+      // the video out at its intrinsic size.
+      style={{ ...StyleSheet.absoluteFill, width: '100%', height: '100%' }}
+      contentFit="cover"
+      nativeControls={false}
+    />
+  );
+}
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const useStyles = makeStyles((c, e) => ({
@@ -2535,18 +2630,17 @@ const useStyles = makeStyles((c, e) => ({
   topBar: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
-    backgroundColor: c.background,
   },
   topBarPill: {
     width: '100%',
     height: 52,
     borderRadius: radii.full,
-    backgroundColor: c.surface,
+    borderWidth: 1,
+    ...glassTile(c),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 6,
-    ...e(2),
   },
   topBarBackBtn: {
     width: 40,
@@ -2564,7 +2658,7 @@ const useStyles = makeStyles((c, e) => ({
   topBarPillText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    color: c.primary,
+    color: c.text,
   },
   topBarSpacer: {
     width: 40,
@@ -2595,9 +2689,59 @@ const useStyles = makeStyles((c, e) => ({
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
-  badgeText: { color: c.primary, fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 1 },
-  heroTitle: { fontSize: 26, fontWeight: fontWeight.extrabold, color: c.primary, marginBottom: 6, textAlign: 'center', lineHeight: 32 },
-  lead: { fontSize: 14, color: c.textMuted, lineHeight: 20, textAlign: 'center', paddingHorizontal: spacing.sm },
+  badgeText: { color: c.accent, fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 1.2 },
+  // On the video, so light in both schemes.
+  heroTitle: { fontSize: 32, lineHeight: 38, fontWeight: fontWeight.extrabold, color: '#FFFFFF', letterSpacing: -0.6 },
+  lead: { fontSize: fontSize.md, color: 'rgba(255,255,255,0.85)', lineHeight: 22 },
+
+  // ── Entry screen: video band + glass sheet ────────────────────────────
+  connectScroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
+  connectTopBar: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: spacing.xl },
+  connectBack: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Android fallback: no blur there, so a plain smoked chip.
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  connectCard: { padding: spacing.lg, borderRadius: 24 },
+  connectOr: {
+    alignSelf: 'center',
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  connectHeading: { gap: 6, marginTop: spacing.xl, marginBottom: spacing.sm },
+  inviteInput: {
+    // Its own layer: Chrome otherwise smears a native <input> into the
+    // glass card's backdrop blur (web only; native blur is unaffected).
+    position: 'relative',
+    zIndex: 1,
+    width: '100%',
+    height: 52,
+    paddingHorizontal: 14,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    ...glassTile(c),
+    color: c.text,
+    fontSize: 16,
+    letterSpacing: 2,
+    fontWeight: fontWeight.bold,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  accessBtnOutline: {
+    width: '100%',
+    height: 52,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accessBtnOutlineText: { color: c.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   subHeading: { fontSize: 14, fontWeight: fontWeight.bold, color: c.text, marginBottom: 4, marginTop: 0, textAlign: 'center' },
   subLead: { fontSize: 12, color: c.textMuted, textAlign: 'center', lineHeight: 18, marginBottom: spacing.md },
 
@@ -2675,6 +2819,7 @@ const useStyles = makeStyles((c, e) => ({
 
   // Pick options
   webPickOptions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+  // Tiles on the glass sheet: frosted, not solid cards.
   webPickCard: {
     flex: 1,
     alignItems: 'center',
@@ -2682,9 +2827,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: spacing.lg,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: c.border,
-    backgroundColor: c.surface,
-    ...e(1),
+    ...glassTile(c),
   },
   webPickCardActive: {
     borderColor: c.primary,
@@ -2741,12 +2884,9 @@ const useStyles = makeStyles((c, e) => ({
 
   error: { color: '#EF4444', textAlign: 'center', marginTop: spacing.xs, fontSize: 12 },
 
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.lg, gap: spacing.md },
-  dividerLine: { flex: 1, height: 1.5, backgroundColor: c.border, borderRadius: radii.full },
-  dividerText: { color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.bold, letterSpacing: 1.2, textTransform: 'uppercase' },
 
-  inviteHeading: { fontSize: 16, fontWeight: fontWeight.bold, color: c.text, marginBottom: 4, textAlign: 'center' },
-  inviteSubText: { fontSize: 13, color: c.textMuted, lineHeight: 18, textAlign: 'center', marginBottom: 12 },
+  inviteHeading: { fontSize: 16, fontWeight: fontWeight.bold, color: c.text, marginBottom: 4 },
+  inviteSubText: { fontSize: 13, color: c.textMuted, lineHeight: 18, marginBottom: 12 },
 
   codeInput: {
     width: '100%',
@@ -2935,17 +3075,41 @@ const useStyles = makeStyles((c, e) => ({
   captionText: { color: '#FFF', fontSize: 11, fontWeight: '500' },
 
   // Action bar
+  // ── Face results header ────────────────────────────────────────────
+  resultsHeader: { gap: 4, paddingTop: spacing.md, marginBottom: spacing.md },
+  resultsEyebrow: { color: c.accent, fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 1.2 },
+  resultsTitle: { fontSize: 30, lineHeight: 36, fontWeight: fontWeight.extrabold, color: c.text, letterSpacing: -0.6 },
+  resultsHint: { fontSize: fontSize.sm, color: c.textSoft, lineHeight: 19 },
+  // Bleeds to the screen edges so chips scroll under the gutter, not into it.
+  chipScroll: { marginHorizontal: -spacing.xl, marginBottom: spacing.md, flexGrow: 0 },
+  chipRow: { gap: spacing.sm, paddingHorizontal: spacing.xl },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    ...glassTile(c),
+  },
+  chipPressed: { opacity: 0.75 },
+  chipText: { color: c.text, fontSize: 13, fontWeight: fontWeight.semibold },
+  chipOwned: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  chipOwnedText: { color: '#FFFFFF' },
+
+  // A floating frosted card; the GlassSurface inside carries the material.
   actionBar: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    backgroundColor: c.surface,
-    borderTopWidth: 1,
-    borderTopColor: c.borderSoft,
+    bottom: spacing.md, left: 0, right: 0,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: c.border,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     gap: spacing.sm,
-    ...e(4),
   },
+  actionBarGlass: { borderRadius: 24 },
   actionBarCount: { color: c.text, fontSize: 14, fontWeight: fontWeight.bold },
   actionBarBtn: {
     flex: 1,
@@ -2973,8 +3137,8 @@ const useStyles = makeStyles((c, e) => ({
   showAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 50, backgroundColor: c.surfaceMuted,
-    borderWidth: 1, borderColor: c.border,
+    borderRadius: 50,
+    borderWidth: 1, ...glassTile(c),
   },
   showAllBtnText: { color: c.text, fontSize: 13, fontWeight: '600' },
   unlockPillBtn: {
@@ -2990,8 +3154,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 9, marginTop: 10,
     borderRadius: 10, borderWidth: 1.5,
-    borderColor: c.border,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   selectAllBtnText: { color: c.text, fontSize: 13, fontWeight: '700' },
 
@@ -3014,14 +3177,12 @@ const useStyles = makeStyles((c, e) => ({
 
   // Free album card (email / otp screens)
   freeCard: {
-    backgroundColor: c.card,
     borderRadius: 24,
     padding: spacing.xl,
     marginTop: spacing.xl,
     borderWidth: 1,
-    borderColor: c.border,
+    ...glassTile(c),
     alignItems: 'center',
-    ...e(2),
   },
 
   // OTP
@@ -3192,13 +3353,11 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: c.surface,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: c.border,
-    ...e(1),
+    ...glassTile(c),
   },
   shortcutBtnText: {
     color: c.text,
@@ -3206,33 +3365,6 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: fontWeight.bold,
   },
 
-  resultsActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginTop: 12,
-    flexWrap: 'wrap',
-  },
-  resultsActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: c.tint,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  resultsActionBtnPressed: {
-    opacity: 0.7,
-  },
-  resultsActionBtnText: {
-    color: c.primary,
-    fontSize: 13,
-    fontWeight: fontWeight.bold,
-  },
 
   // Load More Pagination
   loadMoreContainer: {

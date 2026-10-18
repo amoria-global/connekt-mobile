@@ -12,10 +12,15 @@ import { createPackage, updatePackage, type Package, type ServiceType } from '@/
 import { listCurrencies } from '@/features/reference/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const TIERS = ['Silver', 'Gold', 'Diamond'];
-const PRICE_UNITS = ['per event', 'per hour', 'per day'];
+const PRICE_UNITS = [
+  { value: 'per event', key: 'b2_pkgNewUnitPerEvent' as const },
+  { value: 'per hour', key: 'b2_pkgNewUnitPerHour' as const },
+  { value: 'per day', key: 'b2_pkgNewUnitPerDay' as const },
+];
 
 const schema = z.object({
   price: z.string().regex(/^\d+(\.\d+)?$/, 'Enter a price'),
@@ -31,6 +36,7 @@ const numStr = (v?: number) => (v != null ? String(v) : '');
 
 export default function NewPackageScreen() {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useStyles();
   const router = useRouter();
   const params = useLocalSearchParams<{ editId?: string; data?: string }>();
@@ -78,7 +84,7 @@ export default function NewPackageScreen() {
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
     if (!currencyId) {
-      setServerError('Pick a currency');
+      setServerError(t('b2_pkgNewErrCurrency'));
       return;
     }
     const input = {
@@ -102,7 +108,7 @@ export default function NewPackageScreen() {
       }
       router.back();
     } catch (err) {
-      setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
+      setServerError(isApiError(err) ? err.message : t('b2_pkgNewErrGeneric'));
     }
   };
 
@@ -115,23 +121,23 @@ export default function NewPackageScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>{isEditing ? 'Edit package' : 'New package'}</Text>
+        <Text style={styles.title}>{isEditing ? t('b2_pkgNewEditTitle') : t('b2_pkgNewCreateTitle')}</Text>
 
         {/* Tier */}
         <View style={styles.group}>
-          <Text style={styles.label}>Tier</Text>
-          <Segmented value={tier} onChange={setTier} options={TIERS.map((t) => ({ label: t, value: t }))} />
+          <Text style={styles.label}>{t('b2_pkgNewTier')}</Text>
+          <Segmented value={tier} onChange={setTier} options={TIERS.map((tierItem) => ({ label: tierItem, value: tierItem }))} />
         </View>
 
         {/* Service type */}
         <View style={styles.group}>
-          <Text style={styles.label}>Service type</Text>
+          <Text style={styles.label}>{t('b2_pkgNewServiceType')}</Text>
           <Segmented
             value={serviceType}
             onChange={setServiceType}
             options={[
-              { label: 'Outdoor', value: 'OUTDOOR' },
-              { label: 'Studio', value: 'STUDIO' },
+              { label: t('b2_pkgNewOutdoor'), value: 'OUTDOOR' },
+              { label: t('b2_pkgNewStudio'), value: 'STUDIO' },
             ]}
           />
         </View>
@@ -143,12 +149,12 @@ export default function NewPackageScreen() {
               control={control}
               name="price"
               render={({ field: { onChange, onBlur, value } }) => (
-                <Input label="Price" placeholder="50000" keyboardType="numeric" value={value} onChangeText={onChange} onBlur={onBlur} error={errors.price?.message} />
+                <Input label={t('b2_pkgNewPrice')} placeholder="50000" keyboardType="numeric" value={value} onChangeText={onChange} onBlur={onBlur} error={errors.price?.message} />
               )}
             />
           </View>
           <View style={styles.rowItem}>
-            <Text style={styles.label}>Currency</Text>
+            <Text style={styles.label}>{t('b2_pkgNewCurrency')}</Text>
             <View style={styles.chips}>
               {(currencies.data ?? []).map((c) => {
                 const active = currencyId === c.id;
@@ -164,20 +170,20 @@ export default function NewPackageScreen() {
 
         {/* Price unit */}
         <View style={styles.group}>
-          <Text style={styles.label}>Price unit</Text>
-          <Segmented value={priceUnit} onChange={setPriceUnit} options={PRICE_UNITS.map((u) => ({ label: u, value: u }))} />
+          <Text style={styles.label}>{t('b2_pkgNewPriceUnit')}</Text>
+          <Segmented value={priceUnit} onChange={setPriceUnit} options={PRICE_UNITS.map((u) => ({ label: t(u.key), value: u.value }))} />
         </View>
 
         {/* Duration + delivery */}
         <View style={styles.row}>
           <View style={styles.rowItem}>
             <Controller control={control} name="durationHours" render={({ field: { onChange, onBlur, value } }) => (
-              <Input label="Duration (hours)" placeholder="4" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
+              <Input label={t('b2_pkgNewDurationHours')} placeholder="4" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
             )} />
           </View>
           <View style={styles.rowItem}>
             <Controller control={control} name="deliveryDays" render={({ field: { onChange, onBlur, value } }) => (
-              <Input label="Delivery (days)" placeholder="7" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
+              <Input label={t('b2_pkgNewDeliveryDays')} placeholder="7" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
             )} />
           </View>
         </View>
@@ -186,19 +192,19 @@ export default function NewPackageScreen() {
         <View style={styles.row}>
           <View style={styles.rowItem}>
             <Controller control={control} name="includedPhotos" render={({ field: { onChange, onBlur, value } }) => (
-              <Input label="Included photos" placeholder="100" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
+              <Input label={t('b2_pkgNewIncludedPhotos')} placeholder="100" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
             )} />
           </View>
           <View style={styles.rowItem}>
             <Controller control={control} name="includedVideos" render={({ field: { onChange, onBlur, value } }) => (
-              <Input label="Included videos" placeholder="2" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
+              <Input label={t('b2_pkgNewIncludedVideos')} placeholder="2" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
             )} />
           </View>
         </View>
 
         {/* Live stream */}
         <View style={styles.switchRow}>
-          <Text style={styles.label}>Includes live stream</Text>
+          <Text style={styles.label}>{t('b2_pkgNewIncludesLiveStream')}</Text>
           <Switch
             value={hasLiveStream}
             onValueChange={setHasLiveStream}
@@ -207,12 +213,12 @@ export default function NewPackageScreen() {
         </View>
 
         <Controller control={control} name="description" render={({ field: { onChange, onBlur, value } }) => (
-          <Input label="Description" placeholder="What's included" value={value} onChangeText={onChange} onBlur={onBlur} multiline style={styles.multiline} />
+          <Input label={t('b2_pkgNewDescription')} placeholder={t('b2_pkgNewDescriptionPlaceholder')} value={value} onChangeText={onChange} onBlur={onBlur} multiline style={styles.multiline} />
         )} />
 
         {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
-        <Button title={isEditing ? 'Save changes' : 'Create package'} onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+        <Button title={isEditing ? t('b2_pkgNewSaveChanges') : t('b2_pkgNewCreatePackage')} onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
       </ScrollView>
     </Screen>
   );

@@ -58,6 +58,10 @@ import { flagEmoji } from '@/components/ui/PhoneInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
+import { useLanguage } from '@/hooks/useLanguage';
+import { translate, type TranslationKey } from '@/i18n/translations';
+const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
+
 type Stage = 'form' | 'awaiting' | 'success' | 'unconfirmed';
 
 type MethodTile = {
@@ -155,6 +159,7 @@ const FALLBACK_CURRENCIES: { id: string; code: string; name: string; symbol: str
 ];
 
 export default function PublicDonateScreen() {
+  useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -542,7 +547,7 @@ export default function PublicDonateScreen() {
             hitSlop={12}
             style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={tr('b4_goBack')}
           >
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
@@ -574,7 +579,7 @@ export default function PublicDonateScreen() {
             </View>
           </View>
           <View style={styles.zeroFeeBadge}>
-            <Text style={styles.zeroFeeBadgeText}>0% FEE</Text>
+            <Text style={styles.zeroFeeBadgeText}>{tr('b4_zeroFeeBadge')}</Text>
           </View>
         </View>
 
@@ -584,7 +589,7 @@ export default function PublicDonateScreen() {
             <View style={styles.amountSection}>
               <View style={styles.amountHeaderRow}>
                 <Text style={styles.sectionHeading}>DONATION AMOUNT ({currencyCode})</Text>
-                {isCustom && <Text style={styles.customActiveBadge}>Custom</Text>}
+                {isCustom && <Text style={styles.customActiveBadge}>{tr('b4_custom')}</Text>}
               </View>
 
               {/* Big amount input field */}
@@ -660,7 +665,7 @@ export default function PublicDonateScreen() {
                     numberOfLines={1}
                     style={[styles.amountChipText, isCustom && styles.amountChipTextActive]}
                   >
-                    Custom
+                    {tr('b4_custom')}
                   </Text>
                 </Pressable>
               </View>
@@ -669,7 +674,7 @@ export default function PublicDonateScreen() {
             {/* Payment Method */}
             <View style={styles.paymentSection}>
               <View style={styles.paymentHeader}>
-                <Text style={styles.sectionHeading}>SELECT PAYMENT METHOD</Text>
+                <Text style={styles.sectionHeading}>{tr('b4_selectPaymentMethodUpper')}</Text>
                 <Pressable
                   style={styles.countryPill}
                   onPress={() => setCountryModalOpen(true)}
@@ -740,7 +745,7 @@ export default function PublicDonateScreen() {
                 <View style={[styles.notice, styles.noticeInfo]}>
                   <Ionicons name="shield-checkmark" size={16} color={colors.info} />
                   <Text style={styles.noticeInfoText}>
-                    You will be directed to a 3D-Secure window to complete your card payment.
+                    {tr('b4_card3dsNotice')}
                   </Text>
                 </View>
               )}
@@ -777,7 +782,7 @@ export default function PublicDonateScreen() {
                 <View style={styles.detailsExpandBox}>
                   <TextInput
                     style={styles.compactInput}
-                    placeholder="Your name (optional, default: Anonymous)"
+                    placeholder={tr('b4_donorNamePlaceholder')}
                     placeholderTextColor={colors.textMuted}
                     value={donorName}
                     onChangeText={setDonorName}
@@ -785,7 +790,7 @@ export default function PublicDonateScreen() {
                   />
                   <TextInput
                     style={styles.compactInput}
-                    placeholder="Email for donation receipt (optional)"
+                    placeholder={tr('b4_donorEmailPlaceholder')}
                     placeholderTextColor={colors.textMuted}
                     value={donorEmail}
                     onChangeText={setDonorEmail}
@@ -794,7 +799,7 @@ export default function PublicDonateScreen() {
                   />
                   <TextInput
                     style={[styles.compactInput, styles.compactInputMultiline]}
-                    placeholder="Add an encouraging note or wish…"
+                    placeholder={tr('b4_donorMessagePlaceholder')}
                     placeholderTextColor={colors.textMuted}
                     value={donorMessage}
                     onChangeText={setDonorMessage}
@@ -849,12 +854,12 @@ export default function PublicDonateScreen() {
         {stage === 'unconfirmed' && (
           <View style={styles.awaitingCard}>
             <Ionicons name="time-outline" size={40} color={colors.textMuted} style={{ marginVertical: spacing.md }} />
-            <Text style={styles.awaitingTitle}>We could not confirm your donation yet</Text>
+            <Text style={styles.awaitingTitle}>{tr('b4_couldNotConfirmDonationYet')}</Text>
             <Text style={styles.awaitingSub}>
               If you approved the prompt, your donation may still go through. Please check your
               phone before donating again.
             </Text>
-            <Button title="Back" variant="outline" onPress={() => router.back()} />
+            <Button title={tr('b4_back')} variant="outline" onPress={() => router.back()} />
           </View>
         )}
 
@@ -863,7 +868,7 @@ export default function PublicDonateScreen() {
             <View style={styles.heartSuccessCircle}>
               <Ionicons name="heart" size={36} color="#fff" />
             </View>
-            <Text style={styles.successTitle}>Thank You!</Text>
+            <Text style={styles.successTitle}>{tr('b4_thankYouTitle')}</Text>
             <Text style={styles.successSub}>
               Your generous contribution of{' '}
               <Text style={{ fontWeight: '700' }}>
@@ -873,7 +878,7 @@ export default function PublicDonateScreen() {
             </Text>
 
             <Button
-              title="Return to Event"
+              title={tr('b4_returnToEvent')}
               onPress={() => {
                 if (eventId && router.canGoBack()) {
                   router.back();
@@ -907,7 +912,7 @@ export default function PublicDonateScreen() {
               <TextInput
                 value={countrySearch}
                 onChangeText={setCountrySearch}
-                placeholder="Search country or code…"
+                placeholder={tr('b4_searchCountryPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 style={styles.pickerSearchInput}
                 autoCorrect={false}
@@ -949,7 +954,7 @@ export default function PublicDonateScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setCurrencyModalOpen(false)}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Select Donation Currency</Text>
+              <Text style={styles.modalTitle}>{tr('b4_selectDonationCurrency')}</Text>
               <Pressable onPress={() => setCurrencyModalOpen(false)} hitSlop={8}>
                 <Ionicons name="close" size={20} color={colors.textMuted} />
               </Pressable>
@@ -960,7 +965,7 @@ export default function PublicDonateScreen() {
               <TextInput
                 value={currencySearch}
                 onChangeText={setCurrencySearch}
-                placeholder="Search currency (e.g. USD, EUR, RWF)…"
+                placeholder={tr('b4_searchCurrencyPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 style={styles.pickerSearchInput}
                 autoCorrect={false}

@@ -12,7 +12,7 @@
  *   - Withdraw funds action for photographer and coordinator roles
  *   - Quick links (Transactions, Payments, Payroll report)
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -26,6 +26,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GlassBackdrop, GlassCard } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
@@ -39,6 +40,7 @@ import {
   getFilterTags,
   getDirectionFilters,
   matchesDirectionFilter,
+  translateMoneyTag,
   PALETTE,
   COLOR_MAP,
   formatRelativeTime,
@@ -50,16 +52,19 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
 export default function WalletScreen() {
-  // Re-render when the display currency changes (formatPrice reads the store).
+  // Re-render when the display currency or language changes.
   useCurrency((s) => s.currency);
+  const { language, t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const glassTarget = useRef<View>(null);
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
 
@@ -98,7 +103,7 @@ export default function WalletScreen() {
   const stats = useMemo(() => {
     if (!data?.wallet) return null;
     return selectWalletStats(data.wallet, dashboardRole);
-  }, [data?.wallet, dashboardRole]);
+  }, [data?.wallet, dashboardRole, language]);
 
   const filterTags = useMemo(() => getFilterTags(dashboardRole), [dashboardRole]);
 
@@ -115,6 +120,7 @@ export default function WalletScreen() {
         const match =
           item.title.toLowerCase().includes(q) ||
           (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
+          translateMoneyTag(item.tag).toLowerCase().includes(q) ||
           item.tag.toLowerCase().includes(q) ||
           String(item.amount).includes(q);
         if (!match) continue;
@@ -122,7 +128,7 @@ export default function WalletScreen() {
       items.push(item);
     }
     return items;
-  }, [data?.movements, dashboardRole, activeFilter, directionFilter, activitySearch]);
+  }, [data?.movements, dashboardRole, activeFilter, directionFilter, activitySearch, language]);
 
   const totalPages = Math.max(1, Math.ceil(filteredActivityItems.length / PAGE_SIZE));
   const safePage = Math.min(activityPage, totalPages);
@@ -132,14 +138,14 @@ export default function WalletScreen() {
   }, [filteredActivityItems, safePage]);
 
   const links: Link[] = [
-    { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
+    { label: t('transactions'), icon: 'swap-horizontal-outline', href: '/transactions' as Href },
     // Photographers receive payments, they do not make them: no Payments screen for them.
     ...(canUsePaymentsScreen(role)
-      ? [{ label: 'Payments', icon: 'card-outline' as const, href: '/payments' as Href }]
+      ? [{ label: t('menuPayments'), icon: 'card-outline' as const, href: '/payments' as Href }]
       : []),
-    { label: 'Payment accounts', icon: 'wallet-outline', href: '/payment-accounts' as Href },
+    { label: t('paymentAccounts'), icon: 'wallet-outline', href: '/payment-accounts' as Href },
     ...(isPhotographer
-      ? [{ label: 'Payroll report', icon: 'bar-chart-outline' as const, href: '/payroll' as Href }]
+      ? [{ label: t('payrollReport'), icon: 'bar-chart-outline' as const, href: '/payroll' as Href }]
       : []),
   ];
 
@@ -156,7 +162,7 @@ export default function WalletScreen() {
           <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.retryBtn} onPress={refresh}>
-            <Text style={styles.retryBtnText}>Retry</Text>
+            <Text style={styles.retryBtnText}>{t('retry')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -177,7 +183,7 @@ export default function WalletScreen() {
               <Ionicons name="alert-circle" size={18} color="#92400E" />
               <View style={styles.suspensionContent}>
                 <Text style={styles.suspensionTitle}>
-                  Suspended: {(data.wallet.suspensionReason || 'Account suspended').replace(/_/g, ' ')}
+                  {t('walletSuspendedPrefix')} {(data.wallet.suspensionReason || t('walletAccountSuspended')).replace(/_/g, ' ')}
                 </Text>
                 {data.wallet.suspendedAt ? (
                   <Text style={styles.suspensionDate}>
@@ -188,10 +194,11 @@ export default function WalletScreen() {
             </View>
           ) : null}
 
-          {/* MoneyHero Card (Clean solid card — single authoritative wallet header) */}
+          {/* MoneyHero Card: frosted glass over soft brand glows */}
           {stats && (
             <View style={styles.heroCard}>
-              <View style={styles.heroContent}>
+              <GlassBackdrop ref={glassTarget} />
+              <GlassCard blurTarget={glassTarget} style={styles.heroContent}>
                 <View style={styles.heroTopRow}>
                   <View style={styles.heroLabelPill}>
                     <Ionicons name="wallet-outline" size={13} color={colors.primary} />
@@ -203,7 +210,7 @@ export default function WalletScreen() {
                     onPress={() => setBalanceHidden((v) => !v)}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel={balanceHidden ? 'Show balances' : 'Hide balances'}
+                    accessibilityLabel={balanceHidden ? t('show') : t('hide')}
                   >
                     <Ionicons
                       name={balanceHidden ? 'eye-outline' : 'eye-off-outline'}
@@ -211,7 +218,7 @@ export default function WalletScreen() {
                       color={colors.textMuted}
                     />
                     <Text style={styles.privacyToggleText}>
-                      {balanceHidden ? 'Show' : 'Hide'}
+                      {balanceHidden ? t('show') : t('hide')}
                     </Text>
                   </Pressable>
                 </View>
@@ -242,7 +249,7 @@ export default function WalletScreen() {
                     ]}
                   >
                     <Ionicons name="shield-outline" size={12} color="#92400E" />
-                    <Text style={styles.statusChipText}>Wallet {stats.status.toLowerCase()}</Text>
+                    <Text style={styles.statusChipText}>{t('walletStatusPrefix')} {stats.status.toLowerCase()}</Text>
                   </View>
                 ) : null}
 
@@ -252,16 +259,16 @@ export default function WalletScreen() {
                     onPress={() => router.push('/withdraw' as Href)}
                   >
                     <Ionicons name="cash-outline" size={15} color="#ffffff" />
-                    <Text style={styles.heroWithdrawText}>Withdraw funds</Text>
+                    <Text style={styles.heroWithdrawText}>{t('withdrawFunds')}</Text>
                   </Pressable>
                 ) : null}
-              </View>
+              </GlassCard>
             </View>
           )}
 
           {/* Quick Links Menu (Top placement for instant access without scrolling) */}
           <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Quick links</Text>
+            <Text style={styles.sectionTitle}>{t('quickLinks')}</Text>
             <View style={styles.menuCard}>
               {links.map((l, i) => (
                 <Pressable
@@ -288,10 +295,10 @@ export default function WalletScreen() {
             <View style={styles.sectionBlock}>
               <Text style={styles.sectionTitle}>
                 {dashboardRole === 'photographer'
-                  ? 'Earnings breakdown'
+                  ? t('walletEarningsBreakdown')
                   : dashboardRole === 'client'
-                    ? 'Spending breakdown'
-                    : 'Balance breakdown'}
+                    ? t('walletSpendingBreakdown')
+                    : t('walletBalanceBreakdown')}
               </Text>
               <View style={styles.potGrid}>
                 {visibleCards.map((card) => {
@@ -329,13 +336,13 @@ export default function WalletScreen() {
                 <View style={styles.activityIconWrap}>
                   <Ionicons name="swap-horizontal-outline" size={15} color={colors.primary} />
                 </View>
-                <Text style={styles.sectionTitle}>Activity</Text>
+                <Text style={styles.sectionTitle}>{t('walletActivity')}</Text>
               </View>
               <Pressable
                 onPress={() => router.push('/transactions' as Href)}
                 hitSlop={8}
               >
-                <Text style={styles.seeAllText}>See all</Text>
+                <Text style={styles.seeAllText}>{t('walletSeeAll')}</Text>
               </Pressable>
             </View>
 
@@ -377,7 +384,7 @@ export default function WalletScreen() {
                     style={[styles.filterPill, isSelected && styles.filterPillActive]}
                   >
                     <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
-                      {tag}
+                      {translateMoneyTag(tag)}
                     </Text>
                   </Pressable>
                 );
@@ -387,7 +394,7 @@ export default function WalletScreen() {
             {/* Search Input for Activity */}
             <View style={styles.activitySearchWrap}>
               <Input
-                placeholder="Search activity by title or description..."
+                placeholder={t('walletSearchActivityPlaceholder')}
                 value={activitySearch}
                 onChangeText={setActivitySearch}
                 leftElement={
@@ -405,15 +412,15 @@ export default function WalletScreen() {
             {filteredActivityItems.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="receipt-outline" size={32} color={colors.textMuted} />
-                <Text style={styles.emptyCardTitle}>{data?.movementsFailed ? 'Could not load your history' : 'No movements found'}</Text>
+                <Text style={styles.emptyCardTitle}>{data?.movementsFailed ? t('walletCouldNotLoadHistory') : t('walletNoMovementsFound')}</Text>
                 <Text style={styles.emptyCardDesc}>
                   {data?.movementsFailed
-                    ? 'Pull down to try again. Your balance above is still current.'
+                    ? t('walletPullDownTryAgain')
                     : activitySearch
-                    ? `No transactions match "${activitySearch}".`
+                    ? t('walletNoTransactionsMatch').replace('{query}', activitySearch)
                     : activeFilter === 'All'
-                      ? 'Payouts, tips, bonuses, and payments will appear here.'
-                      : `No ${activeFilter.toLowerCase()} transactions recorded yet.`}
+                      ? t('walletPayoutsAppearHere')
+                      : t('walletNoCategoryTransactions').replace('{category}', translateMoneyTag(activeFilter).toLowerCase())}
                 </Text>
               </View>
             ) : (
@@ -458,7 +465,7 @@ export default function WalletScreen() {
                             </Text>
                             <View style={[styles.tagBadge, { backgroundColor: palette.bg }]}>
                               <Text style={[styles.tagBadgeText, { color: palette.text }]}>
-                                {item.tag}
+                                {translateMoneyTag(item.tag)}
                               </Text>
                             </View>
                           </View>
@@ -491,8 +498,10 @@ export default function WalletScreen() {
                 {/* Pagination Controls */}
                 <View style={styles.paginationRow}>
                   <Text style={styles.paginationInfo}>
-                    Showing {(safePage - 1) * PAGE_SIZE + 1}–
-                    {Math.min(safePage * PAGE_SIZE, filteredActivityItems.length)} of {filteredActivityItems.length}
+                    {t('showingOf')
+                      .replace('{start}', String((safePage - 1) * PAGE_SIZE + 1))
+                      .replace('{end}', String(Math.min(safePage * PAGE_SIZE, filteredActivityItems.length)))
+                      .replace('{total}', String(filteredActivityItems.length))}
                   </Text>
                   {totalPages > 1 ? (
                     <View style={styles.paginationButtons}>
@@ -513,7 +522,7 @@ export default function WalletScreen() {
                             safePage <= 1 && styles.pageNavBtnTextDisabled,
                           ]}
                         >
-                          Prev
+                          {t('prev')}
                         </Text>
                       </Pressable>
 
@@ -535,7 +544,7 @@ export default function WalletScreen() {
                             safePage >= totalPages && styles.pageNavBtnTextDisabled,
                           ]}
                         >
-                          Next
+                          {t('next')}
                         </Text>
                         <Ionicons
                           name="chevron-forward"
@@ -570,7 +579,7 @@ export default function WalletScreen() {
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>Transaction details</Text>
+              <Text style={styles.modalHeaderTitle}>{t('walletTransactionDetails')}</Text>
               <Pressable
                 style={styles.modalCloseBtn}
                 onPress={() => setSelectedItem(null)}
@@ -599,7 +608,7 @@ export default function WalletScreen() {
                 {/* Details Breakdown */}
                 <View style={styles.modalDetailsList}>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Category</Text>
+                    <Text style={styles.detailLabel}>{t('walletCategoryLabel')}</Text>
                     <View
                       style={[
                         styles.tagBadge,
@@ -618,31 +627,34 @@ export default function WalletScreen() {
                           },
                         ]}
                       >
-                        {selectedItem.tag}
+                        {translateMoneyTag(selectedItem.tag)}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Direction</Text>
+                    <Text style={styles.detailLabel}>{t('walletDirectionLabel')}</Text>
                     <Text style={styles.detailValue}>
-                      {selectedItem.direction === 'in' ? 'Credit (Incoming)' : 'Debit (Outgoing)'}
+                      {selectedItem.direction === 'in' ? t('walletCreditIncoming') : t('walletDebitOutgoing')}
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Date & Time</Text>
+                    <Text style={styles.detailLabel}>{t('walletDateTimeLabel')}</Text>
                     <Text style={styles.detailValue}>
-                      {new Date(selectedItem.timestamp).toLocaleString(undefined, {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      })}
+                      {new Date(selectedItem.timestamp).toLocaleString(
+                        language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-US',
+                        {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        },
+                      )}
                     </Text>
                   </View>
 
                   {selectedItem.originalAmount && selectedItem.originalCurrency ? (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Original amount</Text>
+                      <Text style={styles.detailLabel}>{t('walletOriginalAmountLabel')}</Text>
                       <Text style={styles.detailValue}>
                         {selectedItem.originalCurrency} {selectedItem.originalAmount.toLocaleString()}
                       </Text>
@@ -651,7 +663,7 @@ export default function WalletScreen() {
 
                   {selectedItem.sourceType ? (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Source</Text>
+                      <Text style={styles.detailLabel}>{t('walletSourceLabel')}</Text>
                       <Text style={styles.detailValue}>
                         {selectedItem.sourceType.replace(/_/g, ' ').toLowerCase()}
                       </Text>
@@ -660,7 +672,7 @@ export default function WalletScreen() {
 
                   {selectedItem.subtitle ? (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Notes</Text>
+                      <Text style={styles.detailLabel}>{t('walletNotesLabel')}</Text>
                       <Text style={[styles.detailValue, { flex: 1, textAlign: 'right' }]}>
                         {selectedItem.subtitle}
                       </Text>
@@ -680,7 +692,7 @@ export default function WalletScreen() {
                   style={({ pressed }) => [styles.modalDoneBtn, pressed && { opacity: 0.9 }]}
                   onPress={() => setSelectedItem(null)}
                 >
-                  <Text style={styles.modalDoneBtnText}>Done</Text>
+                  <Text style={styles.modalDoneBtnText}>{t('done')}</Text>
                 </Pressable>
               </View>
             )}
@@ -745,18 +757,20 @@ const useStyles = makeStyles((c) => ({
   suspensionTitle: { fontFamily: fonts.bold, fontSize: 13, color: '#92400E' },
   suspensionDate: { fontFamily: fonts.regular, fontSize: 11, color: '#B45309' },
 
-  // Hero Card (Clean solid card — no gradients)
+  // Hero Card: a frame of brand glows holding the frosted balance panel
   heroCard: {
     backgroundColor: c.surface,
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    padding: spacing.xl,
+    padding: spacing.md,
+    overflow: 'hidden',
   },
   heroContent: {
     alignItems: 'center',
-    textAlign: 'center',
     gap: 8,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
   },
   heroLabelPill: {
     flexDirection: 'row',

@@ -1,16 +1,18 @@
 import { Text, View } from 'react-native';
 import { spacing, fontSize, fontWeight, fonts, makeStyles } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 /**
  * Standard page header.
  */
 export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>{title}</Text>
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <Text style={styles.title}>{tr(title)}</Text>
+      {subtitle ? <Text style={styles.subtitle}>{tr(subtitle)}</Text> : null}
     </View>
   );
 }

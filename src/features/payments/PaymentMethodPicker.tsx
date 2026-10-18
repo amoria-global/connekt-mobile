@@ -19,6 +19,7 @@ import { PAYMENT_COUNTRY_LIST, paymentCountryName } from '@/features/payments/co
 import { CARDS_LOGO, MOMO_LOGO, operatorLogo } from '@/features/payments/operatorLogos';
 import type { PaymentOperator } from '@/features/reference/api';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Props = {
   operators: PaymentOperator[];
@@ -67,6 +68,7 @@ export function PaymentMethodPicker({
 }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const selectedOperator = operators.find((o) => o.id.toLowerCase() === selectedId) ?? null;
   const cardSelected = selectedId === 'card';
   const [open, setOpen] = useState(!!selectedOperator);
@@ -102,11 +104,11 @@ export function PaymentMethodPicker({
           onPress={() => setCountryOpen(true)}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel={`Payment country ${paymentCountryName(country)}. Tap to change.`}
+          accessibilityLabel={tr('Select country')}
         >
           <Text style={styles.flag}>{flagEmoji(country)}</Text>
           <Text style={styles.countryName} numberOfLines={1}>{paymentCountryName(country)}</Text>
-          <Text style={styles.countryChange}>Change</Text>
+          <Text style={styles.countryChange}>{tr('Change')}</Text>
           <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
         </Pressable>
       ) : null}
@@ -119,11 +121,11 @@ export function PaymentMethodPicker({
           disabled={momoOff}
           accessibilityRole="button"
           accessibilityState={{ expanded: momoActive, disabled: momoOff }}
-          accessibilityLabel="Mobile Money"
+          accessibilityLabel={tr('Mobile Money')}
         >
           <Logo source={MOMO_LOGO} label="Mobile Money" size={44} />
           <View style={styles.mainText}>
-            <Text style={[styles.mainTitle, momoActive && styles.mainTitleActive]}>Mobile Money</Text>
+            <Text style={[styles.mainTitle, momoActive && styles.mainTitleActive]}>{tr('Mobile Money')}</Text>
             <Text style={styles.mainSub} numberOfLines={2}>
               {selectedOperator
                 ? selectedOperator.name
@@ -145,11 +147,11 @@ export function PaymentMethodPicker({
             disabled={cardOff}
             accessibilityRole="radio"
             accessibilityState={{ selected: cardSelected, disabled: cardOff }}
-            accessibilityLabel="Cards, Visa and Mastercard"
+            accessibilityLabel={tr('Cards')}
           >
             <Logo source={CARDS_LOGO} label="Cards" size={44} />
             <View style={styles.mainText}>
-              <Text style={[styles.mainTitle, cardSelected && styles.mainTitleActive]}>Cards</Text>
+              <Text style={[styles.mainTitle, cardSelected && styles.mainTitleActive]}>{tr('Cards')}</Text>
               <Text style={styles.mainSub} numberOfLines={2}>
                 {disableCards ? 'Unavailable here' : 'Visa & Mastercard'}
               </Text>
@@ -191,8 +193,8 @@ export function PaymentMethodPicker({
         <Modal visible={countryOpen} animationType="slide" onRequestClose={() => setCountryOpen(false)}>
           <SafeAreaView style={styles.modal}>
             <View style={styles.modalHead}>
-              <Text style={styles.modalTitle}>Select country</Text>
-              <Pressable onPress={() => setCountryOpen(false)} hitSlop={10} accessibilityLabel="Close">
+              <Text style={styles.modalTitle}>{tr('Select country')}</Text>
+              <Pressable onPress={() => setCountryOpen(false)} hitSlop={10} accessibilityLabel={tr('Close')}>
                 <Ionicons name="close" size={24} color={colors.text} />
               </Pressable>
             </View>
@@ -201,7 +203,7 @@ export function PaymentMethodPicker({
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search country or dial code"
+                placeholder={tr('Search country or dial code')}
                 placeholderTextColor={colors.textMuted}
                 style={styles.searchInput}
                 autoCapitalize="none"
@@ -212,7 +214,7 @@ export function PaymentMethodPicker({
               data={countries}
               keyExtractor={(c) => c.iso2}
               keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={<Text style={styles.empty}>No matching country.</Text>}
+              ListEmptyComponent={<Text style={styles.empty}>{tr('No matching country.')}</Text>}
               renderItem={({ item }) => {
                 const active = item.iso2 === (country || '').toUpperCase();
                 return (

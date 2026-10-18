@@ -39,6 +39,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { paymentBucket } from '@/features/payments/statusBucket';
 
@@ -71,10 +72,29 @@ const STATUS_TONE: Record<RowBucket, { bg: string; fg: string; label: string }> 
 function PaymentsContent() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const { role, isCoordinator } = useRole();
+
+  const getStatusLabel = useCallback(
+    (b: RowBucket) => {
+      switch (b) {
+        case 'unfinished':
+          return t('notCompleted');
+        case 'paid':
+          return t('paid');
+        case 'pending':
+          return t('pending');
+        case 'failed':
+          return t('failed');
+        default:
+          return '';
+      }
+    },
+    [t],
+  );
 
   const [section, setSection] = useState<Section>('events');
   const [filter, setFilter] = useState<Filter>('all');
@@ -176,12 +196,12 @@ function PaymentsContent() {
 
   const header = (
     <View style={styles.header}>
-      <Text style={styles.eyebrow}>FINANCE</Text>
-      <Text style={styles.title}>Payments</Text>
+      <Text style={styles.eyebrow}>{t('finance')}</Text>
+      <Text style={styles.title}>{t('payments')}</Text>
       <Text style={styles.subtitle}>
         {isCoordinator
-          ? 'Manage event payments, streaming revenue, and gifts.'
-          : 'Your event payments and purchases.'}
+          ? t('manageCoordinatorPayments')
+          : t('clientPaymentsSubtitle')}
       </Text>
 
       {/* Role-aware Section Switcher for Coordinators */}
@@ -197,7 +217,7 @@ function PaymentsContent() {
               color={section === 'events' ? '#fff' : colors.textMuted}
             />
             <Text style={[styles.sectionTabText, section === 'events' && styles.sectionTabTextActive]}>
-              Event Payments
+              {t('eventPayments')}
             </Text>
           </Pressable>
 
@@ -211,7 +231,7 @@ function PaymentsContent() {
               color={section === 'streaming' ? '#fff' : colors.textMuted}
             />
             <Text style={[styles.sectionTabText, section === 'streaming' && styles.sectionTabTextActive]}>
-              Stream Revenue
+              {t('streamRevenue')}
             </Text>
           </Pressable>
 
@@ -225,7 +245,7 @@ function PaymentsContent() {
               color={section === 'gifts' ? '#fff' : colors.textMuted}
             />
             <Text style={[styles.sectionTabText, section === 'gifts' && styles.sectionTabTextActive]}>
-              Gift Earnings
+              {t('giftEarnings')}
             </Text>
           </Pressable>
         </View>
@@ -235,16 +255,16 @@ function PaymentsContent() {
       {section === 'events' ? (
         <>
           <View style={styles.totalCard}>
-            <Text style={styles.totalLabel}>{isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING'}</Text>
+            <Text style={styles.totalLabel}>{isCoordinator ? t('totalPayments') : t('totalSpending')}</Text>
             <Text style={styles.totalValue}>{formatPrice(stats.total, currency)}</Text>
             <View style={styles.totalSplit}>
               <View style={styles.totalSplitCell}>
-                <Text style={styles.totalSplitLabel}>Paid</Text>
+                <Text style={styles.totalSplitLabel}>{t('paid')}</Text>
                 <Text style={styles.totalSplitValue}>{formatPrice(stats.paid, currency)}</Text>
               </View>
               <View style={styles.totalDivider} />
               <View style={styles.totalSplitCell}>
-                <Text style={styles.totalSplitLabel}>Pending</Text>
+                <Text style={styles.totalSplitLabel}>{t('pending')}</Text>
                 <Text style={styles.totalSplitValue}>{formatPrice(stats.pending, currency)}</Text>
               </View>
             </View>
@@ -255,10 +275,10 @@ function PaymentsContent() {
               <Ionicons name="alert-circle" size={20} color="#D97706" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.pendingAlertTitle}>
-                  {formatPrice(stats.pending, currency)} in pending payments
+                  {t('inPendingPayments', { amount: formatPrice(stats.pending, currency) })}
                 </Text>
                 <Text style={styles.pendingAlertSub}>
-                  Complete payments to avoid booking cancellations.
+                  {t('completePaymentsToAvoidCancellation')}
                 </Text>
               </View>
             </View>
@@ -279,7 +299,7 @@ function PaymentsContent() {
                   style={[styles.pill, active && styles.pillActive]}
                 >
                   <Text style={[styles.pillText, active && styles.pillTextActive]}>
-                    {f === 'all' ? 'All' : STATUS_TONE[f].label}
+                    {f === 'all' ? t('filterAll') : getStatusLabel(f)}
                   </Text>
                   <View style={[styles.badge, active && styles.badgeActive]}>
                     <Text style={[styles.badgeText, active && styles.badgeTextActive]}>
@@ -302,20 +322,20 @@ function PaymentsContent() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.streamEyebrow}>CONNEKTLIVE</Text>
-              <Text style={styles.streamCardTitle}>Live Stream Revenue</Text>
-              <Text style={styles.streamCardSub}>Ticketed stream entry fees</Text>
+              <Text style={styles.streamCardTitle}>{t('liveStreamRevenue')}</Text>
+              <Text style={styles.streamCardSub}>{t('ticketedStreamEntryFees')}</Text>
             </View>
             <Pressable
               style={styles.withdrawBtn}
               onPress={() => router.push('/withdraw' as Href)}
             >
               <Ionicons name="cash-outline" size={14} color="#fff" />
-              <Text style={styles.withdrawBtnText}>Withdraw</Text>
+              <Text style={styles.withdrawBtnText}>{t('withdraw')}</Text>
             </Pressable>
           </View>
           <View style={styles.streamDivider} />
           <View style={styles.streamCardBottom}>
-            <Text style={styles.streamBottomLabel}>Total Stream Revenue</Text>
+            <Text style={styles.streamBottomLabel}>{t('totalStreamRevenue')}</Text>
             <Text style={styles.streamBottomValue}>{formatPrice(totalStreamingRevenue, 'RWF')}</Text>
           </View>
         </View>
@@ -330,20 +350,20 @@ function PaymentsContent() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.giftEyebrow}>CONNEKTLIVE GIFTS</Text>
-              <Text style={styles.giftCardTitle}>Viewer Gift Earnings</Text>
-              <Text style={styles.giftCardSub}>65% withdrawable share</Text>
+              <Text style={styles.giftCardTitle}>{t('viewerGiftEarnings')}</Text>
+              <Text style={styles.giftCardSub}>{t('withdrawableShare65')}</Text>
             </View>
             <Pressable
               style={styles.withdrawBtn}
               onPress={() => router.push('/withdraw' as Href)}
             >
               <Ionicons name="cash-outline" size={14} color="#fff" />
-              <Text style={styles.withdrawBtnText}>Withdraw</Text>
+              <Text style={styles.withdrawBtnText}>{t('withdraw')}</Text>
             </Pressable>
           </View>
           <View style={styles.giftDivider} />
           <View style={styles.giftCardBottom}>
-            <Text style={styles.giftBottomLabel}>Total Gift Revenue</Text>
+            <Text style={styles.giftBottomLabel}>{t('totalGiftRevenue')}</Text>
             <Text style={styles.giftBottomValue}>{formatPrice(totalGiftRevenue, 'RWF')}</Text>
           </View>
         </View>
@@ -415,13 +435,13 @@ function PaymentsContent() {
                         color="#fff"
                       />
                       <Text style={styles.payNowBtnText}>
-                        {isFailed ? 'Retry' : 'Pay Now'}
+                        {isFailed ? t('retry') : t('payNow')}
                       </Text>
                     </Pressable>
                   ) : (
                     <View style={[styles.statusChip, { backgroundColor: tone.bg }]}>
                       <Text style={[styles.statusChipText, { color: tone.fg }]}>
-                        {tone.label}
+                        {getStatusLabel(b)}
                       </Text>
                     </View>
                   )}
@@ -436,19 +456,19 @@ function PaymentsContent() {
               <View style={{ paddingTop: spacing.xl }}>
                 <EmptyState
                   icon="cloud-offline-outline"
-                  title="Couldn't load payments"
-                  message="Pull to refresh and try again."
+                  title={t('couldNotLoadPayments')}
+                  message={t('pullToRefresh')}
                 />
               </View>
             ) : (
               <View style={{ paddingTop: spacing.xl }}>
                 <EmptyState
                   icon="card-outline"
-                  title={filter === 'all' ? 'No payments yet' : 'Nothing here'}
+                  title={filter === 'all' ? t('noPaymentsYet') : t('nothingHere')}
                   message={
                     filter === 'all'
-                      ? 'Your event payments and purchases will appear here.'
-                      : 'No payments match this filter.'
+                      ? t('eventPaymentsAppearHere')
+                      : t('noPaymentsMatchFilter')
                   }
                 />
               </View>
@@ -471,7 +491,7 @@ function PaymentsContent() {
           renderItem={({ item }) => {
             const isCompleted = item.status === 'completed';
             const statusTone = isCompleted
-              ? { bg: '#D1FAE5', fg: '#047857', label: 'Completed' }
+              ? { bg: '#D1FAE5', fg: '#047857', label: t('completed') }
               : { bg: '#FEF3C7', fg: '#92400E', label: item.status.toUpperCase() };
 
             return (
@@ -503,7 +523,9 @@ function PaymentsContent() {
                 </View>
 
                 <View style={styles.streamRowFooter}>
-                  <Text style={styles.streamFooterText}>Method: {item.method}</Text>
+                  <Text style={styles.streamFooterText}>
+                    {t('methodLabel', { method: item.method ?? '—' })}
+                  </Text>
                   {item.date ? (
                     <Text style={styles.streamFooterText}>{formatDate(item.date)}</Text>
                   ) : null}
@@ -518,16 +540,16 @@ function PaymentsContent() {
               <View style={{ paddingTop: spacing.xl }}>
                 <EmptyState
                   icon="cloud-offline-outline"
-                  title="Couldn't load stream revenue"
-                  message="Pull down to refresh and try again."
+                  title={t('couldNotLoadStreamRevenue')}
+                  message={t('pullToRefresh')}
                 />
               </View>
             ) : (
               <View style={{ paddingTop: spacing.xl }}>
                 <EmptyState
                   icon="radio-outline"
-                  title="No stream revenue yet"
-                  message="Ticket fees from ConnektLive viewers will appear here."
+                  title={t('noStreamRevenueYet')}
+                  message={t('ticketFeesAppearHere')}
                 />
               </View>
             )
@@ -549,7 +571,7 @@ function PaymentsContent() {
           renderItem={({ item }) => {
             const isCompleted = item.status === 'completed';
             const statusTone = isCompleted
-              ? { bg: '#D1FAE5', fg: '#047857', label: 'Completed' }
+              ? { bg: '#D1FAE5', fg: '#047857', label: t('completed') }
               : { bg: '#FEF3C7', fg: '#92400E', label: item.status.toUpperCase() };
 
             return (
@@ -557,7 +579,7 @@ function PaymentsContent() {
                 <View style={styles.giftRowHeader}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.giftSender}>
-                      {item.customerPhone || 'Anonymous Viewer'}
+                      {item.customerPhone || t('anonymousViewer')}
                     </Text>
                     <Text style={styles.giftEvent}>{item.eventTitle}</Text>
                   </View>
@@ -592,16 +614,16 @@ function PaymentsContent() {
               <View style={{ paddingTop: spacing.xl }}>
                 <EmptyState
                   icon="cloud-offline-outline"
-                  title="Couldn't load gifts"
-                  message="Pull down to refresh and try again."
+                  title={t('couldNotLoadGifts')}
+                  message={t('pullToRefresh')}
                 />
               </View>
             ) : (
               <View style={{ paddingTop: spacing.xl }}>
                 <EmptyState
                   icon="heart-outline"
-                  title="No gifts received yet"
-                  message="Gifts sent by live-stream viewers will appear here."
+                  title={t('noGiftsReceivedYet')}
+                  message={t('giftsAppearHere')}
                 />
               </View>
             )

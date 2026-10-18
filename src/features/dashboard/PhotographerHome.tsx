@@ -36,6 +36,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { GlassBackdrop, GlassCard } from '@/components/ui/GlassCard';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
@@ -57,6 +58,7 @@ import { listPhotographerReviews } from '@/features/reviews/api';
 import { getWallet } from '@/features/wallet/api';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { MultipleDonutOverviewCard } from '@/features/dashboard/MultipleDonutOverviewCard';
 
@@ -75,12 +77,12 @@ const GOAL_PRESETS = [
   { label: 'Pro Studio', earnings: 5000, shoots: 12, clients: 15 },
 ];
 
-function getTimeGreeting(): string {
+function getTimeGreeting(t: (k: any) => string): string {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'Good Morning';
-  if (h >= 12 && h < 17) return 'Good Afternoon';
-  if (h >= 17 && h < 22) return 'Good Evening';
-  return 'Good Night';
+  if (h >= 5 && h < 12) return t('goodMorning');
+  if (h >= 12 && h < 17) return t('goodAfternoon');
+  if (h >= 17 && h < 22) return t('goodEvening');
+  return t('goodNight');
 }
 
 function getPhotographerSubtitle(): string {
@@ -142,9 +144,11 @@ function getEventDateBadge(dateStr?: string): { month: string; day: string } {
 export function PhotographerHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { language, t } = useLanguage();
   const styles = useStyles();
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const glassTarget = useRef<View>(null);
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
@@ -318,7 +322,7 @@ export function PhotographerHome() {
 
   const isSearchActive = searchQuery.trim().length > 0;
 
-  const greeting = getTimeGreeting();
+  const greeting = getTimeGreeting(t);
   const subtitle = getPhotographerSubtitle();
   const dateFormatted = getTodayFormatted();
 
@@ -496,58 +500,61 @@ export function PhotographerHome() {
         <KycBanner />
 
         {/* ── 1. Creator Header ───────────────────────────────────────── */}
-        <View style={styles.header}>
-          <Text style={styles.headerDate}>{dateFormatted}</Text>
-          <Text style={styles.headerTitle}>
-            {greeting},{' '}
-            <Text style={styles.headerName}>{name}</Text>
-          </Text>
-          <Text style={styles.headerSubtitle}>{subtitle}</Text>
-        </View>
-
-        {/* ── 2. High-Impact Quick Action Hero Bar ──────────────────────── */}
-        <View style={styles.quickActionBar}>
-          {/* Primary Action: Create Event */}
-          <Pressable
-            style={({ pressed }) => [styles.quickActionPrimaryBtn, pressed && styles.btnPressed]}
-            onPress={() => router.push('/event/new' as never)}
-          >
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.quickActionPrimaryBtnText}>Create Event</Text>
-          </Pressable>
-
-          {/* Secondary Action: Share Portfolio */}
-          <Pressable
-            style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
-            onPress={handleShareProfile}
-          >
-            <Ionicons name="share-social-outline" size={15} color={colors.primary} />
-            <Text style={styles.quickActionSecondaryBtnText}>Share Profile</Text>
-          </Pressable>
-
-          {/* Tertiary Action: Set Goal (Opens Bottom Sheet) */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.quickActionGoalsBtn,
-              isComparisonMode && styles.quickActionGoalsBtnActive,
-              pressed && styles.btnPressed,
-            ]}
-            onPress={() => setShowGoalsModal(true)}
-          >
-            <Ionicons
-              name={isComparisonMode ? 'flag' : 'flag-outline'}
-              size={14}
-              color={isComparisonMode ? '#FFFFFF' : '#F20C8F'}
-            />
-            <Text
-              style={[
-                styles.quickActionGoalsBtnText,
-                isComparisonMode && styles.quickActionGoalsBtnTextActive,
-              ]}
-            >
-              {isComparisonMode ? 'Goal Active' : 'Set Goal'}
+        <View style={styles.heroPanel}>
+          <GlassBackdrop ref={glassTarget} />
+          <View style={styles.header}>
+            <Text style={styles.headerDate}>{dateFormatted}</Text>
+            <Text style={styles.headerTitle}>
+              {greeting},{' '}
+              <Text style={styles.headerName}>{name}</Text>
             </Text>
-          </Pressable>
+            <Text style={styles.headerSubtitle}>{subtitle}</Text>
+          </View>
+
+          {/* ── 2. High-Impact Quick Action Hero Bar ──────────────────────── */}
+          <GlassCard blurTarget={glassTarget} style={styles.quickActionBar}>
+            {/* Primary Action: Create Event */}
+            <Pressable
+              style={({ pressed }) => [styles.quickActionPrimaryBtn, pressed && styles.btnPressed]}
+              onPress={() => router.push('/event/new' as never)}
+            >
+              <Ionicons name="add" size={18} color="#FFFFFF" />
+              <Text style={styles.quickActionPrimaryBtnText}>{t('createEvent')}</Text>
+            </Pressable>
+
+            {/* Secondary Action: Share Portfolio */}
+            <Pressable
+              style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
+              onPress={handleShareProfile}
+            >
+              <Ionicons name="share-social-outline" size={15} color={colors.primary} />
+              <Text style={styles.quickActionSecondaryBtnText}>Share Profile</Text>
+            </Pressable>
+
+            {/* Tertiary Action: Set Goal (Opens Bottom Sheet) */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.quickActionGoalsBtn,
+                isComparisonMode && styles.quickActionGoalsBtnActive,
+                pressed && styles.btnPressed,
+              ]}
+              onPress={() => setShowGoalsModal(true)}
+            >
+              <Ionicons
+                name={isComparisonMode ? 'flag' : 'flag-outline'}
+                size={14}
+                color={isComparisonMode ? '#FFFFFF' : '#F20C8F'}
+              />
+              <Text
+                style={[
+                  styles.quickActionGoalsBtnText,
+                  isComparisonMode && styles.quickActionGoalsBtnTextActive,
+                ]}
+              >
+                {isComparisonMode ? 'Goal Active' : 'Set Goal'}
+              </Text>
+            </Pressable>
+          </GlassCard>
         </View>
 
         {/* Post My Event opportunities: always one tap away, with the open count */}
@@ -1585,10 +1592,21 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   // 2. High-Impact Quick Action Hero Bar
+  // Greeting + quick actions on soft brand glows; the actions sit on frosted glass.
+  heroPanel: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
+    overflow: 'hidden',
+  },
   quickActionBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    padding: spacing.sm,
   },
   quickActionPrimaryBtn: {
     flex: 1.3,

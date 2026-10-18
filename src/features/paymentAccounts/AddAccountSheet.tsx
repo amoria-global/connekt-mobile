@@ -34,6 +34,7 @@ import type { Role } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { MOMO_LOGO, operatorLogo } from '@/features/payments/operatorLogos';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { addPaymentAccount, listBanks, validateMobileAccount, type Bank } from './api';
 import { MOBILE_PROVIDER, resolveMobileName, type AccountKind, type PaymentAccount } from './model';
 
@@ -57,6 +58,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
   const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
 
   const [kind, setKind] = useState<AccountKind>('mtn');
   const [phone, setPhone] = useState<PhoneValue | null>(null);
@@ -186,10 +188,10 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
           <View style={styles.grabber} />
           <View style={styles.headRow}>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.title}>Add payment account</Text>
-              <Text style={styles.subtitle}>Where should we send your withdrawals?</Text>
+              <Text style={styles.title}>{tr('Add payment account')}</Text>
+              <Text style={styles.subtitle}>{tr('Where should we send your withdrawals?')}</Text>
             </View>
-            <Pressable onPress={close} hitSlop={12} style={styles.closeBtn} accessibilityLabel="Close">
+            <Pressable onPress={close} hitSlop={12} style={styles.closeBtn} accessibilityLabel={tr('Close')}>
               <Ionicons name="close" size={20} color={colors.textMuted} />
             </Pressable>
           </View>
@@ -201,7 +203,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                 <TextInput
                   value={bankQuery}
                   onChangeText={setBankQuery}
-                  placeholder="Search banks"
+                  placeholder={tr('Search banks')}
                   placeholderTextColor={colors.textMuted}
                   style={styles.searchInput}
                   autoFocus
@@ -250,7 +252,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                   style={[styles.kind, isMobile && styles.kindActive]}
                 >
                   <Image source={MOMO_LOGO} style={styles.kindLogo} resizeMode="cover" accessible={false} />
-                  <Text style={[styles.kindLabel, isMobile && styles.kindLabelActive]}>Mobile Money</Text>
+                  <Text style={[styles.kindLabel, isMobile && styles.kindLabelActive]}>{tr('Mobile Money')}</Text>
                   <Text style={styles.kindHint}>{isMobile ? NETWORKS.find((n) => n.key === kind)?.label : 'Choose your network'}</Text>
                 </Pressable>
                 <Pressable
@@ -265,8 +267,8 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                   <View style={[styles.kindIcon, { backgroundColor: '#3B82F61F' }]}>
                     <Ionicons name="business-outline" size={22} color="#3B82F6" />
                   </View>
-                  <Text style={[styles.kindLabel, !isMobile && styles.kindLabelActive]}>Bank</Text>
-                  <Text style={styles.kindHint}>Bank transfer</Text>
+                  <Text style={[styles.kindLabel, !isMobile && styles.kindLabelActive]}>{tr('Bank')}</Text>
+                  <Text style={styles.kindHint}>{tr('Bank transfer')}</Text>
                 </Pressable>
               </View>
 

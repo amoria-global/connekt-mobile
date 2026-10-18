@@ -19,6 +19,8 @@ import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navi
 import { useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
 import { AppPreloader } from '@/components/ui/AppPreloader';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 // Keep native splash screen visible while fonts and auth bootstrap resolve
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({
@@ -161,6 +163,7 @@ function useProtectedRoute() {
 }
 
 export default function RootLayout() {
+  const { t } = useLanguage();
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
   const loadCurrency = useCurrency((s) => s.load);

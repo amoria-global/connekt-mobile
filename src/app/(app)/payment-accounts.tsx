@@ -20,6 +20,7 @@ import { maskAccountNumber, type PaymentAccount } from '@/features/paymentAccoun
 import { useAsync } from '@/hooks/useAsync';
 import { parsePhone } from '@/lib/phoneKit';
 import { isApiError, useAuth } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 const KIND_STYLE: Record<PaymentAccount['kind'], { icon: 'phone-portrait-outline' | 'business-outline'; tint: string }> = {
@@ -31,6 +32,7 @@ const KIND_STYLE: Record<PaymentAccount['kind'], { icon: 'phone-portrait-outline
 export default function PaymentAccountsScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const { role } = useRole();
   const userPhone = useAuth((s) => s.user?.phone);
   const accounts = useAsync(useCallback(() => listPaymentAccounts(role), [role]));
@@ -46,7 +48,7 @@ export default function PaymentAccountsScreen() {
       await setDefaultPaymentAccount(role, a);
       await accounts.refresh();
     } catch (e) {
-      Alert.alert('Could not update', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(t('b1_payAccUpdateErrTitle'), isApiError(e) ? e.message : t('b1_payAccTryAgainMsg'));
     } finally {
       setBusyId(null);
     }
@@ -54,12 +56,12 @@ export default function PaymentAccountsScreen() {
 
   const onRemove = (a: PaymentAccount) => {
     Alert.alert(
-      'Remove this account?',
-      `${a.label} ${maskAccountNumber(a.accountNumber)} will no longer be available for withdrawals.`,
+      t('b1_payAccRemoveTitle'),
+      t('b1_payAccRemoveBody', { label: a.label, number: maskAccountNumber(a.accountNumber) }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('b1_payAccCancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('b1_payAccRemove'),
           style: 'destructive',
           onPress: async () => {
             setBusyId(a.id);
@@ -67,7 +69,7 @@ export default function PaymentAccountsScreen() {
               await deletePaymentAccount(role, a.id);
               await accounts.refresh();
             } catch (e) {
-              Alert.alert('Could not remove', isApiError(e) ? e.message : 'Please try again.');
+              Alert.alert(t('b1_payAccRemoveErrTitle'), isApiError(e) ? e.message : t('b1_payAccTryAgainMsg'));
             } finally {
               setBusyId(null);
             }
@@ -85,38 +87,40 @@ export default function PaymentAccountsScreen() {
           <RefreshControl refreshing={false} onRefresh={accounts.refresh} tintColor={colors.primary} />
         }
       >
-        <ScreenHeader title="Payment accounts" subtitle="Manage the accounts you use for payments and withdrawals." />
+        <ScreenHeader title={t('b1_payAccTitle')} subtitle={t('b1_payAccSubtitle')} />
 
         <View style={styles.body}>
           {accounts.loading && !accounts.data ? (
             <View style={styles.center}>
               <ActivityIndicator color={colors.primary} />
-              <Text style={styles.muted}>Loading your accounts…</Text>
+              <Text style={styles.muted}>{t('b1_payAccLoading')}</Text>
             </View>
           ) : accounts.error ? (
             <View style={styles.stateCard}>
               <View style={[styles.stateIcon, { backgroundColor: colors.errorBg }]}>
                 <Ionicons name="cloud-offline-outline" size={26} color={colors.error} />
               </View>
-              <Text style={styles.stateTitle}>Could not load your accounts</Text>
+              <Text style={styles.stateTitle}>{t('b1_payAccLoadErrTitle')}</Text>
               <Text style={styles.stateText}>{accounts.error}</Text>
-              <Button title="Try again" variant="outline" onPress={accounts.refresh} style={styles.stateBtn} />
+              <Button title={t('b1_payAccTryAgainBtn')} variant="outline" onPress={accounts.refresh} style={styles.stateBtn} />
             </View>
           ) : list.length === 0 ? (
             <View style={styles.stateCard}>
               <View style={styles.stateIcon}>
                 <Ionicons name="card-outline" size={26} color={colors.primary} />
               </View>
-              <Text style={styles.stateTitle}>No payment accounts saved</Text>
+              <Text style={styles.stateTitle}>{t('b1_payAccEmptyTitle')}</Text>
               <Text style={styles.stateText}>
-                Add a mobile money or bank account to enable payments and withdrawals.
+                {t('b1_payAccEmptyBody')}
               </Text>
-              <Button title="Add account" onPress={() => setAdding(true)} style={styles.stateBtn} />
+              <Button title={t('b1_payAccAddBtn')} onPress={() => setAdding(true)} style={styles.stateBtn} />
             </View>
           ) : (
             <>
               <Text style={styles.sectionLabel}>
-                {list.length === 1 ? '1 saved account' : `${list.length} saved accounts`}
+                {list.length === 1
+                  ? t('b1_payAccCountOne')
+                  : t('b1_payAccCountMany', { count: list.length })}
               </Text>
               {list.map((a) => {
                 const k = KIND_STYLE[a.kind];
@@ -132,7 +136,7 @@ export default function PaymentAccountsScreen() {
                           <Text style={styles.cardLabel} numberOfLines={1}>{a.label}</Text>
                           {a.isDefault ? (
                             <View style={styles.defaultPill}>
-                              <Text style={styles.defaultText}>Default</Text>
+                              <Text style={styles.defaultText}>{t('b1_payAccDefault')}</Text>
                             </View>
                           ) : null}
                         </View>
@@ -152,20 +156,20 @@ export default function PaymentAccountsScreen() {
                               style={({ pressed }) => [styles.action, pressed && { opacity: 0.7 }]}
                               onPress={() => onMakeDefault(a)}
                               accessibilityRole="button"
-                              accessibilityLabel={`Make ${a.label} your default account`}
+                              accessibilityLabel={t('b1_payAccMakeDefaultA11y', { label: a.label })}
                             >
                               <Ionicons name="star-outline" size={15} color={colors.primary} />
-                              <Text style={styles.actionText}>Make default</Text>
+                              <Text style={styles.actionText}>{t('b1_payAccMakeDefault')}</Text>
                             </Pressable>
                           ) : null}
                           <Pressable
                             style={({ pressed }) => [styles.action, pressed && { opacity: 0.7 }]}
                             onPress={() => onRemove(a)}
                             accessibilityRole="button"
-                            accessibilityLabel={`Remove ${a.label}`}
+                            accessibilityLabel={t('b1_payAccRemoveA11y', { label: a.label })}
                           >
                             <Ionicons name="trash-outline" size={15} color={colors.error} />
-                            <Text style={[styles.actionText, { color: colors.error }]}>Remove</Text>
+                            <Text style={[styles.actionText, { color: colors.error }]}>{t('b1_payAccRemove')}</Text>
                           </Pressable>
                         </>
                       )}
@@ -173,7 +177,7 @@ export default function PaymentAccountsScreen() {
                   </View>
                 );
               })}
-              <Button title="Add another account" variant="outline" onPress={() => setAdding(true)} />
+              <Button title={t('b1_payAccAddAnotherBtn')} variant="outline" onPress={() => setAdding(true)} />
             </>
           )}
         </View>

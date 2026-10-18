@@ -16,11 +16,137 @@ import { getJoinedAlbum, leaveAlbum, submitPhoto, withdrawSubmission } from '@/f
 import { AlbumCover, PersonRow, StatusChip } from '@/features/collab/components';
 import { timeAgo, type JoinedAlbumDetail, type SubmissionStatus } from '@/features/collab/model';
 import { pickOriginalPhotos, type PickedImage } from '@/services/imagePicker';
+import { useLanguage } from '@/hooks/useLanguage';
 import { isApiError } from '@/store/auth';
+
+const JA_I18N = {
+  en: {
+    filterAll: "All",
+    filterWaiting: "Waiting",
+    filterAdded: "Added",
+    filterNotAccepted: "Not accepted",
+    errLoad: "Could not load this album.",
+    leftOutTitle: "{count} photo(s) left out",
+    uploadFailed: "Upload failed",
+    notSubmittedTitle: "{count} photo(s) not submitted",
+    withdrawTitle: "Withdraw this photo?",
+    withdrawMsg: "It will be removed before the owner reviews it.",
+    keep: "Keep",
+    withdraw: "Withdraw",
+    errWithdraw: "Could not withdraw",
+    tryAgain: "Please try again.",
+    leaveTitle: "Leave this album?",
+    leaveMsg: "You will no longer be able to submit photos to \"{title}\". Photos already added stay in the album. To come back, {owner} has to send you a new link.",
+    stay: "Stay",
+    leave: "Leave",
+    errLeave: "Could not leave",
+    cannotOpenTitle: "You cannot open this album",
+    backToCollab: "Back to Collaborate",
+    eyebrow: "COLLABORATING",
+    ownerCaption: "Owns this album and reviews what you submit",
+    submitTitle: "Submit your photos",
+    submitSub: "Full quality. JPEG, PNG or WebP, up to 20 MB each, at least Full HD. Photos are only sent to {owner} when you tap Submit, and you can withdraw one until it is reviewed.",
+    addMorePhotos: "Add more photos",
+    addPhotos: "Add photos",
+    readyCount: "{count} photo(s) ready to submit",
+    submittingProgress: "Submitting {current} of {total}…",
+    submitToOwner: "Submit {count} photo(s) to {owner}",
+    submittedCount: "{done} submitted",
+    failedCount: " · {failed} failed",
+    rejectedCount: "{count} photo(s) rejected",
+    dismiss: "Dismiss",
+    emptyAllTitle: "Nothing submitted yet",
+    emptyOtherTitle: "Nothing here",
+    emptyAllMsg: "Photos you submit show up here with their review status.",
+    emptyOtherMsg: "No photos with this status.",
+    leaveAlbumBtn: "Leave album",
+  },
+  fr: {
+    filterAll: "Toutes",
+    filterWaiting: "En attente",
+    filterAdded: "Ajoutées",
+    filterNotAccepted: "Refusées",
+    errLoad: "Impossible de charger cet album.",
+    leftOutTitle: "{count} photo(s) ignorée(s)",
+    uploadFailed: "Échec de l’envoi",
+    notSubmittedTitle: "{count} photo(s) non soumise(s)",
+    withdrawTitle: "Retirer cette photo ?",
+    withdrawMsg: "Elle sera retirée avant que le propriétaire ne l’examine.",
+    keep: "Garder",
+    withdraw: "Retirer",
+    errWithdraw: "Impossible de retirer",
+    tryAgain: "Veuillez réessayer.",
+    leaveTitle: "Quitter cet album ?",
+    leaveMsg: "Vous ne pourrez plus soumettre de photos à \"{title}\". Les photos déjà ajoutées restent dans l’album. Pour revenir, {owner} devra vous envoyer un nouveau lien.",
+    stay: "Rester",
+    leave: "Quitter",
+    errLeave: "Impossible de quitter",
+    cannotOpenTitle: "Vous ne pouvez pas ouvrir cet album",
+    backToCollab: "Retour à Collaborer",
+    eyebrow: "COLLABORATION",
+    ownerCaption: "Possède cet album et examine ce que vous soumettez",
+    submitTitle: "Soumettre vos photos",
+    submitSub: "Qualité maximale. JPEG, PNG ou WebP, jusqu’à 20 Mo chacune, au moins Full HD. Les photos ne sont envoyées à {owner} que lorsque vous appuyez sur Soumettre.",
+    addMorePhotos: "Ajouter plus de photos",
+    addPhotos: "Ajouter des photos",
+    readyCount: "{count} photo(s) prête(s) à soumettre",
+    submittingProgress: "Envoi {current} sur {total}…",
+    submitToOwner: "Soumettre {count} photo(s) à {owner}",
+    submittedCount: "{done} soumise(s)",
+    failedCount: " · {failed} échouée(s)",
+    rejectedCount: "{count} photo(s) refusée(s)",
+    dismiss: "Fermer",
+    emptyAllTitle: "Rien de soumis pour l’instant",
+    emptyOtherTitle: "Rien ici",
+    emptyAllMsg: "Les photos que vous soumettez apparaissent ici avec leur statut.",
+    emptyOtherMsg: "Aucune photo avec ce statut.",
+    leaveAlbumBtn: "Quitter l’album",
+  },
+  es: {
+    filterAll: "Todas",
+    filterWaiting: "En espera",
+    filterAdded: "Añadidas",
+    filterNotAccepted: "No aceptadas",
+    errLoad: "No se pudo cargar este álbum.",
+    leftOutTitle: "{count} foto(s) omitida(s)",
+    uploadFailed: "Error al subir",
+    notSubmittedTitle: "{count} foto(s) no enviada(s)",
+    withdrawTitle: "¿Retirar esta foto?",
+    withdrawMsg: "Se eliminará antes de que el propietario la revise.",
+    keep: "Conservar",
+    withdraw: "Retirar",
+    errWithdraw: "No se pudo retirar",
+    tryAgain: "Por favor inténtalo de nuevo.",
+    leaveTitle: "¿Salir de este álbum?",
+    leaveMsg: "Ya no podrás enviar fotos a \"{title}\". Las fotos ya añadidas permanecen en el álbum. Para volver, {owner} tendrá que enviarte un nuevo enlace.",
+    stay: "Quedarse",
+    leave: "Salir",
+    errLeave: "No se pudo salir",
+    cannotOpenTitle: "No puedes abrir este álbum",
+    backToCollab: "Volver a Colaborar",
+    eyebrow: "COLABORANDO",
+    ownerCaption: "Es propietario de este álbum y revisa lo que envías",
+    submitTitle: "Envía tus fotos",
+    submitSub: "Calidad completa. JPEG, PNG o WebP, hasta 20 MB cada una, al menos Full HD. Las fotos solo se envían a {owner} cuando tocas Enviar.",
+    addMorePhotos: "Añadir más fotos",
+    addPhotos: "Añadir fotos",
+    readyCount: "{count} foto(s) lista(s) para enviar",
+    submittingProgress: "Enviando {current} de {total}…",
+    submitToOwner: "Enviar {count} foto(s) a {owner}",
+    submittedCount: "{done} enviada(s)",
+    failedCount: " · {failed} fallida(s)",
+    rejectedCount: "{count} foto(s) rechazada(s)",
+    dismiss: "Descartar",
+    emptyAllTitle: "Aún no se ha enviado nada",
+    emptyOtherTitle: "Nada aquí",
+    emptyAllMsg: "Las fotos que envíes aparecerán aquí con su estado de revisión.",
+    emptyOtherMsg: "No hay fotos con este estado.",
+    leaveAlbumBtn: "Salir del álbum",
+  },
+} as const;
 import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
 
 type Filter = 'ALL' | SubmissionStatus;
-const FILTERS: [Filter, string][] = [['ALL', 'All'], ['PENDING', 'Waiting'], ['APPROVED', 'Added'], ['REJECTED', 'Not accepted']];
 const GAP = 8;
 
 function cleanErrorMessage(name: string, raw: string): string {
@@ -47,6 +173,9 @@ export default function JoinedAlbumScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useStyles();
+  const { language } = useLanguage();
+  const tr = JA_I18N[language] ?? JA_I18N.en;
+  const FILTERS: [Filter, string][] = [['ALL', tr.filterAll], ['PENDING', tr.filterWaiting], ['APPROVED', tr.filterAdded], ['REJECTED', tr.filterNotAccepted]];
   const { width } = useWindowDimensions();
   const [data, setData] = useState<JoinedAlbumDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +193,7 @@ export default function JoinedAlbumScreen() {
       setData(d);
       navigation.setOptions({ title: d.album.title });
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not load this album.');
+      setError(isApiError(e) ? e.message : tr.errLoad);
     }
   }, [id, navigation]);
 
@@ -89,7 +218,7 @@ export default function JoinedAlbumScreen() {
     // delivery work another photographer puts in their album.
     const { photos: picked, skipped } = await pickOriginalPhotos(50);
     if (skipped.length > 0) {
-      Alert.alert(`${skipped.length} photo${skipped.length === 1 ? '' : 's'} left out`,
+      Alert.alert(tr.leftOutTitle.replace('{count}', String(skipped.length)),
         skipped.slice(0, 5).map((s) => `${s.name}: ${s.reason}`).join('\n'));
     }
     if (picked.length === 0) return;
@@ -120,7 +249,7 @@ export default function JoinedAlbumScreen() {
         done += 1;
       } catch (e) {
         failed += 1;
-        const msg = isApiError(e) ? e.message : 'Upload failed';
+        const msg = isApiError(e) ? e.message : tr.uploadFailed;
         failedItems.push({ id: `${Date.now()}-${failed}`, name: img.name ?? `Photo ${done + failed}`, error: msg });
       }
       setProgress({ done, failed, total: batch.length });
@@ -132,17 +261,17 @@ export default function JoinedAlbumScreen() {
     if (failedItems.length > 0) {
       setFailures(failedItems);
       const firstClean = cleanErrorMessage(failedItems[0].name, failedItems[0].error);
-      Alert.alert(`${failedItems.length} photo${failedItems.length === 1 ? '' : 's'} not submitted`, firstClean);
+      Alert.alert(tr.notSubmittedTitle.replace('{count}', String(failedItems.length)), firstClean);
     }
   };
 
   const withdraw = (sid: string) => {
-    Alert.alert('Withdraw this photo?', 'It will be removed before the owner reviews it.', [
-      { text: 'Keep', style: 'cancel' },
+    Alert.alert(tr.withdrawTitle, tr.withdrawMsg, [
+      { text: tr.keep, style: 'cancel' },
       {
-        text: 'Withdraw', style: 'destructive', onPress: async () => {
+        text: tr.withdraw, style: 'destructive', onPress: async () => {
           try { await withdrawSubmission(sid); await load(); } catch (e) {
-            Alert.alert('Could not withdraw', isApiError(e) ? e.message : 'Please try again.');
+            Alert.alert(tr.errWithdraw, isApiError(e) ? e.message : tr.tryAgain);
           }
         },
       },
@@ -151,14 +280,14 @@ export default function JoinedAlbumScreen() {
 
   const leave = () => {
     if (!data || !id) return;
-    Alert.alert('Leave this album?',
-      `You will no longer be able to submit photos to "${data.album.title}". Photos already added stay in the album. To come back, ${data.owner.name} has to send you a new link.`,
+    Alert.alert(tr.leaveTitle,
+      tr.leaveMsg.replace('{title}', data.album.title).replace('{owner}', data.owner.name),
       [
-        { text: 'Stay', style: 'cancel' },
+        { text: tr.stay, style: 'cancel' },
         {
-          text: 'Leave', style: 'destructive', onPress: async () => {
+          text: tr.leave, style: 'destructive', onPress: async () => {
             try { await leaveAlbum(id); router.replace('/collaborate' as Href); } catch (e) {
-              Alert.alert('Could not leave', isApiError(e) ? e.message : 'Please try again.');
+              Alert.alert(tr.errLeave, isApiError(e) ? e.message : tr.tryAgain);
             }
           },
         },
@@ -169,8 +298,8 @@ export default function JoinedAlbumScreen() {
     return (
       <Screen padded={false}>
         {error ? (
-          <EmptyState icon="lock-closed-outline" title="You cannot open this album" message={error}
-            action={{ label: 'Back to Collaborate', onPress: () => router.replace('/collaborate' as Href) }} />
+          <EmptyState icon="lock-closed-outline" title={tr.cannotOpenTitle} message={error}
+            action={{ label: tr.backToCollab, onPress: () => router.replace('/collaborate' as Href) }} />
         ) : (
           <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
         )}
@@ -190,24 +319,23 @@ export default function JoinedAlbumScreen() {
         <View style={styles.header}>
           <View style={styles.headerCover}><AlbumCover uri={album.coverImage} title={album.title} /></View>
           <View style={styles.flex}>
-            <Text style={styles.eyebrow}>COLLABORATING</Text>
+            <Text style={styles.eyebrow}>{tr.eyebrow}</Text>
             <Text style={styles.title} numberOfLines={2}>{album.title}</Text>
           </View>
         </View>
-        <PersonRow person={owner} caption="Owns this album and reviews what you submit" />
+        <PersonRow person={owner} caption={tr.ownerCaption} />
 
         <View style={styles.uploadCard}>
-          <Text style={styles.uploadTitle}>Submit your photos</Text>
+          <Text style={styles.uploadTitle}>{tr.submitTitle}</Text>
           <Text style={styles.muted}>
-            Full quality. JPEG, PNG or WebP, up to 20 MB each, at least Full HD. Photos are only sent to {owner.name} when
-            you tap Submit, and you can withdraw one until it is reviewed.
+            {tr.submitSub.replace('{owner}', owner.name)}
           </Text>
-          <Button title={staged.length > 0 ? 'Add more photos' : 'Add photos'}
+          <Button title={staged.length > 0 ? tr.addMorePhotos : tr.addPhotos}
             variant={staged.length > 0 ? 'outline' : undefined} onPress={addPhotos} />
           {staged.length > 0 && (
             <View style={styles.stagedBox}>
               <Text style={styles.stagedTitle}>
-                {staged.length} photo{staged.length === 1 ? '' : 's'} ready to submit
+                {tr.readyCount.replace('{count}', String(staged.length))}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stagedRow}>
                 {staged.map((p) => (
@@ -224,8 +352,8 @@ export default function JoinedAlbumScreen() {
               </ScrollView>
               <Button
                 title={uploading
-                  ? `Submitting ${Math.min(progress!.done + progress!.failed + 1, progress!.total)} of ${progress!.total}…`
-                  : `Submit ${staged.length} photo${staged.length === 1 ? '' : 's'} to ${owner.name}`}
+                  ? tr.submittingProgress.replace('{current}', String(Math.min(progress!.done + progress!.failed + 1, progress!.total))).replace('{total}', String(progress!.total))
+                  : tr.submitToOwner.replace('{count}', String(staged.length)).replace('{owner}', owner.name)}
                 onPress={submitStaged} loading={uploading} />
             </View>
           )}
@@ -237,7 +365,7 @@ export default function JoinedAlbumScreen() {
           )}
           {progress && !uploading && (
             <Text style={styles.muted}>
-              {progress.done} submitted{progress.failed > 0 ? ` · ${progress.failed} failed` : ''}
+              {tr.submittedCount.replace('{done}', String(progress.done))}{progress.failed > 0 ? tr.failedCount.replace('{failed}', String(progress.failed)) : ''}
             </Text>
           )}
           {failures.length > 0 && !uploading && (
@@ -245,10 +373,10 @@ export default function JoinedAlbumScreen() {
               <View style={styles.errorHeader}>
                 <Ionicons name="alert-circle" size={16} color={colors.error} />
                 <Text style={styles.errorTitle}>
-                  {failures.length} photo{failures.length === 1 ? '' : 's'} rejected
+                  {tr.rejectedCount.replace('{count}', String(failures.length))}
                 </Text>
                 <Pressable onPress={() => setFailures([])} hitSlop={8} style={{ marginLeft: 'auto' }}>
-                  <Text style={styles.errorDismiss}>Dismiss</Text>
+                  <Text style={styles.errorDismiss}>{tr.dismiss}</Text>
                 </Pressable>
               </View>
               {failures.map((err) => (
@@ -272,8 +400,8 @@ export default function JoinedAlbumScreen() {
 
         {shown.length === 0 ? (
           <EmptyState icon="images-outline"
-            title={filter === 'ALL' ? 'Nothing submitted yet' : 'Nothing here'}
-            message={filter === 'ALL' ? 'Photos you submit show up here with their review status.' : 'No photos with this status.'} />
+            title={filter === 'ALL' ? tr.emptyAllTitle : tr.emptyOtherTitle}
+            message={filter === 'ALL' ? tr.emptyAllMsg : tr.emptyOtherMsg} />
         ) : (
           <View style={styles.grid}>
             {shown.map((s) => (
@@ -290,7 +418,7 @@ export default function JoinedAlbumScreen() {
                     <Text style={styles.small}>{timeAgo(s.submittedAt)}</Text>
                     {s.status === 'PENDING' && (
                       <Pressable onPress={() => withdraw(s.id)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Withdraw photo">
-                        <Text style={styles.withdraw}>Withdraw</Text>
+                        <Text style={styles.withdraw}>{tr.withdraw}</Text>
                       </Pressable>
                     )}
                   </View>
@@ -300,7 +428,7 @@ export default function JoinedAlbumScreen() {
           </View>
         )}
 
-        <Button title="Leave album" variant="ghost" onPress={leave} />
+        <Button title={tr.leaveAlbumBtn} variant="ghost" onPress={leave} />
       </ScrollView>
     </Screen>
   );

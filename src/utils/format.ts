@@ -1,13 +1,21 @@
 import { convertAndFormat, useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 
 /** Small formatting helpers. */
+
+function currentLocale(): string {
+  const lang = useLanguage.getState().language;
+  if (lang === 'fr') return 'fr-FR';
+  if (lang === 'es') return 'es-ES';
+  return 'en-US';
+}
 
 /** Format an ISO date string as e.g. "Mon, 3 Jun 2026". Returns '' on bad input. */
 export function formatDate(iso?: string): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(currentLocale(), {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -25,13 +33,24 @@ export function formatRelativeTime(dateStr?: string): string {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
+  const lang = useLanguage.getState().language;
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (diffMins < 1) {
+    return lang === 'fr' ? "À l'instant" : lang === 'es' ? 'Justo ahora' : 'Just now';
+  }
+  if (diffMins < 60) {
+    return lang === 'fr' ? `Il y a ${diffMins} min` : lang === 'es' ? `Hace ${diffMins}m` : `${diffMins}m ago`;
+  }
+  if (diffHours < 24) {
+    return lang === 'fr' ? `Il y a ${diffHours}h` : lang === 'es' ? `Hace ${diffHours}h` : `${diffHours}h ago`;
+  }
+  if (diffDays === 1) {
+    return lang === 'fr' ? 'Hier' : lang === 'es' ? 'Ayer' : 'Yesterday';
+  }
+  if (diffDays < 7) {
+    return lang === 'fr' ? `Il y a ${diffDays}j` : lang === 'es' ? `Hace ${diffDays}d` : `${diffDays}d ago`;
+  }
+  return date.toLocaleDateString(currentLocale(), { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 /** Format a numeric amount with a currency code, e.g. "RWF 12,500". */

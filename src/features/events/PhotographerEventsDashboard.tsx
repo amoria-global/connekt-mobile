@@ -37,6 +37,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { GlassOnMedia } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
@@ -49,6 +50,7 @@ import {
 import type { EventItem } from './types';
 import { EventQrSheet } from './EventQrSheet';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { useLanguage } from '@/store/language';
 
 const PAGE_SIZE = 8;
 
@@ -161,11 +163,19 @@ const VIEW_TABS: { key: ViewTab; label: string; icon: keyof typeof Ionicons.glyp
 ];
 
 export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: number }) {
+  const { language, t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
+
+  const viewTabs: { key: ViewTab; label: string; icon: keyof typeof Ionicons.glyphMap; route?: Href }[] = useMemo(() => [
+    { key: 'events', label: t('eventsTitle'), icon: 'calendar' },
+    { key: 'albums', label: t('albums'), icon: 'images', route: '/gallery' as Href },
+    { key: 'photobooks', label: t('photobooks'), icon: 'book', route: '/photobooks' as Href },
+    { key: 'content', label: t('content'), icon: 'newspaper', route: '/content-albums' as Href },
+  ], [t]);
 
   const listRef = useRef<FlatList<EventItem>>(null);
   const [view, setView] = useState<ViewTab>('events');
@@ -320,7 +330,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.viewTabs}
       >
-        {VIEW_TABS.map((t) => {
+        {viewTabs.map((t) => {
           const active = view === t.key;
           return (
             <Pressable
@@ -348,10 +358,14 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
               const active = filter === f;
               const label =
                 f === 'all'
-                  ? 'All'
+                  ? t('filterAll')
                   : f === 'pending'
-                  ? 'Pending'
-                  : f.charAt(0).toUpperCase() + f.slice(1);
+                  ? t('pending')
+                  : f === 'upcoming'
+                  ? t('filterUpcoming')
+                  : f === 'ongoing'
+                  ? t('filterOngoing')
+                  : t('filterCompleted');
               return (
                 <Pressable
                   key={f}
@@ -378,7 +392,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search events…"
+                placeholder={t('searchEventsPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 style={styles.searchInput}
                 autoCapitalize="none"
@@ -395,7 +409,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
               style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
               onPress={() => setSortSheetOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel="Sort events"
+              accessibilityLabel={t('sortEvents')}
             >
               <Ionicons
                 name="swap-vertical"
@@ -403,7 +417,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                 color={sortBy !== 'newest' ? '#fff' : colors.text}
               />
               <Text style={[styles.sortBtnText, sortBy !== 'newest' && styles.sortBtnTextActive]}>
-                Sort
+                {t('sort')}
               </Text>
               {sortBy !== 'newest' && <View style={styles.sortActiveDot} />}
             </Pressable>
@@ -447,7 +461,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                   onPress={() => goToPage(page - 1)}
                   disabled={page <= 1}
                   accessibilityRole="button"
-                  accessibilityLabel="Previous page"
+                  accessibilityLabel={t('previous')}
                 >
                   <Ionicons
                     name="chevron-back"
@@ -460,17 +474,16 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                       page <= 1 && styles.pagerBtnTextDisabled,
                     ]}
                   >
-                    Previous
+                    {t('previous')}
                   </Text>
                 </Pressable>
 
                 <View style={styles.pagerIndicator}>
                   <Text style={styles.pagerIndicatorText}>
-                    Page <Text style={styles.pagerIndicatorBold}>{page}</Text> of{' '}
-                    <Text style={styles.pagerIndicatorBold}>{totalPages}</Text>
+                    {t('pageOf', { page, total: totalPages })}
                   </Text>
                   <Text style={styles.pagerTotalText}>
-                    ({sortedAndFiltered.length} {sortedAndFiltered.length === 1 ? 'event' : 'events'})
+                    ({sortedAndFiltered.length === 1 ? t('singleEventCount', { count: 1 }) : t('eventsCount', { count: sortedAndFiltered.length })})
                   </Text>
                 </View>
 
@@ -479,7 +492,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                   onPress={() => goToPage(page + 1)}
                   disabled={page >= totalPages}
                   accessibilityRole="button"
-                  accessibilityLabel="Next page"
+                  accessibilityLabel={t('next')}
                 >
                   <Text
                     style={[
@@ -487,7 +500,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                       page >= totalPages && styles.pagerBtnTextDisabled,
                     ]}
                   >
-                    Next
+                    {t('next')}
                   </Text>
                   <Ionicons
                     name="chevron-forward"
@@ -504,17 +517,17 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
           ) : error ? (
             <View style={{ paddingTop: spacing.xl }}>
-              <EmptyState icon="cloud-offline-outline" title="Couldn't load events" message="Pull to refresh and try again." />
+              <EmptyState icon="cloud-offline-outline" title={t('couldNotLoadEvents')} message={t('pullToRefresh')} />
             </View>
           ) : (
             <View style={{ paddingTop: spacing.xl }}>
               <EmptyState
                 icon="calendar-outline"
-                title={search || filter !== 'all' ? 'No matching events' : 'No events yet'}
+                title={search || filter !== 'all' ? t('noMatchingEvents') : t('noEventsYet')}
                 message={
                   search || filter !== 'all'
-                    ? 'Try a different filter or search term.'
-                    : 'Events you get booked for will appear here.'
+                    ? t('tryDifferentFilter')
+                    : t('eventsBookedAppear')
                 }
               />
             </View>
@@ -531,7 +544,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         onPress={() => router.push('/event/new' as Href)}
         android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
         accessibilityRole="button"
-        accessibilityLabel="Create new event"
+        accessibilityLabel={t('createNewEvent')}
       >
         <Ionicons name="add" size={32} color="#fff" />
       </Pressable>
@@ -581,8 +594,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             <View style={styles.sheetHandle} />
             <View style={styles.sortSheetHeader}>
               <View>
-                <Text style={styles.sortSheetTitle}>Sort Events</Text>
-                <Text style={styles.sortSheetSubtitle}>Choose an order for your event list</Text>
+                <Text style={styles.sortSheetTitle}>{t('sortEvents')}</Text>
+                <Text style={styles.sortSheetSubtitle}>{t('chooseOrder')}</Text>
               </View>
               <Pressable
                 onPress={() => setSortSheetOpen(false)}
@@ -596,6 +609,22 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             <View style={styles.sortOptionsList}>
               {SORT_OPTIONS.map((opt) => {
                 const active = sortBy === opt.key;
+                const label =
+                  opt.key === 'newest'
+                    ? t('newestCreatedFirst')
+                    : opt.key === 'oldest'
+                    ? t('oldestCreatedFirst')
+                    : opt.key === 'date_asc'
+                    ? t('eventDateUpcomingFirst')
+                    : t('titleAZ');
+                const description =
+                  opt.key === 'newest'
+                    ? t('newestCreatedDesc')
+                    : opt.key === 'oldest'
+                    ? t('oldestCreatedDesc')
+                    : opt.key === 'date_asc'
+                    ? t('eventDateUpcomingDesc')
+                    : t('titleAZDesc');
                 return (
                   <Pressable
                     key={opt.key}
@@ -624,9 +653,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                           active && styles.sortOptionLabelActive,
                         ]}
                       >
-                        {opt.label}
+                        {label}
                       </Text>
-                      <Text style={styles.sortOptionDesc}>{opt.description}</Text>
+                      <Text style={styles.sortOptionDesc}>{description}</Text>
                     </View>
                     {active ? (
                       <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
@@ -666,6 +695,7 @@ function PhotographerEventCard({
   onQr: () => void;
 }) {
   const styles = useStyles();
+  const { t } = useLanguage();
   const s = statusOf(event);
   const booking = (event.bookingStatus ?? '').toUpperCase();
   const pill = STATUS_PILL[s];
@@ -693,24 +723,24 @@ function PhotographerEventCard({
       {/* Top row: date + status (left), stream (right) */}
       <View style={styles.cardTop}>
         <View style={styles.topLeft}>
-          <View style={styles.datePill}>
+          <GlassOnMedia style={styles.datePill} edge>
             <Ionicons name="calendar" size={11} color="#fff" />
             <Text style={styles.datePillText}>{fmtShortDate(event.eventDate)}</Text>
-          </View>
+          </GlassOnMedia>
           <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
             <Text style={[styles.statusPillText, { color: pill.fg }]}>{pill.label}</Text>
           </View>
         </View>
         {showStreamPill ? (
-          <View style={styles.streamPill}>
+          <GlassOnMedia style={styles.streamPill} edge>
             <Ionicons name="radio" size={11} color="#fff" />
             <Text style={styles.streamPillText}>STREAM</Text>
-          </View>
+          </GlassOnMedia>
         ) : null}
       </View>
 
       {/* Bottom content */}
-      <View style={styles.cardBottom}>
+      <GlassOnMedia style={styles.cardBottom} intensity={40}>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {event.title}
         </Text>
@@ -757,7 +787,7 @@ function PhotographerEventCard({
                 disabled={busy}
               >
                 <Ionicons name="checkmark-circle" size={13} color="#fff" />
-                <Text style={styles.actText}>Accept</Text>
+                <Text style={styles.actText}>{t('acceptBooking')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.actBtn, styles.actDeny, busy && styles.actBusy]}
@@ -765,7 +795,7 @@ function PhotographerEventCard({
                 disabled={busy}
               >
                 <Ionicons name="close-circle" size={13} color="#fff" />
-                <Text style={styles.actText}>Deny</Text>
+                <Text style={styles.actText}>{t('declineBooking')}</Text>
               </Pressable>
             </>
           ) : (
@@ -773,25 +803,25 @@ function PhotographerEventCard({
               {canStream ? (
                 <Pressable style={[styles.actBtn, styles.actStream]} onPress={onLiveStream}>
                   <Ionicons name="radio" size={13} color="#fff" />
-                  <Text style={styles.actText}>Live Stream</Text>
+                  <Text style={styles.actText}>{t('liveStream')}</Text>
                 </Pressable>
               ) : null}
               {canCreateAlbum ? (
                 <Pressable style={[styles.actBtn, styles.actAlbum]} onPress={onCreateAlbum}>
                   <Ionicons name="add-circle" size={13} color="#fff" />
-                  <Text style={styles.actText}>Create Album</Text>
+                  <Text style={styles.actText}>{t('createAlbum')}</Text>
                 </Pressable>
               ) : null}
               {isAccepted && event.published ? (
                 <Pressable style={[styles.actBtn, styles.actQr]} onPress={onQr} accessibilityLabel="Show event QR code">
                   <Ionicons name="qr-code" size={13} color="#fff" />
-                  <Text style={styles.actText}>QR code</Text>
+                  <Text style={styles.actText}>{t('qrCode')}</Text>
                 </Pressable>
               ) : null}
               {isAccepted ? (
                 <View style={[styles.actBtn, styles.actAcceptedChip]}>
                   <Ionicons name="checkmark-circle" size={13} color="#fff" />
-                  <Text style={styles.actText}>Accepted</Text>
+                  <Text style={styles.actText}>{t('accepted')}</Text>
                 </View>
               ) : null}
               {event.packageName ? (
@@ -803,7 +833,7 @@ function PhotographerEventCard({
             </>
           )}
         </View>
-      </View>
+      </GlassOnMedia>
     </Pressable>
   );
 }
@@ -822,6 +852,7 @@ function AcceptBookingSheet({
   onConfirm: () => void;
 }) {
   const styles = useStyles();
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -836,8 +867,8 @@ function AcceptBookingSheet({
           <View style={styles.sheetIcon}>
             <Ionicons name="checkmark" size={30} color="#fff" />
           </View>
-          <Text style={styles.sheetEyebrow}>CONFIRM ACCEPTANCE</Text>
-          <Text style={styles.sheetTitle}>Accept booking</Text>
+          <Text style={styles.sheetEyebrow}>{t('confirmAcceptance')}</Text>
+          <Text style={styles.sheetTitle}>{t('acceptBookingTitle')}</Text>
 
           {event ? (
             <View style={styles.sheetCard}>
@@ -859,17 +890,17 @@ function AcceptBookingSheet({
           <View style={styles.sheetTerms}>
             <Ionicons name="shield-checkmark" size={15} color={colors.primary} />
             <Text style={styles.sheetTermsText}>
-              100% paid upfront by the client, held in escrow and released upon event completion.
+              {t('escrowNote')}
             </Text>
           </View>
 
           <Text style={styles.sheetNote}>
-            By accepting, you confirm your availability. The client is notified and a payment is initiated.
+            {t('availabilityNote')}
           </Text>
 
           <View style={styles.sheetActions}>
             <Pressable style={[styles.sheetBtn, styles.sheetCancel]} onPress={onCancel} disabled={busy}>
-              <Text style={styles.sheetCancelText}>Cancel</Text>
+              <Text style={styles.sheetCancelText}>{t('cancel')}</Text>
             </Pressable>
             <Pressable style={[styles.sheetBtn, styles.sheetConfirm]} onPress={onConfirm} disabled={busy}>
               {busy ? (
@@ -877,7 +908,7 @@ function AcceptBookingSheet({
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                  <Text style={styles.sheetConfirmText}>Confirm accept</Text>
+                  <Text style={styles.sheetConfirmText}>{t('confirmAccept')}</Text>
                 </>
               )}
             </Pressable>
@@ -906,6 +937,7 @@ function DeclineBookingSheet({
   onConfirm: () => void;
 }) {
   const styles = useStyles();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
 
   return (
@@ -916,10 +948,9 @@ function DeclineBookingSheet({
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.sheetHandle} />
-          <Text style={styles.declineTitle}>Decline booking</Text>
+          <Text style={styles.declineTitle}>{t('declineBookingTitle')}</Text>
           <Text style={styles.declineHint}>
-            Share a short reason so {event?.clientName || 'the client'} knows why you&apos;re not taking
-            this on.
+            {t('declineHint')}
           </Text>
           <Input
             placeholder="e.g. Schedule conflict, location too far, etc."
@@ -928,7 +959,7 @@ function DeclineBookingSheet({
             multiline
             style={styles.declineInput}
           />
-          <Button title="Submit decline" onPress={onConfirm} loading={busy} />
+          <Button title={t('submitDecline')} onPress={onConfirm} loading={busy} />
         </Pressable>
       </Pressable>
     </Modal>

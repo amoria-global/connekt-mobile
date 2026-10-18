@@ -23,25 +23,17 @@
  * so it's always reachable.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Image as RNImage } from 'react-native';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
+import { AuthGlassLayout } from '@/features/auth/AuthGlassLayout';
 import { Input } from '@/components/ui/Input';
 import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
-import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/store/language';
 import { CUSTOMER_TYPES, signup } from '@/features/auth/api';
 import { GoogleButton } from '@/features/auth/GoogleButton';
 import { AppleButton } from '@/features/auth/AppleButton';
@@ -125,8 +117,8 @@ function checkPassword(pwd: string): Checks {
 
 export default function SignupScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
   const router = useRouter();
+  const { language, t } = useLanguage();
   const params = useLocalSearchParams<{
     role?: string;
     email?: string;
@@ -279,212 +271,182 @@ export default function SignupScreen() {
   const showGoogle = role !== 'Photographer';
 
   return (
-    <Screen padded={false}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-      >
-        <View style={styles.topBar}>
-          <Pressable
-            onPress={goBack}
-            hitSlop={12}
-            style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
+    <AuthGlassLayout
+      title={t('createYourAccount')}
+      onBack={goBack}
+      bandRatio={0.26}
+      eyebrow={
+        <View style={styles.eyebrowRow}>
+          <View style={styles.rolePill}>
+            <Text style={styles.rolePillText}>{role}</Text>
+          </View>
+          {/* Step indicator — tells the user how much is left. */}
+          <View
+            style={styles.steps}
+            accessibilityRole="progressbar"
+            accessibilityLabel={t('stepCount', { current: step, total: TOTAL_STEPS })}
           >
-            <Ionicons name="chevron-back" size={22} color={colors.text} />
-          </Pressable>
+            {[1, 2, 3].map((n) => (
+              <View key={n} style={[styles.stepDot, n <= step && styles.stepDotOn]} />
+            ))}
+          </View>
         </View>
+      }
+    >
+      {step === 1 ? (
+      <>
+      <View style={styles.row}>
+        <View style={styles.col}>
+          <Field
+            control={control}
+            name="firstName"
+            label={t('firstName')}
+            editable={!googlePrefill}
+            textContentType="givenName"
+            autoComplete="given-name"
+            error={errors.firstName?.message}
+          />
+        </View>
+        <View style={styles.col}>
+          <Field
+            control={control}
+            name="lastName"
+            label={t('lastName')}
+            editable={!googlePrefill}
+            textContentType="familyName"
+            autoComplete="family-name"
+            error={errors.lastName?.message}
+          />
+        </View>
+      </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          automaticallyAdjustKeyboardInsets
+      <Field
+        control={control}
+        name="email"
+        label={t('yourEmail')}
+        editable={!googlePrefill}
+        textContentType="emailAddress"
+        autoComplete="email"
+        error={errors.email?.message}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+
+      </>
+      ) : null}
+
+      {step === 2 ? (
+      <PhoneInput
+        glass
+        label={t('phone')}
+        defaultIso2="RW"
+        onChange={(v) => {
+          setPhoneValue(v);
+          if (v.isValid) setPhoneError(null);
+        }}
+        error={phoneError ?? undefined}
+      />
+
+      ) : null}
+
+      {step === 3 ? (
+      <>
+      <View>
+        <Field
+          control={control}
+          name="password"
+          label={t('passwordLabel')}
+          textContentType="newPassword"
+          autoComplete="new-password"
+          error={errors.password?.message}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+        {password && password.length > 0 ? (
+          <StrengthMeter checks={checks} />
+        ) : (
+          <Text style={styles.helper}>
+            {t('passwordHelper')}
+          </Text>
+        )}
+      </View>
+
+      <View>
+        <Field
+          control={control}
+          name="confirmPassword"
+          label={t('confirmPassword')}
+          textContentType="newPassword"
+          autoComplete="new-password"
+          error={errors.confirmPassword?.message}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+        {confirmPassword && confirmPassword.length > 0 ? (
+          <MatchIndicator matches={passwordsMatch} strongEnough={checks.strongEnough} />
+        ) : null}
+      </View>
+
+      {/* Terms sit on the final step, next to the button that accepts them. */}
+      <Text style={styles.terms}>
+        {t('termsNoticePrefix')}{' '}
+        <Text style={styles.termsLink} onPress={() => router.push('/terms-of-service')}>
+          {t('termsOfServiceText')}
+        </Text>{' '}
+        {t('andText')}{' '}
+        <Text style={styles.termsLink} onPress={() => router.push('/privacy-policy')}>
+          {t('privacyPolicyText')}
+        </Text>
+        .
+      </Text>
+      </>
+      ) : null}
+
+      {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
+
+      {step < TOTAL_STEPS ? (
+        <Button title={t('continueText')} onPress={goNext} />
+      ) : (
+        <Button
+          title={t('createAccountBtn')}
+          onPress={() => {
+            // Surface the phone error alongside the schema errors even
+            // when other fields fail RHF validation.
+            setPhoneError(phoneValue?.isValid ? null : 'Enter a valid phone number');
+            void handleSubmit(onSubmit)();
+          }}
+          loading={isSubmitting}
+          disabled={!checks.strongEnough || !passwordsMatch}
+        />
+      )}
+
+      {step === 1 ? (
+        <Pressable
+          style={styles.signInLine}
+          onPress={() => router.replace('/login')}
+          hitSlop={8}
         >
-          {/* Header — small logo + gradient title + sub.
-              Web parity: login.tsx:1049-1055 (logo 44×44, title 22px on mobile,
-              subtitle "Create your account to get started"). */}
-          <View style={styles.header}>
-            <RNImage
-              source={require('../../../assets/images/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={styles.title}>Create your first account</Text>
-            <View style={styles.rolePill}>
-              <Text style={styles.rolePillText}>{role}</Text>
-            </View>
+          <Text style={styles.signInText}>
+            {t('alreadyMemberSignIn')}{' '}
+            <Text style={styles.signInLink}>{t('logIn')}</Text>
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {/* Social sign-up only on step 1: it replaces the whole form, so
+          offering it later would discard what the user already typed. */}
+      {step === 1 && showGoogle ? (
+        <>
+          <View style={styles.divider}>
+            <View style={styles.line} />
+            <Text style={styles.dividerText}>{t('orContinueWith')}</Text>
+            <View style={styles.line} />
           </View>
-
-          <View style={styles.form}>
-            {/* Step indicator — tells the user how much is left. */}
-            <View
-              style={styles.steps}
-              accessibilityRole="progressbar"
-              accessibilityLabel={`Step ${step} of ${TOTAL_STEPS}`}
-            >
-              {[1, 2, 3].map((n) => (
-                <View key={n} style={[styles.stepDot, n <= step && styles.stepDotOn]} />
-              ))}
-            </View>
-
-            {step === 1 ? (
-            <>
-            <View style={styles.row}>
-              <View style={styles.col}>
-                <Field
-                  control={control}
-                  name="firstName"
-                  label="First name"
-                  editable={!googlePrefill}
-                  textContentType="givenName"
-                  autoComplete="given-name"
-                  error={errors.firstName?.message}
-                />
-              </View>
-              <View style={styles.col}>
-                <Field
-                  control={control}
-                  name="lastName"
-                  label="Last name"
-                  editable={!googlePrefill}
-                  textContentType="familyName"
-                  autoComplete="family-name"
-                  error={errors.lastName?.message}
-                />
-              </View>
-            </View>
-
-            <Field
-              control={control}
-              name="email"
-              label="Your Email"
-              editable={!googlePrefill}
-              textContentType="emailAddress"
-              autoComplete="email"
-              error={errors.email?.message}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            </>
-            ) : null}
-
-            {step === 2 ? (
-            <PhoneInput
-              label="Phone"
-              defaultIso2="RW"
-              onChange={(v) => {
-                setPhoneValue(v);
-                if (v.isValid) setPhoneError(null);
-              }}
-              error={phoneError ?? undefined}
-            />
-
-            ) : null}
-
-            {step === 3 ? (
-            <>
-            <View>
-              <Field
-                control={control}
-                name="password"
-                label="Password"
-                textContentType="newPassword"
-                autoComplete="new-password"
-                error={errors.password?.message}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-              {password && password.length > 0 ? (
-                <StrengthMeter checks={checks} />
-              ) : (
-                <Text style={styles.helper}>
-                  At least 8 characters with a letter, number & special char (@!#$%^&*=+).
-                </Text>
-              )}
-            </View>
-
-            <View>
-              <Field
-                control={control}
-                name="confirmPassword"
-                label="Confirm Password"
-                textContentType="newPassword"
-                autoComplete="new-password"
-                error={errors.confirmPassword?.message}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-              {confirmPassword && confirmPassword.length > 0 ? (
-                <MatchIndicator matches={passwordsMatch} strongEnough={checks.strongEnough} />
-              ) : null}
-            </View>
-
-            {/* Terms sit on the final step, next to the button that accepts them. */}
-            <Text style={styles.terms}>
-              By creating an account, you agree to our{' '}
-              <Text style={styles.termsLink} onPress={() => router.push('/terms-of-service')}>
-                Terms of Service
-              </Text>{' '}
-              and{' '}
-              <Text style={styles.termsLink} onPress={() => router.push('/privacy-policy')}>
-                Privacy Policy
-              </Text>
-              .
-            </Text>
-            </>
-            ) : null}
-
-            {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
-
-            {step < TOTAL_STEPS ? (
-              <Button title="Continue" onPress={goNext} />
-            ) : (
-              <Button
-                title="Create account"
-                onPress={() => {
-                  // Surface the phone error alongside the schema errors even
-                  // when other fields fail RHF validation.
-                  setPhoneError(phoneValue?.isValid ? null : 'Enter a valid phone number');
-                  void handleSubmit(onSubmit)();
-                }}
-                loading={isSubmitting}
-                disabled={!checks.strongEnough || !passwordsMatch}
-              />
-            )}
-
-            {step === 1 ? (
-              <Pressable
-                style={styles.signInLine}
-                onPress={() => router.replace('/login')}
-                hitSlop={8}
-              >
-                <Text style={styles.signInText}>
-                  Already have an account? <Text style={styles.signInLink}>Log in</Text>
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {/* Social sign-up only on step 1: it replaces the whole form, so
-                offering it later would discard what the user already typed. */}
-            {step === 1 && showGoogle ? (
-              <>
-                <View style={styles.divider}>
-                  <View style={styles.line} />
-                  <Text style={styles.dividerText}>Or continue with</Text>
-                  <View style={styles.line} />
-                </View>
-                <GoogleButton mode="signup" label="Continue with Google" customerType={role} />
-                <AppleButton mode="signup" label="Continue with Apple" customerType={role} />
-              </>
-            ) : null}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Screen>
+          <GoogleButton mode="signup" label={t('continueWithGoogle')} customerType={role} />
+          <AppleButton mode="signup" label={t('continueWithApple')} customerType={role} />
+        </>
+      ) : null}
+    </AuthGlassLayout>
   );
 }
 
@@ -526,6 +488,7 @@ function Field({
       name={name}
       render={({ field: { onChange, onBlur, value } }) => (
         <Input
+          glass
           label={label}
           value={value}
           onChangeText={onChange}
@@ -606,11 +569,12 @@ function Bullet({ ok, label, bonus }: { ok: boolean; label: string; bonus?: bool
 
 function MatchIndicator({ matches, strongEnough }: { matches: boolean; strongEnough: boolean }) {
   const styles = useStyles();
+  const { t } = useLanguage();
   if (matches && strongEnough) {
     return (
       <View style={styles.matchRow}>
         <Ionicons name="checkmark-circle" size={12} color="#10b981" />
-        <Text style={[styles.matchText, { color: '#10b981' }]}>Passwords match</Text>
+        <Text style={[styles.matchText, { color: '#10b981' }]}>{t('passwordsMatch')}</Text>
       </View>
     );
   }
@@ -618,7 +582,7 @@ function MatchIndicator({ matches, strongEnough }: { matches: boolean; strongEno
     return (
       <View style={styles.matchRow}>
         <Ionicons name="alert-circle" size={12} color="#dc2626" />
-        <Text style={[styles.matchText, { color: '#dc2626' }]}>Passwords don&apos;t match yet</Text>
+        <Text style={[styles.matchText, { color: '#dc2626' }]}>{t('passwordsDontMatch')}</Text>
       </View>
     );
   }
@@ -626,53 +590,11 @@ function MatchIndicator({ matches, strongEnough }: { matches: boolean; strongEno
 }
 
 const useStyles = makeStyles((c) => ({
-  flex: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
-    gap: spacing.sm,
-  },
-
-  topBar: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xs,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  backBtnPressed: {
-    opacity: 0.75,
-    backgroundColor: c.borderSoft,
-  },
-
-  // Header — small logo + title centered (mobile mode of web auth page)
-  header: { alignItems: 'center', gap: 2, marginBottom: spacing.xs },
-  logo: { width: 40, height: 40, marginBottom: 4 },
-  title: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-    textAlign: 'center',
-  },
-  subtitle: { fontSize: fontSize.xs, color: c.textMuted, textAlign: 'center' },
   rolePill: {
-    marginTop: 6,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: radii.full,
-    backgroundColor: c.infoBg,
+    backgroundColor: c.tint,
   },
   rolePillText: {
     color: c.primary,
@@ -681,7 +603,6 @@ const useStyles = makeStyles((c) => ({
     letterSpacing: 0.5,
   },
 
-  form: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
   col: { flex: 1 },
 
@@ -708,13 +629,16 @@ const useStyles = makeStyles((c) => ({
   serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
   // ── Wizard progress ──────────────────────────────────────────────────
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
   steps: {
     flexDirection: 'row',
-    gap: 8,
-    alignSelf: 'center',
-    width: 140,
-    marginBottom: spacing.md,
-    marginTop: spacing.xs,
+    gap: 6,
+    width: 96,
   },
   stepDot: {
     flex: 1,
@@ -733,17 +657,6 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.md,
     marginVertical: spacing.sm,
   },
-  line: {
-    flex: 1,
-    height: 2,
-    borderRadius: radii.full,
-    backgroundColor: c.border,
-  },
-  dividerText: {
-    color: c.textSoft,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
+  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.border },
+  dividerText: { color: c.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
 }));

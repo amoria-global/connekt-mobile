@@ -41,6 +41,7 @@ import {
 } from '@/features/payments/nativeCheckout';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Stage = 'form' | 'starting' | 'awaiting' | 'success' | 'failed' | 'unknown';
 type Tile = { id: string; name: string; provider: string; isCard: boolean };
@@ -83,6 +84,7 @@ export function CheckoutSheet({
   const styles = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
 
   const [country, setCountry] = useState('RW');
   const [operators, setOperators] = useState<PaymentOperator[]>(DEFAULT_OPERATORS);
@@ -249,7 +251,7 @@ export function CheckoutSheet({
               </View>
             ) : (
               <>
-                <Text style={styles.label}>Pay with</Text>
+                <Text style={styles.label}>{tr('Pay with')}</Text>
                 <PaymentMethodPicker
                   operators={operators}
                   supportsCard={supportsCard}
@@ -262,7 +264,7 @@ export function CheckoutSheet({
 
                 {!selected ? null : !isCard ? (
                   <>
-                    <Text style={styles.label}>Mobile money number</Text>
+                    <Text style={styles.label}>{tr('Mobile money number')}</Text>
                     <TextInput
                       value={phone}
                       onChangeText={(v) => setPhone(v.replace(/[^0-9+ ]/g, ''))}
@@ -271,11 +273,11 @@ export function CheckoutSheet({
                       keyboardType="phone-pad"
                       editable={stage === 'form' || stage === 'failed'}
                       style={styles.input}
-                      accessibilityLabel="Mobile money number"
+                      accessibilityLabel={tr('Mobile money number')}
                     />
                   </>
                 ) : (
-                  <Text style={styles.note}>You will enter your card details on the secure gateway page.</Text>
+                  <Text style={styles.note}>{tr('You will enter your card details on the secure gateway page.')}</Text>
                 )}
 
                 {error ? (

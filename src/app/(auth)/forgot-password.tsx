@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Screen } from '@/components/ui/Screen';
+import { AuthGlassLayout, useAuthLinkStyles } from '@/features/auth/AuthGlassLayout';
+import { useLanguage } from '@/store/language';
 import { forgotPassword } from '@/features/auth/api';
 import { isApiError } from '@/store/auth';
-import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, makeStyles, useTheme } from '@/theme';
 
 export default function ForgotPasswordScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const links = useAuthLinkStyles();
   const router = useRouter();
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState(params.email ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -50,91 +53,59 @@ export default function ForgotPasswordScreen() {
 
   if (sent) {
     return (
-      <Screen>
-        <View style={styles.successWrap}>
+      <AuthGlassLayout
+        title={t('checkYourEmail')}
+        subtitle={t('resetLinkSent', { email: email.trim() })}
+        centered
+        eyebrow={
           <View style={styles.iconCircle}>
-            <Ionicons name="mail-outline" size={32} color={colors.primary} />
+            <Ionicons name="mail-outline" size={28} color={colors.primary} />
           </View>
-          <Text style={styles.title}>Check your email</Text>
-
-          {/*
-            The email carries a LINK, not a code, so the shortest honest path is:
-            open it, set the password there, come back and sign in. That is the
-            primary action below.
-
-            Entering a code stays available but secondary, because phone-only
-            accounts receive an SMS code instead of an email — and the endpoint
-            is deliberately uniform (anti-enumeration), so this screen cannot
-            know which channel was used and must serve both.
-          */}
-          <Text style={styles.subtitle}>
-            If an account matches{'\n'}
-            <Text style={styles.email}>{email.trim()}</Text>, we&apos;ve sent a
-            password reset link.
-          </Text>
-
-          <Button
-            title="Back to sign in"
-            onPress={() => router.replace('/login')}
-            style={{ width: '100%' }}
-          />
-
-          <Pressable onPress={onResend} style={styles.back}>
-            <Text style={styles.backText}>
-              {resent ? 'Sent again ✓' : "Didn't get it? Send again"}
-            </Text>
-          </Pressable>
-        </View>
-      </Screen>
+        }
+      >
+        <Button title={t('backToSignIn')} onPress={() => router.replace('/login')} />
+        <Pressable onPress={onResend} style={links.linkRow} hitSlop={8}>
+          <Text style={links.link}>{resent ? t('sentAgainCheck') : t('sendAgain')}</Text>
+        </Pressable>
+      </AuthGlassLayout>
     );
   }
 
   return (
-    <Screen>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Forgot password?</Text>
-          <Text style={styles.subtitle}>
-            Enter your email and we&apos;ll send you a link to reset your password.
-          </Text>
+    <AuthGlassLayout
+      title={t('forgotPassword')}
+      subtitle={t('forgotPasswordInstruction')}
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
+    >
+      <Input
+        glass
+        label={t('email')}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+        keyboardType="email-address"
+        error={error ?? undefined}
+      />
 
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoComplete="email"
-            textContentType="emailAddress"
-            keyboardType="email-address"
-            error={error ?? undefined}
-          />
+      <Button title={t('sendResetLink')} onPress={onSubmit} loading={submitting} />
 
-          <Button title="Send reset link" onPress={onSubmit} loading={submitting} />
-
-          <Pressable onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>Back to sign in</Text>
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </Screen>
+      <Pressable onPress={() => router.back()} style={links.linkRow} hitSlop={8}>
+        <Text style={links.link}>{t('backToSignIn')}</Text>
+      </Pressable>
+    </AuthGlassLayout>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  flex: { flex: 1 },
-  container: { flex: 1, justifyContent: 'center', gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
-  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22 },
-  email: { color: c.text, fontWeight: fontWeight.semibold },
-  back: { alignItems: 'center', marginTop: spacing.sm },
-  backText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 999,
-    backgroundColor: c.infoBg,
+    width: 64,
+    height: 64,
+    borderRadius: radii.full,
+    backgroundColor: c.tint,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
 }));

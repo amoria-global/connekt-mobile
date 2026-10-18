@@ -10,6 +10,7 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/hooks/useLanguage';
 import { useRole } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -23,6 +24,7 @@ export default function ClientDetailScreen() {
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useLanguage();
   const { isCoordinator } = useRole();
   const { data, loading, error } = useAsync(
     useCallback(() => getClient(id, isCoordinator), [id, isCoordinator]),
@@ -52,18 +54,18 @@ export default function ClientDetailScreen() {
 
   const onBlock = () => {
     Alert.alert(
-      `Block ${data?.name ?? 'this user'}?`,
-      "They won't be able to message you, and you won't see their content.",
+      t('b2_clientBlockConfirmTitle').replace('{name}', data?.name ?? t('b2_clientThisUser')),
+      t('b2_clientBlockConfirmMsg'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('b2_clientCancel'), style: 'cancel' },
         {
-          text: 'Block',
+          text: t('b2_clientBlock'),
           style: 'destructive',
           onPress: async () => {
             try {
               await block(id);
             } catch (e) {
-              Alert.alert('Could not block', isApiError(e) ? e.message : 'Please try again.');
+              Alert.alert(t('b2_clientBlockErrorTitle'), isApiError(e) ? e.message : t('b2_clientTryAgain'));
             }
           },
         },
@@ -75,17 +77,17 @@ export default function ClientDetailScreen() {
     try {
       await unblock(id);
     } catch (e) {
-      Alert.alert('Could not unblock', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(t('b2_clientUnblockErrorTitle'), isApiError(e) ? e.message : t('b2_clientTryAgain'));
     }
   };
 
   const onMoreActions = () => {
-    Alert.alert(data?.name ?? 'Client actions', undefined, [
-      { text: 'Report user', style: 'destructive', onPress: () => setReportOpen(true) },
+    Alert.alert(data?.name ?? t('b2_clientActionsTitle'), undefined, [
+      { text: t('b2_clientReportUser'), style: 'destructive', onPress: () => setReportOpen(true) },
       blocked
-        ? { text: 'Unblock user', onPress: () => void onUnblock() }
-        : { text: 'Block user', style: 'destructive' as const, onPress: onBlock },
-      { text: 'Cancel', style: 'cancel' },
+        ? { text: t('b2_clientUnblockUser'), onPress: () => void onUnblock() }
+        : { text: t('b2_clientBlockUser'), style: 'destructive' as const, onPress: onBlock },
+      { text: t('b2_clientCancel'), style: 'cancel' },
     ]);
   };
 
@@ -154,10 +156,10 @@ export default function ClientDetailScreen() {
                 )
               }
               accessibilityRole="button"
-              accessibilityLabel={`Message ${data?.name ?? 'client'}`}
+              accessibilityLabel={t('b2_clientsMessageA11y').replace('{name}', data?.name ?? t('b2_clientThisUser'))}
             >
               <Ionicons name="chatbubble-ellipses-outline" size={17} color="#FFFFFF" />
-              <Text style={styles.messageBtnText}>Message</Text>
+              <Text style={styles.messageBtnText}>{t('b2_clientMessageBtn')}</Text>
             </Pressable>
 
             <Pressable
@@ -171,7 +173,7 @@ export default function ClientDetailScreen() {
                 color={favorite ? '#B45309' : colors.primary}
               />
               <Text style={[styles.favText, favorite && styles.favTextActive]}>
-                {favorite ? 'Favorite' : 'Add to favorites'}
+                {favorite ? t('b2_clientFavorite') : t('b2_clientAddToFavorites')}
               </Text>
             </Pressable>
 
@@ -179,23 +181,23 @@ export default function ClientDetailScreen() {
               style={styles.moreBtn}
               onPress={onMoreActions}
               accessibilityRole="button"
-              accessibilityLabel="Report or block this user"
+              accessibilityLabel={t('b2_clientMoreA11y')}
             >
               <Ionicons name="ellipsis-horizontal" size={18} color={colors.primary} />
             </Pressable>
           </View>
 
-          {blocked ? <Text style={styles.blockedNote}>You blocked this user.</Text> : null}
+          {blocked ? <Text style={styles.blockedNote}>{t('b2_clientBlockedNote')}</Text> : null}
         </View>
 
         <View style={styles.stats}>
-          <Stat label="Bookings" value={String(data?.bookings ?? data?.events.length ?? 0)} />
+          <Stat label={t('b2_clientBookings')} value={String(data?.bookings ?? data?.events.length ?? 0)} />
           {data?.totalSpent != null ? (
-            <Stat label="Total spent" value={formatPrice(data.totalSpent, data.currency)} />
+            <Stat label={t('b2_clientTotalSpent')} value={formatPrice(data.totalSpent, data.currency)} />
           ) : null}
         </View>
 
-        <Text style={styles.sectionTitle}>Events</Text>
+        <Text style={styles.sectionTitle}>{t('b2_clientEvents')}</Text>
         {data?.events.length ? (
           data.events.map((e) => (
             <Pressable
@@ -214,7 +216,7 @@ export default function ClientDetailScreen() {
             </Pressable>
           ))
         ) : (
-          <Text style={styles.muted}>No events with this client yet.</Text>
+          <Text style={styles.muted}>{t('b2_clientEmptyEvents')}</Text>
         )}
       </ScrollView>
 

@@ -25,7 +25,9 @@ export function BrandPill({
         style={styles.mark}
         contentFit="contain"
       />
-      <Text style={styles.text}>Connekyt</Text>
+      <Text style={styles.text} numberOfLines={1}>
+        Connekyt
+      </Text>
     </>
   );
 
@@ -42,14 +44,15 @@ export function BrandPill({
 const useStyles = makeStyles((c, e) => ({
   pill: {
     flex: 1,
+    minWidth: 0,
     height: 50,
     borderRadius: radii.full,
     backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.sm,
     ...e(2),
   },
   pressed: { opacity: 0.9 },

@@ -10,20 +10,22 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 
 export default function PackagesScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { t } = useLanguage();
   const styles = useStyles();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPackages(), []));
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const onDelete = (p: Package) => {
-    Alert.alert('Delete package?', `"${p.name}" will be removed.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('b2_packagesDeleteTitle'), t('b2_packagesDeleteMessage', { name: p.name }), [
+      { text: t('b2_packagesCancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('b2_packagesDelete'),
         style: 'destructive',
         onPress: async () => {
           setBusyId(p.id);
@@ -31,7 +33,7 @@ export default function PackagesScreen() {
             await deletePackage(p.id);
             await refresh();
           } catch {
-            Alert.alert('Could not delete', 'Please try again.');
+            Alert.alert(t('b2_packagesDeleteErrorTitle'), t('b2_packagesTryAgain'));
           } finally {
             setBusyId(null);
           }
@@ -42,7 +44,7 @@ export default function PackagesScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="My Packages" subtitle="Services clients can book" />
+      <ScreenHeader title={t('b2_packagesTitle')} subtitle={t('b2_packagesSubtitle')} />
       <DataList
         data={data}
         loading={loading}
@@ -72,30 +74,30 @@ export default function PackagesScreen() {
             <Text style={styles.meta}>
               {[
                 item.durationHours ? `${item.durationHours}h` : null,
-                item.includedPhotos ? `${item.includedPhotos} photos` : null,
-                item.includedVideos ? `${item.includedVideos} videos` : null,
-                item.hasLiveStream ? 'Live stream' : null,
+                item.includedPhotos ? t('b2_packagesPhotosCount', { count: item.includedPhotos }) : null,
+                item.includedVideos ? t('b2_packagesVideosCount', { count: item.includedVideos }) : null,
+                item.hasLiveStream ? t('b2_packagesLiveStream') : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
             <View style={styles.cardActions}>
-              <Text style={styles.editHint}>Tap to edit</Text>
+              <Text style={styles.editHint}>{t('b2_packagesTapToEdit')}</Text>
               <Text
                 style={styles.geoLink}
                 onPress={() => router.push(`/event/geo-pricing?packageId=${item.id}` as never)}
               >
-                Geo pricing
+                {t('b2_packagesGeoPricing')}
               </Text>
               <Text style={styles.delete} onPress={() => onDelete(item)}>
-                Delete
+                {t('b2_packagesDelete')}
               </Text>
             </View>
           </Pressable>
         )}
         emptyIcon="pricetags-outline"
-        emptyTitle="No packages yet"
-        emptyMessage="Create packages so clients can book your services at a set price."
+        emptyTitle={t('b2_packagesEmptyTitle')}
+        emptyMessage={t('b2_packagesEmptyMessage')}
       />
       <Fab icon="add" onPress={() => router.push('/package/new')} />
     </Screen>

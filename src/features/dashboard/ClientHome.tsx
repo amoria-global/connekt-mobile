@@ -36,6 +36,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
+import { GlassOnMedia } from '@/components/ui/GlassCard';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { BookingModeSelector, type BookingStep } from '@/features/booking/BookingModeSelector';
@@ -63,6 +64,7 @@ import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { getWallet } from '@/features/wallet/api';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -228,12 +230,12 @@ function formatBookingDate(dateStr?: string): string {
   }
 }
 
-function getTimeGreeting(): string {
+function getTimeGreeting(t: (k: any) => string): string {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'Good Morning';
-  if (h >= 12 && h < 17) return 'Good Afternoon';
-  if (h >= 17 && h < 22) return 'Good Evening';
-  return 'Good Night';
+  if (h >= 5 && h < 12) return t('goodMorning');
+  if (h >= 12 && h < 17) return t('goodAfternoon');
+  if (h >= 17 && h < 22) return t('goodEvening');
+  return t('goodNight');
 }
 
 function getTodayFormatted(): string {
@@ -263,6 +265,7 @@ const STORAGE_KEY_PENDING_DISMISSED = 'connekt.pending_payment_dismissed_until';
 export function ClientHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { language, t } = useLanguage();
   const styles = useStyles();
   const { colors, gradients, isDark } = useTheme();
   const responsive = useResponsive();
@@ -739,7 +742,7 @@ export function ClientHome() {
   );
   const hasFailedPayment = pendingList.some((p) => (p.status ?? '').toUpperCase() === 'FAILED');
 
-  const greeting = getTimeGreeting();
+  const greeting = getTimeGreeting(t);
   const dateFormatted = getTodayFormatted();
 
   return (
@@ -804,10 +807,10 @@ export function ClientHome() {
               </View>
               <View style={styles.pendingAlertTextWrap}>
                 <Text style={styles.pendingAlertTitle}>
-                  {hasFailedPayment ? 'Payment action required' : 'Pending payment'}
+                  {hasFailedPayment ? t('paymentActionRequired') : t('pendingPayment')}
                 </Text>
                 <Text style={styles.pendingAlertSub}>
-                  {formatPrice(totalPendingAmount, wallet.data?.currency)} due for your booking
+                  {formatPrice(totalPendingAmount, wallet.data?.currency)} {t('dueForBooking')}
                 </Text>
               </View>
             </Pressable>
@@ -824,7 +827,7 @@ export function ClientHome() {
                   setPayNowOpen(true);
                 }}
               >
-                <Text style={styles.pendingPayBtnText}>Pay Now</Text>
+                <Text style={styles.pendingPayBtnText}>{t('payNow')}</Text>
                 <Ionicons name="arrow-forward" size={11} color="#FFFFFF" />
               </Pressable>
 
@@ -844,14 +847,14 @@ export function ClientHome() {
         {/* Refined Header */}
         <View style={styles.header}>
           <Text style={styles.headerEyebrow}>
-            {dateFormatted} · CLIENT OVERVIEW
+            {dateFormatted} · {t('clientOverview')}
           </Text>
           <Text style={styles.headerTitle}>
             {greeting},{' '}
             <Text style={styles.headerName}>{name}</Text>
           </Text>
           <Text style={styles.headerSubtitle}>
-            Discover top-tier creators or relive your captured memories.
+            {t('discoverCreators')}
           </Text>
         </View>
 
@@ -879,7 +882,9 @@ export function ClientHome() {
             />
             <View style={styles.spotlightContent}>
               <View style={styles.spotlightTopRow}>
-                <View
+                <GlassOnMedia
+                  off={isNextEventLive}
+                  edge
                   style={[
                     styles.spotlightLiveBadge,
                     isNextEventLive && styles.spotlightLiveBadgeLive,
@@ -894,7 +899,7 @@ export function ClientHome() {
                   <Text style={styles.spotlightLiveText}>
                     {isNextEventLive ? 'LIVE NOW' : 'UPCOMING SHOOT'}
                   </Text>
-                </View>
+                </GlassOnMedia>
                 {isNextEventLive ? (
                   <View style={[styles.spotlightDatePill, styles.spotlightDatePillLive]}>
                     <Ionicons name="videocam" size={11} color="#EF4444" />
@@ -903,12 +908,12 @@ export function ClientHome() {
                     </Text>
                   </View>
                 ) : nextEvent.eventDate ? (
-                  <View style={styles.spotlightDatePill}>
+                  <GlassOnMedia style={styles.spotlightDatePill} edge>
                     <Ionicons name="calendar-outline" size={11} color="rgba(255,255,255,0.9)" />
                     <Text style={styles.spotlightDatePillText}>
                       {formatDate(nextEvent.eventDate)}
                     </Text>
-                  </View>
+                  </GlassOnMedia>
                 ) : null}
               </View>
 
@@ -963,10 +968,10 @@ export function ClientHome() {
             />
 
             <View style={styles.editorialContent}>
-              <View style={styles.editorialBadge}>
+              <GlassOnMedia style={styles.editorialBadge} fill="rgba(255,255,255,0.16)" edge>
                 <Ionicons name="sparkles" size={10} color={isDark ? '#93C5FD' : '#FFFFFF'} />
                 <Text style={styles.editorialBadgeText}>CURATED CREATORS</Text>
-              </View>
+              </GlassOnMedia>
               <Text style={styles.editorialTitle}>
                 Capture your next unforgettable story.
               </Text>
@@ -1357,10 +1362,10 @@ export function ClientHome() {
             <View style={styles.bentoBottomRow}>
               <View style={styles.bentoTextWrap}>
                 <Text style={styles.bentoTitle} numberOfLines={1}>
-                  Book Photographer
+                  {t('bookPhotographer')}
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
-                  {env.hybridBookingEnabled ? 'Find talent or post event' : 'Verified pros'}
+                  {env.hybridBookingEnabled ? t('findTalentOrPost') : t('verifiedPros')}
                 </Text>
               </View>
             </View>
@@ -1392,10 +1397,10 @@ export function ClientHome() {
             <View style={styles.bentoBottomRow}>
               <View style={styles.bentoTextWrap}>
                 <Text style={styles.bentoTitle} numberOfLines={1}>
-                  Find My Photos
+                  {t('findMyPhotos')}
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
-                  Instant face match
+                  {t('instantFaceMatch')}
                 </Text>
               </View>
             </View>
@@ -1429,7 +1434,7 @@ export function ClientHome() {
               {hasAnyLiveStream ? (
                 <View style={styles.bentoLiveBadge}>
                   <View style={styles.bentoLiveDot} />
-                  <Text style={styles.bentoLiveBadgeText}>LIVE</Text>
+                  <Text style={styles.bentoLiveBadgeText}>{t('liveNow')}</Text>
                 </View>
               ) : (
                 <View style={styles.bentoArrowCircle}>
@@ -1441,10 +1446,10 @@ export function ClientHome() {
             <View style={styles.bentoBottomRow}>
               <View style={styles.bentoTextWrap}>
                 <Text style={styles.bentoTitle} numberOfLines={1}>
-                  Live Events
+                  {t('liveEvents')}
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
-                  {hasAnyLiveStream ? 'Broadcasts in real-time' : 'Shoots & streams'}
+                  {hasAnyLiveStream ? t('liveNow') : t('watchLiveOrHost')}
                 </Text>
               </View>
             </View>
@@ -1483,10 +1488,10 @@ export function ClientHome() {
             <View style={styles.bentoBottomRow}>
               <View style={styles.bentoTextWrap}>
                 <Text style={styles.bentoTitle} numberOfLines={1}>
-                  My Photos
+                  {t('gallery')}
                 </Text>
                 <Text style={styles.bentoSub} numberOfLines={1}>
-                  Saved collections
+                  {t('exploreCreators')}
                 </Text>
               </View>
             </View>
@@ -1551,15 +1556,15 @@ export function ClientHome() {
         {/* Featured Photographers Section */}
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionTitle}>Featured Photographers</Text>
-            <Text style={styles.sectionSubtitle}>Vetted artists available for direct booking</Text>
+            <Text style={styles.sectionTitle}>{t('featuredPhotographers')}</Text>
+            <Text style={styles.sectionSubtitle}>{t('curatedTalent')}</Text>
           </View>
           <Pressable
             onPress={() => router.push('/photographers' as never)}
             hitSlop={8}
             style={styles.sectionLinkWrap}
           >
-            <Text style={styles.sectionLink}>See all</Text>
+            <Text style={styles.sectionLink}>{t('viewAll')}</Text>
             <Ionicons name="arrow-forward" size={13.5} color={colors.primary} />
           </Pressable>
         </View>

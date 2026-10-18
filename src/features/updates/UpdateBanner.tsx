@@ -8,11 +8,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, radii, fonts, makeStyles } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { useAppUpdates } from './useAppUpdates';
 
 export function UpdateBanner() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
   const {
     updateReady,
     isModalVisible,
@@ -48,15 +50,15 @@ export function UpdateBanner() {
         style={styles.banner}
         onPress={openModal}
         accessibilityRole="button"
-        accessibilityLabel="Update ready. Tap to view update options."
+        accessibilityLabel={tr('Update Ready')}
       >
         <View style={styles.iconWrap}>
           <Ionicons name="sparkles" size={16} color="#fff" />
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.title}>Update Ready</Text>
-          <Text style={styles.subtitle}>Tap to review or restart now</Text>
+          <Text style={styles.title}>{tr('Update Ready')}</Text>
+          <Text style={styles.subtitle}>{tr('Tap to review or restart now')}</Text>
         </View>
 
         <Pressable
@@ -71,7 +73,7 @@ export function UpdateBanner() {
           {reloading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.btnText}>Restart</Text>
+            <Text style={styles.btnText}>{tr('Restart')}</Text>
           )}
         </Pressable>
 
@@ -79,7 +81,7 @@ export function UpdateBanner() {
           style={styles.closeBtn}
           onPress={() => setBannerDismissed(true)}
           hitSlop={8}
-          accessibilityLabel="Dismiss banner"
+          accessibilityLabel={tr('Close')}
         >
           <Ionicons name="close" size={16} color="rgba(255, 255, 255, 0.75)" />
         </Pressable>

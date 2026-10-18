@@ -7,6 +7,7 @@ import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { listClients } from '@/features/clients/api';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/hooks/useLanguage';
 import { useRole } from '@/features/auth/role';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
@@ -18,6 +19,7 @@ export default function ClientsScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const { t } = useLanguage();
   const { isCoordinator } = useRole();
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => listClients(isCoordinator), [isCoordinator]),
@@ -30,8 +32,8 @@ export default function ClientsScreen() {
         loading={loading}
         error={error}
         onRefresh={refresh}
-        title="Clients"
-        subtitle={isCoordinator ? 'Clients across your events & productions' : 'People who have booked you'}
+        title={t('b2_clientsTitle')}
+        subtitle={isCoordinator ? t('b2_clientsSubtitleCoord') : t('b2_clientsSubtitlePhotog')}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => {
           const initials = (item.name[0] ?? '?').toUpperCase();
@@ -58,7 +60,7 @@ export default function ClientsScreen() {
                 ) : null}
                 {item.bookings != null ? (
                   <Text style={styles.meta}>
-                    {item.bookings} booking{item.bookings === 1 ? '' : 's'}
+                    {(item.bookings === 1 ? t('b2_clientsBookingsOne') : t('b2_clientsBookingsOther')).replace('{count}', String(item.bookings))}
                   </Text>
                 ) : null}
               </View>
@@ -73,7 +75,7 @@ export default function ClientsScreen() {
                   router.push(`/conversation/${item.id}?name=${encodeURIComponent(item.name)}` as Href);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Message ${item.name}`}
+                accessibilityLabel={t('b2_clientsMessageA11y').replace('{name}', item.name)}
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={19} color={colors.primary} />
               </Pressable>
@@ -82,8 +84,8 @@ export default function ClientsScreen() {
           );
         }}
         emptyIcon="people-outline"
-        emptyTitle="No clients yet"
-        emptyMessage="Clients who book your services will appear here."
+        emptyTitle={t('b2_clientsEmptyTitle')}
+        emptyMessage={t('b2_clientsEmptyMessage')}
       />
     </Screen>
   );

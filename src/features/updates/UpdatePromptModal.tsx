@@ -1,36 +1,46 @@
 /**
- * In-app Update Prompt Modal.
+ * In-app Update screen.
  *
- * Appears when an OTA update has finished downloading or is downloading,
- * allowing the user to update Connekyt directly with a single tap.
+ * A full-page, glassmorphic takeover shown when an OTA update is downloading
+ * or ready, letting the user update Connekyt with a single tap.
+ *
+ *   ┌──────────────────────┐
+ *   │   [logo Connekyt]    │  glass brand pill
+ *   │                      │
+ *   │      ( logo )        │  glass orb with the transparent mark
+ *   │ New version available│
+ *   │  Update Connekyt to… │
+ *   │                      │
+ *   │    [ Update Now ]    │  pinned to the bottom
+ *   └──────────────────────┘
+ *
+ * The aurora lives INSIDE the modal (via GlassScene), so the glass gets a real
+ * blur on Android too: a Modal is its own window and cannot blur the screen
+ * behind it.
  */
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  Text,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GlassCard, GlassScene } from '@/components/ui/GlassCard';
+import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { useAppUpdates } from './useAppUpdates';
 
+/** The brand mark on a transparent background (no tile behind it). */
+const LOGO = require('../../../assets/images/logo.png');
+
 export function UpdatePromptModal() {
-  const {
-    isModalVisible,
-    updateReady,
-    isDownloading,
-    downloadProgress,
-    currentVersion,
-    applyUpdate,
-    closeModal,
-  } = useAppUpdates();
-  const { colors } = useTheme();
+  const { isModalVisible, updateReady, isDownloading, downloadProgress, applyUpdate, closeModal } =
+    useAppUpdates();
   const styles = useStyles();
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
   const [reloading, setReloading] = useState(false);
 
-  // Only show if modal is requested and there's something to show (ready or downloading)
+  // Only show if requested and there's something to show (ready or downloading).
   if (!isModalVisible || (!updateReady && !isDownloading)) {
     return null;
   }
@@ -44,223 +54,174 @@ export function UpdatePromptModal() {
     }
   };
 
+  const busy = reloading || !updateReady;
+  const progressPct = Math.round((downloadProgress || 0) * 100);
+
   return (
     <Modal
       visible={isModalVisible}
-      transparent
       animationType="fade"
       statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={closeModal}
     >
-      <View style={styles.backdrop}>
-        <View style={styles.modalCard}>
-          {/* Top Badge Icon */}
-          <View style={styles.iconCircle}>
-            <Ionicons
-              name={updateReady ? 'sparkles' : 'cloud-download'}
-              size={28}
-              color={colors.primary}
-            />
-          </View>
-
-          {/* Pill status */}
-          <View style={styles.pillBadge}>
-            <Text style={styles.pillBadgeText}>
-              {updateReady ? 'UPDATE READY' : 'DOWNLOADING UPDATE'}
-            </Text>
-          </View>
-
-          {/* Title & Body */}
-          <Text style={styles.title}>
-            {updateReady ? 'Update Ready to Install' : 'Downloading Update'}
-          </Text>
-
-          <Text style={styles.body}>
-            {updateReady
-              ? `A new version of Connekyt (v${currentVersion}) is ready. Restart now to get the latest features, improvements, and bug fixes.`
-              : 'Fetching the latest updates in the background. You can keep using Connekyt while it downloads.'}
-          </Text>
-
-          {/* Download progress bar */}
-          {isDownloading && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.min(
-                        100,
-                        Math.max(10, Math.round((downloadProgress || 0) * 100)),
-                      )}%`,
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressLabel}>
-                {downloadProgress > 0
-                  ? `Downloading… ${Math.round(downloadProgress * 100)}%`
-                  : 'Preparing update…'}
-              </Text>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <GlassScene bleedTop={false}>
+          <View
+            style={[
+              styles.page,
+              { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.lg },
+            ]}
+          >
+            {/* Top: the usual Connekyt brand pill, frosted. */}
+            <View style={styles.top}>
+              <GlassCard strength="thin" style={styles.brandPill}>
+                <Image source={LOGO} style={styles.brandMark} contentFit="contain" />
+                <Text style={styles.brandText}>Connekyt</Text>
+              </GlassCard>
             </View>
-          )}
 
-          {/* Actions */}
-          <View style={styles.buttonRow}>
-            {updateReady && (
+            {/* Middle: the mark and the message, centred. */}
+            <View style={styles.center}>
+              <GlassCard strength="regular" elevated style={styles.orb}>
+                <Image
+                  source={LOGO}
+                  style={styles.orbMark}
+                  contentFit="contain"
+                  accessibilityIgnoresInvertColors
+                />
+              </GlassCard>
+
+              <Text style={styles.title} accessibilityRole="header">
+                {tr('New version available')}
+              </Text>
+              <Text style={styles.subtitle}>
+                {tr('Update Connekyt to enjoy the latest improvements and features.')}
+              </Text>
+
+              {isDownloading && !updateReady ? (
+                <View style={styles.progressWrap}>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${Math.max(8, progressPct)}%` }]} />
+                  </View>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Bottom: the one action. */}
+            <View style={styles.bottom}>
               <Pressable
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  pressed && styles.pressed,
-                  reloading && styles.btnDisabled,
-                ]}
                 onPress={handleApply}
-                disabled={reloading}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: busy, busy }}
+                style={({ pressed }) => [
+                  styles.cta,
+                  busy && styles.ctaBusy,
+                  pressed && !busy && styles.pressed,
+                ]}
               >
                 {reloading ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <>
-                    <Ionicons name="refresh-outline" size={18} color="#fff" />
-                    <Text style={styles.primaryBtnText}>Restart & Update</Text>
-                  </>
+                  <Text style={styles.ctaText}>
+                    {updateReady
+                      ? tr('Update Now')
+                      : progressPct > 0
+                        ? `${tr('Downloading…')} ${progressPct}%`
+                        : tr('Downloading…')}
+                  </Text>
                 )}
               </Pressable>
-            )}
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                pressed && styles.pressed,
-              ]}
-              onPress={closeModal}
-            >
-              <Text style={styles.secondaryBtnText}>
-                {updateReady ? 'Not Now' : 'Dismiss'}
-              </Text>
-            </Pressable>
+              <Pressable onPress={closeModal} hitSlop={8} style={styles.later} accessibilityRole="button">
+                <Text style={styles.laterText}>{tr('Not now')}</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
+        </GlassScene>
       </View>
     </Modal>
   );
 }
 
-const useStyles = makeStyles((c, e) => ({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: c.surface,
-    borderRadius: radii['2xl'],
-    padding: spacing.xl,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: c.border,
-    ...e(4),
-  },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: c.tint,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  pillBadge: {
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 3,
-    backgroundColor: c.surfaceMuted,
-    borderRadius: radii.full,
-    marginBottom: spacing.xs + 2,
-  },
-  pillBadgeText: {
-    fontSize: 11,
-    fontFamily: fonts.bold,
-    letterSpacing: 0.5,
-    color: c.primary,
-  },
-  title: {
-    fontSize: 20,
-    fontFamily: fonts.bold,
-    color: c.text,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  body: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: c.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: spacing.lg,
-  },
-  progressContainer: {
-    width: '100%',
-    marginBottom: spacing.lg,
-  },
-  progressTrack: {
-    width: '100%',
-    height: 6,
-    borderRadius: radii.full,
-    backgroundColor: c.surfaceMuted,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: radii.full,
-    backgroundColor: c.primary,
-  },
-  progressLabel: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: c.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  buttonRow: {
-    width: '100%',
-    gap: spacing.sm,
-  },
-  primaryBtn: {
-    width: '100%',
-    height: 48,
-    borderRadius: radii.full,
-    backgroundColor: c.primary,
+const ORB = 148;
+
+const useStyles = makeStyles((c) => ({
+  root: { flex: 1 },
+  page: { flex: 1, paddingHorizontal: spacing.xl },
+
+  top: { alignItems: 'center' },
+  brandPill: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.xs + 2,
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontSize: 15,
-    fontFamily: fonts.bold,
-  },
-  secondaryBtn: {
-    width: '100%',
-    height: 42,
+    height: 48,
+    paddingHorizontal: spacing.lg,
     borderRadius: radii.full,
-    justifyContent: 'center',
+  },
+  brandMark: { width: 24, height: 24 },
+  brandText: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.extrabold,
+    color: c.primary,
+    letterSpacing: 0.2,
+  },
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  orb: {
+    width: ORB,
+    height: ORB,
+    borderRadius: ORB / 2,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
   },
-  secondaryBtnText: {
-    color: c.textMuted,
-    fontSize: 14,
+  orbMark: { width: ORB * 0.66, height: ORB * 0.66 },
+  title: {
+    fontFamily: fonts.bold,
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+    textAlign: 'center',
+    letterSpacing: -0.6,
+  },
+  subtitle: {
     fontFamily: fonts.regular,
+    fontSize: fontSize.md,
+    lineHeight: 22,
+    color: c.textSoft,
+    textAlign: 'center',
+    maxWidth: 320,
   },
-  btnDisabled: {
-    opacity: 0.7,
+  progressWrap: { width: '70%', marginTop: spacing.sm },
+  progressTrack: {
+    height: 6,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(127,127,127,0.2)',
+    overflow: 'hidden',
   },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
+  progressFill: { height: '100%', borderRadius: radii.full, backgroundColor: c.primary },
+
+  bottom: { gap: spacing.sm },
+  cta: {
+    height: 56,
+    borderRadius: radii.full,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  ctaBusy: { opacity: 0.7 },
+  ctaText: {
+    color: c.textOnPrimary,
+    fontFamily: fonts.bold,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+  },
+  later: { alignSelf: 'center', paddingVertical: spacing.xs },
+  laterText: { color: c.textSoft, fontFamily: fonts.regular, fontSize: fontSize.sm },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
 }));

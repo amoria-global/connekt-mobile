@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { glassTile } from '@/components/ui/GlassCard';
+import { AuthGlassLayout } from '@/features/auth/AuthGlassLayout';
 import { OtpInput } from '@/components/ui/OtpInput';
-import { Screen } from '@/components/ui/Screen';
 import { verifyTotp } from '@/features/auth/api';
 import { isApiError, useAuth } from '@/store/auth';
-import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
+import { useLanguage } from '@/store/language';
+import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function VerifyTotpScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
   const applySession = useAuth((s) => s.applySession);
 
@@ -25,50 +28,43 @@ export default function VerifyTotpScreen() {
       const session = await verifyTotp(customerId, otp.trim());
       applySession(session); // root guard redirects into the app
     } catch (err) {
-      setError(isApiError(err) ? err.message : 'Verification failed. Try again.');
+      setError(isApiError(err) ? err.message : t('b1_verifyTotpFailed'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Screen>
-      <View style={styles.container}>
-        <Text style={styles.title}>Two-Factor Authentication</Text>
-        <Text style={styles.subtitle}>
-          Open your authenticator app and enter the 6-digit code to sign in.
+    <AuthGlassLayout
+      title={t('b1_verifyTotpTitle')}
+      subtitle={t('b1_verifyTotpSubtitle')}
+    >
+      <OtpInput
+        glass
+        label={t('b1_verifyTotpCodeLabel')}
+        value={otp}
+        onChange={setOtp}
+        error={error ?? undefined}
+      />
+
+      <Button title={t('b1_verifyTotpButton')} onPress={onVerify} loading={submitting} />
+
+      <View style={styles.infoBox}>
+        <Text style={styles.infoText}>
+          {t('b1_verifyTotpInfo')}
         </Text>
-
-        <OtpInput
-          label="Verification code"
-          value={otp}
-          onChange={setOtp}
-          error={error ?? undefined}
-        />
-
-        <Button title="Verify Code" onPress={onVerify} loading={submitting} />
-        
-        <View style={styles.infoBox}>
-           <Text style={styles.infoText}>
-             Open Google Authenticator, Authy, or your preferred authenticator app to find your code. The code refreshes every 30 seconds.
-           </Text>
-        </View>
       </View>
-    </Screen>
+    </AuthGlassLayout>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  container: { flex: 1, justifyContent: 'center', gap: spacing.lg },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
-  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22 },
+  // A tile on the glass; it was hardcoded light blue, which glared in dark mode.
   infoBox: {
-    backgroundColor: '#f0f5ff',
-    borderColor: '#dbeafe',
+    ...glassTile(c),
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 14,
     padding: spacing.md,
-    marginTop: spacing.sm,
   },
-  infoText: { color: '#1e40af', fontSize: fontSize.sm, lineHeight: 20 },
+  infoText: { color: c.textSoft, fontSize: fontSize.sm, lineHeight: 20 },
 }));

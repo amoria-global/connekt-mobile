@@ -31,20 +31,148 @@ import { listPhotographerEvents } from '@/features/events/api';
 import { createPhotobook } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
+import { useLanguage, type LanguageCode } from '@/store/language';
 import type { EventItem } from '@/features/events/types';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
-const LAYOUTS: { value: string; label: string; description: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'GRID', label: 'Classic Grid', description: 'Even 3-column grid with balanced borders', icon: 'grid-outline' },
-  { value: 'MAGAZINE', label: 'Editorial Magazine', description: 'Mixed portrait and landscape magazine spread', icon: 'newspaper-outline' },
-  { value: 'STORY', label: 'Story Flow', description: 'Full-bleed vertical narrative scroll', icon: 'book-outline' },
-];
+const I18N = {
+  en: {
+    backA11y: 'Back',
+    eyebrow: 'CURATED COLLECTION',
+    title: 'Create Photobook',
+    bookDetails: 'BOOK DETAILS',
+    photobookNameLabel: 'PHOTOBOOK NAME',
+    photobookNamePlaceholder: 'e.g. Diana & Eric Wedding Photobook',
+    coverDescLabel: 'COVER DESCRIPTION (OPTIONAL)',
+    coverDescPlaceholder: 'A short editorial blurb that introduces this photobook…',
+    coverUrlLabel: 'COVER PHOTO URL (OPTIONAL)',
+    coverUrlPlaceholder: 'https://… (optional, defaults to first photo)',
+    linkedEventTitle: 'LINKED EVENT (OPTIONAL)',
+    clientPrefix: (name: string) => `Client: ${name}`,
+    changeBtn: 'Change',
+    attachPlaceholder: 'Attach to an event booking (or keep standalone)…',
+    pageLayoutTitle: 'PAGE LAYOUT STYLE',
+    layoutGridLabel: 'Classic Grid',
+    layoutGridDesc: 'Even 3-column grid with balanced borders',
+    layoutMagazineLabel: 'Editorial Magazine',
+    layoutMagazineDesc: 'Mixed portrait and landscape magazine spread',
+    layoutStoryLabel: 'Story Flow',
+    layoutStoryDesc: 'Full-bleed vertical narrative scroll',
+    curatedMediaTitle: 'CURATED PHOTO MEDIA IDS',
+    photosReady: (count: number) => `${count} photos ready`,
+    mediaIdsLabel: 'MEDIA IDS (PASTE FROM ALBUM)',
+    mediaIdsPlaceholder: 'Paste photo UUIDs separated by commas or new lines…',
+    hintText:
+      'Copy media IDs from an uploaded event album to include high-resolution photos in this photobook.',
+    cancel: 'Cancel',
+    createBtn: 'Create Photobook',
+    linkEventModalTitle: 'Link Event',
+    standaloneTitle: 'Standalone Photobook',
+    standaloneMeta: 'Not attached to an event booking',
+    searchEventsPlaceholder: 'Search events by title or client…',
+    noEventsMatching: 'No events matching search.',
+    defaultBookSuffix: (eventTitle: string) => `${eventTitle} Photobook`,
+    errNoName: 'Please provide a name for this photobook.',
+    errNoMedia: 'Add at least one photo media ID to curate into this photobook.',
+    errCreateFailed: 'Could not create the photobook. Please try again.',
+  },
+  fr: {
+    backA11y: 'Retour',
+    eyebrow: 'COLLECTION SÉLECTIONNÉE',
+    title: 'Créer un livre photo',
+    bookDetails: 'DÉTAILS DU LIVRE',
+    photobookNameLabel: 'NOM DU LIVRE PHOTO',
+    photobookNamePlaceholder: 'ex. Livre photo du mariage de Diana & Eric',
+    coverDescLabel: 'DESCRIPTION DE COUVERTURE (OPTIONNEL)',
+    coverDescPlaceholder: 'Un court texte éditorial qui présente ce livre photo…',
+    coverUrlLabel: 'URL DE LA PHOTO DE COUVERTURE (OPTIONNEL)',
+    coverUrlPlaceholder: 'https://… (optionnel, par défaut la première photo)',
+    linkedEventTitle: 'ÉVÉNEMENT LIÉ (OPTIONNEL)',
+    clientPrefix: (name: string) => `Client : ${name}`,
+    changeBtn: 'Modifier',
+    attachPlaceholder: 'Associer à une réservation d’événement (ou laisser indépendant)…',
+    pageLayoutTitle: 'STYLE DE MISE EN PAGE',
+    layoutGridLabel: 'Grille classique',
+    layoutGridDesc: 'Grille équilibrée à 3 colonnes avec bordures',
+    layoutMagazineLabel: 'Magazine éditorial',
+    layoutMagazineDesc: 'Double page magazine mêlant portraits et paysages',
+    layoutStoryLabel: 'Flux narratif',
+    layoutStoryDesc: 'Défilement narratif vertical plein écran',
+    curatedMediaTitle: 'IDS MÉDIA DES PHOTOS SÉLECTIONNÉES',
+    photosReady: (count: number) => `${count} photos prêtes`,
+    mediaIdsLabel: 'IDS MÉDIA (COLLER DEPUIS L’ALBUM)',
+    mediaIdsPlaceholder: 'Collez les UUID des photos séparés par des virgules ou des sauts de ligne…',
+    hintText:
+      'Copiez les IDs média depuis un album d’événement téléversé pour inclure des photos haute résolution dans ce livre photo.',
+    cancel: 'Annuler',
+    createBtn: 'Créer un livre photo',
+    linkEventModalTitle: 'Lier un événement',
+    standaloneTitle: 'Livre photo indépendant',
+    standaloneMeta: 'Non rattaché à une réservation d’événement',
+    searchEventsPlaceholder: 'Rechercher des événements par titre ou client…',
+    noEventsMatching: 'Aucun événement ne correspond à la recherche.',
+    defaultBookSuffix: (eventTitle: string) => `Livre photo ${eventTitle}`,
+    errNoName: 'Veuillez indiquer un nom pour ce livre photo.',
+    errNoMedia: 'Ajoutez au moins un ID média photo à inclure dans ce livre photo.',
+    errCreateFailed: 'Impossible de créer le livre photo. Veuillez réessayer.',
+  },
+  es: {
+    backA11y: 'Atrás',
+    eyebrow: 'COLECCIÓN SELECCIONADA',
+    title: 'Crear fotolibro',
+    bookDetails: 'DETALLES DEL LIBRO',
+    photobookNameLabel: 'NOMBRE DEL FOTOLIBRO',
+    photobookNamePlaceholder: 'ej. Fotolibro de boda de Diana y Eric',
+    coverDescLabel: 'DESCRIPCIÓN DE PORTADA (OPCIONAL)',
+    coverDescPlaceholder: 'Una breve reseña editorial que presenta este fotolibro…',
+    coverUrlLabel: 'URL DE FOTO DE PORTADA (OPCIONAL)',
+    coverUrlPlaceholder: 'https://… (opcional, por defecto la primera foto)',
+    linkedEventTitle: 'EVENTO VINCULADO (OPCIONAL)',
+    clientPrefix: (name: string) => `Cliente: ${name}`,
+    changeBtn: 'Cambiar',
+    attachPlaceholder: 'Vincular a una reserva de evento (o mantener independiente)…',
+    pageLayoutTitle: 'ESTILO DE DISEÑO DE PÁGINA',
+    layoutGridLabel: 'Cuadrícula clásica',
+    layoutGridDesc: 'Cuadrícula uniforme de 3 columnas con bordes equilibrados',
+    layoutMagazineLabel: 'Revista editorial',
+    layoutMagazineDesc: 'Pliego de revista mixto en vertical y horizontal',
+    layoutStoryLabel: 'Flujo narrativo',
+    layoutStoryDesc: 'Desplazamiento narrativo vertical a sangre completa',
+    curatedMediaTitle: 'IDS DE MEDIOS DE FOTOS SELECCIONADAS',
+    photosReady: (count: number) => `${count} fotos listas`,
+    mediaIdsLabel: 'IDS DE MEDIOS (PEGAR DESDE EL ÁLBUM)',
+    mediaIdsPlaceholder: 'Pega los UUID de las fotos separados por comas o saltos de línea…',
+    hintText:
+      'Copia los IDs de medios de un álbum de evento subido para incluir fotos de alta resolución en este fotolibro.',
+    cancel: 'Cancelar',
+    createBtn: 'Crear fotolibro',
+    linkEventModalTitle: 'Vincular evento',
+    standaloneTitle: 'Fotolibro independiente',
+    standaloneMeta: 'No vinculado a una reserva de evento',
+    searchEventsPlaceholder: 'Buscar eventos por título o cliente…',
+    noEventsMatching: 'No hay eventos que coincidan con la búsqueda.',
+    defaultBookSuffix: (eventTitle: string) => `Fotolibro de ${eventTitle}`,
+    errNoName: 'Por favor proporciona un nombre para este fotolibro.',
+    errNoMedia: 'Agrega al menos un ID de medio de foto para este fotolibro.',
+    errCreateFailed: 'No se pudo crear el fotolibro. Inténtalo de nuevo.',
+  },
+} as const;
 
-function shortDate(iso?: string) {
+const LOCALE_MAP: Record<LanguageCode, string> = {
+  en: 'en-US',
+  fr: 'fr-FR',
+  es: 'es-ES',
+};
+
+function shortDate(iso?: string, lang: LanguageCode = 'en') {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString(LOCALE_MAP[lang] || 'en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export default function NewPhotobookScreen() {
@@ -52,6 +180,23 @@ export default function NewPhotobookScreen() {
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { language } = useLanguage();
+  const tr = I18N[language] || I18N.en;
+
+  const layouts: { value: string; label: string; description: string; icon: keyof typeof Ionicons.glyphMap }[] =
+    useMemo(
+      () => [
+        { value: 'GRID', label: tr.layoutGridLabel, description: tr.layoutGridDesc, icon: 'grid-outline' },
+        {
+          value: 'MAGAZINE',
+          label: tr.layoutMagazineLabel,
+          description: tr.layoutMagazineDesc,
+          icon: 'newspaper-outline',
+        },
+        { value: 'STORY', label: tr.layoutStoryLabel, description: tr.layoutStoryDesc, icon: 'book-outline' },
+      ],
+      [tr],
+    );
 
   const events = useAsync(useCallback(() => listPhotographerEvents(), []));
 
@@ -91,11 +236,11 @@ export default function NewPhotobookScreen() {
 
   const onCreate = async () => {
     if (!name.trim()) {
-      setError('Please provide a name for this photobook.');
+      setError(tr.errNoName);
       return;
     }
     if (parsedIds.length === 0) {
-      setError('Add at least one photo media ID to curate into this photobook.');
+      setError(tr.errNoMedia);
       return;
     }
     setError(null);
@@ -111,7 +256,7 @@ export default function NewPhotobookScreen() {
       });
       router.replace(`/photobook/${created.id}` as never);
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not create the photobook. Please try again.');
+      setError(isApiError(e) ? e.message : tr.errCreateFailed);
     } finally {
       setSubmitting(false);
     }
@@ -139,45 +284,45 @@ export default function NewPhotobookScreen() {
               style={styles.backBtn}
               onPress={() => router.back()}
               hitSlop={8}
-              accessibilityLabel="Back"
+              accessibilityLabel={tr.backA11y}
             >
               <Ionicons name="chevron-back" size={20} color={colors.text} />
             </Pressable>
             <View style={{ flex: 1, gap: 1 }}>
-              <Text style={styles.eyebrow}>CURATED COLLECTION</Text>
-              <Text style={styles.h1}>Create Photobook</Text>
+              <Text style={styles.eyebrow}>{tr.eyebrow}</Text>
+              <Text style={styles.h1}>{tr.title}</Text>
             </View>
           </View>
 
           {/* Form Card 1: Details */}
           <View style={styles.cardSection}>
-            <Text style={styles.sectionTitle}>BOOK DETAILS</Text>
+            <Text style={styles.sectionTitle}>{tr.bookDetails}</Text>
 
-            <FieldLabel text="PHOTOBOOK NAME" required />
+            <FieldLabel text={tr.photobookNameLabel} required />
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Diana & Eric Wedding Photobook"
+              placeholder={tr.photobookNamePlaceholder}
               placeholderTextColor={colors.textMuted}
             />
 
-            <FieldLabel text="COVER DESCRIPTION (OPTIONAL)" />
+            <FieldLabel text={tr.coverDescLabel} />
             <TextInput
               style={[styles.input, styles.multiline]}
               value={description}
               onChangeText={setDescription}
-              placeholder="A short editorial blurb that introduces this photobook…"
+              placeholder={tr.coverDescPlaceholder}
               placeholderTextColor={colors.textMuted}
               multiline
             />
 
-            <FieldLabel text="COVER PHOTO URL (OPTIONAL)" />
+            <FieldLabel text={tr.coverUrlLabel} />
             <TextInput
               style={styles.input}
               value={coverImage}
               onChangeText={setCoverImage}
-              placeholder="https://… (optional, defaults to first photo)"
+              placeholder={tr.coverUrlPlaceholder}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               keyboardType="url"
@@ -186,7 +331,7 @@ export default function NewPhotobookScreen() {
 
           {/* Form Card 2: Event Association */}
           <View style={styles.cardSection}>
-            <Text style={styles.sectionTitle}>LINKED EVENT (OPTIONAL)</Text>
+            <Text style={styles.sectionTitle}>{tr.linkedEventTitle}</Text>
             {selectedEvent ? (
               <View style={styles.selectedEventCard}>
                 <View style={styles.selectedEventIconBox}>
@@ -198,8 +343,8 @@ export default function NewPhotobookScreen() {
                   </Text>
                   <Text style={styles.selectedEventMeta}>
                     {[
-                      shortDate(selectedEvent.eventDate),
-                      selectedEvent.clientName ? `Client: ${selectedEvent.clientName}` : '',
+                      shortDate(selectedEvent.eventDate, language),
+                      selectedEvent.clientName ? tr.clientPrefix(selectedEvent.clientName) : '',
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -210,7 +355,7 @@ export default function NewPhotobookScreen() {
                   onPress={() => setEventPickerOpen(true)}
                   hitSlop={8}
                 >
-                  <Text style={styles.changeEventText}>Change</Text>
+                  <Text style={styles.changeEventText}>{tr.changeBtn}</Text>
                 </Pressable>
               </View>
             ) : (
@@ -218,7 +363,7 @@ export default function NewPhotobookScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                   <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
                   <Text style={styles.selectPlaceholder} numberOfLines={1}>
-                    Attach to an event booking (or keep standalone)…
+                    {tr.attachPlaceholder}
                   </Text>
                 </View>
                 <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
@@ -228,9 +373,9 @@ export default function NewPhotobookScreen() {
 
           {/* Form Card 3: Layout Style Preset */}
           <View style={styles.cardSection}>
-            <Text style={styles.sectionTitle}>PAGE LAYOUT STYLE</Text>
+            <Text style={styles.sectionTitle}>{tr.pageLayoutTitle}</Text>
             <View style={{ gap: spacing.sm, marginTop: 4 }}>
-              {LAYOUTS.map((l) => {
+              {layouts.map((l) => {
                 const active = l.value === layout;
                 return (
                   <Pressable
@@ -263,18 +408,18 @@ export default function NewPhotobookScreen() {
           {/* Form Card 4: Curated Photos / Media IDs */}
           <View style={styles.cardSection}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={styles.sectionTitle}>CURATED PHOTO MEDIA IDS</Text>
+              <Text style={styles.sectionTitle}>{tr.curatedMediaTitle}</Text>
               <View style={styles.badgePill}>
-                <Text style={styles.badgePillText}>{parsedIds.length} photos ready</Text>
+                <Text style={styles.badgePillText}>{tr.photosReady(parsedIds.length)}</Text>
               </View>
             </View>
 
-            <FieldLabel text="MEDIA IDS (PASTE FROM ALBUM)" required />
+            <FieldLabel text={tr.mediaIdsLabel} required />
             <TextInput
               style={[styles.input, styles.multiline]}
               value={mediaIds}
               onChangeText={setMediaIds}
-              placeholder="Paste photo UUIDs separated by commas or new lines…"
+              placeholder={tr.mediaIdsPlaceholder}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
@@ -284,7 +429,7 @@ export default function NewPhotobookScreen() {
             <View style={styles.hintBox}>
               <Ionicons name="information-circle" size={16} color={colors.primary} />
               <Text style={styles.hintText}>
-                Copy media IDs from an uploaded event album to include high-resolution photos in this photobook.
+                {tr.hintText}
               </Text>
             </View>
           </View>
@@ -304,7 +449,7 @@ export default function NewPhotobookScreen() {
               onPress={() => router.back()}
               disabled={submitting}
             >
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{tr.cancel}</Text>
             </Pressable>
             <Pressable
               style={[styles.btn, styles.create, (!formOk || submitting) && styles.btnDisabled]}
@@ -314,7 +459,7 @@ export default function NewPhotobookScreen() {
               {submitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.createText}>Create Photobook</Text>
+                <Text style={styles.createText}>{tr.createBtn}</Text>
               )}
             </Pressable>
           </View>
@@ -332,7 +477,7 @@ export default function NewPhotobookScreen() {
           <Pressable style={styles.picker} onPress={(e) => e.stopPropagation()}>
             <View style={styles.pickerHandle} />
             <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Link Event</Text>
+              <Text style={styles.pickerTitle}>{tr.linkEventModalTitle}</Text>
               <Pressable onPress={() => setEventPickerOpen(false)} hitSlop={8}>
                 <Ionicons name="close" size={20} color={colors.textMuted} />
               </Pressable>
@@ -347,8 +492,8 @@ export default function NewPhotobookScreen() {
               }}
             >
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.pickerRowTitle}>Standalone Photobook</Text>
-                <Text style={styles.pickerRowMeta}>Not attached to an event booking</Text>
+                <Text style={styles.pickerRowTitle}>{tr.standaloneTitle}</Text>
+                <Text style={styles.pickerRowMeta}>{tr.standaloneMeta}</Text>
               </View>
               {!selectedEvent ? (
                 <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
@@ -361,7 +506,7 @@ export default function NewPhotobookScreen() {
               <TextInput
                 value={eventSearch}
                 onChangeText={setEventSearch}
-                placeholder="Search events by title or client…"
+                placeholder={tr.searchEventsPlaceholder}
                 placeholderTextColor={colors.textMuted}
                 style={styles.pickerSearchInput}
                 autoCapitalize="none"
@@ -378,7 +523,7 @@ export default function NewPhotobookScreen() {
               <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
             ) : filteredEvents.length === 0 ? (
               <View style={{ paddingVertical: spacing.xl, alignItems: 'center' }}>
-                <Text style={styles.hintText}>No events matching search.</Text>
+                <Text style={styles.hintText}>{tr.noEventsMatching}</Text>
               </View>
             ) : (
               <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
@@ -390,7 +535,7 @@ export default function NewPhotobookScreen() {
                       style={[styles.pickerRow, isSelected && styles.pickerRowSelected]}
                       onPress={() => {
                         setSelectedEvent(ev);
-                        setName((n) => n || `${ev.title} Photobook`);
+                        setName((n) => n || tr.defaultBookSuffix(ev.title));
                         setEventPickerOpen(false);
                       }}
                     >
@@ -400,8 +545,8 @@ export default function NewPhotobookScreen() {
                         </Text>
                         <Text style={styles.pickerRowMeta}>
                           {[
-                            shortDate(ev.eventDate),
-                            ev.clientName ? `Client: ${ev.clientName}` : '',
+                            shortDate(ev.eventDate, language),
+                            ev.clientName ? tr.clientPrefix(ev.clientName) : '',
                             ev.category,
                           ]
                             .filter(Boolean)
