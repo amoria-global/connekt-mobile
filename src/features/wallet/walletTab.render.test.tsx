@@ -33,7 +33,8 @@ let mockRole = 'PHOTOGRAPHER';
 jest.mock('@/features/auth/role', () => ({
   useRole: () => ({
     isPhotographer: mockRole === 'PHOTOGRAPHER',
-    isCoordinator: false,
+    isClient: mockRole === 'CLIENT',
+    isCoordinator: mockRole === 'COORDINATOR',
     role: mockRole,
   }),
 }));
@@ -83,8 +84,10 @@ async function openTab(r: TestRenderer.ReactTestRenderer, label: string) {
   });
 }
 
+let mockPending: unknown = { action: 1, message: 'ok', data: [] };
 function serve(walletFile: string, movementsFile: string | Error) {
   mockGetOk.mockImplementation(async (path: string) => {
+    if (path.startsWith('/customer/payments/pending')) return mockPending;
     if (path.startsWith('/wallet/me/movements')) {
       if (movementsFile instanceof Error) throw movementsFile;
       return fixture(movementsFile);
@@ -96,6 +99,7 @@ function serve(walletFile: string, movementsFile: string | Error) {
 beforeEach(() => {
   mockGetOk.mockReset();
   mockRole = 'PHOTOGRAPHER';
+  mockPending = { action: 1, message: 'ok', data: [] };
   useCurrency.setState({ currency: 'USD', currencies: DEFAULT_CURRENCIES });
 });
 
@@ -225,8 +229,8 @@ describe('photographer wallet tabs', () => {
     expect(text).not.toMatch(/Released this month|NaN|undefined/);
   });
 
-  it('other roles still see every section on one screen, without tabs', async () => {
-    mockRole = 'CLIENT';
+  it('coordinators still see every section on one screen, without tabs', async () => {
+    mockRole = 'COORDINATOR';
     serve('wallet-me-client.json', 'wallet-movements-client.json');
     const r = await mount();
     const text = flat(r.root);
@@ -257,5 +261,62 @@ describe('photographer activity beyond the first 50 movements', () => {
     });
     expect(mockGetOk).toHaveBeenCalledWith('/wallet/me/movements?page=1&size=50');
     expect(btn()).toBeUndefined(); // the last page was reached
+  });
+});
+
+describe('client wallet sections', () => {
+  const sections = (r: TestRenderer.ReactTestRenderer) =>
+    r.root.findAll((n) => n.props?.accessibilityRole === 'tab').map((n) => flat(n)).filter(Boolean);
+
+  it('splits Overview and Activity, with no Analytics tab because that endpoint is photographer-only', async () => {
+    mockRole = 'CLIENT';
+    serve('wallet-me-client.json', 'wallet-movements-client.json');
+    const r = await mount();
+    expect(new Set(sections(r))).toEqual(new Set(['Overview', 'Activity']));
+    let text = flat(r.root);
+    expect(text).toContain('Payments due');
+    expect(text).not.toContain('Earnings breakdown');
+    expect(text).not.toContain('Showing');
+
+    await openTab(r, 'Activity');
+    text = flat(r.root);
+    expect(text).toContain('Showing');
+    expect(text).not.toContain('Payments due');
+  });
+
+  it('lists what is owed in USD, masks it with the balances, and offers Pay now', async () => {
+    mockRole = 'CLIENT';
+    mockPending = {
+      action: 1,
+      data: [{ id: 'p1', eventTitle: 'Yubire Wedding', photographerName: 'Eric M', amountInUsd: 300, paidAmountInUsd: 100, status: 'PENDING' }],
+    };
+    serve('wallet-me-client.json', 'wallet-movements-client.json');
+    const r = await mount();
+    let text = flat(r.root);
+    expect(text).toContain('Yubire Wedding');
+    expect(text).toContain('Pay now');
+    expect(text).not.toContain('200.00'); // hidden until the balances are shown
+
+    await reveal(r);
+    text = flat(r.root);
+    expect(text).toContain('$200.00');
+  });
+
+  it('a failed pending-payments read is an error with a retry, not "Nothing to pay"', async () => {
+    mockRole = 'CLIENT';
+    mockPending = { action: 0, message: 'Payments are unavailable' };
+    serve('wallet-me-client.json', 'wallet-movements-client.json');
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Payments are unavailable');
+    expect(text).toContain('Try again');
+    expect(text).not.toContain('Nothing to pay');
+  });
+
+  it('a client with nothing owed says so', async () => {
+    mockRole = 'CLIENT';
+    serve('wallet-me-client.json', 'wallet-movements-client.json');
+    const r = await mount();
+    expect(flat(r.root)).toContain('Nothing to pay');
   });
 });

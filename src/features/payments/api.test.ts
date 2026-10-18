@@ -1,6 +1,7 @@
 import { api } from '@/api/client';
 import {
   getPayment,
+  listPayments,
   listStreamingPayments,
   listGiftPayments,
   PAYMENT_NOT_FOUND_MESSAGE,
@@ -135,3 +136,17 @@ describe('listGiftPayments', () => {
   });
 });
 
+
+describe('listPayments currency labelling', () => {
+  it('keeps the own amount and currency of the row together', async () => {
+    get.mockResolvedValue({ action: 1, data: { content: [{ id: 'a', eventName: 'Wedding', amount: 50000, currency: 'RWF', amountInUsd: 38, status: 'PAID' }] } });
+    const [p] = await listPayments('Client');
+    expect(p).toMatchObject({ amount: 50000, currency: 'RWF' });
+  });
+
+  it('labels an amountInUsd fallback as USD, never as the own currency of the row', async () => {
+    get.mockResolvedValue({ action: 1, data: { content: [{ id: 'b', eventName: 'Shoot', currency: 'RWF', amountInUsd: 38, status: 'PAID' }] } });
+    const [p] = await listPayments('Client');
+    expect(p).toMatchObject({ amount: 38, currency: 'USD' });
+  });
+});
