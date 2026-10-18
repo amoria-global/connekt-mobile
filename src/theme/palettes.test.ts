@@ -1,4 +1,4 @@
-import { darkPalette, lightPalette } from './palettes';
+import { darkPalette, gradientsFor, lightPalette } from './palettes';
 
 /**
  * Dark-mode review of the photographer screens (against the prototype) found small text that fell under AA on the
@@ -62,5 +62,11 @@ describe('dark palette layering', () => {
 
   it('exposes the same keys as light', () => {
     expect(Object.keys(darkPalette).sort()).toEqual(Object.keys(lightPalette).sort());
+  });
+});
+
+describe.each(['light', 'dark'] as const)('%s hero gradients', (scheme) => {
+  it.each(['heroBlue', 'heroViolet'] as const)('white text reads on every stop of %s', (name) => {
+    for (const stop of gradientsFor(scheme)[name]) expect(ratio('#FFFFFF', stop)).toBeGreaterThanOrEqual(4.5);
   });
 });

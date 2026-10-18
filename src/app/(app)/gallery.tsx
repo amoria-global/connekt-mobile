@@ -12,21 +12,20 @@
  *     frosted category badges, and crisp typography.
  *   • Spacious List View: Widescreen 4:3 previews with rich metadata and quick navigation.
  *   • Modern Floating Action Button: Solid high-contrast "+ New Album" anchored with safe area.
- *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
+ *   • Night-studio pass: client and coordinator see the latest delivery as the screen's one gradient hero, active
+ *     filters use the accent, cards are real data only (cover, count, date, photographer). The photographer keeps the
+ *     primary-coloured controls and no hero.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   FlatList,
   Keyboard,
   Modal,
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -35,6 +34,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { listAlbums, type GalleryItem } from '@/features/gallery/api';
+import { featuredAlbum } from '@/features/gallery/albumFacts';
+import { AlbumGridCard, AlbumGridSkeleton, AlbumHero, AlbumListRow } from '@/features/gallery/AlbumCards';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
@@ -80,6 +81,7 @@ export default function GalleryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { role, isPhotographer } = useRole();
+  const accent = !isPhotographer;
 
   const [filter, setFilter] = useState<AlbumFilter>('all');
   const [search, setSearch] = useState('');
@@ -91,7 +93,8 @@ export default function GalleryScreen() {
     useCallback(() => listAlbums(role ?? isPhotographer), [role, isPhotographer]),
   );
 
-  const albums = data ?? [];
+  const albums = useMemo(() => data ?? [], [data]);
+  const openAlbum = useCallback((id: string) => router.push(`/album/${id}` as Href), [router]);
 
   const counts = useMemo(() => {
     const c = { all: albums.length, event: 0, personal: 0, locked: 0 };
@@ -144,8 +147,12 @@ export default function GalleryScreen() {
     }
   }, [sortBy]);
 
+  const hero = useMemo(() => (isPhotographer ? undefined : featuredAlbum(albums)), [albums, isPhotographer]);
+  const showHero = !search.trim() && filter === 'all';
+
   const header = (
     <View style={styles.headerContainer}>
+      {showHero && hero ? <AlbumHero album={hero} showPhotographer={!isPhotographer} onOpen={() => openAlbum(hero.id)} /> : null}
       {/* Editorial Title & Controls Row */}
       <View style={styles.titleRow}>
         <View style={styles.titleCol}>
@@ -154,9 +161,11 @@ export default function GalleryScreen() {
           </Text>
           <View style={styles.titleWithBadge}>
             <Text style={styles.pageTitle}>Albums</Text>
-            <View style={styles.totalBadge}>
-              <Text style={styles.totalBadgeText}>{albums.length}</Text>
-            </View>
+            {data ? (
+              <View style={styles.totalBadge}>
+                <Text style={styles.totalBadgeText}>{albums.length}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -214,16 +223,20 @@ export default function GalleryScreen() {
             <Pressable
               key={f}
               onPress={() => setFilter(f)}
-              style={[styles.segmentPill, active && styles.segmentPillActive]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={[styles.segmentPill, active && styles.segmentPillActive, active && accent && styles.segmentPillAccent]}
             >
               <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
                 {label}
               </Text>
-              <View style={[styles.segmentCount, active && styles.segmentCountActive]}>
+              {data ? (
+<View style={[styles.segmentCount, active && styles.segmentCountActive]}>
                 <Text style={[styles.segmentCountText, active && styles.segmentCountTextActive]}>
                   {counts[f]}
                 </Text>
               </View>
+              ) : null}
             </Pressable>
           );
         })}
@@ -311,164 +324,31 @@ export default function GalleryScreen() {
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
         }
         ListHeaderComponent={header}
-        renderItem={({ item }) => {
-          const isLocked = item.locked;
-          const rawKind = (item.kind ?? '').trim();
-          const kindUpper = rawKind.toUpperCase();
-          const isEventKind = kindUpper === 'EVENT';
-          const isPaidKind = kindUpper.includes('PAID');
-          const isFreeKind = kindUpper.includes('FREE');
-          const badgeLabel = isEventKind ? 'EVENT' : isPaidKind ? 'PAID' : isFreeKind ? 'FREE' : 'ALBUM';
-
-          if (layoutMode === 'list') {
-            return (
-              <Pressable
-                style={styles.listCard}
-                onPress={() => router.push(`/album/${item.id}` as Href)}
-                android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-              >
-                <View style={styles.listThumbWrap}>
-                  {item.coverPhoto ? (
-                    <Image
-                      source={{ uri: item.coverPhoto }}
-                      style={StyleSheet.absoluteFill}
-                      contentFit="cover"
-                      transition={150}
-                    />
-                  ) : (
-                    <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
-                      <Ionicons name="images-outline" size={24} color={colors.textMuted} />
-                    </View>
-                  )}
-                  {isLocked ? (
-                    <View style={styles.listLockBadge}>
-                      <Ionicons name="lock-closed" size={10} color="#fff" />
-                    </View>
-                  ) : null}
-                </View>
-
-                <View style={styles.listCardBody}>
-                  <View style={styles.listMetaRow}>
-                    <View
-                      style={[
-                        styles.kindTag,
-                        isEventKind
-                          ? styles.kindTagEvent
-                          : isPaidKind
-                          ? styles.kindTagPaid
-                          : isFreeKind
-                          ? styles.kindTagFree
-                          : styles.kindTagDefault,
-                      ]}
-                    >
-                      <Text style={styles.kindTagText}>{badgeLabel}</Text>
-                    </View>
-                    <Text style={styles.listPhotoCount}>
-                      {item.photoCount != null
-                        ? `${item.photoCount} photo${item.photoCount === 1 ? '' : 's'}`
-                        : '0 photos'}
-                    </Text>
-                  </View>
-
-                  <Text style={styles.listCardTitle} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.listCardSubtitle} numberOfLines={1}>
-                    {isEventKind ? 'Client event collection' : rawKind ? `${rawKind} gallery` : 'Photo collection'}
-                  </Text>
-                </View>
-
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </Pressable>
-            );
-          }
-
-          return (
-            <Pressable
-              style={styles.gridCard}
-              onPress={() => router.push(`/album/${item.id}` as Href)}
-              android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-            >
-              <View style={styles.gridCover}>
-                {item.coverPhoto ? (
-                  <Image
-                    source={{ uri: item.coverPhoto }}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                ) : (
-                  <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
-                    <Ionicons name="images-outline" size={32} color={colors.textMuted} />
-                  </View>
-                )}
-
-                {/* Scrim Overlay */}
-                <View style={styles.gridScrim} />
-
-                {/* Top overlay: Kind Tag & Lock */}
-                <View style={styles.gridTopOverlay}>
-                  <View
-                    style={[
-                      styles.kindTag,
-                      isEventKind
-                        ? styles.kindTagEvent
-                        : isPaidKind
-                        ? styles.kindTagPaid
-                        : isFreeKind
-                        ? styles.kindTagFree
-                        : styles.kindTagDefault,
-                    ]}
-                  >
-                    <Text style={styles.kindTagText}>{badgeLabel}</Text>
-                  </View>
-
-                  {isLocked ? (
-                    <View style={styles.gridLockBadge}>
-                      <Ionicons name="lock-closed" size={11} color="#fff" />
-                    </View>
-                  ) : null}
-                </View>
-
-                {/* Bottom overlay: Photo count */}
-                <View style={styles.gridBottomOverlay}>
-                  <View style={styles.photoCountChip}>
-                    <Ionicons name="images" size={11} color="#fff" />
-                    <Text style={styles.photoCountText}>
-                      {item.photoCount != null ? item.photoCount : 0}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.gridCardBody}>
-                <Text style={styles.gridCardTitle} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.gridCardSubtitle} numberOfLines={1}>
-                  {isEventKind ? 'Event Collection' : rawKind ? `${rawKind} Gallery` : 'Photo Vault'}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        }}
+        initialNumToRender={6}
+        windowSize={7}
+        maxToRenderPerBatch={6}
+        removeClippedSubviews
+        renderItem={({ item }) =>
+          layoutMode === 'list' ? (
+            <AlbumListRow album={item} showPhotographer={!isPhotographer} onOpen={openAlbum} />
+          ) : (
+            <AlbumGridCard album={item} showPhotographer={!isPhotographer} onOpen={openAlbum} />
+          )
+        }
         ListEmptyComponent={
           loading ? (
-            <View style={styles.centerBox}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading collections…</Text>
-            </View>
+            <AlbumGridSkeleton />
           ) : error ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBox}>
                 <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
               </View>
-              <Text style={styles.emptyTitle}>Couldn&apos;t load albums</Text>
+              <Text style={styles.emptyTitle}>Could not load albums</Text>
               <Text style={styles.emptySubtitle}>
-                Please check your network connection and pull down to retry.
+                Check your connection, then try again.
               </Text>
-              <Pressable style={styles.emptyBtn} onPress={refresh}>
-                <Text style={styles.emptyBtnText}>Retry</Text>
+              <Pressable style={styles.emptyBtn} onPress={refresh} accessibilityRole="button" accessibilityLabel="Try again">
+                <Text style={styles.emptyBtnText}>Try again</Text>
               </Pressable>
             </View>
           ) : (
@@ -690,6 +570,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     borderColor: c.primary,
   },
+  segmentPillAccent: { backgroundColor: c.accent, borderColor: c.accent },
   segmentText: {
     fontFamily: fonts.bold,
     fontSize: 13,
