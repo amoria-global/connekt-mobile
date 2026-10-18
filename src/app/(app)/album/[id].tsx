@@ -11,10 +11,12 @@
  *   • Hairline Photo Mosaic: Tight 2px gaps, rounded corners, and instant 3-col / 2-col switcher.
  *   • World-Class In-App Lightbox: Deep black backdrop, tap zones for seamless next/prev,
  *     top counter ("14 of 48"), and a floating glass pill bar for "Save to Camera Roll".
- *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
+ *   • Night-studio pass: the photo strip is a virtualised, memoised grid of thumbnails, the viewer pages by
+ *     swipe, loading is a skeleton, and every fact on the header (count, date, place, photographer) is the API's own.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -47,6 +49,10 @@ import {
   type AlbumFaceStatus,
   type AlbumImage,
 } from '@/features/gallery/api';
+import { albumDateText, photoCountText } from '@/features/gallery/albumFacts';
+import { PhotoViewer } from '@/features/gallery/PhotoViewer';
+import { PhotoCell, PhotoGridSkeleton } from '@/features/gallery/PhotoGrid';
+import { chipColors } from '@/features/photobooks/statusChip';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useAsync } from '@/hooks/useAsync';
@@ -64,10 +70,12 @@ const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> =
   REJECTED: { label: 'Needs changes', bg: '#FEE2E2', fg: '#B91C1C' },
 };
 
+const PhotoGap = () => <View style={{ height: 3 }} />;
+
 export default function AlbumDetailScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -83,7 +91,7 @@ export default function AlbumDetailScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [faceStatus, setFaceStatus] = useState<AlbumFaceStatus | null>(null);
   const [reportImageId, setReportImageId] = useState<string | null>(null);
-  const [activePhoto, setActivePhoto] = useState<AlbumImage | null>(null);
+  const [viewerIndex, setViewerIndex] = useState(-1);
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [gridCols, setGridCols] = useState<2 | 3>(3);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
@@ -104,22 +112,7 @@ export default function AlbumDetailScreen() {
 
   const images = useMemo(() => data?.images ?? [], [data?.images]);
 
-  const activePhotoIndex = useMemo(() => {
-    if (!activePhoto) return -1;
-    return images.findIndex((img) => img.id === activePhoto.id);
-  }, [activePhoto, images]);
-
-  const onNextPhoto = () => {
-    if (activePhotoIndex >= 0 && activePhotoIndex < images.length - 1) {
-      setActivePhoto(images[activePhotoIndex + 1]);
-    }
-  };
-
-  const onPrevPhoto = () => {
-    if (activePhotoIndex > 0) {
-      setActivePhoto(images[activePhotoIndex - 1]);
-    }
-  };
+  const openPhoto = useCallback((photoId: string) => setViewerIndex(images.findIndex((img) => img.id === photoId)), [images]);
 
   const onAddPhotos = async () => {
     const imgs = await pickMultipleFromLibrary(40);
@@ -210,12 +203,12 @@ export default function AlbumDetailScreen() {
       'Our team will review and publish this album to the public library once approved.',
     );
 
-  const onSaveActivePhoto = async () => {
-    if (!activePhoto?.url) return;
+  const onSaveActivePhoto = async (photo: AlbumImage) => {
+    if (!photo.url) return;
     setSavingPhoto(true);
     try {
-      const filename = `connekt-photo-${activePhoto.id}.jpg`;
-      const res = await savePhotoToGallery(activePhoto.url, filename, {
+      const filename = `connekt-photo-${photo.id}.jpg`;
+      const res = await savePhotoToGallery(photo.url, filename, {
         notifyOnSuccess: true,
         customSuccessMessage: 'Photo successfully saved to your camera roll.',
       });
@@ -229,29 +222,28 @@ export default function AlbumDetailScreen() {
     }
   };
 
-  const onShareActivePhoto = () => {
-    if (!activePhoto?.url) return;
+  const onShareActivePhoto = (photo: AlbumImage) => {
+    if (!photo.url) return;
     Share.share({
       title: data?.name || 'Photo',
-      message: `Check out this photo from "${data?.name || 'Album'}" on Connekyt:\n${activePhoto.url}`,
-      url: activePhoto.url,
+      message: `Check out this photo from "${data?.name || 'Album'}" on Connekyt:\n${photo.url}`,
+      url: photo.url,
     }).catch(() => {});
   };
 
-  const onLongPressPhoto = (imageId: string) => {
-    if (isPhotographer) return;
+  const onLongPressPhoto = useCallback((imageId: string) => {
     Alert.alert('Photo options', undefined, [
       { text: 'Report photo', style: 'destructive', onPress: () => setReportImageId(imageId) },
       { text: 'Cancel', style: 'cancel' },
     ]);
-  };
+  }, []);
 
   const submitPhotoReport = async (reason: string, desc: string) => {
     if (!reportImageId) throw { status: 400, message: 'Nothing to report.' };
     return reportContent('PHOTO', reportImageId, reason, desc);
   };
 
-  const gap = 8;
+  const gap = 3;
   const gridPadding = spacing.lg;
   const gridWidth = width - gridPadding * 2;
   const cell = Math.floor((gridWidth - gap * (gridCols - 1)) / gridCols);
@@ -279,9 +271,9 @@ export default function AlbumDetailScreen() {
             <Ionicons name="chevron-back" size={20} color={colors.text} />
           </Pressable>
         </View>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.muted}>Loading album…</Text>
+        <View style={[styles.skeletonWrap, { paddingHorizontal: gridPadding }]} accessibilityLabel="Loading album">
+          <View style={styles.skeletonCover} />
+          <PhotoGridSkeleton size={cell} cols={gridCols} gap={gap} />
         </View>
       </Screen>
     );
@@ -316,7 +308,8 @@ export default function AlbumDetailScreen() {
   const locked = data?.locked && images.length === 0;
   const isContent = !!data?.isContent;
   const approval = data?.approvalStatus;
-  const approvalMeta = approval ? APPROVAL_META[approval] : null;
+  const approvalBase = approval ? APPROVAL_META[approval] : null;
+  const approvalMeta = approvalBase ? { ...approvalBase, ...chipColors(approvalBase, isDark, colors) } : null;
 
   const rawKind = (data?.kind ?? '').trim();
   const kindUpper = rawKind.toUpperCase();
@@ -384,7 +377,11 @@ export default function AlbumDetailScreen() {
         keyExtractor={(img) => img.id}
         numColumns={gridCols}
         columnWrapperStyle={{ gap }}
-        ItemSeparatorComponent={() => <View style={{ height: gap }} />}
+        ItemSeparatorComponent={PhotoGap}
+        initialNumToRender={18}
+        windowSize={7}
+        maxToRenderPerBatch={12}
+        removeClippedSubviews
         contentContainerStyle={[
           styles.list,
           { paddingHorizontal: gridPadding },
@@ -410,7 +407,7 @@ export default function AlbumDetailScreen() {
                   contentFit="cover"
                   transition={250}
                 />
-                <View style={styles.coverScrim} />
+                <LinearGradient colors={['rgba(5,12,24,0)', 'rgba(5,12,24,0.85)']} style={styles.coverScrim} pointerEvents="none" />
                 <View style={styles.coverBadgeRow}>
                   <View
                     style={[
@@ -475,14 +472,26 @@ export default function AlbumDetailScreen() {
 
                 <View style={styles.metaChip}>
                   <Ionicons name="images-outline" size={13} color={colors.primary} />
-                  <Text style={styles.metaChipText}>
-                    {data?.photoCount != null
-                      ? `${data.photoCount} photo${data.photoCount === 1 ? '' : 's'}`
-                      : `${images.length} photos`}
-                  </Text>
+                  <Text style={styles.metaChipText}>{photoCountText(data?.photoCount ?? images.length)}</Text>
                 </View>
 
-                {data?.categoryLabel || data?.kind ? (
+                {albumDateText(data?.date ?? data?.receivedDate) ? (
+                  <View style={styles.metaChip}>
+                    <Ionicons name="calendar-outline" size={12} color={colors.textMuted} />
+                    <Text style={styles.metaChipText}>{albumDateText(data?.date ?? data?.receivedDate)}</Text>
+                  </View>
+                ) : null}
+
+                {data?.eventLocation ? (
+                  <View style={styles.metaChip}>
+                    <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+                    <Text style={styles.metaChipText} numberOfLines={1}>
+                      {data.eventLocation}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {(data?.categoryLabel || data?.kind) && (data?.categoryLabel || data?.kind)?.toUpperCase() !== badgeLabel ? (
                   <View style={styles.metaChip}>
                     <Ionicons name="pricetag-outline" size={12} color={colors.textMuted} />
                     <Text style={styles.metaChipText}>
@@ -493,8 +502,8 @@ export default function AlbumDetailScreen() {
 
                 {data?.locked ? (
                   <View style={[styles.metaChip, styles.metaChipLocked]}>
-                    <Ionicons name="lock-closed" size={12} color="#D97706" />
-                    <Text style={[styles.metaChipText, { color: '#D97706' }]}>Locked</Text>
+                    <Ionicons name="lock-closed" size={12} color={colors.warning} />
+                    <Text style={[styles.metaChipText, { color: colors.warning }]}>Locked</Text>
                   </View>
                 ) : null}
               </View>
@@ -669,23 +678,8 @@ export default function AlbumDetailScreen() {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={[styles.photoCell, { width: cell, height: cell }]}
-            onPress={() => setActivePhoto(item)}
-            onLongPress={() => onLongPressPhoto(item.id)}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-          >
-            <View style={styles.photoPlaceholder} pointerEvents="none">
-              <Ionicons name="camera-outline" size={20} color={colors.textMuted} />
-            </View>
-            <Image
-              source={{ uri: item.url }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              transition={150}
-            />
-          </Pressable>
+        renderItem={({ item, index }) => (
+          <PhotoCell photo={item} size={cell} position={index + 1} total={images.length} onOpen={openPhoto} onHold={isPhotographer ? undefined : onLongPressPhoto} />
         )}
         ListEmptyComponent={
           locked ? null : (
@@ -714,153 +708,24 @@ export default function AlbumDetailScreen() {
         }
       />
 
-      {/* World-Class Fullscreen Photo Lightbox Modal */}
-      <Modal
-        visible={!!activePhoto}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActivePhoto(null)}
-      >
-        <View style={styles.lightboxBackdrop}>
-          {/* Top Bar */}
-          <View style={[styles.lightboxTopBar, { paddingTop: Math.max(insets.top + 6, 18) }]}>
-            <Pressable
-              style={styles.lightboxGlassCircle}
-              onPress={() => setActivePhoto(null)}
-              hitSlop={8}
-              accessibilityLabel="Close photo viewer"
-            >
-              <Ionicons name="close" size={20} color="#fff" />
-            </Pressable>
-
-            {activePhotoIndex >= 0 ? (
-              <Text style={styles.lightboxCounter}>
-                {activePhotoIndex + 1} of {images.length}
-              </Text>
-            ) : null}
-
-            <View style={styles.lightboxTopActions}>
-              <Pressable
-                style={styles.lightboxGlassCircle}
-                onPress={onShareActivePhoto}
-                hitSlop={8}
-                accessibilityLabel="Share photo"
-              >
-                <Ionicons name="share-outline" size={17} color="#fff" />
-              </Pressable>
-
-              {!isPhotographer && activePhoto ? (
-                <Pressable
-                  style={styles.lightboxGlassCircle}
-                  onPress={() => {
-                    const imgId = activePhoto.id;
-                    setActivePhoto(null);
-                    setReportImageId(imgId);
-                  }}
-                  hitSlop={8}
-                  accessibilityLabel="Report photo"
-                >
-                  <Ionicons name="flag-outline" size={17} color="#fff" />
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Central Image View with Invisible Tap Navigation Zones */}
-          <View style={styles.lightboxImageContainer}>
-            {activePhoto?.url ? (
-              <Image
-                source={{ uri: activePhoto.url }}
-                style={styles.lightboxImage}
-                contentFit="contain"
-                transition={200}
-              />
-            ) : null}
-
-            {/* Tap left zone */}
-            {activePhotoIndex > 0 ? (
-              <Pressable
-                style={styles.leftTapZone}
-                onPress={onPrevPhoto}
-                accessibilityLabel="Previous photo"
-              />
-            ) : null}
-
-            {/* Tap right zone */}
-            {activePhotoIndex >= 0 && activePhotoIndex < images.length - 1 ? (
-              <Pressable
-                style={styles.rightTapZone}
-                onPress={onNextPhoto}
-                accessibilityLabel="Next photo"
-              />
-            ) : null}
-          </View>
-
-          {/* Bottom Floating Glass Navigation & Download Pill */}
-          <View
-            style={[
-              styles.lightboxBottomBar,
-              { paddingBottom: Math.max(insets.bottom + 8, 24) },
-            ]}
-          >
-            <View style={styles.lightboxControlPill}>
-              {/* Previous Photo Button */}
-              <Pressable
-                style={[
-                  styles.pillNavBtn,
-                  activePhotoIndex <= 0 && styles.pillNavBtnDisabled,
-                ]}
-                onPress={onPrevPhoto}
-                disabled={activePhotoIndex <= 0}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={19}
-                  color={activePhotoIndex <= 0 ? 'rgba(255,255,255,0.3)' : '#fff'}
-                />
-              </Pressable>
-
-              {/* Save to Camera Roll Action */}
-              <Pressable
-                style={[styles.pillSaveBtn, savingPhoto && styles.btnDisabled]}
-                onPress={onSaveActivePhoto}
-                disabled={savingPhoto}
-              >
-                {savingPhoto ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="download-outline" size={16} color="#fff" />
-                    <Text style={styles.pillSaveText}>Save to Camera Roll</Text>
-                  </>
-                )}
-              </Pressable>
-
-              {/* Next Photo Button */}
-              <Pressable
-                style={[
-                  styles.pillNavBtn,
-                  activePhotoIndex >= images.length - 1 && styles.pillNavBtnDisabled,
-                ]}
-                onPress={onNextPhoto}
-                disabled={activePhotoIndex >= images.length - 1}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={19}
-                  color={
-                    activePhotoIndex >= images.length - 1
-                      ? 'rgba(255,255,255,0.3)'
-                      : '#fff'
-                  }
-                />
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <PhotoViewer
+        photos={images}
+        index={viewerIndex}
+        onIndexChange={setViewerIndex}
+        onClose={() => setViewerIndex(-1)}
+        onSave={onSaveActivePhoto}
+        onShare={onShareActivePhoto}
+        onReport={
+          isPhotographer
+            ? undefined
+            : (photo) => {
+                setViewerIndex(-1);
+                setReportImageId(photo.id);
+              }
+        }
+        saving={savingPhoto}
+        saveColor={isPhotographer ? colors.primary : colors.accent}
+      />
 
       {/* More Options Action Sheet Modal */}
       <Modal
@@ -1078,6 +943,8 @@ const useStyles = makeStyles((c) => ({
   retryBtnText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
 
   list: { paddingBottom: 60, paddingTop: spacing.md },
+  skeletonWrap: { flex: 1, gap: spacing.md, paddingTop: spacing.md },
+  skeletonCover: { height: 180, borderRadius: radii.xl, backgroundColor: c.surfaceMuted, opacity: 0.6 },
   header: { gap: spacing.md, marginBottom: spacing.md },
 
   // Cover Card
@@ -1088,15 +955,14 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.surfaceMuted,
     position: 'relative',
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.border,
   },
   coverScrim: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 80,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    height: 110,
   },
   coverBadgeRow: {
     position: 'absolute',

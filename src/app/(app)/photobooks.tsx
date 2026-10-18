@@ -8,19 +8,18 @@
  *     frosted status badge, and rich typography.
  *   • Modern Floating Action Button: Solid high-contrast "+ New Photobook" anchored
  *     safely above bottom insets.
- *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
+ *   • Night-studio pass: spine-edged cover cards with the API's own status, count and byline, skeleton loading,
+ *     an error with Try again, and the accent on the active filter for client and coordinator (the photographer
+ *     keeps the primary colour).
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Image } from 'expo-image';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -30,30 +29,19 @@ import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { listPhotobooks, listReceivedPhotobooks, type Photobook } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
-import { chipColors } from '@/features/photobooks/statusChip';
+import { PhotobookCard, PhotobookGridSkeleton } from '@/features/photobooks/PhotobookCard';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'SENT';
 
-const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
-  PUBLISHED: { label: 'Published', bg: '#D1FAE5', fg: '#047857' },
-  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
-  PENDING: { label: 'Pending', bg: '#FEF3C7', fg: '#92400E' },
-  SENT: { label: 'Delivered', bg: '#DBEAFE', fg: '#1D4ED8' },
-  // Photobooks a client sent to the photographer (web: received photobooks).
-  SENT_TO_PHOTOGRAPHER: { label: 'To edit', bg: '#FEF3C7', fg: '#92400E' },
-  PHOTOGRAPHER_EDITING: { label: 'Editing', bg: '#DBEAFE', fg: '#1D4ED8' },
-  RESUBMITTED: { label: 'Resubmitted', bg: '#DBEAFE', fg: '#1D4ED8' },
-  COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
-};
-
 export default function PhotobooksScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isPhotographer, isCoordinator } = useRole();
   const canCreate = isPhotographer || isCoordinator;
+  const accent = !isPhotographer;
 
   // A photographer has two shelves: books they made, and books clients sent them to edit (web "received photobooks").
   const [shelf, setShelf] = useState<'mine' | 'received'>('mine');
@@ -74,6 +62,7 @@ export default function PhotobooksScreen() {
   const [search, setSearch] = useState('');
 
   const photobooks = useMemo(() => data ?? [], [data]);
+  const openBook = useCallback((id: string, isReceived: boolean) => router.push((isReceived ? `/photobook/${id}?received=1` : `/photobook/${id}`) as Href), [router]);
 
   const counts = useMemo(() => {
     const c: Record<StatusFilter, number> = { ALL: photobooks.length, PUBLISHED: 0, DRAFT: 0, SENT: 0 };
@@ -157,7 +146,9 @@ export default function PhotobooksScreen() {
             <Pressable
               key={f}
               onPress={() => setFilter(f)}
-              style={[styles.filterPill, active && styles.filterPillActive]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={[styles.filterPill, active && styles.filterPillActive, active && accent && styles.filterPillAccent]}
             >
               <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
                 {label}
@@ -208,86 +199,24 @@ export default function PhotobooksScreen() {
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
         }
         ListHeaderComponent={header}
-        renderItem={({ item }) => {
-          const statusKey = (item.status ?? '').toUpperCase();
-          const base = STATUS_META[statusKey] ?? {
-            label: item.status || 'Book',
-            bg: 'rgba(0,0,0,0.55)',
-            fg: '#fff',
-          };
-          const tone = { ...base, ...chipColors(base, isDark, colors) };
-
-          return (
-            <Pressable
-              style={styles.card}
-              onPress={() => router.push((received ? `/photobook/${item.id}?received=1` : `/photobook/${item.id}`) as Href)}
-              android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-            >
-              <View style={styles.cover}>
-                {item.coverImage ? (
-                  <Image
-                    source={{ uri: item.coverImage }}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                ) : (
-                  <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
-                    <Ionicons name="book-outline" size={32} color={colors.textMuted} />
-                  </View>
-                )}
-
-                {/* Scrim Overlay */}
-                <View style={styles.cardScrim} />
-
-                {/* Status Badge in Top Corner */}
-                <View style={styles.cardTop}>
-                  <View style={[styles.statusBadge, { backgroundColor: tone.bg }]}>
-                    <Text style={[styles.statusBadgeText, { color: tone.fg }]}>
-                      {tone.label}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Bottom Overlay: Photo count */}
-                <View style={styles.cardBottom}>
-                  <View style={styles.photoCountChip}>
-                    <Ionicons name="images" size={11} color="#fff" />
-                    <Text style={styles.photoCountText}>
-                      {item.mediaCount != null ? item.mediaCount : 0} photos
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.cardMeta} numberOfLines={1}>
-                  {item.photographerName ? `By ${item.photographerName}` : 'Event Collection'}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        }}
+        initialNumToRender={6}
+        windowSize={7}
+        removeClippedSubviews
+        renderItem={({ item }) => <PhotobookCard book={item} received={received} onOpen={openBook} />}
         ListEmptyComponent={
           loading ? (
-            <View style={styles.centerBox}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading photobooks…</Text>
-            </View>
+            <PhotobookGridSkeleton />
           ) : error ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBox}>
                 <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
               </View>
-              <Text style={styles.emptyTitle}>Couldn&apos;t load photobooks</Text>
+              <Text style={styles.emptyTitle}>Could not load photobooks</Text>
               <Text style={styles.emptySubtitle}>
-                Please check your network connection and pull down to retry.
+                Check your connection, then try again.
               </Text>
-              <Pressable style={styles.emptyBtn} onPress={refresh}>
-                <Text style={styles.emptyBtnText}>Retry</Text>
+              <Pressable style={styles.emptyBtn} onPress={refresh} accessibilityRole="button" accessibilityLabel="Try again">
+                <Text style={styles.emptyBtnText}>Try again</Text>
               </Pressable>
             </View>
           ) : (
@@ -405,6 +334,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     borderColor: c.primary,
   },
+  filterPillAccent: { backgroundColor: c.accent, borderColor: c.accent },
   filterPillText: {
     fontFamily: fonts.bold,
     fontSize: 13,
