@@ -20,7 +20,6 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
   Pressable,
   Share,
   StyleSheet,
@@ -33,6 +32,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
+import { useRole } from '@/features/auth/role';
+import { PhotoViewer } from '@/features/gallery/PhotoViewer';
+import { PhotoCell } from '@/features/gallery/PhotoGrid';
 import { dismissReceivedPhotobook, getPhotobook, resubmitPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
@@ -53,10 +55,13 @@ const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
   COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
 };
 
+const PhotoGap = () => <View style={{ height: 3 }} />;
+
 export default function PhotobookDetailScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors, isDark } = useTheme();
+  const { isPhotographer } = useRole();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { id, received: receivedParam } = useLocalSearchParams<{ id: string; received?: string }>();
@@ -71,54 +76,40 @@ export default function PhotobookDetailScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [payDeclarationId, setPayDeclarationId] = useState<string | null>(null);
   const payBusy = false;
-  const [activePhoto, setActivePhoto] = useState<PhotobookPhoto | null>(null);
+  const [viewerIndex, setViewerIndex] = useState(-1);
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [gridCols, setGridCols] = useState<2 | 3>(3);
 
   const photos = useMemo(() => data?.photos ?? [], [data?.photos]);
 
-  const activePhotoIndex = useMemo(() => {
-    if (!activePhoto) return -1;
-    return photos.findIndex((p) => p.id === activePhoto.id);
-  }, [activePhoto, photos]);
-
-  const onNextPhoto = () => {
-    if (activePhotoIndex >= 0 && activePhotoIndex < photos.length - 1) {
-      setActivePhoto(photos[activePhotoIndex + 1]);
-    }
-  };
-
-  const onPrevPhoto = () => {
-    if (activePhotoIndex > 0) {
-      setActivePhoto(photos[activePhotoIndex - 1]);
-    }
-  };
+  const openPhoto = useCallback((photoId: string) => setViewerIndex(photos.findIndex((p) => p.id === photoId)), [photos]);
 
   const onShareBook = () => {
     const title = data?.name || 'Photobook';
     const url = `https://connekyt.com/user/events/photobooks/${id}`;
     Share.share({
       title,
-      message: `Explore "${title}" on Connekyt:\n${url}`,
+      message: `Explore "${title}" on Connekyt:
+${url}`,
       url,
     }).catch(() => {});
   };
 
-  const onShareActivePhoto = () => {
-    if (!activePhoto?.url) return;
+  const onShareActivePhoto = (photo: PhotobookPhoto) => {
+    if (!photo.url) return;
     Share.share({
       title: data?.name || 'Photo',
-      message: `Check out this photo from "${data?.name || 'Photobook'}" on Connekyt:\n${activePhoto.url}`,
-      url: activePhoto.url,
+      message: `Check out this photo from "${data?.name || 'Photobook'}" on Connekyt:\n${photo.url}`,
+      url: photo.url,
     }).catch(() => {});
   };
 
-  const onSaveActivePhoto = async () => {
-    if (!activePhoto?.url) return;
+  const onSaveActivePhoto = async (photo: PhotobookPhoto) => {
+    if (!photo.url) return;
     setSavingPhoto(true);
     try {
-      const filename = `connekt-photobook-${activePhoto.id}.jpg`;
-      const res = await savePhotoToGallery(activePhoto.url, filename, {
+      const filename = `connekt-photobook-${photo.id}.jpg`;
+      const res = await savePhotoToGallery(photo.url, filename, {
         notifyOnSuccess: true,
         customSuccessMessage: 'Photo successfully saved to your camera roll.',
       });
@@ -172,7 +163,7 @@ export default function PhotobookDetailScreen() {
       },
     ]);
 
-  const gap = 2;
+  const gap = 3;
   const cell = (width - gap * (gridCols - 1)) / gridCols;
 
   if (loading && !data) {
@@ -406,20 +397,12 @@ export default function PhotobookDetailScreen() {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={[styles.photoCell, { width: cell, height: cell }]}
-            onPress={() => setActivePhoto(item)}
-            android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
-          >
-            <Image
-              source={{ uri: item.url }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              transition={150}
-            />
-          </Pressable>
-        )}
+        initialNumToRender={18}
+        windowSize={7}
+        maxToRenderPerBatch={12}
+        removeClippedSubviews
+        ItemSeparatorComponent={PhotoGap}
+        renderItem={({ item, index }) => <PhotoCell photo={item} size={cell} position={index + 1} total={photos.length} onOpen={openPhoto} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
@@ -435,136 +418,16 @@ export default function PhotobookDetailScreen() {
         }
       />
 
-      {/* World-Class Fullscreen Photo Lightbox Modal */}
-      <Modal
-        visible={!!activePhoto}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActivePhoto(null)}
-      >
-        <View style={styles.lightboxBackdrop}>
-          {/* Top Bar */}
-          <View style={[styles.lightboxTopBar, { paddingTop: Math.max(insets.top + 6, 18) }]}>
-            <Pressable
-              style={styles.lightboxGlassCircle}
-              onPress={() => setActivePhoto(null)}
-              hitSlop={8}
-              accessibilityLabel="Close photo viewer"
-            >
-              <Ionicons name="close" size={20} color="#fff" />
-            </Pressable>
-
-            {activePhotoIndex >= 0 ? (
-              <Text style={styles.lightboxCounter}>
-                {activePhotoIndex + 1} of {photos.length}
-              </Text>
-            ) : null}
-
-            <Pressable
-              style={styles.lightboxGlassCircle}
-              onPress={onShareActivePhoto}
-              hitSlop={8}
-              accessibilityLabel="Share photo"
-            >
-              <Ionicons name="share-outline" size={17} color="#fff" />
-            </Pressable>
-          </View>
-
-          {/* Central Image View with Invisible Tap Navigation Zones */}
-          <View style={styles.lightboxImageContainer}>
-            {activePhoto?.url ? (
-              <Image
-                source={{ uri: activePhoto.url }}
-                style={styles.lightboxImage}
-                contentFit="contain"
-                transition={200}
-              />
-            ) : null}
-
-            {/* Tap left zone */}
-            {activePhotoIndex > 0 ? (
-              <Pressable
-                style={styles.leftTapZone}
-                onPress={onPrevPhoto}
-                accessibilityLabel="Previous photo"
-              />
-            ) : null}
-
-            {/* Tap right zone */}
-            {activePhotoIndex >= 0 && activePhotoIndex < photos.length - 1 ? (
-              <Pressable
-                style={styles.rightTapZone}
-                onPress={onNextPhoto}
-                accessibilityLabel="Next photo"
-              />
-            ) : null}
-          </View>
-
-          {/* Bottom Floating Glass Navigation & Download Pill */}
-          <View
-            style={[
-              styles.lightboxBottomBar,
-              { paddingBottom: Math.max(insets.bottom + 8, 24) },
-            ]}
-          >
-            <View style={styles.lightboxControlPill}>
-              {/* Previous Photo Button */}
-              <Pressable
-                style={[
-                  styles.pillNavBtn,
-                  activePhotoIndex <= 0 && styles.pillNavBtnDisabled,
-                ]}
-                onPress={onPrevPhoto}
-                disabled={activePhotoIndex <= 0}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={19}
-                  color={activePhotoIndex <= 0 ? 'rgba(255,255,255,0.3)' : '#fff'}
-                />
-              </Pressable>
-
-              {/* Save to Camera Roll Action */}
-              <Pressable
-                style={[styles.pillSaveBtn, savingPhoto && styles.btnDisabled]}
-                onPress={onSaveActivePhoto}
-                disabled={savingPhoto}
-              >
-                {savingPhoto ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="download-outline" size={16} color="#fff" />
-                    <Text style={styles.pillSaveText}>Save to Camera Roll</Text>
-                  </>
-                )}
-              </Pressable>
-
-              {/* Next Photo Button */}
-              <Pressable
-                style={[
-                  styles.pillNavBtn,
-                  activePhotoIndex >= photos.length - 1 && styles.pillNavBtnDisabled,
-                ]}
-                onPress={onNextPhoto}
-                disabled={activePhotoIndex >= photos.length - 1}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={19}
-                  color={
-                    activePhotoIndex >= photos.length - 1
-                      ? 'rgba(255,255,255,0.3)'
-                      : '#fff'
-                  }
-                />
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <PhotoViewer
+        photos={photos}
+        index={viewerIndex}
+        onIndexChange={setViewerIndex}
+        onClose={() => setViewerIndex(-1)}
+        onSave={onSaveActivePhoto}
+        onShare={onShareActivePhoto}
+        saving={savingPhoto}
+        saveColor={isPhotographer ? colors.primary : colors.accent}
+      />
       <HandoffCheckoutSheet
         visible={!!payDeclarationId}
         onClose={() => setPayDeclarationId(null)}

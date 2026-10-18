@@ -48,6 +48,12 @@ export type GalleryItem = {
   isContent?: boolean;
   /** Album kind label when the backend provides it (Event / Personal / Content). */
   kind?: string;
+  /** Event day (yyyy-MM-dd) and delivery day, only when the API sent them. */
+  date?: string;
+  receivedDate?: string;
+  /** Who shot it, on the lists that name them (the client's). */
+  photographer?: string;
+  eventLocation?: string;
 };
 
 export type AlbumImage = { id: ID; url?: string; fullUrl?: string; caption?: string };
@@ -96,6 +102,10 @@ function mapGallery(r: Raw): GalleryItem {
     locked: r.isLocked === true || r.locked === true,
     isContent,
     kind: isContent ? 'Content' : str(r.albumType) ?? str(r.kind),
+    date: str(r.date) ?? str(r.eventDate),
+    receivedDate: str(r.receivedDate) ?? str(r.createdAt),
+    photographer: str(r.photographer) ?? str(r.photographerName),
+    eventLocation: str(r.eventLocation),
   };
 }
 
