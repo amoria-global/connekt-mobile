@@ -132,3 +132,57 @@ peeking was seen, the swipe itself was not exercised).
 - `PayNowSheet` from the Payments screen is given `paidAmount: 0` because the payment-history record carries no paid amount. A
   part-paid booking opened there shows the full amount until the sheet reads it.
 - Tab labels stay Home, Events, Wallet, Inbox, More (shared by every role).
+
+---
+
+# Continuation plan (2026-10-18, second pass)
+
+Start: `7f7048e` on `feat/client-dashboard-redesign` (tree clean). Goal: finish every client screen and bring the whole client experience to the
+night-studio standard of the supplied prototype. Frontend only, nothing merged, pushed or published.
+
+## What already exists (so nothing is reinvented)
+
+- **Theme**: `src/theme/palettes.ts` already carries a deep blue-teal dark palette (`background #0A1524`, `surface #0F1D2F`, `card #13243A`, `elevated
+  #1B3049`, `border #274463`, brightened `primary #3D6FD6`, `link #7FA6F5`, `accent #F20C8F`) and the light palette anchored on `#083A85` and `#F20C8F`.
+  Elevation is `makeElevation`/`elevation(level)` (surface lightness plus hairline in dark, cast shadow in light). Gradients come from `gradientsFor`
+  (`brand`, `accent`, `wash`). The app follows the system scheme; dark is the night-studio look and light is kept intentional, not forced off.
+- **Installed**: `expo-linear-gradient`, `expo-image`, `expo-blur`, `react-native-reanimated 4.5.1`, `react-native-svg`, `react-native-gesture-handler`,
+  `@expo/vector-icons`. `@shopify/flash-list` is **not** installed, so long lists use tuned `FlatList`; no new dependency is added.
+- **Shared UI**: `features/photographer/kit.tsx` (SectionHeader, HCarousel, MetricCard, ActionButton, IconTile, StatusText, Chip, SegmentedTabs, StatusBadge,
+  Skeleton, ErrorNotice, EmptyNote, Card), `homeParts.tsx` (Thumb, ShootCard, PriorityCard), `components/ui/*` (Button, Input, Sheet, dialog, Segmented,
+  ScreenHeader, Rating, StatusPill, EmptyState, Fab, VerifiedAvatar, live/*). Gaps for the night-studio set: a gradient HeroActionCard, a ListRow, a
+  ProgressTrack, an EventSummary row. Those are added once in `features/client/studio.tsx` and reused.
+
+## Client route inventory
+
+Scope rule: a route is in scope when a Client reaches it from the tab bar, the More sheet, Home, or a client action. Photographer, coordinator, studio
+and admin-only routes (analytics, withdraw, payroll, collaborate, packages, clients, stream control, geo-pricing, tv/pay-on-tv) are **out of scope** and
+not touched.
+
+| Route | File | Lines | Plan |
+|---|---|---|---|
+| Home (tab) | `features/dashboard/ClientHome.tsx` | 687 | Elevate: hero action cards, event summary |
+| Events (tab) | `features/events/ClientEventsDashboard.tsx` | ~400 | Elevate with shared parts |
+| Wallet (tab) | `(tabs)/wallet.tsx`, `features/wallet/ClientPaymentsDue.tsx` | 1471 | Elevate; verify dark and 1.6x |
+| Inbox (tab) | `(tabs)/inbox.tsx` | 1081 | Redesign list rows |
+| Conversation | `conversation/[id].tsx` | 393 | Redesign bubbles and composer |
+| More sheet | `components/PersistentBottomBar.tsx` | 1024 | Audit only (shared, already modern) |
+| Profile (tab) | `(tabs)/profile.tsx` | 1098 | Redesign as grouped settings |
+| Edit profile, preferences, two-factor, blocked, delete | `edit-profile.tsx`, `preferences.tsx`, `two-factor.tsx`, `blocked-accounts.tsx`, `delete-account.tsx` | 142 to 354 | Restyle with the same rows |
+| Photographers directory | `photographers.tsx` | 1642 | Redesign cards and filters |
+| Photographer profile | `photographer/[id].tsx` | 1278 | Redesign header, portfolio, sticky CTA |
+| Booking wizard | `event/new.tsx`, `features/booking/*`, `event/hybrid-wizard.tsx` | 1773 + | Progress and card grouping, payload unchanged |
+| Event detail | `event/[id].tsx` | 1269 | Redesign hierarchy |
+| Candidates | `event/candidates.tsx` | 323 | Restyle |
+| Notifications | `notifications.tsx` | 967 | Group by day, icon tiles |
+| Bookings | `bookings.tsx` | 725 | Restyle |
+| Gallery, albums | `gallery.tsx`, `album/[id].tsx`, `album/new.tsx`, `content-albums.tsx`, `content-album/new.tsx` | 1079 to 1600 | Restyle list and grid |
+| Photobooks | `photobooks.tsx`, `photobook/[id].tsx`, `photobook/new.tsx` | 623 to 935 | Restyle |
+| Transactions, payments, payment detail | `transactions.tsx`, `payments.tsx`, `payment/[id].tsx`, `payment-accounts.tsx` | 159 to 924 | Restyle rows |
+| Donations | `donations.tsx` | 142 | Restyle |
+| Public flows a client uses (explore events, event page, live stream, pay, find photos, browse photos, help centre, legal) | `(public)/*` | up to 3603 | Out of this pass: shared with guests and the viewer role; audited, untouched |
+| Auth and onboarding | `(auth)/*`, `(onboarding)/*` | | Out of scope (not the dashboard) |
+
+Honest scope note: the in-scope routes above are about 14,000 lines. Every route gets the loop (intent, hierarchy, states, tests, emulator pass), but
+the depth is bounded: logic, payloads, validation and navigation are never rewritten; the presentation layer is. The per-route status table at the end of
+this document is the source of truth for what was actually done.
