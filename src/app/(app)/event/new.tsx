@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -90,7 +93,7 @@ const MIN_RWF = 100;
 export default function NewEventScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { colors } = useTheme();
+  const { colors, gradients } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const { isCoordinator, isPhotographer } = useRole();
@@ -609,6 +612,7 @@ export default function NewEventScreen() {
 
   return (
     <Screen padded={false}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scroll}
@@ -618,17 +622,18 @@ export default function NewEventScreen() {
         showsVerticalScrollIndicator={false}
       >
           {isBooking ? (
-            <View style={styles.banner}>
+            <LinearGradient colors={gradients.heroBlue} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner}>
               <Text style={styles.bannerLabel}>Booking</Text>
               <Text style={styles.bannerName}>{params.photographerName ?? 'Photographer'}</Text>
               {amount ? <Text style={styles.bannerPrice}>{formatPrice(amount, params.currency)}</Text> : null}
-            </View>
+            </LinearGradient>
           ) : // The sheet header already says "New event"; only editing needs the in-body title for photographers.
           isPhotographer && !isEditing ? null : (
             <Text style={styles.title}>{isEditing ? 'Edit event' : 'New event'}</Text>
           )}
 
           <View style={styles.form}>
+            <Text style={styles.formEyebrow}>EVENT</Text>
             {/* Cover photo (required) */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Cover photo</Text>
@@ -665,11 +670,11 @@ export default function NewEventScreen() {
                 <Controller
                   control={control}
                   name="category"
-                  render={({ field: { value, onChange } }) => (
+                  render={({ field: { onChange } }) => (
                     <View style={styles.chips}>
                       <Pressable
                         onPress={() => onChange(entertainmentCategory)}
-                        style={[styles.chip, styles.chipActive]}
+                        style={[styles.chip, styles.chipActiveAccent]}
                       >
                         <Text style={[styles.chipText, styles.chipTextActive]}>
                           {entertainmentCategory}
@@ -689,7 +694,11 @@ export default function NewEventScreen() {
                       {cats.map((c) => {
                         const active = value === c;
                         return (
-                          <Pressable key={c} onPress={() => onChange(c)} style={[styles.chip, active && styles.chipActive]}>
+                          <Pressable
+                            key={c}
+                            onPress={() => onChange(c)}
+                            style={[styles.chip, active && (isPhotographer ? styles.chipActive : styles.chipActiveAccent)]}
+                          >
                             <Text style={[styles.chipText, active && styles.chipTextActive]}>{c}</Text>
                           </Pressable>
                         );
@@ -709,6 +718,7 @@ export default function NewEventScreen() {
               {errors.category ? <Text style={styles.errText}>{errors.category.message}</Text> : null}
             </View>
 
+            <Text style={styles.formEyebrow}>WHEN</Text>
             <Controller
               control={control}
               name="eventDate"
@@ -1187,7 +1197,24 @@ export default function NewEventScreen() {
                 <Controller control={control} name="venueName" render={({ field: { onChange, onBlur, value } }) => (
                   <Input label="Venue name" placeholder="e.g. Kigali Convention Centre" value={value} onChangeText={onChange} onBlur={onBlur} />
                 )} />
-<Pressable                  onPress={() => setInPerson((v) => !v)}                  accessibilityRole="checkbox"                  accessibilityState={{ checked: inPerson }}                  style={styles.attestRow}                >                  <Ionicons                    name={inPerson ? 'checkbox' : 'square-outline'}                    size={24}                    color={inPerson ? colors.primary : colors.textMuted}                  />                  <View style={styles.attestBody}>                    <Text style={styles.attestTitle}>Guests can attend in person at this venue</Text>                    <Text style={styles.hint}>                      Untick if this is a stream-only event. Viewers then get the live stream as a ticket.                    </Text>                  </View>                </Pressable>
+                <Pressable
+                  onPress={() => setInPerson((v) => !v)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: inPerson }}
+                  style={styles.attestRow}
+                >
+                  <Ionicons
+                    name={inPerson ? 'checkbox' : 'square-outline'}
+                    size={24}
+                    color={inPerson ? colors.primary : colors.textMuted}
+                  />
+                  <View style={styles.attestBody}>
+                    <Text style={styles.attestTitle}>Guests can attend in person at this venue</Text>
+                    <Text style={styles.hint}>
+                      Untick if this is a stream-only event. Viewers then get the live stream as a ticket.
+                    </Text>
+                  </View>
+                </Pressable>
                 <Controller control={control} name="address" render={({ field: { onChange, onBlur, value } }) => (
                   <Input label="Address" placeholder="Street / area" value={value} onChangeText={onChange} onBlur={onBlur} />
                 )} />
@@ -1297,6 +1324,7 @@ export default function NewEventScreen() {
               </View>
             ) : null}
 
+            <Text style={styles.formEyebrow}>ABOUT</Text>
             <Controller
               control={control}
               name="description"
@@ -1305,21 +1333,23 @@ export default function NewEventScreen() {
               )}
             />
 
-            {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
-
-            <Button
-              title={
-                isEditing
-                  ? 'Save changes'
-                  : amount
-                    ? `Book & pay ${formatPrice(amount, params.currency)}`
-                    : 'Create event'
-              }
-              onPress={handleSubmit(onSubmit)}
-              loading={busy}
-            />
           </View>
         </ScrollView>
+        <View style={styles.stickyBar}>
+          {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
+          <Button
+            title={
+              isEditing
+                ? 'Save changes'
+                : amount
+                  ? `Book & pay ${formatPrice(amount, params.currency)}`
+                  : 'Create event'
+            }
+            onPress={handleSubmit(onSubmit)}
+            loading={busy}
+          />
+        </View>
+      </KeyboardAvoidingView>
 
       {/* Photographer / package picker */}
       <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
@@ -1400,12 +1430,14 @@ export default function NewEventScreen() {
 
 const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
-  scroll: { padding: spacing.xl, paddingBottom: spacing['3xl'], gap: spacing.xl },
+  scroll: { padding: spacing.xl, paddingBottom: spacing.xl, gap: spacing.xl },
   title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
-  banner: { backgroundColor: c.primary, borderRadius: radii.lg, padding: spacing.lg, gap: 2 },
-  bannerLabel: { color: c.accentLight, fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase' },
-  bannerName: { color: c.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  bannerPrice: { color: '#C7D2FE', fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginTop: 2 },
+  banner: { borderRadius: radii.xl, padding: spacing.lg, gap: 2 },
+  formEyebrow: { fontSize: fontSize.xs, fontWeight: fontWeight.extrabold, color: c.accent, letterSpacing: 1.2, marginBottom: -spacing.xs },
+  stickyBar: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: spacing.xs, backgroundColor: c.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
+  bannerLabel: { color: 'rgba(255,255,255,0.82)', fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: 1 },
+  bannerName: { color: '#FFFFFF', fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+  bannerPrice: { color: 'rgba(255,255,255,0.92)', fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginTop: 2 },
   form: { gap: spacing.lg },
 
   fieldGroup: { gap: spacing.xs },
@@ -1439,7 +1471,7 @@ const useStyles = makeStyles((c) => ({
   attestTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text },
   alignStart: { alignSelf: 'flex-start' },
 
-  cover: { height: 170, borderRadius: radii.lg, overflow: 'hidden', borderWidth: 1, borderColor: c.border, backgroundColor: c.surfaceMuted },
+  cover: { height: 170, borderRadius: radii.lg, overflow: 'hidden', borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
   coverError: { borderColor: c.error },
   coverImg: { width: '100%', height: '100%' },
   coverPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
@@ -1447,13 +1479,14 @@ const useStyles = makeStyles((c) => ({
   coverEditBadge: { position: 'absolute', right: spacing.md, bottom: spacing.md, width: 32, height: 32, borderRadius: radii.full, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
+  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radii.full, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
   chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+  chipActiveAccent: { backgroundColor: c.accent, borderColor: c.accent },
   chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
-  chipTextActive: { color: c.textOnPrimary },
+  chipTextActive: { color: '#FFFFFF' },
 
   row: { flexDirection: 'row', gap: spacing.md },
-  rowItem: { flex: 1 },
+  rowItem: { flex: 1, justifyContent: 'flex-end' },
 
   moreToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.xs },
   moreToggleText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
