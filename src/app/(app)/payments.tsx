@@ -35,7 +35,10 @@ import {
 } from '@/features/payments/api';
 import { isOwedObligation } from '@/features/payments/policy';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
-import type { PendingPayment } from '@/features/analytics/api';
+import { getCoordinatorPendingPayments, getCustomerPendingPayments, type PendingPayment } from '@/features/analytics/api';
+import { pendingFor } from '@/features/payments/payNowLookup';
+import { Alert } from '@/components/ui/dialog';
+import { isApiError } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatMoney, formatPrice } from '@/utils/format';
@@ -167,17 +170,25 @@ function PaymentsContent() {
         ? streamingLoading
         : giftsLoading;
 
-  const onOpenPayNow = (item: PaymentRecord) => {
-    setPaySheetPayment({
-      id: item.declarationId || item.id,
-      eventName: item.title,
-      photographerName: 'Event Booking',
-      amount: item.amount ?? 0,
-      paidAmount: 0,
-      dueDate: item.createdAt ?? '',
-      status: 'pending',
-      paymentType: item.paymentType || 'BOOKING_DECLARATION',
-    });
+  // What is owed comes from the pending feed (its USD balance and its real paid amount), never from the history
+  // record: that carries the amount in its own currency and no paid amount, and the sheet labels it as USD.
+  const [payChecking, setPayChecking] = useState(false);
+  const onOpenPayNow = async (item: PaymentRecord) => {
+    if (payChecking) return;
+    setPayChecking(true);
+    try {
+      const feed = await (isCoordinator ? getCoordinatorPendingPayments() : getCustomerPendingPayments());
+      const found = pendingFor(item, feed);
+      if (found) {
+        setPaySheetPayment(found);
+      } else {
+        Alert.alert('Could not confirm the balance', 'We could not confirm what is still owed on this payment. Pull down to refresh, or open it from Payments due in your wallet.');
+      }
+    } catch (e) {
+      Alert.alert('Could not open payment', isApiError(e) ? e.message : 'Please try again.');
+    } finally {
+      setPayChecking(false);
+    }
   };
 
   const header = (
@@ -432,9 +443,13 @@ function PaymentsContent() {
                         isFailed && styles.retryBtn,
                         pressed && { opacity: 0.8 },
                       ]}
+                      disabled={payChecking}
+                      accessibilityRole="button"
+                      accessibilityState={{ busy: payChecking, disabled: payChecking }}
+                      accessibilityLabel={`${isFailed ? 'Retry' : 'Pay now'}, ${item.title}`}
                       onPress={(e) => {
                         e.stopPropagation();
-                        onOpenPayNow(item);
+                        void onOpenPayNow(item);
                       }}
                     >
                       <Ionicons

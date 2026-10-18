@@ -83,13 +83,6 @@ export function totalDue(pending: readonly PendingPayment[]): number {
   return payable(pending).reduce((sum, p) => sum + remaining(p), 0);
 }
 
-/** The payment that belongs to this event, matched by its title (the feed carries no event id). */
-export function dueForEvent(event: Pick<EventItem, 'title'>, pending: readonly PendingPayment[]): PendingPayment | undefined {
-  const t = (event.title ?? '').trim().toLowerCase();
-  if (!t) return undefined;
-  return payable(pending).find((p) => p.eventName.trim().toLowerCase() === t);
-}
-
 /** "Oct 13" for a due date, or undefined when the feed has none. */
 export function dueText(p: Pick<PendingPayment, 'dueDate'>): string | undefined {
   const d = p.dueDate?.slice(0, 10);

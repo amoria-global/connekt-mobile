@@ -66,13 +66,13 @@ import {
 import { Thumb, ShootCard } from '@/features/photographer/homeParts';
 import { moneyText } from '@/features/photographer/money';
 import { HeroActionCard } from '@/features/client/studio';
+import { matchDue, type DueMatch } from '@/features/payments/payNowLookup';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
 import {
   DUE_CURRENCY,
   clientStatus,
   countdownLabel,
   daysUntil,
-  dueForEvent,
   dueText,
   isLiveNow,
   payable,
@@ -333,10 +333,11 @@ export function ClientHome() {
         ) : (
           <NextEventCard
             event={nextEvent}
-            due={dueForEvent(nextEvent, pending.data ?? EMPTY)}
+            match={matchDue(nextEvent, dues, eventList)}
             today={today}
             onOpen={() => openEvent(nextEvent)}
             onPay={(p) => setPayNowPayment(p)}
+            onReview={() => open('/payments')}
           />
         )}
 
@@ -393,7 +394,8 @@ export function ClientHome() {
               data={eventList.slice(0, PREVIEW_LIMIT)}
               keyOf={(e) => String(e.id)}
               renderItem={(e) => {
-                const due = dueForEvent(e, pending.data ?? EMPTY);
+                const m = matchDue(e, dues, eventList);
+                const due = m.kind === 'one' ? m.payment : undefined;
                 return (
                   <ShootCard
                     shoot={{
@@ -408,6 +410,8 @@ export function ClientHome() {
                       <>
                         {due ? (
                           <ActionButton label="Pay now" variant="primary" compact onPress={() => setPayNowPayment(due)} style={styles.flex} />
+                        ) : m.kind === 'ambiguous' ? (
+                          <ActionButton label="Review payments" compact onPress={() => open('/payments')} style={styles.flex} />
                         ) : null}
                         <ActionButton
                           label={isLiveNow(e) ? 'Watch live' : 'View booking'}
@@ -528,16 +532,18 @@ export function ClientHome() {
 /** The next booking: photograph, facts, countdown, what is owed, and the one or two things to do. */
 function NextEventCard({
   event,
-  due,
+  match,
   today,
   onOpen,
   onPay,
+  onReview,
 }: {
   event: EventItem;
-  due?: PendingPayment;
+  match: DueMatch;
   today: string;
   onOpen: () => void;
   onPay: (p: PendingPayment) => void;
+  onReview: () => void;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -545,6 +551,8 @@ function NextEventCard({
   const day = eventDay(event);
   const countdown = day ? countdownLabel(daysUntil(day, today)) : undefined;
   const status = clientStatus(event);
+  // Only a certain match gets a direct Pay now. More than one open payment under this title is the person's to pick.
+  const due = match.kind === 'one' ? match.payment : undefined;
   const dueDate = due ? dueText(due) : undefined;
   return (
     <Card>
@@ -578,9 +586,10 @@ function NextEventCard({
       ) : null}
       <View style={styles.actions}>
         {due ? <ActionButton label="Pay now" variant="primary" compact onPress={() => onPay(due)} style={styles.flex} /> : null}
+        {match.kind === 'ambiguous' ? <ActionButton label="Review payments" variant="primary" compact onPress={onReview} style={styles.flex} /> : null}
         <ActionButton
           label={live ? 'Watch live' : 'View booking'}
-          variant={due ? 'secondary' : 'primary'}
+          variant={due || match.kind === 'ambiguous' ? 'secondary' : 'primary'}
           compact
           onPress={onOpen}
           style={styles.flex}
