@@ -44,10 +44,12 @@ jest.mock('@gorhom/bottom-sheet', () => ({ __esModule: true, default: () => null
 const mockSnap = jest.fn();
 jest.mock('@/features/booking/BookingBottomSheet', () => {
   const React = require('react');
-  return { BookingBottomSheet: React.forwardRef((_p: unknown, ref: React.Ref<unknown>) => {
+  const Sheet = React.forwardRef((_p: unknown, ref: React.Ref<unknown>) => {
     React.useImperativeHandle(ref, () => ({ snapToIndex: mockSnap }));
     return null;
-  }) };
+  });
+  Sheet.displayName = 'BookingBottomSheetMock';
+  return { BookingBottomSheet: Sheet };
 });
 jest.mock('@/features/photographers/CoverCarousel', () => ({ CoverCarousel: () => null }));
 jest.mock('@/features/auth/role', () => ({ useRole: () => ({ isCoordinator: false, isClient: true }) }));
