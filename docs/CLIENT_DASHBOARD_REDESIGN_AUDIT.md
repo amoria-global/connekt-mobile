@@ -186,3 +186,78 @@ not touched.
 Honest scope note: the in-scope routes above are about 14,000 lines. Every route gets the loop (intent, hierarchy, states, tests, emulator pass), but
 the depth is bounded: logic, payloads, validation and navigation are never rewritten; the presentation layer is. The per-route status table at the end of
 this document is the source of truth for what was actually done.
+
+---
+
+# Second pass: status (2026-10-18)
+
+Base of this pass `7f7048e`, final commit is the tip of `feat/client-dashboard-redesign`. Frontend only. Nothing merged, pushed or published.
+
+## Design language: what was done
+
+The dark "night studio" palette already existed in `src/theme/palettes.ts` (deep blue-teal ground, stepped surfaces, blue hairline, brightened primary, pink accent), so the work was to use it
+consistently, not to create a second system. Added: two reserved hero gradients (`heroBlue`, `heroViolet`, white text 4.5:1 on every stop, pinned by `palettes.test.ts`) and three shared parts in
+`features/client/studio.tsx` (`HeroActionCard`, `ListRow`, `ProgressTrack`), tested. No dependency was added; `@shopify/flash-list` is not installed so lists stay tuned `FlatList`.
+Gradients: one blue hero and at most one violet secondary on Home, nowhere else.
+
+## Per route (done means: redesigned in code, Jest passing; the device columns say only what was actually seen)
+
+| Route | File | Redesigned | Tests | Android light | Android dark | 1.6x text | Status |
+|---|---|---|---|---|---|---|---|
+| Home | `features/dashboard/ClientHome.tsx` | Yes (heroes, Review payments on ambiguity) | render 14 | seen | seen | seen | Done |
+| Events | `features/events/ClientEventsDashboard.tsx` | Yes | render 11, model | seen | seen | seen | Done |
+| Wallet | `(tabs)/wallet.tsx`, `ClientPaymentsDue` | Yes | render | seen | seen | seen | Done |
+| Payments | `payments.tsx` | Honesty fixed (per-currency totals, Pay now from the feed), not restyled | render 9 | seen | not seen | not seen | Partial |
+| Photographers directory | `photographers.tsx`, `PhotographerRow` | Yes (compact rows, real price currency) | row 8, pricing | seen | seen | seen (price truncated, fixed, not re-seen) | Done |
+| Photographer profile | `photographer/[id].tsx` | Yes (real facts, portfolio grid, About, sticky Book now) | render 8, facts | seen | not seen | not seen | Partial |
+| Booking wizard (hybrid) | `BookingModeSelector.tsx` | Progress track and options guard; step logic and payload untouched | existing 19, shape | seen (step 1) | not seen | not seen | Partial |
+| Direct booking form | `event/new.tsx` | Audited, not restyled | existing | not seen | not seen | not seen | Not redesigned |
+| Event detail | `event/[id].tsx` | Truthful track, danger zone | track 5 | seen | not seen | not seen | Partial |
+| Inbox | `(tabs)/inbox.tsx`, `ConversationRow` | Yes | row 8 | seen | not seen | not seen | Partial |
+| Conversation | `conversation/[id].tsx` | Accessibility, 44dp send, 12pt time, bubbles on card colour | render 6 | seen | not seen | not seen | Partial |
+| Notifications | `notifications.tsx` | Error state; layout was already grouped by day | render 4 | seen | not seen | not seen | Partial |
+| Profile | `(tabs)/profile.tsx` | Honest client figures, tab roles | stats 16 | not seen | not seen | not seen | Partial |
+| Gallery, photobooks, content albums, bookings, candidates, donations, transactions, edit profile, preferences, two-factor, blocked, delete account | various | Audited, not restyled (loader hardened for albums) | existing | not seen | not seen | not seen | Not redesigned |
+| More sheet, tab bar | `PersistentBottomBar.tsx` | Audited, untouched (shared by every role) | existing | seen | seen | not seen | Audited |
+| iOS | all | not run (no iOS tooling) | | | | | Not verified |
+
+## Defects found and fixed in this pass
+
+| Defect | Root cause | Fix |
+|---|---|---|
+| Directory price hard-coded "$" and the profile invented 5.0, "0 Events", "Since May 2026", AVAILABLE for all | Values not in the data were drawn | `startingPriceText`, `profileFacts`; absent facts are absent |
+| Portfolio tab said empty although images existed; Working Experience tab had no data | Never wired | Portfolio grid from real images, About from the bio |
+| Event detail stepper ticked Deposit Paid, Album Delivered, Photobook | Index-based ticking | `bookingTrack`: four steps provable from statuses; photographers keep their stepper (follow-up) |
+| Inbox, notifications, albums, conversations read a refusal (HTTP 200, action 0) as empty | `api.get` without `requireOk` | `requireOk` in all four loaders, `refusedReads.test` |
+| Inbox said "Sent a message" for no message; read rows had an "Open camera" button that opened the chat | Invented copy, mislabelled control | "No messages yet", control removed, unread in the spoken label |
+| Pay now from Payments sent the history record (own currency, no paid amount) and the sheet formatted it as USD | Wrong source | Looks the declaration up in the pending feed, says so when it cannot |
+| Publish offer crashed (`find` of undefined) on a success body that was not the options object | Unchecked shape | `hasOptionLists` makes it a failed load with the wizard's own error |
+| Client profile showed Events 0, Reviews 0 and a fixed Status Active for absent fields; "Rwanda" as a default location | Defaults drawn as facts | Dashes, real identity status, "Not provided" |
+| Badge text green on green over a dark photograph; progress line coloured the wrong side of its end dots; Delete the loudest button in its card; price "Fro..." at 1.6x | Visual | Fixed after screenshots (the last is not re-seen) |
+
+## Payment and booking limitations (confirmed) and backend follow-ups
+
+1. Pending-payments feed has no `eventId`: events are matched to payments by title. A direct Pay now is offered only when exactly one event and one payment carry the title; otherwise Home offers Review payments. **Backend follow-up:** `eventId` on `/customer/payments/pending`.
+2. Payment history records have no paid amount, so they cannot show a remaining balance. Pay now now reads the pending feed instead. **Backend follow-up:** `amountPaid` on `/customer/payments`.
+3. The history endpoint is one page of 20 (stated on screen when full). **Backend follow-up:** a total or a next-page flag.
+4. The photographer-role stepper on the event page still lists seven steps including Deposit Paid and Album Delivered with index-based ticking. Out of this pass (the photographer dashboard is accepted); same fix pattern as `bookingTrack`.
+
+## Prototype elements not implemented (product decision needed)
+
+"Support a creator / Send tip" on the wallet, "Manage accounts" and Personal and Business switching, an "On the way, Arrived" tracker, a "Client" role switcher, billing details and refunds screens, a deadlines and offers calendar, AI matched talent on Home. None exists in the app or the API, so none was drawn.
+
+## Performance
+
+The directory shows one memoised compact row per photographer (about a third of the old card height); lists that were already virtualised stay so; no real-time blur, no gradients in rows; carousels use the existing snapped `FlatList`. No measured before and after numbers were taken, so none are claimed.
+
+## Verification
+
+- `tsc --noEmit`: clean. Jest full suite: 106 suites, 838 passed, 1 skipped (pre-existing), 0 failed.
+- ESLint on the 27 changed files that existed on the base: 29 errors now against 35 on the base, and no file has more than before. All remaining errors are patterns already in those files (set-state-in-effect, manual memoization, static-components in `BookingModeSelector`). New files: 0 errors after the last fix.
+- Emulator (Pixel 5 API 34, fixture backend, synthetic data, real login form): see the table. The emulator hung repeatedly under memory pressure (about 3 GB free with the browsers closed) and was rebooted twice; every screenshot listed as seen was read.
+- Photographer regression: **Jest only.** Shared files touched: `kit.tsx` `ActionButton` (first pass), `homeParts.tsx` (additive), `ConversationRow` (camera button removed and copy changed for every role), `notifications.tsx` and the four loaders (all roles), `palettes.ts` (two added keys). The photographer Jest suites pass; **no photographer screen was opened on the emulator in this pass.**
+- No backend, contract, auth, payment-integration, config or dependency change; no real payment (`PayNowSheet` was never opened on the emulator and is mocked in every test); the fixture backend, Metro and emulator were removed afterwards.
+
+## Handoff
+
+Resume with: (1) dark and 1.6x on Payments, profile, wizard, event detail, inbox, conversation, notifications; (2) restyle the "Not redesigned" rows with `ListRow` and `HeroActionCard`; (3) open a photographer account's Home, Wallet and Inbox on the emulator for the shared-component regression check; (4) re-see the directory row at 1.6x.
