@@ -29,6 +29,7 @@ import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
+import { clientStats } from '@/features/profile/clientStats';
 import { KycBadge } from '@/features/kyc/KycBadge';
 import { getKyc } from '@/features/kyc/api';
 import {
@@ -207,11 +208,8 @@ export default function ProfileScreen() {
         { label: 'Status', value: 'Active' },
       ];
     }
-    return [
-      { label: 'Events', value: user?.completedEvents ?? 0 },
-      { label: 'Reviews', value: user?.reviewsCount ?? 0 },
-      { label: 'Status', value: 'Active' },
-    ];
+    // Clients: a missing count is a dash, never a zero, and there is no invented "Active".
+    return clientStats(user);
   }, [isPhotographer, isCoordinator, user]);
 
   const highlights = useMemo(
@@ -432,10 +430,14 @@ export default function ProfileScreen() {
         </ScrollView>
 
         {/* ── Instagram-Style Tab Switcher ────────────────────────────── */}
-        <View style={styles.tabStrip}>
+        <View style={styles.tabStrip} accessibilityRole="tablist">
           <Pressable
             style={styles.tabButton}
             onPress={() => setActiveTab('details')}
+            accessibilityRole="tab"
+            accessibilityLabel="Details"
+            accessibilityState={{ selected: activeTab === 'details' }}
+            hitSlop={6}
           >
             <Ionicons
               name={activeTab === 'details' ? 'person' : 'person-outline'}
@@ -448,6 +450,10 @@ export default function ProfileScreen() {
           <Pressable
             style={styles.tabButton}
             onPress={() => setActiveTab('settings')}
+            accessibilityRole="tab"
+            accessibilityLabel="Settings"
+            accessibilityState={{ selected: activeTab === 'settings' }}
+            hitSlop={6}
           >
             <Ionicons
               name={activeTab === 'settings' ? 'options' : 'options-outline'}
@@ -460,6 +466,10 @@ export default function ProfileScreen() {
           <Pressable
             style={styles.tabButton}
             onPress={() => setActiveTab('account')}
+            accessibilityRole="tab"
+            accessibilityLabel="Account"
+            accessibilityState={{ selected: activeTab === 'account' }}
+            hitSlop={6}
           >
             <Ionicons
               name={activeTab === 'account' ? 'shield-checkmark' : 'shield-checkmark-outline'}
@@ -494,7 +504,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Location</Text>
-                <Text style={styles.detailValue}>{user?.address || 'Rwanda'}</Text>
+                <Text style={styles.detailValue}>{user?.address || 'Not provided'}</Text>
               </View>
               {isCoordinator && user?.organizationName ? (
                 <View style={styles.detailRow}>

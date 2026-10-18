@@ -48,6 +48,8 @@ export type ShootFacts = {
   when: string;
   location?: string;
   client?: string;
+  /** Who is shooting it, for the client side. */
+  photographer?: string;
 };
 
 /**
@@ -68,6 +70,7 @@ export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts;
           <MetaLine icon="calendar-outline" text={shoot.when} />
           {shoot.location ? <MetaLine icon="location-outline" text={shoot.location} /> : null}
           {shoot.client ? <MetaLine icon="person-outline" text={`Client: ${shoot.client}`} /> : null}
+          {shoot.photographer ? <MetaLine icon="camera-outline" text={`Photographer: ${shoot.photographer}`} /> : null}
         </View>
       </View>
       <View style={styles.actions}>{actions}</View>
