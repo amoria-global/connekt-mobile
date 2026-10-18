@@ -439,7 +439,7 @@ export default function PhotographerProfileScreen() {
 
             <View style={[styles.availableBadge, facts.booked && styles.bookedBadge]}>
               <View style={[styles.availableDot, facts.booked && styles.bookedDot]} />
-              <Text style={styles.availableText}>{facts.booked ? 'BOOKED' : 'AVAILABLE'}</Text>
+              <Text style={[styles.availableText, facts.booked && styles.bookedText]}>{facts.booked ? 'BOOKED' : 'AVAILABLE'}</Text>
             </View>
           </View>
         </View>
@@ -837,8 +837,9 @@ const useStyles = makeStyles((c, e) => ({
   portfolioGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   portfolioTile: { width: '31.5%', aspectRatio: 1, borderRadius: radii.md, backgroundColor: c.surfaceMuted },
   aboutText: { color: c.textSoft, fontSize: 15, lineHeight: 22 },
-  bookedBadge: { backgroundColor: 'rgba(245,158,11,0.18)', borderColor: 'rgba(245,158,11,0.5)' },
-  bookedDot: { backgroundColor: '#F59E0B' },
+  bookedBadge: { backgroundColor: 'rgba(45, 28, 4, 0.78)', borderColor: 'rgba(251, 191, 36, 0.6)' },
+  bookedDot: { backgroundColor: '#FBBF24' },
+  bookedText: { color: '#FDE68A' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
   muted: { color: c.textMuted, fontSize: fontSize.sm, marginTop: 10 },
 
@@ -954,12 +955,13 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  // Sits on a dark photograph: light text on a dark ground, in both themes (the theme success colour is dark in light mode).
   availableBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(4, 30, 22, 0.78)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(52, 211, 153, 0.55)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radii.full,
@@ -969,11 +971,11 @@ const useStyles = makeStyles((c, e) => ({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: c.success,
+    backgroundColor: '#34D399',
   },
   availableText: {
-    color: c.success,
-    fontSize: 10,
+    color: '#A7F3D0',
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
   },

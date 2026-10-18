@@ -982,7 +982,7 @@ export default function PhotographersScreen() {
               />
             }
             renderItem={({ item }) => (
-              <View style={{ width: cardWidth }}>
+              <View style={columns === 1 ? { marginHorizontal: spacing.md } : { width: cardWidth }}>
                 <PhotographerRow
                   photographer={item}
                   isBookmarked={bookmarkedIds.has(item.id)}
