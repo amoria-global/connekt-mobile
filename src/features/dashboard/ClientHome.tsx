@@ -271,7 +271,7 @@ export function ClientHome() {
           style={({ pressed }) => [styles.search, pressed && styles.pressed]}
         >
           <Ionicons name="search" size={18} color={colors.textMuted} />
-          <Text style={styles.searchText} numberOfLines={1}>
+          <Text style={styles.searchText} numberOfLines={2}>
             Search photographers, events, live streams
           </Text>
         </Pressable>

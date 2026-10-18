@@ -396,7 +396,8 @@ export default function WalletScreen() {
 
           {/* Clients: what is still owed, with its own Pay now. */}
           {showOverview && isClient ? (
-            <View style={styles.sectionBlock}>
+            // The kit blocks carry their own side margins, so cancel the scroll's padding.
+            <View style={styles.walletBleed}>
               <ClientPaymentsDue hidden={balanceHidden} version={data} />
             </View>
           ) : null}

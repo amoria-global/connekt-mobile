@@ -15,7 +15,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { FlatList, Modal, Pressable, RefreshControl, Share, Text, TextInput, View } from 'react-native';
+import { FlatList, Modal, Pressable, RefreshControl, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookingModeSelector, type ExistingHybridEvent } from '@/features/booking/BookingModeSelector';
 import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
@@ -123,7 +123,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
 
   const header = (
     <View style={{ paddingTop: topInset + spacing.md }}>
-      <View style={styles.titleRow}>
+      <View style={[styles.titleRow, styles.pad]}>
         <View style={styles.flex}>
           <Text style={styles.title} accessibilityRole="header">
             Events
@@ -133,12 +133,12 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
         <ActionButton label="New" icon="add" variant="primary" compact onPress={newEvent} />
       </View>
 
-      <View style={styles.row}>
-        <ActionButton label="Find a photographer" icon="search-outline" compact onPress={() => open('/photographers')} style={styles.flex} />
+      <View style={[styles.row, styles.pad]}>
+        <ActionButton label="Photographers" icon="search-outline" compact onPress={() => open('/photographers')} style={styles.flex} />
         <ActionButton label="Explore events" icon="compass-outline" compact onPress={() => setExploreOpen(true)} style={styles.flex} />
       </View>
 
-      <View style={styles.chips} accessibilityRole="tablist" accessibilityLabel="Filter events">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityLabel="Filter events">
         {FILTERS.map((f) => (
           <Chip
             key={f.key}
@@ -152,9 +152,9 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
             }}
           />
         ))}
-      </View>
+      </ScrollView>
 
-      <View style={styles.row}>
+      <View style={[styles.row, styles.pad]}>
         <View style={styles.search}>
           <Ionicons name="search" size={16} color={colors.textMuted} />
           <TextInput
@@ -410,12 +410,14 @@ function Meta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: stri
 const useStyles = makeStyles((c) => ({
   container: { flex: 1 },
   flex: { flex: 1, minWidth: 0 },
-  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 140 },
+  // The kit cards, notices and empty states carry their own side margins; only the plain header rows need padding.
+  listContent: { paddingBottom: 140 },
+  pad: { paddingHorizontal: spacing.lg },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   title: { color: c.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
   subtitle: { color: c.textMuted, fontSize: 13, marginTop: 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   search: {
     flex: 1,
     flexDirection: 'row',
