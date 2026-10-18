@@ -152,7 +152,7 @@ export function ProgressTrack({ steps, label = 'Progress' }: { steps: readonly T
         return (
           <View key={s.key} style={styles.trackStep}>
             <View style={styles.trackDotRow}>
-              <View style={[styles.trackLine, i === 0 && styles.trackLineHidden, (done || on) && { backgroundColor: colors.success }]} />
+              <View style={[styles.trackLine, (done || on) && { backgroundColor: colors.success }, i === 0 && styles.trackLineHidden]} />
               <View
                 style={[
                   styles.trackDot,
@@ -162,7 +162,7 @@ export function ProgressTrack({ steps, label = 'Progress' }: { steps: readonly T
               >
                 {done ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : on ? <View style={[styles.trackInner, { backgroundColor: colors.accent }]} /> : null}
               </View>
-              <View style={[styles.trackLine, i === steps.length - 1 && styles.trackLineHidden, done && { backgroundColor: colors.success }]} />
+              <View style={[styles.trackLine, done && { backgroundColor: colors.success }, i === steps.length - 1 && styles.trackLineHidden]} />
             </View>
             <Text style={[styles.trackLabel, on && { color: colors.text, fontWeight: '700' }]} maxFontSizeMultiplier={1.3}>
               {s.label}

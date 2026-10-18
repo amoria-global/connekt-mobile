@@ -765,10 +765,13 @@ export default function EventDetailScreen() {
               {ev?.photographerName ? (
                 <PrimaryBtn icon="star-outline" label="Rate" variant="outline" onPress={() => setReviewOpen(true)} />
               ) : null}
-              {canDelete ? (
-                <PrimaryBtn icon="trash-outline" label="Delete" variant="danger" onPress={onDelete} loading={busy === 'delete'} />
-              ) : null}
             </View>
+            {canDelete ? (
+              <View style={styles.dangerZone}>
+                <Text style={styles.dangerLabel}>Danger zone</Text>
+                <PrimaryBtn icon="trash-outline" label="Delete event" variant="dangerOutline" full onPress={onDelete} loading={busy === 'delete'} />
+              </View>
+            ) : null}
           </InfoCard>
         ) : null}
       </ScrollView>
@@ -966,7 +969,7 @@ function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
   );
 }
 
-type BtnVariant = 'primary' | 'accent' | 'success' | 'outline' | 'danger';
+type BtnVariant = 'primary' | 'accent' | 'success' | 'outline' | 'danger' | 'dangerOutline';
 /** Resolved per render: the module-level `colors` export is the light palette, so an outline button was a solid white slab in dark. */
 function btnStyle(c: ReturnType<typeof useTheme>['colors'], variant: BtnVariant): { bg: string; fg: string; border?: string } {
   switch (variant) {
@@ -978,6 +981,9 @@ function btnStyle(c: ReturnType<typeof useTheme>['colors'], variant: BtnVariant)
       return { bg: '#047857', fg: '#fff' };
     case 'danger':
       return { bg: '#B91C1C', fg: '#fff' };
+    case 'dangerOutline':
+      // Quiet until pressed: a destructive action should not be the loudest thing in its card.
+      return { bg: 'transparent', fg: c.error, border: c.error };
     default:
       return { bg: c.surface, fg: c.text, border: c.border };
   }
@@ -1173,6 +1179,8 @@ const useStyles = makeStyles((c) => ({
   detailValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 1 },
 
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  dangerZone: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: c.borderSoft, gap: spacing.sm },
+  dangerLabel: { color: c.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
   btn: {
     flexGrow: 1,
     flexBasis: '45%',

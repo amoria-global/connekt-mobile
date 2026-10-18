@@ -93,7 +93,7 @@ function PhotographerRowImpl({
             </View>
           ) : null}
           <View style={styles.bottom}>
-            <Text style={styles.price} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+            <Text style={styles.price} maxFontSizeMultiplier={1.25}>
               {price}
             </Text>
             <View style={styles.cta}>
@@ -139,8 +139,9 @@ const useStyles = makeStyles((c, e) => ({
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
   tag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full, backgroundColor: c.surfaceMuted, maxWidth: '100%' },
   tagText: { color: c.textSoft, fontSize: 12 },
-  bottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginTop: spacing.xs },
-  price: { flexShrink: 1, color: c.text, fontSize: 14, fontWeight: '800' },
+  // Wraps at large text so the price is shown in full and the action drops to its own line, never "Fro...".
+  bottom: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginTop: spacing.xs },
+  price: { color: c.text, fontSize: 14, fontWeight: '800' },
   cta: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 34, paddingHorizontal: spacing.md, borderRadius: radii.full, backgroundColor: c.primary },
   ctaText: { color: c.textOnPrimary, fontSize: 13, fontWeight: '700' },
   bookmark: { position: 'absolute', top: 4, right: 4, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
