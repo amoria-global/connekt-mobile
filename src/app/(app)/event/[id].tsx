@@ -11,6 +11,8 @@ import { StarInput } from '@/components/ui/Stars';
 import { Sheet } from '@/components/ui/Sheet';
 import { useRole } from '@/features/auth/role';
 import { IconTile } from '@/features/photographer/kit';
+import { ProgressTrack } from '@/features/client/studio';
+import { bookingTrack } from '@/features/events/bookingTrack';
 import {
   acceptEventBooking,
   confirmCompletion,
@@ -443,6 +445,7 @@ export default function EventDetailScreen() {
     );
   }
 
+  // The effect above redirects to the public event page, so this is a short transitional state.
   if (error && !data) {
     return (
       <Screen padded={false} edges={[]}>
@@ -600,9 +603,14 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Booking progress */}
-        {(isPhotog || ownsEvents) && !ev?.status?.toUpperCase().includes('CANCEL') ? (
+        {isPhotog && !ev?.status?.toUpperCase().includes('CANCEL') ? (
           <InfoCard icon="git-commit-outline" title="Booking Progress">
             <ProgressStepper currentIndex={bookingStepIndex(ev)} />
+          </InfoCard>
+        ) : null}
+        {!isPhotog && ownsEvents && bookingTrack(ev) ? (
+          <InfoCard icon="git-commit-outline" title="Booking Progress">
+            <ProgressTrack steps={bookingTrack(ev)!} label="Booking progress" />
           </InfoCard>
         ) : null}
 
