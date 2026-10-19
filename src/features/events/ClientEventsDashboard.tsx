@@ -37,6 +37,8 @@ import {
 import { Thumb } from '@/features/photographer/homeParts';
 import { ScheduleView, type ScheduleMode } from '@/features/photographer/ScheduleView';
 import { StatusBreakdownCard, type BreakdownSegment } from '@/features/client/ClientCharts';
+import { isLiveNow } from '@/features/client/homeModel';
+import { LiveButton, LivePill, LiveTwinkle } from '@/components/ui/live';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
 import { formatDate } from '@/utils/format';
 import { listEvents } from './api';
@@ -239,6 +241,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
           <EventRow
             event={item}
             onOpen={() => open(`/event/${item.id}`)}
+            onWatchLive={() => open(`/(public)/events/live-stream?id=${item.id}`)}
             onEdit={() => open(`/event/new?editId=${item.id}`)}
             onShare={() => share(item)}
             onQr={() => setQrTarget(item)}
@@ -258,7 +261,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
               events={sorted}
               allEvents={events ?? []}
               busyId={null}
-              onOpen={(e) => open(`/event/${e.id}`)}
+              onOpen={(e) => open(isLiveNow(e) ? `/(public)/events/live-stream?id=${e.id}` : `/event/${e.id}`)}
               onAccept={() => {}}
               onDecline={() => {}}
               onCreate={newEvent}
@@ -377,6 +380,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
 function EventRow({
   event,
   onOpen,
+  onWatchLive,
   onEdit,
   onShare,
   onQr,
@@ -385,6 +389,7 @@ function EventRow({
 }: {
   event: EventItem;
   onOpen: () => void;
+  onWatchLive: () => void;
   onEdit: () => void;
   onShare: () => void;
   onQr: () => void;
@@ -393,6 +398,7 @@ function EventRow({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const live = isLiveNow(event);
   const status = (event.status ?? '').toUpperCase();
   const openHybrid = isOpenHybrid(event.bookingMode, status, !!event.photographerName);
   const canPost =
@@ -405,39 +411,51 @@ function EventRow({
       ? 'Matching ended'
       : 'See answers';
   return (
-    <Card>
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open ${event.title}`} style={styles.rowTop}>
-        <Thumb uri={event.coverImage} size={88} />
-        <View style={styles.rowText}>
-          <StatusBadge {...eventStatus(event)} />
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {event.title}
-          </Text>
-          <Meta icon="calendar-outline" text={whenText(event)} />
-          {event.location ? <Meta icon="location-outline" text={event.location} /> : null}
-          <Meta
-            icon="camera-outline"
-            text={event.photographerName || (openHybrid ? friendlyEventStatus(status) : 'No photographer yet')}
-          />
+    <LiveTwinkle active={live} radius={radii.lg} style={live ? styles.cardTwinkle : undefined}>
+      <Card style={live ? styles.flushCard : undefined}>
+        <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open ${event.title}`} style={styles.rowTop}>
+          <Thumb uri={event.coverImage} size={88} />
+          <View style={styles.rowText}>
+            {live ? <LivePill label="Live now" size="xs" sparkle /> : <StatusBadge {...eventStatus(event)} />}
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {event.title}
+            </Text>
+            <Meta icon="calendar-outline" text={whenText(event)} />
+            {event.location ? <Meta icon="location-outline" text={event.location} /> : null}
+            <Meta
+              icon="camera-outline"
+              text={event.photographerName || (openHybrid ? friendlyEventStatus(status) : 'No photographer yet')}
+            />
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </Pressable>
+        {modeOf(event.bookingMode) === 'HYBRID' ? (
+          <View style={styles.mode}>
+            <ModeBadge mode="HYBRID" />
+          </View>
+        ) : null}
+        <View style={styles.actions}>
+          {openHybrid ? <ActionButton label={hybridLabel} icon="people-outline" variant="accent" compact onPress={onCandidates} style={styles.flex} /> : null}
+          {canPost ? <ActionButton label="Post my event" icon="radio-outline" variant="accent" compact onPress={onPost} style={styles.flex} /> : null}
+          {live ? (
+            <LiveButton
+              label="Watch live"
+              size="sm"
+              icon="play"
+              onPress={onWatchLive}
+              style={styles.flex}
+            />
+          ) : (
+            <ActionButton label="View booking" variant="primary" compact onPress={onOpen} style={styles.flex} />
+          )}
         </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-      </Pressable>
-      {modeOf(event.bookingMode) === 'HYBRID' ? (
-        <View style={styles.mode}>
-          <ModeBadge mode="HYBRID" />
+        <View style={styles.actions}>
+          <ActionButton label="Edit" icon="create-outline" variant="tertiary" compact onPress={onEdit} style={styles.flex} />
+          {event.published ? <ActionButton label="QR" icon="qr-code-outline" variant="tertiary" compact onPress={onQr} style={styles.flex} /> : null}
+          <ActionButton label="Share" icon="share-social-outline" variant="tertiary" compact onPress={onShare} style={styles.flex} />
         </View>
-      ) : null}
-      <View style={styles.actions}>
-        {openHybrid ? <ActionButton label={hybridLabel} icon="people-outline" variant="accent" compact onPress={onCandidates} style={styles.flex} /> : null}
-        {canPost ? <ActionButton label="Post my event" icon="radio-outline" variant="accent" compact onPress={onPost} style={styles.flex} /> : null}
-        <ActionButton label="View booking" variant="primary" compact onPress={onOpen} style={styles.flex} />
-      </View>
-      <View style={styles.actions}>
-        <ActionButton label="Edit" icon="create-outline" variant="tertiary" compact onPress={onEdit} style={styles.flex} />
-        {event.published ? <ActionButton label="QR" icon="qr-code-outline" variant="tertiary" compact onPress={onQr} style={styles.flex} /> : null}
-        <ActionButton label="Share" icon="share-social-outline" variant="tertiary" compact onPress={onShare} style={styles.flex} />
-      </View>
-    </Card>
+      </Card>
+    </LiveTwinkle>
   );
 }
 
@@ -491,6 +509,8 @@ const useStyles = makeStyles((c) => ({
   sortBtnOn: { borderColor: c.primary, backgroundColor: c.tint },
   pressed: { opacity: 0.85 },
   skeletons: { gap: spacing.md },
+  cardTwinkle: { marginHorizontal: spacing.lg },
+  flushCard: { marginHorizontal: 0 },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rowText: { flex: 1, minWidth: 0, gap: 3, alignItems: 'flex-start' },
   cardTitle: { color: c.text, fontSize: 16, fontWeight: '700' },

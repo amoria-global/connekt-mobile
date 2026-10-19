@@ -9,6 +9,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { LivePill, LiveTwinkle } from '@/components/ui/live';
 import { ActionButton, Card, IconTile, StatusBadge, StatusText } from './kit';
 import { ProgressRing } from './charts';
 
@@ -45,6 +46,7 @@ export type ShootFacts = {
   title: string;
   cover?: string;
   status: { label: string; tone: Tone };
+  live?: boolean;
   when: string;
   location?: string;
   client?: string;
@@ -58,12 +60,12 @@ export type ShootFacts = {
  */
 export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts; actions: ReactNode; flush?: boolean }) {
   const styles = useStyles();
-  return (
-    <Card style={flush ? styles.flush : undefined}>
+  const card = (
+    <Card style={flush || shoot.live ? styles.flush : undefined}>
       <View style={styles.shootRow}>
         <Thumb uri={shoot.cover} />
         <View style={styles.shootText}>
-          <StatusBadge {...shoot.status} />
+          {shoot.live ? <LivePill label="Live now" size="xs" sparkle /> : <StatusBadge {...shoot.status} />}
           <Text style={styles.shootTitle} numberOfLines={2}>
             {shoot.title}
           </Text>
@@ -75,6 +77,12 @@ export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts;
       </View>
       <View style={styles.actions}>{actions}</View>
     </Card>
+  );
+  if (!shoot.live) return card;
+  return (
+    <LiveTwinkle active radius={radii.lg} style={!flush ? styles.twinkleWrap : undefined}>
+      {card}
+    </LiveTwinkle>
   );
 }
 
@@ -257,6 +265,7 @@ export function EarningRow({
 
 const useStyles = makeStyles((c) => ({
   flush: { marginHorizontal: 0 },
+  twinkleWrap: { marginHorizontal: spacing.lg },
   fill: { flex: 1 },
   thumbFallback: { borderRadius: radii.md, backgroundColor: c.tint, alignItems: 'center', justifyContent: 'center' },
   shootRow: { flexDirection: 'row', gap: spacing.md },
