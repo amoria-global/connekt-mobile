@@ -25,7 +25,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
-import { LivePill } from '@/components/ui/live';
+import { LiveButton, LivePill, LiveTwinkle } from '@/components/ui/live';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
@@ -419,12 +419,14 @@ export function ClientHome() {
               renderItem={(e) => {
                 const m = matchDue(e, dues, eventList);
                 const due = m.kind === 'one' ? m.payment : undefined;
+                const live = isLiveNow(e);
                 return (
                   <ShootCard
                     shoot={{
                       title: e.title || 'Booking',
                       cover: e.coverImage,
                       status: clientStatus(e),
+                      live,
                       when: whenText(e),
                       location: e.location,
                       photographer: e.photographerName,
@@ -436,12 +438,22 @@ export function ClientHome() {
                         ) : m.kind === 'ambiguous' ? (
                           <ActionButton label="Review payments" compact onPress={() => open('/payments')} style={styles.flex} />
                         ) : null}
-                        <ActionButton
-                          label={isLiveNow(e) ? 'Watch live' : 'View booking'}
-                          compact
-                          onPress={() => openEvent(e)}
-                          style={styles.flex}
-                        />
+                        {live ? (
+                          <LiveButton
+                            label="Watch live"
+                            size="sm"
+                            icon="play"
+                            onPress={() => openEvent(e)}
+                            style={styles.flex}
+                          />
+                        ) : (
+                          <ActionButton
+                            label="View booking"
+                            compact
+                            onPress={() => openEvent(e)}
+                            style={styles.flex}
+                          />
+                        )}
                       </>
                     }
                   />
@@ -603,47 +615,59 @@ function NextEventCard({
   const due = match.kind === 'one' ? match.payment : undefined;
   const dueDate = due ? dueText(due) : undefined;
   return (
-    <Card>
-      <View style={styles.nextRow}>
-        <Thumb uri={event.coverImage} size={96} />
-        <View style={styles.nextText}>
-          {live ? <LivePill label="Live now" size="xs" sparkle /> : <StatusBadge {...status} />}
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {event.title || 'Your booking'}
-          </Text>
-          <Meta icon="calendar-outline" text={whenText(event)} />
-          {event.location ? <Meta icon="location-outline" text={event.location} /> : null}
-          {countdown && !live ? (
-            <View style={styles.countdown} accessibilityLabel={countdown}>
-              <Ionicons name="time-outline" size={12} color={colors.link} />
-              <Text style={styles.countdownText}>{countdown}</Text>
-            </View>
-          ) : null}
+    <LiveTwinkle active={live} radius={radii.lg} style={live ? styles.cardTwinkle : undefined}>
+      <Card style={live ? styles.flushCard : undefined}>
+        <View style={styles.nextRow}>
+          <Thumb uri={event.coverImage} size={96} />
+          <View style={styles.nextText}>
+            {live ? <LivePill label="Live now" size="sm" sparkle /> : <StatusBadge {...status} />}
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {event.title || 'Your booking'}
+            </Text>
+            <Meta icon="calendar-outline" text={whenText(event)} />
+            {event.location ? <Meta icon="location-outline" text={event.location} /> : null}
+            {countdown && !live ? (
+              <View style={styles.countdown} accessibilityLabel={countdown}>
+                <Ionicons name="time-outline" size={12} color={colors.link} />
+                <Text style={styles.countdownText}>{countdown}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
-      </View>
-      {event.photographerName ? <Meta icon="camera-outline" text={`Photographer: ${event.photographerName}`} /> : null}
-      {due ? (
-        <View style={styles.dueRow} accessibilityLabel={`${moneyText(remaining(due), DUE_CURRENCY, hidden)} due`}>
-          <Ionicons name={due.status === 'failed' ? 'alert-circle' : 'time'} size={14} color={due.status === 'failed' ? colors.error : colors.warning} />
-          <Text style={styles.dueText}>
-            {moneyText(remaining(due), DUE_CURRENCY, hidden)}
-            {dueDate ? ` · Due ${dueDate}` : ' due'}
-            {due.status === 'failed' ? ' · Payment failed' : ''}
-          </Text>
+        {event.photographerName ? <Meta icon="camera-outline" text={`Photographer: ${event.photographerName}`} /> : null}
+        {due ? (
+          <View style={styles.dueRow} accessibilityLabel={`${moneyText(remaining(due), DUE_CURRENCY, hidden)} due`}>
+            <Ionicons name={due.status === 'failed' ? 'alert-circle' : 'time'} size={14} color={due.status === 'failed' ? colors.error : colors.warning} />
+            <Text style={styles.dueText}>
+              {moneyText(remaining(due), DUE_CURRENCY, hidden)}
+              {dueDate ? ` · Due ${dueDate}` : ' due'}
+              {due.status === 'failed' ? ' · Payment failed' : ''}
+            </Text>
+          </View>
+        ) : null}
+        <View style={styles.actions}>
+          {due ? <ActionButton label="Pay now" variant="primary" compact onPress={() => onPay(due)} style={styles.flex} /> : null}
+          {match.kind === 'ambiguous' ? <ActionButton label="Review payments" variant="primary" compact onPress={onReview} style={styles.flex} /> : null}
+          {live ? (
+            <LiveButton
+              label="Watch live"
+              size="md"
+              icon="play"
+              onPress={onOpen}
+              style={styles.flex}
+            />
+          ) : (
+            <ActionButton
+              label="View booking"
+              variant={due || match.kind === 'ambiguous' ? 'secondary' : 'primary'}
+              compact
+              onPress={onOpen}
+              style={styles.flex}
+            />
+          )}
         </View>
-      ) : null}
-      <View style={styles.actions}>
-        {due ? <ActionButton label="Pay now" variant="primary" compact onPress={() => onPay(due)} style={styles.flex} /> : null}
-        {match.kind === 'ambiguous' ? <ActionButton label="Review payments" variant="primary" compact onPress={onReview} style={styles.flex} /> : null}
-        <ActionButton
-          label={live ? 'Watch live' : 'View booking'}
-          variant={due || match.kind === 'ambiguous' ? 'secondary' : 'primary'}
-          compact
-          onPress={onOpen}
-          style={styles.flex}
-        />
-      </View>
-    </Card>
+      </Card>
+    </LiveTwinkle>
   );
 }
 
@@ -711,6 +735,8 @@ const useStyles = makeStyles((c) => ({
   flex: { flex: 1, minWidth: 0 },
   cardTitle: { color: c.text, fontSize: 16, fontWeight: '700' },
   cardMeta: { color: c.textMuted, fontSize: 13, lineHeight: 18, flexShrink: 1 },
+  cardTwinkle: { marginHorizontal: spacing.lg },
+  flushCard: { marginHorizontal: 0 },
   nextRow: { flexDirection: 'row', gap: spacing.md },
   nextText: { flex: 1, minWidth: 0, gap: 4, alignItems: 'flex-start' },
   metaLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 2 },

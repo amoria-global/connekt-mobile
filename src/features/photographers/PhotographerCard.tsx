@@ -82,6 +82,13 @@ export function PhotographerCard({
           style={styles.bookmarkBtn}
           onPress={onToggleBookmark}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isBookmarked
+              ? `Remove ${photographer.name} from saved photographers`
+              : `Save ${photographer.name}`
+          }
+          accessibilityState={{ selected: isBookmarked }}
         >
           <Ionicons
             name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
@@ -162,7 +169,7 @@ export function PhotographerCard({
         <View style={styles.ctaRow}>
           <View style={styles.priceWrap}>
             <Text style={styles.priceLabel}>{tr('PRICING')}</Text>
-            <Text style={styles.priceValue} numberOfLines={1}>
+            <Text style={styles.priceValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
               {tr(startingPriceText(photographer))}
             </Text>
           </View>
@@ -405,6 +412,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
@@ -413,7 +421,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   priceWrap: {
     flexShrink: 1,
-    minWidth: 0,
+    minWidth: 50,
     marginRight: 4,
   },
   priceLabel: {
