@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ActionButton, Chip, EmptyNote, ErrorNotice, SectionHeader, SegmentedTabs, SkeletonCard, StatusBadge } from '@/features/photographer/kit';
+import { StatusBreakdownCard } from '@/features/client/ClientCharts';
 import { ListRow } from '@/features/client/studio';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
@@ -327,6 +328,18 @@ function PaymentsContent() {
 
       {section === 'events' ? (
         <>
+          {payments.length > 0 ? (
+            <StatusBreakdownCard
+              segments={[
+                { key: 'paid', label: 'Paid', value: counts.paid, color: colors.success },
+                { key: 'pending', label: 'Pending', value: counts.pending, color: colors.warning },
+                { key: 'failed', label: 'Failed', value: counts.failed, color: colors.error },
+              ]}
+              centerLabel="payments"
+              summary="Payments by status"
+              emptyText="No payments yet."
+            />
+          ) : null}
           <SectionHeader
             title="Activity"
             subtitle={paymentsData ? `${payments.length} payment${payments.length === 1 ? '' : 's'}${partial ? ' (latest)' : ''}` : undefined}
@@ -566,7 +579,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.xl,
     gap: 4,
   },
-  totalLabel: { fontFamily: fonts.bold, color: 'rgba(255,255,255,0.8)', fontSize: 11, letterSpacing: 1 },
+  totalLabel: { fontFamily: fonts.bold, color: 'rgba(255,255,255,0.8)', fontSize: 12, letterSpacing: 1 },
   totalValue: { fontFamily: fonts.bold, color: '#fff', fontSize: 32, letterSpacing: -0.5 },
   totalSplit: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: spacing.md },
   totalSplitCell: { flex: 1, gap: 1 },
@@ -646,13 +659,13 @@ const useStyles = makeStyles((c) => ({
   },
   payNowBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: '#fff',
     letterSpacing: 0.2,
   },
 
   statusChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radii.full },
-  statusChipText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.3 },
+  statusChipText: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.3 },
 
   // Stream Revenue styling
   streamCard: {
@@ -676,7 +689,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  streamEyebrow: { fontFamily: fonts.bold, fontSize: 10, color: c.accent, letterSpacing: 0.8 },
+  streamEyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 0.8 },
   streamCardTitle: { fontFamily: fonts.bold, fontSize: 16, color: c.text },
   streamCardSub: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
   withdrawBtn: {
@@ -722,7 +735,7 @@ const useStyles = makeStyles((c) => ({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.borderSoft,
   },
-  streamFooterText: { fontFamily: fonts.regular, fontSize: 11, color: c.textMuted },
+  streamFooterText: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
 
   // Gift Earnings styling
   giftCard: {
@@ -746,7 +759,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  giftEyebrow: { fontFamily: fonts.bold, fontSize: 10, color: c.accent, letterSpacing: 0.8 },
+  giftEyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 0.8 },
   giftCardTitle: { fontFamily: fonts.bold, fontSize: 16, color: c.text },
   giftCardSub: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
   giftDivider: { height: 1, backgroundColor: c.borderSoft },
@@ -785,7 +798,7 @@ const useStyles = makeStyles((c) => ({
     fontStyle: 'italic',
     color: c.textSoft,
   },
-  giftDate: { fontFamily: fonts.regular, fontSize: 11, color: c.textMuted, marginTop: 2 },
+  giftDate: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, marginTop: 2 },
 }));
 
 /** Photographers only receive payments; send them to their earnings view instead. */

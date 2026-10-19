@@ -17,7 +17,7 @@
  *   POST /opportunities/{id}/reject        → decline hybrid lead
  *   POST /events/{id}/convert-to-hybrid    → direct decline rescue hook
  */
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -34,6 +34,7 @@ import {
 import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { ActionButton, Chip, EmptyNote, ErrorNotice, IconTile, SectionHeader, SegmentedTabs, SkeletonCard, StatusBadge } from '@/features/photographer/kit';
+import { StatusBreakdownCard, type BreakdownSegment } from '@/features/client/ClientCharts';
 import { Screen } from '@/components/ui/Screen';
 import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
 import { statusTone } from '@/features/payments/statusBucket';
@@ -286,6 +287,33 @@ export default function BookingsScreen() {
               <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
             }
           >
+            <View style={{ marginHorizontal: -spacing.lg }}>
+              <StatusBreakdownCard
+                segments={[
+                  {
+                    key: 'accepted',
+                    label: 'Accepted',
+                    value: data.filter((b) => (b.status ?? '').toUpperCase() === 'ACCEPTED' || (b.status ?? '').toUpperCase() === 'CONFIRMED').length,
+                    color: colors.success,
+                  },
+                  {
+                    key: 'pending',
+                    label: 'Pending',
+                    value: data.filter((b) => (b.status ?? '').toUpperCase() === 'PENDING').length,
+                    color: colors.warning,
+                  },
+                  {
+                    key: 'rejected',
+                    label: 'Rejected',
+                    value: data.filter((b) => (b.status ?? '').toUpperCase() === 'REJECTED' || (b.status ?? '').toUpperCase() === 'CANCELLED').length,
+                    color: colors.error,
+                  },
+                ]}
+                centerLabel="bookings"
+                summary="Bookings by status"
+                emptyText="No bookings yet."
+              />
+            </View>
             <SectionHeader
               title={isPhotographer ? 'Requests' : 'Your bookings'}
               subtitle={`${data.length} request${data.length === 1 ? '' : 's'}`}
@@ -562,7 +590,7 @@ const useStyles = makeStyles((c) => ({
     color: c.primary,
   },
   rescueDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: c.textSoft,
   },
 

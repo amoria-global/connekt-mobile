@@ -54,6 +54,7 @@ import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
+import { ClientWalletAnalytics } from '@/features/client/ClientWalletAnalytics';
 import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
@@ -233,18 +234,11 @@ export default function WalletScreen() {
                 label="Wallet sections"
                 value={walletTab}
                 onChange={setWalletTab}
-                tabs={
-                  isPhotographer
-                    ? [
-                        { key: 'overview', label: 'Overview' },
-                        { key: 'analytics', label: 'Analytics' },
-                        { key: 'activity', label: 'Activity' },
-                      ]
-                    : [
-                        { key: 'overview', label: 'Overview' },
-                        { key: 'activity', label: 'Activity' },
-                      ]
-                }
+                tabs={[
+                  { key: 'overview', label: 'Overview' },
+                  { key: 'analytics', label: 'Analytics' },
+                  { key: 'activity', label: 'Activity' },
+                ]}
               />
             </View>
           ) : null}
@@ -390,7 +384,7 @@ export default function WalletScreen() {
           {showAnalytics ? (
             // The analytics blocks carry their own side margins, so cancel the scroll's padding.
             <View style={styles.walletBleed}>
-              <WalletAnalytics wallet={data?.wallet ?? null} />
+              {isPhotographer ? <WalletAnalytics wallet={data?.wallet ?? null} /> : <ClientWalletAnalytics wallet={data?.wallet ?? null} />}
             </View>
           ) : null}
 
@@ -977,7 +971,7 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
-  privacyToggleText: { fontFamily: fonts.bold, fontSize: 11, color: c.textMuted },
+  privacyToggleText: { fontFamily: fonts.bold, fontSize: 12, color: c.textMuted },
 
   suspensionBanner: {
     flexDirection: 'row',
@@ -991,7 +985,7 @@ const useStyles = makeStyles((c) => ({
   },
   suspensionContent: { flex: 1, gap: 2 },
   suspensionTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.warning },
-  suspensionDate: { fontFamily: fonts.regular, fontSize: 11, color: c.warning },
+  suspensionDate: { fontFamily: fonts.regular, fontSize: 12, color: c.warning },
 
   // Hero Card (Clean solid card — no gradients)
   heroCard: {
@@ -1020,7 +1014,7 @@ const useStyles = makeStyles((c) => ({
   },
   pendingStripLabel: { fontFamily: fonts.bold, fontSize: 13, color: c.textSoft },
   pendingStripAmount: { fontFamily: fonts.bold, fontSize: 14, color: c.text },
-  pendingStripNote: { flexShrink: 1, flexBasis: 120, flexGrow: 1, fontSize: 11.5, color: c.textMuted, textAlign: 'right' },
+  pendingStripNote: { flexShrink: 1, flexBasis: 120, flexGrow: 1, fontSize: 12, color: c.textMuted, textAlign: 'right' },
   rowsCard: {
     backgroundColor: c.card,
     borderRadius: radii.lg,
@@ -1071,7 +1065,7 @@ const useStyles = makeStyles((c) => ({
   heroLabelText: {
     fontFamily: fonts.bold,
     color: c.link,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
@@ -1117,7 +1111,7 @@ const useStyles = makeStyles((c) => ({
   },
   statusChipText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.warning,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1162,7 +1156,7 @@ const useStyles = makeStyles((c) => ({
   potLabel: {
     flex: 1,
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
@@ -1301,7 +1295,7 @@ const useStyles = makeStyles((c) => ({
   },
   tagBadgeText: {
     fontFamily: fonts.bold,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 0.2,
     textTransform: 'uppercase',
   },
@@ -1312,7 +1306,7 @@ const useStyles = makeStyles((c) => ({
     fontSize: 12,
     color: c.textMuted,
   },
-  activityBullet: { fontSize: 11, color: c.textMuted },
+  activityBullet: { fontSize: 12, color: c.textMuted },
   activityTime: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
   activityRightCol: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   activityAmountWrap: { flexShrink: 0, alignItems: 'flex-end' },

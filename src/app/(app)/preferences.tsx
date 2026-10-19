@@ -138,5 +138,5 @@ const useStyles = makeStyles((c) => ({
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   rowBody: { flex: 1, gap: 2 },
   rowLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
-  rowDesc: { fontSize: fontSize.xs, color: c.textMuted },
+  rowDesc: { fontSize: 12, color: c.textMuted },
 }));
