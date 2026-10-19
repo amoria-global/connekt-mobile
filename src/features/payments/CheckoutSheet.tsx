@@ -304,9 +304,9 @@ const useStyles = makeStyles((c) => ({
   body: { paddingBottom: spacing.lg, gap: spacing.md },
   summary: { backgroundColor: c.primary, borderRadius: radii.lg, padding: spacing.lg, gap: 2 },
   summaryEvent: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  summarySub: { color: 'rgba(255,255,255,0.78)', fontSize: fontSize.xs },
+  summarySub: { color: 'rgba(255,255,255,0.78)', fontSize: 12 },
   summaryAmount: { marginTop: spacing.sm, color: c.textOnPrimary, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold },
-  label: { color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  label: { color: c.textSoft, fontSize: 12, fontWeight: fontWeight.bold },
   input: {
     minHeight: 48,
     borderRadius: radii.md,
@@ -317,9 +317,9 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
     fontSize: fontSize.md,
   },
-  note: { color: c.textMuted, fontSize: fontSize.xs, lineHeight: 18 },
+  note: { color: c.textMuted, fontSize: 12, lineHeight: 18 },
   notice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radii.md },
-  noticeText: { flex: 1, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, lineHeight: 18 },
+  noticeText: { flex: 1, fontSize: 12, fontWeight: fontWeight.semibold, lineHeight: 18 },
   waiting: { alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
   waitingText: { textAlign: 'center', color: c.textSoft, fontSize: fontSize.sm, lineHeight: 20 },
 }));

@@ -253,7 +253,7 @@ const useStyles = makeStyles((c) => ({
   sign: { fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   body: { flex: 1, gap: 2 },
   title: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text, lineHeight: 19 },
-  date: { fontSize: fontSize.xs, color: c.textMuted },
+  date: { fontSize: 12, color: c.textMuted },
   amount: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
   // Header Filters & Search

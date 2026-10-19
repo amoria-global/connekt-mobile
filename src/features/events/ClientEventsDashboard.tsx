@@ -1,9 +1,10 @@
 /**
  * ClientEventsDashboard: the client's Events tab.
  *
- * One column of bookings, newest first, under three light controls: a title row with
+ * Bookings can be browsed as a list or in the Month / Week / Agenda calendar views, with an
+ * event-status ring summary at the top, under three light controls: a title row with
  * "New", filter chips with counts, and search with sort. There is no floating button
- * (it covered the last card and the pager) and no stat strip (the chips already count).
+ * (it covered the last card and the pager).
  *
  * Every action the old coordinator-shared list had is kept: open, edit, share, QR for a
  * published event, the hybrid "Choose" and "Post" steps, create (direct or hybrid), find
@@ -29,10 +30,13 @@ import {
   Chip,
   EmptyNote,
   ErrorNotice,
+  SegmentedTabs,
   SkeletonCard,
   StatusBadge,
 } from '@/features/photographer/kit';
 import { Thumb } from '@/features/photographer/homeParts';
+import { ScheduleView, type ScheduleMode } from '@/features/photographer/ScheduleView';
+import { StatusBreakdownCard, type BreakdownSegment } from '@/features/client/ClientCharts';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
 import { formatDate } from '@/utils/format';
 import { listEvents } from './api';
@@ -95,6 +99,8 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
   const [search, setSearch] = useState(initialSearch);
   const [sort, setSort] = useState<EventSort>('newest');
   const [shown, setShown] = useState(PAGE_SIZE);
+  // List is the default; the calendar layouts reuse the photographer's schedule view in its client variant.
+  const [layout, setLayout] = useState<ScheduleMode | 'list'>('list');
   const [sortOpen, setSortOpen] = useState(false);
   const [qrTarget, setQrTarget] = useState<EventItem | null>(null);
   const [bookingModeOpen, setBookingModeOpen] = useState(false);
@@ -109,6 +115,19 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
     [events, filter, search, sort, today],
   );
   const { rows, hasMore } = visibleSlice(sorted, shown);
+  const isList = layout === 'list';
+  const toneColor = { success: colors.success, warning: colors.warning, error: colors.error, info: colors.primary, neutral: colors.textMuted };
+  const summary = useMemo<BreakdownSegment[]>(() => {
+    const by = new Map<string, BreakdownSegment>();
+    for (const e of events ?? []) {
+      const s = eventStatus(e);
+      const cur = by.get(s.label);
+      if (cur) cur.value += 1;
+      else by.set(s.label, { key: s.label, label: s.label, value: 1, color: toneColor[s.tone] });
+    }
+    return [...by.values()];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, colors]);
   const narrowed = search.trim().length > 0 || filter !== 'all';
 
   const newEvent = () => {
@@ -187,6 +206,21 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
         </Pressable>
       </View>
 
+      {events && events.length > 0 ? (
+        <StatusBreakdownCard segments={summary} centerLabel="events" summary="Your events by status" emptyText="No events yet." />
+      ) : null}
+      <SegmentedTabs
+        label="Events layout"
+        value={layout}
+        onChange={setLayout}
+        tabs={[
+          { key: 'list', label: 'List' },
+          { key: 'month', label: 'Month' },
+          { key: 'week', label: 'Week' },
+          { key: 'agenda', label: 'Agenda' },
+        ]}
+      />
+
       {error && events ? <ErrorNotice compact message={`Could not refresh. Showing the last list. ${error}`} onRetry={refresh} /> : null}
     </View>
   );
@@ -194,7 +228,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
   return (
     <View style={styles.container}>
       <FlatList
-        data={rows}
+        data={isList ? rows : []}
         keyExtractor={(e) => String(e.id)}
         ListHeaderComponent={header}
         contentContainerStyle={styles.listContent}
@@ -216,7 +250,20 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
           />
         )}
         ListFooterComponent={
-          rows.length > 0 ? (
+          !isList ? (
+            <ScheduleView
+              variant="client"
+              mode={layout}
+              onModeChange={setLayout}
+              events={sorted}
+              allEvents={events ?? []}
+              busyId={null}
+              onOpen={(e) => open(`/event/${e.id}`)}
+              onAccept={() => {}}
+              onDecline={() => {}}
+              onCreate={newEvent}
+            />
+          ) : rows.length > 0 ? (
             <View style={styles.footer}>
               <Text style={styles.count} accessibilityLiveRegion="polite">
                 Showing {rows.length} of {sorted.length} {sorted.length === 1 ? 'event' : 'events'}
@@ -228,7 +275,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
           ) : null
         }
         ListEmptyComponent={
-          error && !events ? (
+          !isList ? null : error && !events ? (
             <ErrorNotice message={error} onRetry={refresh} />
           ) : loading && !events ? (
             <View style={styles.skeletons}>

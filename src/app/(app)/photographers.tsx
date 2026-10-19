@@ -1106,7 +1106,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   loadingText: {
     fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
+    fontSize: 12,
     color: c.textMuted,
   },
   errorText: {
@@ -1176,7 +1176,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   viewModeBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
   },
   viewModeBtnTextActive: {
@@ -1200,7 +1200,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   liveBadgeText: {
     fontFamily: fonts.bold,
-    fontSize: 7.5,
+    fontSize: 12,
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -1226,7 +1226,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   mapTopSubtitle: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
   },
   eyebrowPill: {
@@ -1241,7 +1241,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   eyebrowText: {
     fontFamily: fonts.bold,
-    fontSize: 9.5,
+    fontSize: 12,
     color: c.primary,
     letterSpacing: 0.7,
   },
@@ -1296,7 +1296,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   hybridBannerDesc: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textSoft,
     lineHeight: 15,
   },
@@ -1311,7 +1311,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   hybridBannerBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#FFFFFF',
   },
 
@@ -1366,7 +1366,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   categoryChipText: {
     fontFamily: fonts.regular,
-    fontSize: 11.5,
+    fontSize: 12,
     color: c.text,
   },
   categoryChipTextActive: {
@@ -1400,7 +1400,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   filterPillText: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     color: c.text,
   },
   filterPillTextActive: {
@@ -1420,7 +1420,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   resetPillText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.primary,
   },
 
@@ -1452,7 +1452,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   inviteBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 10.5,
+    fontSize: 12,
     color: '#FFFFFF',
   },
 
@@ -1472,7 +1472,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   listFooterText: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
   },
 
@@ -1518,7 +1518,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   pagerBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 11.5,
+    fontSize: 12,
     color: c.text,
   },
   pagerBtnTextDisabled: {
@@ -1603,7 +1603,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
+    fontSize: 12,
     color: c.text,
   },
   modalActions: {
@@ -1630,7 +1630,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   sheetOptionText: {
     fontFamily: fonts.regular,
-    fontSize: fontSize.xs,
+    fontSize: 12,
     color: c.text,
   },
   sheetOptionTextActive: {

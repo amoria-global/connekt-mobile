@@ -756,7 +756,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   unreadCountChipText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
   },
 
@@ -1049,7 +1049,7 @@ const useStyles = makeStyles((c, e) => ({
   activeChatBadgeText: {
     fontFamily: fonts.bold,
     fontWeight: '700',
-    fontSize: 11,
+    fontSize: 12,
     color: c.primary,
   },
 

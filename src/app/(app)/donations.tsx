@@ -119,7 +119,7 @@ const useStyles = makeStyles((c) => ({
   webHintText: {
     flex: 1,
     color: c.info,
-    fontSize: fontSize.xs,
+    fontSize: 12,
     fontWeight: fontWeight.semibold,
     lineHeight: 18,
   },
@@ -137,6 +137,6 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.lg,
   },
   rowMsg: { fontSize: fontSize.md, color: c.text, fontWeight: fontWeight.semibold },
-  rowDate: { fontSize: fontSize.xs, color: c.textMuted },
+  rowDate: { fontSize: 12, color: c.textMuted },
   rowAmount: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
 }));

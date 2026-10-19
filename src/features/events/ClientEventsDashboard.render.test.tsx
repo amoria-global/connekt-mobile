@@ -219,4 +219,19 @@ describe('client events as rendered', () => {
     await press(r.root.findAll((n) => n.props?.accessibilityRole === 'radio' && n.props.accessibilityLabel === 'Title (A to Z)')[0], 'title sort');
     expect(order()).toBe(false);
   });
+
+  it('switches from List to Agenda calendar view with client status labels and no photographer actions', async () => {
+    serve(ok([
+      { id: 'a', title: 'Yubire Wedding', eventDate: future, startTime: '10:00', location: 'Kigali', bookingStatus: 'PENDING', photographer: { firstName: 'Eric', lastName: 'M' } },
+    ]));
+    const r = await mount();
+    const agendaTab = r.root.findAll((n) => n.props?.accessibilityRole === 'tab' && n.findAllByType(Text).some((t) => t.props.children === 'Agenda'))[0];
+    await press(agendaTab, 'Agenda tab');
+    const text = flat(r.root);
+    expect(text).toContain('Yubire Wedding');
+    expect(text).toContain('Eric M · Kigali');
+    expect(text).not.toContain('Awaiting your reply');
+    expect(text).not.toContain('Accept');
+    expect(text).not.toContain('Decline');
+  });
 });

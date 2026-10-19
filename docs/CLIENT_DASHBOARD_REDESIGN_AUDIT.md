@@ -347,3 +347,38 @@ Both items that were fixed in code during the second pass but not yet re-seen on
 |---|---|---|---|---|
 | Photographer directory price at `1.6x` (`connekt:///photographers`) | seen at `1.6x` | seen at `1.6x` | seen | Footer stacks price (`From RWF 850,000`, `From RWF 180,000`, `From $250.00`) above the `View profile ->` pill; zero `"Fro..."` truncation in either theme |
 | Event `Danger zone` (`connekt:///event/e-del`, deletable fixture event) | seen | seen | seen | `Manage` card shows primary/outline action buttons (`Publish`, `Edit`, `Geo pricing`, `Share`, `Rate`), followed by a hairline divider, `DANGER ZONE` eyebrow, and quiet outlined red `Delete event` button (`dangerOutline`) |
+
+# Fourth pass: Client–Photographer Dashboard Parity & Typography (2026-10-19)
+
+Branch: `feat/client-dashboard-parity` (frontend only, no backend/API/payment changes, no fabricated data).
+
+## 1. Overview, Analytics & Chart Parity Across Client Screens
+
+| Screen | What changed to match Photographer dashboard | Data honesty & role separation | Verification |
+|---|---|---|---|
+| **Client Home** (`src/features/dashboard/ClientHome.tsx`, `src/features/client/ClientOverview.tsx`, `src/features/client/ClientCharts.tsx`) | Added header privacy toggle (`eye-off-outline` / `eye-outline`, 44×44, default `hidden = true`) masking amounts on `NextEventCard`, `PaymentCard`, and `ClientOverview`. Added **Your overview** section with `View analytics` CTA (`-> /analytics`), two `MetricCard`s (`Total spent` from wallet, `Payments due` from pending USD ledger), an events-by-stage `StatusBreakdownCard` (`SegmentRing` + legend), and three count tiles (`Bookings`, `Photos delivered`, `Saved photographers`). | `Total spent` uses `selectWalletStats(wallet, 'client').hero.value` in `wallet.currency` (never `CustomerAnalytics.totalSpent`, whose currency depends on cache freshness). `Payments due` sums `remaining(p)` in `USD`. Unknown figures show `N/A`. | Jest (`ClientHome.render.test.tsx`, `ClientCharts.test.tsx`) |
+| **Client Wallet — Analytics Tab** (`src/app/(app)/(tabs)/wallet.tsx`, `src/features/client/ClientWalletAnalytics.tsx`) | Added the **Analytics** tab to the client `SegmentedTabs` (`Overview` / `Analytics` / `Activity`), matching the photographer wallet. Renders `Total spent` hero `Card`, `Processing` `MetricCard`, **Where your money goes** `StatusBreakdownCard` (`SegmentRing` over `selectWalletStats(wallet, 'client').cards`), period `SegmentedTabs` (`Today` / `Week` / `Month`), period `MetricCard`s (`Events`, `Photographers` with `trendCaption`), **Spending trend** (`TrendChart`), **Events in this period** (`CountBars` histogram), and `Open payments` / `Custom date range` actions. | Spending trend (`value1`) is relative-only with no currency label because the backend sums payments across currencies; event histogram (`value2`) shows real integer counts per interval. | Jest (`walletTab.render.test.tsx`, `ClientCharts.test.tsx`) |
+| **Client Events Tab** (`src/features/events/ClientEventsDashboard.tsx`, `src/features/photographer/ScheduleView.tsx`) | Added **Your events by status** `StatusBreakdownCard` (`SegmentRing` summary) and `SegmentedTabs` layout switcher (`List` / `Month` / `Week` / `Agenda`) reusing `ScheduleView` with `variant="client"`. | `variant="client"` uses `eventStatus(event)` labels, shows `photographerName` instead of `clientName`, hides photographer-only `Accept`/`Decline` buttons and schedule-conflict banners, and leaves photographer `ScheduleView` default behaviour untouched. | Jest (`ClientEventsDashboard.render.test.tsx`, `ScheduleView.test.tsx`) |
+| **Analytics Screen** (`src/app/(app)/analytics.tsx`) | Replaced legacy client `SaloPerformanceChart` with `SpendingTrendChart` (`TrendChart` area curve) and `EventsHistogram` (`CountBars` histogram). | Photographer `EventsChart` and coordinator charts remain untouched. | `tsc --noEmit` + Jest (`ClientCharts.test.tsx`) |
+| **Payments Screen** (`src/app/(app)/payments.tsx`) | Added **Payments by status** `StatusBreakdownCard` (`Paid`, `Pending`, `Failed` counts and percentages) above the Activity section. | Unsettled viewer digital declarations (`unfinished`) remain excluded from owed counts. | Jest (`paymentsScreen.render.test.tsx`) |
+| **Bookings Screen** (`src/app/(app)/bookings.tsx`) | Added **Bookings by status** `StatusBreakdownCard` (`Accepted`, `Pending`, `Rejected` counts and percentages) at the top of the direct bookings list. | Computed directly from the loaded `/bookings` list; hidden when empty or loading. | `tsc --noEmit` |
+
+## 2. Typography Scale Pass (Client-Facing Screens)
+
+All sub-12px body, meta, badge, pill, and caption font sizes (`7.5`–`11.5` and `fontSize.xs`) across client-facing screens were raised to a minimum of `12` (`12`–`13` meta, `14`–`15` body, `16`/`700` card titles, `17`/`800` section headers, `23`–`26`/`800` screen titles) to match the Photographer workspace scale:
+
+- `src/app/(app)/photographers.tsx` & `src/features/photographers/DirectBookingMapView.tsx`
+- `src/app/(app)/gallery.tsx`, `src/app/(app)/photobooks.tsx`, `src/app/(app)/content-albums.tsx`
+- `src/app/(app)/album/new.tsx`, `src/app/(app)/photobook/new.tsx`, `src/app/(app)/content-album/new.tsx`
+- `src/app/(app)/event/new.tsx` & `src/features/events/SatisfactionSurveySheet.tsx`
+- `src/app/(app)/payments.tsx`, `src/features/payments/CheckoutSheet.tsx`, `src/features/payments/PaymentMethodPicker.tsx`
+- `src/app/(app)/bookings.tsx`, `src/app/(app)/notifications.tsx`, `src/app/(app)/pay-on-tv.tsx`
+- `src/app/(app)/(tabs)/wallet.tsx`, `src/app/(app)/(tabs)/inbox.tsx`, `src/app/(app)/(tabs)/profile.tsx`
+- `src/app/(app)/analytics.tsx`, `src/app/(app)/donations.tsx`, `src/app/(app)/edit-profile.tsx`, `src/app/(app)/payment-accounts.tsx`, `src/app/(app)/preferences.tsx`, `src/app/(app)/transactions.tsx`, `src/app/(app)/tv-devices.tsx`
+
+## 3. Verification Honesty
+
+- **TypeScript (`npx tsc --noEmit`)**: 0 errors.
+- **Jest (`npx jest`)**: All touched and regression suites pass (`ClientHome.render.test.tsx`, `PhotographerHome.render.test.tsx`, `ClientCharts.test.tsx`, `walletTab.render.test.tsx`, `WalletAnalytics.test.tsx`, `ClientEventsDashboard.render.test.tsx`, `ScheduleView.test.tsx`, `paymentsScreen.render.test.tsx`).
+- **Device / Emulator**: Not run in this pass (`adb devices` had no physical phone attached and host free physical RAM was ~970 MB, below the ~2 GB required to boot the Android emulator and Metro). Visual verification of this fourth pass is via `react-test-renderer` Jest tests only.
+
