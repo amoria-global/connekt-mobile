@@ -3,11 +3,13 @@ import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { useTheme } from '@/theme';
 
 /** Guest-accessible screens (no login required). */
 export default function PublicLayout() {
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const status = useAuth((s) => s.status);
   const fallback = status === 'authenticated' ? '/(tabs)' : '/login';
@@ -18,11 +20,11 @@ export default function PublicLayout() {
       hitSlop={12}
       style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingRight: 8 }}
       accessibilityRole="button"
-      accessibilityLabel={status === 'authenticated' ? 'Back' : 'Back to sign in'}
+      accessibilityLabel={status === 'authenticated' ? t('navBack') : t('backToSignIn')}
     >
       <Ionicons name="chevron-back" size={22} color={tintColor || colors.primary} />
       <Text style={{ color: tintColor || colors.primary, fontSize: 14, fontWeight: '700', marginLeft: -2 }}>
-        {status === 'authenticated' ? 'Back' : 'Sign in'}
+        {status === 'authenticated' ? t('navBack') : t('signInBtn')}
       </Text>
     </Pressable>
   );
@@ -39,7 +41,7 @@ export default function PublicLayout() {
         opacity: pressed ? 0.7 : 1,
       }]}
       accessibilityRole="button"
-      accessibilityLabel="Go back"
+      accessibilityLabel={t('navGoBack')}
     >
       <Ionicons name="chevron-back" size={24} color={tintColor || colors.primary} />
     </Pressable>
@@ -71,8 +73,8 @@ export default function PublicLayout() {
           }}
         />
         <Stack.Screen name="scan/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="events/join" options={{ title: 'Join event' }} />
-        <Stack.Screen name="events/pay" options={{ title: 'Payment' }} />
+        <Stack.Screen name="events/join" options={{ title: t('navJoinEvent') }} />
+        <Stack.Screen name="events/pay" options={{ title: t('navPayment') }} />
         <Stack.Screen
           name="events/live-stream"
           options={{
@@ -94,24 +96,24 @@ export default function PublicLayout() {
         <Stack.Screen
           name="browse-photos"
           options={{
-            title: 'Browse Photos',
+            title: t('navBrowsePhotos'),
             headerLeft: () => renderBackToLogin(),
           }}
         />
-        <Stack.Screen name="gallery" options={{ title: 'Gallery' }} />
-        <Stack.Screen name="help-center/index" options={{ title: 'Help Center' }} />
-        <Stack.Screen name="help-center/booking" options={{ title: 'Booking Help' }} />
-        <Stack.Screen name="help-center/my-account" options={{ title: 'My Account Help' }} />
-        <Stack.Screen name="help-center/payment-methods" options={{ title: 'Payment Methods' }} />
-        <Stack.Screen name="help-center/payment" options={{ title: 'Payment Help' }} />
-        <Stack.Screen name="help-center/security" options={{ title: 'Security Help' }} />
-        <Stack.Screen name="help-center/technical-support" options={{ title: 'Technical Support' }} />
-        <Stack.Screen name="contact_us" options={{ title: 'Contact us' }} />
-        <Stack.Screen name="feedback" options={{ title: 'Send feedback' }} />
-        <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
-        <Stack.Screen name="terms-of-service" options={{ title: 'Terms & Conditions' }} />
-        <Stack.Screen name="about" options={{ title: 'About' }} />
-        <Stack.Screen name="trust-safety" options={{ title: 'Trust & Safety' }} />
+        <Stack.Screen name="gallery" options={{ title: t('navGallery') }} />
+        <Stack.Screen name="help-center/index" options={{ title: t('navHelpCenter') }} />
+        <Stack.Screen name="help-center/booking" options={{ title: t('navBookingHelp') }} />
+        <Stack.Screen name="help-center/my-account" options={{ title: t('navMyAccountHelp') }} />
+        <Stack.Screen name="help-center/payment-methods" options={{ title: t('navPaymentMethods') }} />
+        <Stack.Screen name="help-center/payment" options={{ title: t('navPaymentHelp') }} />
+        <Stack.Screen name="help-center/security" options={{ title: t('navSecurityHelp') }} />
+        <Stack.Screen name="help-center/technical-support" options={{ title: t('navTechnicalSupport') }} />
+        <Stack.Screen name="contact_us" options={{ title: t('navContactUs') }} />
+        <Stack.Screen name="feedback" options={{ title: t('navSendFeedback') }} />
+        <Stack.Screen name="privacy-policy" options={{ title: t('navPrivacyPolicy') }} />
+        <Stack.Screen name="terms-of-service" options={{ title: t('navTermsConditions') }} />
+        <Stack.Screen name="about" options={{ title: t('navAbout') }} />
+        <Stack.Screen name="trust-safety" options={{ title: t('navTrustSafety') }} />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -16,9 +16,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GlassLayer, glassClear } from '@/components/ui/GlassCard';
+import { PhotoLanguagePill } from '@/features/auth/AuthGlassLayout';
+import { useLanguage } from '@/store/language';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/store/onboarding';
-import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { fonts, spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 type Slide = {
   key: string;
@@ -26,6 +29,13 @@ type Slide = {
   photo?: string;
   /** Local transparent cutout, composited over the gradient. */
   subject?: number;
+  /** Local full-bleed scene photo (no cutout), brand-tinted for cohesion. */
+  scene?: number;
+  /**
+   * Horizontal crop focus for a wide scene on a tall screen, 0 (left edge)
+   * to 1 (right edge): only a narrow slice of a landscape photo fits.
+   */
+  focus?: number;
   /** Render the photo as a centered circle on the gradient (not full-bleed). */
   circle?: boolean;
   /** Looping muted video to show inside the circle (overrides the photo). */
@@ -36,44 +46,6 @@ type Slide = {
   cta: string;
 };
 
-/** Full-bleed photo intro. Copy mirrors the Connekyt landing value props. */
-const SLIDES: Slide[] = [
-  {
-    key: 'book',
-    subject: require('../../../assets/images/photographer.png'),
-    gradient: ['#1E63D0', '#062B63'],
-    title: 'Find your perfect\nphotographer',
-    body: 'Browse photographers and videographers for any style, budget, or occasion. See their work and book the right one for you.',
-    cta: 'Next',
-  },
-  {
-    key: 'live',
-    // Bundled asset — no external hotlink (an Unsplash URL here left the intro
-    // dependent on a third-party host and blank offline).
-    subject: require('../../../assets/images/photographer2.png'),
-    gradient: ['#5B1A8A', '#062B63'],
-    title: 'Go live,\ntogether',
-    body: 'Stream your events live so guests anywhere can join the celebration with reactions, wishes, and gifts.',
-    cta: 'Next',
-  },
-  {
-    key: 'find',
-    video: require('../../../assets/images/screen3.mp4'),
-    gradient: ['#1E63D0', '#062B63'],
-    title: 'Find your\nphotos',
-    body: "Snap a selfie and we'll find every photo you're in across all events. Got an invite code? Jump straight to that event's gallery.",
-    cta: 'Next',
-  },
-  {
-    key: 'grow',
-    subject: require('../../../assets/images/photographer2.png'),
-    gradient: ['#2563EB', '#062B63'],
-    title: 'Turn your passion\ninto income',
-    body: 'Behind the camera? Join Connekyt to show off your work, get booked, and get paid securely.',
-    cta: 'Get started',
-  },
-];
-
 export default function WelcomeScreen() {
   const styles = useStyles();
   const router = useRouter();
@@ -81,15 +53,60 @@ export default function WelcomeScreen() {
   const reduceMotion = useReducedMotion();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { language, t } = useLanguage();
+
+  const slides: Slide[] = useMemo(
+    () => [
+      {
+        key: 'book',
+        subject: require('../../../assets/images/photographer.png'),
+        gradient: ['#1E63D0', '#062B63'],
+        title: t('onboardingTitle1'),
+        body: t('onboardingBody1'),
+        cta: t('next'),
+      },
+      {
+        key: 'live',
+        // A family watching a live concert stream at home, in the same purple
+        // duotone as the cut-outs (a grey-mapped crop of live.png).
+        scene: require('../../../assets/images/onboarding-live.jpg'),
+        gradient: ['#5B1A8A', '#062B63'],
+        title: t('onboardingTitle2'),
+        body: t('onboardingBody2'),
+        cta: t('next'),
+      },
+      {
+        key: 'find',
+        video: require('../../../assets/images/screen3.mp4'),
+        // Starts on the video's own black, so the frame has no visible edge.
+        gradient: ['#000000', '#03122B'],
+        title: t('onboardingTitle3'),
+        body: t('onboardingBody3'),
+        cta: t('next'),
+      },
+      {
+        key: 'grow',
+        // The sunset photographer the login opens on, so "Get started" lands
+        // somewhere that already looks familiar.
+        scene: require('../../../assets/images/event-team.jpg'),
+        gradient: ['#2563EB', '#062B63'],
+        title: t('onboardingTitle4'),
+        body: t('onboardingBody4'),
+        cta: t('getStarted'),
+      },
+    ],
+    [language, t],
+  );
 
   const scrollX = useRef(new Animated.Value(0)).current;
   const enter = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const [copyIn] = useState(() => new Animated.Value(1));
   const listRef = useRef<Animated.FlatList<Slide>>(null);
   const [index, setIndex] = useState(0);
-  const isLast = index === SLIDES.length - 1;
-
-  // Leave room at the bottom for the fixed footer (dots + CTA).
-  const contentPadBottom = insets.bottom + 168;
+  // Height of the copy + dots + button block, so the video frame stops above it.
+  const [footerHeight, setFooterHeight] = useState(Math.round(height * 0.38));
+  const isLast = index === slides.length - 1;
+  const slide = slides[index] ?? slides[0];
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -101,6 +118,18 @@ export default function WelcomeScreen() {
       useNativeDriver: true,
     }).start();
   }, [enter, reduceMotion]);
+
+  // Each slide's copy settles in as the imagery arrives.
+  useEffect(() => {
+    if (reduceMotion) return;
+    copyIn.setValue(0);
+    Animated.timing(copyIn, {
+      toValue: 1,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [index, copyIn, reduceMotion]);
 
   const finish = async () => {
     await complete();
@@ -118,13 +147,13 @@ export default function WelcomeScreen() {
     setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
   };
 
-  const enterY = reduceMotion ? 0 : enter.interpolate({ inputRange: [0, 1], outputRange: [20, 0] });
+  const copyY = reduceMotion ? 0 : copyIn.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
 
   return (
     <View style={styles.container}>
-      <Animated.FlatList
+    <Animated.FlatList
         ref={listRef}
-        data={SLIDES}
+        data={slides}
         keyExtractor={(item) => item.key}
         horizontal
         pagingEnabled
@@ -140,122 +169,80 @@ export default function WelcomeScreen() {
           const imgScale = reduceMotion
             ? 1
             : scrollX.interpolate({ inputRange, outputRange: [1.12, 1, 1.12], extrapolate: 'clamp' });
-          const textShift = reduceMotion
-            ? 0
-            : scrollX.interpolate({ inputRange, outputRange: [width * 0.16, 0, -width * 0.16], extrapolate: 'clamp' });
-
-          const a11y = `${item.title.replace('\n', ' ')}. ${item.body}`;
-
-          // Centered circular layout (e.g. Find Your Photos).
-          if (item.circle) {
-            return (
-              <View style={[styles.slide, { width, height }]}>
-                <LinearGradient colors={item.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-                <Animated.View
-                  accessible
-                  accessibilityRole="text"
-                  accessibilityLabel={a11y}
-                  style={[
-                    styles.circleContent,
-                    { paddingBottom: contentPadBottom, opacity: enter, transform: [{ translateX: textShift }, { translateY: enterY }] },
-                  ]}
-                >
-                  <View style={styles.circleOuter}>
-                    <View style={styles.circleRing} />
-                    <View style={styles.circleImageWrap}>
-                      {item.video != null ? (
-                        <VideoFill source={item.video} />
-                      ) : (
-                        <Image source={{ uri: item.photo }} style={StyleSheet.absoluteFill} contentFit="cover" transition={450} />
-                      )}
-                    </View>
-                    <View style={styles.circleDot} />
-                  </View>
-                  <Text style={[styles.title, styles.center]} accessibilityRole="header">
-                    {item.title}
-                  </Text>
-                  <Text style={[styles.body, styles.center]}>{item.body}</Text>
-                </Animated.View>
-              </View>
-            );
-          }
-
           return (
             <View style={[styles.slide, { width, height }]}>
-              {/* Brand gradient base */}
               <LinearGradient
                 colors={item.gradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-              {/* Full-screen media. Video is "contain" (show whole frame, no crop);
-                  photos "cover" with a subtle zoom. */}
-              {item.video != null ? (
-                <View style={[StyleSheet.absoluteFill, { bottom: height * 0.3 }]}>
-                  <VideoFill source={item.video} contentFit="contain" />
-                </View>
-              ) : (
-                <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: imgScale }] }]}>
-                  <Image
-                    source={item.subject != null ? item.subject : { uri: item.photo }}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                    transition={450}
-                  />
-                </Animated.View>
-              )}
-              {/* Brand tint over scene photos → unifies warm/cool images with the brand. */}
-              {item.subject == null && item.video == null ? <View pointerEvents="none" style={styles.tint} /> : null}
-              {/* Legibility scrim: darken top (status bar / Skip) and bottom (text). */}
-              <LinearGradient
-                colors={['rgba(6,28,63,0.45)', 'rgba(6,28,63,0.12)', 'rgba(6,28,63,0.6)', 'rgba(6,28,63,0.95)']}
-                locations={[0, 0.32, 0.66, 1]}
-                style={StyleSheet.absoluteFill}
-              />
+                {item.video != null ? (
+                  // The whole frame, centred in the space above the copy.
+                  <View style={[StyleSheet.absoluteFill, { top: insets.top + 56, bottom: footerHeight }]}>
+                    <VideoFill source={item.video} contentFit="contain" />
+                  </View>
+                ) : (
+                  <Animated.View style={[StyleSheet.absoluteFill, { opacity: enter, transform: [{ scale: imgScale }] }]}>
+                    <Image
+                      source={item.scene ?? item.subject ?? { uri: item.photo }}
+                      style={styles.fill}
+                      contentFit="cover"
+                      contentPosition={
+                        item.focus != null ? { left: `${Math.round(item.focus * 100)}%`, top: '50%' } : 'center'
+                      }
+                      transition={450}
+                    />
+                  </Animated.View>
+                )}
+                {/* Legibility scrim: darkens the top (Skip, status bar) and the
+                    bottom, where the copy sits straight on the imagery. */}
+                <LinearGradient
+                  colors={['rgba(6,28,63,0.45)', 'rgba(6,28,63,0)', 'rgba(6,28,63,0.7)', 'rgba(6,28,63,0.96)']}
+                  locations={[0, 0.28, 0.6, 1]}
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
+            );
+          }}
+        />
 
-              {/* Per-slide copy */}
-              <Animated.View
-                accessible
-                accessibilityRole="text"
-                accessibilityLabel={a11y}
-                style={[
-                  styles.copy,
-                  { paddingBottom: contentPadBottom, opacity: enter, transform: [{ translateX: textShift }, { translateY: enterY }] },
-                ]}
-              >
-                <Text style={styles.title} accessibilityRole="header">
-                  {item.title}
-                </Text>
-                <Text style={styles.body}>{item.body}</Text>
-              </Animated.View>
-            </View>
-          );
-        }}
-      />
-
-      {/* The hero is a navy scrim over photography in BOTH schemes, so the
-          icons stay light — the root ThemedStatusBar would render them dark
-          on navy in light mode. */}
+      {/* Imagery under the status bar in both schemes, so its icons stay light. */}
       <StatusBar style="light" />
 
-      {/* Fixed: Skip */}
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
         <Pressable
           onPress={finish}
           accessibilityRole="button"
           accessibilityLabel="Skip onboarding"
           hitSlop={8}
-          style={({ pressed }) => [styles.skipPill, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.skipPill, glassClear, pressed && styles.pressed]}
         >
-          <Text style={styles.skip}>Skip</Text>
+          <GlassLayer fill="rgba(0,0,0,0.22)" />
+          <Text style={styles.skip}>{t('skip')}</Text>
         </Pressable>
+        <PhotoLanguagePill />
       </View>
 
-      {/* Fixed: dots + CTA */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.xl }]}>
+      {/* Copy, dots and button, straight on the imagery. */}
+      <View
+        style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}
+        onLayout={(e) => setFooterHeight(Math.round(e.nativeEvent.layout.height))}
+      >
+        <Animated.View
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={`${slide.title.replace('\n', ' ')}. ${slide.body}`}
+          style={[styles.copy, { opacity: copyIn, transform: [{ translateY: copyY }] }]}
+        >
+          <Text style={styles.title} accessibilityRole="header">
+            {slide.title}
+          </Text>
+          <Text style={styles.body}>{slide.body}</Text>
+        </Animated.View>
+
         <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {SLIDES.map((s, i) => (
+          {slides.map((s, i) => (
             <Dash key={s.key} active={i === index} />
           ))}
         </View>
@@ -266,7 +253,7 @@ export default function WelcomeScreen() {
           accessibilityHint={isLast ? 'Finishes the intro and opens sign in' : 'Goes to the next slide'}
           style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
         >
-          <Text style={styles.ctaText}>{SLIDES[index]?.cta ?? 'Next'}</Text>
+          <Text style={styles.ctaText}>{slide.cta}</Text>
         </Pressable>
       </View>
     </View>
@@ -275,6 +262,7 @@ export default function WelcomeScreen() {
 
 /** Looping, muted video that fills its parent (full-bleed or circle). */
 function VideoFill({ source, contentFit = 'cover' }: { source: number; contentFit?: 'cover' | 'contain' }) {
+  const styles = useStyles();
   const player = useVideoPlayer(source, (p) => {
     p.loop = true;
     p.muted = true;
@@ -286,7 +274,7 @@ function VideoFill({ source, contentFit = 'cover' }: { source: number; contentFi
   });
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit={contentFit} nativeControls={false} />
+      <VideoView player={player} style={styles.fill} contentFit={contentFit} nativeControls={false} />
     </View>
   );
 }
@@ -306,72 +294,61 @@ function Dash({ active }: { active: boolean }) {
 }
 
 /**
- * This screen is a FIXED-DARK media hero: a full-bleed photo under a navy
- * legibility scrim, with white type on top. Its chrome must therefore stay
- * light-on-dark in BOTH schemes — theming it to app-surface tokens is what made
- * the dark version look broken (the white CTA became a grey blob on a dark
- * photo, and the circle's white ring turned grey).
- *
- * So the values below are deliberately literal, not `c.*`. They are keyed to
- * the scrim, not to the app background. `c.*` is used only where the token is
- * scheme-independent anyway (accent, textOnPrimary).
+ * This screen is a FIXED-DARK media hero: brand-navy imagery under a legibility
+ * scrim, with white type straight on it. Its chrome therefore stays light-on-
+ * dark in BOTH schemes, so the values below are deliberately literal, keyed to
+ * the scrim rather than the app palette.
  */
-const SCRIM_NAVY = '#062B63';   // matches the scrim gradient's darkest stop
-const ON_MEDIA = '#FFFFFF';     // CTA surface + ring, always over photography
+const SCRIM_NAVY = '#062B63';
+const ON_MEDIA = '#FFFFFF';     // CTA surface, always over imagery
 const ON_MEDIA_INK = '#083A85'; // brand navy, reads on the white CTA
 
 const useStyles = makeStyles((c, e) => ({
   container: { flex: 1, backgroundColor: SCRIM_NAVY },
   slide: { overflow: 'hidden' },
-  tint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8,58,133,0.28)' },
+  // Explicit size as well as absoluteFill: react-native-web otherwise lays
+  // media out at its intrinsic size.
+  fill: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
 
-  topBar: { position: 'absolute', top: 0, right: 0, left: 0, flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.lg },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    left: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    zIndex: 10,
+  },
   skipPill: {
+    height: 36,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Android fallback: no blur there, so a plain smoked chip.
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  skip: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
-  pressed: { opacity: 0.6 },
+  skip: { color: ON_MEDIA, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  pressed: { opacity: 0.7 },
 
-  copy: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: spacing.xl, gap: spacing.md },
-
-  circleContent: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, gap: spacing.xl },
-  circleOuter: { width: 248, height: 248, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  circleRing: {
+  footer: {
     position: 'absolute',
-    width: 248,
-    height: 248,
-    borderRadius: radii.full,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.25)',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.lg,
   },
-  circleImageWrap: {
-    width: 216,
-    height: 216,
-    borderRadius: radii.full,
-    overflow: 'hidden',
-    borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.92)',
-    backgroundColor: SCRIM_NAVY,
-    ...e(4),
-  },
-  circleDot: {
-    position: 'absolute',
-    top: 8,
-    right: 18,
-    width: 22,
-    height: 22,
-    borderRadius: radii.full,
-    backgroundColor: c.accent,
-  },
-  center: { textAlign: 'center' },
+  // A fixed floor for the copy, so the button does not jump between slides.
+  copy: { gap: spacing.sm, minHeight: 150, justifyContent: 'flex-end' },
   title: {
-    fontSize: 38,
-    lineHeight: 44,
+    fontFamily: fonts.bold,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: fontWeight.extrabold,
-    color: c.textOnPrimary,
+    color: ON_MEDIA,
     letterSpacing: -0.6,
     textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 2 },
@@ -387,9 +364,8 @@ const useStyles = makeStyles((c, e) => ({
     textShadowRadius: 8,
   },
 
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.xl, gap: spacing.lg },
-  dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  dash: { height: 6, borderRadius: radii.full, backgroundColor: c.textOnPrimary },
+  dots: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  dash: { height: 6, borderRadius: radii.full, backgroundColor: ON_MEDIA },
 
   cta: {
     height: 56,

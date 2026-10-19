@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 import { useRole } from '@/features/auth/role';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { Button } from './Button';
 
 type Props = {
@@ -14,15 +15,16 @@ type Props = {
 export function EmptyState({ icon, title, message, action }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const flat = useRole().isPhotographer;
   return (
     <View style={styles.wrap}>
       <View style={[styles.iconCircle, flat && styles.iconTile]}>
         <Ionicons name={icon} size={flat ? 26 : 32} color={colors.primary} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
-      {action ? <Button title={action.label} onPress={action.onPress} style={styles.action} /> : null}
+      <Text style={styles.title}>{tr(title)}</Text>
+      <Text style={styles.message}>{tr(message)}</Text>
+      {action ? <Button title={tr(action.label)} onPress={action.onPress} style={styles.action} /> : null}
     </View>
   );
 }

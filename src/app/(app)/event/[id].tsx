@@ -39,9 +39,14 @@ import { formatDate, formatPrice } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
 import { useCurrency } from '@/store/currency';
 
+import { useLanguage } from '@/hooks/useLanguage';
+import { translate, type TranslationKey } from '@/i18n/translations';
+const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
+
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 
 export default function EventDetailScreen() {
+  useLanguage();
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
@@ -82,9 +87,9 @@ export default function EventDetailScreen() {
       await submitReview(id, rating, reviewComment.trim() || undefined);
       setReviewOpen(false);
       setReviewComment('');
-      Alert.alert('Thank you!', 'Your review has been submitted.');
+      Alert.alert(tr('b3_evdet_thank_you'), 'Your review has been submitted.');
     } catch (e) {
-      Alert.alert('Could not submit', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b3_evdet_could_not_submit'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -96,7 +101,7 @@ export default function EventDetailScreen() {
       await fn();
       await refresh();
     } catch (e) {
-      Alert.alert('Something went wrong', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b3_evdet_something_wrong'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -112,7 +117,7 @@ export default function EventDetailScreen() {
     const booking = (ev?.bookingStatus ?? '').toUpperCase();
     if (!ev?.coverImage) {
       Alert.alert(
-        'Add a cover photo first',
+        tr('b3_evdet_add_cover_title'),
         'An event needs a cover photo before it can go live on connekyt.com. Edit the event to add one.',
         [
           { text: 'Not now', style: 'cancel' },
@@ -125,20 +130,20 @@ export default function EventDetailScreen() {
     // events need one before publishing.
     if (!isPrivate && !ev?.photographerName) {
       Alert.alert(
-        'Assign a photographer first',
+        tr('b3_evdet_assign_photog_title'),
         'Events are published once a photographer is attached, so guests know who is covering it.',
       );
       return;
     }
     if (booking && booking !== 'ACCEPTED' && booking !== 'UNASSIGNED') {
       Alert.alert(
-        'Waiting on the photographer',
+        tr('b3_evdet_waiting_photog_title'),
         'This booking has not been accepted yet. Once the photographer accepts, you can publish the event.',
       );
       return;
     }
     Alert.alert(
-      'Publish this event?',
+      tr('b3_evdet_publish_title'),
       'It becomes visible to everyone on connekyt.com, and guests can find and join it.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -158,13 +163,13 @@ export default function EventDetailScreen() {
   const onUnpublish = () => {
     if (s === 'ONGOING' || isStreamLive) {
       Alert.alert(
-        'The event is live',
+        tr('b3_evdet_live_title'),
         'Ask the photographer to end the stream before taking this event off connekyt.com.',
       );
       return;
     }
     Alert.alert(
-      'Unpublish this event?',
+      tr('b3_evdet_unpublish_title'),
       'It will no longer appear on connekyt.com. You can publish it again at any time.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -194,7 +199,7 @@ export default function EventDetailScreen() {
   };
 
   const onDelete = () => {
-    Alert.alert('Delete event', 'This cannot be undone. Delete this event?', [
+    Alert.alert(tr('b3_evdet_delete_title'), 'This cannot be undone. Delete this event?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -212,7 +217,7 @@ export default function EventDetailScreen() {
             if (router.canGoBack()) router.back();
             else router.replace('/(app)/(tabs)/events' as never);
           } catch (e) {
-            Alert.alert('Could not delete', isApiError(e) ? e.message : 'Please try again.');
+            Alert.alert(tr('b3_evdet_could_not_delete'), isApiError(e) ? e.message : 'Please try again.');
             setBusy(null);
           }
         },
@@ -249,7 +254,7 @@ export default function EventDetailScreen() {
       setDeclineReason('');
       await refresh();
     } catch (e) {
-      Alert.alert('Could not decline', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b3_evdet_could_not_decline'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -266,7 +271,7 @@ export default function EventDetailScreen() {
     // rather than on an active stream.
     if (s === 'UPCOMING' || s === 'PENDING' || s === 'PROPOSED') {
       Alert.alert(
-        "The event hasn't started yet",
+        tr('b3_evdet_not_started_title'),
         'You can mark a shoot complete once the event day has begun. Come back after it starts.',
       );
       return;
@@ -285,12 +290,12 @@ export default function EventDetailScreen() {
                   await markEventCompletedByPhotographer(id, notes);
                   await refresh();
                   Alert.alert(
-                    'Marked completed',
+                    tr('b3_evdet_marked_completed_title'),
                     'Waiting for the client to confirm. Escrow releases on their confirmation.',
                   );
                 } catch (e) {
                   Alert.alert(
-                    'Could not mark complete',
+                    tr('b3_evdet_could_not_mark_complete'),
                     isApiError(e) ? e.message : 'Please try again.',
                   );
                 } finally {
@@ -312,12 +317,12 @@ export default function EventDetailScreen() {
       await markEventCompletedByPhotographer(id);
       await refresh();
       Alert.alert(
-        'Marked completed',
+        tr('b3_evdet_marked_completed_title'),
         'Waiting for the client to confirm. Escrow releases on their confirmation.',
       );
     } catch (e) {
       Alert.alert(
-        'Could not mark complete',
+        tr('b3_evdet_could_not_mark_complete'),
         isApiError(e) ? e.message : 'Please try again.',
       );
     } finally {
@@ -344,7 +349,7 @@ export default function EventDetailScreen() {
   const requirePublished = (action: string): boolean => {
     if (ev?.published) return true;
     Alert.alert(
-      'Event not published yet',
+      tr('b3_evdet_not_published_title'),
       `${action} is only available for published events. Ask the event creator to publish "${ev?.title ?? 'this event'}" first.`,
     );
     return false;
@@ -379,9 +384,9 @@ export default function EventDetailScreen() {
       setCompletionOpen(false);
       setComment('');
       await refresh();
-      Alert.alert('Changes requested', 'The photographer has been notified.');
+      Alert.alert(tr('b3_evdet_changes_requested_title'), 'The photographer has been notified.');
     } catch (e) {
-      Alert.alert('Could not submit', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b3_evdet_could_not_submit'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -429,7 +434,7 @@ export default function EventDetailScreen() {
           : 'Thanks for confirming. The photographer has been paid.',
       );
     } catch (e) {
-      Alert.alert('Could not submit', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr('b3_evdet_could_not_submit'), isApiError(e) ? e.message : 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -507,7 +512,7 @@ export default function EventDetailScreen() {
       >
         {/* Title */}
         <View style={styles.titleWrap}>
-          <Text style={styles.eyebrow}>EVENT DETAILS</Text>
+          <Text style={styles.eyebrow}>{tr('b3_evdet_eyebrow')}</Text>
           <Text style={styles.title}>{ev?.title}</Text>
         </View>
 
@@ -529,7 +534,7 @@ export default function EventDetailScreen() {
             {ev?.hasLiveStream ? (
               <View style={[styles.heroPill, styles.heroLive]}>
                 <Ionicons name="radio" size={12} color="#fff" />
-                <Text style={[styles.heroPillText, { color: '#fff' }]}>LIVE STREAM</Text>
+                <Text style={[styles.heroPillText, { color: '#fff' }]}>{tr('b3_evdet_live_stream_pill')}</Text>
               </View>
             ) : null}
           </View>
@@ -541,18 +546,18 @@ export default function EventDetailScreen() {
             tinted cards; every other role keeps the grid. */}
         {(() => {
           const rows: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [];
-          if (ev?.eventDate) rows.push({ key: 'date', icon: 'calendar', label: 'DATE', value: fmtShortDate(ev.eventDate) });
+          if (ev?.eventDate) rows.push({ key: 'date', icon: 'calendar', label: tr('b3_evdet_lbl_date'), value: fmtShortDate(ev.eventDate) });
           if (ev?.startTime)
-            rows.push({ key: 'time', icon: 'time', label: 'TIME', value: [fmtTime(ev.startTime), fmtTime(ev.endTime)].filter(Boolean).join(' - ') });
-          if (ev?.location) rows.push({ key: 'loc', icon: 'location', label: 'LOCATION', value: ev.location });
-          if (ev?.clientName) rows.push({ key: 'client', icon: 'person', label: 'CLIENT', value: ev.clientName });
+            rows.push({ key: 'time', icon: 'time', label: tr('b3_evdet_lbl_time'), value: [fmtTime(ev.startTime), fmtTime(ev.endTime)].filter(Boolean).join(' - ') });
+          if (ev?.location) rows.push({ key: 'loc', icon: 'location', label: tr('b3_evdet_lbl_location'), value: ev.location });
+          if (ev?.clientName) rows.push({ key: 'client', icon: 'person', label: tr('b3_evdet_lbl_client'), value: ev.clientName });
           if (ev?.photographerName && !ev?.clientName)
-            rows.push({ key: 'photog', icon: 'camera', label: 'PHOTOGRAPHER', value: ev.photographerName });
-          if (ev?.packageName) rows.push({ key: 'pkg', icon: 'cube', label: 'PACKAGE', value: ev.packageName });
-          if (ev?.category) rows.push({ key: 'cat', icon: 'pricetag', label: 'EVENT TYPE', value: ev.category });
+            rows.push({ key: 'photog', icon: 'camera', label: tr('b3_evdet_lbl_photographer'), value: ev.photographerName });
+          if (ev?.packageName) rows.push({ key: 'pkg', icon: 'cube', label: tr('b3_evdet_lbl_package'), value: ev.packageName });
+          if (ev?.category) rows.push({ key: 'cat', icon: 'pricetag', label: tr('b3_evdet_lbl_event_type'), value: ev.category });
           if (ev?.maxGuests != null)
-            rows.push({ key: 'guests', icon: 'people', label: 'GUESTS', value: `${ev.guestCount ?? 0} / ${ev.maxGuests}` });
-          if (money) rows.push({ key: 'amount', icon: 'wallet', label: 'AMOUNT', value: money });
+            rows.push({ key: 'guests', icon: 'people', label: tr('b3_evdet_lbl_guests'), value: `${ev.guestCount ?? 0} / ${ev.maxGuests}` });
+          if (money) rows.push({ key: 'amount', icon: 'wallet', label: tr('b3_evdet_lbl_amount'), value: money });
           if (isPhotog) {
             return rows.length ? (
               <View style={styles.detailPanel}>
@@ -580,31 +585,31 @@ export default function EventDetailScreen() {
         {/* Primary actions — photographer */}
         {isPhotog && isPending ? (
           <View style={styles.btnRow}>
-            <PrimaryBtn icon="checkmark-circle" label="Accept" variant="success" full onPress={onAcceptBooking} loading={busy === 'accept'} />
-            <PrimaryBtn icon="close-circle" label="Decline" variant="danger" full onPress={() => setDeclineOpen(true)} loading={busy === 'decline'} />
+            <PrimaryBtn icon="checkmark-circle" label={tr('b3_evdet_accept')} variant="success" full onPress={onAcceptBooking} loading={busy === 'accept'} />
+            <PrimaryBtn icon="close-circle" label={tr('b3_evdet_decline')} variant="danger" full onPress={() => setDeclineOpen(true)} loading={busy === 'decline'} />
           </View>
         ) : null}
         {isPhotog && !isPending ? (
           <View style={styles.btnRow}>
             {canCreateAlbum ? (
-              <PrimaryBtn icon="add-circle" label="Create Album" variant="primary" onPress={onPhotographerCreateAlbum} />
+              <PrimaryBtn icon="add-circle" label={tr('b3_evdet_create_album')} variant="primary" onPress={onPhotographerCreateAlbum} />
             ) : null}
             {canGoLive ? (
-              <PrimaryBtn icon="radio" label="Live Stream" variant="accent" onPress={onPhotographerGoLive} />
+              <PrimaryBtn icon="radio" label={tr('b3_evdet_live_stream_btn')} variant="accent" onPress={onPhotographerGoLive} />
             ) : null}
-            <PrimaryBtn icon="share-social" label="Share" variant="outline" onPress={onShare} />
+            <PrimaryBtn icon="share-social" label={tr('b3_evdet_share')} variant="outline" onPress={onShare} />
             {ev?.published ? (
-              <PrimaryBtn icon="qr-code-outline" label="QR code" variant="outline" onPress={openQr} />
+              <PrimaryBtn icon="qr-code-outline" label={tr('b3_evdet_qr_code')} variant="outline" onPress={openQr} />
             ) : null}
             {canMarkComplete ? (
-              <PrimaryBtn icon="checkmark-done" label="Mark Complete" variant="success" onPress={onPhotographerMarkCompleted} loading={busy === 'photog-complete'} />
+              <PrimaryBtn icon="checkmark-done" label={tr('b3_evdet_mark_complete')} variant="success" onPress={onPhotographerMarkCompleted} loading={busy === 'photog-complete'} />
             ) : null}
           </View>
         ) : null}
 
         {/* Booking progress */}
-        {isPhotog && !ev?.status?.toUpperCase().includes('CANCEL') ? (
-          <InfoCard icon="git-commit-outline" title="Booking Progress">
+        {(isPhotog || ownsEvents) && !ev?.status?.toUpperCase().includes('CANCEL') ? (
+          <InfoCard icon="git-commit-outline" title={tr('b3_evdet_booking_progress')}>
             <ProgressStepper currentIndex={bookingStepIndex(ev)} />
           </InfoCard>
         ) : null}
@@ -660,9 +665,9 @@ export default function EventDetailScreen() {
                   </Text>
                   {ended ? (
                     <>
-                      <PrimaryBtn icon="radio-outline" label="Post again" variant="primary"
+                      <PrimaryBtn icon="radio-outline" label={tr('b3_evdet_post_again')} variant="primary"
                         onPress={() => setRepostOpen(true)} />
-                      <PrimaryBtn icon="search-outline" label="Find a Photographer instead" variant="outline" loading={busy === 'to-direct'}
+                      <PrimaryBtn icon="search-outline" label={tr('b3_evdet_find_instead')} variant="outline" loading={busy === 'to-direct'}
                         onPress={() => run('to-direct', async () => {
                           await convertToDirectRescue(id);
                           router.push('/photographers' as never);
@@ -677,27 +682,27 @@ export default function EventDetailScreen() {
             );
           })()
         ) : ownsEvents && !['COMPLETED', 'CANCELLED', 'CANCELED'].includes((ev?.status ?? '').toUpperCase()) ? (
-          <InfoCard icon="camera-outline" title="No photographer yet">
+          <InfoCard icon="camera-outline" title={tr('b3_evdet_no_photog_yet')}>
             <View style={{ gap: 10 }}>
-              <Text style={styles.desc}>Choose how you want to book one for this event.</Text>
-              <PrimaryBtn icon="radio-outline" label="Post My Event: let photographers say yes" variant="primary"
+              <Text style={styles.desc}>{tr('b3_evdet_choose_how_book')}</Text>
+              <PrimaryBtn icon="radio-outline" label={tr('b3_evdet_post_let_say_yes')} variant="primary"
                 onPress={() => setRepostOpen(true)} />
-              <PrimaryBtn icon="search-outline" label="Find a Photographer yourself" variant="outline"
+              <PrimaryBtn icon="search-outline" label={tr('b3_evdet_find_yourself')} variant="outline"
                 onPress={() => router.push('/photographers' as never)} />
             </View>
           </InfoCard>
         ) : null}
 
         {(ev?.packageName || money) ? (
-          <InfoCard icon="cube-outline" title="Booking Details">
-            {ev?.packageName ? <KeyValue label="Package" value={ev.packageName} /> : null}
-            {money ? <KeyValue label="Price" value={money} accent /> : null}
+          <InfoCard icon="cube-outline" title={tr('b3_evdet_booking_details')}>
+            {ev?.packageName ? <KeyValue label={tr('b3_evdet_package')} value={ev.packageName} /> : null}
+            {money ? <KeyValue label={tr('b3_evdet_price')} value={money} accent /> : null}
           </InfoCard>
         ) : null}
 
         {/* Completion status */}
         {ev?.completionStatus ? (
-          <InfoCard icon="checkmark-circle-outline" title="Completion Status">
+          <InfoCard icon="checkmark-circle-outline" title={tr('b3_evdet_completion_status')}>
             <Chip
               label={ev.completionStatus.replace(/_/g, ' ')}
               tone={ev.completionStatus.toUpperCase() === 'COMPLETED' ? 'success' : 'muted'}
@@ -707,8 +712,8 @@ export default function EventDetailScreen() {
 
         {/* Event information */}
         {ev?.eventVisibility ? (
-          <InfoCard icon="information-circle-outline" title="Event Information">
-            <Text style={styles.infoLabel}>VISIBILITY</Text>
+          <InfoCard icon="information-circle-outline" title={tr('b3_evdet_event_info')}>
+            <Text style={styles.infoLabel}>{tr('b3_evdet_visibility')}</Text>
             <Text style={styles.infoValue}>
               {ev.eventVisibility.charAt(0).toUpperCase() + ev.eventVisibility.slice(1).toLowerCase()}
             </Text>
@@ -717,7 +722,7 @@ export default function EventDetailScreen() {
 
         {/* Manage (owner only) */}
         {ownsEvents ? (
-          <InfoCard icon="settings-outline" title="Manage">
+          <InfoCard icon="settings-outline" title={tr('b3_evdet_manage')}>
             <View style={styles.btnRow}>
               <PrimaryBtn
                 icon={ev?.published ? 'eye-off-outline' : 'megaphone-outline'}
@@ -726,50 +731,50 @@ export default function EventDetailScreen() {
                 onPress={ev?.published ? onUnpublish : onPublish}
                 loading={busy === 'publish'}
               />
-              <PrimaryBtn icon="create-outline" label="Edit" variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
-              <PrimaryBtn icon="earth-outline" label="Geo pricing" variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
-              <PrimaryBtn icon="share-social-outline" label="Share" variant="outline" onPress={onShare} />
+              <PrimaryBtn icon="create-outline" label={tr('b3_evdet_edit')} variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
+              <PrimaryBtn icon="earth-outline" label={tr('b3_evdet_geo_pricing')} variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
+              <PrimaryBtn icon="share-social-outline" label={tr('b3_evdet_share')} variant="outline" onPress={onShare} />
               {ev?.published ? (
-                <PrimaryBtn icon="qr-code-outline" label="QR code" variant="outline" onPress={openQr} />
+                <PrimaryBtn icon="qr-code-outline" label={tr('b3_evdet_qr_code')} variant="outline" onPress={openQr} />
               ) : null}
               {ownerCanGoLive ? (
-                <PrimaryBtn icon="radio" label="Go Live" variant="accent" onPress={openStreamControl} />
+                <PrimaryBtn icon="radio" label={tr('b3_evdet_go_live')} variant="accent" onPress={openStreamControl} />
               ) : null}
               {s === 'PAUSED' ? (
-                <PrimaryBtn icon="play-circle-outline" label="Resume" variant="outline" onPress={onResume} loading={busy === 'resume'} />
+                <PrimaryBtn icon="play-circle-outline" label={tr('b3_evdet_resume')} variant="outline" onPress={onResume} loading={busy === 'resume'} />
               ) : ev?.streamStatus === 'ended' ? (
-                <PrimaryBtn icon="refresh-circle-outline" label="Reset Stream" variant="outline" onPress={openStreamControl} />
+                <PrimaryBtn icon="refresh-circle-outline" label={tr('b3_evdet_reset_stream')} variant="outline" onPress={openStreamControl} />
               ) : canPause ? (
-                <PrimaryBtn icon="pause-circle-outline" label="Pause" variant="outline" onPress={onPause} loading={busy === 'pause'} />
+                <PrimaryBtn icon="pause-circle-outline" label={tr('b3_evdet_pause')} variant="outline" onPress={onPause} loading={busy === 'pause'} />
               ) : null}
               {canConfirmDone ? (
                 <PrimaryBtn
                   icon="checkmark-done"
-                  label="Confirm Done"
+                  label={tr('b3_evdet_confirm_done')}
                   variant="success"
                   onPress={() => setCompletionOpen(true)}
                 />
               ) : awaitingConfirmation ? (
                 <PrimaryBtn
                   icon="hourglass-outline"
-                  label="Awaiting album"
+                  label={tr('b3_evdet_awaiting_album')}
                   variant="outline"
                   onPress={() =>
                     Alert.alert(
-                      'Waiting for album delivery',
+                      tr('b3_evdet_waiting_album_title'),
                       'Once the photographer delivers your album you can confirm the event and release their final payment.',
                     )
                   }
                 />
               ) : null}
               {ev?.photographerName ? (
-                <PrimaryBtn icon="star-outline" label="Rate" variant="outline" onPress={() => setReviewOpen(true)} />
+                <PrimaryBtn icon="star-outline" label={tr('b3_evdet_rate')} variant="outline" onPress={() => setReviewOpen(true)} />
               ) : null}
             </View>
             {canDelete ? (
               <View style={styles.dangerZone}>
-                <Text style={styles.dangerLabel}>Danger zone</Text>
-                <PrimaryBtn icon="trash-outline" label="Delete event" variant="dangerOutline" full onPress={onDelete} loading={busy === 'delete'} />
+                <Text style={styles.dangerLabel}>{tr('b3_danger_zone')}</Text>
+                <PrimaryBtn icon="trash-outline" label={tr('b3_evdet_delete')} variant="dangerOutline" full onPress={onDelete} loading={busy === 'delete'} />
               </View>
             ) : null}
           </InfoCard>
@@ -785,13 +790,13 @@ export default function EventDetailScreen() {
               <StarInput value={rating} onChange={setRating} />
             </View>
             <Input
-              placeholder="Share your experience (optional)"
+              placeholder={tr('b3_evdet_share_exp_ph')}
               value={reviewComment}
               onChangeText={setReviewComment}
               multiline
               style={styles.commentInput}
             />
-            <Button title="Submit review" onPress={onSubmitReview} loading={busy === 'review'} />
+            <Button title={tr('b3_evdet_submit_review')} onPress={onSubmitReview} loading={busy === 'review'} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -800,26 +805,26 @@ export default function EventDetailScreen() {
       <Modal visible={completionOpen} transparent animationType="slide" onRequestClose={() => setCompletionOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setCompletionOpen(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Confirm completion</Text>
+            <Text style={styles.sheetTitle}>{tr('b3_evdet_confirm_completion')}</Text>
             <Text style={styles.sheetHint}>
               Confirm the event went ahead, or request changes if something needs fixing. Confirming
               asks you a few quick questions, and that is what releases the photographer&apos;s final
               payment.
             </Text>
             <Input
-              placeholder="Add a comment (optional)"
+              placeholder={tr('b3_evdet_add_comment_ph')}
               value={comment}
               onChangeText={setComment}
               multiline
               style={styles.commentInput}
             />
-            <Button title="Continue to questions" onPress={() => submitCompletion('COMPLETED')} loading={busy === 'completion'} />
+            <Button title={tr('b3_evdet_continue_questions')} onPress={() => submitCompletion('COMPLETED')} loading={busy === 'completion'} />
             <Pressable
               style={styles.requestChanges}
               onPress={() => submitCompletion('REQUIRE_CHANGES')}
               disabled={busy === 'completion'}
             >
-              <Text style={styles.requestChangesText}>Request changes</Text>
+              <Text style={styles.requestChangesText}>{tr('b3_evdet_request_changes')}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -842,17 +847,16 @@ export default function EventDetailScreen() {
         submitting={busy === 'completion'}
       />
 
-      {/* Decline-booking reason sheet — Photographer side */}
       <Sheet
         visible={declineOpen}
-        title="Decline booking"
-        subtitle="Share a short reason so the client knows why you're not taking this on."
+        title={tr('b3_evdet_decline_booking')}
+        subtitle={tr('b3_evdet_decline_hint')}
         onClose={() => setDeclineOpen(false)}
         busy={busy === 'decline'}
-        footer={<Button title="Submit decline" onPress={submitDecline} loading={busy === 'decline'} />}
+        footer={<Button title={tr('b3_evdet_submit_decline')} onPress={submitDecline} loading={busy === 'decline'} />}
       >
         <Input
-          placeholder="e.g. Schedule conflict, location too far, etc."
+          placeholder={tr('b3_evdet_decline_ph')}
           value={declineReason}
           onChangeText={setDeclineReason}
           multiline

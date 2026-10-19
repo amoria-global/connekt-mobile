@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { AuthGlassLayout, useAuthLinkStyles } from '@/features/auth/AuthGlassLayout';
 import { Input } from '@/components/ui/Input';
-import { Screen } from '@/components/ui/Screen';
 import { setNewPassword } from '@/features/auth/api';
 import { storage, StorageKeys } from '@/services/storage';
 import { isApiError } from '@/store/auth';
-import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
+import { useLanguage } from '@/store/language';
 
 export default function ChangePasswordScreen() {
-  const styles = useStyles();
+  const links = useAuthLinkStyles();
   const router = useRouter();
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{ email?: string }>();
   const email = params.email ?? '';
   
@@ -62,79 +63,62 @@ export default function ChangePasswordScreen() {
 
   if (success) {
     return (
-      <Screen>
-        <View style={styles.successWrap}>
-          <Text style={styles.title}>Password Changed</Text>
-          <Text style={styles.subtitle}>
-            Your password has been successfully updated. You can now sign in with your new password.
-          </Text>
-          <Button title="Sign In" onPress={() => router.replace('/login')} style={{ width: '100%' }} />
-        </View>
-      </Screen>
+      <AuthGlassLayout
+        title={t('passwordChangedTitle')}
+        subtitle={t('passwordChangedSubtitle')}
+        centered
+      >
+        <Button title={t('signInBtn')} onPress={() => router.replace('/login')} />
+      </AuthGlassLayout>
     );
   }
 
   return (
-    <Screen>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Set a new password</Text>
-          <Text style={styles.subtitle}>
-            You signed in with a temporary password from your invitation email.
-            Choose your own password to continue.
-          </Text>
+    <AuthGlassLayout
+      title={t('resetPasswordTitle')}
+      subtitle={t('newPasswordSubtitle')}
+    >
+      <Input
+        glass
+        label={t('email')}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+        value={email}
+        editable={false}
+      />
 
-          <Input
-            label="Email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            textContentType="emailAddress"
-            value={email}
-            editable={false}
-          />
+      <Input
+        glass
+        label={t('newPassword')}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoComplete="new-password"
+        textContentType="newPassword"
+        placeholder="8+ chars, a letter, a number and a symbol"
+      />
 
-          <Input
-            label="New Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete="new-password"
-            textContentType="newPassword"
-            placeholder="8+ chars, a letter, a number and a symbol"
-          />
+      <Input
+        glass
+        label={t('confirmPassword')}
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoComplete="new-password"
+        textContentType="newPassword"
+        placeholder="Type it again"
+        error={error ?? undefined}
+      />
 
-          <Input
-            label="Confirm Password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete="new-password"
-            textContentType="newPassword"
-            placeholder="Type it again"
-            error={error ?? undefined}
-          />
+      <Button title={t('saveAndContinue')} onPress={onSubmit} loading={submitting} />
 
-          <Button title="Save and continue" onPress={onSubmit} loading={submitting} />
-
-          <Button 
-            title="Wrong account? Sign in as someone else" 
-            variant="outline" 
-            onPress={() => router.replace('/login')} 
-            style={{ marginTop: spacing.sm }} 
-          />
-        </View>
-      </KeyboardAvoidingView>
-    </Screen>
+      <Pressable onPress={() => router.replace('/login')} style={links.linkRow} hitSlop={8}>
+        <Text style={links.link}>{t('wrongAccount')}</Text>
+      </Pressable>
+    </AuthGlassLayout>
   );
 }
-
-const useStyles = makeStyles((c) => ({
-  flex: { flex: 1 },
-  container: { flex: 1, justifyContent: 'center', gap: spacing.md },
-  title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.primary },
-  subtitle: { fontSize: fontSize.md, color: c.textMuted, lineHeight: 22, marginBottom: spacing.sm },
-  successWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl },
-}));

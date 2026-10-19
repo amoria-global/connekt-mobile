@@ -3,6 +3,150 @@
  * Direct mobile port of salo-run/lib/moneyView.ts.
  */
 import type { WalletDTO, Movement } from './api';
+import { useLanguage } from '@/store/language';
+
+const MONEY_TRANSLATIONS: Record<'fr' | 'es', Record<string, string>> = {
+  fr: {
+    'Booking earnings': 'Revenus de réservation',
+    'Booking payment': 'Paiement de réservation',
+    'Event payment': "Paiement d'événement",
+    Balance: 'Solde',
+    Booking: 'Réservation',
+    'Tip received': 'Pourboire reçu',
+    'Tip sent': 'Pourboire envoyé',
+    Tip: 'Pourboire',
+    'Bonus earned': 'Bonus gagné',
+    Bonus: 'Bonus',
+    'Gift received': 'Cadeau reçu',
+    'Gift sent': 'Cadeau envoyé',
+    Gift: 'Cadeau',
+    'Stream bonus': 'Bonus de diffusion',
+    'Stream revenue': 'Revenus de diffusion',
+    'Stream payment': 'Paiement de diffusion',
+    'Stream fee': 'Frais de diffusion',
+    Stream: 'Diffusion',
+    'Donation received': 'Don reçu',
+    'Donation sent': 'Don envoyé',
+    Donation: 'Don',
+    Withdrawal: 'Retrait',
+    'Refund issued': 'Remboursement émis',
+    'Refund received': 'Remboursement reçu',
+    Refund: 'Remboursement',
+    'Client payment': 'Paiement client',
+    'Payment sent': 'Paiement envoyé',
+    'Client spend': 'Dépense client',
+    Payment: 'Paiement',
+    'Ad revenue share': 'Part des revenus publicitaires',
+    'Ad revenue': 'Revenus publicitaires',
+    'Photo sale': 'Vente de photo',
+    'Photo purchase': 'Achat de photo',
+    Photo: 'Photo',
+    'Platform fee': 'Frais de plateforme',
+    Fee: 'Frais',
+    'Held for delivery': 'Retenu pour livraison',
+    'Held in escrow': 'Retenu en séquestre',
+    Held: 'Retenu',
+    'Pending clearance': 'En attente de compensation',
+    Processing: 'En traitement',
+    Pending: 'En attente',
+    Blocked: 'Bloqué',
+    'Balance deduction': 'Déduction de solde',
+    'Balance correction': 'Correction de solde',
+    Other: 'Autre',
+    'Available to withdraw': 'Disponible pour retrait',
+    Tips: 'Pourboires',
+    Bonuses: 'Bonus',
+    'Album sales': "Ventes d'albums",
+    Gifts: 'Cadeaux',
+    Donations: 'Dons',
+    'In escrow': 'En séquestre',
+    'Total withdrawn': 'Total retiré',
+    'Total spent': 'Total dépensé',
+    'Available balance': 'Solde disponible',
+    'Refunds received': 'Remboursements reçus',
+    'Event spend': "Dépenses d'événement",
+    All: 'Tout',
+    'Earnings (+)': 'Revenus (+)',
+    Withdrawals: 'Retraits',
+    'Money in (+)': 'Entrées (+)',
+    'Money out (−)': 'Sorties (−)',
+  },
+  es: {
+    'Booking earnings': 'Ingresos por reservas',
+    'Booking payment': 'Pago de reserva',
+    'Event payment': 'Pago de evento',
+    Balance: 'Saldo',
+    Booking: 'Reserva',
+    'Tip received': 'Propina recibida',
+    'Tip sent': 'Propina enviada',
+    Tip: 'Propina',
+    'Bonus earned': 'Bono ganado',
+    Bonus: 'Bono',
+    'Gift received': 'Regalo recibido',
+    'Gift sent': 'Regalo enviado',
+    Gift: 'Regalo',
+    'Stream bonus': 'Bono de transmisión',
+    'Stream revenue': 'Ingresos de transmisión',
+    'Stream payment': 'Pago de transmisión',
+    'Stream fee': 'Tarifa de transmisión',
+    Stream: 'Transmisión',
+    'Donation received': 'Donación recibida',
+    'Donation sent': 'Donación enviada',
+    Donation: 'Donación',
+    Withdrawal: 'Retiro',
+    'Refund issued': 'Reembolso emitido',
+    'Refund received': 'Reembolso recibido',
+    Refund: 'Reembolso',
+    'Client payment': 'Pago de cliente',
+    'Payment sent': 'Pago enviado',
+    'Client spend': 'Gasto de cliente',
+    Payment: 'Pago',
+    'Ad revenue share': 'Participación de ingresos publicitarios',
+    'Ad revenue': 'Ingresos publicitarios',
+    'Photo sale': 'Venta de foto',
+    'Photo purchase': 'Compra de foto',
+    Photo: 'Foto',
+    'Platform fee': 'Tarifa de plataforma',
+    Fee: 'Tarifa',
+    'Held for delivery': 'Retenido para entrega',
+    'Held in escrow': 'En garantía',
+    Held: 'Retenido',
+    'Pending clearance': 'Pendiente de liquidación',
+    Processing: 'Procesando',
+    Pending: 'Pendiente',
+    Blocked: 'Bloqueado',
+    'Balance deduction': 'Deducción de saldo',
+    'Balance correction': 'Corrección de saldo',
+    Other: 'Otro',
+    'Available to withdraw': 'Disponible para retirar',
+    Tips: 'Propinas',
+    Bonuses: 'Bonos',
+    'Album sales': 'Ventas de álbumes',
+    Gifts: 'Regalos',
+    Donations: 'Donaciones',
+    'In escrow': 'En garantía',
+    'Total withdrawn': 'Total retirado',
+    'Total spent': 'Total gastado',
+    'Available balance': 'Saldo disponible',
+    'Refunds received': 'Reembolsos recibidos',
+    'Event spend': 'Gasto de eventos',
+    All: 'Todo',
+    'Earnings (+)': 'Ingresos (+)',
+    Withdrawals: 'Retiros',
+    'Money in (+)': 'Entradas (+)',
+    'Money out (−)': 'Salidas (−)',
+  },
+};
+
+function trMoney(text: string): string {
+  const lang = useLanguage.getState().language;
+  if (lang === 'en') return text;
+  return MONEY_TRANSLATIONS[lang]?.[text] ?? text;
+}
+
+export function translateMoneyTag(tag: string): string {
+  return trMoney(tag);
+}
 
 export type DashboardRole =
   | 'photographer'
@@ -256,7 +400,7 @@ export function formatWalletMovement(m: Movement, role: DashboardRole): MoneyIte
 
   return {
     id: m.id,
-    title,
+    title: trMoney(title),
     subtitle,
     amount: Math.abs(m.amount),
     originalAmount: m.amount,
@@ -293,22 +437,22 @@ export function selectWalletStats(w: WalletDTO, role: DashboardRole): WalletStat
     const inEscrow = w.heldForDelivery || w.deliveryHeldAmount || 0;
 
     return {
-      hero: { label: 'Available to withdraw', value: w.balanceAvailable },
+      hero: { label: trMoney('Available to withdraw'), value: w.balanceAvailable },
       cards: [
-        { label: 'Booking earnings', value: w.balanceBooking, color: 'green', hidden: w.balanceBooking === 0 },
-        { label: 'Tips', value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
-        { label: 'Bonuses', value: w.balanceBonuses, color: 'amber', hidden: w.balanceBonuses === 0 },
-        { label: 'Stream bonus', value: w.balanceStreamFees, color: 'blue', hidden: w.balanceStreamFees === 0 },
-        { label: 'Album sales', value: w.balancePhotoPurchase, color: 'blue', hidden: w.balancePhotoPurchase === 0 },
-        { label: 'Gifts', value: w.balanceGifts, color: 'purple', hidden: w.balanceGifts === 0 },
-        { label: 'Donations', value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
-        { label: 'Ad revenue', value: w.balanceAdRevenue, color: 'blue', hidden: !w.balanceAdRevenue },
-        { label: 'In escrow', value: inEscrow, color: 'amber', hidden: inEscrow === 0 },
-        { label: 'Total withdrawn', value: w.totalWithdrawn, color: 'neutral', hidden: w.totalWithdrawn === 0 },
+        { label: trMoney('Booking earnings'), value: w.balanceBooking, color: 'green', hidden: w.balanceBooking === 0 },
+        { label: trMoney('Tips'), value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
+        { label: trMoney('Bonuses'), value: w.balanceBonuses, color: 'amber', hidden: w.balanceBonuses === 0 },
+        { label: trMoney('Stream bonus'), value: w.balanceStreamFees, color: 'blue', hidden: w.balanceStreamFees === 0 },
+        { label: trMoney('Album sales'), value: w.balancePhotoPurchase, color: 'blue', hidden: w.balancePhotoPurchase === 0 },
+        { label: trMoney('Gifts'), value: w.balanceGifts, color: 'purple', hidden: w.balanceGifts === 0 },
+        { label: trMoney('Donations'), value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
+        { label: trMoney('Ad revenue'), value: w.balanceAdRevenue, color: 'blue', hidden: !w.balanceAdRevenue },
+        { label: trMoney('In escrow'), value: inEscrow, color: 'amber', hidden: inEscrow === 0 },
+        { label: trMoney('Total withdrawn'), value: w.totalWithdrawn, color: 'neutral', hidden: w.totalWithdrawn === 0 },
       ],
       pendingChip:
         w.pendingAmount + inEscrow > 0
-          ? { label: 'Pending clearance', value: w.pendingAmount + inEscrow }
+          ? { label: trMoney('Pending clearance'), value: w.pendingAmount + inEscrow }
           : null,
       status,
     };
@@ -316,17 +460,17 @@ export function selectWalletStats(w: WalletDTO, role: DashboardRole): WalletStat
 
   if (role === 'client') {
     return {
-      hero: { label: 'Total spent', value: w.clientSpent },
+      hero: { label: trMoney('Total spent'), value: w.clientSpent },
       cards: [
-        { label: 'Available balance', value: w.balanceAvailable, color: 'green', hidden: w.balanceAvailable === 0 },
-        { label: 'Refunds received', value: w.totalRefunded, color: 'amber', hidden: w.totalRefunded === 0 },
-        { label: 'Tips sent', value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
-        { label: 'Gifts sent', value: w.balanceGifts, color: 'purple', hidden: w.balanceGifts === 0 },
-        { label: 'Donations', value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
+        { label: trMoney('Available balance'), value: w.balanceAvailable, color: 'green', hidden: w.balanceAvailable === 0 },
+        { label: trMoney('Refunds received'), value: w.totalRefunded, color: 'amber', hidden: w.totalRefunded === 0 },
+        { label: trMoney('Tips sent'), value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
+        { label: trMoney('Gifts sent'), value: w.balanceGifts, color: 'purple', hidden: w.balanceGifts === 0 },
+        { label: trMoney('Donations'), value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
       ],
       pendingChip:
         w.pendingAmount > 0
-          ? { label: 'Processing', value: w.pendingAmount }
+          ? { label: trMoney('Processing'), value: w.pendingAmount }
           : null,
       status,
     };
@@ -334,18 +478,18 @@ export function selectWalletStats(w: WalletDTO, role: DashboardRole): WalletStat
 
   if (role === 'event-coordinator') {
     return {
-      hero: { label: 'Available balance', value: w.balanceAvailable },
+      hero: { label: trMoney('Available balance'), value: w.balanceAvailable },
       cards: [
-        { label: 'Stream revenue', value: w.balanceStreamFees, color: 'blue', hidden: w.balanceStreamFees === 0 },
-        { label: 'Event spend', value: w.clientSpent, color: 'neutral', hidden: w.clientSpent === 0 },
-        { label: 'Tips sent', value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
-        { label: 'Donations', value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
-        { label: 'Refunds received', value: w.totalRefunded, color: 'amber', hidden: w.totalRefunded === 0 },
-        { label: 'Total withdrawn', value: w.totalWithdrawn, color: 'neutral', hidden: w.totalWithdrawn === 0 },
+        { label: trMoney('Stream revenue'), value: w.balanceStreamFees, color: 'blue', hidden: w.balanceStreamFees === 0 },
+        { label: trMoney('Event spend'), value: w.clientSpent, color: 'neutral', hidden: w.clientSpent === 0 },
+        { label: trMoney('Tips sent'), value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
+        { label: trMoney('Donations'), value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
+        { label: trMoney('Refunds received'), value: w.totalRefunded, color: 'amber', hidden: w.totalRefunded === 0 },
+        { label: trMoney('Total withdrawn'), value: w.totalWithdrawn, color: 'neutral', hidden: w.totalWithdrawn === 0 },
       ],
       pendingChip:
         w.pendingAmount > 0
-          ? { label: 'Processing', value: w.pendingAmount }
+          ? { label: trMoney('Processing'), value: w.pendingAmount }
           : null,
       status,
     };
@@ -353,14 +497,14 @@ export function selectWalletStats(w: WalletDTO, role: DashboardRole): WalletStat
 
   // user / fallback
   return {
-    hero: { label: 'Total spent', value: w.clientSpent },
+    hero: { label: trMoney('Total spent'), value: w.clientSpent },
     cards: [
-      { label: 'Available balance', value: w.balanceAvailable, color: 'green', hidden: w.balanceAvailable === 0 },
-      { label: 'Refunds received', value: w.totalRefunded, color: 'amber', hidden: w.totalRefunded === 0 },
-      { label: 'Tips sent', value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
-      { label: 'Donations', value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
+      { label: trMoney('Available balance'), value: w.balanceAvailable, color: 'green', hidden: w.balanceAvailable === 0 },
+      { label: trMoney('Refunds received'), value: w.totalRefunded, color: 'amber', hidden: w.totalRefunded === 0 },
+      { label: trMoney('Tips sent'), value: w.balanceTips, color: 'purple', hidden: w.balanceTips === 0 },
+      { label: trMoney('Donations'), value: w.balanceDonations, color: 'purple', hidden: w.balanceDonations === 0 },
     ],
-    pendingChip: w.pendingAmount > 0 ? { label: 'Processing', value: w.pendingAmount } : null,
+    pendingChip: w.pendingAmount > 0 ? { label: trMoney('Processing'), value: w.pendingAmount } : null,
     status,
   };
 }
@@ -375,15 +519,15 @@ export type DirectionFilter = 'all' | 'in' | 'out' | 'withdrawals';
 export function getDirectionFilters(role: DashboardRole): { label: string; value: DirectionFilter }[] {
   if (role === 'photographer') {
     return [
-      { label: 'All', value: 'all' },
-      { label: 'Earnings (+)', value: 'in' },
-      { label: 'Withdrawals', value: 'withdrawals' },
+      { label: trMoney('All'), value: 'all' },
+      { label: trMoney('Earnings (+)'), value: 'in' },
+      { label: trMoney('Withdrawals'), value: 'withdrawals' },
     ];
   }
   return [
-    { label: 'All', value: 'all' },
-    { label: 'Money in (+)', value: 'in' },
-    { label: 'Money out (−)', value: 'out' },
+    { label: trMoney('All'), value: 'all' },
+    { label: trMoney('Money in (+)'), value: 'in' },
+    { label: trMoney('Money out (−)'), value: 'out' },
   ];
 }
 
@@ -444,19 +588,37 @@ export function formatRelativeTime(isoString?: string): string {
   const then = new Date(isoString).getTime();
   if (isNaN(then)) return '';
   const diffMs = now - then;
+  const lang = useLanguage.getState().language;
 
   const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 60) return 'just now';
+  if (seconds < 60) {
+    if (lang === 'fr') return "à l'instant";
+    if (lang === 'es') return 'justo ahora';
+    return 'just now';
+  }
 
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) {
+    if (lang === 'fr') return `il y a ${minutes}m`;
+    if (lang === 'es') return `hace ${minutes}m`;
+    return `${minutes}m ago`;
+  }
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) {
+    if (lang === 'fr') return `il y a ${hours}h`;
+    if (lang === 'es') return `hace ${hours}h`;
+    return `${hours}h ago`;
+  }
 
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) {
+    if (lang === 'fr') return `il y a ${days}j`;
+    if (lang === 'es') return `hace ${days}d`;
+    return `${days}d ago`;
+  }
 
   const d = new Date(isoString);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-US';
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }

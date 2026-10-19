@@ -16,6 +16,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BlurView } from 'expo-blur';
+import { GLASS_BAR } from '@/components/ui/GlassCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments, type Href } from 'expo-router';
@@ -40,6 +41,9 @@ import { listNotifications } from '@/features/notifications/api';
 import { getOpportunityCounts } from '@/features/hybrid/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
+import { useLanguage } from '@/store/language';
+import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
+import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const BAR_CONTENT_HEIGHT = 56;
@@ -267,7 +271,17 @@ export function PersistentBottomBar() {
     };
   }, []);
 
-  const tabs = OWNER_TABS;
+  const { language, t } = useLanguage();
+  const tabs = useMemo<Tab[]>(
+    () => [
+      { key: 'home', label: t('tabHome'), href: '/(tabs)' as Href, icon: 'home-outline', iconFocused: 'home', match: ['index', '(tabs)'] },
+      { key: 'events', label: t('tabEvents'), href: '/(tabs)/events' as Href, icon: 'calendar-outline', iconFocused: 'calendar', match: ['events', 'event', 'bookings'] },
+      { key: 'wallet', label: t('tabWallet'), href: '/(tabs)/wallet' as Href, icon: 'wallet-outline', iconFocused: 'wallet', match: ['wallet', 'transactions', 'withdraw', 'payroll'] },
+      { key: 'inbox', label: t('tabInbox'), href: '/(tabs)/inbox' as Href, icon: 'chatbubbles-outline', iconFocused: 'chatbubbles', match: ['inbox', 'conversation', 'notifications'] },
+      { key: 'more', label: t('tabMore'), href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal', isMore: true, match: [] },
+    ],
+    [language, t],
+  );
 
   const lastActiveKeyRef = useRef<string>('home');
 
@@ -383,7 +397,7 @@ export function PersistentBottomBar() {
           {Platform.OS === 'ios' && (
             <BlurView
               tint={isDark ? 'dark' : 'light'}
-              intensity={48}
+              intensity={GLASS_BAR.intensity}
               style={StyleSheet.absoluteFill}
             />
           )}
@@ -479,8 +493,11 @@ export function MoreSheet({
   const router = useRouter();
   const logout = useAuth((s) => s.logout);
   const { role, isPhotographer } = useRole();
+  const { language, t } = useLanguage();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [languageSheetOpen, setLanguageSheetOpen] = useState(false);
+  const [currencySheetOpen, setCurrencySheetOpen] = useState(false);
 
   // Live unread notification count
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
@@ -505,10 +522,10 @@ export function MoreSheet({
   };
 
   const handleLogout = useCallback(() => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out of your Connekyt account?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('signOutConfirmTitle'), t('signOutConfirmMessage'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Sign Out',
+        text: t('menuSignOut'),
         style: 'destructive',
         onPress: async () => {
           onClose();
@@ -523,7 +540,7 @@ export function MoreSheet({
         },
       },
     ]);
-  }, [logout, onClose, router]);
+  }, [logout, onClose, router, t]);
 
   // Verified items matching salo-run web sidebar navigation
   const allItems: MoreGridItem[] = useMemo(() => {
@@ -532,7 +549,7 @@ export function MoreSheet({
     // 1. Profile (All roles in salo-run bottom nav)
     list.push({
       id: 'profile',
-      label: 'Profile',
+      label: t('tabProfile'),
       icon: 'person-outline',
       href: '/profile' as Href,
     });
@@ -540,7 +557,7 @@ export function MoreSheet({
     // 2. Streams (Client & Coordinator in salo-run)
     list.push({
       id: 'streams',
-      label: 'Streams',
+      label: t('menuStreams'),
       icon: 'videocam-outline',
       href: '/streams' as Href,
     });
@@ -549,7 +566,7 @@ export function MoreSheet({
     if (isPhotographer) {
       list.push({
         id: 'opportunities',
-        label: 'Opportunities',
+        label: t('menuOpportunities'),
         icon: 'radio-outline',
         badge: opportunityCount > 0 ? opportunityCount : undefined,
         href: '/bookings?tab=opportunities' as Href,
@@ -560,7 +577,7 @@ export function MoreSheet({
     if (!isPhotographer) {
       list.push({
         id: 'post-my-event',
-        label: 'Post My Event',
+        label: t('menuPostMyEvent'),
         icon: 'radio-outline',
         href: '/event/hybrid-wizard' as Href,
       });
@@ -570,7 +587,7 @@ export function MoreSheet({
     if (!isPhotographer) {
       list.push({
         id: 'gallery',
-        label: 'Gallery',
+        label: t('menuGallery'),
         icon: 'images-outline',
         href: '/gallery' as Href,
       });
@@ -580,7 +597,7 @@ export function MoreSheet({
     if (!isPhotographer) {
       list.push({
         id: 'photographers',
-        label: 'Find a Photographer',
+        label: t('menuPhotographers'),
         icon: 'search-outline',
         href: '/photographers' as Href,
       });
@@ -590,7 +607,7 @@ export function MoreSheet({
     if (isPhotographer) {
       list.push({
         id: 'clients',
-        label: 'Clients',
+        label: t('menuClients'),
         icon: 'people-outline',
         href: '/clients' as Href,
       });
@@ -600,7 +617,7 @@ export function MoreSheet({
     if (isPhotographer) {
       list.push({
         id: 'collaborate',
-        label: 'Collaborate',
+        label: t('menuCollaborate'),
         icon: 'people-circle-outline',
         href: '/collaborate' as Href,
       });
@@ -610,7 +627,7 @@ export function MoreSheet({
     if (!isPhotographer) {
       list.push({
         id: 'payments',
-        label: 'Payments',
+        label: t('menuPayments'),
         icon: 'card-outline',
         href: '/payments' as Href,
       });
@@ -620,7 +637,7 @@ export function MoreSheet({
     if (isPhotographer) {
       list.push({
         id: 'transactions',
-        label: 'Transactions',
+        label: t('menuTransactions'),
         icon: 'swap-horizontal-outline',
         href: '/transactions' as Href,
       });
@@ -629,7 +646,7 @@ export function MoreSheet({
     // 10. Donate (All roles in salo-run Money group)
     list.push({
       id: 'donations',
-      label: 'Donate',
+      label: t('menuDonate'),
       icon: 'heart-outline',
       href: '/donations' as Href,
     });
@@ -637,31 +654,53 @@ export function MoreSheet({
     // 11. Notifications (All roles in salo-run Overview group)
     list.push({
       id: 'notifications',
-      label: 'Alerts',
+      label: t('menuAlerts'),
       icon: 'notifications-outline',
       badge: unreadCount > 0 ? unreadCount : undefined,
       href: '/notifications' as Href,
     });
 
-    // 12. Preferences / Settings (All roles in salo-run bottom nav)
+    // 12. Language Preferences (globe icon, opens language selector)
+    list.push({
+      id: 'language',
+      label: t('menuLanguage'),
+      icon: 'globe-outline',
+      onPress: () => {
+        onClose();
+        setTimeout(() => setLanguageSheetOpen(true), 150);
+      },
+    });
+
+    // 13. Display Currency (cash icon, opens currency selector)
+    list.push({
+      id: 'currency',
+      label: t('currencyPreference'),
+      icon: 'cash-outline',
+      onPress: () => {
+        onClose();
+        setTimeout(() => setCurrencySheetOpen(true), 150);
+      },
+    });
+
+    // 14. Preferences / Settings (All roles in salo-run bottom nav)
     list.push({
       id: 'preferences',
-      label: 'Settings',
+      label: t('menuSettings'),
       icon: 'settings-outline',
       href: '/preferences' as Href,
     });
 
-    // 13. Sign Out / Logout (All roles in salo-run bottom nav)
+    // 14. Sign Out / Logout (All roles in salo-run bottom nav)
     list.push({
       id: 'sign-out',
-      label: 'Sign Out',
+      label: t('menuSignOut'),
       icon: 'log-out-outline',
       onPress: handleLogout,
       destructive: true,
     });
 
     return list;
-  }, [isPhotographer, unreadCount, opportunityCount, handleLogout]);
+  }, [language, t, isPhotographer, unreadCount, opportunityCount, handleLogout, onClose]);
 
   // Filter shortcuts by search query
   const displayedItems = useMemo(() => {
@@ -705,7 +744,7 @@ export function MoreSheet({
 
         {/* Header with Title and Close Button */}
         <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Shortcuts</Text>
+          <Text style={styles.sheetTitle}>{t('tabMore')}</Text>
           <Pressable
             onPress={onClose}
             hitSlop={8}
@@ -728,7 +767,7 @@ export function MoreSheet({
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search shortcuts..."
+            placeholder={t('searchServices')}
             placeholderTextColor={colors.textMuted}
             style={styles.searchInput}
             returnKeyType="search"
@@ -765,6 +804,16 @@ export function MoreSheet({
           )}
         </ScrollView>
       </View>
+
+      <LanguageSelectorSheet
+        visible={languageSheetOpen}
+        onClose={() => setLanguageSheetOpen(false)}
+      />
+
+      <CurrencySelectorSheet
+        visible={currencySheetOpen}
+        onClose={() => setCurrencySheetOpen(false)}
+      />
     </Modal>
   );
 }

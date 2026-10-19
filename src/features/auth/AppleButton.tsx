@@ -73,13 +73,16 @@ export function AppleButton(props: Props) {
   const applySession = useAuth((s) => s.applySession);
   const [loading, setLoading] = useState(false);
   const styles = useStyles();
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
   const available = useAppleSignInAvailable();
 
-  // Branding: Brand primary navy (#083A85 in light, #3D6FD6 in dark)
-  const background = colors.primary;
-  const foreground = colors.textOnPrimary;
-  const borderColor = colors.primary;
+  // Apple's Human Interface Guidelines allow only black, white or white with an
+  // outline for Sign in with Apple, and App Review enforces it: black on a
+  // light screen, white on a dark one. A brand-coloured button also competed
+  // with the screen's real primary action.
+  const background = isDark ? '#FFFFFF' : '#000000';
+  const foreground = isDark ? '#000000' : '#FFFFFF';
+  const borderColor = background;
 
   const onPress = async () => {
     if (!available) {
@@ -129,7 +132,7 @@ export function AppleButton(props: Props) {
       disabled={loading}
       style={({ pressed }) => [
         styles.btn,
-        { backgroundColor: background, borderColor: background },
+        { backgroundColor: background, borderColor },
         pressed && styles.pressed,
         loading && styles.disabled,
       ]}

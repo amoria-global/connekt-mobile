@@ -4,6 +4,9 @@
  */
 import { Redirect, type Href } from 'expo-router';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 export default function WalletMovementsRedirect() {
+  const { t } = useLanguage();
   return <Redirect href={'/transactions' as Href} />;
 }

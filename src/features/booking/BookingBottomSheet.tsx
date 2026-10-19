@@ -14,6 +14,7 @@ import { logoBase64 } from '@/utils/logoBase64';
 import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { formatPrice as formatSelectedPrice } from '@/utils/format';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 export type BookingBottomSheetProps = {
   photographerId?: string;
@@ -38,6 +39,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 ) => {
   const { colors, elevation, isDark } = useTheme();
   const styles = useStyles();
+  const { tr, t } = useSharedT();
   const user = useAuth((s) => s.user);
   const snapPoints = useMemo(() => ['65%', '90%'], []);
   const [currentStep, setCurrentStep] = useState(1);
@@ -398,7 +400,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
         {/* Compact Sheet Header */}
         <View style={styles.sheetHeader}>
           {currentStep > 1 && !bookingSuccess ? (
-            <Pressable onPress={handleBack} style={styles.headerIconButton} hitSlop={10} accessibilityLabel="Back">
+            <Pressable onPress={handleBack} style={styles.headerIconButton} hitSlop={10} accessibilityLabel={tr('Back')}>
               <Ionicons name="chevron-back" size={18} color={colors.text} />
             </Pressable>
           ) : (
@@ -407,19 +409,19 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
           <View style={styles.sheetHeaderCenter}>
             <Text style={styles.sheetHeaderTitle} numberOfLines={1}>
-              {bookingSuccess ? 'Booking Confirmed' : photographerName ? `Book ${photographerName}` : 'Booking Request'}
+              {bookingSuccess ? tr('Booking Confirmed') : photographerName ? `${tr('Book Now')} ${photographerName}` : tr('Booking Request')}
             </Text>
             {!bookingSuccess && (
               <Text style={styles.sheetHeaderSubtitle}>
-                Step {currentStep} of {STEPS.length} • {STEPS[currentStep - 1]?.label}
+                Step {currentStep} of {STEPS.length} • {tr(STEPS[currentStep - 1]?.label)}
               </Text>
             )}
           </View>
 
           {isKeyboardVisible ? (
-            <Pressable onPress={() => Keyboard.dismiss()} style={styles.keyboardDismissHeaderBtn} hitSlop={10} accessibilityLabel="Dismiss keyboard">
+            <Pressable onPress={() => Keyboard.dismiss()} style={styles.keyboardDismissHeaderBtn} hitSlop={10} accessibilityLabel={tr('Done')}>
               <Ionicons name="checkmark" size={15} color={colors.primary} />
-              <Text style={styles.keyboardDismissHeaderText}>Done</Text>
+              <Text style={styles.keyboardDismissHeaderText}>{tr('Done')}</Text>
             </Pressable>
           ) : (
             <Pressable 
@@ -428,7 +430,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               }} 
               style={styles.headerIconButton}
               hitSlop={10}
-              accessibilityLabel="Close"
+              accessibilityLabel={tr('Close')}
             >
               <Ionicons name="close" size={18} color={colors.text} />
             </Pressable>
@@ -452,7 +454,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   onPress={() => {
                     if (step.id < currentStep) setCurrentStep(step.id);
                   }}
-                  accessibilityLabel={`Step ${step.id}: ${step.label}`}
+                  accessibilityLabel={`Step ${step.id}: ${tr(step.label)}`}
                 />
               );
             })}
@@ -469,8 +471,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           {/* STEP 1: BRIEF */}
           {currentStep === 1 && (
             <View style={styles.stepContent}>
-              <Text style={styles.title}>Event Basics</Text>
-              <Text style={styles.subtitle}>Where and when is your shoot or event taking place?</Text>
+              <Text style={styles.title}>{tr('Event Basics')}</Text>
+              <Text style={styles.subtitle}>{tr('Where and when is your shoot or event taking place?')}</Text>
 
               <View style={styles.serviceTypes}>
                 <Pressable 
@@ -482,10 +484,10 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   </View>
                   <View style={styles.serviceTextContainer}>
                     <View style={styles.serviceHeader}>
-                      <Text style={[styles.serviceTitle, serviceType === 'OUTDOOR' && styles.serviceTitleActive]}>Outdoor</Text>
+                      <Text style={[styles.serviceTitle, serviceType === 'OUTDOOR' && styles.serviceTitleActive]}>{tr('Outdoor')}</Text>
                       {serviceType === 'OUTDOOR' && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
                     </View>
-                    <Text style={styles.serviceDesc}>Photographer travels to your venue or event location.</Text>
+                    <Text style={styles.serviceDesc}>{tr('Photographer travels to your venue or event location.')}</Text>
                   </View>
                 </Pressable>
 
@@ -498,22 +500,22 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   </View>
                   <View style={styles.serviceTextContainer}>
                     <View style={styles.serviceHeader}>
-                      <Text style={[styles.serviceTitle, serviceType === 'STUDIO' && styles.serviceTitleActive]}>Studio</Text>
+                      <Text style={[styles.serviceTitle, serviceType === 'STUDIO' && styles.serviceTitleActive]}>{tr('Studio')}</Text>
                       {serviceType === 'STUDIO' && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
                     </View>
-                    <Text style={styles.serviceDesc}>Session hosted at the photographer's studio.</Text>
+                    <Text style={styles.serviceDesc}>{tr("Session hosted at the photographer's studio.")}</Text>
                   </View>
                 </Pressable>
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>When is your event? *</Text>
+                <Text style={styles.label}>{tr('When is your event? *')}</Text>
                 <Pressable onPress={() => setShowDatePicker(true)} style={styles.pickerSelector}>
                   <Ionicons name="calendar-outline" size={18} color={date ? colors.primary : colors.textMuted} />
                   <Text style={[styles.pickerSelectorText, !date && styles.pickerSelectorPlaceholder]}>
                     {date 
                       ? date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) 
-                      : 'Select event date'}
+                      : tr('Select event date')}
                   </Text>
                   <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
                 </Pressable>
@@ -534,7 +536,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Where is it taking place? *</Text>
+                <Text style={styles.label}>{tr('Where is it taking place? *')}</Text>
                 <View style={styles.inputWithIconContainer}>
                   <Ionicons name="navigate-outline" size={18} color={colors.textMuted} style={styles.inputLeadingIcon} />
                   <BottomSheetTextInput 
@@ -555,7 +557,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Estimated Budget (Optional)</Text>
+                <Text style={styles.label}>{tr('Estimated Budget (Optional)')}</Text>
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
                   <View style={[styles.inputWithPrefixContainer, { flex: 1 }]}>
                     <Text style={styles.currencyPrefix}>{displayCurrency}</Text>
@@ -592,7 +594,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>What kind of coverage do you need?</Text>
+                <Text style={styles.label}>{tr('What kind of coverage do you need?')}</Text>
                 <View style={styles.tagsContainer}>
                   {TAGS.map(tag => {
                     const isSelected = selectedTags.includes(tag);
@@ -605,7 +607,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         {isSelected && (
                           <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
                         )}
-                        <Text style={[styles.tagText, isSelected && styles.tagTextActive]}>{tag}</Text>
+                        <Text style={[styles.tagText, isSelected && styles.tagTextActive]}>{tr(tag)}</Text>
                       </Pressable>
                     );
                   })}
@@ -614,7 +616,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
               <View style={styles.footer}>
                 <Pressable style={styles.continueButton} onPress={handleContinueStep1}>
-                  <Text style={styles.continueButtonText}>Continue to Packages</Text>
+                  <Text style={styles.continueButtonText}>{tr('Continue to Packages')}</Text>
                   <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
@@ -624,8 +626,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           {/* STEP 2: PACKAGE */}
           {currentStep === 2 && (
             <View style={styles.stepContent}>
-              <Text style={styles.title}>Select a Package</Text>
-              <Text style={styles.subtitle}>Choose the photography package that fits your event.</Text>
+              <Text style={styles.title}>{tr('Select a Package')}</Text>
+              <Text style={styles.subtitle}>{tr('Choose the photography package that fits your event.')}</Text>
               
               <View style={{ marginTop: spacing.sm }}>
                 {packages.length === 0 ? (
@@ -633,9 +635,9 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     <View style={styles.emptyPackagesIconCircle}>
                       <Ionicons name="pricetags-outline" size={32} color={colors.primary} />
                     </View>
-                    <Text style={styles.emptyPackagesTitle}>No Pre-Set Packages</Text>
+                    <Text style={styles.emptyPackagesTitle}>{tr('No Pre-Set Packages')}</Text>
                     <Text style={styles.emptyPackagesDesc}>
-                      This photographer hasn't published pre-set packages yet. Reach out to them directly or proceed with your custom brief.
+                      {tr("This photographer hasn't published pre-set packages yet. Reach out to them directly or proceed with your custom brief.")}
                     </Text>
                   </View>
                 ) : null}
@@ -660,7 +662,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                           {pkg.name?.toLowerCase().includes('live') && (
                             <View style={styles.liveIndicator}>
                               <Ionicons name="radio" size={11} color="#EF4444" />
-                              <Text style={styles.liveText}>Live</Text>
+                              <Text style={styles.liveText}>{tr('LIVE')}</Text>
                             </View>
                           )}
                         </View>
@@ -680,19 +682,19 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         {typeof pkg.durationHours === 'number' && pkg.durationHours > 0 && (
                           <View style={styles.packageStat}>
                             <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-                            <Text style={styles.packageStatText}>{pkg.durationHours}h coverage</Text>
+                            <Text style={styles.packageStatText}>{pkg.durationHours}h {tr('coverage')}</Text>
                           </View>
                         )}
                         {typeof pkg.includedPhotos === 'number' && pkg.includedPhotos > 0 && (
                           <View style={styles.packageStat}>
                             <Ionicons name="image-outline" size={14} color={colors.textMuted} />
-                            <Text style={styles.packageStatText}>{pkg.includedPhotos} photos</Text>
+                            <Text style={styles.packageStatText}>{pkg.includedPhotos} {tr('photos')}</Text>
                           </View>
                         )}
                         {typeof pkg.includedVideos === 'number' && pkg.includedVideos > 0 && (
                           <View style={styles.packageStat}>
                             <Ionicons name="videocam-outline" size={14} color={colors.textMuted} />
-                            <Text style={styles.packageStatText}>{pkg.includedVideos} videos</Text>
+                            <Text style={styles.packageStatText}>{pkg.includedVideos} {tr('videos')}</Text>
                           </View>
                         )}
                       </View>
@@ -701,7 +703,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         <View style={styles.packageFeaturesRow}>
                           <View style={styles.packageFeature}>
                             <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                            <Text style={styles.packageFeatureText}>Live stream broadcast included</Text>
+                            <Text style={styles.packageFeatureText}>{tr('Live stream broadcast included')}</Text>
                           </View>
                         </View>
                       )}
@@ -716,7 +718,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   onPress={handleContinueStep2}
                   disabled={!selectedPackage && packages.length > 0}
                 >
-                  <Text style={styles.continueButtonText}>Continue to Schedule</Text>
+                  <Text style={styles.continueButtonText}>{tr('Continue to Schedule')}</Text>
                   <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
@@ -726,11 +728,11 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           {/* STEP 3: DETAILS */}
           {currentStep === 3 && (
             <View style={styles.stepContent}>
-              <Text style={styles.title}>Schedule & Notes</Text>
-              <Text style={styles.subtitle}>Help the photographer prepare for your event.</Text>
+              <Text style={styles.title}>{tr('Schedule & Notes')}</Text>
+              <Text style={styles.subtitle}>{tr('Help the photographer prepare for your event.')}</Text>
               
               <View style={styles.formGroup}>
-                <Text style={styles.label}>What should we call this event? *</Text>
+                <Text style={styles.label}>{tr('What should we call this event? *')}</Text>
                 <View style={styles.inputWithIconContainer}>
                   <Ionicons name="bookmark-outline" size={18} color={colors.textMuted} style={styles.inputLeadingIcon} />
                   <BottomSheetTextInput 
@@ -752,11 +754,11 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={styles.label}>Start Time *</Text>
+                  <Text style={styles.label}>{tr('Start Time *')}</Text>
                   <Pressable onPress={() => setShowStartTimePicker(true)} style={styles.pickerSelector}>
                     <Ionicons name="time-outline" size={18} color={startTime ? colors.primary : colors.textMuted} />
                     <Text style={[styles.pickerSelectorText, !startTime && styles.pickerSelectorPlaceholder]}>
-                      {startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set start'}
+                      {startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : tr('Set start')}
                     </Text>
                     <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
                   </Pressable>
@@ -778,11 +780,11 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                 </View>
 
                 <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={styles.label}>End Time (Optional)</Text>
+                  <Text style={styles.label}>{tr('End Time (Optional)')}</Text>
                   <Pressable onPress={() => setShowEndTimePicker(true)} style={styles.pickerSelector}>
                     <Ionicons name="time-outline" size={18} color={endTime ? colors.primary : colors.textMuted} />
                     <Text style={[styles.pickerSelectorText, !endTime && styles.pickerSelectorPlaceholder]}>
-                      {endTime ? endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set end'}
+                      {endTime ? endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : tr('Set end')}
                     </Text>
                     <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
                   </Pressable>
@@ -805,7 +807,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Estimated Guest Count (Optional)</Text>
+                <Text style={styles.label}>{tr('Estimated Guest Count (Optional)')}</Text>
                 <View style={styles.inputWithIconContainer}>
                   <Ionicons name="people-outline" size={18} color={colors.textMuted} style={styles.inputLeadingIcon} />
                   <BottomSheetTextInput 
@@ -825,12 +827,12 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Special Requests / Notes</Text>
+                <Text style={styles.label}>{tr('Special Requests / Notes')}</Text>
                 <BottomSheetTextInput 
                   ref={notesInputRef}
                   style={styles.bottomSheetInputMultiline} 
                   placeholderTextColor={colors.textMuted} 
-                  placeholder="Tell the photographer about shot lists, timeline, or special requirements..." 
+                  placeholder={tr('Tell the photographer about shot lists, timeline, or special requirements...')} 
                   value={notes} 
                   onChangeText={setNotes} 
                   multiline 
@@ -844,7 +846,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
               <View style={styles.footer}>
                 <Pressable style={styles.continueButton} onPress={handleContinueStep3}>
-                  <Text style={styles.continueButtonText}>Review & Payment</Text>
+                  <Text style={styles.continueButtonText}>{tr('Review & Payment')}</Text>
                   <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
@@ -859,29 +861,29 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   <View style={styles.successIconCircle}>
                     <Ionicons name="checkmark" size={44} color="#FFFFFF" />
                   </View>
-                  <Text style={styles.successTitle}>Booking Reserved!</Text>
+                  <Text style={styles.successTitle}>{tr('Booking Reserved!')}</Text>
                   <Text style={styles.successSubtitle}>
-                    Your event has been recorded. To secure your date, pay now or later from Payments.
+                    {tr('Your event has been recorded. To secure your date, pay now or later from Payments.')}
                   </Text>
 
                   <View style={styles.summaryCard}>
-                    <Text style={styles.summaryTitle}>Booking Summary</Text>
+                    <Text style={styles.summaryTitle}>{tr('Booking Summary')}</Text>
                     
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Event</Text>
+                      <Text style={styles.summaryLabel}>{tr('Event')}</Text>
                       <Text style={styles.summaryValue}>{eventName}</Text>
                     </View>
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Date</Text>
+                      <Text style={styles.summaryLabel}>{tr('Date')}</Text>
                       <Text style={styles.summaryValue}>{date?.toLocaleDateString()}</Text>
                     </View>
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Package</Text>
+                      <Text style={styles.summaryLabel}>{tr('Package')}</Text>
                       <Text style={styles.summaryValue}>{selectedPackage?.name}</Text>
                     </View>
                     <View style={styles.summaryDivider} />
                     <View style={styles.summaryRow}>
-                      <Text style={styles.summaryTotalLabel}>Total Amount</Text>
+                      <Text style={styles.summaryTotalLabel}>{tr('Total Amount')}</Text>
                       <Text style={styles.summaryTotalValue}>{formatSelectedPrice(selectedPackage?.price, selectedPackage?.currency)}</Text>
                     </View>
                   </View>
@@ -893,21 +895,21 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         onPress={handleCompletePayment}
                       >
                         <Ionicons name="card-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                        <Text style={styles.continueButtonText}>Pay now</Text>
+                        <Text style={styles.continueButtonText}>{tr('Pay now')}</Text>
                       </Pressable>
                       <Text style={styles.handoffHint}>
-                        Your booking is held for you. You can also complete your payment later anytime from your Payments tab.
+                        {tr('Your booking is held for you. You can also complete your payment later anytime from your Payments tab.')}
                       </Text>
                     </>
                   ) : (
                     <Text style={styles.handoffHint}>
-                      Your request has been sent to the photographer. Once accepted, you can pay from Payments.
+                      {tr('Your request has been sent to the photographer. Once accepted, you can pay from Payments.')}
                     </Text>
                   )}
 
                   <Pressable style={styles.secondaryButton} onPress={handleDownloadProof}>
                     <Ionicons name="download-outline" size={18} color={colors.text} style={{ marginRight: 8 }} />
-                    <Text style={styles.secondaryButtonText}>Download Booking Proof (PDF)</Text>
+                    <Text style={styles.secondaryButtonText}>{tr('Download Booking Proof (PDF)')}</Text>
                   </Pressable>
 
                   <Pressable 
@@ -919,14 +921,14 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       setCurrentStep(1);
                     }}
                   >
-                    <Text style={styles.doneButtonText}>Done</Text>
+                    <Text style={styles.doneButtonText}>{tr('Done')}</Text>
                   </Pressable>
                 </View>
               ) : (
                 <>
-                  <Text style={[styles.title, { textAlign: 'center' }]}>Choose Payment Terms</Text>
+                  <Text style={[styles.title, { textAlign: 'center' }]}>{tr('Choose Payment Terms')}</Text>
                   <Text style={[styles.subtitle, { textAlign: 'center', marginBottom: spacing.lg }]}>
-                    Choose how you want to schedule your payment.
+                    {tr('Choose how you want to schedule your payment.')}
                   </Text>
                   
                   {(() => {
@@ -970,12 +972,12 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     return (
                       <>
                         <View style={styles.heroAmountCard}>
-                          <Text style={styles.heroAmountLabel}>Total Package Price</Text>
+                          <Text style={styles.heroAmountLabel}>{tr('Total Package Price')}</Text>
                           <Text style={styles.heroAmountValue}>{totalDisplay}</Text>
                         </View>
 
                         <View style={styles.currencyToggleRow}>
-                          <Text style={styles.currencyToggleLabel}>Display currency</Text>
+                          <Text style={styles.currencyToggleLabel}>{tr('Display currency')}</Text>
                           <Pressable 
                             onPress={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
                             style={styles.currencySelectorPill}
@@ -988,7 +990,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                             <View style={[styles.currencyDropdownMenu, elevation(3)]}>
                               {CURRENCIES.map(c => (
                                 <Pressable 
-                                  key={c.code}
+                                  key={c.code} 
                                   style={[styles.currencyDropdownItem, displayCurrency === c.code && styles.currencyDropdownItemActive]}
                                   onPress={() => { setDisplayCurrency(c.code as any); setShowCurrencyDropdown(false); }}
                                 >
@@ -1021,8 +1023,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                                   {sel && <View style={styles.milestoneRadioDot} />}
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                  <Text style={[styles.milestoneTitle, sel && styles.milestoneTitleActive]}>{opt.label}</Text>
-                                  <Text style={styles.milestoneDesc}>{opt.desc}</Text>
+                                  <Text style={[styles.milestoneTitle, sel && styles.milestoneTitleActive]}>{tr(opt.label)}</Text>
+                                  <Text style={styles.milestoneDesc}>{tr(opt.desc)}</Text>
                                 </View>
                               </Pressable>
                             );
@@ -1040,7 +1042,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                               <View key={i} style={[styles.splitRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                   <View style={[styles.splitDot, { backgroundColor: i === 0 ? colors.primary : colors.textMuted }]} />
-                                  <Text style={styles.splitLabel}>{m.label}</Text>
+                                  <Text style={styles.splitLabel}>{tr(m.label)}</Text>
                                 </View>
                                 <Text style={styles.splitValue}>
                                   {formatPrice(basePrice * m.pct / 100)}
@@ -1056,17 +1058,17 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   <View style={styles.handoffNoticeBanner}>
                     <Ionicons name="globe-outline" size={18} color={colors.primary} />
                     <Text style={styles.handoffNoticeText}>
-                      After you confirm, you can pay securely in the app.
+                      {tr('After you confirm, you can pay securely in the app.')}
                     </Text>
                   </View>
 
                   <View style={styles.escrowCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <Ionicons name="shield-checkmark" size={18} color="#16A34A" />
-                      <Text style={styles.escrowTitle}>Connekyt Escrow Protection</Text>
+                      <Text style={styles.escrowTitle}>{tr('Connekyt Escrow Protection')}</Text>
                     </View>
                     <Text style={styles.escrowBody}>
-                      Your money is held in escrow by Connekyt, not sent directly to the photographer. We release funds only when your event is delivered.
+                      {tr('Your money is held in escrow by Connekyt, not sent directly to the photographer. We release funds only when your event is delivered.')}
                     </Text>
                   </View>
 
@@ -1080,7 +1082,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         <ActivityIndicator color="#FFFFFF" size="small" />
                       ) : (
                         <>
-                          <Text style={styles.continueButtonText}>Confirm Booking Request</Text>
+                          <Text style={styles.continueButtonText}>{tr('Confirm Booking Request')}</Text>
                           <Ionicons name="lock-closed" size={16} color="#FFFFFF" style={{ marginLeft: 8 }} />
                         </>
                       )}

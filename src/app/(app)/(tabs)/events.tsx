@@ -6,8 +6,10 @@ import { PhotographerEventsDashboard } from '@/features/events/PhotographerEvent
 import { OwnerEventsDashboard } from '@/features/events/OwnerEventsDashboard';
 import { ClientEventsDashboard } from '@/features/events/ClientEventsDashboard';
 import ExploreEventsScreen from '@/app/(public)/explore-events';
+import { useLanguage } from '@/store/language';
 
 export default function EventsScreen() {
+  useLanguage((s) => s.language);
   const topBarHeight = useTopBarHeight();
   const { isPhotographer, isCoordinator } = useRole();
   const params = useLocalSearchParams<{ q?: string; category?: string }>();

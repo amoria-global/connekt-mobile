@@ -13,7 +13,10 @@ import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
 import { useTheme } from '@/theme';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 export default function ScanEventScreen() {
+  const { t } = useLanguage();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors } = useTheme();

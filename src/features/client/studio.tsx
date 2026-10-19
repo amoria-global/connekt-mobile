@@ -10,6 +10,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -29,12 +30,13 @@ export function HeroActionCard({
 }) {
   const styles = useStyles();
   const { gradients } = useTheme();
+  const { tr } = useSharedT();
   const colors = tone === 'violet' ? gradients.heroViolet : gradients.heroBlue;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
+      accessibilityLabel={subtitle ? `${tr(title)}, ${tr(subtitle)}` : tr(title)}
       style={({ pressed }) => [styles.heroWrap, pressed && styles.pressed]}
     >
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
@@ -43,11 +45,11 @@ export function HeroActionCard({
         </View>
         <View style={styles.heroText}>
           <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.3}>
-            {title}
+            {tr(title)}
           </Text>
           {subtitle ? (
             <Text style={styles.heroSub} numberOfLines={2} maxFontSizeMultiplier={1.25}>
-              {subtitle}
+              {tr(subtitle)}
             </Text>
           ) : null}
         </View>
@@ -88,6 +90,7 @@ export function ListRow({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const toneFg = { primary: colors.link, accent: colors.accent, success: colors.success, warning: colors.warning, error: colors.error }[tone];
   const toneBg = { primary: colors.tint, accent: colors.tintAccent, success: colors.successBg, warning: colors.warningBg, error: colors.errorBg }[tone];
   const body = (
@@ -100,11 +103,11 @@ export function ListRow({
         ) : null)}
       <View style={styles.rowText}>
         <Text style={[styles.rowTitle, destructive && { color: colors.error }]} numberOfLines={2} maxFontSizeMultiplier={1.3}>
-          {title}
+          {tr(title)}
         </Text>
         {meta ? (
           <Text style={styles.rowMeta} numberOfLines={2} maxFontSizeMultiplier={1.3}>
-            {meta}
+            {tr(meta)}
           </Text>
         ) : null}
       </View>

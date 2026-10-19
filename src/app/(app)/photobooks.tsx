@@ -29,10 +29,101 @@ import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { listPhotobooks, listReceivedPhotobooks, type Photobook } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/store/language';
 import { PhotobookCard, PhotobookGridSkeleton } from '@/features/photobooks/PhotobookCard';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'SENT';
+
+const I18N = {
+  en: {
+    eyebrow: 'CURATED COLLECTIONS',
+    title: 'Photobooks',
+    filterAll: 'All Books',
+    filterPublished: 'Published',
+    filterDraft: 'Drafts',
+    filterSent: 'Delivered',
+    statusPublished: 'Published',
+    statusDraft: 'Draft',
+    statusPending: 'Pending',
+    statusSent: 'Delivered',
+    statusBook: 'Book',
+    searchPlaceholder: 'Search photobooks by title or client…',
+    photosCount: (count: number) => `${count} photos`,
+    byPhotographer: (name: string) => `By ${name}`,
+    eventCollection: 'Event Collection',
+    loading: 'Loading photobooks…',
+    errorTitle: "Couldn't load photobooks",
+    errorSubtitle: 'Please check your network connection and pull down to retry.',
+    retry: 'Retry',
+    noMatching: 'No matching photobooks',
+    noBooksYet: 'No photobooks yet',
+    noMatchingDesc: 'Try selecting a different status filter or clearing your search.',
+    canCreateDesc: 'Curate your event photos into a bound, high-impact digital photobook.',
+    guestEmptyDesc: 'Curated photobooks created by your photographer will appear here.',
+    createPhotobook: 'Create Photobook',
+    newPhotobook: 'New Photobook',
+    newPhotobookA11y: 'New photobook',
+  },
+  fr: {
+    eyebrow: 'COLLECTIONS SÉLECTIONNÉES',
+    title: 'Livres photo',
+    filterAll: 'Tous les livres',
+    filterPublished: 'Publiés',
+    filterDraft: 'Brouillons',
+    filterSent: 'Livrés',
+    statusPublished: 'Publié',
+    statusDraft: 'Brouillon',
+    statusPending: 'En attente',
+    statusSent: 'Livré',
+    statusBook: 'Livre',
+    searchPlaceholder: 'Rechercher par titre ou client…',
+    photosCount: (count: number) => `${count} photos`,
+    byPhotographer: (name: string) => `Par ${name}`,
+    eventCollection: 'Collection d’événement',
+    loading: 'Chargement des livres photo…',
+    errorTitle: 'Impossible de charger les livres photo',
+    errorSubtitle: 'Veuillez vérifier votre connexion réseau et tirer vers le bas pour réessayer.',
+    retry: 'Réessayer',
+    noMatching: 'Aucun livre photo correspondant',
+    noBooksYet: 'Aucun livre photo pour le moment',
+    noMatchingDesc: 'Essayez de sélectionner un autre filtre de statut ou d’effacer votre recherche.',
+    canCreateDesc: 'Rassemblez vos photos d’événement dans un livre photo numérique percutant.',
+    guestEmptyDesc: 'Les livres photo créés par votre photographe apparaîtront ici.',
+    createPhotobook: 'Créer un livre photo',
+    newPhotobook: 'Nouveau livre photo',
+    newPhotobookA11y: 'Nouveau livre photo',
+  },
+  es: {
+    eyebrow: 'COLECCIONES SELECCIONADAS',
+    title: 'Fotolibros',
+    filterAll: 'Todos los libros',
+    filterPublished: 'Publicados',
+    filterDraft: 'Borradores',
+    filterSent: 'Entregados',
+    statusPublished: 'Publicado',
+    statusDraft: 'Borrador',
+    statusPending: 'Pendiente',
+    statusSent: 'Entregado',
+    statusBook: 'Libro',
+    searchPlaceholder: 'Buscar fotolibros por título o cliente…',
+    photosCount: (count: number) => `${count} fotos`,
+    byPhotographer: (name: string) => `Por ${name}`,
+    eventCollection: 'Colección de evento',
+    loading: 'Cargando fotolibros…',
+    errorTitle: 'No se pudieron cargar los fotolibros',
+    errorSubtitle: 'Revisa tu conexión de red y desliza hacia abajo para reintentar.',
+    retry: 'Reintentar',
+    noMatching: 'No hay fotolibros coincidentes',
+    noBooksYet: 'Aún no hay fotolibros',
+    noMatchingDesc: 'Intenta seleccionar otro filtro de estado o borrar tu búsqueda.',
+    canCreateDesc: 'Organiza las fotos de tu evento en un fotolibro digital de alto impacto.',
+    guestEmptyDesc: 'Los fotolibros creados por tu fotógrafo aparecerán aquí.',
+    createPhotobook: 'Crear fotolibro',
+    newPhotobook: 'Nuevo fotolibro',
+    newPhotobookA11y: 'Nuevo fotolibro',
+  },
+} as const;
 
 export default function PhotobooksScreen() {
   const { colors } = useTheme();
@@ -41,6 +132,8 @@ export default function PhotobooksScreen() {
   const insets = useSafeAreaInsets();
   const { isPhotographer, isCoordinator } = useRole();
   const canCreate = isPhotographer || isCoordinator;
+  const { language } = useLanguage();
+  const tr = I18N[language] || I18N.en;
   const accent = !isPhotographer;
 
   // A photographer has two shelves: books they made, and books clients sent them to edit (web "received photobooks").
@@ -61,7 +154,7 @@ export default function PhotobooksScreen() {
   const [filter, setFilter] = useState<StatusFilter>('ALL');
   const [search, setSearch] = useState('');
 
-  const photobooks = useMemo(() => data ?? [], [data]);
+  const photobooks: Photobook[] = useMemo(() => data ?? [], [data]);
   const openBook = useCallback((id: string, isReceived: boolean) => router.push((isReceived ? `/photobook/${id}?received=1` : `/photobook/${id}`) as Href), [router]);
 
   const counts = useMemo(() => {
@@ -77,7 +170,7 @@ export default function PhotobooksScreen() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return photobooks.filter((p) => {
+    return photobooks.filter((p: Photobook) => {
       const s = (p.status ?? '').toUpperCase();
       if (!received) {
         if (filter === 'PUBLISHED' && s !== 'PUBLISHED') return false;
@@ -98,9 +191,9 @@ export default function PhotobooksScreen() {
       {/* Top Title & Count Row */}
       <View style={styles.titleRow}>
         <View style={styles.titleCol}>
-          <Text style={styles.eyebrow}>CURATED COLLECTIONS</Text>
+          <Text style={styles.eyebrow}>{tr.eyebrow}</Text>
           <View style={styles.titleWithBadge}>
-            <Text style={styles.h1}>Photobooks</Text>
+            <Text style={styles.h1}>{tr.title}</Text>
             <View style={styles.totalBadge}>
               <Text style={styles.totalBadgeText}>{photobooks.length}</Text>
             </View>
@@ -136,12 +229,12 @@ export default function PhotobooksScreen() {
           const active = filter === f;
           const label =
             f === 'ALL'
-              ? 'All Books'
+              ? tr.filterAll
               : f === 'PUBLISHED'
-              ? 'Published'
+              ? tr.filterPublished
               : f === 'DRAFT'
-              ? 'Drafts'
-              : 'Delivered';
+              ? tr.filterDraft
+              : tr.filterSent;
           return (
             <Pressable
               key={f}
@@ -169,7 +262,7 @@ export default function PhotobooksScreen() {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search photobooks by title or client…"
+          placeholder={tr.searchPlaceholder}
           placeholderTextColor={colors.textMuted}
           style={styles.searchInput}
           autoCapitalize="none"
@@ -211,12 +304,12 @@ export default function PhotobooksScreen() {
               <View style={styles.emptyIconBox}>
                 <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
               </View>
-              <Text style={styles.emptyTitle}>Could not load photobooks</Text>
+              <Text style={styles.emptyTitle}>{tr.errorTitle}</Text>
               <Text style={styles.emptySubtitle}>
-                Check your connection, then try again.
+                {tr.errorSubtitle}
               </Text>
-              <Pressable style={styles.emptyBtn} onPress={refresh} accessibilityRole="button" accessibilityLabel="Try again">
-                <Text style={styles.emptyBtnText}>Try again</Text>
+              <Pressable style={styles.emptyBtn} onPress={refresh} accessibilityRole="button" accessibilityLabel={tr.retry}>
+                <Text style={styles.emptyBtnText}>{tr.retry}</Text>
               </Pressable>
             </View>
           ) : (
@@ -225,16 +318,16 @@ export default function PhotobooksScreen() {
                 <Ionicons name="book-outline" size={40} color={colors.textMuted} />
               </View>
               <Text style={styles.emptyTitle}>
-                {search || (!received && filter !== 'ALL') ? 'No matching photobooks' : received ? 'Nothing received yet' : 'No photobooks yet'}
+                {search || (!received && filter !== 'ALL') ? tr.noMatching : received ? 'Nothing received yet' : tr.noBooksYet}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {search || (!received && filter !== 'ALL')
-                  ? 'Try selecting a different status filter or clearing your search.'
+                  ? tr.noMatchingDesc
                   : received
                   ? 'Photobooks your clients send you to edit will appear here.'
                   : canCreate
-                  ? 'Curate your event photos into a bound, high-impact digital photobook.'
-                  : 'Curated photobooks created by your photographer will appear here.'}
+                  ? tr.canCreateDesc
+                  : tr.guestEmptyDesc}
               </Text>
               {canCreate && !received && !search && filter === 'ALL' ? (
                 <Pressable
@@ -242,7 +335,7 @@ export default function PhotobooksScreen() {
                   onPress={() => router.push('/photobook/new' as Href)}
                 >
                   <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={styles.emptyBtnText}>Create Photobook</Text>
+                  <Text style={styles.emptyBtnText}>{tr.createPhotobook}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -260,10 +353,10 @@ export default function PhotobooksScreen() {
           onPress={() => router.push('/photobook/new' as Href)}
           android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
           accessibilityRole="button"
-          accessibilityLabel="New photobook"
+          accessibilityLabel={tr.newPhotobookA11y}
         >
           <Ionicons name="add" size={20} color="#fff" />
-          <Text style={styles.fabText}>New Photobook</Text>
+          <Text style={styles.fabText}>{tr.newPhotobook}</Text>
         </Pressable>
       ) : null}
     </Screen>

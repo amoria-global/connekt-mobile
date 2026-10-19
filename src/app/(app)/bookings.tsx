@@ -57,6 +57,7 @@ import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/th
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { env } from '@/config/env';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Tab = 'direct' | 'opportunities';
 
@@ -64,6 +65,7 @@ export default function BookingsScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const router = useRouter();
   const { tab, candidate } = useLocalSearchParams<{ tab?: string; candidate?: string }>();
   const { isPhotographer } = useRole();

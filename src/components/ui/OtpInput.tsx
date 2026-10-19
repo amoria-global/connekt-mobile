@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from 'react-native';
 
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { glassTile } from './GlassCard';
 
 /**
  * Six single-digit boxes for a verification code.
@@ -31,9 +32,11 @@ type Props = {
   editable?: boolean;
   /** Fired once the sixth digit lands, so callers can auto-submit. */
   onComplete?: (code: string) => void;
+  /** Translucent boxes for a glass panel; see `Input`'s `glass`. */
+  glass?: boolean;
 };
 
-export function OtpInput({ value, onChange, error, label, editable = true, onComplete }: Props) {
+export function OtpInput({ value, onChange, error, label, editable = true, onComplete, glass = false }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const refs = useRef<(TextInput | null)[]>([]);
@@ -101,7 +104,13 @@ export function OtpInput({ value, onChange, error, label, editable = true, onCom
               ref={(el) => {
                 refs.current[i] = el;
               }}
-              style={[styles.box, !!char && styles.boxFilled, !!error && styles.boxError]}
+              style={[
+                styles.box,
+                glass && styles.boxGlass,
+                !!char && styles.boxFilled,
+                glass && !!char && styles.boxGlassFilled,
+                !!error && styles.boxError,
+              ]}
               value={char}
               onChangeText={(t) => handleChange(i, t)}
               onKeyPress={(e) => handleKeyPress(i, e)}
@@ -141,7 +150,9 @@ const useStyles = makeStyles((c) => ({
     fontSize: 22,
     fontWeight: fontWeight.bold,
   },
+  boxGlass: glassTile(c),
   boxFilled: { borderColor: c.primary },
+  boxGlassFilled: { backgroundColor: c.tint },
   boxError: { borderColor: c.error },
   error: { fontSize: fontSize.xs, color: c.error },
 }));

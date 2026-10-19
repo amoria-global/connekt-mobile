@@ -34,7 +34,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { GlassOnMedia } from '@/components/ui/GlassCard';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { listCoordinatorEvents, listEvents } from './api';
 import type { EventItem } from './types';
@@ -147,6 +149,7 @@ export function OwnerEventsDashboard({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { language, t } = useLanguage();
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList<EventItem>>(null);
   const router = useRouter();
@@ -299,8 +302,8 @@ export function OwnerEventsDashboard({
             <Ionicons name={coordinator ? 'business' : 'calendar'} size={12} color={colors.accent} />
             <Text style={styles.eyebrow}>{coordinator ? 'COORDINATOR WORKSPACE' : 'MY EVENTS'}</Text>
           </View>
-          <Text style={styles.h1}>{coordinator ? 'Events & Productions' : 'Events'}</Text>
-          <Text style={styles.subtitle}>Your bookings, sessions and live events.</Text>
+          <Text style={styles.h1}>{coordinator ? 'Events & Productions' : t('eventsTitle')}</Text>
+          <Text style={styles.subtitle}>{t('eventsSubtitle')}</Text>
         </View>
         <Pressable
           style={styles.bigAddBtn}
@@ -319,23 +322,24 @@ export function OwnerEventsDashboard({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.workspaceTabs}
         >
-          {WORKSPACE_TABS.map((t) => {
-            const active = t.key === 'events';
+          {WORKSPACE_TABS.map((wTab) => {
+            const active = wTab.key === 'events';
+            const labelText = wTab.key === 'events' ? t('eventsTitle') : wTab.key === 'photographers' ? t('menuPhotographers') : wTab.label;
             return (
               <Pressable
-                key={t.key}
-                onPress={() => (t.route ? router.push(t.route) : null)}
+                key={wTab.key}
+                onPress={() => (wTab.route ? router.push(wTab.route) : null)}
                 style={[styles.workspaceTab, active && styles.workspaceTabActive]}
               >
                 <Ionicons
-                  name={t.icon}
+                  name={wTab.icon}
                   size={14}
                   color={active ? '#fff' : colors.textMuted}
                 />
                 <Text
                   style={[styles.workspaceTabText, active && styles.workspaceTabTextActive]}
                 >
-                  {t.label}
+                  {labelText}
                 </Text>
               </Pressable>
             );
@@ -350,7 +354,7 @@ export function OwnerEventsDashboard({
           <View style={[styles.workspaceTab, styles.workspaceTabActive]}>
             <Ionicons name="calendar" size={14} color="#fff" />
             <Text style={[styles.workspaceTabText, styles.workspaceTabTextActive]}>
-              My Events
+              {t('eventsTitle')}
             </Text>
             {events.length > 0 && (
               <View style={styles.tabBadge}>
@@ -365,7 +369,7 @@ export function OwnerEventsDashboard({
           >
             <Ionicons name="search-outline" size={14} color={colors.textMuted} />
             <Text style={styles.workspaceTabText}>
-              Find a Photographer
+              {t('findPhotographer')}
             </Text>
           </Pressable>
 
@@ -375,7 +379,7 @@ export function OwnerEventsDashboard({
           >
             <Ionicons name="compass-outline" size={14} color={colors.textMuted} />
             <Text style={styles.workspaceTabText}>
-              Explore Events
+              {t('exploreEvents')}
             </Text>
           </Pressable>
         </ScrollView>
@@ -383,27 +387,31 @@ export function OwnerEventsDashboard({
 
       {/* Stat strip - clean solid cards, no top tear, no gradients */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statStrip}>
-        {STAT_META.map((s) => (
-          <View key={s.key} style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: `${s.accent}14`, borderColor: `${s.accent}2E` }]}>
-              <Ionicons name={s.icon} size={18} color={s.accent} />
+        {STAT_META.map((s) => {
+          const statLabel = s.key === 'all' ? t('totalEvents') : s.key === 'upcoming' ? t('filterUpcoming') : s.key === 'published' ? t('published') : t('filterCompleted');
+          return (
+            <View key={s.key} style={styles.statCard}>
+              <View style={[styles.statIcon, { backgroundColor: `${s.accent}14`, borderColor: `${s.accent}2E` }]}>
+                <Ionicons name={s.icon} size={18} color={s.accent} />
+              </View>
+              <View style={{ minWidth: 0, flex: 1 }}>
+                <Text style={styles.statLabel} numberOfLines={1}>{statLabel}</Text>
+                <Text style={styles.statValue}>{stats[s.key]}</Text>
+              </View>
             </View>
-            <View style={{ minWidth: 0, flex: 1 }}>
-              <Text style={styles.statLabel} numberOfLines={1}>{s.label}</Text>
-              <Text style={styles.statValue}>{stats[s.key]}</Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
 
       {/* Filter pills */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {(['all', 'upcoming', 'published', 'past'] as const).map((f) => {
           const active = filter === f;
+          const filterLabel = f === 'all' ? t('filterAll') : f === 'upcoming' ? t('filterUpcoming') : f === 'published' ? t('published') : t('past');
           return (
             <Pressable key={f} onPress={() => onFilterChange(f)} style={[styles.filterPill, active && styles.filterPillActive]}>
               <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+                {filterLabel}
               </Text>
               <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
                 <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>{tabCounts[f]}</Text>
@@ -420,7 +428,7 @@ export function OwnerEventsDashboard({
           <TextInput
             value={search}
             onChangeText={onSearchChange}
-            placeholder="Search events…"
+            placeholder={t('searchEventsPlaceholder')}
             placeholderTextColor={colors.textMuted}
             style={styles.searchInput}
             autoCapitalize="none"
@@ -716,16 +724,16 @@ function OwnerEventCard({
       <View style={styles.cardScrim} />
 
       <View style={styles.cardTop}>
-        <View style={styles.datePill}>
+        <GlassOnMedia style={styles.datePill} edge>
           <Ionicons name="calendar" size={11} color="#fff" />
           <Text style={styles.datePillText}>{fmtShortDate(event.eventDate) || 'No date'}</Text>
-        </View>
+        </GlassOnMedia>
         <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
           <Text style={[styles.statusPillText, { color: pill.fg }]}>{pill.label}</Text>
         </View>
       </View>
 
-      <View style={styles.cardBottom}>
+      <GlassOnMedia style={styles.cardBottom} intensity={40}>
         {(modeOf(event.bookingMode) === 'HYBRID' || event.photographerName) ? (
           <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, marginBottom: 4 }}>
             <ModeBadge mode={modeOf(event.bookingMode)} />
@@ -781,7 +789,7 @@ function OwnerEventCard({
             <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.9)" />
           </View>
         </View>
-      </View>
+      </GlassOnMedia>
     </Pressable>
   );
 }
