@@ -229,6 +229,18 @@ describe('photographer wallet tabs', () => {
     expect(text).not.toMatch(/Released this month|NaN|undefined/);
   });
 
+  it('client also gets Overview, Analytics and Activity tabs with lifetime spend breakdown', async () => {
+    mockRole = 'CLIENT';
+    serve('wallet-me-client.json', 'wallet-movements-client.json');
+    const r = await mount();
+    await openTab(r, 'Analytics');
+    const text = flat(r.root);
+    expect(text).toContain('Total spent');
+    expect(text).toContain('Lifetime, not a period figure.');
+    expect(text).toContain('Where your money goes');
+    expect(text).not.toMatch(/NaN|undefined/);
+  });
+
   it('coordinators still see every section on one screen, without tabs', async () => {
     mockRole = 'COORDINATOR';
     serve('wallet-me-client.json', 'wallet-movements-client.json');
@@ -268,11 +280,11 @@ describe('client wallet sections', () => {
   const sections = (r: TestRenderer.ReactTestRenderer) =>
     r.root.findAll((n) => n.props?.accessibilityRole === 'tab').map((n) => flat(n)).filter(Boolean);
 
-  it('splits Overview and Activity, with no Analytics tab because that endpoint is photographer-only', async () => {
+  it('splits Overview, Analytics and Activity, matching the photographer wallet layout', async () => {
     mockRole = 'CLIENT';
     serve('wallet-me-client.json', 'wallet-movements-client.json');
     const r = await mount();
-    expect(new Set(sections(r))).toEqual(new Set(['Overview', 'Activity']));
+    expect(new Set(sections(r))).toEqual(new Set(['Overview', 'Analytics', 'Activity']));
     let text = flat(r.root);
     expect(text).toContain('Payments due');
     expect(text).not.toContain('Earnings breakdown');

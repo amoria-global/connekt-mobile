@@ -66,6 +66,9 @@ import {
 import { Thumb, ShootCard } from '@/features/photographer/homeParts';
 import { moneyText } from '@/features/photographer/money';
 import { HeroActionCard } from '@/features/client/studio';
+import { ClientOverview } from '@/features/client/ClientOverview';
+import { getWallet } from '@/features/wallet/api';
+import { selectWalletStats } from '@/features/wallet/moneyView';
 import { matchDue, type DueMatch } from '@/features/payments/payNowLookup';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
 import {
@@ -146,6 +149,8 @@ export function ClientHome() {
   const [bookingModeOpen, setBookingModeOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState<BookingStep>('select');
   const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
+  // Amounts start hidden, like the photographer Home.
+  const [hidden, setHidden] = useState(true);
 
   // A guest who chose "Post my event" before signing in lands here; open the wizard for them.
   useEffect(() => {
@@ -160,6 +165,7 @@ export function ClientHome() {
   const activities = useAsync(useCallback(() => getCustomerRecentActivities(8), []));
   const photographers = useAsync(useCallback(() => listPhotographers(), []));
   const pending = useAsync(useCallback(() => getCustomerPendingPayments(), []));
+  const wallet = useAsync(useCallback(() => getWallet(), []));
 
   // ── Bookmarks ────────────────────────────────────────────────────────────
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
@@ -208,18 +214,24 @@ export function ClientHome() {
         activities.refresh(),
         photographers.refresh(),
         pending.refresh(),
+        wallet.refresh(),
       ]);
       refreshBookmarks();
     } finally {
       setPulling(false);
     }
-  }, [analytics, events, activities, photographers, pending, refreshBookmarks]);
+  }, [analytics, events, activities, photographers, pending, wallet, refreshBookmarks]);
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const eventList = events.data ?? EMPTY;
   const today = dayKey(new Date());
   const nextEvent = useMemo(() => pickNextEvent(eventList, today), [eventList, today]);
   const dues = useMemo(() => payable(pending.data ?? EMPTY), [pending.data]);
+  const walletStats = useMemo(() => (wallet.data ? selectWalletStats(wallet.data, 'client') : null), [wallet.data]);
+  const dueTotal = useMemo(
+    () => (pending.data ? { amount: dues.reduce((s, p) => s + remaining(p), 0), count: dues.length } : undefined),
+    [pending.data, dues],
+  );
   const photosReady = analytics.data?.totalPhotos ?? 0;
   const anyLive = useMemo(() => eventList.some(isLiveNow), [eventList]);
   const photographerPreview = useMemo(() => (photographers.data ?? EMPTY).slice(0, PREVIEW_LIMIT), [photographers.data]);
@@ -259,10 +271,20 @@ export function ClientHome() {
 
         {/* 1. Orientation */}
         <View style={styles.header}>
-          <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-            Welcome back, {name}
-          </Text>
-          <Text style={styles.subtitle}>{longDate() || 'Your events, photos and bookings'}</Text>
+          <View style={styles.flex}>
+            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
+              Welcome back, {name}
+            </Text>
+            <Text style={styles.subtitle}>{longDate() || 'Your events, photos and bookings'}</Text>
+          </View>
+          <Pressable
+            onPress={() => setHidden((h) => !h)}
+            accessibilityRole="button"
+            accessibilityLabel={hidden ? 'Show amounts' : 'Hide amounts'}
+            style={({ pressed }) => [styles.eye, pressed && styles.pressed]}
+          >
+            <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
+          </Pressable>
         </View>
 
         <Pressable
@@ -332,6 +354,7 @@ export function ClientHome() {
           />
         ) : (
           <NextEventCard
+            hidden={hidden}
             event={nextEvent}
             match={matchDue(nextEvent, dues, eventList)}
             today={today}
@@ -365,7 +388,7 @@ export function ClientHome() {
               keyOf={(i) => i.key}
               renderItem={(i) =>
                 i.kind === 'pay' && i.p ? (
-                  <PaymentCard payment={i.p} onPay={() => setPayNowPayment(i.p!)} />
+                  <PaymentCard hidden={hidden} payment={i.p} onPay={() => setPayNowPayment(i.p!)} />
                 ) : (
                   <Card>
                     <View style={styles.attentionTop}>
@@ -427,6 +450,29 @@ export function ClientHome() {
             />
           </>
         ) : null}
+
+        {/* 5b. Your overview (lifetime figures, same shape as the photographer's business overview) */}
+        <SectionHeader
+          title="Your overview"
+          subtitle="Lifetime figures. Pick a period on Analytics."
+          actionLabel="View analytics"
+          onAction={() => open('/analytics')}
+        />
+        {analytics.error && !analytics.data ? (
+          <ErrorNotice message={analytics.error} onRetry={analytics.refresh} />
+        ) : (
+          <ClientOverview
+            analytics={analytics.data}
+            loading={analytics.loading}
+            spent={walletStats?.hero.value}
+            walletCurrency={wallet.data?.currency}
+            walletLoading={wallet.loading}
+            due={dueTotal}
+            hidden={hidden}
+            onOpenWallet={() => open('/wallet')}
+            onOpenPayments={() => open('/payments')}
+          />
+        )}
 
         {/* 6. Featured photographers */}
         <SectionHeader title="Featured photographers" actionLabel="See all" onAction={() => open('/photographers')} />
@@ -537,7 +583,9 @@ function NextEventCard({
   onOpen,
   onPay,
   onReview,
+  hidden,
 }: {
+  hidden: boolean;
   event: EventItem;
   match: DueMatch;
   today: string;
@@ -575,10 +623,10 @@ function NextEventCard({
       </View>
       {event.photographerName ? <Meta icon="camera-outline" text={`Photographer: ${event.photographerName}`} /> : null}
       {due ? (
-        <View style={styles.dueRow} accessibilityLabel={`${moneyText(remaining(due), DUE_CURRENCY)} due`}>
+        <View style={styles.dueRow} accessibilityLabel={`${moneyText(remaining(due), DUE_CURRENCY, hidden)} due`}>
           <Ionicons name={due.status === 'failed' ? 'alert-circle' : 'time'} size={14} color={due.status === 'failed' ? colors.error : colors.warning} />
           <Text style={styles.dueText}>
-            {moneyText(remaining(due), DUE_CURRENCY)}
+            {moneyText(remaining(due), DUE_CURRENCY, hidden)}
             {dueDate ? ` · Due ${dueDate}` : ' due'}
             {due.status === 'failed' ? ' · Payment failed' : ''}
           </Text>
@@ -612,7 +660,7 @@ function Meta({ icon, text }: { icon: IconName; text: string }) {
   );
 }
 
-function PaymentCard({ payment, onPay }: { payment: PendingPayment; onPay: () => void }) {
+function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPay: () => void; hidden: boolean }) {
   const styles = useStyles();
   const failed = payment.status === 'failed';
   const dueDate = dueText(payment);
@@ -630,8 +678,8 @@ function PaymentCard({ payment, onPay }: { payment: PendingPayment; onPay: () =>
           </Text>
         </View>
       </View>
-      <Text style={styles.amount} accessibilityLabel={`${moneyText(remaining(payment), DUE_CURRENCY)} to pay`}>
-        {moneyText(remaining(payment), DUE_CURRENCY)}
+      <Text style={styles.amount} accessibilityLabel={`${moneyText(remaining(payment), DUE_CURRENCY, hidden)} to pay`}>
+        {moneyText(remaining(payment), DUE_CURRENCY, hidden)}
       </Text>
       <ActionButton label={failed ? 'Try again' : 'Pay now'} variant="primary" compact onPress={onPay} />
     </Card>
@@ -639,7 +687,8 @@ function PaymentCard({ payment, onPay }: { payment: PendingPayment; onPay: () =>
 }
 
 const useStyles = makeStyles((c) => ({
-  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   title: { color: c.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
   subtitle: { color: c.textMuted, fontSize: 13, marginTop: 2 },
   search: {

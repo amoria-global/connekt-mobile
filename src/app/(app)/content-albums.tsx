@@ -310,7 +310,7 @@ const useStyles = makeStyles((c) => ({
   titleCol: { gap: 2 },
   eyebrow: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
     letterSpacing: 1.2,
   },
@@ -379,7 +379,7 @@ const useStyles = makeStyles((c) => ({
   },
   filterBadgeText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
   },
   filterBadgeTextActive: {
@@ -455,7 +455,7 @@ const useStyles = makeStyles((c) => ({
   },
   statusBadgeText: {
     fontFamily: fonts.bold,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 0.3,
   },
   photoCountChip: {
@@ -469,7 +469,7 @@ const useStyles = makeStyles((c) => ({
   },
   photoCountText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: '#fff',
   },
   cardBody: {

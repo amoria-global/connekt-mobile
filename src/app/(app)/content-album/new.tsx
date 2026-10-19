@@ -430,7 +430,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 11, color: c.primary, letterSpacing: 1.2 },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.primary, letterSpacing: 1.2 },
   h1: { fontFamily: fonts.bold, fontSize: 24, color: c.text, letterSpacing: -0.5 },
 
   note: {
@@ -455,7 +455,7 @@ const useStyles = makeStyles((c) => ({
   },
   sectionTitle: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
     letterSpacing: 0.8,
   },
@@ -467,13 +467,13 @@ const useStyles = makeStyles((c) => ({
   },
   badgePillText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.primary,
   },
 
   fieldLabel: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textSoft,
     letterSpacing: 0.6,
     marginTop: spacing.sm,

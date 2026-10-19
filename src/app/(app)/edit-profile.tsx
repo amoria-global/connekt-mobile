@@ -349,6 +349,6 @@ const useStyles = makeStyles((c) => ({
   form: { gap: spacing.lg },
   sectionHeader: { marginTop: spacing.md, gap: 2 },
   sectionTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
-  sectionSubtitle: { fontSize: fontSize.xs, color: c.textMuted },
+  sectionSubtitle: { fontSize: 12, color: c.textMuted },
   error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 }));

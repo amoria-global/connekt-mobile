@@ -12,6 +12,7 @@ import { Image } from 'expo-image';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import type { EventItem } from '@/features/events/types';
 import { formatDate } from '@/utils/format';
+import { eventStatus } from '@/features/events/clientEventsModel';
 import { ActionButton, EmptyNote, SegmentedTabs, StatusBadge, TOUCH } from './kit';
 import {
   bucketOf,
@@ -75,7 +76,13 @@ export function ScheduleView({
   onCreate,
   mode: controlledMode,
   onModeChange,
+  variant = 'photographer',
 }: {
+  /**
+   * "client" shows the client's own view of a booking: its status wording, the photographer's name, no
+   * Accept/Decline and no schedule-conflict banner. Defaults to the photographer view, unchanged.
+   */
+  variant?: 'photographer' | 'client';
   /**
    * Optional control from the parent. When the screen already shows its own view switch (so the calendar mode and
    * the list share one control), it passes `mode` and `onModeChange` and this component hides its own tabs.
@@ -103,8 +110,9 @@ export function ScheduleView({
   const [agendaDays, setAgendaDays] = useState(AGENDA_PAGE_DAYS);
 
   const byDay = useMemo(() => groupByDay(events), [events]);
-  const conflicts = useMemo(() => findConflicts(allEvents), [allEvents]);
-  const inConflict = useMemo(() => conflictIds(allEvents), [allEvents]);
+  const isClient = variant === 'client';
+  const conflicts = useMemo(() => (isClient ? [] : findConflicts(allEvents)), [allEvents, isClient]);
+  const inConflict = useMemo(() => (isClient ? new Set<string>() : conflictIds(allEvents)), [allEvents, isClient]);
   const week = useMemo(() => weekOf(selected), [selected]);
   const grid = useMemo(() => monthGrid(selected), [selected]);
   const dayEvents = byDay.get(selected) ?? [];
@@ -230,7 +238,7 @@ export function ScheduleView({
               icon="calendar-outline"
               title="Nothing scheduled"
               body="No events on this day."
-              actionLabel="Create event"
+              actionLabel={isClient ? 'Book photographer' : 'Create event'}
               onAction={onCreate}
             />
           ) : (
@@ -243,6 +251,7 @@ export function ScheduleView({
                 onOpen={onOpen}
                 onAccept={onAccept}
                 onDecline={onDecline}
+                variant={variant}
               />
             ))
           )}
@@ -253,8 +262,8 @@ export function ScheduleView({
             <EmptyNote
               icon="calendar-outline"
               title="No upcoming events"
-              body="Events you get booked for will appear here, in date order."
-              actionLabel="Create event"
+              body={isClient ? 'Your bookings will appear here, in date order.' : 'Events you get booked for will appear here, in date order.'}
+              actionLabel={isClient ? 'Book photographer' : 'Create event'}
               onAction={onCreate}
             />
           ) : (
@@ -274,6 +283,7 @@ export function ScheduleView({
                       onOpen={onOpen}
                       onAccept={onAccept}
                       onDecline={onDecline}
+                      variant={variant}
                     />
                   ))}
                 </View>
@@ -330,7 +340,9 @@ function AgendaRow({
   onOpen,
   onAccept,
   onDecline,
+  variant,
 }: {
+  variant: 'photographer' | 'client';
   event: EventItem;
   conflict: boolean;
   busy: boolean;
@@ -340,11 +352,12 @@ function AgendaRow({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const isClient = variant === 'client';
   const bucket = bucketOf(event);
-  const status = STATUS[bucket];
+  const status = isClient ? eventStatus(event) : STATUS[bucket];
   const time = event.startTime ? clock12(event.startTime) : 'All day';
   const range = event.startTime && event.endTime ? `${clock12(event.startTime)} to ${clock12(event.endTime)}` : time;
-  const meta = [event.clientName, event.location].filter(Boolean).join(' · ');
+  const meta = [isClient ? event.photographerName : event.clientName, event.location].filter(Boolean).join(' · ');
   return (
     <View style={styles.row}>
       <Pressable
@@ -359,7 +372,7 @@ function AgendaRow({
         ) : null}
         <View style={styles.rowText}>
           <Text style={styles.rowTitle} numberOfLines={2}>
-            {event.title || 'Photo shoot'}
+            {event.title || (isClient ? 'Event' : 'Photo shoot')}
           </Text>
           {meta ? (
             <Text style={styles.rowMeta} numberOfLines={1}>
@@ -373,7 +386,7 @@ function AgendaRow({
         </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
       </Pressable>
-      {bucket === 'pending' ? (
+      {bucket === 'pending' && !isClient ? (
         <View style={styles.rowActions}>
           <ActionButton label="Accept" variant="primary" busy={busy} onPress={() => onAccept(event)} style={styles.grow} />
           <ActionButton label="Decline" busy={busy} onPress={() => onDecline(event)} style={styles.grow} />

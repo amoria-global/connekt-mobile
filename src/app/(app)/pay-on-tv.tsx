@@ -457,7 +457,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 4,
     borderRadius: radii.full,
   },
-  tvBadgeText: { fontFamily: fonts.bold, color: '#fff', fontSize: 10.5, letterSpacing: 1 },
+  tvBadgeText: { fontFamily: fonts.bold, color: '#fff', fontSize: 12, letterSpacing: 1 },
   heroEvent: { fontFamily: fonts.bold, color: '#fff', fontSize: fontSize.xl, letterSpacing: -0.4, marginTop: 2 },
   heroAmountRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: spacing.sm },
   heroAmountLabel: { fontFamily: fonts.regular, color: 'rgba(255,255,255,0.8)', fontSize: fontSize.sm, marginBottom: 5 },
@@ -501,5 +501,5 @@ const useStyles = makeStyles((c) => ({
   rescanLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 2 },
   rescanText: { fontFamily: fonts.bold, color: c.textMuted, fontSize: fontSize.sm },
   secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
-  note: { fontFamily: fonts.regular, textAlign: 'center', color: c.textMuted, fontSize: 11 },
+  note: { fontFamily: fonts.regular, textAlign: 'center', color: c.textMuted, fontSize: 12 },
 }));

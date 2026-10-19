@@ -1593,7 +1593,7 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.primary,
   },
   geoFilterTabText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: fontWeight.medium,
     color: c.textSoft,
   },
@@ -1656,11 +1656,11 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 2,
   },
   locationsAvailableText: {
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
   },
   selectAllLink: {
-    fontSize: 11,
+    fontSize: 12,
     color: c.primary,
     fontWeight: fontWeight.semibold,
   },
@@ -1707,7 +1707,7 @@ const useStyles = makeStyles((c) => ({
     fontWeight: fontWeight.bold,
   },
   geoItemScopeBadge: {
-    fontSize: 9,
+    fontSize: 12,
     color: c.textMuted,
     paddingHorizontal: 3,
     paddingVertical: 1,

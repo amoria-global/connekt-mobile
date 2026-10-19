@@ -792,7 +792,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 11, color: c.primary, letterSpacing: 1.2 },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.primary, letterSpacing: 1.2 },
   h1: { fontFamily: fonts.bold, fontSize: 24, color: c.text, letterSpacing: -0.5 },
 
   // Mode segmented control
@@ -835,7 +835,7 @@ const useStyles = makeStyles((c) => ({
 
   fieldLabel: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textSoft,
     letterSpacing: 0.6,
     marginTop: spacing.sm,
@@ -884,7 +884,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.sm,
     backgroundColor: c.surface,
   },
-  changeEventText: { fontFamily: fonts.bold, fontSize: 11.5, color: c.primary },
+  changeEventText: { fontFamily: fonts.bold, fontSize: 12, color: c.primary },
 
   // Select trigger
   select: {
@@ -952,10 +952,10 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
   },
   radioActive: { backgroundColor: c.primary, borderColor: c.primary },
-  typeTag: { fontFamily: fonts.bold, fontSize: 9, color: c.textMuted, letterSpacing: 0.6 },
+  typeTag: { fontFamily: fonts.bold, fontSize: 12, color: c.textMuted, letterSpacing: 0.6 },
   typeTitle: { fontFamily: fonts.bold, fontSize: 14.5, color: c.text, marginBottom: 2 },
   typeLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  typeLineText: { flex: 1, fontFamily: fonts.regular, fontSize: 11, color: c.textSoft },
+  typeLineText: { flex: 1, fontFamily: fonts.regular, fontSize: 12, color: c.textSoft },
 
   detailNote: { borderRadius: radii.md, padding: spacing.md, gap: 2, marginTop: spacing.xs },
   detailNoteInfo: { backgroundColor: c.tint },
