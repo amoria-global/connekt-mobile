@@ -25,7 +25,7 @@ export function ProfileButton({ user, onPress, compact }: { user: User | null; o
   );
 }
 
-const SIZE = 46;
+const SIZE = 42;
 
 const useStyles = makeStyles((c, e) => ({
   btn: {
@@ -37,7 +37,7 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: c.surface,
     ...e(2),
   },
-  btnCompact: { width: 40, height: 40, borderWidth: 1.5, borderColor: c.border, shadowOpacity: 0, elevation: 0 },
+  btnCompact: { width: 38, height: 38, borderWidth: 1.5, borderColor: c.border, shadowOpacity: 0, elevation: 0 },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   avatar: { width: '100%', height: '100%', borderRadius: radii.full },
   fallback: { backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
