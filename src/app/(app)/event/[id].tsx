@@ -2,12 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { StarInput } from '@/components/ui/Stars';
+import { Sheet } from '@/components/ui/Sheet';
 import { useRole } from '@/features/auth/role';
+import { IconTile } from '@/features/photographer/kit';
+import { ProgressTrack } from '@/features/client/studio';
+import { bookingTrack } from '@/features/events/bookingTrack';
 import {
   acceptEventBooking,
   confirmCompletion,
@@ -29,7 +34,7 @@ import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
 import { useCurrency } from '@/store/currency';
@@ -445,6 +450,7 @@ export default function EventDetailScreen() {
     );
   }
 
+  // The effect above redirects to the public event page, so this is a short transitional state.
   if (error && !data) {
     return (
       <Screen padded={false} edges={[]}>
@@ -536,28 +542,45 @@ export default function EventDetailScreen() {
 
         {ev?.description ? <Text style={styles.desc}>{ev.description}</Text> : null}
 
-        {/* Detail grid */}
-        <View style={styles.grid}>
-          {ev?.eventDate ? <DetailCard icon="calendar" label={tr('b3_evdet_lbl_date')} value={fmtShortDate(ev.eventDate)} /> : null}
-          {ev?.startTime ? (
-            <DetailCard
-              icon="time"
-              label={tr('b3_evdet_lbl_time')}
-              value={[fmtTime(ev.startTime), fmtTime(ev.endTime)].filter(Boolean).join(' - ')}
-            />
-          ) : null}
-          {ev?.location ? <DetailCard icon="location" label={tr('b3_evdet_lbl_location')} value={ev.location} /> : null}
-          {ev?.clientName ? <DetailCard icon="person" label={tr('b3_evdet_lbl_client')} value={ev.clientName} /> : null}
-          {ev?.photographerName && !ev?.clientName ? (
-            <DetailCard icon="camera" label={tr('b3_evdet_lbl_photographer')} value={ev.photographerName} />
-          ) : null}
-          {ev?.packageName ? <DetailCard icon="cube" label={tr('b3_evdet_lbl_package')} value={ev.packageName} /> : null}
-          {ev?.category ? <DetailCard icon="pricetag" label={tr('b3_evdet_lbl_event_type')} value={ev.category} /> : null}
-          {ev?.maxGuests != null ? (
-            <DetailCard icon="people" label={tr('b3_evdet_lbl_guests')} value={`${ev.guestCount ?? 0} / ${ev.maxGuests}`} />
-          ) : null}
-          {money ? <DetailCard icon="wallet" label={tr('b3_evdet_lbl_amount')} value={money} /> : null}
-        </View>
+        {/* Details. Photographers get one compact list (icon tile, label, value, hairlines) instead of a grid of
+            tinted cards; every other role keeps the grid. */}
+        {(() => {
+          const rows: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string }[] = [];
+          if (ev?.eventDate) rows.push({ key: 'date', icon: 'calendar', label: tr('b3_evdet_lbl_date'), value: fmtShortDate(ev.eventDate) });
+          if (ev?.startTime)
+            rows.push({ key: 'time', icon: 'time', label: tr('b3_evdet_lbl_time'), value: [fmtTime(ev.startTime), fmtTime(ev.endTime)].filter(Boolean).join(' - ') });
+          if (ev?.location) rows.push({ key: 'loc', icon: 'location', label: tr('b3_evdet_lbl_location'), value: ev.location });
+          if (ev?.clientName) rows.push({ key: 'client', icon: 'person', label: tr('b3_evdet_lbl_client'), value: ev.clientName });
+          if (ev?.photographerName && !ev?.clientName)
+            rows.push({ key: 'photog', icon: 'camera', label: tr('b3_evdet_lbl_photographer'), value: ev.photographerName });
+          if (ev?.packageName) rows.push({ key: 'pkg', icon: 'cube', label: tr('b3_evdet_lbl_package'), value: ev.packageName });
+          if (ev?.category) rows.push({ key: 'cat', icon: 'pricetag', label: tr('b3_evdet_lbl_event_type'), value: ev.category });
+          if (ev?.maxGuests != null)
+            rows.push({ key: 'guests', icon: 'people', label: tr('b3_evdet_lbl_guests'), value: `${ev.guestCount ?? 0} / ${ev.maxGuests}` });
+          if (money) rows.push({ key: 'amount', icon: 'wallet', label: tr('b3_evdet_lbl_amount'), value: money });
+          if (isPhotog) {
+            return rows.length ? (
+              <View style={styles.detailPanel}>
+                {rows.map((r, i) => (
+                  <View key={r.key} style={[styles.detailRow, i > 0 && styles.detailRowRule]}>
+                    <IconTile icon={r.icon} size={32} />
+                    <View style={styles.detailRowText}>
+                      <Text style={styles.detailRowLabel}>{r.label}</Text>
+                      <Text style={styles.detailRowValue}>{r.value}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null;
+          }
+          return (
+            <View style={styles.grid}>
+              {rows.map((r) => (
+                <DetailCard key={r.key} icon={r.icon} label={r.label} value={r.value} />
+              ))}
+            </View>
+          );
+        })()}
 
         {/* Primary actions — photographer */}
         {isPhotog && isPending ? (
@@ -588,6 +611,11 @@ export default function EventDetailScreen() {
         {(isPhotog || ownsEvents) && !ev?.status?.toUpperCase().includes('CANCEL') ? (
           <InfoCard icon="git-commit-outline" title={tr('b3_evdet_booking_progress')}>
             <ProgressStepper currentIndex={bookingStepIndex(ev)} />
+          </InfoCard>
+        ) : null}
+        {!isPhotog && ownsEvents && bookingTrack(ev) ? (
+          <InfoCard icon="git-commit-outline" title="Booking Progress">
+            <ProgressTrack steps={bookingTrack(ev)!} label="Booking progress" />
           </InfoCard>
         ) : null}
 
@@ -742,10 +770,13 @@ export default function EventDetailScreen() {
               {ev?.photographerName ? (
                 <PrimaryBtn icon="star-outline" label={tr('b3_evdet_rate')} variant="outline" onPress={() => setReviewOpen(true)} />
               ) : null}
-              {canDelete ? (
-                <PrimaryBtn icon="trash-outline" label={tr('b3_evdet_delete')} variant="danger" onPress={onDelete} loading={busy === 'delete'} />
-              ) : null}
             </View>
+            {canDelete ? (
+              <View style={styles.dangerZone}>
+                <Text style={styles.dangerLabel}>{tr('b3_danger_zone')}</Text>
+                <PrimaryBtn icon="trash-outline" label={tr('b3_evdet_delete')} variant="dangerOutline" full onPress={onDelete} loading={busy === 'delete'} />
+              </View>
+            ) : null}
           </InfoCard>
         ) : null}
       </ScrollView>
@@ -816,30 +847,22 @@ export default function EventDetailScreen() {
         submitting={busy === 'completion'}
       />
 
-      {/* Decline-booking reason sheet — Photographer side */}
-      <Modal
+      <Sheet
         visible={declineOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setDeclineOpen(false)}
+        title={tr('b3_evdet_decline_booking')}
+        subtitle={tr('b3_evdet_decline_hint')}
+        onClose={() => setDeclineOpen(false)}
+        busy={busy === 'decline'}
+        footer={<Button title={tr('b3_evdet_submit_decline')} onPress={submitDecline} loading={busy === 'decline'} />}
       >
-        <Pressable style={styles.backdrop} onPress={() => setDeclineOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>{tr('b3_evdet_decline_booking')}</Text>
-            <Text style={styles.sheetHint}>
-              {tr('b3_evdet_decline_hint')}
-            </Text>
-            <Input
-              placeholder={tr('b3_evdet_decline_ph')}
-              value={declineReason}
-              onChangeText={setDeclineReason}
-              multiline
-              style={styles.commentInput}
-            />
-            <Button title={tr('b3_evdet_submit_decline')} onPress={submitDecline} loading={busy === 'decline'} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+        <Input
+          placeholder={tr('b3_evdet_decline_ph')}
+          value={declineReason}
+          onChangeText={setDeclineReason}
+          multiline
+          style={styles.commentInput}
+        />
+      </Sheet>
 
       {repostOpen && ev ? (
         <BookingModeSelector
@@ -950,14 +973,25 @@ function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
   );
 }
 
-type BtnVariant = 'primary' | 'accent' | 'success' | 'outline' | 'danger';
-const BTN_STYLES: Record<BtnVariant, { bg: string; fg: string; border?: string }> = {
-  primary: { bg: colors.primary, fg: '#fff' },
-  accent: { bg: colors.accent, fg: '#fff' },
-  success: { bg: '#10B981', fg: '#fff' },
-  danger: { bg: '#EF4444', fg: '#fff' },
-  outline: { bg: colors.surface, fg: colors.text, border: colors.border },
-};
+type BtnVariant = 'primary' | 'accent' | 'success' | 'outline' | 'danger' | 'dangerOutline';
+/** Resolved per render: the module-level `colors` export is the light palette, so an outline button was a solid white slab in dark. */
+function btnStyle(c: ReturnType<typeof useTheme>['colors'], variant: BtnVariant): { bg: string; fg: string; border?: string } {
+  switch (variant) {
+    case 'primary':
+      return { bg: c.primary, fg: c.textOnPrimary };
+    case 'accent':
+      return { bg: c.accent, fg: '#fff' };
+    case 'success':
+      return { bg: '#047857', fg: '#fff' };
+    case 'danger':
+      return { bg: '#B91C1C', fg: '#fff' };
+    case 'dangerOutline':
+      // Quiet until pressed: a destructive action should not be the loudest thing in its card.
+      return { bg: 'transparent', fg: c.error, border: c.error };
+    default:
+      return { bg: c.surface, fg: c.text, border: c.border };
+  }
+}
 
 function PrimaryBtn({
   icon,
@@ -975,7 +1009,8 @@ function PrimaryBtn({
   full?: boolean;
 }) {
   const styles = useStyles();
-  const v = BTN_STYLES[variant];
+  const { colors: themed } = useTheme();
+  const v = btnStyle(themed, variant);
   return (
     <Pressable
       style={({ pressed }) => [
@@ -1028,8 +1063,8 @@ function Chip({ label, tone }: { label: string; tone: 'success' | 'warning' | 'm
   const { colors } = useTheme();
   const styles = useStyles();
   const map = {
-    success: { bg: '#D1FAE5', fg: '#047857' },
-    warning: { bg: '#FEF3C7', fg: '#92400E' },
+    success: { bg: colors.successBg, fg: colors.success },
+    warning: { bg: colors.warningSoft, fg: colors.warning },
     muted: { bg: colors.surfaceMuted, fg: colors.textSoft },
   } as const;
   const c = map[tone];
@@ -1132,10 +1167,24 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  detailPanel: {
+    backgroundColor: c.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: c.border,
+    overflow: 'hidden',
+  },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, minHeight: 52 },
+  detailRowRule: { borderTopWidth: 1, borderTopColor: c.borderSoft },
+  detailRowText: { flex: 1, minWidth: 0 },
+  detailRowLabel: { fontFamily: fonts.bold, fontSize: 11, color: c.textMuted, letterSpacing: 0.6 },
+  detailRowValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 1 },
   detailLabel: { fontFamily: fonts.bold, fontSize: 10, color: c.accent, letterSpacing: 0.6 },
   detailValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 1 },
 
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  dangerZone: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: c.borderSoft, gap: spacing.sm },
+  dangerLabel: { color: c.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
   btn: {
     flexGrow: 1,
     flexBasis: '45%',

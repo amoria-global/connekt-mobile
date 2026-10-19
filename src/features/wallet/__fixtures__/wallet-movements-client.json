@@ -1,0 +1,52 @@
+{
+  "data" : {
+    "size" : 50,
+    "totalElements" : 3,
+    "number" : 0,
+    "content" : [ {
+      "id" : "d4fb83c9-450d-42cc-80a4-afd1266e1e7e",
+      "walletId" : "6d4b47ef-2ab7-45ee-8774-0a186f7b6e34",
+      "customerId" : "43ef8a69-d6b5-4e7e-baa9-3f55bb842c79",
+      "category" : "CLIENT_SPEND",
+      "direction" : "DEBIT",
+      "amountUsd" : 30.0000,
+      "originalAmount" : 100000.0000,
+      "originalCurrency" : "RWF",
+      "sourceType" : "EVENT_PAYMENT_DECLARATION",
+      "sourceId" : "eb268ce9-ad6f-4e9b-9989-5e96c0dd9a3b",
+      "description" : "Booking payment (held until MS1_PHOTOBOOK_HOLD is released)",
+      "actorId" : null,
+      "createdAt" : "2026-10-13T12:37:38.548982"
+    }, {
+      "id" : "fbc5c37a-2c66-4bcb-9a87-debdc9074746",
+      "walletId" : "6d4b47ef-2ab7-45ee-8774-0a186f7b6e34",
+      "customerId" : "43ef8a69-d6b5-4e7e-baa9-3f55bb842c79",
+      "category" : "CLIENT_SPEND",
+      "direction" : "DEBIT",
+      "amountUsd" : 20.0000,
+      "originalAmount" : 100000.0000,
+      "originalCurrency" : "RWF",
+      "sourceType" : "EVENT_PAYMENT_DECLARATION",
+      "sourceId" : "eb268ce9-ad6f-4e9b-9989-5e96c0dd9a3b",
+      "description" : "Booking payment (held until MS1_DELIVERY_HOLD is released)",
+      "actorId" : null,
+      "createdAt" : "2026-10-13T12:37:38.50682"
+    }, {
+      "id" : "b3b2cb22-ff09-4221-b29b-7ce9841c8779",
+      "walletId" : "6d4b47ef-2ab7-45ee-8774-0a186f7b6e34",
+      "customerId" : "43ef8a69-d6b5-4e7e-baa9-3f55bb842c79",
+      "category" : "CLIENT_SPEND",
+      "direction" : "DEBIT",
+      "amountUsd" : 50.0000,
+      "originalAmount" : 100000.0000,
+      "originalCurrency" : "RWF",
+      "sourceType" : "EVENT_PAYMENT_DECLARATION",
+      "sourceId" : "eb268ce9-ad6f-4e9b-9989-5e96c0dd9a3b",
+      "description" : "Booking payment for SYNTHETIC booking event",
+      "actorId" : null,
+      "createdAt" : "2026-10-13T12:37:38.474635"
+    } ]
+  },
+  "message" : "Movements retrieved",
+  "action" : 1
+}

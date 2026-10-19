@@ -15,8 +15,15 @@ describe('gift prices follow the one display currency', () => {
   });
 
   it('converts to the selected currency, whole units for RWF', () => {
-    useCurrency.setState({ currency: 'RWF' });
-    expect(formatGiftUsd(5)).toBe(`RF ${Math.round(5 * rwf().rate).toLocaleString('en-US')}`);
+    const withRate = useCurrency.getState().currencies.map((c) => (c.code === 'RWF' ? { ...c, rate: 1300 } : c));
+    useCurrency.setState({ currency: 'RWF', currencies: withRate });
+    expect(formatGiftUsd(5)).toBe('RF 6,500');
+  });
+
+  it('shows the USD price, not a guess, when the backend gave no rate for the chosen currency', () => {
+    const noRate = useCurrency.getState().currencies.map((c) => (c.code === 'RWF' ? { ...c, rate: 0 } : c));
+    useCurrency.setState({ currency: 'RWF', currencies: noRate });
+    expect(formatGiftUsd(5)).toBe('$5.00');
   });
 
   it('keeps the base USD line unconverted so it is never mislabelled', () => {

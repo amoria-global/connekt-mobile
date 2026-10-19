@@ -23,7 +23,6 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -34,20 +33,27 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassOnMedia } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
+import { ScheduleView, type ScheduleMode } from '@/features/photographer/ScheduleView';
+import { bucketOf } from '@/features/photographer/schedule';
+import { SegmentedTabs } from '@/features/photographer/kit';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate } from '@/utils/format';
 import {
   acceptEventBooking,
   declineEventBooking,
+  dismissPhotographerEvent,
   listPhotographerEvents,
 } from './api';
 import type { EventItem } from './types';
+import { Sheet } from '@/components/ui/Sheet';
 import { EventQrSheet } from './EventQrSheet';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useLanguage } from '@/store/language';
@@ -82,7 +88,7 @@ export const SORT_OPTIONS: {
   },
   {
     key: 'title_asc',
-    label: 'Title (A–Z)',
+    label: 'Title (A to Z)',
     description: 'Alphabetical order by event name',
     icon: 'text-outline',
   },
@@ -92,30 +98,8 @@ type ViewTab = 'events' | 'albums' | 'photobooks' | 'content';
 type EventFilter = 'all' | 'pending' | 'upcoming' | 'ongoing' | 'completed';
 type PhotogStatus = 'pending' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
 
-/** Collapse the many backend status strings into the web's 5 buckets. */
-function statusOf(e: EventItem): PhotogStatus {
-  if ((e.bookingStatus ?? '').toUpperCase() === 'PENDING') {
-    return 'pending';
-  }
-  switch ((e.status ?? '').toUpperCase()) {
-    case 'PENDING':
-    case 'PROPOSED':
-    case 'ASSIGNED':
-      return 'pending';
-    case 'ONGOING':
-    case 'IN_PROGRESS':
-      return 'ongoing';
-    case 'COMPLETED':
-    case 'DONE':
-    case 'AWAITING_REVIEW':
-      return 'completed';
-    case 'CANCELLED':
-    case 'CANCELED':
-      return 'cancelled';
-    default:
-      return 'upcoming';
-  }
-}
+/** Same buckets as the schedule view, so the list and the calendar never disagree. */
+const statusOf = (e: EventItem): PhotogStatus => bucketOf(e);
 
 const STATUS_PILL: Record<PhotogStatus, { bg: string; fg: string; label: string }> = {
   pending: { bg: '#FEF3C7', fg: '#92400E', label: 'PENDING' },
@@ -123,6 +107,18 @@ const STATUS_PILL: Record<PhotogStatus, { bg: string; fg: string; label: string 
   ongoing: { bg: '#DBEAFE', fg: '#1D4ED8', label: 'ONGOING' },
   completed: { bg: '#D1FAE5', fg: '#047857', label: 'COMPLETED' },
   cancelled: { bg: '#FEE2E2', fg: '#B91C1C', label: 'CANCELLED' },
+};
+
+/**
+ * Dark mode: the light pills are pastel or solid yellow fills, which glare on a navy screen. These are the deep tinted
+ * grounds with light text that the status tokens use elsewhere, one distinct hue per bucket.
+ */
+const STATUS_PILL_DARK: Record<PhotogStatus, { bg: string; fg: string }> = {
+  pending: { bg: '#2C220C', fg: '#FBBF24' },
+  upcoming: { bg: '#152A52', fg: '#8FB4FF' },
+  ongoing: { bg: '#10324A', fg: '#7DD3FC' },
+  completed: { bg: '#10281E', fg: '#4ADE80' },
+  cancelled: { bg: '#2D1719', fg: '#F87171' },
 };
 
 /** "8:20 PM" from an "HH:mm[:ss]" or ISO time. */
@@ -167,7 +163,6 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
 
   const viewTabs: { key: ViewTab; label: string; icon: keyof typeof Ionicons.glyphMap; route?: Href }[] = useMemo(() => [
@@ -179,6 +174,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
 
   const listRef = useRef<FlatList<EventItem>>(null);
   const [view, setView] = useState<ViewTab>('events');
+  // Schedule (calendar) is the default workspace; List keeps the paginated card grid.
+  // One switch for the whole events view: the three calendar modes or the original list.
+  const [layout, setLayout] = useState<ScheduleMode | 'list'>('week');
   const [filter, setFilter] = useState<EventFilter>('all');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<EventSortOption>('newest');
@@ -298,6 +296,29 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
     }
   };
 
+  // Soft-hides a finished event, as the web's "Dismiss Event" does. Only completed or cancelled events offer it, so a
+  // booking that still needs work can never be tucked away by a stray tap.
+  const onDismissEvent = (e: EventItem) => {
+    Alert.alert('Remove this event?', `"${e.title}" will disappear from your list. The client and the event are not affected.`, [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          setBusyId(e.id);
+          try {
+            await dismissPhotographerEvent(e.id);
+            refresh();
+          } catch (err) {
+            Alert.alert('Could not remove', isApiError(err) ? err.message : 'Please try again.');
+          } finally {
+            setBusyId(null);
+          }
+        },
+      },
+    ]);
+  };
+
   /**
    * Streaming and albums both hang off the public event page, so the backend
    * only accepts them once the event is published. The photographer can't
@@ -321,6 +342,8 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
     if (!requirePublished(e, 'Album creation')) return;
     router.push(`/album/new?eventId=${e.id}` as Href);
   };
+
+  const scheduleMode = view === 'events' && layout !== 'list';
 
   const header = (
     <View style={{ paddingTop: topInset + spacing.xs, gap: spacing.sm }}>
@@ -347,6 +370,20 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
 
       {view === 'events' ? (
         <>
+          {/* The kit's blocks carry their own side margins; cancel this list's padding. */}
+          <View style={{ marginHorizontal: -spacing.lg }}>
+            <SegmentedTabs
+              label="Events layout"
+              value={layout}
+              onChange={setLayout}
+              tabs={[
+                { key: 'month', label: 'Month' },
+                { key: 'week', label: 'Week' },
+                { key: 'agenda', label: 'Agenda' },
+                { key: 'list', label: 'List' },
+              ]}
+            />
+          </View>
 
           {/* Filter pills */}
           <ScrollView
@@ -377,7 +414,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                   </Text>
                   <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
                     <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
-                      {counts[f]}
+                      {data ? counts[f] : '-'}
                     </Text>
                   </View>
                 </Pressable>
@@ -405,6 +442,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
               ) : null}
             </View>
 
+            {/* Sorting means nothing on a calendar, so only List mode shows it. Creation is always one tap away here, so no
+                floating button ever sits over a card or the pager. */}
+            {scheduleMode ? null : (
             <Pressable
               style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
               onPress={() => setSortSheetOpen(true)}
@@ -421,10 +461,49 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
               </Text>
               {sortBy !== 'newest' && <View style={styles.sortActiveDot} />}
             </Pressable>
+            )}
+            <Pressable
+              style={[styles.sortBtn, styles.sortBtnActive, { minWidth: 44, justifyContent: 'center' }]}
+              onPress={() => router.push('/event/new' as Href)}
+              accessibilityRole="button"
+              accessibilityLabel="Create new event"
+            >
+              <Ionicons name="add" size={18} color="#fff" />
+              {scheduleMode ? <Text style={[styles.sortBtnText, styles.sortBtnTextActive]}>New</Text> : null}
+            </Pressable>
           </View>
         </>
       ) : null}
     </View>
+  );
+
+  const headerWithSchedule = scheduleMode ? (
+    <View style={{ gap: spacing.md }}>
+      {header}
+      {loading && !data ? (
+        <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
+      ) : error && !data ? (
+        <View style={{ paddingTop: spacing.md }}>
+          <EmptyState icon="cloud-offline-outline" title="Couldn't load events" message={error} />
+        </View>
+      ) : (
+        <View style={{ marginHorizontal: -spacing.lg }}>
+          <ScheduleView
+            mode={layout}
+            onModeChange={setLayout}
+            events={filtered}
+            allEvents={events}
+            busyId={busyId}
+            onOpen={(e) => router.push(`/event/${e.id}` as Href)}
+            onAccept={(e) => setAcceptTarget(e)}
+            onDecline={(e) => setDeclineTarget(e)}
+            onCreate={() => router.push('/event/new' as Href)}
+          />
+        </View>
+      )}
+    </View>
+  ) : (
+    header
   );
 
   return (
@@ -432,12 +511,12 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
       <FlatList
         ref={listRef}
         key="photographer-events-grid"
-        data={pagedEvents}
+        data={scheduleMode ? [] : pagedEvents}
         keyExtractor={(e) => e.id}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListHeaderComponent={header}
+        ListHeaderComponent={headerWithSchedule}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
         renderItem={({ item }) => (
@@ -450,10 +529,11 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             onLiveStream={() => onLiveStream(item)}
             onCreateAlbum={() => onCreateAlbum(item)}
             onQr={() => setQrTarget(item)}
+            onDismiss={() => onDismissEvent(item)}
           />
         )}
         ListFooterComponent={
-          sortedAndFiltered.length > 0 ? (
+          !scheduleMode && sortedAndFiltered.length > 0 ? (
             <View style={styles.paginationFooter}>
               <View style={styles.pagerBar}>
                 <Pressable
@@ -513,7 +593,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
           ) : null
         }
         ListEmptyComponent={
-          loading ? (
+          scheduleMode ? null : loading ? (
             <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
           ) : error ? (
             <View style={{ paddingTop: spacing.xl }}>
@@ -534,20 +614,6 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
           )
         }
       />
-
-      {/* Floating Action Button — Create New Event */}
-      <Pressable
-        style={[
-          styles.fab,
-          { bottom: Math.max(insets.bottom + 84, 96) },
-        ]}
-        onPress={() => router.push('/event/new' as Href)}
-        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-        accessibilityRole="button"
-        accessibilityLabel={t('createNewEvent')}
-      >
-        <Ionicons name="add" size={32} color="#fff" />
-      </Pressable>
 
       <EventQrSheet
         visible={!!qrTarget}
@@ -576,99 +642,61 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         onConfirm={() => declineTarget && onDeclineConfirmed(declineTarget)}
       />
 
-      {/* Sort Options Bottom Sheet */}
-      <Modal
+      {/* Sort options: the shared Sheet scrolls, so large text or a short phone never cuts off the last option. */}
+      <Sheet
         visible={sortSheetOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSortSheetOpen(false)}
+        title={t('sortEvents')}
+        subtitle={t('chooseOrder')}
+        onClose={() => setSortSheetOpen(false)}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
-          <Pressable
-            style={[
-              styles.sortSheet,
-              { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) },
-            ]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={styles.sheetHandle} />
-            <View style={styles.sortSheetHeader}>
-              <View>
-                <Text style={styles.sortSheetTitle}>{t('sortEvents')}</Text>
-                <Text style={styles.sortSheetSubtitle}>{t('chooseOrder')}</Text>
-              </View>
+        <View style={styles.sortOptionsList}>
+          {SORT_OPTIONS.map((opt) => {
+            const active = sortBy === opt.key;
+            const label =
+              opt.key === 'newest'
+                ? t('newestCreatedFirst')
+                : opt.key === 'oldest'
+                ? t('oldestCreatedFirst')
+                : opt.key === 'date_asc'
+                ? t('eventDateUpcomingFirst')
+                : t('titleAZ');
+            const description =
+              opt.key === 'newest'
+                ? t('newestCreatedDesc')
+                : opt.key === 'oldest'
+                ? t('oldestCreatedDesc')
+                : opt.key === 'date_asc'
+                ? t('eventDateUpcomingDesc')
+                : t('titleAZDesc');
+            return (
               <Pressable
-                onPress={() => setSortSheetOpen(false)}
-                hitSlop={8}
-                style={styles.sortSheetCloseBtn}
+                key={opt.key}
+                style={[styles.sortOptionItem, active && styles.sortOptionItemActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`${label}. ${description}`}
+                onPress={() => {
+                  setSortBy(opt.key);
+                  setSortSheetOpen(false);
+                }}
               >
-                <Ionicons name="close" size={20} color={colors.textMuted} />
+                <View style={[styles.sortOptionIconBox, active && styles.sortOptionIconBoxActive]}>
+                  <Ionicons name={opt.icon} size={18} color={active ? '#fff' : colors.primary} />
+                </View>
+                <View style={styles.sortOptionTextCol}>
+                  <Text style={[styles.sortOptionLabel, active && styles.sortOptionLabelActive]}>{label}</Text>
+                  <Text style={styles.sortOptionDesc}>{description}</Text>
+                </View>
+                {active ? (
+                  <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                ) : (
+                  <View style={styles.sortOptionRadio} />
+                )}
               </Pressable>
-            </View>
-
-            <View style={styles.sortOptionsList}>
-              {SORT_OPTIONS.map((opt) => {
-                const active = sortBy === opt.key;
-                const label =
-                  opt.key === 'newest'
-                    ? t('newestCreatedFirst')
-                    : opt.key === 'oldest'
-                    ? t('oldestCreatedFirst')
-                    : opt.key === 'date_asc'
-                    ? t('eventDateUpcomingFirst')
-                    : t('titleAZ');
-                const description =
-                  opt.key === 'newest'
-                    ? t('newestCreatedDesc')
-                    : opt.key === 'oldest'
-                    ? t('oldestCreatedDesc')
-                    : opt.key === 'date_asc'
-                    ? t('eventDateUpcomingDesc')
-                    : t('titleAZDesc');
-                return (
-                  <Pressable
-                    key={opt.key}
-                    style={[styles.sortOptionItem, active && styles.sortOptionItemActive]}
-                    onPress={() => {
-                      setSortBy(opt.key);
-                      setSortSheetOpen(false);
-                    }}
-                  >
-                    <View
-                      style={[
-                        styles.sortOptionIconBox,
-                        active && styles.sortOptionIconBoxActive,
-                      ]}
-                    >
-                      <Ionicons
-                        name={opt.icon}
-                        size={18}
-                        color={active ? '#fff' : colors.primary}
-                      />
-                    </View>
-                    <View style={styles.sortOptionTextCol}>
-                      <Text
-                        style={[
-                          styles.sortOptionLabel,
-                          active && styles.sortOptionLabelActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                      <Text style={styles.sortOptionDesc}>{description}</Text>
-                    </View>
-                    {active ? (
-                      <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-                    ) : (
-                      <View style={styles.sortOptionRadio} />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+            );
+          })}
+        </View>
+      </Sheet>
     </View>
   );
 }
@@ -684,6 +712,7 @@ function PhotographerEventCard({
   onLiveStream,
   onCreateAlbum,
   onQr,
+  onDismiss,
 }: {
   event: EventItem;
   busy: boolean;
@@ -693,12 +722,14 @@ function PhotographerEventCard({
   onLiveStream: () => void;
   onCreateAlbum: () => void;
   onQr: () => void;
+  onDismiss: () => void;
 }) {
   const styles = useStyles();
   const { t } = useLanguage();
+  const { isDark } = useTheme();
   const s = statusOf(event);
   const booking = (event.bookingStatus ?? '').toUpperCase();
-  const pill = STATUS_PILL[s];
+  const pill = { ...STATUS_PILL[s], ...(isDark ? STATUS_PILL_DARK[s] : null) };
   const isPending = booking === 'PENDING';
   const isAccepted = booking === 'ACCEPTED';
   const canStream = event.hasLiveStream && (s === 'upcoming' || s === 'ongoing');
@@ -816,6 +847,18 @@ function PhotographerEventCard({
                 <Pressable style={[styles.actBtn, styles.actQr]} onPress={onQr} accessibilityLabel="Show event QR code">
                   <Ionicons name="qr-code" size={13} color="#fff" />
                   <Text style={styles.actText}>{t('qrCode')}</Text>
+                </Pressable>
+              ) : null}
+              {s === 'completed' || s === 'cancelled' ? (
+                <Pressable
+                  style={[styles.actBtn, styles.actQr, busy && styles.actBusy]}
+                  onPress={onDismiss}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${event.title} from my list`}
+                >
+                  <Ionicons name="eye-off-outline" size={13} color="#fff" />
+                  <Text style={styles.actText}>Remove</Text>
                 </Pressable>
               ) : null}
               {isAccepted ? (
@@ -938,31 +981,24 @@ function DeclineBookingSheet({
 }) {
   const styles = useStyles();
   const { t } = useLanguage();
-  const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
-      <Pressable style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
-        <Pressable
-          style={[styles.declineSheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <View style={styles.sheetHandle} />
-          <Text style={styles.declineTitle}>{t('declineBookingTitle')}</Text>
-          <Text style={styles.declineHint}>
-            {t('declineHint')}
-          </Text>
-          <Input
-            placeholder="e.g. Schedule conflict, location too far, etc."
-            value={reason}
-            onChangeText={onChangeReason}
-            multiline
-            style={styles.declineInput}
-          />
-          <Button title={t('submitDecline')} onPress={onConfirm} loading={busy} />
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <Sheet
+      visible={!!event}
+      title={t('declineBookingTitle')}
+      subtitle={`Share a short reason so ${event?.clientName || 'the client'} knows why you're not taking this on.`}
+      onClose={onCancel}
+      busy={busy}
+      footer={<Button title={t('submitDecline')} onPress={onConfirm} loading={busy} />}
+    >
+      <Input
+        placeholder="e.g. Schedule conflict, location too far, etc."
+        value={reason}
+        onChangeText={onChangeReason}
+        multiline
+        style={styles.declineInput}
+      />
+    </Sheet>
   );
 }
 
@@ -985,28 +1021,6 @@ const useStyles = makeStyles((c) => ({
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
   columnWrapper: { gap: spacing.md },
 
-  // Floating Action Button (New Event — big circular + without text)
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.primary,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 20,
-  },
-  fabText: {
-    display: 'none',
-  },
 
   // Header
   viewTabs: { gap: 6, paddingVertical: spacing.xs },
@@ -1048,7 +1062,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
   },
   filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
-  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.primary },
+  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.link },
   filterBadgeTextActive: { color: '#fff' },
 
   // Search & Sort Row
@@ -1196,11 +1210,11 @@ const useStyles = makeStyles((c) => ({
   },
   actText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff' },
   actBusy: { opacity: 0.6 },
-  actAccept: { backgroundColor: '#10B981', flex: 1 },
-  actDeny: { backgroundColor: '#EF4444', flex: 1 },
+  actAccept: { backgroundColor: '#047857', flex: 1 },
+  actDeny: { backgroundColor: '#B91C1C', flex: 1 },
   actStream: { backgroundColor: '#8B5CF6' },
   actAlbum: { backgroundColor: c.primary },
-  actAcceptedChip: { backgroundColor: '#10B981' },
+  actAcceptedChip: { backgroundColor: '#047857' },
   actQr: { backgroundColor: 'rgba(255,255,255,0.16)' },
   pkgBadge: {
     marginLeft: 'auto',
@@ -1266,7 +1280,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.md,
     marginTop: spacing.md,
   },
-  sheetTermsText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: c.primary, lineHeight: 18 },
+  sheetTermsText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: c.link, lineHeight: 18 },
   sheetNote: {
     fontFamily: fonts.regular,
     fontSize: 13,
@@ -1291,15 +1305,6 @@ const useStyles = makeStyles((c) => ({
   sheetConfirmText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
 
   // Decline sheet
-  declineSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  declineTitle: { fontFamily: fonts.bold, fontSize: 20, color: c.text },
-  declineHint: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted, lineHeight: 20 },
   declineInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
 
   // Pagination footer & pager bar
@@ -1432,7 +1437,7 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   sortOptionLabelActive: {
-    color: c.primary,
+    color: c.link,
   },
   sortOptionDesc: {
     fontFamily: fonts.regular,

@@ -29,17 +29,17 @@ import {
 import {
   amountError,
   displayToUsd,
-  DONATION_PRESETS_RWF,
+  donationPresets,
   FALLBACK_CURRENCIES,
   floorTo,
   formatDisplay,
   parseAmount,
-  rwfPresetToDisplay,
   usdToDisplay,
   verificationCopy,
   type Verification,
   type WithdrawSource,
 } from '@/features/withdrawals/model';
+import { BalanceHero } from '@/features/withdrawals/BalanceHero';
 import { useAsync } from '@/hooks/useAsync';
 import { ensureWithdrawalFaceConsent } from '@/features/privacy/consent';
 import { listWalletMovements, type Movement } from '@/features/wallet/api';
@@ -48,7 +48,6 @@ import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
-import { useLanguage } from '@/store/language';
 
 type Step = 'form' | 'verify' | 'done' | 'failed';
 type Donation = { mode: 'unset' } | { mode: 'skip' } | { mode: 'preset'; value: number } | { mode: 'custom'; text: string };
@@ -59,7 +58,6 @@ export default function WithdrawScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
-  const { t } = useLanguage();
   const styles = useStyles();
   const router = useRouter();
   const { role } = useRole();
@@ -97,7 +95,8 @@ export default function WithdrawScreen() {
 
   const currencyList = currencies.data ?? FALLBACK_CURRENCIES;
   const currency = currencyList.find((c) => c.code === currencyCode) ?? currencyList[0];
-  const rwfRate = currencyList.find((c) => c.code === 'RWF')?.rate ?? 1460;
+  // 0 when the backend gave no RWF rate: no donation presets are offered then.
+  const rwfRate = currencyList.find((c) => c.code === 'RWF')?.rate ?? 0;
 
   const sourceList = sources.data ?? [];
   const source: WithdrawSource | null =
@@ -118,8 +117,8 @@ export default function WithdrawScreen() {
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const timer = setTimeout(() => setCooldown((s) => s - 1), 1000);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
   }, [cooldown]);
 
   const quickAmounts = useMemo(() => {
@@ -127,9 +126,9 @@ export default function WithdrawScreen() {
     return [
       { label: '25%', value: floorTo(available * 0.25, currency.decimals) },
       { label: '50%', value: floorTo(available * 0.5, currency.decimals) },
-      { label: t('b2_withdrawMax'), value: available },
+      { label: 'Max', value: available },
     ].filter((q) => q.value > 0);
-  }, [available, currency.decimals, t]);
+  }, [available, currency.decimals]);
 
   // Activity feed state & pagination
   const [activityFilter, setActivityFilter] = useState<'all' | 'withdrawals' | 'credits'>('all');
@@ -182,13 +181,13 @@ export default function WithdrawScreen() {
 
   const onContinue = async () => {
     setFormError(null);
-    if (!source) return setFormError(t('b2_withdrawErrNoBalance'));
-    if (!amountText.trim() || !(typed > 0)) return setFormError(t('b2_withdrawErrEnterAmount'));
+    if (!source) return setFormError('There is no balance to withdraw from yet.');
+    if (!amountText.trim() || !(typed > 0)) return setFormError('Enter the amount to withdraw.');
     if (amountProblem) return setFormError(amountProblem);
-    if (!selectedId) return setFormError(t('b2_withdrawErrAddAccount'));
-    if (donation.mode === 'unset') return setFormError(t('b2_withdrawErrChooseDonation'));
+    if (!selectedId) return setFormError('Add a payment account to receive the money.');
+    if (donation.mode === 'unset') return setFormError('Choose a donation, or tap "No thanks".');
     if (donation.mode === 'custom' && !(donationDisplay > 0)) {
-      return setFormError(t('b2_withdrawErrEnterDonation'));
+      return setFormError('Enter a donation amount, or tap "No thanks".');
     }
 
     setBusy(true);
@@ -208,7 +207,7 @@ export default function WithdrawScreen() {
         setStep('failed');
       }
     } catch (e) {
-      setFormError(isApiError(e) ? e.message : t('b2_withdrawErrNetwork'));
+      setFormError(isApiError(e) ? e.message : 'Network error. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -221,15 +220,15 @@ export default function WithdrawScreen() {
       const shot = await takeSelfieDataUrl();
       if (shot) setSelfie(shot);
     } catch {
-      setVerifyError(t('b2_withdrawErrCamera'));
+      setVerifyError('Could not open the camera. Please try again.');
     }
   };
 
   const onVerify = async () => {
     if (!verification) return;
     setVerifyError(null);
-    if (verification.requiresFaceScan && !selfie) return setVerifyError(t('b2_withdrawErrSelfieFirst'));
-    if (verification.requiresOtp && otp.length < 6) return setVerifyError(t('b2_withdrawErrSixDigit'));
+    if (verification.requiresFaceScan && !selfie) return setVerifyError('Take your selfie first.');
+    if (verification.requiresOtp && otp.length < 6) return setVerifyError('Enter the full 6-digit code.');
 
     setBusy(true);
     try {
@@ -254,7 +253,7 @@ export default function WithdrawScreen() {
       // code: the withdrawal may have been submitted. Keep the code entered.
       const unknown = !isApiError(e) || e.status === 408 || e.status === 0;
       setVerifyError(unknown
-        ? t('b2_withdrawErrUnknownOutcome')
+        ? 'We could not confirm this. Check your withdrawal history before trying again.'
         : e.message);
     } finally {
       setBusy(false);
@@ -270,7 +269,7 @@ export default function WithdrawScreen() {
       setOtp('');
       if (masked) setVerification({ ...verification, maskedDestination: masked });
     } catch (e) {
-      setVerifyError(isApiError(e) ? e.message : t('b2_withdrawErrResend'));
+      setVerifyError(isApiError(e) ? e.message : 'Could not resend the code.');
     }
   };
 
@@ -291,31 +290,31 @@ export default function WithdrawScreen() {
             />
           </View>
           <Text style={[styles.eyebrow, { color: tone }]}>
-            {ok ? t('b2_withdrawResultSubmittedEyebrow') : kyc ? t('b2_withdrawResultKycEyebrow') : t('b2_withdrawResultFailedEyebrow')}
+            {ok ? 'Request submitted' : kyc ? 'Verification required' : 'Withdrawal not sent'}
           </Text>
           <Text style={styles.resultTitle}>
-            {ok ? t('b2_withdrawResultSubmittedTitle') : kyc ? t('b2_withdrawResultKycTitle') : t('b2_withdrawResultFailedTitle')}
+            {ok ? 'You’re all set' : kyc ? 'Verify your identity first' : 'We couldn’t submit this withdrawal'}
           </Text>
           <Text style={styles.resultText}>
             {ok
-              ? t('b2_withdrawResultSubmittedText')
+              ? 'The amount is set aside from your balance. Our team reviews each withdrawal before it is paid out to your account, and we will notify you when it is sent.'
               : failure?.message}
           </Text>
           <View style={styles.resultActions}>
             {ok ? (
               <>
-                <Button title={t('b2_withdrawDone')} onPress={() => router.back()} />
-                <Button title={t('b2_withdrawViewTransactions')} variant="ghost" onPress={() => router.replace('/transactions' as Href)} />
+                <Button title="Done" onPress={() => router.back()} />
+                <Button title="View transactions" variant="ghost" onPress={() => router.replace('/transactions' as Href)} />
               </>
             ) : kyc ? (
               <>
-                <Button title={t('b2_withdrawVerifyIdentity')} onPress={() => router.push('/kyc' as Href)} />
-                <Button title={t('b2_withdrawBack')} variant="ghost" onPress={startOver} />
+                <Button title="Verify identity" onPress={() => router.push('/kyc' as Href)} />
+                <Button title="Back" variant="ghost" onPress={startOver} />
               </>
             ) : (
               <>
-                <Button title={t('b2_withdrawTryAgain')} onPress={startOver} />
-                <Button title={t('b2_withdrawClose')} variant="ghost" onPress={() => router.back()} />
+                <Button title="Try again" onPress={startOver} />
+                <Button title="Close" variant="ghost" onPress={() => router.back()} />
               </>
             )}
           </View>
@@ -334,42 +333,39 @@ export default function WithdrawScreen() {
           <ScreenHeader title={copy.title} subtitle={copy.body} />
           <View style={styles.body}>
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>{t('b2_withdrawSummary')}</Text>
-              <Row label={t('b2_withdrawWithdrawalLabel')} value={formatDisplay(typed, currency)} />
+              <Text style={styles.sectionLabel}>Summary</Text>
+              <Row label="Withdrawal" value={formatDisplay(typed, currency)} />
               {fee && fee.totalFee > 0 ? (
                 <Row
-                  label={t('b2_withdrawFeeLabel', {
-                    pct: fee.feePercentage,
-                    flat: fee.additionalCharge > 0 ? t('b2_withdrawFeeFlatSuffix') : '',
-                  })}
+                  label={`Fee (${fee.feePercentage}%${fee.additionalCharge > 0 ? ' + flat' : ''})`}
                   value={`- ${formatDisplay(usdToDisplay(fee.totalFee, currency), currency)}`}
                 />
               ) : null}
               {donationDisplay > 0 ? (
-                <Row label={t('b2_withdrawDonationLabel')} value={formatDisplay(donationDisplay, currency)} />
+                <Row label="Donation" value={formatDisplay(donationDisplay, currency)} />
               ) : null}
               {fee ? (
-                <Row strong label={t('b2_withdrawYouReceive')} value={formatDisplay(usdToDisplay(fee.netAmount, currency), currency)} />
+                <Row strong label="You receive" value={formatDisplay(usdToDisplay(fee.netAmount, currency), currency)} />
               ) : null}
             </View>
 
             {verification.requiresFaceScan ? (
               <View style={styles.card}>
-                <Text style={styles.sectionLabel}>{t('b2_withdrawSelfie')}</Text>
+                <Text style={styles.sectionLabel}>Selfie</Text>
                 {selfie ? (
                   <View style={styles.selfieRow}>
                     <Image source={{ uri: selfie.uri }} style={styles.selfie} />
                     <View style={{ flex: 1, gap: spacing.xs }}>
-                      <Text style={styles.okText}>{t('b2_withdrawSelfieCaptured')}</Text>
+                      <Text style={styles.okText}>Selfie captured</Text>
                       <Pressable onPress={onCaptureSelfie} accessibilityRole="button">
-                        <Text style={styles.link}>{t('b2_withdrawRetake')}</Text>
+                        <Text style={styles.link}>Retake</Text>
                       </Pressable>
                     </View>
                   </View>
                 ) : (
                   <>
-                    <Text style={styles.muted}>{t('b2_withdrawSelfieHint')}</Text>
-                    <Button title={t('b2_withdrawTakeSelfie')} variant="outline" onPress={onCaptureSelfie} />
+                    <Text style={styles.muted}>Good light, face centred, nothing covering it.</Text>
+                    <Button title="Take selfie" variant="outline" onPress={onCaptureSelfie} />
                   </>
                 )}
               </View>
@@ -377,10 +373,10 @@ export default function WithdrawScreen() {
 
             {verification.requiresOtp ? (
               <View style={styles.card}>
-                <OtpInput label={t('b2_withdrawVerificationCode')} value={otp} onChange={setOtp} editable={!busy} />
+                <OtpInput label="Verification code" value={otp} onChange={setOtp} editable={!busy} />
                 <Pressable onPress={onResend} disabled={cooldown > 0} accessibilityRole="button">
                   <Text style={[styles.link, cooldown > 0 && { color: colors.textMuted }]}>
-                    {cooldown > 0 ? t('b2_withdrawResendCooldown', { seconds: cooldown }) : t('b2_withdrawResendCode')}
+                    {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
                   </Text>
                 </Pressable>
               </View>
@@ -388,19 +384,12 @@ export default function WithdrawScreen() {
 
             {verifyError ? (
               <ErrorBox
-                text={
-                  remaining != null
-                    ? t(remaining === 1 ? 'b2_withdrawAttemptLeftOne' : 'b2_withdrawAttemptsLeftOther', {
-                        error: verifyError,
-                        count: remaining,
-                      })
-                    : verifyError
-                }
+                text={remaining != null ? `${verifyError} ${remaining} attempt${remaining === 1 ? '' : 's'} left.` : verifyError}
               />
             ) : null}
 
-            <Button title={busy ? t('b2_withdrawConfirming') : t('b2_withdrawConfirmWithdrawal')} onPress={onVerify} loading={busy} disabled={busy} />
-            <Button title={t('b2_withdrawCancel')} variant="ghost" onPress={startOver} disabled={busy} />
+            <Button title={busy ? 'Confirming…' : 'Confirm withdrawal'} onPress={onVerify} loading={busy} disabled={busy} />
+            <Button title="Cancel" variant="ghost" onPress={startOver} disabled={busy} />
           </View>
         </ScrollView>
       </Screen>
@@ -412,7 +401,7 @@ export default function WithdrawScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <ScreenHeader title={t('b2_withdrawTitle')} subtitle={t('b2_withdrawSubtitle')} />
+        <ScreenHeader title="Withdraw" subtitle="Send your earnings to your mobile money or bank account." duplicatesHeader />
         <View style={styles.body}>
           {loading ? (
             <View style={styles.center}>
@@ -421,24 +410,20 @@ export default function WithdrawScreen() {
           ) : sources.error ? (
             <View style={styles.card}>
               <Text style={styles.muted}>{sources.error}</Text>
-              <Button title={t('b2_withdrawTryAgain')} variant="outline" onPress={sources.refresh} />
+              <Button title="Try again" variant="outline" onPress={sources.refresh} />
             </View>
           ) : (
             <>
               {/* Balance */}
-              <View style={styles.hero}>
-                <Text style={styles.heroLabel}>{source?.label ?? t('b2_withdrawAvailableBalance')}</Text>
-                <Text style={styles.heroAmount}>{formatDisplay(available, currency)}</Text>
-                {currency.code !== 'USD' && source ? (
-                  <Text style={styles.heroSub}>
-                    {formatDisplay(source.availableBalance, currencyList.find((c) => c.code === 'USD') ?? FALLBACK_CURRENCIES[1])}
-                  </Text>
-                ) : null}
-              </View>
+              <BalanceHero
+                source={source}
+                currency={currency}
+                usd={currencyList.find((c) => c.code === 'USD') ?? FALLBACK_CURRENCIES[1]}
+              />
 
               {sourceList.length > 1 ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>{t('b2_withdrawFrom')}</Text>
+                  <Text style={styles.sectionLabel}>Withdraw from</Text>
                   <View style={styles.chips}>
                     {sourceList.map((s) => (
                       <Chip
@@ -458,7 +443,7 @@ export default function WithdrawScreen() {
               {/* Amount */}
               <View style={styles.section}>
                 <View style={styles.sectionHead}>
-                  <Text style={styles.sectionLabel}>{t('b2_withdrawAmount')}</Text>
+                  <Text style={styles.sectionLabel}>Amount</Text>
                   <View style={styles.toggle} accessibilityRole="radiogroup">
                     {currencyList.map((c) => (
                       <Pressable
@@ -481,12 +466,12 @@ export default function WithdrawScreen() {
                   <Text style={styles.amountPrefix}>{currency.symbol}</Text>
                   <TextInput
                     value={amountText}
-                    onChangeText={(txt) => setAmountText(txt.replace(/[^0-9.,]/g, ''))}
+                    onChangeText={(t) => setAmountText(t.replace(/[^0-9.,]/g, ''))}
                     placeholder="0"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="decimal-pad"
                     style={styles.amountInput}
-                    accessibilityLabel={t('b2_withdrawAmountInCurrency', { code: currency.code })}
+                    accessibilityLabel={`Amount in ${currency.code}`}
                   />
                 </View>
                 {amountProblem ? <Text style={styles.fieldError}>{amountProblem}</Text> : null}
@@ -506,7 +491,7 @@ export default function WithdrawScreen() {
 
               {/* Payout account */}
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>{t('b2_withdrawSendTo')}</Text>
+                <Text style={styles.sectionLabel}>Send to</Text>
                 {accountList.length ? (
                   accountList.map((m) => {
                     const on = selectedId === m.id;
@@ -538,7 +523,7 @@ export default function WithdrawScreen() {
                     );
                   })
                 ) : (
-                  <Text style={styles.muted}>{t('b2_withdrawNoAccountSaved')}</Text>
+                  <Text style={styles.muted}>No payment account saved yet.</Text>
                 )}
                 <Pressable
                   style={styles.linkRow}
@@ -546,7 +531,7 @@ export default function WithdrawScreen() {
                   accessibilityRole="button"
                 >
                   <Text style={styles.link}>
-                    {accountList.length ? t('b2_withdrawManageAccounts') : t('b2_withdrawAddAccount')}
+                    {accountList.length ? 'Manage payment accounts' : '+ Add a payment account'}
                   </Text>
                 </Pressable>
               </View>
@@ -555,30 +540,27 @@ export default function WithdrawScreen() {
               <View style={[styles.card, { backgroundColor: colors.tintAccent, borderColor: 'transparent' }]}>
                 <View style={styles.donationHead}>
                   <Ionicons name="heart" size={18} color={colors.accent} />
-                  <Text style={styles.donationTitle}>{t('b2_withdrawDonationTitle')}</Text>
+                  <Text style={styles.donationTitle}>Give a little back?</Text>
                 </View>
-                <Text style={styles.muted}>{t('b2_withdrawDonationSubtitle')}</Text>
+                <Text style={styles.muted}>Add a small donation to help fund community projects and initiatives.</Text>
                 <View style={styles.chips}>
-                  {DONATION_PRESETS_RWF.map((rwf) => {
-                    const v = rwfPresetToDisplay(rwf, rwfRate, currency);
-                    return (
-                      <Chip
-                        key={rwf}
-                        accent
-                        label={formatDisplay(v, currency)}
-                        active={donation.mode === 'preset' && donation.value === v}
-                        onPress={() => setDonation({ mode: 'preset', value: v })}
-                      />
-                    );
-                  })}
+                  {donationPresets(rwfRate, currency).map((v) => (
+                    <Chip
+                      key={v}
+                      accent
+                      label={formatDisplay(v, currency)}
+                      active={donation.mode === 'preset' && donation.value === v}
+                      onPress={() => setDonation({ mode: 'preset', value: v })}
+                    />
+                  ))}
                   <Chip
                     accent
-                    label={t('b2_withdrawOther')}
+                    label="Other"
                     active={donation.mode === 'custom'}
                     onPress={() => setDonation({ mode: 'custom', text: '' })}
                   />
                   <Chip
-                    label={t('b2_withdrawNoThanks')}
+                    label="No thanks"
                     active={donation.mode === 'skip'}
                     onPress={() => setDonation({ mode: 'skip' })}
                   />
@@ -588,8 +570,8 @@ export default function WithdrawScreen() {
                     <Text style={styles.amountPrefixSmall}>{currency.symbol}</Text>
                     <TextInput
                       value={donation.text}
-                      onChangeText={(txt) => setDonation({ mode: 'custom', text: txt.replace(/[^0-9.,]/g, '') })}
-                      placeholder={t('b2_withdrawDonationPlaceholder')}
+                      onChangeText={(t) => setDonation({ mode: 'custom', text: t.replace(/[^0-9.,]/g, '') })}
+                      placeholder="Donation amount"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
                       style={styles.amountInputSmall}
@@ -601,9 +583,9 @@ export default function WithdrawScreen() {
 
               {formError ? <ErrorBox text={formError} /> : null}
 
-              <Button title={busy ? t('b2_withdrawStarting') : t('b2_withdrawContinue')} onPress={onContinue} loading={busy} disabled={busy} />
+              <Button title={busy ? 'Starting…' : 'Continue'} onPress={onContinue} loading={busy} disabled={busy} />
               <Text style={styles.footnote}>
-                {t('b2_withdrawFootnote')}
+                You will confirm with a code or a selfie next. Withdrawals are reviewed before they are paid out.
               </Text>
 
               {/* Activity Section */}
@@ -611,10 +593,10 @@ export default function WithdrawScreen() {
                 <View style={styles.activityHeaderRow}>
                   <View style={styles.activityTitleWrap}>
                     <Ionicons name="receipt-outline" size={18} color={colors.primary} />
-                    <Text style={styles.activitySectionTitle}>{t('b2_withdrawRecentActivity')}</Text>
+                    <Text style={styles.activitySectionTitle}>Recent Activity</Text>
                   </View>
                   <Pressable onPress={() => router.push('/transactions' as Href)} hitSlop={8}>
-                    <Text style={styles.seeAllText}>{t('b2_withdrawViewAll')}</Text>
+                    <Text style={styles.seeAllText}>View all</Text>
                   </Pressable>
                 </View>
 
@@ -622,9 +604,9 @@ export default function WithdrawScreen() {
                 <View style={styles.activityFilterRow}>
                   {(
                     [
-                      { label: t('b2_withdrawFilterAll'), value: 'all' },
-                      { label: t('b2_withdrawFilterWithdrawals'), value: 'withdrawals' },
-                      { label: t('b2_withdrawFilterCredits'), value: 'credits' },
+                      { label: 'All', value: 'all' },
+                      { label: 'Withdrawals', value: 'withdrawals' },
+                      { label: 'Credits', value: 'credits' },
                     ] as const
                   ).map((f) => {
                     const isSelected = activityFilter === f.value;
@@ -652,7 +634,7 @@ export default function WithdrawScreen() {
                   <Ionicons name="search-outline" size={15} color={colors.textMuted} />
                   <TextInput
                     style={styles.activitySearchInput}
-                    placeholder={t('b2_withdrawSearchPlaceholder')}
+                    placeholder="Search activity..."
                     placeholderTextColor={colors.textMuted}
                     value={activitySearch}
                     onChangeText={setActivitySearch}
@@ -673,7 +655,7 @@ export default function WithdrawScreen() {
                   <View style={styles.activityEmptyBox}>
                     <Ionicons name="swap-vertical-outline" size={24} color={colors.textMuted} />
                     <Text style={styles.activityEmptyText}>
-                      {activitySearch ? t('b2_withdrawEmptySearch') : t('b2_withdrawEmptyActivity')}
+                      {activitySearch ? 'No matching activity found' : 'No activity recorded yet'}
                     </Text>
                   </View>
                 ) : (
@@ -702,7 +684,7 @@ export default function WithdrawScreen() {
                             </View>
                             <View style={styles.activityInfo}>
                               <Text style={styles.activityTitle} numberOfLines={1}>
-                                {item.description || item.category || (isIn ? t('b2_withdrawCreditFallback') : t('b2_withdrawWithdrawalFallback'))}
+                                {item.description || item.category || (isIn ? 'Credit' : 'Withdrawal')}
                               </Text>
                               {item.createdAt ? (
                                 <Text style={styles.activityMeta}>{formatDate(item.createdAt)}</Text>
@@ -724,11 +706,9 @@ export default function WithdrawScreen() {
                     {/* Pagination Bar */}
                     <View style={styles.paginationRow}>
                       <Text style={styles.paginationInfo}>
-                        {t('b2_withdrawPaginationInfo', {
-                          start: (safeActivityPage - 1) * ACTIVITY_PAGE_SIZE + 1,
-                          end: Math.min(safeActivityPage * ACTIVITY_PAGE_SIZE, filteredMovements.length),
-                          total: filteredMovements.length,
-                        })}
+                        Showing {(safeActivityPage - 1) * ACTIVITY_PAGE_SIZE + 1}–
+                        {Math.min(safeActivityPage * ACTIVITY_PAGE_SIZE, filteredMovements.length)} of{' '}
+                        {filteredMovements.length}
                       </Text>
                       {totalActivityPages > 1 ? (
                         <View style={styles.paginationButtons}>
@@ -752,7 +732,7 @@ export default function WithdrawScreen() {
                                 safeActivityPage <= 1 && styles.pageNavBtnTextDisabled,
                               ]}
                             >
-                              {t('b2_withdrawPrev')}
+                              Prev
                             </Text>
                           </Pressable>
 
@@ -777,7 +757,7 @@ export default function WithdrawScreen() {
                                 safeActivityPage >= totalActivityPages && styles.pageNavBtnTextDisabled,
                               ]}
                             >
-                              {t('b2_withdrawNext')}
+                              Next
                             </Text>
                             <Ionicons
                               name="chevron-forward"
@@ -851,15 +831,6 @@ const useStyles = makeStyles((c) => ({
   scroll: { paddingBottom: spacing['3xl'] },
   body: { paddingHorizontal: spacing.xl, gap: spacing.lg, paddingTop: spacing.sm },
   center: { paddingVertical: spacing['3xl'], alignItems: 'center' },
-  hero: {
-    backgroundColor: c.primary,
-    borderRadius: radii.xl,
-    padding: spacing.xl,
-    gap: 4,
-  },
-  heroLabel: { color: 'rgba(255,255,255,0.8)', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  heroAmount: { color: '#fff', fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
-  heroSub: { color: 'rgba(255,255,255,0.75)', fontSize: fontSize.sm },
   section: { gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionLabel: {

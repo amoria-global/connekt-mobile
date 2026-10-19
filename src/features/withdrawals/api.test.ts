@@ -1,4 +1,4 @@
-import { initiateWithdrawal, verifyWithdrawal } from './api';
+import { initiateWithdrawal, listWithdrawableSources, verifyWithdrawal } from './api';
 import { api } from '@/api/client';
 
 jest.mock('@/api/client', () => ({
@@ -50,5 +50,47 @@ describe('withdraw API client', () => {
     await expect(
       verifyWithdrawal('Client', { verificationId: 'v1', otp: '123456' }),
     ).rejects.toMatchObject({ status: 0 });
+  });
+});
+
+describe('listWithdrawableSources: an unknown balance is a failure, never a zero', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('maps a reported balance, including a reported zero', async () => {
+    (api.get as jest.Mock).mockResolvedValueOnce({
+      action: 1,
+      data: [
+        { source: 'BALANCE', label: 'Available balance', availableBalance: 0 },
+        { source: 'GIFT', label: 'Gift earnings', availableBalance: '12.5', isGiftWithdrawal: true },
+      ],
+    });
+    const out = await listWithdrawableSources('Photographer');
+    expect(out.map((s) => s.availableBalance)).toEqual([0, 12.5]);
+  });
+
+  it('treats an empty list as an answer (no sources), not as an error', async () => {
+    (api.get as jest.Mock).mockResolvedValueOnce({ action: 1, data: [] });
+    await expect(listWithdrawableSources('Photographer')).resolves.toEqual([]);
+  });
+
+  it.each([
+    ['a source with no availableBalance', [{ source: 'BALANCE', label: 'Available balance' }]],
+    ['a null availableBalance', [{ source: 'BALANCE', availableBalance: null }]],
+    ['a non-numeric availableBalance', [{ source: 'BALANCE', availableBalance: 'n/a' }]],
+    ['a blank availableBalance', [{ source: 'BALANCE', availableBalance: '  ' }]],
+    ['one good and one unreadable source', [{ source: 'BALANCE', availableBalance: 5 }, { source: 'GIFT' }]],
+  ])('fails the load for %s', async (_name, data) => {
+    (api.get as jest.Mock).mockResolvedValueOnce({ action: 1, data });
+    await expect(listWithdrawableSources('Photographer')).rejects.toMatchObject({ message: 'Could not read your balance.' });
+  });
+
+  it('fails the load when a success envelope carries no list', async () => {
+    (api.get as jest.Mock).mockResolvedValueOnce({ action: 1 });
+    await expect(listWithdrawableSources('Photographer')).rejects.toMatchObject({ message: 'Could not read your balance.' });
+  });
+
+  it('fails the load on action 0 with the backend message (HTTP 200 with action 0 is a failure)', async () => {
+    (api.get as jest.Mock).mockResolvedValueOnce({ action: 0, message: 'Wallet unavailable' });
+    await expect(listWithdrawableSources('Client')).rejects.toMatchObject({ message: 'Wallet unavailable' });
   });
 });

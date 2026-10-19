@@ -19,6 +19,11 @@ export { getKycBannerConfig, type KycBannerConfig } from './bannerConfig';
 
 export type KycBannerProps = {
   style?: StyleProp<ViewStyle>;
+  /**
+   * One slim row (icon, title, action, close) instead of the full card, so a reminder does not take a third of
+   * the first screen. The whole row still opens the KYC flow and the accessibility label still carries the detail.
+   */
+  compact?: boolean;
 };
 
 /**
@@ -31,7 +36,7 @@ export type KycBannerProps = {
  * Tapping the banner navigates to `/kyc`. Users can dismiss the banner
  * for their current session using the close icon in the top corner.
  */
-export function KycBanner({ style }: KycBannerProps) {
+export function KycBanner({ style, compact }: KycBannerProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { t } = useLanguage();
@@ -70,12 +75,28 @@ export function KycBanner({ style }: KycBannerProps) {
           <View style={styles.titleWrap}>
             <View style={styles.titleBadgeRow}>
               <Text style={styles.title}>{cfg.title}</Text>
-              <View style={[styles.badge, { backgroundColor: cfg.badgeBg }]}>
-                <Text style={[styles.badgeText, { color: cfg.badgeColor }]}>{cfg.badge}</Text>
-              </View>
+              {compact ? null : (
+                <View style={[styles.badge, { backgroundColor: cfg.badgeBg }]}>
+                  <Text style={[styles.badgeText, { color: cfg.badgeColor }]}>{cfg.badge}</Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.subtitleCategory}>{t('identityVerification')}</Text>
+            {compact ? null : <Text style={styles.subtitleCategory}>{t('identityVerification')}</Text>}
           </View>
+
+          {compact ? (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation?.();
+                router.push('/kyc');
+              }}
+              style={({ pressed }) => [styles.actionBtn, { backgroundColor: cfg.accent }, pressed && styles.actionBtnPressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`${cfg.buttonText} identity verification`}
+            >
+              <Text style={styles.actionText}>{cfg.buttonText}</Text>
+            </Pressable>
+          ) : null}
 
           <Pressable
             hitSlop={14}
@@ -85,16 +106,19 @@ export function KycBanner({ style }: KycBannerProps) {
             }}
             style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}
             accessibilityRole="button"
-            accessibilityLabel={t('dismissNotice')}
+            accessibilityLabel={t('dismissVerificationBanner')}
           >
             <Ionicons name="close" size={17} color={colors.textMuted} />
           </Pressable>
         </View>
 
-        <Text style={styles.detail} numberOfLines={3}>
-          {cfg.detail}
-        </Text>
+        {compact ? null : (
+          <Text style={styles.detail} numberOfLines={3}>
+            {cfg.detail}
+          </Text>
+        )}
 
+        {compact ? null : (
         <View style={styles.bottomRow}>
           <View style={styles.securityPill}>
             <Ionicons name="shield-checkmark" size={13} color={colors.textMuted} />
@@ -114,6 +138,7 @@ export function KycBanner({ style }: KycBannerProps) {
             <Ionicons name="arrow-forward" size={13} color="#fff" />
           </Pressable>
         </View>
+        )}
       </Pressable>
     </View>
   );

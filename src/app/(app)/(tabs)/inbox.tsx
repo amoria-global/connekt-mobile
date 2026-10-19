@@ -24,7 +24,8 @@ import {
   type Conversation,
   type ChatContact,
 } from '@/features/inbox/api';
-import { ConversationRow } from '@/features/inbox/ConversationRow';
+import { ConversationRow, conversationLabel } from '@/features/inbox/ConversationRow';
+import { useRole } from '@/features/auth/role';
 import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
@@ -50,6 +51,7 @@ export default function InboxScreen() {
   const user = useAuth((s) => s.user);
 
   const { data, loading, error, refresh } = useAsync(useCallback(() => listConversations(), []));
+  const { isClient } = useRole();
 
   // Focus effect: re-fetch conversations whenever the screen gains focus
   useFocusEffect(
@@ -335,14 +337,11 @@ export default function InboxScreen() {
             onPress={() =>
               router.push(`/conversation/${item.id}?name=${encodeURIComponent(item.name)}`)
             }
+            accessibilityRole="button"
+            accessibilityLabel={conversationLabel(item)}
             style={({ pressed }) => [styles.rowPressable, pressed && styles.rowPressableActive]}
           >
-            <ConversationRow
-              conversation={item}
-              onPressCamera={() =>
-                router.push(`/conversation/${item.id}?name=${encodeURIComponent(item.name)}`)
-              }
-            />
+            <ConversationRow conversation={item} accent={isClient} />
           </Pressable>
         )}
         ListHeaderComponent={renderHeader}
@@ -366,6 +365,16 @@ export default function InboxScreen() {
           loading ? (
             <View style={styles.emptyContainer}>
               <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : error && !data ? (
+            // A failed read is not an empty inbox.
+            <View style={styles.emptyContainer}>
+              <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>Could not load your messages</Text>
+              <Text style={styles.emptySubtitle}>{error}</Text>
+              <Pressable style={styles.emptyActionBtn} onPress={refresh} accessibilityRole="button" accessibilityLabel="Try again">
+                <Text style={styles.emptyActionBtnText}>Try again</Text>
+              </Pressable>
             </View>
           ) : (
             <View style={styles.emptyContainer}>

@@ -101,7 +101,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
 
   const start = formatTime(event.startTime);
   const end = formatTime(event.endTime);
-  const time = start ? (end ? `${start} – ${end}` : start) : tr('Select a time');
+  const time = start ? (end ? `${start} to ${end}` : start) : tr('Time to be confirmed');
   const price = event.price != null && event.price > 0 ? formatPrice(event.price, event.currency) : undefined;
   const client = event.clientName || tr('Client');
 
@@ -122,7 +122,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
     <Modal visible animationType="slide" onRequestClose={() => onLater(event)} statusBarTranslucent>
       <KeyboardAvoidingView
         style={[styles.screen, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={declining || Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <Text style={styles.eyebrow}>{tr('INCOMING BOOKING REQUEST')}</Text>

@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
@@ -35,7 +36,7 @@ export default function TvDevicesScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title={t('b1_tvTitle')} subtitle={t('b1_tvSubtitle')} />
+      <ScreenHeader duplicatesHeader title={t('b1_tvTitle')} subtitle={t('b1_tvSubtitle')} />
       <View style={styles.action}>
         <Button title={t('b1_tvConnectBtn')} onPress={() => router.push('/connect-to-tv' as Href)} />
         <Pressable style={styles.payOnTv} onPress={() => router.push('/pay-on-tv' as Href)}>

@@ -32,6 +32,7 @@ import { z } from 'zod';
 import { Screen } from '@/components/ui/Screen';
 import { createContentAlbum, listAlbumCategories } from '@/features/gallery/api';
 import { listCurrencies } from '@/features/reference/api';
+import { OptionsNote } from '@/components/ui/OptionsNote';
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
 import { pickFromLibrary, pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
@@ -334,6 +335,10 @@ export default function NewContentAlbumScreen() {
             {categories.loading && !categories.data ? (
               <ActivityIndicator color={colors.primary} style={{ alignSelf: 'flex-start', marginVertical: 6 }} />
             ) : (
+              <>
+                {!cats.length ? (
+                  <OptionsNote what="categories" loading={categories.loading} onRetry={() => void categories.refresh()} />
+                ) : null}
               <View style={styles.chips}>
                 {cats.map((c) => {
                   const active = category === c.value;
@@ -353,6 +358,7 @@ export default function NewContentAlbumScreen() {
                   );
                 })}
               </View>
+              </>
             )}
             {categoryError ? <Text style={styles.err}>{categoryError}</Text> : null}
           </View>
@@ -386,6 +392,9 @@ export default function NewContentAlbumScreen() {
 
               <View style={styles.rowItem}>
                 <FieldLabel text={s.labelCurrency} required />
+                {!currencies.data?.length ? (
+                  <OptionsNote what="currencies" loading={currencies.loading} onRetry={() => void currencies.refresh()} />
+                ) : null}
                 <View style={styles.chips}>
                   {(currencies.data ?? []).map((c) => {
                     const active = currencyId === c.id;
@@ -601,7 +610,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.background,
   },
   inputError: { borderColor: c.error },
-  multiline: { height: 76, textAlignVertical: 'top', paddingTop: 10 },
+  multiline: { minHeight: 76, textAlignVertical: 'top', paddingTop: 10 },
   err: { fontFamily: fonts.regular, fontSize: 12, color: c.error, marginTop: 2 },
   helper: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, lineHeight: 16 },
 

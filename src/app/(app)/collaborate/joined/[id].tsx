@@ -8,7 +8,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
@@ -417,7 +418,7 @@ export default function JoinedAlbumScreen() {
                   <View style={styles.cardFoot}>
                     <Text style={styles.small}>{timeAgo(s.submittedAt)}</Text>
                     {s.status === 'PENDING' && (
-                      <Pressable onPress={() => withdraw(s.id)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Withdraw photo">
+                      <Pressable onPress={() => withdraw(s.id)} style={styles.withdrawBtn} accessibilityRole="button" accessibilityLabel="Withdraw photo">
                         <Text style={styles.withdraw}>{tr.withdraw}</Text>
                       </Pressable>
                     )}
@@ -470,6 +471,7 @@ const useStyles = makeStyles((c, e) => ({
   note: { color: c.textSoft, fontSize: fontSize.xs, fontStyle: 'italic' },
   cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   small: { color: c.textMuted, fontSize: fontSize.xs },
+  withdrawBtn: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'flex-end' },
   withdraw: { color: c.error, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
   errorBox: {
     backgroundColor: 'rgba(239, 68, 68, 0.08)',

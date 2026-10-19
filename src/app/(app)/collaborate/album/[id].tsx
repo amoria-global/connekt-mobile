@@ -11,8 +11,18 @@ import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import {
-  ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Share, Text, TextInput, View, useWindowDimensions,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Share,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';

@@ -11,6 +11,7 @@ import { showIncomingRequest } from '@/features/bookings/incomingRequests';
 import { useRole } from '@/features/auth/role';
 import { useLanguage } from '@/store/language';
 import { setAudioModeAsync } from '@/utils/safeAudio';
+import { DialogHost } from '@/components/ui/dialog';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -106,8 +107,10 @@ export default function AppLayout() {
         screenOptions={{
           // Elevated surface headers — same chrome combo as TopBar /
           // PersistentBottomBar so light and dark stay consistent.
-          headerTintColor: c.primary,
-          headerStyle: { backgroundColor: c.elevated },
+          // Dark uses the card step and the link blue, exactly as TopBar does, so a pushed screen's header does not jump
+          // a shade lighter than the tab screens. Light is unchanged.
+          headerTintColor: c.link,
+          headerStyle: { backgroundColor: isDark ? c.card : c.elevated },
           headerTitleStyle: { color: c.text, fontWeight: '700' },
           contentStyle: { backgroundColor: c.background },
           headerBackButtonDisplayMode: 'minimal', // chevron only, no "‹ Home" text
@@ -204,6 +207,7 @@ export default function AppLayout() {
       <GlobalOpportunityCallNotifier />
       <InAppNotificationWatcher />
       <BookingRequestCallNotifier />
+      <DialogHost />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );

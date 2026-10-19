@@ -12,7 +12,7 @@
  *   - Withdraw funds action for photographer and coordinator roles
  *   - Quick links (Transactions, Payments, Payroll report)
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -26,13 +26,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GlassBackdrop, GlassCard } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { useAuth } from '@/store/auth';
-import { getWallet, listWalletMovements, type Movement } from '@/features/wallet/api';
+import { getWallet, listWalletMovementsPage, type MovementPage } from '@/features/wallet/api';
+import { useMovementPages } from '@/features/wallet/useMovementPages';
 import {
   toRole,
   selectWalletStats,
@@ -40,7 +40,6 @@ import {
   getFilterTags,
   getDirectionFilters,
   matchesDirectionFilter,
-  translateMoneyTag,
   PALETTE,
   COLOR_MAP,
   formatRelativeTime,
@@ -52,23 +51,25 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
-import { useLanguage } from '@/store/language';
 import { canUsePaymentsScreen } from '@/features/payments/access';
+import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
+import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
+import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
 export default function WalletScreen() {
-  // Re-render when the display currency or language changes.
+  // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { language, t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const router = useRouter();
-  const glassTarget = useRef<View>(null);
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
 
-  const { isPhotographer, isCoordinator, role } = useRole();
+  const { isPhotographer, isCoordinator, isClient, role } = useRole();
   const user = useAuth((s) => s.user);
   const canWithdraw = isPhotographer || isCoordinator;
 
@@ -78,6 +79,8 @@ export default function WalletScreen() {
   const [activityPage, setActivityPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<MoneyItem | null>(null);
   const [balanceHidden, setBalanceHidden] = useState(true);
+  // Photographers get Overview / Analytics / Activity tabs; other roles see every section, as before.
+  const [walletTab, setWalletTab] = useState<'overview' | 'analytics' | 'activity'>('overview');
   const PAGE_SIZE = 5;
 
   useEffect(() => {
@@ -89,12 +92,15 @@ export default function WalletScreen() {
     const [wallet, history] = await Promise.all([
       getWallet(),
       // A failed history read is reported, not shown as an empty history.
-      listWalletMovements(0, 50).then((m) => ({ m, failed: false }), () => ({ m: [] as Movement[], failed: true })),
+      listWalletMovementsPage(0, 50).then((m) => ({ m, failed: false }), () => ({ m: null as MovementPage | null, failed: true })),
     ]);
-    return { wallet, movements: history.m, movementsFailed: history.failed };
+    return { wallet, history: history.m, movementsFailed: history.failed };
   }, []);
 
   const { data, loading, error, refresh } = useAsync(fetchData);
+
+  // Older ledger pages are appended on request; the first page stays owned by the refresh above.
+  const pages = useMovementPages(data?.history);
 
   const dashboardRole: DashboardRole = toRole(
     role || user?.customerType || data?.wallet?.customerType,
@@ -103,15 +109,15 @@ export default function WalletScreen() {
   const stats = useMemo(() => {
     if (!data?.wallet) return null;
     return selectWalletStats(data.wallet, dashboardRole);
-  }, [data?.wallet, dashboardRole, language]);
+  }, [data?.wallet, dashboardRole]);
 
   const filterTags = useMemo(() => getFilterTags(dashboardRole), [dashboardRole]);
 
   const filteredActivityItems = useMemo(() => {
-    if (!data?.movements) return [];
+    if (!data?.history) return [];
     const q = activitySearch.trim().toLowerCase();
     const items: MoneyItem[] = [];
-    for (const m of data.movements) {
+    for (const m of pages.items) {
       const item = formatWalletMovement(m, dashboardRole);
       if (!item) continue;
       if (activeFilter !== 'All' && item.tag !== activeFilter) continue;
@@ -120,7 +126,6 @@ export default function WalletScreen() {
         const match =
           item.title.toLowerCase().includes(q) ||
           (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
-          translateMoneyTag(item.tag).toLowerCase().includes(q) ||
           item.tag.toLowerCase().includes(q) ||
           String(item.amount).includes(q);
         if (!match) continue;
@@ -128,7 +133,18 @@ export default function WalletScreen() {
       items.push(item);
     }
     return items;
-  }, [data?.movements, dashboardRole, activeFilter, directionFilter, activitySearch, language]);
+  }, [data?.history, pages.items, dashboardRole, activeFilter, directionFilter, activitySearch]);
+
+  // The overview preview ignores the Activity tab's filters: it is simply the latest movements.
+  const recentItems = useMemo(() => {
+    const out: MoneyItem[] = [];
+    for (const m of pages.items) {
+      const item = formatWalletMovement(m, dashboardRole);
+      if (item) out.push(item);
+      if (out.length === 3) break;
+    }
+    return out;
+  }, [pages.items, dashboardRole]);
 
   const totalPages = Math.max(1, Math.ceil(filteredActivityItems.length / PAGE_SIZE));
   const safePage = Math.min(activityPage, totalPages);
@@ -138,18 +154,26 @@ export default function WalletScreen() {
   }, [filteredActivityItems, safePage]);
 
   const links: Link[] = [
-    { label: t('transactions'), icon: 'swap-horizontal-outline', href: '/transactions' as Href },
+    { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
     // Photographers receive payments, they do not make them: no Payments screen for them.
     ...(canUsePaymentsScreen(role)
-      ? [{ label: t('menuPayments'), icon: 'card-outline' as const, href: '/payments' as Href }]
+      ? [{ label: 'Payments', icon: 'card-outline' as const, href: '/payments' as Href }]
       : []),
-    { label: t('paymentAccounts'), icon: 'wallet-outline', href: '/payment-accounts' as Href },
+    { label: 'Payment accounts', icon: 'wallet-outline', href: '/payment-accounts' as Href },
     ...(isPhotographer
-      ? [{ label: t('payrollReport'), icon: 'bar-chart-outline' as const, href: '/payroll' as Href }]
+      ? [{ label: 'Payroll report', icon: 'bar-chart-outline' as const, href: '/payroll' as Href }]
       : []),
   ];
 
   const visibleCards = stats?.cards.filter((c) => !c.hidden) ?? [];
+  // The pending row appears only when the wallet reports a pending figure (a reported 0 still shows); no figure is never drawn as $0.00.
+  const pendingLabel = stats?.pendingChip?.label ?? 'Pending release';
+  const pendingValue = stats?.pendingChip?.value ?? 0;
+  // Photographers and clients get the sectioned wallet; coordinators keep the single long screen.
+  const tabbed = isPhotographer || !!isClient;
+  const showOverview = !tabbed || walletTab === 'overview';
+  const showAnalytics = tabbed && walletTab === 'analytics';
+  const showActivity = !tabbed || walletTab === 'activity';
 
   return (
     <Screen padded={false} edges={[]}>
@@ -162,7 +186,7 @@ export default function WalletScreen() {
           <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.retryBtn} onPress={refresh}>
-            <Text style={styles.retryBtnText}>{t('retry')}</Text>
+            <Text style={styles.retryBtnText}>Retry</Text>
           </Pressable>
         </View>
       ) : (
@@ -177,13 +201,24 @@ export default function WalletScreen() {
             />
           }
         >
+          {/* A failed refresh keeps the last balance on screen; say so instead of presenting it as current. */}
+          {error && data ? (
+            <View style={styles.suspensionBanner} accessibilityRole="alert">
+              <Ionicons name="cloud-offline-outline" size={18} color={colors.warning} />
+              <View style={styles.suspensionContent}>
+                <Text style={styles.suspensionTitle}>Could not refresh your wallet</Text>
+                <Text style={styles.suspensionDate}>The balance below is the last one we received. Pull down to try again.</Text>
+              </View>
+            </View>
+          ) : null}
+
           {/* Suspension warning banner (salo-run parity) */}
           {data?.wallet?.status === 'SUSPENDED' || data?.wallet?.suspensionReason ? (
             <View style={styles.suspensionBanner}>
-              <Ionicons name="alert-circle" size={18} color="#92400E" />
+              <Ionicons name="alert-circle" size={18} color={colors.warning} />
               <View style={styles.suspensionContent}>
                 <Text style={styles.suspensionTitle}>
-                  {t('walletSuspendedPrefix')} {(data.wallet.suspensionReason || t('walletAccountSuspended')).replace(/_/g, ' ')}
+                  Suspended: {(data.wallet.suspensionReason || 'Account suspended').replace(/_/g, ' ')}
                 </Text>
                 {data.wallet.suspendedAt ? (
                   <Text style={styles.suspensionDate}>
@@ -194,11 +229,32 @@ export default function WalletScreen() {
             </View>
           ) : null}
 
-          {/* MoneyHero Card: frosted glass over soft brand glows */}
-          {stats && (
-            <View style={styles.heroCard}>
-              <GlassBackdrop ref={glassTarget} />
-              <GlassCard blurTarget={glassTarget} style={styles.heroContent}>
+          {tabbed ? (
+            <View style={styles.walletTabs}>
+              <SegmentedTabs
+                label="Wallet sections"
+                value={walletTab}
+                onChange={setWalletTab}
+                tabs={
+                  isPhotographer
+                    ? [
+                        { key: 'overview', label: 'Overview' },
+                        { key: 'analytics', label: 'Analytics' },
+                        { key: 'activity', label: 'Activity' },
+                      ]
+                    : [
+                        { key: 'overview', label: 'Overview' },
+                        { key: 'activity', label: 'Activity' },
+                      ]
+                }
+              />
+            </View>
+          ) : null}
+
+          {/* MoneyHero Card (Clean solid card — single authoritative wallet header) */}
+          {showOverview && stats && (
+            <View style={[styles.heroCard, tabbed && styles.heroCardCompact]}>
+              <View style={[styles.heroContent, tabbed && styles.heroContentCompact]}>
                 <View style={styles.heroTopRow}>
                   <View style={styles.heroLabelPill}>
                     <Ionicons name="wallet-outline" size={13} color={colors.primary} />
@@ -210,7 +266,7 @@ export default function WalletScreen() {
                     onPress={() => setBalanceHidden((v) => !v)}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel={balanceHidden ? t('show') : t('hide')}
+                    accessibilityLabel={balanceHidden ? 'Show balances' : 'Hide balances'}
                   >
                     <Ionicons
                       name={balanceHidden ? 'eye-outline' : 'eye-off-outline'}
@@ -218,20 +274,60 @@ export default function WalletScreen() {
                       color={colors.textMuted}
                     />
                     <Text style={styles.privacyToggleText}>
-                      {balanceHidden ? t('show') : t('hide')}
+                      {balanceHidden ? 'Show' : 'Hide'}
                     </Text>
                   </Pressable>
                 </View>
 
-                <Text style={styles.heroAmount}>
-                  {balanceHidden
-                    ? `${data?.wallet?.currency ? data.wallet.currency + ' ' : '$ '}••••••`
-                    : formatPrice(stats.hero.value, data?.wallet.currency)}
-                </Text>
+                {/* Photographers: amount on the left and Withdraw beside it, as in the prototype, so the hero is a row and not a tall stack. */}
+                <View style={tabbed ? styles.heroRow : undefined}>
+                  <Text
+                    style={[styles.heroAmount, tabbed && styles.heroAmountCompact]}
+                    numberOfLines={tabbed ? 1 : undefined}
+                    adjustsFontSizeToFit={tabbed}
+                    minimumFontScale={0.6}
+                  >
+                    {balanceHidden
+                      ? `${data?.wallet?.currency ? data.wallet.currency + ' ' : '$ '}••••••`
+                      : formatPrice(stats.hero.value, data?.wallet.currency)}
+                  </Text>
+                  {tabbed && canWithdraw ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.heroWithdrawBtn, styles.heroWithdrawInline, pressed && { opacity: 0.88 }]}
+                      onPress={() => router.push('/withdraw' as Href)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Withdraw funds"
+                    >
+                      <Ionicons name="cash-outline" size={15} color="#ffffff" />
+                      <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.25}>
+                        Withdraw funds
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
 
-                {stats.pendingChip && stats.pendingChip.value > 0 ? (
-                  <View style={styles.pendingChip}>
-                    <Ionicons name="time-outline" size={12} color="#92400E" />
+                {tabbed && stats.pendingChip ? (
+                  <View
+                    style={styles.pendingStrip}
+                    accessible
+                    accessibilityLabel={`${pendingLabel}, ${
+                      balanceHidden ? 'hidden' : formatPrice(pendingValue, data?.wallet.currency)
+                    }, not included in your available balance`}
+                  >
+                    <Ionicons name="time-outline" size={15} color={colors.warning} />
+                    <Text style={styles.pendingStripLabel} maxFontSizeMultiplier={1.2}>
+                      {pendingLabel}
+                    </Text>
+                    <Text style={styles.pendingStripAmount} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                      {balanceHidden ? '••••' : formatPrice(pendingValue, data?.wallet.currency)}
+                    </Text>
+                    <Text style={styles.pendingStripNote} numberOfLines={2} maxFontSizeMultiplier={1.15}>
+                      Not in available balance
+                    </Text>
+                  </View>
+                ) : stats.pendingChip && stats.pendingChip.value > 0 ? (
+                  <View style={[styles.pendingChip, tabbed && styles.heroChipStart]}>
+                    <Ionicons name="time-outline" size={12} color={colors.warning} />
                     <Text style={styles.pendingChipText}>
                       {stats.pendingChip.label}:{' '}
                       {balanceHidden
@@ -245,30 +341,32 @@ export default function WalletScreen() {
                   <View
                     style={[
                       styles.statusChip,
+                      tabbed && styles.heroChipStart,
                       stats.status === 'SUSPENDED' ? styles.statusSuspended : styles.statusBlocked,
                     ]}
                   >
-                    <Ionicons name="shield-outline" size={12} color="#92400E" />
-                    <Text style={styles.statusChipText}>{t('walletStatusPrefix')} {stats.status.toLowerCase()}</Text>
+                    <Ionicons name="shield-outline" size={12} color={colors.warning} />
+                    <Text style={styles.statusChipText}>Wallet {stats.status.toLowerCase()}</Text>
                   </View>
                 ) : null}
 
-                {canWithdraw ? (
+                {canWithdraw && !tabbed ? (
                   <Pressable
                     style={({ pressed }) => [styles.heroWithdrawBtn, pressed && { opacity: 0.88 }]}
                     onPress={() => router.push('/withdraw' as Href)}
                   >
                     <Ionicons name="cash-outline" size={15} color="#ffffff" />
-                    <Text style={styles.heroWithdrawText}>{t('withdrawFunds')}</Text>
+                    <Text style={styles.heroWithdrawText}>Withdraw funds</Text>
                   </Pressable>
                 ) : null}
-              </GlassCard>
+              </View>
             </View>
           )}
 
           {/* Quick Links Menu (Top placement for instant access without scrolling) */}
+          {showOverview && !tabbed ? (
           <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>{t('quickLinks')}</Text>
+            <Text style={styles.sectionTitle}>Quick links</Text>
             <View style={styles.menuCard}>
               {links.map((l, i) => (
                 <Pressable
@@ -289,16 +387,146 @@ export default function WalletScreen() {
               ))}
             </View>
           </View>
+          ) : null}
+
+          {showAnalytics ? (
+            // The analytics blocks carry their own side margins, so cancel the scroll's padding.
+            <View style={styles.walletBleed}>
+              <WalletAnalytics wallet={data?.wallet ?? null} />
+            </View>
+          ) : null}
+
+          {/* Clients: what is still owed, with its own Pay now. */}
+          {showOverview && isClient ? (
+            // The kit blocks carry their own side margins, so cancel the scroll's padding.
+            <View style={styles.walletBleed}>
+              <ClientPaymentsDue hidden={balanceHidden} version={data} />
+            </View>
+          ) : null}
 
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
-          {visibleCards.length > 0 && (
+          {showOverview && tabbed && visibleCards.length > 0 && (
+            <View style={styles.sectionBlock}>
+              <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : 'Earnings breakdown'}</Text>
+              <View style={styles.rowsCard}>
+                {visibleCards.map((card, i) => {
+                  const p = PALETTE[card.color] ?? PALETTE.neutral;
+                  return (
+                    <View
+                      key={card.label}
+                      style={[styles.rowItem, i < visibleCards.length - 1 && styles.rowItemDivider]}
+                      accessible
+                      accessibilityLabel={`${card.label}, ${
+                        balanceHidden ? 'hidden' : formatPrice(card.value, data?.wallet.currency)
+                      }`}
+                    >
+                      <View style={[styles.rowTile, { backgroundColor: p.tint }]}>
+                        <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={15} color={p.bar} />
+                      </View>
+                      <Text style={styles.rowLabel} numberOfLines={1}>
+                        {card.label}
+                      </Text>
+                      <Text style={styles.rowValue} numberOfLines={1}>
+                        {balanceHidden ? '••••' : formatPrice(card.value, data?.wallet.currency)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* The latest movements, then the places money is managed. */}
+          {showOverview && tabbed ? (
+            <>
+              <View style={styles.sectionBlock}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>Recent activity</Text>
+                  <Pressable
+                    onPress={() => setWalletTab('activity')}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="View all activity"
+                    style={styles.viewAll}
+                  >
+                    <Text style={styles.seeAllText}>View all</Text>
+                  </Pressable>
+                </View>
+                {data?.movementsFailed ? (
+                  <View style={styles.rowsCard}>
+                    <Text style={styles.recentNote} accessibilityRole="alert">
+                      Could not load your history. Pull down to try again.
+                    </Text>
+                  </View>
+                ) : recentItems.length === 0 ? (
+                  <View style={styles.rowsCard}>
+                    <Text style={styles.recentNote}>No movements yet.</Text>
+                  </View>
+                ) : (
+                  <View style={styles.rowsCard}>
+                    {recentItems.map((item, i) => {
+                      const palette = COLOR_MAP[item.color] ?? COLOR_MAP.neutral;
+                      const isIn = item.direction === 'in';
+                      const amount = balanceHidden
+                        ? `${isIn ? '+' : '−'}••••`
+                        : `${isIn ? '+' : '−'}${formatPrice(item.amount, item.originalCurrency || data?.wallet.currency)}`;
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => setSelectedItem(item)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${item.title}, ${amount}, ${formatRelativeTime(item.timestamp)}`}
+                          style={({ pressed }) => [styles.rowItem, i < recentItems.length - 1 && styles.rowItemDivider, pressed && { opacity: 0.85 }]}
+                        >
+                          <View style={[styles.rowTile, { backgroundColor: palette.bg }]}>
+                            <Ionicons name={isIn ? 'arrow-down' : 'arrow-up'} size={15} color={palette.text} />
+                          </View>
+                          <View style={styles.rowBody}>
+                            <Text style={styles.rowLabel} numberOfLines={1}>
+                              {item.title}
+                            </Text>
+                            <Text style={styles.rowMeta} numberOfLines={1}>
+                              {item.tag} · {formatRelativeTime(item.timestamp)}
+                            </Text>
+                          </View>
+                          <Text style={[styles.rowValue, isIn && { color: colors.success }]} numberOfLines={1}>
+                            {amount}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.tiles}>
+                {links.map((l) => (
+                  <Pressable
+                    key={l.label}
+                    onPress={() => router.push(l.href)}
+                    accessibilityRole="button"
+                    accessibilityLabel={l.label === 'Payroll report' ? 'Export earnings report' : l.label}
+                    style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85 }]}
+                  >
+                    <IconTile icon={l.icon} tone="primary" size={30} />
+                    <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+                      {l.label === 'Payroll report' ? 'Earnings report' : l.label}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {showOverview && !tabbed && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
               <Text style={styles.sectionTitle}>
                 {dashboardRole === 'photographer'
-                  ? t('walletEarningsBreakdown')
+                  ? 'Earnings breakdown'
                   : dashboardRole === 'client'
-                    ? t('walletSpendingBreakdown')
-                    : t('walletBalanceBreakdown')}
+                    ? 'Spending breakdown'
+                    : 'Balance breakdown'}
               </Text>
               <View style={styles.potGrid}>
                 {visibleCards.map((card) => {
@@ -330,19 +558,20 @@ export default function WalletScreen() {
           )}
 
           {/* Embedded ActivityFeed (salo-run parity) */}
+          {showActivity ? (
           <View style={styles.sectionBlock}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.activityTitleWrap}>
                 <View style={styles.activityIconWrap}>
                   <Ionicons name="swap-horizontal-outline" size={15} color={colors.primary} />
                 </View>
-                <Text style={styles.sectionTitle}>{t('walletActivity')}</Text>
+                <Text style={styles.sectionTitle}>Activity</Text>
               </View>
               <Pressable
                 onPress={() => router.push('/transactions' as Href)}
                 hitSlop={8}
               >
-                <Text style={styles.seeAllText}>{t('walletSeeAll')}</Text>
+                <Text style={styles.seeAllText}>See all</Text>
               </Pressable>
             </View>
 
@@ -384,7 +613,7 @@ export default function WalletScreen() {
                     style={[styles.filterPill, isSelected && styles.filterPillActive]}
                   >
                     <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
-                      {translateMoneyTag(tag)}
+                      {tag}
                     </Text>
                   </Pressable>
                 );
@@ -394,7 +623,7 @@ export default function WalletScreen() {
             {/* Search Input for Activity */}
             <View style={styles.activitySearchWrap}>
               <Input
-                placeholder={t('walletSearchActivityPlaceholder')}
+                placeholder="Search activity by title or description..."
                 value={activitySearch}
                 onChangeText={setActivitySearch}
                 leftElement={
@@ -412,15 +641,15 @@ export default function WalletScreen() {
             {filteredActivityItems.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="receipt-outline" size={32} color={colors.textMuted} />
-                <Text style={styles.emptyCardTitle}>{data?.movementsFailed ? t('walletCouldNotLoadHistory') : t('walletNoMovementsFound')}</Text>
+                <Text style={styles.emptyCardTitle}>{data?.movementsFailed ? 'Could not load your history' : 'No movements found'}</Text>
                 <Text style={styles.emptyCardDesc}>
                   {data?.movementsFailed
-                    ? t('walletPullDownTryAgain')
+                    ? 'Pull down to try again. Your balance above is still current.'
                     : activitySearch
-                    ? t('walletNoTransactionsMatch').replace('{query}', activitySearch)
+                    ? `No transactions match "${activitySearch}".`
                     : activeFilter === 'All'
-                      ? t('walletPayoutsAppearHere')
-                      : t('walletNoCategoryTransactions').replace('{category}', translateMoneyTag(activeFilter).toLowerCase())}
+                      ? 'Payouts, tips, bonuses, and payments will appear here.'
+                      : `No ${activeFilter.toLowerCase()} transactions recorded yet.`}
                 </Text>
               </View>
             ) : (
@@ -465,7 +694,7 @@ export default function WalletScreen() {
                             </Text>
                             <View style={[styles.tagBadge, { backgroundColor: palette.bg }]}>
                               <Text style={[styles.tagBadgeText, { color: palette.text }]}>
-                                {translateMoneyTag(item.tag)}
+                                {item.tag}
                               </Text>
                             </View>
                           </View>
@@ -498,10 +727,8 @@ export default function WalletScreen() {
                 {/* Pagination Controls */}
                 <View style={styles.paginationRow}>
                   <Text style={styles.paginationInfo}>
-                    {t('showingOf')
-                      .replace('{start}', String((safePage - 1) * PAGE_SIZE + 1))
-                      .replace('{end}', String(Math.min(safePage * PAGE_SIZE, filteredActivityItems.length)))
-                      .replace('{total}', String(filteredActivityItems.length))}
+                    Showing {(safePage - 1) * PAGE_SIZE + 1}–
+                    {Math.min(safePage * PAGE_SIZE, filteredActivityItems.length)} of {filteredActivityItems.length}
                   </Text>
                   {totalPages > 1 ? (
                     <View style={styles.paginationButtons}>
@@ -522,7 +749,7 @@ export default function WalletScreen() {
                             safePage <= 1 && styles.pageNavBtnTextDisabled,
                           ]}
                         >
-                          {t('prev')}
+                          Prev
                         </Text>
                       </Pressable>
 
@@ -544,7 +771,7 @@ export default function WalletScreen() {
                             safePage >= totalPages && styles.pageNavBtnTextDisabled,
                           ]}
                         >
-                          {t('next')}
+                          Next
                         </Text>
                         <Ionicons
                           name="chevron-forward"
@@ -555,9 +782,23 @@ export default function WalletScreen() {
                     </View>
                   ) : null}
                 </View>
+                {pages.hasMore ? (
+                  <Pressable
+                    onPress={pages.loadMore}
+                    disabled={pages.loadingMore}
+                    accessibilityRole="button"
+                    accessibilityLabel="Load older transactions"
+                    accessibilityState={{ disabled: pages.loadingMore, busy: pages.loadingMore }}
+                    style={[styles.pageNavBtn, { alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginTop: 4 }]}
+                  >
+                    <Text style={styles.pageNavBtnText}>{pages.loadingMore ? 'Loading older...' : 'Load older transactions'}</Text>
+                  </Pressable>
+                ) : null}
+                {pages.moreError ? <Text style={styles.paginationInfo} accessibilityRole="alert">{pages.moreError}</Text> : null}
               </>
             )}
           </View>
+          ) : null}
         </ScrollView>
       )}
 
@@ -579,7 +820,7 @@ export default function WalletScreen() {
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>{t('walletTransactionDetails')}</Text>
+              <Text style={styles.modalHeaderTitle}>Transaction details</Text>
               <Pressable
                 style={styles.modalCloseBtn}
                 onPress={() => setSelectedItem(null)}
@@ -608,7 +849,7 @@ export default function WalletScreen() {
                 {/* Details Breakdown */}
                 <View style={styles.modalDetailsList}>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>{t('walletCategoryLabel')}</Text>
+                    <Text style={styles.detailLabel}>Category</Text>
                     <View
                       style={[
                         styles.tagBadge,
@@ -627,34 +868,31 @@ export default function WalletScreen() {
                           },
                         ]}
                       >
-                        {translateMoneyTag(selectedItem.tag)}
+                        {selectedItem.tag}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>{t('walletDirectionLabel')}</Text>
+                    <Text style={styles.detailLabel}>Direction</Text>
                     <Text style={styles.detailValue}>
-                      {selectedItem.direction === 'in' ? t('walletCreditIncoming') : t('walletDebitOutgoing')}
+                      {selectedItem.direction === 'in' ? 'Credit (Incoming)' : 'Debit (Outgoing)'}
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>{t('walletDateTimeLabel')}</Text>
+                    <Text style={styles.detailLabel}>Date & Time</Text>
                     <Text style={styles.detailValue}>
-                      {new Date(selectedItem.timestamp).toLocaleString(
-                        language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-US',
-                        {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        },
-                      )}
+                      {new Date(selectedItem.timestamp).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
                     </Text>
                   </View>
 
                   {selectedItem.originalAmount && selectedItem.originalCurrency ? (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>{t('walletOriginalAmountLabel')}</Text>
+                      <Text style={styles.detailLabel}>Original amount</Text>
                       <Text style={styles.detailValue}>
                         {selectedItem.originalCurrency} {selectedItem.originalAmount.toLocaleString()}
                       </Text>
@@ -663,7 +901,7 @@ export default function WalletScreen() {
 
                   {selectedItem.sourceType ? (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>{t('walletSourceLabel')}</Text>
+                      <Text style={styles.detailLabel}>Source</Text>
                       <Text style={styles.detailValue}>
                         {selectedItem.sourceType.replace(/_/g, ' ').toLowerCase()}
                       </Text>
@@ -672,7 +910,7 @@ export default function WalletScreen() {
 
                   {selectedItem.subtitle ? (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>{t('walletNotesLabel')}</Text>
+                      <Text style={styles.detailLabel}>Notes</Text>
                       <Text style={[styles.detailValue, { flex: 1, textAlign: 'right' }]}>
                         {selectedItem.subtitle}
                       </Text>
@@ -692,7 +930,7 @@ export default function WalletScreen() {
                   style={({ pressed }) => [styles.modalDoneBtn, pressed && { opacity: 0.9 }]}
                   onPress={() => setSelectedItem(null)}
                 >
-                  <Text style={styles.modalDoneBtnText}>{t('done')}</Text>
+                  <Text style={styles.modalDoneBtnText}>Done</Text>
                 </Pressable>
               </View>
             )}
@@ -749,29 +987,78 @@ const useStyles = makeStyles((c) => ({
     gap: 10,
     padding: 14,
     borderRadius: radii.lg,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: c.warningBg,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: c.warningLine,
   },
   suspensionContent: { flex: 1, gap: 2 },
-  suspensionTitle: { fontFamily: fonts.bold, fontSize: 13, color: '#92400E' },
-  suspensionDate: { fontFamily: fonts.regular, fontSize: 11, color: '#B45309' },
+  suspensionTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.warning },
+  suspensionDate: { fontFamily: fonts.regular, fontSize: 11, color: c.warning },
 
-  // Hero Card: a frame of brand glows holding the frosted balance panel
+  // Hero Card (Clean solid card — no gradients)
   heroCard: {
     backgroundColor: c.surface,
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    padding: spacing.md,
-    overflow: 'hidden',
+    padding: spacing.xl,
   },
   heroContent: {
     alignItems: 'center',
+    textAlign: 'center',
     gap: 8,
-    padding: spacing.lg,
-    borderRadius: radii.lg,
   },
+  heroCardCompact: { padding: spacing.md + 2, borderRadius: radii.lg, borderColor: c.border },
+  heroContentCompact: { alignItems: 'stretch', gap: 10 },
+  pendingStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    columnGap: spacing.sm,
+    rowGap: 2,
+    paddingTop: spacing.sm + 2,
+    borderTopWidth: 1,
+    borderTopColor: c.border,
+  },
+  pendingStripLabel: { fontFamily: fonts.bold, fontSize: 13, color: c.textSoft },
+  pendingStripAmount: { fontFamily: fonts.bold, fontSize: 14, color: c.text },
+  pendingStripNote: { flexShrink: 1, flexBasis: 120, flexGrow: 1, fontSize: 11.5, color: c.textMuted, textAlign: 'right' },
+  rowsCard: {
+    backgroundColor: c.card,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    overflow: 'hidden',
+  },
+  rowItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, minHeight: 52 },
+  rowItemDivider: { borderBottomWidth: 1, borderBottomColor: c.borderSoft },
+  rowTile: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  rowBody: { flex: 1, minWidth: 0 },
+  rowLabel: { flex: 1, fontFamily: fonts.bold, fontSize: 14, color: c.text },
+  rowMeta: { fontSize: 12, color: c.textMuted, marginTop: 1 },
+  rowValue: { fontFamily: fonts.bold, fontSize: 14, color: c.text, maxWidth: '45%' },
+  recentNote: { padding: spacing.md, fontSize: 13, color: c.textMuted },
+  viewAll: { minHeight: 44, justifyContent: 'center' },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tile: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 52,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.card,
+  },
+  tileText: { flex: 1, minWidth: 0, fontFamily: fonts.bold, fontSize: 13, color: c.text },
+  heroChipStart: { alignSelf: 'flex-start' },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  heroAmountCompact: { flex: 1, fontSize: 30, lineHeight: 38, textAlign: 'left' },
+  heroWithdrawInline: { marginTop: 0, flexShrink: 0 },
   heroLabelPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -785,7 +1072,7 @@ const useStyles = makeStyles((c) => ({
   },
   heroLabelText: {
     fontFamily: fonts.bold,
-    color: c.primary,
+    color: c.link,
     fontSize: 11,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -805,12 +1092,12 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: radii.full,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: c.warningSoft,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: c.warningLine,
     marginTop: 2,
   },
-  pendingChipText: { fontFamily: fonts.bold, fontSize: 12, color: '#92400E' },
+  pendingChipText: { fontFamily: fonts.bold, fontSize: 12, color: c.warning },
   statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -821,19 +1108,19 @@ const useStyles = makeStyles((c) => ({
     marginTop: 4,
   },
   statusSuspended: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: c.warningSoft,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: c.warningLine,
   },
   statusBlocked: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: c.errorSoft,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: c.errorLine,
   },
   statusChipText: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: '#92400E',
+    color: c.warning,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -850,6 +1137,8 @@ const useStyles = makeStyles((c) => ({
   heroWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: '#ffffff' },
 
   // Breakdown StatCards
+  walletBleed: { marginHorizontal: -spacing.lg },
+  walletTabs: { marginBottom: spacing.md, marginHorizontal: -spacing.lg },
   sectionBlock: { gap: spacing.sm },
   sectionTitle: { fontFamily: fonts.bold, fontSize: 17, color: c.text },
   potGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
@@ -897,7 +1186,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  seeAllText: { fontFamily: fonts.bold, fontSize: 13, color: c.primary },
+  seeAllText: { fontFamily: fonts.bold, fontSize: 13, color: c.link },
 
   directionFilterRow: {
     flexDirection: 'row',
@@ -915,9 +1204,10 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Selected = the same brand blue as every other selected control. `c.text` made a bright white pill in dark.
   directionPillActive: {
-    backgroundColor: c.text,
-    borderColor: c.text,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   directionPillText: {
     fontFamily: fonts.bold,
@@ -925,7 +1215,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   directionPillTextActive: {
-    color: c.background,
+    color: c.textOnPrimary,
   },
 
   filterBar: { gap: 6, paddingVertical: 2 },
@@ -1080,7 +1370,7 @@ const useStyles = makeStyles((c) => ({
   pageIndicatorText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: c.primary,
+    color: c.link,
   },
 
   // Quick Links

@@ -32,6 +32,8 @@ export const lightPalette = {
   primaryDark: '#062d6b',
   accent: '#F20C8F',
   accentLight: '#ff4fae',
+  /** Text-link blue: `primary` is a fill colour, and in dark it is only 3.4:1 as small text on a card. */
+  link: '#083A85',
 
   // Surfaces — ascending "elevation": page < panel < card < raised
   background: '#F4F6FB',
@@ -68,6 +70,12 @@ export const lightPalette = {
   errorBg: '#FEF2F2',
   info: '#1E40AF',
   infoBg: '#EFF6FF',
+
+  /** Stronger tinted grounds and rules for status chips and banners (the wallet's pending and suspended chips). */
+  warningSoft: '#FEF3C7',
+  warningLine: '#FDE68A',
+  errorSoft: '#FEE2E2',
+  errorLine: '#FECACA',
 } as const;
 
 /** The shape every palette must satisfy. */
@@ -79,24 +87,28 @@ export const darkPalette: Palette = {
   primaryDark: '#2A54A8',
   accent: '#F20C8F',
   accentLight: '#ff4fae',
+  link: '#7FA6F5',
 
   // Surfaces — four deliberate steps. These carry elevation on their own,
-  // because shadows do not register on a dark ground.
-  background: '#0E1117',
-  surface: '#161B24',
-  card: '#1D232E',
-  surfaceMuted: '#28303D',
-  elevated: '#242B37',
+  // because shadows do not register on a dark ground. Sampled from the Photographer prototype, whose screens sit on
+  // a deep blue-teal (about #071321 to #0B1828) with cards a step lighter (about #0F2231 to #132434). The native
+  // splash in app.json stays #0E1117 (changing it is a native change); AppPreloader keeps that hex as the splash
+  // continuation, so the app fades from the splash colour into this ground.
+  background: '#0A1524',
+  surface: '#0F1D2F',
+  card: '#13243A',
+  surfaceMuted: '#1A2E47',
+  elevated: '#1B3049',
 
-  // Text — softened whites; pure #FFF on near-black causes halation.
-  text: '#EDF0F5',
-  textSoft: '#C6CCD8',
-  textMuted: '#8E96A6',
+  // Text: softened whites; pure #FFF on near-black causes halation. Slightly cool so it sits on the navy.
+  text: '#EDF2F8',
+  textSoft: '#C4D0E0',
+  textMuted: '#8FA4BF',
   textOnPrimary: '#FFFFFF',
 
-  // Lines — visible enough to define a card edge, quiet enough not to grid up.
-  border: '#2F3746',
-  borderSoft: '#242B37',
+  // Lines: a blue hairline, visible enough to define a card edge, quiet enough not to grid up.
+  border: '#274463',
+  borderSoft: '#1A304A',
 
   // Tints must be lighter AND more opaque than their light counterparts,
   // otherwise they vanish against the background.
@@ -107,13 +119,18 @@ export const darkPalette: Palette = {
 
   // Status — light foreground on a deep, desaturated tinted ground.
   success: '#4ADE80',
-  successBg: '#10281E',
+  successBg: '#0E2F22',
   warning: '#FBBF24',
-  warningBg: '#2C220C',
+  warningBg: '#33260A',
   error: '#F87171',
-  errorBg: '#2D1719',
+  errorBg: '#341A1D',
   info: '#8FB4FF',
-  infoBg: '#152238',
+  infoBg: '#14335E',
+
+  warningSoft: '#3D2C0A',
+  warningLine: '#5A4210',
+  errorSoft: '#40191D',
+  errorLine: '#6B2A31',
 };
 
 export type ColorSchemeName = 'light' | 'dark';
@@ -139,11 +156,17 @@ export const gradientsFor = (scheme: ColorSchemeName) =>
         accent: ['#C40A75', '#F20C8F'] as const,
         /** Faint brand wash for hero panels. */
         wash: ['rgba(61,111,214,0.20)', 'rgba(242,12,143,0.14)'] as const,
+        /** Hero action fills (client Book photographer, Pay now). White text reads on every stop (>= 4.5:1). */
+        heroBlue: ['#173A8F', '#2A5FCC'] as const,
+        /** The one secondary hero per screen (Publish offer). */
+        heroViolet: ['#4C1D95', '#9226B8'] as const,
       }
     : {
         brand: ['#083A85', '#0a4da3', '#F20C8F'] as const,
         accent: ['#F20C8F', '#ff4fae'] as const,
         wash: ['rgba(8,58,133,0.08)', 'rgba(242,12,143,0.08)'] as const,
+        heroBlue: ['#083A85', '#1B55B8'] as const,
+        heroViolet: ['#5B21B6', '#A21CAF'] as const,
       };
 
 export type Gradients = ReturnType<typeof gradientsFor>;

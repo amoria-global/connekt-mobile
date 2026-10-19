@@ -57,6 +57,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
+import { LiveButton, LivePill, LiveRing, LiveTwinkle } from '@/components/ui/live';
 import { listPublicEventsDetailed } from '@/features/events/api';
 import {
   isEventEnded,
@@ -67,19 +68,11 @@ import {
 } from '@/features/events/types';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, darkPalette, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { canShowDigitalPrice } from '@/features/payments/policy';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
-import { GlassLayer, GlassOnMedia, glassClear, glassTile } from '@/components/ui/GlassCard';
-
-import { useLanguage } from '@/hooks/useLanguage';
-import { translate, type TranslationKey } from '@/i18n/translations';
-const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
-
-/** Brand navy, for type on a white pill over a photo. */
-const ON_MEDIA_INK = '#083A85';
 
 
 const PAGE_SIZE = 8;
@@ -246,10 +239,9 @@ type SuggestionItem = {
 };
 
 export default function ExploreEventsScreen() {
-  useLanguage();
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -724,13 +716,13 @@ export default function ExploreEventsScreen() {
           hitSlop={12}
           style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
           accessibilityRole="button"
-          accessibilityLabel={tr('b4_backToSignIn')}
+          accessibilityLabel="Back to sign in"
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
 
         <View style={styles.topBarPillCenter}>
-          <Text style={styles.topBarPillText}>{tr('b4_exploreEventsTitle')}</Text>
+          <Text style={styles.topBarPillText}>Explore Events</Text>
         </View>
 
         <Pressable
@@ -773,6 +765,16 @@ export default function ExploreEventsScreen() {
             renderItem={({ item: e }) => {
               const isLive = isEventLive(e, liveStreamIds);
               const isEnded = isEventEnded(e);
+              const storyInner = (
+                <View style={styles.storyInnerGap}>
+                  <Image
+                    source={e.eventPhoto ? { uri: e.eventPhoto } : EVENT_COVER_PLACEHOLDER}
+                    style={styles.storyImage}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                </View>
+              );
               return (
                 <Pressable
                   key={e.id}
@@ -782,36 +784,26 @@ export default function ExploreEventsScreen() {
                   accessibilityLabel={`${e.title}, ${isLive ? 'Live now' : 'Event'}`}
                 >
                   <View style={styles.storyCircleWrapper}>
-                    <LinearGradient
-                      colors={
-                        isLive
-                          ? ['#F58529', '#DD2A7B', '#8134AF']
-                          : isEnded
-                          ? ['#64748B', '#94A3B8']
-                          : ['#4F46E5', '#7C3AED', '#EC4899']
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.storyGradientRing}
-                    >
-                      <View style={styles.storyInnerGap}>
-                        <Image
-                          source={e.eventPhoto ? { uri: e.eventPhoto } : EVENT_COVER_PLACEHOLDER}
-                          style={styles.storyImage}
-                          contentFit="cover"
-                          transition={200}
-                        />
-                      </View>
-                    </LinearGradient>
+                    {isLive ? (
+                      <LiveRing size={68} colors={['#F58529', '#DD2A7B', '#8134AF', '#F58529']} live>
+                        <View style={styles.storyRingPad}>{storyInner}</View>
+                      </LiveRing>
+                    ) : (
+                      <LinearGradient
+                        colors={isEnded ? ['#64748B', '#94A3B8'] : ['#4F46E5', '#7C3AED', '#EC4899']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.storyGradientRing}
+                      >
+                        {storyInner}
+                      </LinearGradient>
+                    )}
 
                     {isLive ? (
-                      <View style={styles.storyLivePill}>
-                        <View style={styles.storyLivePillDot} />
-                        <Text style={styles.storyLivePillText}>{tr('b4_badgeLive')}</Text>
-                      </View>
+                      <LivePill size="xs" style={styles.storyLivePill} />
                     ) : !isEnded ? (
                       <View style={styles.storySoonPill}>
-                        <Text style={styles.storySoonPillText}>{tr('b4_badgeSoon')}</Text>
+                        <Text style={styles.storySoonPillText}>SOON</Text>
                       </View>
                     ) : null}
                   </View>
@@ -826,6 +818,31 @@ export default function ExploreEventsScreen() {
         </View>
       ) : null}
 
+      <View style={styles.tabsRow}>
+        {TABS.map((tDef) => {
+          const active = tab === tDef.value;
+          return (
+            <Pressable
+              key={tDef.value}
+              onPress={() => switchTab(tDef.value)}
+              style={[styles.tab, active && styles.tabActive]}
+            >
+              <Ionicons
+                name={tDef.icon}
+                size={14}
+                color={active ? colors.primary : colors.textMuted}
+              />
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tDef.short}</Text>
+              {tDef.value === 'live' && liveCount > 0 ? (
+                <View style={styles.tabCount}>
+                  <Text style={styles.tabCountText}>{liveCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+
       <View style={styles.controls}>
         <View style={styles.searchRow}>
           <View style={[styles.searchWrap, searchFocused && styles.searchWrapFocused]}>
@@ -838,7 +855,7 @@ export default function ExploreEventsScreen() {
               }}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
-              placeholder={tr('b4_searchPlaceholder')}
+              placeholder="Search events, venues, categories…"
               placeholderTextColor={colors.textMuted}
               style={styles.searchInput}
               returnKeyType="search"
@@ -855,7 +872,7 @@ export default function ExploreEventsScreen() {
                 }}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={tr('b4_clearSearch')}
+                accessibilityLabel="Clear search"
               >
                 <Ionicons name="close-circle" size={18} color={colors.textMuted} />
               </Pressable>
@@ -866,7 +883,7 @@ export default function ExploreEventsScreen() {
             style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
             onPress={() => setSortSheetOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel={tr('b4_sortEvents')}
+            accessibilityLabel="Sort events"
           >
             <Ionicons
               name="funnel-outline"
@@ -880,7 +897,7 @@ export default function ExploreEventsScreen() {
         {searchFocused && suggestions.length > 0 ? (
           <View style={styles.suggestionsCard}>
             <View style={styles.suggestionsHeader}>
-              <Text style={styles.suggestionsHeaderTitle}>{tr('b4_suggestionsHeader')}</Text>
+              <Text style={styles.suggestionsHeaderTitle}>SUGGESTIONS</Text>
               <Text style={styles.suggestionsHeaderCount}>{suggestions.length}</Text>
             </View>
             {suggestions.map((item) => (
@@ -935,37 +952,14 @@ export default function ExploreEventsScreen() {
           </View>
         ) : null}
 
-        {/* Status and filters share one row: one control strip, not three. */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.chipScroll}
           contentContainerStyle={styles.filtersRow}
         >
-          {TABS.map((tDef) => {
-            const active = tab === tDef.value;
-            return (
-              <Pressable
-                key={tDef.value}
-                onPress={() => switchTab(tDef.value)}
-                style={[styles.chip, active && styles.chipActive]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-              >
-                {tDef.value === 'live' ? <View style={styles.chipLiveDot} /> : null}
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{tDef.short}</Text>
-                {tDef.value === 'live' && liveCount > 0 ? (
-                  <View style={styles.tabCount}>
-                    <Text style={styles.tabCountText}>{liveCount}</Text>
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
-          <View style={styles.chipDivider} />
           <FilterChip
             icon="pricetag"
-            title={tr('b4_filterCategories')}
+            title="Categories"
             value={category}
             options={[{ value: 'all', label: 'All categories' }, ...categoryOptions.map((c) => ({ value: c, label: c }))]}
             onChange={(v) => {
@@ -975,7 +969,7 @@ export default function ExploreEventsScreen() {
           />
           <FilterChip
             icon="location"
-            title={tr('b4_filterLocations')}
+            title="Locations"
             value={location}
             options={[
               { value: 'all', label: 'All locations' },
@@ -988,7 +982,7 @@ export default function ExploreEventsScreen() {
           />
           <FilterChip
             icon="calendar"
-            title={tr('b4_filterDateRange')}
+            title="Date Range"
             value={dateRange}
             options={DATE_RANGE_OPTIONS}
             onChange={(v) => {
@@ -1027,13 +1021,13 @@ export default function ExploreEventsScreen() {
               color={page <= 1 ? colors.textMuted : colors.text}
             />
             <Text style={[styles.pagerBtnText, page <= 1 && styles.pagerBtnTextDisabled]}>
-              {tr('b4_prevPage')}
+              Previous
             </Text>
           </Pressable>
 
           <View style={styles.pagerIndicator}>
             <Text style={styles.pagerIndicatorText}>
-              {tr('b4_pageWord')} <Text style={styles.pagerIndicatorBold}>{page}</Text> of{' '}
+              Page <Text style={styles.pagerIndicatorBold}>{page}</Text> of{' '}
               <Text style={styles.pagerIndicatorBold}>{Math.max(1, totalPages)}</Text>
             </Text>
             <Text style={styles.pagerTotalText}>
@@ -1049,7 +1043,7 @@ export default function ExploreEventsScreen() {
             accessibilityLabel="Next page"
           >
             <Text style={[styles.pagerBtnText, page >= totalPages && styles.pagerBtnTextDisabled]}>
-              {tr('b4_nextPage')}
+              Next
             </Text>
             <Ionicons
               name="chevron-forward"
@@ -1074,22 +1068,13 @@ export default function ExploreEventsScreen() {
 
   return (
     <Screen padded={false} edges={[]}>
-      {/* Ambient backdrop: the first event's photo, blurred to colour and
-          washed toward the theme, so the glass above it has something to frost. */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Image
-          source={data[0]?.eventPhoto ? { uri: data[0].eventPhoto } : EVENT_COVER_PLACEHOLDER}
-          style={styles.ambient}
-          contentFit="cover"
-          blurRadius={48}
-        />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(14,17,23,0.78)' : 'rgba(244,246,251,0.74)' }]} />
-      </View>
       {renderTopBar()}
       <FlatList
-        key="explore-events-list"
+        key="explore-events-grid-2"
         ref={listRef}
         data={data}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
         keyExtractor={(e) => e.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -1168,8 +1153,8 @@ export default function ExploreEventsScreen() {
             <View style={styles.sheetHandle} />
             <View style={styles.sortSheetHeader}>
               <View>
-                <Text style={styles.sortSheetTitle}>{tr('b4_sortSheetTitle')}</Text>
-                <Text style={styles.sortSheetSubtitle}>{tr('b4_sortSheetSubtitle')}</Text>
+                <Text style={styles.sortSheetTitle}>Sort Events</Text>
+                <Text style={styles.sortSheetSubtitle}>Choose an order for exploring events</Text>
               </View>
               <Pressable
                 onPress={() => setSortSheetOpen(false)}
@@ -1256,117 +1241,153 @@ function PosterCard({
   const org = organizerInfo(event);
 
   return (
-    <View style={styles.pcCard}>
-      {/* The card's own tap target sits underneath; the chips and buttons above
-          are its siblings, never nested inside it (a button may not hold a button). */}
-      <Pressable
-        style={({ pressed }) => [StyleSheet.absoluteFill, pressed && styles.pcCardPressed]}
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={`${event.title}${isLive ? ', live now' : isEnded ? ', ended' : ''}`}
-      />
-      <Image
-        source={event.eventPhoto ? { uri: event.eventPhoto } : EVENT_COVER_PLACEHOLDER}
-        style={styles.pcArt}
-        contentFit="cover"
-        transition={250}
-        pointerEvents="none"
-      />
-      {/* Darkens the top for the chips and the bottom for the words. */}
-      <LinearGradient
-        colors={['rgba(4,10,26,0.4)', 'rgba(4,10,26,0)', 'rgba(4,10,26,0.55)', 'rgba(4,10,26,0.94)']}
-        locations={[0, 0.3, 0.58, 1]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
+    <LiveTwinkle active={isLive} radius={radii.lg} style={styles.cardTwinkle}>
+    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
+      <View style={styles.cardMedia}>
+        <Image
+          source={event.eventPhoto ? { uri: event.eventPhoto } : EVENT_COVER_PLACEHOLDER}
+          style={styles.cardArt}
+          contentFit="cover"
+          transition={250}
+        />
+        <View style={styles.cardScrim} />
 
-      <View style={styles.pcTop} pointerEvents="box-none">
         {date ? (
-          <GlassOnMedia style={styles.pcDate} edge>
-            <Text style={styles.pcDateMo}>{date.mo}</Text>
-            <Text style={styles.pcDateDay}>{date.day}</Text>
-          </GlassOnMedia>
-        ) : (
-          <View />
-        )}
-        <View style={styles.pcTopRight} pointerEvents="box-none">
+          <View style={styles.cardTl}>
+            <View style={styles.cardDate}>
+              <Text style={styles.cardDateMo}>{date.mo}</Text>
+              <Text style={styles.cardDateDay}>{date.day}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.cardTr}>
           {isLive ? (
-            <View style={[styles.pcStatus, styles.pcStatusLive]}>
-              <View style={styles.pcLiveDot} />
-              <Text style={styles.pcStatusText}>{tr('b4_badgeLive')}</Text>
+            <LivePill size="sm" sparkle />
+          ) : isEnded ? (
+            <View style={[styles.statusBadge, styles.statusEnded]}>
+              <Text style={styles.statusText}>ENDED</Text>
             </View>
           ) : (
-            <GlassOnMedia style={styles.pcStatus} edge>
-              <Text style={styles.pcStatusText}>{isEnded ? 'ENDED' : 'UPCOMING'}</Text>
-            </GlassOnMedia>
+            <View style={[styles.statusBadge, styles.statusUpcoming]}>
+              <Text style={styles.statusText}>UPCOMING</Text>
+            </View>
           )}
-          {/* Dark glass with a white icon: readable on any photo, in both themes. */}
           <Pressable
-            style={({ pressed }) => [styles.pcBookmark, glassClear, pressed && styles.pcPressed]}
+            style={[styles.bookmark, isSaved && styles.bookmarkSaved]}
             onPress={(e) => {
               e.stopPropagation?.();
               onToggleSave();
             }}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={isSaved ? 'Remove from saved' : 'Save event'}
+            hitSlop={6}
           >
-            <GlassLayer />
             <Ionicons
               name={isSaved ? 'bookmark' : 'bookmark-outline'}
               size={16}
-              color={isSaved ? colors.accent : '#FFFFFF'}
+              color={isSaved ? colors.accent : colors.text}
             />
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.pcBottom} pointerEvents="box-none">
-        <Text style={styles.pcTitle} numberOfLines={2} pointerEvents="none">
+      <View style={styles.cardMeta}>
+        {event.location ? (
+          <View style={styles.cardRow}>
+            <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+            <Text style={styles.cardVenue} numberOfLines={1}>
+              {event.location}
+            </Text>
+          </View>
+        ) : null}
+        <Text style={styles.cardTitle} numberOfLines={2}>
           {event.title}
         </Text>
-        <Text style={styles.pcMeta} numberOfLines={1} pointerEvents="none">
-          {[event.location, org.label].filter(Boolean).join('  ·  ')}
-        </Text>
-        <View style={styles.pcActions} pointerEvents="box-none">
-          <GlassOnMedia style={styles.pcPrice} edge>
-            <Ionicons name="pricetag" size={11} color="#FFFFFF" />
-            <Text style={styles.pcPriceText}>
-              {price.label ? `${price.label} ` : ''}
-              {price.amount}
+        <View style={styles.cardFooter}>
+          <View style={styles.orgChip}>
+            <View style={styles.orgAvatar}>
+              {org.image ? (
+                <Image source={{ uri: org.image }} style={styles.orgAvatarImg} contentFit="cover" />
+              ) : (
+                <Text style={styles.orgInitial}>{org.initial}</Text>
+              )}
+            </View>
+            <Text style={styles.orgName} numberOfLines={1}>
+              {org.label}
             </Text>
-          </GlassOnMedia>
-          {/* The whole card opens the event; only distinct actions get a button. */}
-          {isLive ? (
+          </View>
+          <View style={styles.priceChip}>
+            <Ionicons name="pricetag" size={11} color={colors.primary} />
+            <Text style={styles.priceText}>
+              {price.label ? `${price.label} ` : ''}
+              <Text style={styles.priceNum}>{price.amount}</Text>
+            </Text>
+          </View>
+        </View>
+
+        {/* Event Card Action Buttons: View Details & Find Photos on ended, Watch Live on live, View Details on upcoming */}
+        {isEnded ? (
+          <View style={styles.cardEndedSection}>
             <Pressable
-              style={({ pressed }) => [styles.pcAction, styles.pcActionLive, pressed && styles.pcPressed]}
+              style={({ pressed }) => [styles.viewCardBtn, pressed && { opacity: 0.85 }]}
               onPress={(e) => {
                 e.stopPropagation?.();
                 onPress();
               }}
               accessibilityRole="button"
-              accessibilityLabel={`Watch ${event.title} live`}
+              accessibilityLabel={`View details for ${event.title}`}
             >
-              <Ionicons name="play" size={13} color="#FFFFFF" />
-              <Text style={styles.pcActionText}>Watch live</Text>
+              <Ionicons name="eye-outline" size={15} color={colors.primary} />
+              <Text style={styles.viewCardBtnText} numberOfLines={1}>
+                View Details
+              </Text>
             </Pressable>
-          ) : isEnded ? (
+
             <Pressable
-              style={({ pressed }) => [styles.pcAction, styles.pcActionPhotos, pressed && styles.pcPressed]}
+              style={({ pressed }) => [styles.findPhotosCardBtn, pressed && { opacity: 0.88 }]}
               onPress={(e) => {
                 e.stopPropagation?.();
                 router.push('/find-photos' as never);
               }}
               accessibilityRole="button"
-              accessibilityLabel={tr('b4_findMyPhotos')}
+              accessibilityLabel="Find My Photos"
             >
-              <Ionicons name="scan-outline" size={13} color={ON_MEDIA_INK} />
-              <Text style={[styles.pcActionText, { color: ON_MEDIA_INK }]}>Find my photos</Text>
+              <Ionicons name="search" size={14} color="#FFFFFF" />
+              <Text style={styles.findPhotosBtnText} numberOfLines={1}>
+                Find Photos
+              </Text>
             </Pressable>
-          ) : null}
-        </View>
+          </View>
+        ) : isLive ? (
+          <View style={styles.cardActionSection}>
+            <LiveButton
+              label="Watch Live"
+              size="sm"
+              icon="play"
+              onPress={onPress}
+              accessibilityLabel={`Watch ${event.title} live`}
+            />
+          </View>
+        ) : (
+          <View style={styles.cardActionSection}>
+            <Pressable
+              style={({ pressed }) => [styles.viewCardFullBtn, pressed && { opacity: 0.85 }]}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onPress();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`View details for ${event.title}`}
+            >
+              <Ionicons name="eye-outline" size={15} color={colors.primary} />
+              <Text style={styles.viewCardFullBtnText} numberOfLines={1}>
+                View Details
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
-    </View>
+    </Pressable>
+    </LiveTwinkle>
   );
 }
 
@@ -1429,7 +1450,7 @@ function FilterChip({
                 hitSlop={10}
                 style={styles.modalCloseBtn}
                 accessibilityRole="button"
-                accessibilityLabel={tr('b4_close')}
+                accessibilityLabel="Close"
               >
                 <Ionicons name="close" size={20} color={colors.textMuted} />
               </Pressable>
@@ -1483,7 +1504,8 @@ function FilterChip({
 const useStyles = makeStyles((c, e) => ({
   // Containers
   listContent: { paddingBottom: 120, flexGrow: 1 },
-  cardWrap: { paddingHorizontal: spacing.xl },
+  columnWrapper: { paddingHorizontal: spacing.xl, gap: spacing.md },
+  cardWrap: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyWrap: { paddingTop: spacing['2xl'], paddingHorizontal: spacing.xl, alignItems: 'center', gap: spacing.md },
   errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
@@ -1492,17 +1514,18 @@ const useStyles = makeStyles((c, e) => ({
   topBar: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
+    backgroundColor: c.background,
   },
   topBarPill: {
     width: '100%',
     height: 52,
     borderRadius: radii.full,
-    borderWidth: 1,
-    ...glassTile(c),
+    backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 6,
+    ...e(2),
   },
   topBarBackBtn: {
     width: 40,
@@ -1522,7 +1545,7 @@ const useStyles = makeStyles((c, e) => ({
   topBarPillText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
-    color: c.text,
+    color: c.primary,
   },
   topBarSignInBtn: {
     paddingHorizontal: 14,
@@ -1580,32 +1603,8 @@ const useStyles = makeStyles((c, e) => ({
     height: '100%',
     borderRadius: 29.5,
   },
-  storyLivePill: {
-    position: 'absolute',
-    bottom: -5,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#E11D48',
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: radii.full,
-    borderWidth: 1.5,
-    borderColor: c.background,
-  },
-  storyLivePillDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#FFFFFF',
-  },
-  storyLivePillText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: fontWeight.extrabold,
-    letterSpacing: 0.5,
-  },
+  storyRingPad: { flex: 1, padding: 2.5 },
+  storyLivePill: { position: 'absolute', bottom: -6, alignSelf: 'center' },
   storySoonPill: {
     position: 'absolute',
     bottom: -5,
@@ -1639,6 +1638,27 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   // Tabs
+  tabsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    gap: 6,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: radii.full,
+    backgroundColor: c.surfaceMuted,
+  },
+  tabActive: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.primary },
+  tabLabel: { color: c.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  tabLabelActive: { color: c.primary, fontWeight: fontWeight.bold },
   tabCount: {
     minWidth: 18,
     height: 18,
@@ -1662,23 +1682,34 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    height: 46,
+    backgroundColor: c.surface,
     borderRadius: radii.full,
     paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
     borderWidth: 1,
-    ...glassTile(c),
+    borderColor: c.borderSoft,
+    ...e(1),
   },
-  searchWrapFocused: { borderColor: c.primary },
+  searchWrapFocused: {
+    borderColor: c.primary,
+    backgroundColor: c.surface,
+    ...e(2),
+  },
   sortBtn: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: radii.full,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    ...glassTile(c),
+    borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
+    ...e(1),
   },
-  sortBtnActive: { borderColor: c.primary, backgroundColor: c.tint },
+  sortBtnActive: {
+    borderColor: c.primary,
+    backgroundColor: c.infoBg,
+  },
   searchInput: { flex: 1, color: c.text, fontSize: fontSize.sm, padding: 0 },
 
   // Suggestions Card (Global Autocomplete)
@@ -1778,38 +1809,22 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: fontWeight.medium,
     textTransform: 'uppercase',
   },
-  // Bleeds to the screen edges so chips scroll under the gutter, not into it.
-  chipScroll: { marginHorizontal: -spacing.xl },
-  filtersRow: { gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.xs, alignItems: 'center' },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    ...glassTile(c),
-  },
-  chipActive: { backgroundColor: c.primary, borderColor: c.primary },
-  chipText: { color: c.text, fontSize: 13, fontWeight: fontWeight.semibold },
-  chipTextActive: { color: c.textOnPrimary },
-  chipLiveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#EF4444' },
-  chipDivider: { width: StyleSheet.hairlineWidth, height: 22, backgroundColor: c.border, marginHorizontal: 2 },
-  ambient: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
+  filtersRow: { gap: spacing.sm, paddingVertical: spacing.xs },
 
+  filterChipWrap: { position: 'relative' },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    height: 36,
     paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: radii.full,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    ...glassTile(c),
+    borderColor: c.borderSoft,
   },
-  filterChipActive: { borderColor: c.primary, backgroundColor: c.tint },
-  filterChipText: { color: c.text, fontSize: 13, fontWeight: fontWeight.semibold },
+  filterChipActive: { borderColor: c.primary, backgroundColor: c.infoBg },
+  filterChipText: { color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
   filterChipTextActive: { color: c.primary, fontWeight: fontWeight.bold },
 
   // Filter Modal Sheet
@@ -1889,6 +1904,85 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   // Ended & Live Event Card Section
+  cardEndedSection: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 4,
+    marginTop: 4,
+  },
+  cardActionSection: {
+    marginTop: 4,
+  },
+  viewCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+  },
+  viewCardBtnText: {
+    color: c.primary,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.2,
+  },
+  findPhotosCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: radii.full,
+    backgroundColor: c.primary,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    ...e(1),
+  },
+  findPhotosBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.2,
+  },
+  watchLiveCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: radii.full,
+    backgroundColor: c.accent,
+    paddingVertical: 6.5,
+    paddingHorizontal: 8,
+    ...e(1),
+  },
+  watchLiveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.2,
+  },
+  viewCardFullBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surfaceMuted,
+    paddingVertical: 6.5,
+    paddingHorizontal: 8,
+  },
+  viewCardFullBtnText: {
+    color: c.text,
+    fontSize: 11.5,
+    fontWeight: fontWeight.semibold,
+    letterSpacing: 0.2,
+  },
 
   // Result strip
   resultStrip: {
@@ -1904,12 +1998,123 @@ const useStyles = makeStyles((c, e) => ({
   resultFilters: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
   // Card
+  card: {
+    backgroundColor: c.surface,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  cardPressed: { opacity: 0.92 },
+  cardTwinkle: { flex: 1 },
+  cardMedia: { width: '100%', height: 130, position: 'relative', backgroundColor: c.surfaceMuted },
+  cardArt: { width: '100%', height: '100%' },
+  cardScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
 
+  cardTl: { position: 'absolute', top: spacing.xs, left: spacing.xs },
   // A paper calendar tile over the event photo: white in both themes, so its
   // ink is fixed too. Theme text (c.text) turns near-white in dark mode and
   // made the day vanish on the white tile.
+  cardDate: {
+    width: 36,
+    backgroundColor: '#fff',
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  cardDateMo: {
+    width: '100%',
+    paddingVertical: 2,
+    backgroundColor: '#083A85',
+    color: '#fff',
+    fontSize: 8.5,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  cardDateDay: {
+    color: '#083A85',
+    fontSize: 12,
+    fontWeight: fontWeight.extrabold,
+    paddingVertical: 1,
+  },
 
+  cardTr: {
+    position: 'absolute',
+    top: spacing.xs,
+    right: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: radii.sm,
+  },
+  statusText: { color: '#fff', fontSize: 8.5, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
+  statusUpcoming: { backgroundColor: c.primary },
+  statusLive: { backgroundColor: c.accent },
+  statusEnded: { backgroundColor: '#6A6D76' },
+  pulseDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+  bookmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookmarkSaved: { backgroundColor: c.surface },
 
+  cardMeta: { padding: spacing.sm, gap: 4, flex: 1, justifyContent: 'space-between' },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  cardVenue: { flex: 1, color: c.textMuted, fontSize: 11 },
+  cardTitle: { color: c.text, fontSize: 13, fontWeight: fontWeight.bold, lineHeight: 17 },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  orgChip: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 80 },
+  orgAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: c.surfaceMuted,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orgAvatarImg: { width: '100%', height: '100%' },
+  orgInitial: { color: c.textSoft, fontSize: 9, fontWeight: fontWeight.bold },
+  orgName: { flex: 1, color: c.textSoft, fontSize: 10.5, fontWeight: fontWeight.semibold },
+  priceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: c.infoBg,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: radii.full,
+  },
+  priceText: { color: c.primary, fontSize: 10 },
+  priceNum: { fontWeight: fontWeight.bold },
 
   // Pagination
   paginationFooter: {
@@ -2053,87 +2258,4 @@ const useStyles = makeStyles((c, e) => ({
     borderWidth: 1.5,
     borderColor: c.borderSoft,
   },
-
-  // ── Event card: one photo, words on a fade, glass chips ──────────────
-  pcCard: {
-    height: 228,
-    borderRadius: radii.xl,
-    overflow: 'hidden',
-    justifyContent: 'space-between',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c === darkPalette ? 'rgba(255,255,255,0.14)' : 'rgba(15,18,23,0.08)',
-  },
-  pcPressed: { opacity: 0.75 },
-  // A press darkens the whole photo slightly; scaling a full-width card would jitter.
-  pcCardPressed: { backgroundColor: 'rgba(0,0,0,0.12)' },
-  // Navy while a cover loads: a deliberate dark card, not a grey gap.
-  pcArt: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', backgroundColor: '#0B1B3A' },
-  pcTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: spacing.md },
-  pcTopRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  pcDate: {
-    width: 48,
-    paddingVertical: 5,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    // Solid enough to hold its own over busy poster artwork.
-    backgroundColor: 'rgba(6,10,20,0.72)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  pcDateMo: { color: '#FFFFFF', fontSize: 10, fontWeight: fontWeight.bold, letterSpacing: 0.8 },
-  pcDateDay: { color: '#FFFFFF', fontSize: 20, lineHeight: 22, fontWeight: fontWeight.extrabold },
-  pcStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 26,
-    paddingHorizontal: 10,
-    borderRadius: radii.full,
-    // Solid enough to hold its own over busy poster artwork.
-    backgroundColor: 'rgba(6,10,20,0.72)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  pcStatusLive: { backgroundColor: '#E11D48' },
-  pcLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
-  pcStatusText: { color: '#FFFFFF', fontSize: 10.5, fontWeight: fontWeight.extrabold, letterSpacing: 0.8 },
-  pcBookmark: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Solid enough to hold its own over busy poster artwork.
-    backgroundColor: 'rgba(6,10,20,0.72)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  pcBottom: { padding: spacing.md, gap: 4 },
-  pcTitle: { color: '#FFFFFF', fontSize: 20, lineHeight: 25, fontWeight: fontWeight.extrabold, letterSpacing: -0.3 },
-  pcMeta: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
-  pcActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
-  pcPrice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 30,
-    paddingHorizontal: 12,
-    borderRadius: radii.full,
-    // Solid enough to hold its own over busy poster artwork.
-    backgroundColor: 'rgba(6,10,20,0.72)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  pcPriceText: { color: '#FFFFFF', fontSize: 12.5, fontWeight: fontWeight.bold },
-  pcAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 34,
-    paddingHorizontal: 14,
-    borderRadius: radii.full,
-  },
-  pcActionLive: { backgroundColor: '#F20C8F' },
-  pcActionPhotos: { backgroundColor: '#FFFFFF' },
-  pcActionText: { color: '#FFFFFF', fontSize: 13, fontWeight: fontWeight.bold },
 }));

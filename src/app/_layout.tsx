@@ -14,12 +14,10 @@ import { useAuth } from '@/store/auth';
 import { takePendingScanEvent } from '@/features/events/scanIntent';
 import { useCurrency } from '@/store/currency';
 import { useOnboarding } from '@/store/onboarding';
-import { UpdateBanner, UpdatePromptModal } from '@/features/updates';
+import { UpdatePromptModal } from '@/features/updates';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import { useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
 import { AppPreloader } from '@/components/ui/AppPreloader';
-
-import { useLanguage } from '@/hooks/useLanguage';
 
 // Keep native splash screen visible while fonts and auth bootstrap resolve
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -163,7 +161,6 @@ function useProtectedRoute() {
 }
 
 export default function RootLayout() {
-  const { t } = useLanguage();
   const bootstrap = useAuth((s) => s.bootstrap);
   const loadOnboarding = useOnboarding((s) => s.load);
   const loadCurrency = useCurrency((s) => s.load);
@@ -224,9 +221,8 @@ export default function RootLayout() {
               />
             </View>
           ) : null}
-          {/* OTA in-app update prompt modal & banner */}
+          {/* Mandatory OTA update prompt (blocking, one action) */}
           <UpdatePromptModal />
-          <UpdateBanner />
           {/* Screens are theme-aware now, so the status bar follows suit:
               light icons on dark surfaces, dark icons on light ones. */}
           <ThemedStatusBar />

@@ -21,7 +21,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments, type Href } from 'expo-router';
 import {
-  Alert,
   Animated,
   Dimensions,
   Keyboard,
@@ -35,6 +34,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRole } from '@/features/auth/role';
 import { listNotifications } from '@/features/notifications/api';
@@ -97,9 +97,40 @@ type TabButtonProps = {
   onPress: () => void;
   width: number;
   badgeCount?: number;
+  /** Photographer chrome: icon and label always shown, the selected tab in pink with a short underline, no bubble. */
+  flat?: boolean;
 };
 
-function TabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
+/** The restrained tab from the photographer prototype: nothing floats, the selected item is named by colour, a rule and its state. */
+function FlatTabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const tone = isFocused ? colors.accent : colors.textMuted;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.flatTab, { width }]}
+      accessibilityRole="button"
+      accessibilityState={isFocused ? { selected: true } : {}}
+      accessibilityLabel={tab.label}
+    >
+      <View>
+        <Ionicons name={isFocused ? tab.iconFocused : tab.icon} size={22} color={tone} />
+        {badgeCount != null && badgeCount > 0 ? <View style={[styles.badgeDot, styles.flatBadge]} /> : null}
+      </View>
+      <Text style={[styles.flatLabel, { color: tone }, isFocused && styles.flatLabelOn]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
+        {tab.label}
+      </Text>
+      <View style={[styles.flatRule, { backgroundColor: isFocused ? colors.accent : 'transparent' }]} />
+    </Pressable>
+  );
+}
+
+function TabButton(props: TabButtonProps) {
+  return props.flat ? <FlatTabButton {...props} /> : <AnimatedTabButton {...props} />;
+}
+
+function AnimatedTabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [focusAnim] = useState(() => new Animated.Value(isFocused ? 1 : 0));
@@ -199,6 +230,8 @@ function TabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProp
           },
         ]}
         numberOfLines={1}
+        // The label sits inside a fixed-size bubble; at 1.6x text it touched the bubble's edges.
+        maxFontSizeMultiplier={1.15}
       >
         {tab.label}
       </Animated.Text>
@@ -215,7 +248,8 @@ export function PersistentBottomBar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
-  const { role } = useRole();
+  const { role, isPhotographer } = useRole();
+  const flat = isPhotographer;
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
   const unreadCount = useMemo(
     () => notifications?.filter((n) => !n.read).length ?? 0,
@@ -339,9 +373,14 @@ export function PersistentBottomBar() {
     outputRange: [1, 0.88],
   });
 
+  // Dark: the same brand pink, a step deeper and with a quieter rim, glow and sheen. On a deep navy bar the light-mode
+  // values glare (a neon bubble with a white rim), so only the bubble's own chrome is toned down.
   const bubbleGradient: [string, string] = isDark
-    ? ['#FF3B9E', '#D90B7E']
+    ? ['#E0268F', '#B50B6C']
     : ['#FF2A9D', '#F20C8F'];
+  const bubbleDark = isDark
+    ? { borderColor: 'rgba(255, 255, 255, 0.2)', shadowOpacity: 0.2 }
+    : null;
 
   return (
     <>
@@ -365,7 +404,10 @@ export function PersistentBottomBar() {
           <View
             style={[
               StyleSheet.absoluteFill,
-              { backgroundColor: colors.elevated, opacity: GLASS_BAR.fillOpacity },
+              {
+                backgroundColor: isDark ? colors.card : colors.elevated,
+                opacity: Platform.OS === 'ios' ? 0.92 : 1,
+              },
             ]}
           />
         </View>
@@ -381,11 +423,12 @@ export function PersistentBottomBar() {
           }}
         >
           {/* Animated Bubble Indicator */}
-          {tabWidth > 0 && (
+          {tabWidth > 0 && !flat && (
             <Animated.View
               pointerEvents="none"
               style={[
                 styles.bubbleIndicator,
+                bubbleDark,
                 {
                   transform: [
                     { translateX: bubbleX },
@@ -401,7 +444,7 @@ export function PersistentBottomBar() {
                 end={{ x: 1, y: 1 }}
                 style={styles.bubbleGradient}
               >
-                <View style={styles.bubbleGlassHighlight} />
+                <View style={[styles.bubbleGlassHighlight, isDark && { backgroundColor: 'rgba(255, 255, 255, 0.12)' }]} />
               </LinearGradient>
             </Animated.View>
           )}
@@ -424,6 +467,7 @@ export function PersistentBottomBar() {
                 isFocused={isFocused}
                 onPress={onPress}
                 width={tabWidth}
+                flat={flat}
                 badgeCount={tab.isMore && unreadCount > 0 ? unreadCount : undefined}
               />
             );
@@ -817,6 +861,11 @@ const useStyles = makeStyles((c) => ({
     width: 28,
     height: 28,
   },
+  flatTab: { height: BAR_CONTENT_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: 2, zIndex: 2 },
+  flatLabel: { fontSize: 11, fontWeight: fontWeight.semibold },
+  flatLabelOn: { fontWeight: fontWeight.bold },
+  flatRule: { width: 20, height: 2.5, borderRadius: 2 },
+  flatBadge: { top: -2, right: -5 },
   tabLabel: {
     position: 'absolute',
     bottom: 5,

@@ -1,5 +1,4 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, Text, View } from 'react-native';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import type { Conversation } from './api';
 
@@ -30,12 +29,22 @@ function formatInstagramTimestamp(dateStr?: string): string {
   }
 }
 
+/**
+ * What a screen reader hears for one conversation. The unread state is in the words, not only in the dot.
+ * No last message reads "No messages yet" rather than an invented "Sent a message".
+ */
+export function conversationLabel(c: Pick<Conversation, 'name' | 'lastMessage' | 'unreadCount' | 'timestamp'>): string {
+  const when = formatInstagramTimestamp(c.timestamp);
+  return [c.name, c.unreadCount > 0 ? `${c.unreadCount} unread` : null, c.lastMessage || 'No messages yet', when || null].filter(Boolean).join(', ');
+}
+
 export function ConversationRow({
   conversation,
-  onPressCamera,
+  accent = false,
 }: {
   conversation: Conversation;
-  onPressCamera?: () => void;
+  /** Unread dot, count and time in the brand pink (the client inbox). The default keeps the original blue. */
+  accent?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -44,7 +53,7 @@ export function ConversationRow({
   const timeStr = formatInstagramTimestamp(conversation.timestamp);
 
   return (
-    <View style={[styles.row, hasUnread && styles.rowUnread]}>
+    <View style={[styles.row, hasUnread && styles.rowUnread]} accessible accessibilityLabel={conversationLabel(conversation)}>
       {/* Avatar with Instagram-style Online indicator & unread ring */}
       <View style={styles.avatarContainer}>
         <View style={[styles.avatarRing, hasUnread && styles.avatarRingActive]}>
@@ -69,12 +78,12 @@ export function ConversationRow({
             style={[styles.preview, hasUnread && styles.previewUnread]}
             numberOfLines={1}
           >
-            {conversation.lastMessage || 'Sent a message'}
+            {conversation.lastMessage || 'No messages yet'}
           </Text>
           {timeStr ? (
             <>
               <Text style={styles.dotSeparator}>·</Text>
-              <Text style={[styles.timestamp, hasUnread && styles.timestampUnread]}>
+              <Text style={[styles.timestamp, hasUnread && styles.timestampUnread, hasUnread && accent && { color: colors.accent }]}>
                 {timeStr}
               </Text>
             </>
@@ -82,30 +91,18 @@ export function ConversationRow({
         </View>
       </View>
 
-      {/* Trailing: Instagram unread dot / badge OR Camera icon */}
-      <View style={styles.trailing}>
-        {hasUnread ? (
-          conversation.unreadCount > 1 ? (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>
-                {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
-              </Text>
+      {/* Trailing: the unread dot or count. A read conversation has nothing here. */}
+      {hasUnread ? (
+        <View style={styles.trailing}>
+          {conversation.unreadCount > 1 ? (
+            <View style={[styles.unreadBadge, accent && { backgroundColor: colors.accent }]}>
+              <Text style={styles.unreadBadgeText}>{conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</Text>
             </View>
           ) : (
-            <View style={styles.unreadDot} />
-          )
-        ) : (
-          <Pressable
-            onPress={onPressCamera}
-            hitSlop={8}
-            style={({ pressed }) => [styles.cameraBtn, pressed && { opacity: 0.6 }]}
-            accessibilityRole="button"
-            accessibilityLabel="Open camera"
-          >
-            <Ionicons name="camera-outline" size={22} color={colors.textMuted} />
-          </Pressable>
-        )}
-      </View>
+            <View style={[styles.unreadDot, accent && { backgroundColor: colors.accent }]} />
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -223,10 +220,5 @@ const useStyles = makeStyles((c) => ({
     fontSize: 11,
     fontFamily: fonts.bold,
     fontWeight: '700',
-  },
-  cameraBtn: {
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 }));
