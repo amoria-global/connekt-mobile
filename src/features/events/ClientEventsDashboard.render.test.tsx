@@ -40,6 +40,18 @@ jest.mock('@/features/booking/BookingModeSelector', () => ({
   },
 }));
 jest.mock('@/features/hybrid/ExploreChoiceSheet', () => ({ ExploreChoiceSheet: () => null }));
+jest.mock('@/components/ui/live', () => {
+  const { Text, Pressable, View } = require('react-native');
+  return {
+    LivePill: ({ label = 'LIVE' }: { label?: string }) => <Text>{label}</Text>,
+    LiveButton: ({ label, onPress }: { label: string; onPress?: () => void }) => (
+      <Pressable onPress={onPress} accessibilityLabel={label}>
+        <Text>{label}</Text>
+      </Pressable>
+    ),
+    LiveTwinkle: ({ children }: { children: React.ReactNode }) => <View>{children}</View>,
+  };
+});
 jest.mock('@/store/auth', () => {
   const state = () => ({ user: { firstName: 'Aline', customerType: 'CLIENT' }, status: 'authenticated' });
   return {
@@ -233,5 +245,17 @@ describe('client events as rendered', () => {
     expect(text).not.toContain('Awaiting your reply');
     expect(text).not.toContain('Accept');
     expect(text).not.toContain('Decline');
+  });
+
+  it('a live event shows Live now and Watch live, opening the live stream', async () => {
+    serve(ok([
+      { id: 'live9', title: 'Kigali Gala', eventDate: dayKey(new Date()), status: 'ONGOING' },
+    ]));
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Kigali Gala');
+    expect(text).toContain('Live now');
+    await press(byText(r, 'Watch live'), 'Watch live');
+    expect(mockPush).toHaveBeenCalledWith('/(public)/events/live-stream?id=live9');
   });
 });

@@ -39,8 +39,16 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('@/components/topbar/TopBar', () => ({ TopBar: () => null, useTopBarHeight: () => 0 }));
 jest.mock('@/components/ui/Screen', () => ({ Screen: ({ children }: { children: React.ReactNode }) => children }));
 jest.mock('@/components/ui/live', () => {
-  const { Text } = require('react-native');
-  return { LivePill: ({ label }: { label: string }) => <Text>{label}</Text> };
+  const { Text, Pressable, View } = require('react-native');
+  return {
+    LivePill: ({ label = 'LIVE' }: { label?: string }) => <Text>{label}</Text>,
+    LiveButton: ({ label, onPress }: { label: string; onPress?: () => void }) => (
+      <Pressable onPress={onPress} accessibilityLabel={label}>
+        <Text>{label}</Text>
+      </Pressable>
+    ),
+    LiveTwinkle: ({ children }: { children: React.ReactNode }) => <View>{children}</View>,
+  };
 });
 jest.mock('@/features/kyc/KycBanner', () => ({ KycBanner: () => null }));
 jest.mock('@/components/FindPhotosBottomSheet', () => ({ FindPhotosBottomSheet: () => null }));
