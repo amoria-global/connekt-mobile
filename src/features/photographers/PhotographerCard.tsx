@@ -6,6 +6,7 @@ import type { Photographer } from './api';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
 import { VerifiedAvatar } from '@/components/ui/VerifiedAvatar';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 import { CoverCarousel } from './CoverCarousel';
 import { startingPriceText } from './pricing';
@@ -23,10 +24,11 @@ export function PhotographerCard({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const [coverWidth, setCoverWidth] = useState(175);
 
   const rating = photographer.rating ?? 0;
-  const ratingText = rating > 0 ? rating.toFixed(1) : 'New';
+  const ratingText = rating > 0 ? rating.toFixed(1) : tr('New');
   const reviewsCount = photographer.reviewCount ?? 0;
   const completedJobs = photographer.completedJobs ?? 0;
   const isBooked = photographer.currentStatus === 'booked';
@@ -58,7 +60,7 @@ export function PhotographerCard({
         <View style={styles.statusPill}>
           <View style={[styles.statusDot, isBooked && styles.statusDotBooked]} />
           <Text style={[styles.statusText, isBooked && styles.statusTextBooked]}>
-            {isBooked ? 'Booked' : 'Available'}
+            {isBooked ? tr('Booked') : tr('Available')}
           </Text>
         </View>
 
@@ -108,7 +110,7 @@ export function PhotographerCard({
 
         <View style={styles.metaRow}>
           <Text style={styles.headline} numberOfLines={1}>
-            {photographer.category || 'Photographer'}
+            {photographer.category || tr('Photographer')}
           </Text>
           {photographer.location ? (
             <>
@@ -126,13 +128,13 @@ export function PhotographerCard({
           <View style={styles.statItem}>
             <Ionicons name="videocam" size={11} color={colors.primary} />
             <Text style={styles.statNum}>{completedJobs}</Text>
-            <Text style={styles.statLabel}>shoots</Text>
+            <Text style={styles.statLabel}>{tr('shoots')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Ionicons name="chatbubble-ellipses" size={11} color={colors.primary} />
             <Text style={styles.statNum}>{reviewsCount}</Text>
-            <Text style={styles.statLabel}>reviews</Text>
+            <Text style={styles.statLabel}>{tr('reviews')}</Text>
           </View>
         </View>
 
@@ -159,14 +161,14 @@ export function PhotographerCard({
         {/* Bottom CTA Row: Pricing (On Request) + "Get in touch" Button */}
         <View style={styles.ctaRow}>
           <View style={styles.priceWrap}>
-            <Text style={styles.priceLabel}>PRICING</Text>
+            <Text style={styles.priceLabel}>{tr('PRICING')}</Text>
             <Text style={styles.priceValue} numberOfLines={1}>
-              {startingPriceText(photographer)}
+              {tr(startingPriceText(photographer))}
             </Text>
           </View>
 
           <View style={styles.getInTouchBtn}>
-            <Text style={styles.getInTouchText}>Get in touch</Text>
+            <Text style={styles.getInTouchText}>{tr('Get in touch')}</Text>
             <Ionicons name="arrow-forward" size={11} color="#FFFFFF" />
           </View>
         </View>

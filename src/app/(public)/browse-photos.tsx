@@ -45,6 +45,7 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { spacing, radii, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
+import { useLanguage } from '@/store/language';
 
 const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const WATERMARK_COLS = [0, 1, 2, 3, 4];
@@ -54,6 +55,7 @@ function sym(code?: string | null) {
 }
 
 export default function BrowsePhotosScreen() {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const [items, setItems] = useState<BrowseRow[]>([]);
@@ -186,16 +188,16 @@ export default function BrowsePhotosScreen() {
 
     const sub = addScreenshotListener(() => {
       Alert.alert(
-        'Screenshot Restricted',
-        'Screenshots of preview photos are restricted to protect photographer copyright. Please purchase or unlock photos to download original high-resolution copies.',
-        [{ text: 'OK' }]
+        t('b4_screenshotRestrictedTitle'),
+        t('b4_screenshotRestrictedMsg'),
+        [{ text: t('b4_ok') }]
       );
     });
 
     return () => {
       sub.remove();
     };
-  }, [items.length, previewing]);
+  }, [items.length, previewing, t]);
 
   const inCart = (id: string) => !!cart[id];
   const toggleCart = (row: BrowseRow) =>
@@ -251,7 +253,7 @@ export default function BrowsePhotosScreen() {
   };
 
   const submitPhotoReport = async (reason: string, description: string) => {
-    if (!reporting) throw { status: 400, message: 'Nothing to report.' };
+    if (!reporting) throw { status: 400, message: t('b4_nothingToReport') };
     return reportContent('PHOTO', reporting.imageId, reason, description);
   };
 
@@ -260,7 +262,7 @@ export default function BrowsePhotosScreen() {
     const url = getPhotoDownloadUrl(row.galleryId, row.imageId, { refid: purchaseRefid });
     await savePhotoToGallery(url, `photo-${row.imageId}.jpg`, {
       notifyOnSuccess: true,
-      customSuccessMessage: 'Original photo saved directly to your Photos gallery.',
+      customSuccessMessage: t('b4_photoSavedSuccess'),
     });
   };
 
@@ -274,18 +276,20 @@ export default function BrowsePhotosScreen() {
       }));
 
       const res = await saveBatchPhotosToGallery(batchItems, (curr, total) => {
-        setBatchProgress(`Saving ${curr} of ${total} to Photos…`);
+        setBatchProgress(t('b4_savingBatchProgress', { curr, total }));
       });
 
       if (res.saved > 0) {
         Alert.alert(
-          'Saved to Photos',
-          `Successfully saved ${res.saved} high-resolution photo${res.saved > 1 ? 's' : ''} directly to your device gallery.`,
-          [{ text: 'OK' }]
+          t('b4_savedToPhotosTitle'),
+          res.saved === 1
+            ? t('b4_savedToPhotosMsgSingular', { count: res.saved })
+            : t('b4_savedToPhotosMsgPlural', { count: res.saved }),
+          [{ text: t('b4_ok') }]
         );
       }
     } catch {
-      Alert.alert('Download Error', 'Some photos could not be saved. Please try again.');
+      Alert.alert(t('b4_downloadErrorTitle'), t('b4_downloadErrorMsg'));
     } finally {
       setSavingAllBatch(false);
       setBatchProgress(null);
@@ -317,7 +321,7 @@ export default function BrowsePhotosScreen() {
           ) : null}
         </View>
         <View style={styles.watermark}>
-          <Text style={styles.watermarkText}>PREVIEW</Text>
+          <Text style={styles.watermarkText}>{t('b4_previewWatermark')}</Text>
         </View>
       </Pressable>
     );
@@ -350,18 +354,18 @@ export default function BrowsePhotosScreen() {
             loadingMore ? (
               <View style={styles.listFooter}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.listFooterText}>Loading more photos…</Text>
+                <Text style={styles.listFooterText}>{t('b4_loadingMorePhotos')}</Text>
               </View>
             ) : !hasMore && items.length > 0 ? (
               <View style={styles.listFooter}>
-                <Text style={styles.listFooterText}>You&apos;ve reached the end of the collection ({items.length} photos)</Text>
+                <Text style={styles.listFooterText}>{t('b4_endOfCollection', { count: items.length })}</Text>
               </View>
             ) : null
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.emptyText}>No photos found.</Text>
+              <Text style={styles.emptyText}>{t('b4_noPhotosFound')}</Text>
             </View>
           }
         />
@@ -372,14 +376,16 @@ export default function BrowsePhotosScreen() {
         <View style={[styles.cartBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <View style={{ flex: 1 }}>
             <Text style={styles.cartBarCount}>
-              {cartItems.length} photo{cartItems.length === 1 ? '' : 's'}
+              {cartItems.length === 1
+                ? t('b4_cartPhotoSingular', { count: cartItems.length })
+                : t('b4_cartPhotoPlural', { count: cartItems.length })}
             </Text>
             <Text style={styles.cartBarTotal}>
               {formatPrice(cartTotal, cartItems[0]?.buyerCurrency ?? undefined)}
             </Text>
           </View>
           <Pressable style={styles.cartBarBtn} onPress={() => startCheckout()}>
-            <Text style={styles.cartBarBtnText}>Checkout</Text>
+            <Text style={styles.cartBarBtnText}>{t('b4_checkout')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -394,7 +400,7 @@ export default function BrowsePhotosScreen() {
                 onPress={() => previewing && openReport(previewing)}
                 style={styles.closeButton}
                 accessibilityRole="button"
-                accessibilityLabel="Report photo"
+                accessibilityLabel={t('b4_reportPhoto')}
                 hitSlop={8}
               >
                 <Ionicons name="flag-outline" size={22} color="#FFF" />
@@ -419,7 +425,7 @@ export default function BrowsePhotosScreen() {
                       >
                         {WATERMARK_COLS.map((colIndex) => (
                           <Text key={colIndex} style={styles.watermarkPatternText}>
-                            CONNEKYT PREVIEW
+                            {t('b4_connekytPreview')}
                           </Text>
                         ))}
                       </View>
@@ -431,8 +437,8 @@ export default function BrowsePhotosScreen() {
 
             {previewing && (
               <View style={styles.lightboxFooter}>
-                <Text style={styles.lightboxTitle} numberOfLines={2}>{previewing.title || 'Untitled'}</Text>
-                <Text style={styles.lightboxPhotographer}>By {previewing.photographerName}</Text>
+                <Text style={styles.lightboxTitle} numberOfLines={2}>{previewing.title || t('b4_untitled')}</Text>
+                <Text style={styles.lightboxPhotographer}>{t('b4_byPhotographer', { name: previewing.photographerName })}</Text>
                 {/* Without a checkout path the cart is a dead end, so the whole
                     buying funnel goes away rather than just the Buy button. */}
                 {digitalPurchasesEnabled ? (
@@ -446,11 +452,11 @@ export default function BrowsePhotosScreen() {
                         size={18}
                         color="#fff"
                       />
-                      <Text style={styles.lbBtnText}>{inCart(previewing.imageId) ? 'In cart' : 'Add to cart'}</Text>
+                      <Text style={styles.lbBtnText}>{inCart(previewing.imageId) ? t('b4_inCart') : t('b4_addToCart')}</Text>
                     </Pressable>
                     <Pressable style={[styles.lbBtn, styles.lbBtnPrimary]} onPress={() => startCheckout(previewing)}>
                       <Text style={styles.lbBtnText}>
-                        Buy · {sym(previewing.buyerCurrency)}{previewing.buyerPrice}
+                        {t('b4_buyWithPrice', { price: `${sym(previewing.buyerCurrency)}${previewing.buyerPrice}` })}
                       </Text>
                     </Pressable>
                   </View>
@@ -480,15 +486,15 @@ export default function BrowsePhotosScreen() {
           <View style={[styles.successCard, { marginTop: insets.top + 20, marginBottom: insets.bottom + 20 }]}>
             <View style={styles.successHead}>
               <Ionicons name="checkmark-circle" size={28} color="#10B981" />
-              <Text style={styles.successTitle}>Purchase complete</Text>
+              <Text style={styles.successTitle}>{t('b4_purchaseComplete')}</Text>
               <Pressable onPress={() => setPurchased(null)} hitSlop={8}>
                 <Ionicons name="close" size={24} color="#fff" />
               </Pressable>
             </View>
             {unlockCode ? (
-              <Text style={styles.unlockCode}>Unlock code: {unlockCode}</Text>
+              <Text style={styles.unlockCode}>{t('b4_unlockCodeLabel', { code: unlockCode })}</Text>
             ) : null}
-            <Text style={styles.sheetHint}>Tap a photo to download the full-resolution file.</Text>
+            <Text style={styles.sheetHint}>{t('b4_tapPhotoToDownload')}</Text>
             {purchased && purchased.length > 1 && (
               <Pressable
                 style={[styles.saveAllBtn, savingAllBatch && { opacity: 0.7 }]}
@@ -501,7 +507,7 @@ export default function BrowsePhotosScreen() {
                   <Ionicons name="cloud-download-outline" size={18} color="#fff" />
                 )}
                 <Text style={styles.saveAllBtnText}>
-                  {savingAllBatch ? (batchProgress || 'Saving to Photos…') : `Save All to Photos (${purchased.length})`}
+                  {savingAllBatch ? (batchProgress || t('b4_savingToPhotos')) : t('b4_saveAllToPhotos', { count: purchased.length })}
                 </Text>
               </Pressable>
             )}

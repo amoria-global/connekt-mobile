@@ -30,7 +30,167 @@ import { Segmented } from '@/components/ui/Segmented';
 import { cancelInvite, createInvite, getOwnedAlbum, removeCollaborator, reviewSubmissions } from '@/features/collab/api';
 import { AlbumCover, PersonRow, StatusChip } from '@/features/collab/components';
 import { daysLeft, timeAgo, type Collaborator, type OwnedAlbumDetail, type Submission } from '@/features/collab/model';
+import { useLanguage } from '@/hooks/useLanguage';
 import { isApiError } from '@/store/auth';
+
+const OA_I18N = {
+  en: {
+    errLoad: "Could not load this album.",
+    errOpenTitle: "Could not open this album",
+    tryAgain: "Try again",
+    stayInReviewTitle: "Some photos stayed in review",
+    stayInReviewMsg: "{count} photo(s) were already published by another photographer, so they could not be added. You can reject them instead.",
+    errSaveDecision: "Could not save your decision",
+    pleaseTryAgain: "Please try again.",
+    shareInviteMsg: "Join my album \"{title}\" on Connekyt and submit your photos: {link}",
+    errCreateInvite: "Could not create the invite link",
+    keep: "Keep",
+    errUpdateCollab: "Could not update collaborators",
+    removeTitle: "Remove {name}?",
+    removeMsg: "They will no longer be able to submit photos to this album. Photos they already submitted stay in your review queue. To bring them back, send them a new link.",
+    remove: "Remove",
+    yourAlbum: "YOUR ALBUM",
+    photosCollabMeta: "{photos} photos · {collabs} collaborator(s)",
+    invitePhotographer: "Invite a photographer",
+    tabReview: "Review ({count})",
+    tabPeople: "People ({count})",
+    tabHistory: "History",
+    nothingToReview: "Nothing to review",
+    nothingToReviewNoCollab: "Invite a photographer. Photos they submit will wait here for your decision.",
+    nothingToReviewCaughtUp: "You are all caught up. New photos from your collaborators will appear here.",
+    selectedCount: "{count} selected",
+    tapToReviewHint: "Tap to review · long press to select",
+    clear: "Clear",
+    selectAll: "Select all",
+    collaboratorsTitle: "Collaborators",
+    noCollaboratorsYet: "No one yet. Create an invite link and send it to a photographer you work with.",
+    joinedCaption: "Joined {ago} · {count} photos",
+    openInviteLinks: "Open invite links",
+    noInvitesYet: "None. One link can bring in as many photographers as you send it to.",
+    inviteLinkFallback: "Invite link",
+    joinedCountMeta: "{count} joined · {left}",
+    share: "Share",
+    cancelLinkTitle: "Cancel this link?",
+    cancelLinkMsg: "Nobody else can join with it. Photographers who already joined stay.",
+    cancelLinkBtn: "Cancel link",
+    cancel: "Cancel",
+    noDecisionsTitle: "No decisions yet",
+    noDecisionsMsg: "Photos you approve or reject are listed here.",
+    reject: "Reject",
+    addCount: "Add {count}",
+    close: "Close",
+    submittedAgo: "Submitted {ago}",
+    addToAlbum: "Add to album",
+    yourNote: "Your note: {note}",
+    rejectSheetTitle: "Reject {count} photo(s)?",
+    rejectSheetSub: "They stay out of the album. The photographer is told, with your note if you add one.",
+    notePlaceholder: "Note for the photographer (optional)",
+  },
+  fr: {
+    errLoad: "Impossible de charger cet album.",
+    errOpenTitle: "Impossible d’ouvrir cet album",
+    tryAgain: "Réessayer",
+    stayInReviewTitle: "Certaines photos sont restées en examen",
+    stayInReviewMsg: "{count} photo(s) étaient déjà publiées par un autre photographe et n’ont pas pu être ajoutées. Vous pouvez les refuser.",
+    errSaveDecision: "Impossible d’enregistrer votre décision",
+    pleaseTryAgain: "Veuillez réessayer.",
+    shareInviteMsg: "Rejoignez mon album \"{title}\" sur Connekyt et soumettez vos photos : {link}",
+    errCreateInvite: "Impossible de créer le lien d’invitation",
+    keep: "Garder",
+    errUpdateCollab: "Impossible de mettre à jour les collaborateurs",
+    removeTitle: "Retirer {name} ?",
+    removeMsg: "Cette personne ne pourra plus soumettre de photos à cet album. Les photos déjà soumises restent dans votre file d’attente.",
+    remove: "Retirer",
+    yourAlbum: "VOTRE ALBUM",
+    photosCollabMeta: "{photos} photos · {collabs} collaborateur(s)",
+    invitePhotographer: "Inviter un photographe",
+    tabReview: "Examiner ({count})",
+    tabPeople: "Personnes ({count})",
+    tabHistory: "Historique",
+    nothingToReview: "Rien à examiner",
+    nothingToReviewNoCollab: "Invitez un photographe. Les photos soumises attendront votre décision ici.",
+    nothingToReviewCaughtUp: "Vous êtes à jour. Les nouvelles photos de vos collaborateurs apparaîtront ici.",
+    selectedCount: "{count} sélectionnée(s)",
+    tapToReviewHint: "Appuyez pour examiner · appui long pour sélectionner",
+    clear: "Effacer",
+    selectAll: "Tout sélectionner",
+    collaboratorsTitle: "Collaborateurs",
+    noCollaboratorsYet: "Personne pour l’instant. Créez un lien d’invitation et envoyez-le à un photographe.",
+    joinedCaption: "A rejoint {ago} · {count} photos",
+    openInviteLinks: "Liens d’invitation actifs",
+    noInvitesYet: "Aucun. Un seul lien peut inviter autant de photographes que vous le souhaitez.",
+    inviteLinkFallback: "Lien d’invitation",
+    joinedCountMeta: "{count} rejoint(s) · {left}",
+    share: "Partager",
+    cancelLinkTitle: "Annuler ce lien ?",
+    cancelLinkMsg: "Plus personne ne pourra rejoindre avec ce lien. Les photographes déjà présents restent.",
+    cancelLinkBtn: "Annuler le lien",
+    cancel: "Annuler",
+    noDecisionsTitle: "Aucune décision pour l’instant",
+    noDecisionsMsg: "Les photos approuvées ou refusées sont listées ici.",
+    reject: "Refuser",
+    addCount: "Ajouter {count}",
+    close: "Fermer",
+    submittedAgo: "Soumise {ago}",
+    addToAlbum: "Ajouter à l’album",
+    yourNote: "Votre note : {note}",
+    rejectSheetTitle: "Refuser {count} photo(s) ?",
+    rejectSheetSub: "Elles restent hors de l’album. Le photographe en est informé avec votre note.",
+    notePlaceholder: "Note pour le photographe (optionnel)",
+  },
+  es: {
+    errLoad: "No se pudo cargar este álbum.",
+    errOpenTitle: "No se pudo abrir este álbum",
+    tryAgain: "Intentar de nuevo",
+    stayInReviewTitle: "Algunas fotos permanecieron en revisión",
+    stayInReviewMsg: "{count} foto(s) ya fueron publicadas por otro fotógrafo y no pudieron añadirse. Puedes rechazarlas.",
+    errSaveDecision: "No se pudo guardar tu decisión",
+    pleaseTryAgain: "Por favor inténtalo de nuevo.",
+    shareInviteMsg: "Únete a mi álbum \"{title}\" en Connekyt y envía tus fotos: {link}",
+    errCreateInvite: "No se pudo crear el enlace de invitación",
+    keep: "Conservar",
+    errUpdateCollab: "No se pudieron actualizar los colaboradores",
+    removeTitle: "¿Eliminar a {name}?",
+    removeMsg: "Ya no podrá enviar fotos a este álbum. Las fotos ya enviadas permanecen en tu cola de revisión.",
+    remove: "Eliminar",
+    yourAlbum: "TU ÁLBUM",
+    photosCollabMeta: "{photos} fotos · {collabs} colaborador(es)",
+    invitePhotographer: "Invitar a un fotógrafo",
+    tabReview: "Revisar ({count})",
+    tabPeople: "Personas ({count})",
+    tabHistory: "Historial",
+    nothingToReview: "Nada por revisar",
+    nothingToReviewNoCollab: "Invita a un fotógrafo. Las fotos que envíe esperarán aquí tu decisión.",
+    nothingToReviewCaughtUp: "Estás al día. Las nuevas fotos de tus colaboradores aparecerán aquí.",
+    selectedCount: "{count} seleccionada(s)",
+    tapToReviewHint: "Toca para revisar · mantén presionado para seleccionar",
+    clear: "Limpiar",
+    selectAll: "Seleccionar todo",
+    collaboratorsTitle: "Colaboradores",
+    noCollaboratorsYet: "Nadie aún. Crea un enlace de invitación y envíalo a un fotógrafo.",
+    joinedCaption: "Se unió {ago} · {count} fotos",
+    openInviteLinks: "Enlaces de invitación abiertos",
+    noInvitesYet: "Ninguno. Un enlace puede invitar a tantos fotógrafos como quieras.",
+    inviteLinkFallback: "Enlace de invitación",
+    joinedCountMeta: "{count} unido(s) · {left}",
+    share: "Compartir",
+    cancelLinkTitle: "¿Cancelar este enlace?",
+    cancelLinkMsg: "Nadie más podrá unirse con él. Los fotógrafos que ya se unieron permanecen.",
+    cancelLinkBtn: "Cancelar enlace",
+    cancel: "Cancelar",
+    noDecisionsTitle: "Aún no hay decisiones",
+    noDecisionsMsg: "Las fotos que apruebes o rechaces aparecerán aquí.",
+    reject: "Rechazar",
+    addCount: "Añadir {count}",
+    close: "Cerrar",
+    submittedAgo: "Enviada {ago}",
+    addToAlbum: "Añadir al álbum",
+    yourNote: "Tu nota: {note}",
+    rejectSheetTitle: "¿Rechazar {count} foto(s)?",
+    rejectSheetSub: "Quedarán fuera del álbum. Se notificará al fotógrafo con tu nota si añades una.",
+    notePlaceholder: "Nota para el fotógrafo (opcional)",
+  },
+} as const;
 import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
 
 type Tab = 'review' | 'people' | 'history';
@@ -41,6 +201,8 @@ export default function OwnerAlbumScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = useStyles();
+  const { language } = useLanguage();
+  const tr = OA_I18N[language] ?? OA_I18N.en;
   const { width } = useWindowDimensions();
   const [data, setData] = useState<OwnedAlbumDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +222,7 @@ export default function OwnerAlbumScreen() {
       setData(d);
       navigation.setOptions({ title: d.album.title });
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not load this album.');
+      setError(isApiError(e) ? e.message : tr.errLoad);
     }
   }, [id, navigation]);
 
@@ -93,12 +255,11 @@ export default function OwnerAlbumScreen() {
       setPreview(null);
       setRejecting(null);
       if (r.duplicates.length > 0) {
-        Alert.alert('Some photos stayed in review',
-          `${r.duplicates.length} photo${r.duplicates.length === 1 ? ' was' : 's were'} already published by another photographer, so ${r.duplicates.length === 1 ? 'it' : 'they'} could not be added. You can reject ${r.duplicates.length === 1 ? 'it' : 'them'} instead.`);
+        Alert.alert(tr.stayInReviewTitle, tr.stayInReviewMsg.replace('{count}', String(r.duplicates.length)));
       }
       await load();
     } catch (e) {
-      Alert.alert('Could not save your decision', isApiError(e) ? e.message : 'Please try again.');
+      Alert.alert(tr.errSaveDecision, isApiError(e) ? e.message : tr.pleaseTryAgain);
     } finally {
       setBusy(false);
     }
@@ -111,43 +272,41 @@ export default function OwnerAlbumScreen() {
       const created = await createInvite(data.album.id);
       await load();
       await Share.share({
-        message: `Join my album "${data.album.title}" on Connekyt and submit your photos: ${created.link}`,
+        message: tr.shareInviteMsg.replace('{title}', data.album.title).replace('{link}', created.link),
       });
     } catch (e) {
-      if (isApiError(e)) Alert.alert('Could not create the invite link', e.message);
+      if (isApiError(e)) Alert.alert(tr.errCreateInvite, e.message);
     } finally {
       setBusy(false);
     }
   };
 
   const shareLink = (link: string) => {
-    Share.share({ message: `Join my album "${data?.album.title}" on Connekyt and submit your photos: ${link}` });
+    Share.share({ message: tr.shareInviteMsg.replace('{title}', data?.album.title ?? '').replace('{link}', link) });
   };
 
   const confirmThen = (title: string, message: string, confirm: string, action: () => Promise<void>) => {
     Alert.alert(title, message, [
-      { text: 'Keep', style: 'cancel' },
+      { text: tr.keep, style: 'cancel' },
       {
         text: confirm,
         style: 'destructive',
         onPress: async () => {
           try { await action(); await load(); } catch (e) {
-            Alert.alert('Could not update collaborators', isApiError(e) ? e.message : 'Please try again.');
+            Alert.alert(tr.errUpdateCollab, isApiError(e) ? e.message : tr.pleaseTryAgain);
           }
         },
       },
     ]);
   };
 
-  const askRemove = (c: Collaborator) => confirmThen(`Remove ${c.name}?`,
-    'They will no longer be able to submit photos to this album. Photos they already submitted stay in your review queue. To bring them back, send them a new link.',
-    'Remove', () => removeCollaborator(c.membershipId));
+  const askRemove = (c: Collaborator) => confirmThen(tr.removeTitle.replace('{name}', c.name), tr.removeMsg, tr.remove, () => removeCollaborator(c.membershipId));
 
   if (!data) {
     return (
       <Screen padded={false}>
         {error ? (
-          <EmptyState icon="alert-circle-outline" title="Could not open this album" message={error} action={{ label: 'Try again', onPress: load }} />
+          <EmptyState icon="alert-circle-outline" title={tr.errOpenTitle} message={error} action={{ label: tr.tryAgain, onPress: load }} />
         ) : (
           <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
         )}
@@ -167,36 +326,34 @@ export default function OwnerAlbumScreen() {
         <View style={styles.header}>
           <View style={styles.headerCover}><AlbumCover uri={album.coverImage} title={album.title} /></View>
           <View style={styles.flex}>
-            <Text style={styles.eyebrow}>YOUR ALBUM</Text>
+            <Text style={styles.eyebrow}>{tr.yourAlbum}</Text>
             <Text style={styles.title} numberOfLines={2}>{album.title}</Text>
-            <Text style={styles.muted}>{album.imageCount} photos · {collaborators.length} collaborator{collaborators.length === 1 ? '' : 's'}</Text>
+            <Text style={styles.muted}>{tr.photosCollabMeta.replace('{photos}', String(album.imageCount)).replace('{collabs}', String(collaborators.length))}</Text>
           </View>
         </View>
 
-        <Button title="Invite a photographer" onPress={invite} loading={busy && !rejecting && !preview} />
+        <Button title={tr.invitePhotographer} onPress={invite} loading={busy && !rejecting && !preview} />
 
         <Segmented<Tab>
           value={tab}
           onChange={(t) => { setTab(t); setSelected(new Set()); }}
           options={[
-            { value: 'review', label: `Review (${pending.length})` },
-            { value: 'people', label: `People (${collaborators.length})` },
-            { value: 'history', label: 'History' },
+            { value: 'review', label: tr.tabReview.replace('{count}', String(pending.length)) },
+            { value: 'people', label: tr.tabPeople.replace('{count}', String(collaborators.length)) },
+            { value: 'history', label: tr.tabHistory },
           ]}
         />
 
         {tab === 'review' && (pending.length === 0 ? (
-          <EmptyState icon="file-tray-outline" title="Nothing to review"
-            message={collaborators.length === 0
-              ? 'Invite a photographer. Photos they submit will wait here for your decision.'
-              : 'You are all caught up. New photos from your collaborators will appear here.'} />
+          <EmptyState icon="file-tray-outline" title={tr.nothingToReview}
+            message={collaborators.length === 0 ? tr.nothingToReviewNoCollab : tr.nothingToReviewCaughtUp} />
         ) : (
           <>
             <View style={styles.reviewBar}>
-              <Text style={styles.muted}>{selecting ? `${selected.size} selected` : 'Tap to review · long press to select'}</Text>
+              <Text style={styles.muted}>{selecting ? tr.selectedCount.replace('{count}', String(selected.size)) : tr.tapToReviewHint}</Text>
               <Pressable hitSlop={8} onPress={() => setSelected(selecting ? new Set() : new Set(pending.map((s) => s.id)))}
                 accessibilityRole="button">
-                <Text style={styles.link}>{selecting ? 'Clear' : 'Select all'}</Text>
+                <Text style={styles.link}>{selecting ? tr.clear : tr.selectAll}</Text>
               </Pressable>
             </View>
             <View style={styles.grid}>
@@ -210,40 +367,39 @@ export default function OwnerAlbumScreen() {
 
         {tab === 'people' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Collaborators</Text>
+            <Text style={styles.sectionTitle}>{tr.collaboratorsTitle}</Text>
             {collaborators.length === 0 ? (
-              <Text style={styles.muted}>No one yet. Create an invite link and send it to a photographer you work with.</Text>
+              <Text style={styles.muted}>{tr.noCollaboratorsYet}</Text>
             ) : collaborators.map((c) => (
               <View key={c.membershipId} style={styles.row}>
                 <View style={styles.flex}>
-                  <PersonRow person={c} caption={`Joined ${timeAgo(c.joinedAt)} · ${submittedBy.get(c.id) ?? 0} photos`} />
+                  <PersonRow person={c} caption={tr.joinedCaption.replace('{ago}', timeAgo(c.joinedAt)).replace('{count}', String(submittedBy.get(c.id) ?? 0))} />
                 </View>
                 <Pressable onPress={() => askRemove(c)} hitSlop={8} accessibilityRole="button"
                   accessibilityLabel={`Remove ${c.name}`}>
-                  <Text style={styles.danger}>Remove</Text>
+                  <Text style={styles.danger}>{tr.remove}</Text>
                 </Pressable>
               </View>
             ))}
 
-            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Open invite links</Text>
+            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>{tr.openInviteLinks}</Text>
             {invites.length === 0 ? (
-              <Text style={styles.muted}>None. One link can bring in as many photographers as you send it to.</Text>
+              <Text style={styles.muted}>{tr.noInvitesYet}</Text>
             ) : invites.map((inv) => (
               <View key={inv.id} style={styles.row}>
                 <Ionicons name="link-outline" size={20} color={colors.primary} />
                 <View style={styles.flex}>
-                  <Text style={styles.rowTitle} numberOfLines={1}>{inv.note || 'Invite link'}</Text>
+                  <Text style={styles.rowTitle} numberOfLines={1}>{inv.note || tr.inviteLinkFallback}</Text>
                   <Text style={styles.muted}>
-                    {inv.joinedCount} joined · {daysLeft(inv.expiresAt)}
+                    {tr.joinedCountMeta.replace('{count}', String(inv.joinedCount)).replace('{left}', daysLeft(inv.expiresAt))}
                   </Text>
                 </View>
                 <Pressable onPress={() => shareLink(inv.link)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share invite link">
-                  <Text style={styles.link}>Share</Text>
+                  <Text style={styles.link}>{tr.share}</Text>
                 </Pressable>
                 <Pressable hitSlop={8} accessibilityRole="button" accessibilityLabel="Cancel invite link"
-                  onPress={() => confirmThen('Cancel this link?',
-                    'Nobody else can join with it. Photographers who already joined stay.', 'Cancel link', () => cancelInvite(inv.id))}>
-                  <Text style={styles.danger}>Cancel</Text>
+                  onPress={() => confirmThen(tr.cancelLinkTitle, tr.cancelLinkMsg, tr.cancelLinkBtn, () => cancelInvite(inv.id))}>
+                  <Text style={styles.danger}>{tr.cancel}</Text>
                 </Pressable>
               </View>
             ))}
@@ -251,7 +407,7 @@ export default function OwnerAlbumScreen() {
         )}
 
         {tab === 'history' && (decided.length === 0 ? (
-          <EmptyState icon="time-outline" title="No decisions yet" message="Photos you approve or reject are listed here." />
+          <EmptyState icon="time-outline" title={tr.noDecisionsTitle} message={tr.noDecisionsMsg} />
         ) : (
           <View style={styles.grid}>
             {decided.map((s) => (
@@ -267,9 +423,9 @@ export default function OwnerAlbumScreen() {
 
       {selecting && tab === 'review' && (
         <View style={styles.actionBar}>
-          <Button title="Reject" variant="outline" style={styles.flex} disabled={busy}
+          <Button title={tr.reject} variant="outline" style={styles.flex} disabled={busy}
             onPress={() => { setNote(''); setRejecting(Array.from(selected)); }} />
-          <Button title={`Add ${selected.size}`} style={styles.flex} loading={busy}
+          <Button title={tr.addCount.replace('{count}', String(selected.size))} style={styles.flex} loading={busy}
             onPress={() => decide(Array.from(selected), 'APPROVE')} />
         </View>
       )}
@@ -283,17 +439,17 @@ export default function OwnerAlbumScreen() {
           {(preview?.thumbnailUrl || preview?.imageUrl) ? <Image source={{ uri: preview.thumbnailUrl || preview.imageUrl }} style={styles.previewImage} contentFit="contain" /> : null}
           {preview && (
             <View style={styles.previewPanel}>
-              <PersonRow person={preview.collaborator} caption={`Submitted ${timeAgo(preview.submittedAt)}`} />
+              <PersonRow person={preview.collaborator} caption={tr.submittedAgo.replace('{ago}', timeAgo(preview.submittedAt))} />
               {preview.status === 'PENDING' ? (
                 <View style={styles.previewActions}>
-                  <Button title="Reject" variant="outline" style={styles.flex}
+                  <Button title={tr.reject} variant="outline" style={styles.flex}
                     onPress={() => { setNote(''); setRejecting([preview.id]); }} />
-                  <Button title="Add to album" style={styles.flex} loading={busy} onPress={() => decide([preview.id], 'APPROVE')} />
+                  <Button title={tr.addToAlbum} style={styles.flex} loading={busy} onPress={() => decide([preview.id], 'APPROVE')} />
                 </View>
               ) : (
                 <View style={{ gap: spacing.xs }}>
                   <StatusChip status={preview.status} />
-                  {preview.reviewNote ? <Text style={styles.muted}>Your note: {preview.reviewNote}</Text> : null}
+                  {preview.reviewNote ? <Text style={styles.muted}>{tr.yourNote.replace('{note}', preview.reviewNote)}</Text> : null}
                 </View>
               )}
             </View>
@@ -319,6 +475,8 @@ function ReviewTile({ s, size, selecting, selected, onPress, onLongPress }: {
   s: Submission; size: number; selecting: boolean; selected: boolean; onPress: () => void; onLongPress: () => void;
 }) {
   const styles = useStyles();
+  const { language } = useLanguage();
+  const tr = OA_I18N[language] ?? OA_I18N.en;
   return (
     <Pressable
       onPress={onPress}
@@ -344,15 +502,17 @@ function RejectSheet({ count, note, onNote, busy, onCancel, onConfirm }: {
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { language } = useLanguage();
+  const tr = OA_I18N[language] ?? OA_I18N.en;
   return (
     <View style={styles.sheetBackdrop}>
       <View style={styles.sheet}>
-        <Text style={styles.sheetTitle}>Reject {count} photo{count === 1 ? '' : 's'}?</Text>
-        <Text style={styles.muted}>They stay out of the album. The photographer is told, with your note if you add one.</Text>
+        <Text style={styles.sheetTitle}>{tr.rejectSheetTitle.replace('{count}', String(count))}</Text>
+        <Text style={styles.muted}>{tr.rejectSheetSub}</Text>
         <TextInput
           value={note}
           onChangeText={onNote}
-          placeholder="Note for the photographer (optional)"
+          placeholder={tr.notePlaceholder}
           placeholderTextColor={colors.textMuted}
           multiline
           maxLength={500}
@@ -360,8 +520,8 @@ function RejectSheet({ count, note, onNote, busy, onCancel, onConfirm }: {
           accessibilityLabel="Note for the photographer"
         />
         <View style={styles.previewActions}>
-          <Button title="Cancel" variant="ghost" style={styles.flex} onPress={onCancel} />
-          <Button title="Reject" variant="danger" style={styles.flex} loading={busy} onPress={onConfirm} />
+          <Button title={tr.cancel} variant="ghost" style={styles.flex} onPress={onCancel} />
+          <Button title={tr.reject} variant="danger" style={styles.flex} loading={busy} onPress={onConfirm} />
         </View>
       </View>
     </View>

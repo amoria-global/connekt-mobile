@@ -10,6 +10,7 @@ import { formatDate } from '@/utils/format';
 import { acceptEventBooking, declineEventBooking } from './api';
 import type { EventItem } from './types';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 
 /**
@@ -41,6 +42,7 @@ export function EventCard({
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const { tr } = useSharedT();
   const isPhotog = variant === 'photographer';
   const [busy, setBusy] = useState<'accept' | 'decline' | null>(null);
   const bookingStatus = (event.bookingStatus ?? '').toUpperCase();
@@ -110,7 +112,7 @@ export function EventCard({
                     setBusy('accept');
                     acceptEventBooking(event.id)
                       .then(() => onChanged?.())
-                      .catch(() => Alert.alert('Could not accept', 'Please try again.'))
+                      .catch(() => Alert.alert(tr('Try again'), tr('Try again')))
                       .finally(() => setBusy(null));
                   }}
                   disabled={busy !== null}
@@ -120,7 +122,7 @@ export function EventCard({
                   ) : (
                     <>
                       <Ionicons name="checkmark-circle" size={14} color="#fff" />
-                      <Text style={styles.ctaText}>Accept</Text>
+                      <Text style={styles.ctaText}>{tr('Accept')}</Text>
                     </>
                   )}
                 </Pressable>
@@ -128,16 +130,16 @@ export function EventCard({
                   style={[styles.cta, { backgroundColor: colors.error }]}
                   onPress={(e) => {
                     e.stopPropagation();
-                    Alert.alert('Decline booking?', 'This will notify the client.', [
-                      { text: 'Cancel', style: 'cancel' },
+                    Alert.alert(tr('Decline booking'), '', [
+                      { text: tr('Cancel'), style: 'cancel' },
                       {
-                        text: 'Decline',
+                        text: tr('Decline'),
                         style: 'destructive',
                         onPress: () => {
                           setBusy('decline');
                           declineEventBooking(event.id, 'Not available')
                             .then(() => onChanged?.())
-                            .catch(() => Alert.alert('Could not decline', 'Please try again.'))
+                            .catch(() => Alert.alert(tr('Try again'), tr('Try again')))
                             .finally(() => setBusy(null));
                         },
                       },
@@ -150,7 +152,7 @@ export function EventCard({
                   ) : (
                     <>
                       <Ionicons name="close-circle" size={14} color="#fff" />
-                      <Text style={styles.ctaText}>Decline</Text>
+                      <Text style={styles.ctaText}>{tr('Decline')}</Text>
                     </>
                   )}
                 </Pressable>
@@ -162,13 +164,13 @@ export function EventCard({
                 onPress={() => router.push(`/(app)/event/${event.id}` as never)}
               >
                 <Ionicons name="videocam" size={14} color="#fff" />
-                <Text style={styles.ctaText}>Live Stream</Text>
+                <Text style={styles.ctaText}>{tr('Live Stream')}</Text>
               </Pressable>
             ) : null}
             {albumSent ? (
               <View style={styles.sentChip}>
                 <Ionicons name="checkmark-done" size={12} color="#fff" />
-                <Text style={styles.sentChipText}>Album sent</Text>
+                <Text style={styles.sentChipText}>{tr('Album sent')}</Text>
               </View>
             ) : canCreateAlbum ? (
               <Pressable
@@ -176,7 +178,7 @@ export function EventCard({
                 onPress={() => router.push(`/album/new?eventId=${event.id}` as never)}
               >
                 <Ionicons name="add-circle-outline" size={14} color="#fff" />
-                <Text style={styles.ctaText}>Create Album</Text>
+                <Text style={styles.ctaText}>{tr('Create Album')}</Text>
               </Pressable>
             ) : null}
           </View>

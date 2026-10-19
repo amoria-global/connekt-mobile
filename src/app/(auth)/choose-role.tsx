@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 /**
  * Role selection is unified as a native bottom sheet modal on the Login page.
  * Direct navigation to /choose-role seamlessly redirects to /login with the role sheet open.
  */
 export default function ChooseRoleScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const params = useLocalSearchParams();
 

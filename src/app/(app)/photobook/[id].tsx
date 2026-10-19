@@ -42,6 +42,136 @@ import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
+
+const I18N = {
+  en: {
+    statusPublished: 'Published · Live',
+    statusDraft: 'Draft',
+    statusPending: 'Pending review',
+    statusSent: 'Delivered',
+    statusBook: 'Book',
+    photobookFallback: 'Photobook',
+    photoFallback: 'Photo',
+    shareBookMsg: (title: string, url: string) => `Explore "${title}" on Connekyt:\n${url}`,
+    sharePhotoMsg: (title: string, url: string) =>
+      `Check out this photo from "${title}" on Connekyt:\n${url}`,
+    photoSavedMsg: 'Photo successfully saved to your camera roll.',
+    saveFailedTitle: 'Save failed',
+    couldNotSaveTitle: 'Could not save',
+    pleaseTryAgain: 'Please try again.',
+    loadingBook: 'Loading photobook…',
+    errorLoadBook: "Couldn't load photobook",
+    retry: 'Retry',
+    curatedPhotobook: 'Curated Photobook',
+    backA11y: 'Back',
+    shareBookA11y: 'Share photobook',
+    kindBadge: 'PHOTOBOOK',
+    curatedPhotosCount: (count: number) => `${count} curated photo${count === 1 ? '' : 's'}`,
+    byPhotographer: (name: string) => `By ${name}`,
+    extraPhotosAvailable: 'Extra Photos Available',
+    additionalPhotosMeta: (count: number, price: string) => `${count} additional photos · ${price}`,
+    payAndUnlock: 'Pay & Unlock',
+    curatedSpreads: 'CURATED SPREADS',
+    grid3A11y: '3-column dense view',
+    grid2A11y: '2-column editorial view',
+    emptyTitle: 'No photos in this book',
+    emptySubtitle: 'The photographer has not added photos to this photobook collection yet.',
+    closeViewerA11y: 'Close photo viewer',
+    counterOf: (idx: number, total: number) => `${idx} of ${total}`,
+    sharePhotoA11y: 'Share photo',
+    prevPhotoA11y: 'Previous photo',
+    nextPhotoA11y: 'Next photo',
+    saveToCameraRoll: 'Save to Camera Roll',
+    photobookExtras: 'Photobook extras',
+    extraPhotosSub: 'Extra photos',
+  },
+  fr: {
+    statusPublished: 'Publié · En ligne',
+    statusDraft: 'Brouillon',
+    statusPending: 'En attente de validation',
+    statusSent: 'Livré',
+    statusBook: 'Livre',
+    photobookFallback: 'Livre photo',
+    photoFallback: 'Photo',
+    shareBookMsg: (title: string, url: string) => `Découvrez « ${title} » sur Connekyt :\n${url}`,
+    sharePhotoMsg: (title: string, url: string) =>
+      `Découvrez cette photo de « ${title} » sur Connekyt :\n${url}`,
+    photoSavedMsg: 'Photo enregistrée dans votre pellicule avec succès.',
+    saveFailedTitle: 'Échec de l’enregistrement',
+    couldNotSaveTitle: 'Impossible d’enregistrer',
+    pleaseTryAgain: 'Veuillez réessayer.',
+    loadingBook: 'Chargement du livre photo…',
+    errorLoadBook: 'Impossible de charger le livre photo',
+    retry: 'Réessayer',
+    curatedPhotobook: 'Livre photo sélectionné',
+    backA11y: 'Retour',
+    shareBookA11y: 'Partager le livre photo',
+    kindBadge: 'LIVRE PHOTO',
+    curatedPhotosCount: (count: number) =>
+      `${count} photo${count === 1 ? '' : 's'} sélectionnée${count === 1 ? '' : 's'}`,
+    byPhotographer: (name: string) => `Par ${name}`,
+    extraPhotosAvailable: 'Photos supplémentaires disponibles',
+    additionalPhotosMeta: (count: number, price: string) =>
+      `${count} photos supplémentaires · ${price}`,
+    payAndUnlock: 'Payer et débloquer',
+    curatedSpreads: ' PLANCHES SÉLECTIONNÉES',
+    grid3A11y: 'Vue dense à 3 colonnes',
+    grid2A11y: 'Vue éditoriale à 2 colonnes',
+    emptyTitle: 'Aucune photo dans ce livre',
+    emptySubtitle: 'Le photographe n’a pas encore ajouté de photos à cette collection.',
+    closeViewerA11y: 'Fermer la visionneuse',
+    counterOf: (idx: number, total: number) => `${idx} sur ${total}`,
+    sharePhotoA11y: 'Partager la photo',
+    prevPhotoA11y: 'Photo précédente',
+    nextPhotoA11y: 'Photo suivante',
+    saveToCameraRoll: 'Enregistrer dans la pellicule',
+    photobookExtras: 'Suppléments du livre photo',
+    extraPhotosSub: 'Photos supplémentaires',
+  },
+  es: {
+    statusPublished: 'Publicado · En vivo',
+    statusDraft: 'Borrador',
+    statusPending: 'Pendiente de revisión',
+    statusSent: 'Entregado',
+    statusBook: 'Libro',
+    photobookFallback: 'Fotolibro',
+    photoFallback: 'Foto',
+    shareBookMsg: (title: string, url: string) => `Explora "${title}" en Connekyt:\n${url}`,
+    sharePhotoMsg: (title: string, url: string) =>
+      `Mira esta foto de "${title}" en Connekyt:\n${url}`,
+    photoSavedMsg: 'Foto guardada exitosamente en tu carrete.',
+    saveFailedTitle: 'Error al guardar',
+    couldNotSaveTitle: 'No se pudo guardar',
+    pleaseTryAgain: 'Por favor, inténtalo de nuevo.',
+    loadingBook: 'Cargando fotolibro…',
+    errorLoadBook: 'No se pudo cargar el fotolibro',
+    retry: 'Reintentar',
+    curatedPhotobook: 'Fotolibro seleccionado',
+    backA11y: 'Atrás',
+    shareBookA11y: 'Compartir fotolibro',
+    kindBadge: 'FOTOLIBRO',
+    curatedPhotosCount: (count: number) =>
+      `${count} foto${count === 1 ? '' : 's'} seleccionada${count === 1 ? '' : 's'}`,
+    byPhotographer: (name: string) => `Por ${name}`,
+    extraPhotosAvailable: 'Fotos adicionales disponibles',
+    additionalPhotosMeta: (count: number, price: string) => `${count} fotos adicionales · ${price}`,
+    payAndUnlock: 'Pagar y desbloquear',
+    curatedSpreads: 'PLIEGOS SELECCIONADOS',
+    grid3A11y: 'Vista densa de 3 columnas',
+    grid2A11y: 'Vista editorial de 2 columnas',
+    emptyTitle: 'No hay fotos en este libro',
+    emptySubtitle: 'El fotógrafo aún no ha agregado fotos a esta colección de fotolibro.',
+    closeViewerA11y: 'Cerrar visor de fotos',
+    counterOf: (idx: number, total: number) => `${idx} de ${total}`,
+    sharePhotoA11y: 'Compartir foto',
+    prevPhotoA11y: 'Foto anterior',
+    nextPhotoA11y: 'Foto siguiente',
+    saveToCameraRoll: 'Guardar en el carrete',
+    photobookExtras: 'Extras del fotolibro',
+    extraPhotosSub: 'Fotos adicionales',
+  },
+} as const;
 import { chipColors } from '@/features/photobooks/statusChip';
 
 const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
@@ -70,6 +200,18 @@ export default function PhotobookDetailScreen() {
   const received = receivedParam === '1';
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { language } = useLanguage();
+  const tr = I18N[language] || I18N.en;
+
+  const statusMetaMap: Record<string, { label: string; bg: string; fg: string }> = useMemo(
+    () => ({
+      PUBLISHED: { label: tr.statusPublished, bg: '#D1FAE5', fg: '#047857' },
+      DRAFT: { label: tr.statusDraft, bg: '#E5E7EB', fg: '#374151' },
+      PENDING: { label: tr.statusPending, bg: '#FEF3C7', fg: '#92400E' },
+      SENT: { label: tr.statusSent, bg: '#DBEAFE', fg: '#1D4ED8' },
+    }),
+    [tr],
+  );
 
   const { data, loading, error, refresh } = useAsync(useCallback(() => getPhotobook(id, received), [id, received]));
   const [actionBusy, setActionBusy] = useState(false);
@@ -85,21 +227,21 @@ export default function PhotobookDetailScreen() {
   const openPhoto = useCallback((photoId: string) => setViewerIndex(photos.findIndex((p) => p.id === photoId)), [photos]);
 
   const onShareBook = () => {
-    const title = data?.name || 'Photobook';
+    const title = data?.name || tr.photobookFallback;
     const url = `https://connekyt.com/user/events/photobooks/${id}`;
     Share.share({
       title,
-      message: `Explore "${title}" on Connekyt:
-${url}`,
+      message: tr.shareBookMsg(title, url),
       url,
     }).catch(() => {});
   };
 
   const onShareActivePhoto = (photo: PhotobookPhoto) => {
     if (!photo.url) return;
+    const bookName = data?.name || tr.photobookFallback;
     Share.share({
-      title: data?.name || 'Photo',
-      message: `Check out this photo from "${data?.name || 'Photobook'}" on Connekyt:\n${photo.url}`,
+      title: data?.name || tr.photoFallback,
+      message: tr.sharePhotoMsg(bookName, photo.url),
       url: photo.url,
     }).catch(() => {});
   };
@@ -111,13 +253,13 @@ ${url}`,
       const filename = `connekt-photobook-${photo.id}.jpg`;
       const res = await savePhotoToGallery(photo.url, filename, {
         notifyOnSuccess: true,
-        customSuccessMessage: 'Photo successfully saved to your camera roll.',
+        customSuccessMessage: tr.photoSavedMsg,
       });
       if (!res.success && res.error) {
-        Alert.alert('Save failed', res.error);
+        Alert.alert(tr.saveFailedTitle, res.error);
       }
     } catch {
-      Alert.alert('Could not save', 'Please try again.');
+      Alert.alert(tr.couldNotSaveTitle, tr.pleaseTryAgain);
     } finally {
       setSavingPhoto(false);
     }
@@ -172,7 +314,7 @@ ${url}`,
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.muted}>Loading photobook…</Text>
+          <Text style={styles.muted}>{tr.loadingBook}</Text>
         </View>
       </Screen>
     );
@@ -184,10 +326,10 @@ ${url}`,
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.center}>
           <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
-          <Text style={styles.errorTitle}>Couldn&apos;t load photobook</Text>
+          <Text style={styles.errorTitle}>{tr.errorLoadBook}</Text>
           <Text style={styles.muted}>{error}</Text>
           <Pressable style={styles.retryBtn} onPress={refresh}>
-            <Text style={styles.retryBtnText}>Retry</Text>
+            <Text style={styles.retryBtnText}>{tr.retry}</Text>
           </Pressable>
         </View>
       </Screen>
@@ -196,8 +338,8 @@ ${url}`,
 
   const coverUrl = data?.coverImage || photos[0]?.url;
   const statusKey = (data?.status ?? '').toUpperCase();
-  const baseMeta = STATUS_META[statusKey] ?? {
-    label: data?.status || 'Book',
+  const baseMeta = statusMetaMap[statusKey] ?? {
+    label: data?.status || tr.statusBook,
     bg: 'rgba(0,0,0,0.6)',
     fg: '#fff',
   };
@@ -229,7 +371,7 @@ ${url}`,
                   <View style={styles.heroFallbackIconBox}>
                     <Ionicons name="book" size={38} color="rgba(255,255,255,0.4)" />
                   </View>
-                  <Text style={styles.heroFallbackText}>Curated Photobook</Text>
+                  <Text style={styles.heroFallbackText}>{tr.curatedPhotobook}</Text>
                 </View>
               )}
 
@@ -242,7 +384,7 @@ ${url}`,
                   style={styles.heroNavCircle}
                   onPress={() => router.back()}
                   hitSlop={8}
-                  accessibilityLabel="Back"
+                  accessibilityLabel={tr.backA11y}
                 >
                   <Ionicons name="chevron-back" size={20} color="#fff" />
                 </Pressable>
@@ -255,7 +397,7 @@ ${url}`,
                     style={styles.heroNavCircle}
                     onPress={onShareBook}
                     hitSlop={8}
-                    accessibilityLabel="Share photobook"
+                    accessibilityLabel={tr.shareBookA11y}
                   >
                     <Ionicons name="share-outline" size={18} color="#fff" />
                   </Pressable>
@@ -271,7 +413,7 @@ ${url}`,
                     </Text>
                   </View>
                   <View style={styles.kindBadge}>
-                    <Text style={styles.kindBadgeText}>PHOTOBOOK</Text>
+                    <Text style={styles.kindBadgeText}>{tr.kindBadge}</Text>
                   </View>
                 </View>
 
@@ -281,12 +423,12 @@ ${url}`,
 
                 <View style={styles.heroMetaRow}>
                   <Text style={styles.heroMetaText}>
-                    {photos.length} curated photo{photos.length === 1 ? '' : 's'}
+                    {tr.curatedPhotosCount(photos.length)}
                   </Text>
                   {data?.photographerName ? (
                     <>
                       <Text style={styles.heroMetaDot}>·</Text>
-                      <Text style={styles.heroMetaText}>By {data.photographerName}</Text>
+                      <Text style={styles.heroMetaText}>{tr.byPhotographer(data.photographerName)}</Text>
                     </>
                   ) : null}
                 </View>
@@ -340,16 +482,19 @@ ${url}`,
                   <Ionicons name="card-outline" size={20} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.payTitle}>Extra Photos Available</Text>
+                  <Text style={styles.payTitle}>{tr.extraPhotosAvailable}</Text>
                   <Text style={styles.paySubtitle}>
-                    {data.extraPhotosCount ?? 0} additional photos · {formatPrice(data.extraPhotosAmount)}
+                    {tr.additionalPhotosMeta(
+                      data.extraPhotosCount ?? 0,
+                      formatPrice(data.extraPhotosAmount),
+                    )}
                   </Text>
                 </View>
                 {payBusy ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
                   <View style={styles.payActionBtn}>
-                    <Text style={styles.payActionText}>Pay & Unlock</Text>
+                    <Text style={styles.payActionText}>{tr.payAndUnlock}</Text>
                     <Ionicons name="open-outline" size={14} color="#fff" />
                   </View>
                 )}
@@ -360,7 +505,7 @@ ${url}`,
             {photos.length > 0 ? (
               <View style={styles.photosSectionHead}>
                 <View style={styles.photosCountGroup}>
-                  <Text style={styles.photosSectionTitle}>CURATED SPREADS</Text>
+                  <Text style={styles.photosSectionTitle}>{tr.curatedSpreads}</Text>
                   <View style={styles.photosCountBadge}>
                     <Text style={styles.photosCountBadgeText}>{photos.length}</Text>
                   </View>
@@ -371,7 +516,7 @@ ${url}`,
                     style={[styles.gridToggleItem, gridCols === 3 && styles.gridToggleItemActive]}
                     onPress={() => setGridCols(3)}
                     hitSlop={6}
-                    accessibilityLabel="3-column dense view"
+                    accessibilityLabel={tr.grid3A11y}
                   >
                     <Ionicons
                       name="grid"
@@ -384,7 +529,7 @@ ${url}`,
                     style={[styles.gridToggleItem, gridCols === 2 && styles.gridToggleItemActive]}
                     onPress={() => setGridCols(2)}
                     hitSlop={6}
-                    accessibilityLabel="2-column editorial view"
+                    accessibilityLabel={tr.grid2A11y}
                   >
                     <Ionicons
                       name="square"
@@ -408,11 +553,11 @@ ${url}`,
             <View style={styles.emptyIconBox}>
               <Ionicons name="book-outline" size={32} color={colors.textMuted} />
             </View>
-            <Text style={styles.emptyTitle}>No photos in this book</Text>
+            <Text style={styles.emptyTitle}>{tr.emptyTitle}</Text>
             <Text style={styles.emptySubtitle}>
               {received
                 ? 'This photobook has no photos yet.'
-                : 'The photographer has not added photos to this photobook collection yet.'}
+                : tr.emptySubtitle}
             </Text>
           </View>
         }
@@ -433,8 +578,8 @@ ${url}`,
         onClose={() => setPayDeclarationId(null)}
         onSettled={() => void refresh()}
         handoff={payDeclarationId ? { type: 'BOOKING_DECLARATION', declarationId: payDeclarationId } : null}
-        title={data?.name ?? 'Photobook extras'}
-        subtitle="Extra photos"
+        title={data?.name ?? tr.photobookExtras}
+        subtitle={tr.extraPhotosSub}
       />
     </Screen>
   );

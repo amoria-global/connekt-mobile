@@ -11,6 +11,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import type { SatisfactionLevel, SatisfactionSurvey, ServiceDelivery } from './survey';
 
 type Props = {
@@ -56,9 +57,10 @@ function Question<T>({
   onChange: (v: T) => void;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   return (
     <View style={styles.question}>
-      <Text style={styles.questionLabel}>{label}</Text>
+      <Text style={styles.questionLabel}>{tr(label)}</Text>
       <View style={styles.optionRow}>
         {options.map((o) => {
           const active = value === o.value;
@@ -70,7 +72,7 @@ function Question<T>({
               accessibilityState={{ selected: active }}
               style={[styles.option, active && styles.optionActive]}
             >
-              <Text style={[styles.optionText, active && styles.optionTextActive]}>{o.label}</Text>
+              <Text style={[styles.optionText, active && styles.optionTextActive]}>{tr(o.label)}</Text>
             </Pressable>
           );
         })}
@@ -81,6 +83,7 @@ function Question<T>({
 
 export function SatisfactionSurveySheet({ visible, onClose, onSubmit, submitting }: Props) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const [attendedEvent, setAttendedEvent] = useState<boolean | null>(null);
   const [serviceDelivery, setServiceDelivery] = useState<ServiceDelivery | null>(null);
   const [satisfactionLevel, setSatisfactionLevel] = useState<SatisfactionLevel | null>(null);
@@ -124,10 +127,9 @@ export function SatisfactionSurveySheet({ visible, onClose, onSubmit, submitting
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>How did it go?</Text>
+            <Text style={styles.title}>{tr('How did it go?')}</Text>
             <Text style={styles.hint}>
-              Your answers confirm the job was done and release the photographer&apos;s final
-              payment. It takes about a minute.
+              {tr("Your answers confirm the job was done and release the photographer's final payment. It takes about a minute.")}
             </Text>
 
             <Question
@@ -162,7 +164,7 @@ export function SatisfactionSurveySheet({ visible, onClose, onSubmit, submitting
             />
 
             <View style={styles.question}>
-              <Text style={styles.questionLabel}>Anything we should know? (optional)</Text>
+              <Text style={styles.questionLabel}>{tr('Anything we should know? (optional)')}</Text>
               <Input
                 placeholder="Tell us about any issues"
                 value={issuesDescription}
@@ -179,7 +181,7 @@ export function SatisfactionSurveySheet({ visible, onClose, onSubmit, submitting
               disabled={!complete}
             />
             <Pressable style={styles.cancel} onPress={onClose} disabled={submitting}>
-              <Text style={styles.cancelText}>Not now</Text>
+              <Text style={styles.cancelText}>{tr('Not now')}</Text>
             </Pressable>
           </ScrollView>
         </Pressable>

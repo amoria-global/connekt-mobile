@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -37,15 +38,16 @@ export function SectionHeader({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionHeaderText}>
         <Text style={styles.sectionTitle} accessibilityRole="header" numberOfLines={1}>
-          {title}
+          {tr(title)}
         </Text>
         {subtitle ? (
           <Text style={styles.sectionSubtitle} numberOfLines={2}>
-            {subtitle}
+            {tr(subtitle)}
           </Text>
         ) : null}
       </View>
@@ -54,10 +56,10 @@ export function SectionHeader({
         <Pressable
           onPress={onAction}
           accessibilityRole="button"
-          accessibilityLabel={`${actionLabel}, ${title}`}
+          accessibilityLabel={`${tr(actionLabel)}, ${tr(title)}`}
           style={({ pressed }) => [styles.sectionAction, pressed && styles.pressed]}
         >
-          <Text style={styles.sectionActionText}>{actionLabel}</Text>
+          <Text style={styles.sectionActionText}>{tr(actionLabel)}</Text>
           <Ionicons name="chevron-forward" size={14} color={colors.link} />
         </Pressable>
       ) : null}
@@ -138,6 +140,7 @@ export function MetricCard({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const toneColor = { primary: colors.primary, accent: colors.accent, success: colors.success, warning: colors.warning }[tone];
   // The icon tile carries the tone too (the prototype tints each tile: blue wallet, amber clock, green check).
   const toneTile = { primary: colors.tint, accent: colors.tintAccent, success: colors.successBg, warning: colors.warningBg }[tone];
@@ -150,7 +153,7 @@ export function MetricCard({
           </View>
         ) : null}
         <Text style={styles.metricLabel} maxFontSizeMultiplier={1.25}>
-          {label}
+          {tr(label)}
         </Text>
         {onPress ? <Ionicons name="chevron-forward" size={14} color={colors.textMuted} /> : null}
       </View>
@@ -163,12 +166,12 @@ export function MetricCard({
       )}
       {caption ? (
         <Text style={styles.metricCaption}>
-          {caption}
+          {tr(caption)}
         </Text>
       ) : null}
     </>
   );
-  const a11y = loading ? `${label}, loading` : `${label}, ${value}${caption ? `, ${caption}` : ''}`;
+  const a11y = loading ? `${tr(label)}, loading` : `${tr(label)}, ${value}${caption ? `, ${tr(caption)}` : ''}`;
   if (!onPress) {
     return (
       <View style={[styles.metricCard, style]} accessible accessibilityLabel={a11y}>
@@ -217,6 +220,7 @@ export function ActionButton({
 }) {
   const styles = useStyles();
   const { colors, isDark } = useTheme();
+  const { tr } = useSharedT();
   const { fontScale } = useWindowDimensions();
   // At large text two buttons per row leave a label only ~100dp beside its icon, which split words ("Opportuniti / es").
   // Stacking the icon over the label gives it the whole button width.
@@ -240,7 +244,7 @@ export function ActionButton({
     <Pressable
       onPress={inactive ? undefined : onPress}
       accessibilityRole="button"
-      accessibilityLabel={badge ? `${label}, ${badge} waiting` : label}
+      accessibilityLabel={badge ? `${tr(label)}, ${badge} waiting` : tr(label)}
       accessibilityState={{ disabled: !!inactive, busy: !!busy }}
       style={({ pressed }) => [
         styles.action,
@@ -262,15 +266,15 @@ export function ActionButton({
       {caption ? (
         <View style={[styles.actionTextCol, stacked && { alignItems: 'center' }]}>
           <Text style={[styles.actionText, styles.actionTextLeft, stacked && { textAlign: 'center' }, { color: fg }]} numberOfLines={1} maxFontSizeMultiplier={1.25}>
-            {label}
+            {tr(label)}
           </Text>
           <Text style={[styles.actionCaption, stacked && { textAlign: 'center' }, variant === 'primary' && { color: colors.textOnPrimary, opacity: 0.85 }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-            {caption}
+            {tr(caption)}
           </Text>
         </View>
       ) : (
         <Text style={[styles.actionText, { color: fg }]} numberOfLines={2} maxFontSizeMultiplier={1.25}>
-          {label}
+          {tr(label)}
         </Text>
       )}
       {badge ? (
@@ -464,10 +468,11 @@ export function ErrorNotice({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   return (
     <View style={[styles.notice, { backgroundColor: colors.errorBg }]} accessibilityRole="alert">
       <Ionicons name="cloud-offline-outline" size={compact ? 18 : 22} color={colors.error} />
-      <Text style={[styles.noticeText, { color: colors.error }]}>{message}</Text>
+      <Text style={[styles.noticeText, { color: colors.error }]}>{tr(message)}</Text>
       {onRetry ? (
         <Pressable
           onPress={onRetry}
@@ -475,7 +480,7 @@ export function ErrorNotice({
           accessibilityLabel="Try again"
           style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
         >
-          <Text style={[styles.retryText, { color: colors.error }]}>Try again</Text>
+          <Text style={[styles.retryText, { color: colors.error }]}>{tr('Try again')}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -500,14 +505,15 @@ export function EmptyNote({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   if (compact) {
     return (
       <View style={styles.emptyCompact}>
         <View style={styles.emptyCompactTop}>
           <IconTile icon={icon} tone="primary" size={36} />
           <View style={styles.emptyCompactText}>
-            <Text style={styles.emptyTitleLeft}>{title}</Text>
-            {body ? <Text style={styles.emptyBodyLeft}>{body}</Text> : null}
+            <Text style={styles.emptyTitleLeft}>{tr(title)}</Text>
+            {body ? <Text style={styles.emptyBodyLeft}>{tr(body)}</Text> : null}
           </View>
         </View>
         {actionLabel && onAction ? <ActionButton label={actionLabel} onPress={onAction} variant="secondary" compact /> : null}
@@ -517,8 +523,8 @@ export function EmptyNote({
   return (
     <View style={styles.empty}>
       <Ionicons name={icon} size={28} color={colors.textMuted} />
-      <Text style={styles.emptyTitle}>{title}</Text>
-      {body ? <Text style={styles.emptyBody}>{body}</Text> : null}
+      <Text style={styles.emptyTitle}>{tr(title)}</Text>
+      {body ? <Text style={styles.emptyBody}>{tr(body)}</Text> : null}
       {actionLabel && onAction ? <ActionButton label={actionLabel} onPress={onAction} variant="secondary" /> : null}
     </View>
   );

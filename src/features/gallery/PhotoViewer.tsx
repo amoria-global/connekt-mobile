@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { makeStyles, radii, spacing } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 export type ViewerPhoto = { id: string; url?: string; fullUrl?: string };
 
@@ -49,6 +50,7 @@ const Page = memo(function Page({ photo, width }: { photo: ViewerPhoto; width: n
 
 export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onShare, onReport, saving, saveColor }: Props) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const listRef = useRef<FlatList<ViewerPhoto>>(null);
@@ -142,7 +144,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
                 <>
                   <Ionicons name="download-outline" size={17} color="#fff" />
                   <Text style={styles.saveText} maxFontSizeMultiplier={1.2}>
-                    Save to Camera Roll
+                    {tr('Save to Camera Roll')}
                   </Text>
                 </>
               )}

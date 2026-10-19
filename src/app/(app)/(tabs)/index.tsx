@@ -34,6 +34,7 @@ import {
   View,
 } from 'react-native';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
+import { GlassBackdrop, GlassCard } from '@/components/ui/GlassCard';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
@@ -77,6 +78,7 @@ import { useAuth } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 
 // ────── Greetings (web parity: pages/client/home.tsx:64-114) ──────────────
 
@@ -158,13 +160,6 @@ const ACTIONS_BY_ROLE: Record<string, Action[]> = {
 
 type Preview = { id: string; title: string; subtitle?: string; status?: string; onPress: () => void };
 
-const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'This week' },
-  { value: 'month', label: 'This month' },
-  { value: 'custom', label: 'Custom' },
-];
-
 const PERIOD_LABEL: Record<AnalyticsPeriod, string> = {
   today: 'yesterday',
   week: 'last week',
@@ -173,8 +168,9 @@ const PERIOD_LABEL: Record<AnalyticsPeriod, string> = {
 };
 
 export default function HomeScreen() {
-  // Re-render when the display currency changes (formatPrice reads the store).
+  // Re-render when the display currency or language changes
   useCurrency((s) => s.currency);
+  const { language, t } = useLanguage();
   const { colors, gradients } = useTheme();
   const styles = useStyles();
   const user = useAuth((s) => s.user);
@@ -214,11 +210,29 @@ export default function HomeScreen() {
     );
     return () => clearInterval(cycle);
   }, [timeOfDay]);
-  const currentGreeting = GREETINGS[timeOfDay][greetingIndex];
+
+  const greetingKey =
+    timeOfDay === 'morning'
+      ? 'goodMorning'
+      : timeOfDay === 'afternoon'
+      ? 'goodAfternoon'
+      : timeOfDay === 'evening'
+      ? 'goodEvening'
+      : 'goodNight';
+  const currentGreeting = t(greetingKey);
   const subtitle = (isCoordinator ? SUBTITLES_COORDINATOR : SUBTITLES_CLIENT)[timeOfDay];
 
   // ── Period filter ──────────────────────────────────────────────────────
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
+  const periodTabs = useMemo<{ value: AnalyticsPeriod; label: string }[]>(
+    () => [
+      { value: 'today', label: t('periodToday') },
+      { value: 'week', label: t('periodWeek') },
+      { value: 'month', label: t('periodMonth') },
+      { value: 'custom', label: 'Custom' },
+    ],
+    [t],
+  );
 
   // ── Wallet + upcoming feed (kept for non-dashboard roles) ──────────────
   const wallet = useAsync(useCallback(() => getWallet(), []));
@@ -448,7 +462,7 @@ export default function HomeScreen() {
             />
 
             <View style={styles.periodTabs}>
-              {PERIOD_TABS.map((t) => {
+              {periodTabs.map((t) => {
                 const active = period === t.value;
                 return (
                   <Pressable
@@ -527,7 +541,7 @@ export default function HomeScreen() {
             ) : null}
 
             {activities.length > 0 ? (
-              <Section title="Recent activity">
+              <Section title={t('recentActivity')}>
                 {activities.map((a) => (
                   <ActivityRow key={a.id} activity={a} router={router} />
                 ))}
@@ -664,6 +678,7 @@ function DashboardHero({
 }) {
   const { colors, gradients } = useTheme();
   const styles = useStyles();
+  const glassTarget = useRef<View>(null);
   return (
     <LinearGradient
       colors={[...gradients.wash]}
@@ -671,6 +686,7 @@ function DashboardHero({
       end={{ x: 1, y: 1 }}
       style={styles.hero}
     >
+      <GlassBackdrop ref={glassTarget} />
       <View style={styles.heroAccent} />
       <Text style={styles.heroEyebrow}>YOUR DASHBOARD</Text>
       <Text style={styles.heroTitle}>
@@ -679,7 +695,7 @@ function DashboardHero({
       <Text style={styles.heroSub}>{subtitle}</Text>
 
       {stats.length > 0 ? (
-        <View style={styles.heroStatsCard}>
+        <GlassCard blurTarget={glassTarget} style={styles.heroStatsCard}>
           {stats.map((s) => (
             <View key={s.label} style={styles.heroStatCell}>
               <Text style={styles.heroStatLabel}>{s.label}</Text>
@@ -688,7 +704,7 @@ function DashboardHero({
               </Text>
             </View>
           ))}
-        </View>
+        </GlassCard>
       ) : null}
     </LinearGradient>
   );
@@ -1123,11 +1139,7 @@ const useStyles = makeStyles((c, e) => ({
   heroSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textSoft },
   heroStatsCard: {
     flexDirection: 'row',
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
     gap: spacing.sm,
     marginTop: spacing.sm,
   },

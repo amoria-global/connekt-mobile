@@ -9,8 +9,9 @@ import { listNotifications } from '@/features/notifications/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
 import { spacing, radii, makeStyles, useTheme } from '@/theme';
+import { GLASS_BAR } from '@/components/ui/GlassCard';
 import { BrandPill } from './BrandPill';
-import { CurrencyButton } from './CurrencyButton';
+import { LanguageButton } from './LanguageButton';
 import { NotificationButton } from './NotificationButton';
 import { ProfileButton } from './ProfileButton';
 
@@ -34,7 +35,7 @@ export type TopBarProps = {
 
 /**
  * Shared, translucent (frosted-glass) top bar for all roles:
- * profile/back (left) · brand pill (center) · notifications (right).
+ * profile/back (left) · brand pill (center) · language · notifications (right).
  * Renders as an absolute overlay so content scrolls under the blur.
  * Place it as the last child of a screen and pad the scroll content by
  * useTopBarHeight().
@@ -59,7 +60,7 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
     <View style={[styles.wrap, { height: insets.top + barHeight }]} pointerEvents="box-none">
       {Platform.OS === 'ios' ? (
         <BlurView
-          intensity={48}
+          intensity={GLASS_BAR.intensity}
           tint={isDark ? 'dark' : 'light'}
           style={StyleSheet.absoluteFill}
           pointerEvents="none"
@@ -86,7 +87,7 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
           <ProfileButton user={user} compact={compact} onPress={() => router.push('/profile')} />
         )}
         <BrandPill style={styles.brand} flat={compact} />
-        <CurrencyButton bar={compact} />
+        <LanguageButton compact={compact} />
         <NotificationButton compact={compact} hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
       </View>
     </View>
@@ -112,8 +113,8 @@ const useStyles = makeStyles((c, e) => ({
     height: BAR_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   btn: {
     width: 46,

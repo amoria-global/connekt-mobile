@@ -1,17 +1,19 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { TERMS_SECTIONS } from '@/content/termsOfService';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function TermsOfServiceScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Terms & Conditions</Text>
-          <Text style={styles.subtitle}>The agreement that governs your use of Connekyt</Text>
-          <Text style={styles.updated}>Amoria Global Tech Ltd. (Rwanda)</Text>
+          <Text style={styles.title}>{t('b4_termsTitle')}</Text>
+          <Text style={styles.subtitle}>{t('b4_termsSubtitle')}</Text>
+          <Text style={styles.updated}>{t('b4_amoriaCompany')}</Text>
         </View>
 
         {TERMS_SECTIONS.map((section, idx) => (

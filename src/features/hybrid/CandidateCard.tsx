@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import type { CandidateSummary } from './types';
 import { MODE_META, TierBadge } from './hybridUi';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Props = {
   candidate: CandidateSummary;
@@ -21,6 +22,7 @@ type Props = {
 export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   return (
     <View style={styles.card}>
       <View style={{ flexDirection: 'row', gap: spacing.md }}>
@@ -35,11 +37,11 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
       </View>
 
       <View style={styles.meta}>
-        <Meta icon={c.photographerType === 'STUDIO' ? 'business-outline' : 'person-outline'} text={c.photographerType === 'STUDIO' ? 'Company / Studio' : 'Freelancer / Individual'} />
+        <Meta icon={c.photographerType === 'STUDIO' ? 'business-outline' : 'person-outline'} text={c.photographerType === 'STUDIO' ? tr('Company / Studio') : tr('Freelancer / Individual')} />
         {c.distanceLabel ? <Meta icon="location-outline" text={c.distanceLabel} /> : null}
         {c.rating != null && c.reviewCount ? (
-          <Meta icon="star" iconColor="#F59E0B" text={`${c.rating.toFixed(1)} · ${c.reviewCount} review${c.reviewCount === 1 ? '' : 's'}`} />
-        ) : <Meta icon="star-outline" text="No reviews yet" muted />}
+          <Meta icon="star" iconColor="#F59E0B" text={`${c.rating.toFixed(1)} · ${c.reviewCount} ${tr('reviews')}`} />
+        ) : <Meta icon="star-outline" text={tr('No reviews yet')} muted />}
         {c.typicalPriceRange ? <Meta icon="pricetag-outline" text={c.typicalPriceRange} /> : null}
         {c.instagram?.handle ? <Meta icon="logo-instagram" text={`@${c.instagram.handle}`} /> : null}
       </View>
@@ -53,13 +55,13 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
 
       <View style={styles.actions}>
         {onViewProfile ? (
-          <Pressable onPress={() => onViewProfile(c)} style={styles.secondary} accessibilityRole="button" accessibilityLabel={`View ${c.name}'s portfolio`}>
-            <Text style={styles.secondaryText}>View portfolio</Text>
+          <Pressable onPress={() => onViewProfile(c)} style={styles.secondary} accessibilityRole="button" accessibilityLabel={tr('View portfolio')}>
+            <Text style={styles.secondaryText}>{tr('View portfolio')}</Text>
           </Pressable>
         ) : null}
         <Pressable onPress={() => onSelect(c)} disabled={selecting} style={[styles.primary, selecting && { opacity: 0.6 }]}
-          accessibilityRole="button" accessibilityLabel={`Choose ${c.name}`}>
-          {selecting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Choose</Text>}
+          accessibilityRole="button" accessibilityLabel={tr('Choose')}>
+          {selecting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{tr('Choose')}</Text>}
         </Pressable>
       </View>
     </View>

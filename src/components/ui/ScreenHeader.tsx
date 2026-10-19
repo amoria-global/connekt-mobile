@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 import { useRole } from '@/features/auth/role';
 import { spacing, fontSize, fontWeight, fonts, makeStyles } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 /**
  * Standard page header.
@@ -19,19 +20,20 @@ export function ScreenHeader({
   duplicatesHeader?: boolean;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const flat = useRole().isPhotographer;
   if (flat && duplicatesHeader) {
     return subtitle ? (
       <View style={styles.leadWrap}>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={styles.subtitle}>{tr(subtitle)}</Text>
       </View>
     ) : null;
   }
 
   return (
     <View style={[styles.wrap, flat && styles.wrapFlat]}>
-      <Text style={[styles.title, flat && styles.titleFlat]} accessibilityRole="header">{title}</Text>
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <Text style={[styles.title, flat && styles.titleFlat]} accessibilityRole="header">{tr(title)}</Text>
+      {subtitle ? <Text style={styles.subtitle}>{tr(subtitle)}</Text> : null}
     </View>
   );
 }

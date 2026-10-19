@@ -10,19 +10,21 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { listTvDevices, removeTvDevice } from '@/features/tv/api';
 import type { TvDevice } from '@/features/tv/types';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function TvDevicesScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listTvDevices(), []));
 
   const onRemove = (device: TvDevice) => {
-    Alert.alert('Disconnect TV', `Remove "${device.deviceLabel}" from your account?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('b1_tvDisconnectTitle'), t('b1_tvDisconnectBody', { label: device.deviceLabel }), [
+      { text: t('b1_tvCancel'), style: 'cancel' },
       {
-        text: 'Disconnect',
+        text: t('b1_tvDisconnect'),
         style: 'destructive',
         onPress: async () => {
           await removeTvDevice(device.id);
@@ -34,14 +36,14 @@ export default function TvDevicesScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader duplicatesHeader title="Manage TVs" subtitle="TVs connected to your Connekyt account" />
+      <ScreenHeader duplicatesHeader title={t('b1_tvTitle')} subtitle={t('b1_tvSubtitle')} />
       <View style={styles.action}>
-        <Button title="Connect a new TV" onPress={() => router.push('/connect-to-tv' as Href)} />
+        <Button title={t('b1_tvConnectBtn')} onPress={() => router.push('/connect-to-tv' as Href)} />
         <Pressable style={styles.payOnTv} onPress={() => router.push('/pay-on-tv' as Href)}>
           <Ionicons name="card-outline" size={20} color={colors.primary} />
           <View style={styles.payOnTvText}>
-            <Text style={styles.payOnTvTitle}>Pay for a stream on a TV</Text>
-            <Text style={styles.payOnTvSub}>Scan the payment QR your TV shows and pay from here.</Text>
+            <Text style={styles.payOnTvTitle}>{t('b1_tvPayTitle')}</Text>
+            <Text style={styles.payOnTvSub}>{t('b1_tvPaySub')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Pressable>
@@ -53,16 +55,16 @@ export default function TvDevicesScreen() {
         onRefresh={refresh}
         keyExtractor={(item) => item.id}
         emptyIcon="tv-outline"
-        emptyTitle="No TVs connected"
-        emptyMessage="Scan the QR code on your Smart TV's login screen to connect it."
+        emptyTitle={t('b1_tvEmptyTitle')}
+        emptyMessage={t('b1_tvEmptyBody')}
         renderItem={({ item }) => (
           <Pressable style={styles.row} onPress={() => onRemove(item)}>
             <Ionicons name="tv-outline" size={22} color={colors.primary} />
             <View style={styles.rowText}>
               <Text style={styles.label}>{item.deviceLabel}</Text>
               <Text style={styles.meta}>
-                Paired {item.pairedAt}
-                {item.lastSeenAt ? ` • last seen ${item.lastSeenAt}` : ''}
+                {t('b1_tvPairedAt', { pairedAt: item.pairedAt })}
+                {item.lastSeenAt ? ` • ${t('b1_tvLastSeenAt', { lastSeenAt: item.lastSeenAt })}` : ''}
               </Text>
             </View>
             <Ionicons name="close-circle-outline" size={22} color={colors.error} />

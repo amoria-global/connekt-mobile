@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function PaymentMethodsHelpScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('cards');
 
   const toggleSection = (id: string) => {
@@ -15,9 +17,9 @@ export default function PaymentMethodsHelpScreen() {
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Payment Methods</Text>
+          <Text style={styles.title}>{t('b4_hcCatPaymentMethodsName')}</Text>
           <Text style={styles.subtitle}>
-            Complete guide to all accepted payment methods and how to use them securely
+            {t('b4_hcPmSubtitle')}
           </Text>
         </View>
 
@@ -26,40 +28,40 @@ export default function PaymentMethodsHelpScreen() {
             style={styles.accordionHeader}
             onPress={() => toggleSection('cards')}
           >
-            <Text style={styles.accordionTitle}>Credit & Debit Cards</Text>
+            <Text style={styles.accordionTitle}>{t('b4_hcPmCreditDebitCards')}</Text>
             <Text style={styles.accordionIcon}>{openSection === 'cards' ? '−' : '+'}</Text>
           </TouchableOpacity>
 
           {openSection === 'cards' && (
             <View style={styles.accordionContent}>
               <Text style={styles.bodyText}>
-                We accept all major credit and debit cards for fast and secure payments. Your card information is encrypted and processed through industry-leading payment gateways, ensuring maximum security for every transaction.
+                {t('b4_hcPmCardsIntro')}
               </Text>
 
-              <Text style={styles.sectionTitle}>Accepted Card Types</Text>
+              <Text style={styles.sectionTitle}>{t('b4_hcPmAcceptedTypes')}</Text>
               <View style={[styles.card, { borderColor: '#F59E0B26', backgroundColor: '#F59E0B0A' }]}>
-                <Text style={styles.listItem}>• Visa (Credit and Debit)</Text>
-                <Text style={styles.listItem}>• Mastercard</Text>
-                <Text style={styles.listItem}>• American Express</Text>
-                <Text style={styles.listItem}>• Discover</Text>
-                <Text style={styles.listItem}>• Local Cards (Interac, Maestro)</Text>
+                <Text style={styles.listItem}>{t('b4_hcPmVisa')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcPmMastercard')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcPmAmex')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcPmDiscover')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcPmLocalCards')}</Text>
               </View>
 
-              <Text style={styles.sectionTitle}>Card Security</Text>
+              <Text style={styles.sectionTitle}>{t('b4_hcPmCardSecurity')}</Text>
               <View style={styles.card}>
-                <Text style={styles.listItem}><Text style={styles.bold}>PCI-DSS Level 1:</Text> Highest security standard for card processing.</Text>
-                <Text style={styles.listItem}><Text style={styles.bold}>Encryption:</Text> 256-bit SSL encryption.</Text>
-                <Text style={styles.listItem}><Text style={styles.bold}>Tokenization:</Text> Card numbers replaced with secure tokens.</Text>
-                <Text style={styles.listItem}><Text style={styles.bold}>3D Secure 2.0:</Text> Additional authentication layer.</Text>
+                <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcPmPciTitle')}</Text> {t('b4_hcPmPciDesc')}</Text>
+                <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcPmEncryptionTitle')}</Text> {t('b4_hcPmEncryptionDesc')}</Text>
+                <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcPmTokenizationTitle')}</Text> {t('b4_hcPmTokenizationDesc')}</Text>
+                <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcPm3dsTitle')}</Text> {t('b4_hcPm3dsDesc')}</Text>
               </View>
 
-              <Text style={styles.sectionTitle}>Troubleshooting Card Issues</Text>
+              <Text style={styles.sectionTitle}>{t('b4_hcPmTroubleshooting')}</Text>
               <View style={[styles.card, { borderColor: '#EF444426', backgroundColor: '#EF44440A' }]}>
-                <Text style={[styles.bold, { color: '#EF4444', marginBottom: 4 }]}>Card Declined</Text>
-                <Text style={styles.listItem}>Contact your bank to ensure online transactions are enabled. Verify sufficient funds.</Text>
+                <Text style={[styles.bold, { color: '#EF4444', marginBottom: 4 }]}>{t('b4_hcPmCardDeclinedTitle')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcPmCardDeclinedDesc')}</Text>
 
-                <Text style={[styles.bold, { color: '#EF4444', marginBottom: 4, marginTop: 8 }]}>CVV Verification Failed</Text>
-                <Text style={styles.listItem}>Double-check the 3-digit CVV code on the back of your card (4 digits on front for Amex).</Text>
+                <Text style={[styles.bold, { color: '#EF4444', marginBottom: 4, marginTop: 8 }]}>{t('b4_hcPmCvvFailedTitle')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcPmCvvFailedDesc')}</Text>
               </View>
             </View>
           )}

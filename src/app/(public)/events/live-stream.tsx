@@ -124,6 +124,14 @@ import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
+import { GlassLayer, glassClear } from '@/components/ui/GlassCard';
+
+import { useLanguage } from '@/hooks/useLanguage';
+import { translate, type TranslationKey } from '@/i18n/translations';
+const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
+
+/** The side-rail toggles' "on" state: a white wash over the glass. */
+const CTRL_ACTIVE_FILL = 'rgba(255,255,255,0.28)';
 
 /** iOS drops a Modal presented while another is still sliding away; wait this long between them. */
 const MODAL_HANDOFF_MS = 400;
@@ -165,7 +173,7 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
         <View style={splashStyles.iconWrap}>
           <Ionicons name="play-circle" size={40} color="#fff" />
         </View>
-        <Text style={splashStyles.headline}>Welcome, you're in!</Text>
+        <Text style={splashStyles.headline}>{tr('b4_welcomeYouAreIn')}</Text>
         {eventTitle ? (
           <Text style={splashStyles.sub} numberOfLines={2}>
             {eventTitle}
@@ -175,7 +183,7 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
           <View style={splashStyles.liveDot} />
           <Text style={splashStyles.liveText}>LIVE</Text>
         </View>
-        <Text style={splashStyles.tapHint}>Tap anywhere to continue</Text>
+        <Text style={splashStyles.tapHint}>{tr('b4_tapAnywhereContinue')}</Text>
       </View>
     </Animated.View>
   );
@@ -206,7 +214,7 @@ function ChatVideoBubble({ uri }: { uri: string }) {
       />
       <View style={styles.chatVideoTag}>
         <Ionicons name="videocam" size={11} color={colors.primary} />
-        <Text style={styles.chatVideoTagText}>Video message</Text>
+        <Text style={styles.chatVideoTagText}>{tr('b4_videoMessage')}</Text>
       </View>
     </View>
   );
@@ -355,7 +363,7 @@ function YouTubeChatRow({
             </Text>
             {isOwn ? (
               <View style={chatFx.ytYouBadge}>
-                <Text style={chatFx.ytYouBadgeText}>YOU</Text>
+                <Text style={chatFx.ytYouBadgeText}>{tr('b4_youUpper')}</Text>
               </View>
             ) : null}
           </View>
@@ -462,7 +470,7 @@ function LiveChatPanel({
         <View style={chatFx.ytHeader}>
           <View style={chatFx.ytHeaderLeft}>
             <Ionicons name="chatbubble-ellipses" size={16} color="#4F46E5" />
-            <Text style={chatFx.ytHeaderTitle}>Live Chat</Text>
+            <Text style={chatFx.ytHeaderTitle}>{tr('b4_liveChatTitle')}</Text>
             <View style={chatFx.ytHeaderLiveDot} />
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -470,7 +478,7 @@ function LiveChatPanel({
               style={chatFx.ytCollapseBtn}
               onPress={onToggleFullscreen}
               hitSlop={8}
-              accessibilityLabel="Full screen"
+              accessibilityLabel={tr('b4_fullScreen')}
             >
               <Ionicons name="expand" size={16} color={chatFx.ytHeaderTitle.color} />
             </Pressable>
@@ -491,7 +499,7 @@ function LiveChatPanel({
 
         {minimized ? (
           <Pressable style={chatFx.ytCollapsedTeaser} onPress={onToggleMinimize} hitSlop={8}>
-            <Text style={chatFx.ytCollapsedText}>Live chat is hidden · Tap to show messages</Text>
+            <Text style={chatFx.ytCollapsedText}>{tr('b4_liveChatHiddenTap')}</Text>
           </Pressable>
         ) : (
           <View style={chatFx.ytBody}>
@@ -536,7 +544,7 @@ function LiveChatPanel({
               keyboardShouldPersistTaps="handled"
             >
               {chats.length === 0 ? (
-                <Text style={chatFx.ytEmpty}>Welcome to live chat! Say hello 👋</Text>
+                <Text style={chatFx.ytEmpty}>{tr('b4_welcomeLiveChat')}</Text>
               ) : (
                 chats.map((c) => (
                   <YouTubeChatRow
@@ -651,40 +659,46 @@ function LiveChatPanel({
 
       {/* Right-side vertical controls pill — exit fullscreen at top, mute + gift + donate below */}
       <View style={chatFx.sideControls} pointerEvents="box-none">
-        <Pressable style={chatFx.ctrlBtn} onPress={onToggleFullscreen} hitSlop={8}
-          accessibilityLabel="Exit full screen">
+        <Pressable style={[chatFx.ctrlBtn, glassClear]} onPress={onToggleFullscreen} hitSlop={8}
+          accessibilityLabel={tr('b4_exitFullScreen')}>
+          <GlassLayer />
           <Ionicons name="contract" size={16} color="#fff" />
         </Pressable>
         {onToggleMute ? (
-          <Pressable style={chatFx.ctrlBtn} onPress={onToggleMute} hitSlop={8}
+          <Pressable style={[chatFx.ctrlBtn, glassClear]} onPress={onToggleMute} hitSlop={8}
             accessibilityLabel={isMuted ? 'Unmute' : 'Mute'}>
+            <GlassLayer />
             <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={16} color="#fff" />
           </Pressable>
         ) : null}
         <Pressable
-          style={[chatFx.ctrlBtn, reactOpen && chatFx.ctrlBtnActive]}
+          style={[chatFx.ctrlBtn, reactOpen && chatFx.ctrlBtnActive, glassClear]}
           onPress={() => setReactOpen((v) => !v)}
           hitSlop={8}
           accessibilityLabel={reactOpen ? 'Hide reactions' : 'Show reactions'}
         >
+          <GlassLayer fill={reactOpen ? CTRL_ACTIVE_FILL : undefined} />
           <Ionicons name="happy-outline" size={16} color="#fff" />
         </Pressable>
         <Pressable
-          style={[chatFx.ctrlBtn, chatOpen && chatFx.ctrlBtnActive]}
+          style={[chatFx.ctrlBtn, chatOpen && chatFx.ctrlBtnActive, glassClear]}
           onPress={() => setChatOpen((v) => !v)}
           hitSlop={8}
           accessibilityLabel={chatOpen ? 'Hide comments' : 'Show comments'}
         >
+          <GlassLayer fill={chatOpen ? CTRL_ACTIVE_FILL : undefined} />
           <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
         </Pressable>
         {showGift ? (
-          <Pressable style={chatFx.ctrlBtn} onPress={onGift} hitSlop={8}
-            accessibilityLabel="Send a gift">
+          <Pressable style={[chatFx.ctrlBtn, glassClear]} onPress={onGift} hitSlop={8}
+            accessibilityLabel={tr('b4_sendAGift')}>
+            <GlassLayer />
             <Ionicons name="gift-outline" size={16} color="#fff" />
           </Pressable>
         ) : null}
-        <Pressable style={chatFx.ctrlBtn} onPress={onDonate} hitSlop={8}
+        <Pressable style={[chatFx.ctrlBtn, glassClear]} onPress={onDonate} hitSlop={8}
           accessibilityLabel="Donate">
+          <GlassLayer />
           <Ionicons name="heart-outline" size={16} color="#fff" />
         </Pressable>
       </View>
@@ -693,7 +707,8 @@ function LiveChatPanel({
       {reactOpen ? (
         <View style={chatFx.reactPopover} pointerEvents="box-none">
           {emojis.map((emoji) => (
-            <Pressable key={emoji} style={chatFx.reactionBtn} onPress={() => onReact(emoji)} hitSlop={6}>
+            <Pressable key={emoji} style={[chatFx.reactionBtn, glassClear]} onPress={() => onReact(emoji)} hitSlop={6}>
+              <GlassLayer />
               <Text style={chatFx.reactionEmoji}>{emoji}</Text>
             </Pressable>
           ))}
@@ -712,7 +727,7 @@ function LiveChatPanel({
             keyboardShouldPersistTaps="handled"
           >
             {chats.length === 0 ? (
-              <Text style={chatFx.empty}>No messages yet. Say hi 👋</Text>
+              <Text style={chatFx.empty}>{tr('b4_noMessagesYet')}</Text>
             ) : (
               chats.map((c) => (
                 <OverlayChatRow
@@ -779,6 +794,7 @@ function LiveChatPanel({
 // ─── Main screen ───────────────────────────────────────────────────────────
 
 export default function PublicLiveStreamScreen() {
+  useLanguage();
   const styles = useStyles();
   const { colors } = useTheme();
   const {
@@ -1293,7 +1309,7 @@ export default function PublicLiveStreamScreen() {
               }
             } catch (e) {
               Alert.alert(
-                'Could not block',
+                tr('b4_couldNotBlockTitle'),
                 isApiError(e) ? e.message : 'Please try again.',
               );
             }
@@ -1754,7 +1770,7 @@ export default function PublicLiveStreamScreen() {
                   lineHeight: 19,
                 }}
               >
-                Attended this live event in person? Find all photos you appear in using facial recognition!
+                {tr('b4_attendedInPersonFindPhotos')}
               </Text>
               <View style={{ flexDirection: 'column', gap: 10, alignItems: 'center', width: '100%' }}>
                 <Pressable
@@ -1815,7 +1831,7 @@ export default function PublicLiveStreamScreen() {
         <View style={styles.placeholderContent}>
           <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
           <Text style={styles.placeholderText}>
-            Stream will appear here once it goes live.
+            {tr('b4_streamWillAppearOnceLive')}
           </Text>
         </View>
       )}
@@ -1837,7 +1853,7 @@ export default function PublicLiveStreamScreen() {
                 hitSlop={12}
                 style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Go back"
+                accessibilityLabel={tr('b4_goBack')}
               >
                 <Ionicons name="chevron-back" size={24} color={colors.text} />
               </Pressable>
@@ -1859,7 +1875,7 @@ export default function PublicLiveStreamScreen() {
                     <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
                     <View style={styles.placeholderScrim} />
                     <Ionicons name="scan-outline" size={30} color="rgba(255,255,255,0.9)" />
-                    <Text style={styles.placeholderText}>Playing in full screen. Tap to return</Text>
+                    <Text style={styles.placeholderText}>{tr('b4_playingInFullScreenTapReturn')}</Text>
                   </Pressable>
                 ) : (
                   <HlsPlayer
@@ -1879,24 +1895,24 @@ export default function PublicLiveStreamScreen() {
                     {accessLoading ? (
                       <>
                         <ActivityIndicator color="#10b981" size="large" />
-                        <Text style={styles.placeholderHeadline}>Verifying access…</Text>
-                        <Text style={styles.placeholderText}>Please wait while we confirm your access.</Text>
+                        <Text style={styles.placeholderHeadline}>{tr('b4_verifyingAccess')}</Text>
+                        <Text style={styles.placeholderText}>{tr('b4_pleaseWaitConfirmAccess')}</Text>
                       </>
                     ) : status.isLive && accessGranted ? (
                       <>
                         <ActivityIndicator color="#10b981" size="large" />
-                        <Text style={styles.placeholderText}>Stream is loading…</Text>
+                        <Text style={styles.placeholderText}>{tr('b4_streamIsLoading')}</Text>
                       </>
                     ) : status.isLive && status.isPaid ? (
                       <>
                         <ActivityIndicator color="#fff" />
-                        <Text style={styles.placeholderHeadline}>Loading…</Text>
+                        <Text style={styles.placeholderHeadline}>{tr('b4_loading')}</Text>
                       </>
                     ) : (
                       <>
                         <ActivityIndicator color="#fff" />
-                        <Text style={styles.placeholderHeadline}>Stream is starting…</Text>
-                        <Text style={styles.placeholderText}>Hang tight, the stream is loading.</Text>
+                        <Text style={styles.placeholderHeadline}>{tr('b4_streamIsStarting')}</Text>
+                        <Text style={styles.placeholderText}>{tr('b4_hangTightStreamLoading')}</Text>
                       </>
                     )}
                   </View>
@@ -1938,28 +1954,31 @@ export default function PublicLiveStreamScreen() {
                   <View style={styles.ytStageBottomRight}>
                     {giftsEnabled ? (
                       <Pressable
-                        style={styles.ytStageIconBtn}
+                        style={[styles.ytStageIconBtn, glassClear]}
                         onPress={() => setGiftOpen(true)}
                         hitSlop={8}
-                        accessibilityLabel="Send a gift"
+                        accessibilityLabel={tr('b4_sendAGift')}
                       >
+                        <GlassLayer />
                         <Ionicons name="gift-outline" size={17} color="#fff" />
                       </Pressable>
                     ) : null}
                     <Pressable
-                      style={styles.ytStageIconBtn}
+                      style={[styles.ytStageIconBtn, glassClear]}
                       onPress={onDonate}
                       hitSlop={8}
                       accessibilityLabel="Donate"
                     >
+                      <GlassLayer />
                       <Ionicons name="heart-outline" size={17} color="#fff" />
                     </Pressable>
                     <Pressable
-                      style={styles.ytStageIconBtn}
+                      style={[styles.ytStageIconBtn, glassClear]}
                       onPress={() => setIsMuted((m) => !m)}
                       hitSlop={8}
                       accessibilityLabel={isMuted ? 'Unmute stream' : 'Mute stream'}
                     >
+                      <GlassLayer />
                       <Ionicons
                         name={isMuted ? 'volume-mute' : 'volume-high'}
                         size={18}
@@ -1967,11 +1986,12 @@ export default function PublicLiveStreamScreen() {
                       />
                     </Pressable>
                     <Pressable
-                      style={styles.ytStageIconBtn}
+                      style={[styles.ytStageIconBtn, glassClear]}
                       onPress={enterFullscreen}
                       hitSlop={8}
                       accessibilityLabel="Full screen cinema mode"
                     >
+                      <GlassLayer />
                       <Ionicons name="expand" size={17} color="#fff" />
                     </Pressable>
                   </View>
@@ -1984,20 +2004,20 @@ export default function PublicLiveStreamScreen() {
           {!manifestUrl && !status.isPaid ? (
             <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
               <View style={styles.tokenCard}>
-                <Text style={styles.tokenLabel}>Have an invite token?</Text>
+                <Text style={styles.tokenLabel}>{tr('b4_haveAnInviteToken')}</Text>
                 <Input
                   value={tokenInput}
                   onChangeText={setTokenInput}
-                  placeholder="Paste the token from your invitation"
+                  placeholder={tr('b4_pasteTokenFromInvitation')}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                <Button title="Join stream" onPress={onJoinWithToken} loading={tokenBusy} />
+                <Button title={tr('b4_joinStream')} onPress={onJoinWithToken} loading={tokenBusy} />
                 <Pressable
                   onPress={() => router.replace(`/(public)/event/${id}` as unknown as Href)}
                   style={{ alignItems: 'center', marginTop: 4 }}
                 >
-                  <Text style={styles.linkText}>← Back to event details</Text>
+                  <Text style={styles.linkText}>{tr('b4_backToEventDetails')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -2091,7 +2111,7 @@ export default function PublicLiveStreamScreen() {
                 hitSlop={12}
                 style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Go back"
+                accessibilityLabel={tr('b4_goBack')}
               >
                 <Ionicons name="chevron-back" size={24} color={colors.text} />
               </Pressable>
@@ -2117,7 +2137,7 @@ export default function PublicLiveStreamScreen() {
                 <View style={styles.ytBrowseNoticeLeft}>
                   <View style={styles.ytStageLiveDot} />
                   <Text style={styles.ytBrowseNoticeText}>
-                    Stream playing in mini player · Tap to expand
+                    {tr('b4_streamMiniPlayerTapExpand')}
                   </Text>
                 </View>
                 <Ionicons name="expand" size={16} color={colors.primary} />
@@ -2139,8 +2159,8 @@ export default function PublicLiveStreamScreen() {
                 <View style={styles.placeholderScrim} />
                 <View style={styles.placeholderContent}>
                   <Ionicons name="scan-outline" size={32} color="#fff" />
-                  <Text style={styles.placeholderHeadline}>Playing in Mini Player</Text>
-                  <Text style={styles.placeholderText}>Tap to expand to full player</Text>
+                  <Text style={styles.placeholderHeadline}>{tr('b4_playingInMiniPlayer')}</Text>
+                  <Text style={styles.placeholderText}>{tr('b4_tapToExpandFullPlayer')}</Text>
                 </View>
               </Pressable>
             ) : (
@@ -2342,7 +2362,7 @@ export default function PublicLiveStreamScreen() {
       <Modal visible={conflictOpen} transparent animationType="slide" onRequestClose={() => setConflictOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setConflictOpen(false)}>
           <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>You're watching on another device</Text>
+            <Text style={styles.modalTitle}>{tr('b4_watchingOnAnotherDeviceTitle')}</Text>
             <Text style={styles.modalHint}>
               Only one device can watch on the same paid ticket at a time. It'll free up
               automatically once the other device stops watching. Tap retry to check.
@@ -2441,7 +2461,7 @@ function GiftConfirmSheet({
         <View style={gcStyles.infoRow}>
           <Ionicons name="globe-outline" size={15} color={colors.info} />
           <Text style={gcStyles.infoText}>
-            You’ll pay with mobile money or card on the next screen.
+            {tr('b4_giftConfirmInfo')}
           </Text>
         </View>
 
@@ -2464,7 +2484,7 @@ function GiftConfirmSheet({
         </Pressable>
 
         <Pressable onPress={onClose} hitSlop={10} style={gcStyles.cancel}>
-          <Text style={gcStyles.cancelText}>Cancel</Text>
+          <Text style={gcStyles.cancelText}>{tr('b4_cancel')}</Text>
         </Pressable>
       </View>
     </Modal>

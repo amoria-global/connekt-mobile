@@ -28,6 +28,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { GlassBackdrop, GlassCard } from '@/components/ui/GlassCard';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
@@ -50,6 +51,7 @@ import type { EventItem } from '@/features/events/types';
 import { getWallet } from '@/features/wallet/api';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
 
@@ -72,12 +74,12 @@ const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
   { value: 'month', label: 'This month' },
 ];
 
-function getTimeGreeting(): string {
+function getTimeGreeting(t: (k: any) => string): string {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'Good Morning';
-  if (h >= 12 && h < 17) return 'Good Afternoon';
-  if (h >= 17 && h < 22) return 'Good Evening';
-  return 'Good Night';
+  if (h >= 5 && h < 12) return t('goodMorning');
+  if (h >= 12 && h < 17) return t('goodAfternoon');
+  if (h >= 17 && h < 22) return t('goodEvening');
+  return t('goodNight');
 }
 
 function getTimeTagline(): string {
@@ -103,9 +105,11 @@ function getTodayFormatted(): string {
 export function CoordinatorHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { language, t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const glassTarget = useRef<View>(null);
   const topBarHeight = useTopBarHeight();
   const user = useAuth((s) => s.user);
   const name = user?.firstName || user?.organizationName || 'Coordinator';
@@ -177,7 +181,7 @@ export function CoordinatorHome() {
 
   const isSearchActive = searchQuery.trim().length > 0;
 
-  const greeting = getTimeGreeting();
+  const greeting = getTimeGreeting(t);
   const tagline = getTimeTagline();
   const todayFormatted = getTodayFormatted();
 
@@ -198,74 +202,77 @@ export function CoordinatorHome() {
         <KycBanner />
 
         {/* ── 1. Coordinator Header ───────────────────────────────────────── */}
-        <View style={styles.header}>
-          <View style={styles.headerEyebrowRow}>
-            <View style={styles.roleBadge}>
-              <Ionicons name="sparkles" size={11} color={colors.primary} />
-              <Text style={styles.roleBadgeText}>EVENT COORDINATOR</Text>
+        <View style={styles.heroPanel}>
+          <GlassBackdrop ref={glassTarget} />
+          <View style={styles.header}>
+            <View style={styles.headerEyebrowRow}>
+              <View style={styles.roleBadge}>
+                <Ionicons name="sparkles" size={11} color={colors.primary} />
+                <Text style={styles.roleBadgeText}>{t('roleCoordinatorTitle').toUpperCase()}</Text>
+              </View>
+              <View style={styles.headerDot} />
+              <Text style={styles.headerDate}>{todayFormatted}</Text>
             </View>
-            <View style={styles.headerDot} />
-            <Text style={styles.headerDate}>{todayFormatted}</Text>
+            <Text style={styles.headerTitle}>
+              {greeting},{' '}
+              <Text style={styles.headerName}>{name}</Text>
+            </Text>
+            <Text style={styles.headerSubtitle}>{tagline}</Text>
           </View>
-          <Text style={styles.headerTitle}>
-            {greeting},{' '}
-            <Text style={styles.headerName}>{name}</Text>
-          </Text>
-          <Text style={styles.headerSubtitle}>{tagline}</Text>
-        </View>
 
-        {/* ── 2. High-Impact Quick Action Hero Bar ──────────────────────── */}
-        <View style={styles.quickActionBar}>
-          {/* Primary Action: Create Event */}
-          <Pressable
-            style={({ pressed }) => [styles.quickActionPrimaryBtn, pressed && styles.btnPressed]}
-            onPress={() => router.push('/event/new' as never)}
-            accessibilityRole="button"
-            accessibilityLabel="Create a new event"
-          >
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            {/* On a 360dp phone the label met the button edge; it now keeps its padding and shrinks if it must. */}
-            <Text style={styles.quickActionPrimaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.2}>
-              Create Event
-            </Text>
-          </Pressable>
+          {/* ── 2. High-Impact Quick Action Hero Bar ──────────────────────── */}
+          <GlassCard blurTarget={glassTarget} style={styles.quickActionBar}>
+            {/* Primary Action: Create Event */}
+            <Pressable
+              style={({ pressed }) => [styles.quickActionPrimaryBtn, pressed && styles.btnPressed]}
+              onPress={() => router.push('/event/new' as never)}
+              accessibilityRole="button"
+              accessibilityLabel={t('createEvent')}
+            >
+              <Ionicons name="add" size={18} color="#FFFFFF" />
+              {/* On a 360dp phone the label met the button edge; it now keeps its padding and shrinks if it must. */}
+              <Text style={styles.quickActionPrimaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.2}>
+                {t('createEvent')}
+              </Text>
+            </Pressable>
 
-          {/* Secondary Action: Gallery (the Team it replaced was retired for album collaboration) */}
-          <Pressable
-            style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
-            onPress={() => router.push('/gallery' as never)}
-            accessibilityRole="button"
-            accessibilityLabel="Gallery"
-          >
-            <Ionicons name="images-outline" size={15} color={colors.primary} />
-            <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-              Gallery
-            </Text>
-          </Pressable>
+            {/* Secondary Action: Gallery (the Team it replaced was retired for album collaboration) */}
+            <Pressable
+              style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
+              onPress={() => router.push('/gallery' as never)}
+              accessibilityRole="button"
+              accessibilityLabel={t('gallery')}
+            >
+              <Ionicons name="images-outline" size={15} color={colors.primary} />
+              <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                {t('gallery')}
+              </Text>
+            </Pressable>
 
-          {/* Tertiary Action: Photographers */}
-          <Pressable
-            style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
-            onPress={() => router.push('/photographers' as never)}
-            accessibilityRole="button"
-            accessibilityLabel="Photographers"
-          >
-            <Ionicons name="camera-outline" size={15} color={colors.primary} />
-            <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-              Photographers
-            </Text>
-          </Pressable>
+            {/* Tertiary Action: Photographers */}
+            <Pressable
+              style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
+              onPress={() => router.push('/photographers' as never)}
+              accessibilityRole="button"
+              accessibilityLabel={t('menuPhotographers')}
+            >
+              <Ionicons name="camera-outline" size={15} color={colors.primary} />
+              <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                {t('menuPhotographers')}
+              </Text>
+            </Pressable>
 
-          {/* Live Action: Live Streams */}
-          <Pressable
-            style={({ pressed }) => [styles.quickActionLiveBtn, pressed && styles.btnPressed]}
-            onPress={() => router.push('/streams' as never)}
-            accessibilityRole="button"
-            accessibilityLabel="Live Streams"
-          >
-            <Ionicons name="videocam" size={14} color="#EF4444" />
-            <Text style={styles.quickActionLiveBtnText} maxFontSizeMultiplier={1.2}>Live</Text>
-          </Pressable>
+            {/* Live Action: Live Streams */}
+            <Pressable
+              style={({ pressed }) => [styles.quickActionLiveBtn, pressed && styles.btnPressed]}
+              onPress={() => router.push('/streams' as never)}
+              accessibilityRole="button"
+              accessibilityLabel={t('liveNow')}
+            >
+              <Ionicons name="videocam" size={14} color="#EF4444" />
+              <Text style={styles.quickActionLiveBtnText} maxFontSizeMultiplier={1.2}>{t('liveNow')}</Text>
+            </Pressable>
+          </GlassCard>
         </View>
 
         {/* ── 3. Search & Production Category Section ──────────────────── */}
@@ -502,7 +509,7 @@ export function CoordinatorHome() {
                   }
                 }}
               >
-                <Text style={styles.pendingViewBtnText}>Pay Now</Text>
+                <Text style={styles.pendingViewBtnText}>{t('payNow')}</Text>
               </Pressable>
             </View>
           </View>
@@ -725,10 +732,21 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   // ── 2. High-Impact Quick Action Hero Bar ────────────────────────────────
+  // Greeting + quick actions on soft brand glows; the actions sit on frosted glass.
+  heroPanel: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
+    overflow: 'hidden',
+  },
   quickActionBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    padding: spacing.sm,
   },
   quickActionPrimaryBtn: {
     flex: 1.35,

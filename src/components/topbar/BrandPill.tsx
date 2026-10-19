@@ -48,14 +48,15 @@ export function BrandPill({
 const useStyles = makeStyles((c, e) => ({
   pill: {
     flex: 1,
+    minWidth: 0,
     height: 50,
     borderRadius: radii.full,
     backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.sm,
     ...e(2),
   },
   flat: { height: 40, backgroundColor: 'transparent', justifyContent: 'flex-start', paddingHorizontal: 0, shadowOpacity: 0, elevation: 0 },

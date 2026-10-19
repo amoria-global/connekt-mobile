@@ -21,6 +21,7 @@ import {
 import { BookingBottomSheet } from '@/features/booking/BookingBottomSheet';
 import { formatPrice } from '@/utils/format';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 const RADIUS_OPTIONS = [5, 10, 25, 50] as const;
 
@@ -42,6 +43,7 @@ export function DirectBookingMapView({
   const { colors, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const { tr } = useSharedT();
 
   const webViewRef = useRef<WebView>(null);
   const bookingSheetRef = useRef<BottomSheet>(null);
@@ -466,7 +468,7 @@ export function DirectBookingMapView({
       {loading && !mapData && (
         <View style={styles.loaderOverlay}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loaderText}>Finding nearby direct booking pros...</Text>
+          <Text style={styles.loaderText}>{tr('Finding nearby direct booking pros...')}</Text>
         </View>
       )}
 
@@ -535,7 +537,7 @@ export function DirectBookingMapView({
           {/* Price & Actions Row */}
           <View style={styles.cardFooter}>
             <View>
-              <Text style={styles.priceLabel}>Starting from</Text>
+              <Text style={styles.priceLabel}>{tr('Starting from')}</Text>
               <Text style={styles.priceVal}>
                 {formatPrice(
                   selectedPhotographer.startingPrice,
@@ -551,7 +553,7 @@ export function DirectBookingMapView({
                   router.push(`/photographer/${selectedPhotographer.photographerId}` as never)
                 }
               >
-                <Text style={styles.viewProfileText}>Profile</Text>
+                <Text style={styles.viewProfileText}>{tr('Profile')}</Text>
               </Pressable>
 
               <Pressable
@@ -559,7 +561,7 @@ export function DirectBookingMapView({
                 onPress={() => handleOpenBooking(selectedPhotographer)}
               >
                 <Ionicons name="flash" size={14} color="#FFFFFF" />
-                <Text style={styles.bookNowText}>Book Now</Text>
+                <Text style={styles.bookNowText}>{tr('Book Now')}</Text>
               </Pressable>
             </View>
           </View>
