@@ -20,6 +20,7 @@ import { CARDS_LOGO, MOMO_LOGO, operatorLogo } from '@/features/payments/operato
 import type { MobileMoneyState } from '@/features/payments/eligibility';
 import type { PaymentOperator } from '@/features/reference/api';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Props = {
   operators: PaymentOperator[];
@@ -74,6 +75,7 @@ export function PaymentMethodPicker({
 }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const selectedOperator = operators.find((o) => o.id.toLowerCase() === selectedId) ?? null;
   const cardSelected = selectedId === 'card';
   const [open, setOpen] = useState(!!selectedOperator);
@@ -102,11 +104,11 @@ export function PaymentMethodPicker({
           onPress={() => setCountryOpen(true)}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel={`Payment country ${country ? paymentCountryName(country) : 'not set'}. Tap to change.`}
+          accessibilityLabel={`Payment country ${country ? paymentCountryName(country) : tr('not set')}. ${tr('Tap to change.')}`}
         >
           <Text style={styles.flag}>{flagEmoji(country)}</Text>
-          <Text style={styles.countryName} numberOfLines={1}>{country ? paymentCountryName(country) : 'Choose your country'}</Text>
-          <Text style={styles.countryChange}>Change</Text>
+          <Text style={styles.countryName} numberOfLines={1}>{country ? paymentCountryName(country) : tr('Choose your country')}</Text>
+          <Text style={styles.countryChange}>{tr('Change')}</Text>
           <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
         </Pressable>
       ) : null}
@@ -120,11 +122,11 @@ export function PaymentMethodPicker({
           disabled={momoOff}
           accessibilityRole="button"
           accessibilityState={{ expanded: momoActive, disabled: momoOff }}
-          accessibilityLabel="Mobile Money"
+          accessibilityLabel={tr('Mobile Money')}
         >
           <Logo source={MOMO_LOGO} label="Mobile Money" size={44} />
           <View style={styles.mainText}>
-            <Text style={[styles.mainTitle, momoActive && styles.mainTitleActive]}>Mobile Money</Text>
+            <Text style={[styles.mainTitle, momoActive && styles.mainTitleActive]}>{tr('Mobile Money')}</Text>
             <Text style={styles.mainSub} numberOfLines={2}>
               {selectedOperator
                 ? selectedOperator.name
@@ -149,11 +151,11 @@ export function PaymentMethodPicker({
             disabled={cardOff}
             accessibilityRole="radio"
             accessibilityState={{ selected: cardSelected, disabled: cardOff }}
-            accessibilityLabel="Cards, Visa and Mastercard"
+            accessibilityLabel={tr('Cards')}
           >
             <Logo source={CARDS_LOGO} label="Cards" size={44} />
             <View style={styles.mainText}>
-              <Text style={[styles.mainTitle, cardSelected && styles.mainTitleActive]}>Cards</Text>
+              <Text style={[styles.mainTitle, cardSelected && styles.mainTitleActive]}>{tr('Cards')}</Text>
               <Text style={styles.mainSub} numberOfLines={2}>
                 {disableCards ? 'Unavailable here' : 'Visa & Mastercard'}
               </Text>

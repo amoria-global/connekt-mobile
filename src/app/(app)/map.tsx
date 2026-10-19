@@ -3,10 +3,12 @@ import { StyleSheet, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapView';
+import { useLanguage } from '@/hooks/useLanguage';
 import { useTheme } from '@/theme';
 
 export default function DirectBookingMapScreen() {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{
     search?: string;
     specialty?: string;
@@ -19,7 +21,7 @@ export default function DirectBookingMapScreen() {
     <Screen padded={false} edges={['top']}>
       <Stack.Screen
         options={{
-          title: 'Direct Booking Map',
+          title: t('b2_mapTitle'),
           headerBackButtonDisplayMode: 'minimal',
           headerShadowVisible: false,
         }}

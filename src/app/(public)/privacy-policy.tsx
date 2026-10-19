@@ -1,17 +1,19 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { PRIVACY_SECTIONS } from '@/content/privacyPolicy';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function PrivacyPolicyScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Privacy Policy</Text>
-          <Text style={styles.subtitle}>How we protect your data</Text>
-          <Text style={styles.updated}>Amoria Global Tech Ltd. (Rwanda)</Text>
+          <Text style={styles.title}>{t('b4_privacyTitle')}</Text>
+          <Text style={styles.subtitle}>{t('b4_privacySubtitle')}</Text>
+          <Text style={styles.updated}>{t('b4_amoriaCompany')}</Text>
         </View>
 
         {PRIVACY_SECTIONS.map((section, idx) => (

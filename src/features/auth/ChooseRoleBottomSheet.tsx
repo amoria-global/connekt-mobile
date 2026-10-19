@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Modal,
@@ -14,7 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import type { CustomerType } from '@/features/auth/types';
+import { useLanguage } from '@/store/language';
 import { fonts, fontSize, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { GlassSurface, glassScrim, glassTile, sheetGlassRadius, useGlassEdge } from '@/components/ui/GlassCard';
 
 type RoleInfo = {
   role: CustomerType;
@@ -22,27 +24,6 @@ type RoleInfo = {
   blurb: string;
   icon: keyof typeof Ionicons.glyphMap;
 };
-
-const ROLES: RoleInfo[] = [
-  {
-    role: 'Client',
-    title: 'Client',
-    blurb: 'Book photographers, host events, and share galleries with your guests.',
-    icon: 'person-outline',
-  },
-  {
-    role: 'Photographer',
-    title: 'Photographer',
-    blurb: 'Show your work, get booked, and get paid securely.',
-    icon: 'camera-outline',
-  },
-  {
-    role: 'Coordinator',
-    title: 'Event coordinator',
-    blurb: 'Run events end to end and coordinate the people working them.',
-    icon: 'calendar-outline',
-  },
-];
 
 interface ChooseRoleBottomSheetProps {
   visible: boolean;
@@ -59,8 +40,31 @@ export function ChooseRoleBottomSheet({
 }: ChooseRoleBottomSheetProps) {
   const styles = useStyles();
   const { colors, isDark } = useTheme();
+  const glassEdge = useGlassEdge();
   const insets = useSafeAreaInsets();
+  const { language, t } = useLanguage();
   const [selected, setSelected] = useState<CustomerType | null>(initialRole);
+
+  const roles = useMemo<RoleInfo[]>(() => [
+    {
+      role: 'Client',
+      title: t('roleClientTitle'),
+      blurb: t('roleClientBlurb'),
+      icon: 'person-outline',
+    },
+    {
+      role: 'Photographer',
+      title: t('rolePhotographerTitle'),
+      blurb: t('rolePhotographerBlurb'),
+      icon: 'camera-outline',
+    },
+    {
+      role: 'Coordinator',
+      title: t('roleCoordinatorTitle'),
+      blurb: t('roleCoordinatorBlurb'),
+      icon: 'calendar-outline',
+    },
+  ], [language, t]);
 
   const animFade = useRef(new Animated.Value(0)).current;
   const animY = useRef(new Animated.Value(400)).current;
@@ -177,21 +181,23 @@ export function ChooseRoleBottomSheet({
         <Animated.View
           style={[
             styles.sheet,
+            glassEdge,
             {
               paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.xs,
               transform: [{ translateY: animY }],
             },
           ]}
         >
+          <GlassSurface detached strength="thick" style={sheetGlassRadius(28)} />
           {/* Draggable handle area */}
           <View {...panResponder.panHandlers} style={styles.dragArea}>
             <View style={styles.handle} />
             <View style={styles.header}>
               <Text style={styles.title} accessibilityRole="header">
-                How will you use Connekyt?
+                {t('roleSheetTitle')}
               </Text>
               <Text style={styles.subtitle}>
-                This sets up your account. You can&apos;t change it later, so pick the one that fits.
+                {t('roleSheetSubtitle')}
               </Text>
             </View>
           </View>
@@ -202,7 +208,7 @@ export function ChooseRoleBottomSheet({
             showsVerticalScrollIndicator={false}
             bounces={false}
           >
-            {ROLES.map((r) => {
+            {roles.map((r: RoleInfo) => {
               const active = selected === r.role;
               return (
                 <Pressable
@@ -253,12 +259,13 @@ export function ChooseRoleBottomSheet({
                 pressed && selected && styles.ctaPressed,
               ]}
             >
-              <Text style={styles.ctaText}>Continue</Text>
+              <Text style={styles.ctaText}>{t('continueBtn')}</Text>
             </Pressable>
 
             <Pressable onPress={handleDismiss} hitSlop={8} style={styles.signInLine}>
               <Text style={styles.signInText}>
-                Already have an account? <Text style={styles.signInLink}>Sign in</Text>
+                {t('alreadyHaveAccount')}{' '}
+                <Text style={styles.signInLink}>{t('signInBtn')}</Text>
               </Text>
             </Pressable>
           </View>
@@ -275,10 +282,10 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: 'transparent',
   },
   backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: glassScrim(c),
   },
   sheet: {
-    backgroundColor: c.background,
+    backgroundColor: 'transparent',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingTop: spacing.xs,
@@ -336,10 +343,8 @@ const useStyles = makeStyles((c, e) => ({
     gap: spacing.md,
     padding: spacing.md,
     borderRadius: radii.xl,
-    backgroundColor: c.card,
     borderWidth: 1.5,
-    borderColor: c.border,
-    ...e(1),
+    ...glassTile(c),
   },
   cardActive: {
     borderColor: c.primary,

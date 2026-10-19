@@ -12,11 +12,13 @@ import { Screen } from '@/components/ui/Screen';
 import { useModeration } from '@/features/moderation/useModeration';
 import type { BlockedUser } from '@/features/moderation/api';
 import { isApiError } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 export default function BlockedAccountsScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const blocked = useModeration((s) => s.blocked);
   const loading = useModeration((s) => s.loading);
   const refresh = useModeration((s) => s.refresh);
@@ -30,9 +32,9 @@ export default function BlockedAccountsScreen() {
     try {
       await refresh();
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not load your blocked accounts.');
+      setError(isApiError(e) ? e.message : t('b1_blockedLoadErr'));
     }
-  }, [refresh]);
+  }, [refresh, t]);
 
   useEffect(() => {
     load();
@@ -40,20 +42,20 @@ export default function BlockedAccountsScreen() {
 
   const onUnblock = (user: BlockedUser) => {
     Alert.alert(
-      `Unblock ${user.name}?`,
-      'You will see their messages again, and they will be able to message you.',
+      t('b1_blockedUnblockTitle', { name: user.name }),
+      t('b1_blockedUnblockBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('b1_blockedCancel'), style: 'cancel' },
         {
-          text: 'Unblock',
+          text: t('b1_blockedUnblock'),
           onPress: async () => {
             setBusyId(user.id);
             try {
               await unblock(user.id);
             } catch (e) {
               Alert.alert(
-                'Could not unblock',
-                isApiError(e) ? e.message : 'Please try again.',
+                t('b1_blockedUnblockErrTitle'),
+                isApiError(e) ? e.message : t('b1_blockedTryAgain'),
               );
             } finally {
               setBusyId(null);
@@ -71,13 +73,13 @@ export default function BlockedAccountsScreen() {
         loading={loading}
         error={error}
         onRefresh={load}
-        title="Blocked accounts"
+        title={t('b1_blockedTitle')}
         duplicatesHeader
-        subtitle="People you've blocked can't message you, and you won't see their messages."
+        subtitle={t('b1_blockedSubtitle')}
         keyExtractor={(u) => u.id}
         emptyIcon="shield-checkmark-outline"
-        emptyTitle="No blocked accounts"
-        emptyMessage="When you block someone from a chat or profile, they'll show up here."
+        emptyTitle={t('b1_blockedEmptyTitle')}
+        emptyMessage={t('b1_blockedEmptyBody')}
         renderItem={({ item }) => (
           <View style={styles.row}>
             {item.profilePicture ? (
@@ -99,7 +101,7 @@ export default function BlockedAccountsScreen() {
             >
               <Ionicons name="close-circle-outline" size={16} color={colors.primary} />
               <Text style={styles.unblockText}>
-                {busyId === item.id ? 'Working…' : 'Unblock'}
+                {busyId === item.id ? t('b1_blockedWorking') : t('b1_blockedUnblock')}
               </Text>
             </Pressable>
           </View>

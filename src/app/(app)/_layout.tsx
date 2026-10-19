@@ -9,9 +9,9 @@ import { InAppNotificationWatcher } from '@/features/notifications/InAppNotifica
 import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCallNotifier';
 import { showIncomingRequest } from '@/features/bookings/incomingRequests';
 import { useRole } from '@/features/auth/role';
+import { useLanguage } from '@/store/language';
 import { setAudioModeAsync } from '@/utils/safeAudio';
 import { DialogHost } from '@/components/ui/dialog';
-import { CurrencyButton } from '@/components/topbar/CurrencyButton';
 import { useTheme } from '@/theme';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +20,7 @@ import { Platform, View } from 'react-native';
 
 export default function AppLayout() {
   const { isDark, colors: c } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const { isPhotographer } = useRole();
 
@@ -114,25 +115,21 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: c.background },
           headerBackButtonDisplayMode: 'minimal', // chevron only, no "‹ Home" text
           headerShadowVisible: false,
-          // Display-currency selector on every headed screen, like the web topbar.
-          // Form screens below opt out.
-          headerRight: () => <CurrencyButton compact />,
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="event/new"
           options={{
-            title: 'New event',
-            headerRight: () => null,
+            title: t('navNewEvent'),
             presentation: 'formSheet',
             sheetAllowedDetents: [0.6, 1],
             sheetGrabberVisible: true,
             sheetCornerRadius: 24,
           }}
         />
-        <Stack.Screen name="event/[id]" options={{ title: 'Event' }} />
-        <Stack.Screen name="event/geo-pricing" options={{ title: 'Geo pricing' }} />
+        <Stack.Screen name="event/[id]" options={{ title: t('navEvent') }} />
+        <Stack.Screen name="event/geo-pricing" options={{ title: t('navGeoPricing') }} />
         <Stack.Screen
           name="event/hybrid-wizard"
           options={{
@@ -141,22 +138,22 @@ export default function AppLayout() {
             animation: 'fade',
           }}
         />
-        <Stack.Screen name="photographers" options={{ title: 'Photographers' }} />
-        <Stack.Screen name="photographer/[id]" options={{ title: 'Photographer' }} />
-        <Stack.Screen name="conversation/[id]" options={{ title: 'Chat' }} />
-        <Stack.Screen name="packages" options={{ title: 'My Packages' }} />
-        <Stack.Screen name="package/new" options={{ title: 'New package', presentation: 'modal', headerRight: () => null }} />
-        <Stack.Screen name="streams" options={{ title: 'Live Streams' }} />
-        <Stack.Screen name="stream/[id]" options={{ title: 'Stream', headerShown: false }} />
-        <Stack.Screen name="stream/control/[id]" options={{ title: 'Go Live', headerShown: false }} />
-        <Stack.Screen name="notifications" options={{ title: 'Notifications', headerShown: false }} />
+        <Stack.Screen name="photographers" options={{ title: t('navPhotographers') }} />
+        <Stack.Screen name="photographer/[id]" options={{ title: t('navPhotographer') }} />
+        <Stack.Screen name="conversation/[id]" options={{ title: t('navChat') }} />
+        <Stack.Screen name="packages" options={{ title: t('navMyPackages') }} />
+        <Stack.Screen name="package/new" options={{ title: t('navNewPackage'), presentation: 'modal' }} />
+        <Stack.Screen name="streams" options={{ title: t('navLiveStreams') }} />
+        <Stack.Screen name="stream/[id]" options={{ title: t('navStream'), headerShown: false }} />
+        <Stack.Screen name="stream/control/[id]" options={{ title: t('navGoLive'), headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ title: t('notificationsTitle'), headerShown: false }} />
         <Stack.Screen name="find-my-photos" options={{ headerShown: false }} />
-        <Stack.Screen name="edit-profile" options={{ title: 'Edit Profile' }} />
-        <Stack.Screen name="preferences" options={{ title: 'Preferences' }} />
+        <Stack.Screen name="edit-profile" options={{ title: t('navEditProfile') }} />
+        <Stack.Screen name="preferences" options={{ title: t('navPreferences') }} />
         <Stack.Screen
           name="album/new"
           options={{
-            title: 'New album',
+            title: t('navNewAlbum'),
             headerShown: false,
             presentation: 'formSheet',
             sheetAllowedDetents: [0.7, 1],
@@ -164,48 +161,48 @@ export default function AppLayout() {
             sheetCornerRadius: 24,
           }}
         />
-        <Stack.Screen name="album/[id]" options={{ title: 'Album', headerShown: false }} />
-        <Stack.Screen name="gallery" options={{ title: 'Gallery' }} />
-        <Stack.Screen name="bookings" options={{ title: 'Bookings' }} />
-        <Stack.Screen name="content-albums" options={{ title: 'Content Albums' }} />
+        <Stack.Screen name="album/[id]" options={{ title: t('navAlbum'), headerShown: false }} />
+        <Stack.Screen name="gallery" options={{ title: t('navGallery') }} />
+        <Stack.Screen name="bookings" options={{ title: t('navBookings') }} />
+        <Stack.Screen name="content-albums" options={{ title: t('navContentAlbums') }} />
         <Stack.Screen
           name="content-album/new"
           options={{
-            title: 'New content album',
+            title: t('navNewContentAlbum'),
             headerShown: false,
           }}
         />
-        <Stack.Screen name="photobooks" options={{ title: 'Photobooks' }} />
-        <Stack.Screen name="photobook/[id]" options={{ title: 'Photobook', headerShown: false }} />
-        <Stack.Screen name="photobook/new" options={{ title: 'New photobook', headerShown: false }} />
-        <Stack.Screen name="wallet/movements" options={{ title: 'Wallet movements' }} />
-        <Stack.Screen name="withdraw" options={{ title: 'Withdraw' }} />
-        <Stack.Screen name="payment-accounts" options={{ title: 'Payment accounts' }} />
-        <Stack.Screen name="transactions" options={{ title: 'Transactions' }} />
-        <Stack.Screen name="payroll" options={{ title: 'Payroll report' }} />
-        <Stack.Screen name="analytics" options={{ title: 'Analytics', headerShown: false }} />
-        <Stack.Screen name="payments" options={{ title: 'Payments' }} />
-        <Stack.Screen name="payment/[id]" options={{ title: 'Payment' }} />
-        <Stack.Screen name="donations" options={{ title: 'Donate' }} />
-        <Stack.Screen name="clients" options={{ title: 'Clients' }} />
-        <Stack.Screen name="client/[id]" options={{ title: 'Client' }} />
-        <Stack.Screen name="two-factor" options={{ title: 'Two-factor' }} />
-        <Stack.Screen name="tv-devices" options={{ title: 'Manage TVs' }} />
+        <Stack.Screen name="photobooks" options={{ title: t('navPhotobooks') }} />
+        <Stack.Screen name="photobook/[id]" options={{ title: t('navPhotobook'), headerShown: false }} />
+        <Stack.Screen name="photobook/new" options={{ title: t('navNewPhotobook'), headerShown: false }} />
+        <Stack.Screen name="wallet/movements" options={{ title: t('navWalletMovements') }} />
+        <Stack.Screen name="withdraw" options={{ title: t('navWithdraw') }} />
+        <Stack.Screen name="payment-accounts" options={{ title: t('navPaymentAccounts') }} />
+        <Stack.Screen name="transactions" options={{ title: t('navTransactions') }} />
+        <Stack.Screen name="payroll" options={{ title: t('navPayrollReport') }} />
+        <Stack.Screen name="analytics" options={{ title: t('navAnalytics'), headerShown: false }} />
+        <Stack.Screen name="payments" options={{ title: t('navPayments') }} />
+        <Stack.Screen name="payment/[id]" options={{ title: t('navPayment') }} />
+        <Stack.Screen name="donations" options={{ title: t('navDonate') }} />
+        <Stack.Screen name="clients" options={{ title: t('navClients') }} />
+        <Stack.Screen name="client/[id]" options={{ title: t('navClient') }} />
+        <Stack.Screen name="two-factor" options={{ title: t('navTwoFactor') }} />
+        <Stack.Screen name="tv-devices" options={{ title: t('navManageTvs') }} />
         <Stack.Screen
           name="connect-to-tv"
-          options={{ title: 'Connect to TV', presentation: 'fullScreenModal', headerShown: false }}
+          options={{ title: t('navConnectToTv'), presentation: 'fullScreenModal', headerShown: false }}
         />
         <Stack.Screen
           name="pay-on-tv"
-          options={{ title: 'Pay on TV', presentation: 'fullScreenModal', headerShown: false }}
+          options={{ title: t('navPayOnTv'), presentation: 'fullScreenModal', headerShown: false }}
         />
         <Stack.Screen name="kyc" options={{ headerShown: false }} />
-        <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
-        <Stack.Screen name="blocked-accounts" options={{ title: 'Blocked accounts' }} />
-        <Stack.Screen name="collaborate/index" options={{ title: 'Collaborate' }} />
-        <Stack.Screen name="collaborate/album/[id]" options={{ title: 'Album' }} />
-        <Stack.Screen name="collaborate/joined/[id]" options={{ title: 'Album' }} />
-        <Stack.Screen name="collaborate/join/[token]" options={{ title: 'Join album' }} />
+        <Stack.Screen name="delete-account" options={{ title: t('navDeleteAccount') }} />
+        <Stack.Screen name="blocked-accounts" options={{ title: t('navBlockedAccounts') }} />
+        <Stack.Screen name="collaborate/index" options={{ title: t('navCollaborate') }} />
+        <Stack.Screen name="collaborate/album/[id]" options={{ title: t('navAlbum') }} />
+        <Stack.Screen name="collaborate/joined/[id]" options={{ title: t('navAlbum') }} />
+        <Stack.Screen name="collaborate/join/[token]" options={{ title: t('navJoinAlbum') }} />
       </Stack>
       <GlobalOpportunityCallNotifier />
       <InAppNotificationWatcher />

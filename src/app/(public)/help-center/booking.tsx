@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles } from '@/theme';
-
-const tips = [
-  { title: 'Book Early', desc: 'Reserve popular photographers 4-8 weeks in advance, especially for weddings and peak seasons.' },
-  { title: 'Clear Communication', desc: 'Discuss your vision, must-have shots, and expectations upfront to ensure alignment.' },
-  { title: 'Realistic Timeline', desc: 'Allow 14-21 days for photo editing and delivery. Rush delivery may incur additional fees.' },
-  { title: 'Written Agreement', desc: 'Review the booking terms carefully including cancellation policy, usage rights, and deliverables.' },
-  { title: 'Location Details', desc: 'Provide exact venue address, parking information, and contact person for the event day.' },
-  { title: 'Shot List', desc: 'Share a list of important people to photograph and specific moments you want captured.' },
-];
 
 export default function BookingHelpScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('booking');
+
+  const tips = [
+    { title: t('b4_hcTip1Title'), desc: t('b4_hcTip1Desc') },
+    { title: t('b4_hcTip2Title'), desc: t('b4_hcTip2Desc') },
+    { title: t('b4_hcTip3Title'), desc: t('b4_hcTip3Desc') },
+    { title: t('b4_hcTip4Title'), desc: t('b4_hcTip4Desc') },
+    { title: t('b4_hcTip5Title'), desc: t('b4_hcTip5Desc') },
+    { title: t('b4_hcTip6Title'), desc: t('b4_hcTip6Desc') },
+  ];
 
   const toggleSection = (id: string) => {
     setOpenSection(prev => (prev === id ? null : id));
@@ -24,9 +26,9 @@ export default function BookingHelpScreen() {
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Booking & Management</Text>
+          <Text style={styles.title}>{t('b4_hcBookingTitle')}</Text>
           <Text style={styles.subtitle}>
-            Everything you need to know about booking photographers and managing your sessions
+            {t('b4_hcBookingSubtitle')}
           </Text>
         </View>
 
@@ -35,47 +37,47 @@ export default function BookingHelpScreen() {
             style={styles.accordionHeader}
             onPress={() => toggleSection('booking')}
           >
-            <Text style={styles.accordionTitle}>How to Book</Text>
+            <Text style={styles.accordionTitle}>{t('b4_hcHowToBook')}</Text>
             <Text style={styles.accordionIcon}>{openSection === 'booking' ? '−' : '+'}</Text>
           </TouchableOpacity>
 
           {openSection === 'booking' && (
             <View style={styles.accordionContent}>
               <Text style={styles.bodyText}>
-                Booking a photographer on Amoria Connekyt is simple and secure. Our platform connects you with professional photographers who match your specific needs, budget, and style preferences.
+                {t('b4_hcBookingIntro')}
               </Text>
 
-              <Text style={styles.sectionTitle}>Finding Your Photographer</Text>
+              <Text style={styles.sectionTitle}>{t('b4_hcFindingPhotographer')}</Text>
               <View style={styles.card}>
                 <Text style={styles.listItem}>
-                  <Text style={styles.bold}>1. Location & Availability:</Text> Use the location filter to find photographers in your area. Check their calendar for available dates.
+                  <Text style={styles.bold}>{t('b4_hcFindStep1Title')}</Text> {t('b4_hcFindStep1Desc')}
                 </Text>
                 <Text style={styles.listItem}>
-                  <Text style={styles.bold}>2. Photography Style:</Text> Browse portfolios to find photographers whose style matches your vision.
+                  <Text style={styles.bold}>{t('b4_hcFindStep2Title')}</Text> {t('b4_hcFindStep2Desc')}
                 </Text>
                 <Text style={styles.listItem}>
-                  <Text style={styles.bold}>3. Budget Range:</Text> Set your budget using the price filter to view photographers within your price range.
+                  <Text style={styles.bold}>{t('b4_hcFindStep3Title')}</Text> {t('b4_hcFindStep3Desc')}
                 </Text>
                 <Text style={styles.listItem}>
-                  <Text style={styles.bold}>4. Reviews & Ratings:</Text> Read reviews from previous clients to assess quality and reliability.
+                  <Text style={styles.bold}>{t('b4_hcFindStep4Title')}</Text> {t('b4_hcFindStep4Desc')}
                 </Text>
                 <Text style={styles.listItem}>
-                  <Text style={styles.bold}>5. Package Comparison:</Text> Compare different photography packages and inclusions.
+                  <Text style={styles.bold}>{t('b4_hcFindStep5Title')}</Text> {t('b4_hcFindStep5Desc')}
                 </Text>
               </View>
 
-              <Text style={styles.sectionTitle}>Making Your Booking</Text>
+              <Text style={styles.sectionTitle}>{t('b4_hcMakingBooking')}</Text>
               <View style={[styles.card, styles.cardGreen]}>
-                <Text style={styles.listItem}>• Click "Book Now" on your chosen photographer's profile</Text>
-                <Text style={styles.listItem}>• Select your preferred date, time, and package</Text>
-                <Text style={styles.listItem}>• Provide event details and specific requests</Text>
-                <Text style={styles.listItem}>• Review the total cost including fees and taxes</Text>
-                <Text style={styles.listItem}>• Complete secure payment through escrow</Text>
-                <Text style={styles.listItem}>• Receive instant booking confirmation via email</Text>
-                <Text style={styles.listItem}>• Communicate directly via messaging to finalize details</Text>
+                <Text style={styles.listItem}>{t('b4_hcMakeBullet1')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcMakeBullet2')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcMakeBullet3')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcMakeBullet4')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcMakeBullet5')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcMakeBullet6')}</Text>
+                <Text style={styles.listItem}>{t('b4_hcMakeBullet7')}</Text>
               </View>
 
-              <Text style={styles.sectionTitle}>Booking Tips for Best Results</Text>
+              <Text style={styles.sectionTitle}>{t('b4_hcBookingTipsTitle')}</Text>
               {tips.map((tip, idx) => (
                 <View key={idx} style={styles.tipCard}>
                   <Text style={styles.tipTitle}>{tip.title}</Text>

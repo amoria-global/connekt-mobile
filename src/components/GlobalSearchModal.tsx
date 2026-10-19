@@ -37,6 +37,7 @@ import { storage } from '@/services/storage';
 import { formatDate } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 const RECENT_SEARCHES_KEY = 'connekt.global_search_recents';
 
@@ -66,6 +67,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { tr } = useSharedT();
 
   const [query, setQuery] = useState(initialQuery);
   const [scope, setScope] = useState<SearchScope>('all');
@@ -226,7 +228,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
             <TextInput
               ref={inputRef}
               style={styles.searchInput}
-              placeholder="Search photographers, live streams, events..."
+              placeholder={tr('Search photographers, live streams, events...')}
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
@@ -248,10 +250,10 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
         <View style={styles.scopeRail}>
           {(
             [
-              { id: 'all', label: 'All' },
-              { id: 'photographers', label: `Photographers (${filteredPhotographers.length})` },
-              { id: 'events', label: `Events & Live (${eventResults.length})` },
-              { id: 'styles', label: 'Styles' },
+              { id: 'all', label: tr('All') },
+              { id: 'photographers', label: `${tr('Photographers & Creators')} (${filteredPhotographers.length})` },
+              { id: 'events', label: `${tr('Events & Public Shoots')} (${eventResults.length})` },
+              { id: 'styles', label: tr('Categories') },
             ] as const
           ).map((t) => {
             const active = scope === t.id;
@@ -283,9 +285,9 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
               {recentSearches.length > 0 && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeadRow}>
-                    <Text style={styles.sectionTitle}>Recent Searches</Text>
+                    <Text style={styles.sectionTitle}>{tr('Recent Searches')}</Text>
                     <Pressable onPress={clearRecentSearches} hitSlop={8}>
-                      <Text style={styles.clearLink}>Clear</Text>
+                      <Text style={styles.clearLink}>{tr('Clear')}</Text>
                     </Pressable>
                   </View>
                   <View style={styles.recentTagsWrap}>
@@ -305,7 +307,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
 
               {/* Trending Styles & Searches */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Explore by Category</Text>
+                <Text style={styles.sectionTitle}>{tr('Explore by Category')}</Text>
                 <View style={styles.styleGrid}>
                   {POPULAR_STYLES.map((st) => (
                     <Pressable
@@ -316,7 +318,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                       <View style={[styles.styleIconWrap, { backgroundColor: `${st.color}15` }]}>
                         <Ionicons name={st.icon} size={20} color={st.color} />
                       </View>
-                      <Text style={styles.styleCardName}>{st.name}</Text>
+                      <Text style={styles.styleCardName}>{tr(st.name)}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -326,7 +328,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
           loading && !hasResults ? (
             <View style={styles.loadingWrap}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Searching platform...</Text>
+              <Text style={styles.loadingText}>{tr('Searching platform...')}</Text>
             </View>
           ) : !hasResults ? (
             <View style={styles.emptyWrap}>
@@ -343,7 +345,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                 <View style={styles.section}>
                   <View style={styles.liveHeadRow}>
                     <View style={styles.liveDotRed} />
-                    <Text style={styles.liveHeadTitle}>LIVE BROADCASTS NOW</Text>
+                    <Text style={styles.liveHeadTitle}>{tr('LIVE BROADCASTS NOW')}</Text>
                   </View>
                   {liveEvents.map((ev) => (
                     <Pressable
@@ -361,12 +363,12 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                           {ev.title}
                         </Text>
                         <Text style={styles.liveCardSub} numberOfLines={1}>
-                          {ev.photographerName || ev.eventOrganizer || 'Live Stream'}
+                          {ev.photographerName || ev.eventOrganizer || tr('Live Stream')}
                         </Text>
                       </View>
                       <View style={styles.watchLivePill}>
                         <Ionicons name="play" size={11} color="#FFFFFF" />
-                        <Text style={styles.watchLivePillText}>Watch</Text>
+                        <Text style={styles.watchLivePillText}>{tr('Watch')}</Text>
                       </View>
                     </Pressable>
                   ))}
@@ -377,7 +379,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
               {(scope === 'all' || scope === 'photographers') &&
                 filteredPhotographers.length > 0 && (
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Photographers & Creators</Text>
+                    <Text style={styles.sectionTitle}>{tr('Photographers & Creators')}</Text>
                     {filteredPhotographers.map((p) => (
                       <Pressable
                         key={p.id}

@@ -12,6 +12,7 @@ import { useRole } from '@/features/auth/role';
 import { getKyc } from './api';
 import { getKycBannerConfig } from './bannerConfig';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/store/language';
 import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
 export { getKycBannerConfig, type KycBannerConfig } from './bannerConfig';
@@ -38,6 +39,7 @@ export type KycBannerProps = {
 export function KycBanner({ style, compact }: KycBannerProps) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const router = useRouter();
   const { role } = useRole();
   const [dismissed, setDismissed] = useState(false);
@@ -79,7 +81,7 @@ export function KycBanner({ style, compact }: KycBannerProps) {
                 </View>
               )}
             </View>
-            {compact ? null : <Text style={styles.subtitleCategory}>Identity Verification</Text>}
+            {compact ? null : <Text style={styles.subtitleCategory}>{t('identityVerification')}</Text>}
           </View>
 
           {compact ? (
@@ -104,7 +106,7 @@ export function KycBanner({ style, compact }: KycBannerProps) {
             }}
             style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}
             accessibilityRole="button"
-            accessibilityLabel="Dismiss verification banner"
+            accessibilityLabel={t('dismissVerificationBanner')}
           >
             <Ionicons name="close" size={17} color={colors.textMuted} />
           </Pressable>
@@ -120,7 +122,7 @@ export function KycBanner({ style, compact }: KycBannerProps) {
         <View style={styles.bottomRow}>
           <View style={styles.securityPill}>
             <Ionicons name="shield-checkmark" size={13} color={colors.textMuted} />
-            <Text style={styles.securityText}>Official & Encrypted</Text>
+            <Text style={styles.securityText}>{t('kycOfficialEncrypted')}</Text>
           </View>
 
           <Pressable

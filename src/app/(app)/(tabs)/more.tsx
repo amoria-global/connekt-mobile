@@ -10,7 +10,10 @@ import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 export default function MoreScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
 
   useEffect(() => {

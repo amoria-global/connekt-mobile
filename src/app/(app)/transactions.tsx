@@ -10,6 +10,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 import { useAuth } from '@/store/auth';
 import {
   getDirectionFilters,
@@ -25,6 +26,7 @@ const PAGE_SIZE = 8;
 export default function TransactionsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { language, t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const user = useAuth((s) => s.user);
@@ -71,6 +73,11 @@ export default function TransactionsScreen() {
       <View style={styles.filterRow}>
         {directionFilters.map((d) => {
           const active = directionFilter === d.value;
+          let label = d.label;
+          if (d.value === 'all') label = t('allTransactions');
+          else if (d.value === 'in') label = role === 'photographer' ? `${t('earnings')} (+)` : `${t('moneyIn')} (+)`;
+          else if (d.value === 'out') label = `${t('moneyOut')} (−)`;
+          else if (d.value === 'withdrawals') label = t('withdrawals');
           return (
             <Pressable
               key={d.value}
@@ -78,7 +85,7 @@ export default function TransactionsScreen() {
               style={[styles.filterPill, active && styles.filterPillActive]}
             >
               <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
-                {d.label}
+                {label}
               </Text>
             </Pressable>
           );
@@ -90,7 +97,7 @@ export default function TransactionsScreen() {
         <Ionicons name="search-outline" size={15} color={colors.textMuted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search transactions..."
+          placeholder={t('searchTransactionsPlaceholder')}
           placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
@@ -107,8 +114,11 @@ export default function TransactionsScreen() {
   const footer = filtered.length > 0 ? (
     <View style={styles.paginationRow}>
       <Text style={styles.paginationInfo}>
-        Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of{' '}
-        {filtered.length}
+        {t('showingRangeOfTotal', {
+          from: (safePage - 1) * PAGE_SIZE + 1,
+          to: Math.min(safePage * PAGE_SIZE, filtered.length),
+          total: filtered.length,
+        })}
       </Text>
       {totalPages > 1 ? (
         <View style={styles.paginationButtons}>
@@ -124,7 +134,7 @@ export default function TransactionsScreen() {
               color={safePage <= 1 ? colors.textMuted : colors.text}
             />
             <Text style={[styles.pageNavBtnText, safePage <= 1 && styles.pageNavBtnTextDisabled]}>
-              Prev
+              {t('prev')}
             </Text>
           </Pressable>
 
@@ -146,7 +156,7 @@ export default function TransactionsScreen() {
                 safePage >= totalPages && styles.pageNavBtnTextDisabled,
               ]}
             >
-              Next
+              {t('next')}
             </Text>
             <Ionicons
               name="chevron-forward"
@@ -185,9 +195,9 @@ export default function TransactionsScreen() {
         loading={loading}
         error={error}
         onRefresh={refresh}
-        title="Transactions"
+        title={t('transactionsTitle')}
         duplicatesHeader
-        subtitle="Your wallet activity"
+        subtitle={t('walletActivitySubtitle')}
         headerExtra={headerExtra}
         footer={
           footer || loadOlder ? (
@@ -200,11 +210,11 @@ export default function TransactionsScreen() {
         keyExtractor={(m) => m.id}
         renderItem={({ item }) => <Row movement={item} />}
         emptyIcon="swap-horizontal-outline"
-        emptyTitle={search || directionFilter !== 'all' ? 'No matching transactions' : 'No transactions yet'}
+        emptyTitle={search || directionFilter !== 'all' ? t('noMatchingTransactions') : t('noTransactionsYet')}
         emptyMessage={
           search || directionFilter !== 'all'
-            ? 'Try adjusting your search terms or filters.'
-            : 'Money in and out of your wallet will show up here.'
+            ? t('adjustSearchFilters')
+            : t('moneyInOutWallet')
         }
       />
     </Screen>

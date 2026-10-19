@@ -9,11 +9,13 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { disableTotp, enableTotp, getTotpStatus, setupTotp, type TotpSetup } from '@/features/security/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function TwoFactorScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getTotpStatus(), []));
   const [setup, setSetup] = useState<TotpSetup | null>(null);
   const [code, setCode] = useState('');
@@ -26,7 +28,7 @@ export default function TwoFactorScreen() {
     try {
       setSetup(await setupTotp());
     } catch (err) {
-      setMsg(isApiError(err) ? err.message : 'Could not start setup.');
+      setMsg(isApiError(err) ? err.message : t('b1_twoFactorSetupErr'));
     } finally {
       setBusy(false);
     }
@@ -41,7 +43,7 @@ export default function TwoFactorScreen() {
       setCode('');
       await refresh();
     } catch (err) {
-      setMsg(isApiError(err) ? err.message : 'Could not enable two-factor.');
+      setMsg(isApiError(err) ? err.message : t('b1_twoFactorEnableErr'));
     } finally {
       setBusy(false);
     }
@@ -55,7 +57,7 @@ export default function TwoFactorScreen() {
       setCode('');
       await refresh();
     } catch (err) {
-      setMsg(isApiError(err) ? err.message : 'Could not disable two-factor.');
+      setMsg(isApiError(err) ? err.message : t('b1_twoFactorDisableErr'));
     } finally {
       setBusy(false);
     }
@@ -63,7 +65,7 @@ export default function TwoFactorScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title="Two-factor authentication" subtitle="Add an extra layer of security" />
+      <ScreenHeader title={t('b1_twoFactorTitle')} subtitle={t('b1_twoFactorSubtitle')} />
       {loading && !data ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -77,7 +79,7 @@ export default function TwoFactorScreen() {
               color={data?.enabled ? colors.success : colors.textMuted}
             />
             <Text style={styles.statusText}>
-              {data?.enabled ? 'Two-factor is ON' : 'Two-factor is OFF'}
+              {data?.enabled ? t('b1_twoFactorStatusOn') : t('b1_twoFactorStatusOff')}
             </Text>
           </View>
           {error && !data ? <Text style={styles.error}>{error}</Text> : null}
@@ -85,35 +87,33 @@ export default function TwoFactorScreen() {
           {data?.enabled ? (
             <View style={styles.section}>
               <Text style={styles.body}>
-                Enter a code from your authenticator app to turn two-factor off.
+                {t('b1_twoFactorDisableBody')}
               </Text>
-              <Input label="Authenticator code" value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
-              <Button title="Disable two-factor" variant="ghost" onPress={onDisable} loading={busy} />
+              <Input label={t('b1_twoFactorAuthCodeLabel')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
+              <Button title={t('b1_twoFactorDisableBtn')} variant="ghost" onPress={onDisable} loading={busy} />
             </View>
           ) : setup ? (
             <View style={styles.section}>
               <Text style={styles.body}>
-                Scan this QR code with Google Authenticator (or any TOTP app), then enter the 6-digit
-                code to finish.
+                {t('b1_twoFactorScanBody')}
               </Text>
               {setup.qrCode ? (
                 <Image source={{ uri: setup.qrCode }} style={styles.qr} contentFit="contain" />
               ) : null}
               {setup.secret ? (
                 <Text style={styles.secret}>
-                  Or enter this key manually: <Text style={styles.secretCode}>{setup.secret}</Text>
+                  {t('b1_twoFactorManualKey')} <Text style={styles.secretCode}>{setup.secret}</Text>
                 </Text>
               ) : null}
-              <Input label="6-digit code" value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
-              <Button title="Verify & enable" onPress={onEnable} loading={busy} />
+              <Input label={t('b1_twoFactorSixDigitLabel')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
+              <Button title={t('b1_twoFactorVerifyBtn')} onPress={onEnable} loading={busy} />
             </View>
           ) : (
             <View style={styles.section}>
               <Text style={styles.body}>
-                Protect your account with an authenticator app. You&apos;ll enter a 6-digit code when
-                signing in.
+                {t('b1_twoFactorIntroBody')}
               </Text>
-              <Button title="Enable two-factor" onPress={onStartSetup} loading={busy} />
+              <Button title={t('b1_twoFactorEnableBtn')} onPress={onStartSetup} loading={busy} />
             </View>
           )}
 

@@ -29,6 +29,7 @@ import { useRole } from '@/features/auth/role';
 import { useModeration } from '@/features/moderation/useModeration';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 
 type FilterType = 'ALL' | 'CREATORS' | 'UNREAD';
@@ -42,6 +43,7 @@ const SORT_OPTIONS: { key: SortType; label: string; icon: keyof typeof Ionicons.
 ];
 
 export default function InboxScreen() {
+  const { language, t } = useLanguage();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const { colors } = useTheme();
@@ -219,7 +221,7 @@ export default function InboxScreen() {
     <View style={styles.headerWrap}>
       {/* ── Header Bar ─────────────────────────────────────────────── */}
       <View style={styles.instagramHeader}>
-        <Text style={styles.headerTitleText}>Inbox</Text>
+        <Text style={styles.headerTitleText}>{t('inbox')}</Text>
 
         <View style={styles.headerIconsRow}>
           {unreadCount > 0 ? (
@@ -228,7 +230,7 @@ export default function InboxScreen() {
               onPress={handleMarkAllRead}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Mark all as read"
+              accessibilityLabel={t('markAllAsRead')}
             >
               <Ionicons name="checkmark-done" size={20} color={colors.primary} />
             </Pressable>
@@ -240,7 +242,7 @@ export default function InboxScreen() {
             onPress={() => setSortModalVisible(true)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Filter and sort options"
+            accessibilityLabel={t('filterAndSort')}
           >
             <Ionicons name="options-outline" size={22} color={colors.text} />
           </Pressable>
@@ -254,7 +256,7 @@ export default function InboxScreen() {
             }}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="New message"
+            accessibilityLabel={t('newMessage')}
           >
             <Ionicons name="create-outline" size={24} color={colors.text} />
           </Pressable>
@@ -267,7 +269,7 @@ export default function InboxScreen() {
           <Ionicons name="search" size={16} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search"
+            placeholder={t('search')}
             placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -290,7 +292,7 @@ export default function InboxScreen() {
           onPress={() => setActiveFilter('ALL')}
         >
           <Text style={[styles.tabLabel, activeFilter === 'ALL' && styles.tabLabelActive]}>
-            Primary {totalCount > 0 ? `(${totalCount})` : ''}
+            {t('primary')} {totalCount > 0 ? `(${totalCount})` : ''}
           </Text>
           {activeFilter === 'ALL' ? <View style={styles.activeTabIndicator} /> : null}
         </Pressable>
@@ -300,7 +302,7 @@ export default function InboxScreen() {
           onPress={() => setActiveFilter('CREATORS')}
         >
           <Text style={[styles.tabLabel, activeFilter === 'CREATORS' && styles.tabLabelActive]}>
-            General
+            {t('general')}
           </Text>
           {activeFilter === 'CREATORS' ? <View style={styles.activeTabIndicator} /> : null}
         </Pressable>
@@ -311,7 +313,7 @@ export default function InboxScreen() {
         >
           <View style={styles.tabWithBadge}>
             <Text style={[styles.tabLabel, activeFilter === 'UNREAD' && styles.tabLabelActive]}>
-              Unread
+              {t('unread')}
             </Text>
             {unreadCount > 0 ? (
               <View style={styles.unreadCountChip}>
@@ -380,14 +382,14 @@ export default function InboxScreen() {
                 <Ionicons name="paper-plane-outline" size={44} color={colors.text} />
               </View>
               <Text style={styles.emptyTitle}>
-                {searchQuery.trim().length > 0 ? 'No matching messages' : 'Your messages'}
+                {searchQuery.trim().length > 0 ? t('noMatchingMessages') : t('yourMessages')}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {searchQuery.trim().length > 0
-                  ? `No conversations match "${searchQuery.trim()}". Try searching with another name or keyword.`
+                  ? t('noConversationsMatch', { query: searchQuery.trim() })
                   : activeFilter !== 'ALL'
-                  ? 'You don’t have any conversations in this category.'
-                  : 'Send private photos, event bookings and messages to a creator or photographer.'}
+                  ? t('noConversationsCategory')
+                  : t('privateMessagesBlurb')}
               </Text>
               {searchQuery.trim().length > 0 || activeFilter !== 'ALL' ? (
                 <Pressable
@@ -397,7 +399,7 @@ export default function InboxScreen() {
                     setActiveFilter('ALL');
                   }}
                 >
-                  <Text style={styles.emptyActionBtnText}>View all messages</Text>
+                  <Text style={styles.emptyActionBtnText}>{t('viewAllMessages')}</Text>
                 </Pressable>
               ) : (
                 <Pressable
@@ -407,7 +409,7 @@ export default function InboxScreen() {
                     void loadContacts();
                   }}
                 >
-                  <Text style={styles.emptyActionBtnText}>Send message</Text>
+                  <Text style={styles.emptyActionBtnText}>{t('sendMessage')}</Text>
                 </Pressable>
               )}
             </View>
@@ -436,10 +438,10 @@ export default function InboxScreen() {
                 hitSlop={8}
                 style={styles.headerTextBtn}
               >
-                <Text style={styles.headerCancelText}>Cancel</Text>
+                <Text style={styles.headerCancelText}>{t('cancel')}</Text>
               </Pressable>
 
-              <Text style={styles.modalTitle}>New message</Text>
+              <Text style={styles.modalTitle}>{t('newMessage')}</Text>
 
               <View style={styles.headerTextBtn}>
                 <Text style={styles.headerPlaceholderText}> </Text>
@@ -448,10 +450,10 @@ export default function InboxScreen() {
 
             {/* "To: Search" Input */}
             <View style={styles.toSearchRow}>
-              <Text style={styles.toLabel}>To:</Text>
+              <Text style={styles.toLabel}>{t('toLabel')}</Text>
               <TextInput
                 style={styles.toInput}
-                placeholder="Search creators by name, style..."
+                placeholder={t('searchCreatorsPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={contactSearchQuery}
                 onChangeText={setContactSearchQuery}
@@ -478,7 +480,7 @@ export default function InboxScreen() {
                     contactScope === 'ALL' && styles.scopeTabTextActive,
                   ]}
                 >
-                  All Creators
+                  {t('allCreators')}
                 </Text>
               </Pressable>
               <Pressable
@@ -491,26 +493,26 @@ export default function InboxScreen() {
                     contactScope === 'BOOKED' && styles.scopeTabTextActive,
                   ]}
                 >
-                  Booked Photographers
+                  {t('bookedPhotographers')}
                 </Text>
               </Pressable>
             </View>
 
-            <Text style={styles.suggestedSectionHeader}>Suggested</Text>
+            <Text style={styles.suggestedSectionHeader}>{t('suggested')}</Text>
 
             {/* Contacts List */}
             <View style={styles.contactListContainer}>
               {isLoadingContacts ? (
                 <View style={styles.loadingBox}>
                   <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.loadingText}>Loading creators...</Text>
+                  <Text style={styles.loadingText}>{t('loadingCreators')}</Text>
                 </View>
               ) : filteredContacts.length === 0 ? (
                 <View style={styles.emptyContactsBox}>
                   <Ionicons name="people-outline" size={36} color={colors.textMuted} />
-                  <Text style={styles.emptyContactsTitle}>No creators found</Text>
+                  <Text style={styles.emptyContactsTitle}>{t('noCreatorsFound')}</Text>
                   <Text style={styles.emptyContactsSub}>
-                    Try searching with another keyword or name.
+                    {t('trySearchingAnother')}
                   </Text>
                 </View>
               ) : (
@@ -560,7 +562,7 @@ export default function InboxScreen() {
                         <View style={styles.contactTrailing}>
                           {hasChat ? (
                             <View style={styles.activeChatBadge}>
-                              <Text style={styles.activeChatBadgeText}>Chat</Text>
+                              <Text style={styles.activeChatBadgeText}>{t('chat')}</Text>
                             </View>
                           ) : null}
                           <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
@@ -590,7 +592,7 @@ export default function InboxScreen() {
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sort & filter</Text>
+              <Text style={styles.modalTitle}>{t('sortAndFilter')}</Text>
               <Pressable
                 onPress={() => setSortModalVisible(false)}
                 hitSlop={8}
@@ -603,6 +605,14 @@ export default function InboxScreen() {
             <View style={styles.sortOptionsList}>
               {SORT_OPTIONS.map((opt) => {
                 const isSelected = sortKey === opt.key;
+                const optLabel =
+                  opt.key === 'recent'
+                    ? t('mostRecent')
+                    : opt.key === 'unread'
+                    ? t('unreadFirst')
+                    : opt.key === 'name'
+                    ? t('nameAtoZ')
+                    : t('oldestFirst');
                 return (
                   <Pressable
                     key={opt.key}
@@ -627,7 +637,7 @@ export default function InboxScreen() {
                           isSelected && styles.sortOptionLabelActive,
                         ]}
                       >
-                        {opt.label}
+                        {optLabel}
                       </Text>
                     </View>
 

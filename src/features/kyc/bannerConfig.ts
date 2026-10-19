@@ -1,4 +1,5 @@
 import type { CustomerType } from '@/features/auth/types';
+import { useLanguage } from '@/store/language';
 import type { Palette } from '@/theme';
 
 export type KycBannerConfig = {
@@ -25,6 +26,7 @@ export function getKycBannerConfig(
 ): KycBannerConfig {
   const raw = (status ?? 'NONE').toUpperCase();
   const normStatus = raw === 'NOT_SUBMITTED' ? 'NONE' : raw;
+  const lang = useLanguage.getState().language;
 
   // Approved users don't need any prompt; Viewers do not have a KYC workflow.
   if (normStatus === 'APPROVED' || role === 'Viewer') {
@@ -48,10 +50,26 @@ export function getKycBannerConfig(
   if (isRejected) {
     return {
       visible: true,
-      title: 'KYC Needs Attention',
-      badge: 'Action Required',
-      detail: 'Your submission was not accepted. Tap to review & resubmit.',
-      buttonText: 'Resubmit',
+      title:
+        lang === 'fr'
+          ? 'KYC requiert votre attention'
+          : lang === 'es'
+            ? 'KYC requiere atención'
+            : 'KYC Needs Attention',
+      badge:
+        lang === 'fr'
+          ? 'Action requise'
+          : lang === 'es'
+            ? 'Acción requerida'
+            : 'Action Required',
+      detail:
+        lang === 'fr'
+          ? "Votre soumission n'a pas été acceptée. Appuyez pour vérifier et soumettre à nouveau."
+          : lang === 'es'
+            ? 'Tu envío no fue aceptado. Toca para revisar y volver a enviar.'
+            : 'Your submission was not accepted. Tap to review & resubmit.',
+      buttonText:
+        lang === 'fr' ? 'Soumettre à nouveau' : lang === 'es' ? 'Reenviar' : 'Resubmit',
       accent: palette.error,
       badgeBg: 'rgba(239, 68, 68, 0.12)',
       badgeColor: palette.error,
@@ -63,10 +81,21 @@ export function getKycBannerConfig(
   if (isPending) {
     return {
       visible: true,
-      title: 'KYC Under Review',
-      badge: 'In Review',
-      detail: "We're reviewing your details. This typically takes a few hours.",
-      buttonText: 'Check status',
+      title:
+        lang === 'fr'
+          ? 'KYC en cours de vérification'
+          : lang === 'es'
+            ? 'KYC en revisión'
+            : 'KYC Under Review',
+      badge: lang === 'fr' ? 'En révision' : lang === 'es' ? 'En revisión' : 'In Review',
+      detail:
+        lang === 'fr'
+          ? 'Nous vérifions vos informations. Cela prend généralement quelques heures.'
+          : lang === 'es'
+            ? 'Estamos revisando tus datos. Esto suele tardar unas horas.'
+            : "We're reviewing your details. This typically takes a few hours.",
+      buttonText:
+        lang === 'fr' ? 'Voir le statut' : lang === 'es' ? 'Ver estado' : 'Check status',
       accent: '#3B82F6',
       badgeBg: 'rgba(59, 130, 246, 0.12)',
       badgeColor: '#2563EB',
@@ -79,10 +108,26 @@ export function getKycBannerConfig(
   const isOptional = role !== 'Photographer';
   return {
     visible: true,
-    title: 'Complete KYC',
-    badge: isOptional ? 'Optional' : 'Recommended',
-    detail: 'Verify your identity to unlock full features & trusted status.',
-    buttonText: 'Verify',
+    title:
+      lang === 'fr' ? 'Compléter le KYC' : lang === 'es' ? 'Completar KYC' : 'Complete KYC',
+    badge: isOptional
+      ? lang === 'fr'
+        ? 'Optionnel'
+        : lang === 'es'
+          ? 'Opcional'
+          : 'Optional'
+      : lang === 'fr'
+        ? 'Recommandé'
+        : lang === 'es'
+          ? 'Recomendado'
+          : 'Recommended',
+    detail:
+      lang === 'fr'
+        ? 'Vérifiez votre identité pour débloquer toutes les fonctionnalités et le badge vérifié.'
+        : lang === 'es'
+          ? 'Verifica tu identidad para desbloquear todas las funciones y el estado verificado.'
+          : 'Verify your identity to unlock full features & trusted status.',
+    buttonText: lang === 'fr' ? 'Vérifier' : lang === 'es' ? 'Verificar' : 'Verify',
     accent: palette.primary,
     badgeBg: palette.tint,
     badgeColor: palette.primary,

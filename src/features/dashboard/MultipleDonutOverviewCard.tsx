@@ -27,6 +27,7 @@ import { fonts, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import type { PhotographerAnalytics } from '@/features/analytics/api';
 import { useCurrency } from '@/store/currency';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 export type TimeframeKey = 'today' | 'week' | 'month' | 'all';
 
@@ -73,6 +74,7 @@ export function MultipleDonutOverviewCard({
   useCurrency((s) => s.currency);
   const { colors, isDark } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const [viewMode, setViewMode] = useState<ViewMode>('donut');
   const [selectedRing, setSelectedRing] = useState<'outer' | 'middle' | 'inner' | null>(null);
 
@@ -692,7 +694,7 @@ export function MultipleDonutOverviewCard({
             onPress={onPressWallet}
             disabled={!onPressWallet}
           >
-            <Text style={styles.trendCardLabel}>Total Earnings</Text>
+            <Text style={styles.trendCardLabel}>{tr('Total Earnings')}</Text>
             <Text style={styles.trendCardValue}>
               {balanceHidden ? '••••••' : formatPrice(totalEarnings, currency)}
             </Text>
@@ -710,9 +712,9 @@ export function MultipleDonutOverviewCard({
             onPress={onPressWallet}
             disabled={!onPressWallet}
           >
-            <Text style={styles.trendCardLabel}>Bookings</Text>
+            <Text style={styles.trendCardLabel}>{tr('Bookings')}</Text>
             <Text style={styles.trendCardValue}>{completedShoots}</Text>
-            <Text style={[styles.trendCardSub, { color: colors.primary }]}>Completed shoots</Text>
+            <Text style={[styles.trendCardSub, { color: colors.primary }]}>{tr('Completed shoots')}</Text>
           </Pressable>
 
           <Pressable
@@ -720,9 +722,9 @@ export function MultipleDonutOverviewCard({
             onPress={onPressClients}
             disabled={!onPressClients}
           >
-            <Text style={styles.trendCardLabel}>Active Clients</Text>
+            <Text style={styles.trendCardLabel}>{tr('Active Clients')}</Text>
             <Text style={styles.trendCardValue}>{totalClients}</Text>
-            <Text style={[styles.trendCardSub, { color: colors.accent }]}>Direct CRM</Text>
+            <Text style={[styles.trendCardSub, { color: colors.accent }]}>{tr('Direct CRM')}</Text>
           </Pressable>
 
           <Pressable
@@ -730,11 +732,11 @@ export function MultipleDonutOverviewCard({
             onPress={onPressWallet}
             disabled={!onPressWallet}
           >
-            <Text style={styles.trendCardLabel}>Tips & Bonuses</Text>
+            <Text style={styles.trendCardLabel}>{tr('Tips & Bonuses')}</Text>
             <Text style={styles.trendCardValue}>
               {balanceHidden ? '••••••' : formatPrice(totalTips + bonuses, currency)}
             </Text>
-            <Text style={[styles.trendCardSub, { color: isDark ? '#2DD4BF' : '#0D9488' }]}>Rewards tally</Text>
+            <Text style={[styles.trendCardSub, { color: isDark ? '#2DD4BF' : '#0D9488' }]}>{tr('Rewards tally')}</Text>
           </Pressable>
         </View>
       )}
@@ -754,7 +756,7 @@ export function MultipleDonutOverviewCard({
               ) : null}
             </View>
             <View style={styles.pieScoreCol}>
-              <Text style={styles.pieScoreTitle}>Creator Satisfaction Score</Text>
+              <Text style={styles.pieScoreTitle}>{tr('Creator Satisfaction Score')}</Text>
               <Text style={styles.pieScoreSub}>
                 Based on verified event client reviews and on-time delivery
               </Text>

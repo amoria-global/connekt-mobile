@@ -56,6 +56,7 @@ import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
 import { ClientWalletAnalytics } from '@/features/client/ClientWalletAnalytics';
 import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -64,6 +65,7 @@ export default function WalletScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();

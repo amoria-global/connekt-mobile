@@ -11,11 +11,14 @@ import { ensureKycConsent } from '@/features/privacy/consent';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
 
+import { useLanguage } from '@/hooks/useLanguage';
+
 /**
  * Identity verification. Opened straight from the home banner's Verify button
  * as a full, flat page; the flow itself lives in `KycVerifyFlow`.
  */
 export default function KycScreen() {
+  const { t } = useLanguage();
   const router = useRouter();
   const user = useAuth((s) => s.user);
   const { data, loading, error, refresh } = useAsync(useCallback(() => getKyc(), []));

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRole } from '@/features/auth/role';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Variant = 'primary' | 'accent' | 'ghost' | 'outline' | 'danger';
 
@@ -23,6 +24,7 @@ export function Button({ title, variant = 'primary', loading, disabled, style, t
   const variantStyles = useVariantStyles();
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   // Photographer screens use the prototype's squarer 48dp buttons; other roles keep the pill.
   const flat = useRole().isPhotographer;
   const isDisabled = disabled || loading;
@@ -44,7 +46,7 @@ export function Button({ title, variant = 'primary', loading, disabled, style, t
       {loading ? (
         <ActivityIndicator color={isOutlined ? colors.primary : colors.textOnPrimary} />
       ) : (
-        <Text style={[styles.label, isOutlined && styles.labelGhost, textStyle]}>{title}</Text>
+        <Text style={[styles.label, isOutlined && styles.labelGhost, textStyle]}>{tr(title)}</Text>
       )}
     </Pressable>
   );
