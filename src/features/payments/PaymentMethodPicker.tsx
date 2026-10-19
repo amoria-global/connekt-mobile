@@ -10,13 +10,14 @@
  * or the lowercased operator id) and never talks to the backend; each host
  * keeps its own state, polling and payload.
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { FlatList, Image, Modal, Pressable, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, Pressable, Text, View } from 'react-native';
 import { flagEmoji } from '@/components/ui/PhoneInput';
-import { PAYMENT_COUNTRY_LIST, paymentCountryName } from '@/features/payments/countries';
+import { CountrySelectModal } from '@/features/payments/CountrySelectModal';
+import { paymentCountryName } from '@/features/payments/countries';
 import { CARDS_LOGO, MOMO_LOGO, operatorLogo } from '@/features/payments/operatorLogos';
+import type { MobileMoneyState } from '@/features/payments/eligibility';
 import type { PaymentOperator } from '@/features/reference/api';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -30,6 +31,10 @@ type Props = {
   /** Omit onCountryChange to hide the selector (host already has one). */
   country?: string;
   onCountryChange?: (iso2: string) => void;
+  /** From usePaymentEligibility: 'loading' while checking, 'unavailable' when the country has no mobile money. */
+  mobileMoneyState?: MobileMoneyState;
+  /** Offered when mobile money could not be confirmed, so a failed lookup is not final. */
+  onRetry?: () => void;
   disableMobileMoney?: boolean;
   disableCards?: boolean;
   /** Lock while a payment is starting. */
@@ -62,6 +67,8 @@ export function PaymentMethodPicker({
   onSelect,
   country,
   onCountryChange,
+  mobileMoneyState,
+  onRetry,
   disableMobileMoney = false,
   disableCards = false,
   disabled = false,
@@ -73,23 +80,16 @@ export function PaymentMethodPicker({
   const cardSelected = selectedId === 'card';
   const [open, setOpen] = useState(!!selectedOperator);
   const [countryOpen, setCountryOpen] = useState(false);
-  const [query, setQuery] = useState('');
 
   const momoOff = disabled || disableMobileMoney || operators.length === 0;
   const cardOff = disabled || disableCards;
   const momoActive = (open || !!selectedOperator) && !momoOff;
-
-  const countries = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return PAYMENT_COUNTRY_LIST;
-    return PAYMENT_COUNTRY_LIST.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.iso2.toLowerCase() === q || c.dial.includes(q.replace(/^\+/, '')),
-    );
-  }, [query]);
+  // A disabled Mobile Money tile is noise: show it only while checking or when there are networks.
+  const showMomo = mobileMoneyState === 'loading' || (operators.length > 0 && !disableMobileMoney);
+  const momoMissing = !showMomo;
 
   const pickCountry = (iso2: string) => {
     setCountryOpen(false);
-    setQuery('');
     if (iso2 !== (country || '').toUpperCase()) {
       setOpen(false);
       onCountryChange?.(iso2);
@@ -104,10 +104,10 @@ export function PaymentMethodPicker({
           onPress={() => setCountryOpen(true)}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel={tr('Select country')}
+          accessibilityLabel={`Payment country ${country ? paymentCountryName(country) : tr('not set')}. ${tr('Tap to change.')}`}
         >
           <Text style={styles.flag}>{flagEmoji(country)}</Text>
-          <Text style={styles.countryName} numberOfLines={1}>{paymentCountryName(country)}</Text>
+          <Text style={styles.countryName} numberOfLines={1}>{country ? paymentCountryName(country) : tr('Choose your country')}</Text>
           <Text style={styles.countryChange}>{tr('Change')}</Text>
           <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
         </Pressable>
@@ -115,6 +115,7 @@ export function PaymentMethodPicker({
 
       <View style={styles.mainRow}>
         <View style={styles.tiles}>
+        {showMomo ? (
         <Pressable
           style={[styles.main, momoActive && styles.mainActive, momoOff && styles.off]}
           onPress={() => setOpen((o) => !o)}
@@ -129,13 +130,16 @@ export function PaymentMethodPicker({
             <Text style={styles.mainSub} numberOfLines={2}>
               {selectedOperator
                 ? selectedOperator.name
-                : disableMobileMoney || operators.length === 0
-                  ? 'Unavailable here'
+                : mobileMoneyState === 'loading'
+                  ? 'Checking your country...'
+                  : disableMobileMoney || operators.length === 0
+                  ? 'Not available in your country'
                   : 'Choose your network'}
             </Text>
           </View>
           <Ionicons name={momoActive ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} style={styles.tileIcon} />
         </Pressable>
+        ) : null}
 
         {supportsCard ? (
           <Pressable
@@ -187,54 +191,45 @@ export function PaymentMethodPicker({
           </View>
         ) : null}
 
+        {momoMissing && mobileMoneyState === 'unavailable' ? (
+          <Text style={styles.unavailable}>
+            {country
+              ? 'Mobile money is not available in this country. You can pay by card.'
+              : 'We could not confirm your country. You can pay by card, or choose your country to see mobile money.'}
+          </Text>
+        ) : null}
+
+        {mobileMoneyState === 'unavailable' && onRetry ? (
+          <Pressable
+            onPress={onRetry}
+            disabled={disabled}
+            style={styles.retry}
+            accessibilityRole="button"
+            accessibilityLabel="Check mobile money for my country again"
+          >
+            <Ionicons name="refresh" size={14} color={colors.primary} />
+            <Text style={styles.retryText}>Check again</Text>
+          </Pressable>
+        ) : null}
+
       </View>
 
       {onCountryChange ? (
-        <Modal visible={countryOpen} animationType="slide" onRequestClose={() => setCountryOpen(false)}>
-          <SafeAreaView style={styles.modal}>
-            <View style={styles.modalHead}>
-              <Text style={styles.modalTitle}>{tr('Select country')}</Text>
-              <Pressable onPress={() => setCountryOpen(false)} hitSlop={10} accessibilityLabel={tr('Close')}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-            <View style={styles.search}>
-              <Ionicons name="search" size={16} color={colors.textMuted} />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder={tr('Search country or dial code')}
-                placeholderTextColor={colors.textMuted}
-                style={styles.searchInput}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-            <FlatList
-              data={countries}
-              keyExtractor={(c) => c.iso2}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={<Text style={styles.empty}>{tr('No matching country.')}</Text>}
-              renderItem={({ item }) => {
-                const active = item.iso2 === (country || '').toUpperCase();
-                return (
-                  <Pressable style={[styles.countryRow, active && styles.opActive]} onPress={() => pickCountry(item.iso2)}>
-                    <Text style={styles.flag}>{flagEmoji(item.iso2)}</Text>
-                    <Text style={styles.countryRowName}>{item.name}</Text>
-                    <Text style={styles.dial}>+{item.dial}</Text>
-                    {active ? <Ionicons name="checkmark" size={18} color={colors.primary} /> : null}
-                  </Pressable>
-                );
-              }}
-            />
-          </SafeAreaView>
-        </Modal>
+        <CountrySelectModal
+          visible={countryOpen}
+          selected={country}
+          onClose={() => setCountryOpen(false)}
+          onSelect={pickCountry}
+        />
       ) : null}
     </View>
   );
 }
 
 const useStyles = makeStyles((c) => ({
+  retry: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 44, paddingHorizontal: spacing.sm },
+  unavailable: { color: c.textMuted, fontSize: fontSize.sm, lineHeight: 20 },
+  retryText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   wrap: { gap: spacing.sm },
   countryPill: {
     flexDirection: 'row',

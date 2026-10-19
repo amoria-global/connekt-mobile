@@ -17,7 +17,6 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -26,8 +25,10 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
+import { isApiError } from '@/store/auth';
 import {
   deleteAllNotifications,
   deleteNotification,
@@ -93,6 +94,8 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
+  // A failed read is not an empty feed: it is said, and it can be retried.
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = useCallback(
     async (isRefresh = false) => {
@@ -100,8 +103,10 @@ export default function NotificationsScreen() {
       try {
         const items = await listNotifications(role);
         setNotifications(items);
-      } catch {
-        // Keep existing items on network error
+        setLoadError(null);
+      } catch (e) {
+        // Keep existing items on a network error, and say that the refresh failed.
+        setLoadError(isApiError(e) ? e.message : 'Could not load your notifications.');
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -498,6 +503,17 @@ export default function NotificationsScreen() {
         {loading && !refreshing ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : loadError && notifications.length === 0 ? (
+          <View style={styles.emptyWrap} accessibilityRole="alert">
+            <View style={styles.emptyCircle}>
+              <Ionicons name="cloud-offline-outline" size={32} color={colors.textMuted} />
+            </View>
+            <Text style={styles.emptyTitle}>Could not load notifications</Text>
+            <Text style={styles.emptySub}>{loadError}</Text>
+            <Pressable onPress={() => loadData(true)} style={styles.resetPill} accessibilityRole="button" accessibilityLabel="Try again">
+              <Text style={styles.resetPillText}>Try again</Text>
+            </Pressable>
           </View>
         ) : filteredNotifications.length === 0 ? (
           /* Empty State */

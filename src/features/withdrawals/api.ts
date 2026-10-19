@@ -8,6 +8,7 @@ import type { ApiEnvelope, ApiError } from '@/types';
 import {
   applyRates,
   FALLBACK_CURRENCIES,
+  KNOWN_CURRENCIES,
   mapSource,
   readInitiate,
   readVerify,
@@ -25,7 +26,19 @@ export async function listWithdrawableSources(role: Role | undefined): Promise<W
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not load your balance.' } satisfies ApiError;
   }
-  return (Array.isArray(res.data) ? res.data : []).map(mapSource);
+  // A balance that was not reported must fail the load, not become a confirmed zero ("num" turns a missing or
+  // malformed amount into 0, which on this screen reads as "you have nothing"). An empty list is a valid answer.
+  if (!Array.isArray(res.data)) throw { status: 502, message: 'Could not read your balance.' } satisfies ApiError;
+  if (res.data.some((r) => !isReportedAmount(r?.availableBalance))) {
+    throw { status: 502, message: 'Could not read your balance.' } satisfies ApiError;
+  }
+  return res.data.map(mapSource);
+}
+
+function isReportedAmount(v: unknown): boolean {
+  if (typeof v === 'number') return Number.isFinite(v);
+  if (typeof v === 'string') return v.trim() !== '' && Number.isFinite(Number(v));
+  return false;
 }
 
 const USD_ONLY = FALLBACK_CURRENCIES.filter((c) => c.code === 'USD');
@@ -37,7 +50,7 @@ export async function getDisplayCurrencies(): Promise<DisplayCurrency[]> {
       '/public/currencies/rates',
       { skipAuth: true },
     );
-    if (res?.action === 1 && res.data) return applyRates(FALLBACK_CURRENCIES, res.data);
+    if (res?.action === 1 && res.data) return applyRates(KNOWN_CURRENCIES, res.data);
     return USD_ONLY;
   } catch {
     // Without live rates a local-currency amount would be converted at a

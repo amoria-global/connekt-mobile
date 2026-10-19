@@ -20,7 +20,7 @@ export default function StreamsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title={t('b2_streamsTitle')} subtitle={t('b2_streamsSubtitle')} />
+      <ScreenHeader duplicatesHeader title={t('b2_streamsTitle')} subtitle={t('b2_streamsSubtitle')} />
       <DataList
         data={data}
         loading={loading}

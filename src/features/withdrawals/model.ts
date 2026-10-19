@@ -56,23 +56,43 @@ export function mapSource(r: Raw): WithdrawSource {
 /** A display currency: `rate` is units per USD (the backend's rateToUsd). */
 export type DisplayCurrency = { code: string; symbol: string; rate: number; decimals: number };
 
-/** Used until /public/currencies/rates answers, the same fallbacks as the web. */
-export const FALLBACK_CURRENCIES: DisplayCurrency[] = [
-  { code: 'RWF', symbol: 'RF', rate: 1460, decimals: 0 },
+/**
+ * Currencies we can show, with no rate except USD's. A rate of 0 means "not
+ * supplied by the backend"; such a currency is dropped by applyRates and never
+ * offered, because converting with an invented rate changes the amount that is
+ * submitted for a withdrawal or donation.
+ */
+export const KNOWN_CURRENCIES: DisplayCurrency[] = [
+  { code: 'RWF', symbol: 'RF', rate: 0, decimals: 0 },
   { code: 'USD', symbol: '$', rate: 1, decimals: 2 },
 ];
 
+/** Used until /public/currencies/rates answers: USD only. */
+export const FALLBACK_CURRENCIES: DisplayCurrency[] = KNOWN_CURRENCIES.filter((c) => c.rate > 0);
+
+/** The base currencies that have a usable backend rate; the rest are left out, not defaulted. */
 export function applyRates(
   base: DisplayCurrency[],
   rates: Record<string, { rateToUsd?: unknown; symbol?: unknown }> | null | undefined,
 ): DisplayCurrency[] {
-  return base.map((c) => {
-    const r = rates?.[c.code];
-    const rate = num(r?.rateToUsd);
-    return rate > 0
-      ? { ...c, rate, symbol: typeof r?.symbol === 'string' && r.symbol ? r.symbol : c.symbol }
-      : c;
-  });
+  return base
+    .map((c) => {
+      const r = rates?.[c.code];
+      const rate = num(r?.rateToUsd);
+      return rate > 0
+        ? { ...c, rate, symbol: typeof r?.symbol === 'string' && r.symbol ? r.symbol : c.symbol }
+        : c;
+    })
+    .filter((c) => c.rate > 0);
+}
+
+/**
+ * Donation presets are fixed RWF amounts shown in the display currency, so they
+ * need a live RWF rate. Without one there are no presets (the donor can still
+ * type an amount), rather than presets converted at a guess.
+ */
+export function donationPresets(rwfRate: number, c: DisplayCurrency): number[] {
+  return rwfRate > 0 ? DONATION_PRESETS_RWF.map((rwf) => rwfPresetToDisplay(rwf, rwfRate, c)) : [];
 }
 
 export function usdToDisplay(usd: number, c: DisplayCurrency): number {

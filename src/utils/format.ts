@@ -55,7 +55,13 @@ export function formatRelativeTime(dateStr?: string): string {
 
 /** Format a numeric amount with a currency code, e.g. "RWF 12,500". */
 export function formatMoney(amount?: number, currency = ''): string {
-  if (amount == null || Number.isNaN(amount)) return `${currency} 0`.trim();
+  // A missing amount is not zero. Showing "0" for it reads as an empty balance.
+  if (amount == null || Number.isNaN(amount)) return 'N/A';
+  // The amount in the currency it is denominated in, which is what convertAndFormat
+  // leaves to this function when no live rate exists. USD reads as it does everywhere else.
+  if (currency === 'USD') {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
   const formatted = amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return `${currency} ${formatted}`.trim();
 }

@@ -6,7 +6,7 @@
  * - Unlock paid album:  POST /customer/albums/{id}/unlock
  * Image URLs come back absolute from the backend.
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import { env } from '@/config/env';
 import type { PickedImage } from '@/services/imagePicker';
 import type { ApiError, ApiEnvelope, ID } from '@/types';
@@ -48,6 +48,12 @@ export type GalleryItem = {
   isContent?: boolean;
   /** Album kind label when the backend provides it (Event / Personal / Content). */
   kind?: string;
+  /** Event day (yyyy-MM-dd) and delivery day, only when the API sent them. */
+  date?: string;
+  receivedDate?: string;
+  /** Who shot it, on the lists that name them (the client's). */
+  photographer?: string;
+  eventLocation?: string;
 };
 
 export type AlbumImage = { id: ID; url?: string; fullUrl?: string; caption?: string };
@@ -96,6 +102,10 @@ function mapGallery(r: Raw): GalleryItem {
     locked: r.isLocked === true || r.locked === true,
     isContent,
     kind: isContent ? 'Content' : str(r.albumType) ?? str(r.kind),
+    date: str(r.date) ?? str(r.eventDate),
+    receivedDate: str(r.receivedDate) ?? str(r.createdAt),
+    photographer: str(r.photographer) ?? str(r.photographerName),
+    eventLocation: str(r.eventLocation),
   };
 }
 
@@ -117,7 +127,8 @@ export async function listGalleries(role?: string | boolean): Promise<GalleryIte
     : isCoordinator
     ? '/coordinator/galleries'
     : '/customer/albums';
-  const res = await api.get<ApiEnvelope<Raw[]>>(path);
+  // A refused read is HTTP 200 with action 0; read as an empty list it said there were no albums.
+  const res = requireOk(await api.get<ApiEnvelope<Raw[]>>(path));
   const data = Array.isArray(res?.data) ? res.data : [];
   return data.map(mapGallery).filter((g) => g.id);
 }

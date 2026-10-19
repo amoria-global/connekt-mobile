@@ -120,7 +120,8 @@ const useStyles = makeStyles((c) => ({
   wrap: { gap: spacing.xs },
   label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
   field: {
-    height: 52,
+    minHeight: 52,
+    paddingVertical: spacing.xs,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: radii.md,
@@ -131,7 +132,7 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'space-between',
   },
   fieldError: { borderColor: c.error },
-  value: { fontSize: fontSize.md, color: c.text },
+  value: { flexShrink: 1, fontSize: fontSize.md, color: c.text },
   placeholder: { color: c.textMuted },
   error: { fontSize: fontSize.xs, color: c.error },
 

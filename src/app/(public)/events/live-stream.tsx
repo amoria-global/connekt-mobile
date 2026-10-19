@@ -118,7 +118,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { reportContent, reportPublicChatMessage } from '@/features/moderation/api';
 import { useModeration } from '@/features/moderation/useModeration';
-import { isApiError } from '@/store/auth';
+import { isApiError, useAuth } from '@/store/auth';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -132,6 +132,9 @@ const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /** The side-rail toggles' "on" state: a white wash over the glass. */
 const CTRL_ACTIVE_FILL = 'rgba(255,255,255,0.28)';
+
+/** iOS drops a Modal presented while another is still sliding away; wait this long between them. */
+const MODAL_HANDOFF_MS = 400;
 
 const REACTION_EMOJIS = ['🔥', '❤️', '👏', '😍', '🎉', '😮'];
 
@@ -915,6 +918,8 @@ export default function PublicLiveStreamScreen() {
   const [giftPay, setGiftPay] = useState<GiftCatalogItem | null>(null);
   // A gift picked before the viewer registered: resumes into the in-app checkout once they have.
   const [pendingGift, setPendingGift] = useState<GiftCatalogItem | null>(null);
+  // A signed-in account pays for a gift as itself, so it never needs the name and email form.
+  const signedIn = useAuth((a) => a.status === 'authenticated');
   const [giftEvents, setGiftEvents] = useState<GiftEvent[]>([]);
 
   // ── Access detection (web parity: lines 595-755) ─────────────────────────
@@ -1456,8 +1461,10 @@ export default function PublicLiveStreamScreen() {
       }
       setInfoModalOpen(false);
       if (pendingGift) {
-        setGiftPay(pendingGift);
+        const gift = pendingGift;
         setPendingGift(null);
+        // iOS drops a Modal presented while another is still sliding away.
+        setTimeout(() => setGiftPay(gift), MODAL_HANDOFF_MS);
       }
     } catch (e) {
       setInfoError(
@@ -1629,15 +1636,15 @@ export default function PublicLiveStreamScreen() {
     if (!giftConfirm) return;
     const gift = giftConfirm;
     setGiftConfirm(null);
-    if (viewerId) {
-      setGiftPay(gift);
+    if (viewerId || signedIn) {
+      setTimeout(() => setGiftPay(gift), MODAL_HANDOFF_MS);
       return;
     }
     // Not registered yet: collect name and email here, then resume into the
     // in-app checkout (see onSubmitInfo). The viewer never leaves the app.
     setPendingGift(gift);
     setInfoError(null);
-    setInfoModalOpen(true);
+    setTimeout(() => setInfoModalOpen(true), MODAL_HANDOFF_MS);
   };
 
   const closeInfoModal = () => {
@@ -1646,6 +1653,84 @@ export default function PublicLiveStreamScreen() {
   };
 
   const onDonate = () => router.push(`/(public)/donate?eventId=${id}` as unknown as Href);
+
+  /*
+   * Viewer-info modal, rendered once on the screen and once inside the fullscreen chat
+   * modal: iOS cannot present a second Modal beside an open one, so a gift started from
+   * fullscreen chat would never have shown this form. PAID events: "Verify your access"
+   * (name, email, phone). FREE events: name and email only, which registers the viewer.
+   */
+  const renderInfoModal = (open: boolean) => (
+    <Modal visible={open} transparent animationType="slide" onRequestClose={closeInfoModal}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalKeyboard}
+      >
+      <Pressable style={styles.modalBackdrop} onPress={closeInfoModal}>
+        <Pressable
+          style={[styles.modalSheet, { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {status.isPaid ? 'Verify your access' : pendingGift ? 'Send your gift' : 'Join the chat'}
+            </Text>
+            <Text style={styles.modalHint}>
+              {status.isPaid
+                ? "Enter the name, email and phone you used when buying your ticket. We'll restore access on this device."
+                : pendingGift
+                  ? 'Enter your name and email to send your gift. No account needed.'
+                  : 'Enter your name and email to comment. No account needed, and this event is free.'}
+            </Text>
+            <Input
+              label="Name"
+              value={infoName}
+              onChangeText={setInfoName}
+              placeholder="Full name"
+              autoCapitalize="words"
+            />
+            <Input
+              label="Email"
+              value={infoEmail}
+              onChangeText={setInfoEmail}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            {status.isPaid ? (
+              // NOTE: light variant on purpose — this modal renders on the
+              // light bottom sheet (styles.modalSheet uses colors.surface),
+              // so the dark PhoneInput variant would be illegible here.
+              <PhoneInput
+                label="Phone"
+                defaultIso2="RW"
+                onChange={setInfoPhone}
+              />
+            ) : null}
+            {infoError ? <Text style={styles.chatErrorText}>{infoError}</Text> : null}
+            <Button
+              title={
+                infoBusy
+                  ? status.isPaid ? 'Verifying…' : 'Joining…'
+                  : status.isPaid ? 'Verify access' : pendingGift ? 'Continue to payment' : 'Join chat'
+              }
+              onPress={onSubmitViewerInfo}
+              loading={infoBusy}
+            />
+            {status.isPaid && digitalPurchasesEnabled ? (
+              <Pressable
+                onPress={() => router.push(`/(public)/events/pay?id=${id}` as unknown as Href)}
+                style={{ alignItems: 'center', marginTop: 8 }}
+              >
+                <Text style={styles.linkText}>Buy access instead</Text>
+              </Pressable>
+            ) : null}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -2255,6 +2340,7 @@ export default function PublicLiveStreamScreen() {
             onClose={() => setGiftConfirm(null)}
             onConfirm={onConfirmGift}
           />
+          {renderInfoModal(infoModalOpen && chatFullscreen)}
           <GiftCheckoutSheet
             visible={!!giftPay && chatFullscreen}
             onClose={() => setGiftPay(null)}
@@ -2290,67 +2376,7 @@ export default function PublicLiveStreamScreen() {
         </Pressable>
       </Modal>
 
-      {/*
-       * Viewer-info modal. For PAID events it's "Verify your access"
-       * (name + email + phone, matched to the purchase). For FREE events
-       * it's a lightweight "Join the chat" — name + email only, which
-       * registers the person as a viewer and grants commenting right away.
-       */}
-      <Modal visible={infoModalOpen} transparent animationType="slide" onRequestClose={closeInfoModal}>
-        <Pressable style={styles.modalBackdrop} onPress={closeInfoModal}>
-          <Pressable style={[styles.modalSheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>{status.isPaid ? 'Verify your access' : 'Join the chat'}</Text>
-              <Text style={styles.modalHint}>
-                {status.isPaid
-                  ? "Enter the name, email and phone you used when buying your ticket. We'll restore access on this device."
-                  : pendingGift
-                    ? 'Enter your name and email to send your gift. No account needed.'
-                    : 'Enter your name and email to comment. No account needed, and this event is free.'}
-              </Text>
-              <Input
-                label="Name"
-                value={infoName}
-                onChangeText={setInfoName}
-                placeholder="Full name"
-                autoCapitalize="words"
-              />
-              <Input
-                label="Email"
-                value={infoEmail}
-                onChangeText={setInfoEmail}
-                placeholder="you@example.com"
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-              {status.isPaid ? (
-                // NOTE: light variant on purpose — this modal renders on the
-                // light bottom sheet (styles.modalSheet uses colors.surface),
-                // so the dark PhoneInput variant would be illegible here.
-                <PhoneInput
-                  label={tr('b4_phoneLabel')}
-                  defaultIso2="RW"
-                  onChange={setInfoPhone}
-                />
-              ) : null}
-              {infoError ? <Text style={styles.chatErrorText}>{infoError}</Text> : null}
-              <Button
-                title={infoBusy ? (status.isPaid ? 'Verifying…' : 'Joining…') : status.isPaid ? 'Verify access' : 'Join chat'}
-                onPress={onSubmitViewerInfo}
-                loading={infoBusy}
-              />
-              {status.isPaid && digitalPurchasesEnabled ? (
-                <Pressable
-                  onPress={() => router.push(`/(public)/events/pay?id=${id}` as unknown as Href)}
-                  style={{ alignItems: 'center', marginTop: 8 }}
-                >
-                  <Text style={styles.linkText}>{tr('b4_buyAccessInstead')}</Text>
-                </Pressable>
-              ) : null}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {renderInfoModal(infoModalOpen && !chatFullscreen)}
 
       {/* Gift tray — catalog-driven picker; picking a gift hands off to the
           web checkout with that gift preselected. No in-app payment
@@ -3114,6 +3140,8 @@ const useStyles = makeStyles((c, e) => ({
   floatingLayer: { ...StyleSheet.absoluteFill, justifyContent: 'flex-end' },
   floatingEmoji: { position: 'absolute', bottom: 80, fontSize: 32 },
 
+  modalKeyboard: { flex: 1 },
+  modalContent: { gap: spacing.md },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: c.surface,

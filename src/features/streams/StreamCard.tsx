@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { LivePill, LiveTwinkle } from '@/components/ui/live';
 import type { Stream } from './api';
 import { GlassOnMedia } from '@/components/ui/GlassCard';
 
@@ -14,6 +15,7 @@ export function StreamCard({ stream }: { stream: Stream }) {
   const initial = (stream.photographerName || stream.title || 'C').charAt(0).toUpperCase();
 
   return (
+    <LiveTwinkle active={!!stream.isLive} radius={radii.xl}>
     <View style={styles.card}>
       <View style={styles.thumbWrap}>
         <Image
@@ -27,10 +29,7 @@ export function StreamCard({ stream }: { stream: Stream }) {
         {/* Top Badges */}
         <View style={styles.thumbTopRow}>
           {stream.isLive ? (
-            <View style={styles.liveBadge}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.liveText}>{t('streamLiveBadge')}</Text>
-            </View>
+            <LivePill size="sm" sparkle label={t('streamLiveBadge')} />
           ) : (
             <GlassOnMedia style={styles.offAirBadge} edge>
               <Text style={styles.offAirText}>{t('streamStandbyBadge')}</Text>
@@ -70,6 +69,7 @@ export function StreamCard({ stream }: { stream: Stream }) {
         </View>
       </View>
     </View>
+    </LiveTwinkle>
   );
 }
 

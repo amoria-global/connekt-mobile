@@ -27,7 +27,7 @@ import {
 import { useRole } from '@/features/auth/role';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { PhotographerCard } from '@/features/photographers/PhotographerCard';
+import { PhotographerRow } from '@/features/photographers/PhotographerRow';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
@@ -92,6 +92,8 @@ const SORT_OPTIONS: { key: SortKey; label: string; icon: keyof typeof Ionicons.g
 ];
 
 type SheetKey = 'category' | 'location' | 'price' | 'rating' | 'sort';
+
+const RowGap = () => <View style={{ height: spacing.md }} />;
 
 function normalizeTerm(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -288,7 +290,8 @@ export default function PhotographersScreen() {
     }
   };
 
-  const columns = responsive.isLarge ? 3 : 2;
+  // One compact row per photographer on a phone, two columns on a tablet.
+  const columns = responsive.isLarge ? 2 : 1;
   const cardGap = spacing.sm;
   const horizontalPadding = spacing.md * 2;
   const cardWidth = Math.floor(
@@ -947,7 +950,8 @@ export default function PhotographersScreen() {
             ListFooterComponent={renderFooter}
             numColumns={columns}
             contentContainerStyle={styles.listContent}
-            columnWrapperStyle={styles.columnWrapper}
+            columnWrapperStyle={columns > 1 ? styles.columnWrapper : undefined}
+            ItemSeparatorComponent={columns === 1 ? RowGap : undefined}
             keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
@@ -983,20 +987,14 @@ export default function PhotographersScreen() {
               />
             }
             renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.cardWrapper,
-                  { width: cardWidth },
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={() => handlePhotographerPress(item.id)}
-              >
-                <PhotographerCard
+              <View style={columns === 1 ? { marginHorizontal: spacing.md } : { width: cardWidth }}>
+                <PhotographerRow
                   photographer={item}
                   isBookmarked={bookmarkedIds.has(item.id)}
+                  onOpen={() => handlePhotographerPress(item.id)}
                   onToggleBookmark={() => handleToggleBookmark(item.id)}
                 />
-              </Pressable>
+              </View>
             )}
           />
         )}

@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '@/theme';
+import { LiveDot } from '@/components/ui/live';
 import { V } from '../viewerTheme';
 import { formatCount } from '../utils';
 
@@ -20,7 +21,7 @@ export const LiveBadge = memo(function LiveBadge({
       accessible
       accessibilityLabel={live ? 'Live' : label ?? 'Not live'}
     >
-      <View style={[styles.dot, !live && styles.dotOff]} />
+      {live ? <LiveDot size={6} /> : <View style={[styles.dot, styles.dotOff]} />}
       <Text style={styles.text}>{label ?? (live ? 'LIVE' : 'OFFLINE')}</Text>
     </View>
   );

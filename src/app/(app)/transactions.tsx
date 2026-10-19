@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { DataList } from '@/components/ui/DataList';
 import { Screen } from '@/components/ui/Screen';
 import { cleanTransactionTitle } from '@/features/analytics/api';
-import { listWalletMovements, type Movement } from '@/features/wallet/api';
+import { listWalletMovementsPage, type Movement } from '@/features/wallet/api';
+import { useMovementPages } from '@/features/wallet/useMovementPages';
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
@@ -31,7 +32,8 @@ export default function TransactionsScreen() {
   const user = useAuth((s) => s.user);
   const role: DashboardRole = toRole(user?.customerType);
   const directionFilters = getDirectionFilters(role);
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listWalletMovements(), []));
+  const { data, loading, error, refresh } = useAsync(useCallback(() => listWalletMovementsPage(0, 50), []));
+  const pages = useMovementPages(data);
 
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
   const [search, setSearch] = useState('');
@@ -42,7 +44,7 @@ export default function TransactionsScreen() {
   }, [directionFilter, search]);
 
   const filtered = useMemo(() => {
-    const list = data ?? [];
+    const list = pages.items;
     return list.filter((m) => {
       if (!isVisibleToRole(m, role)) return false;
       if (!matchesDirectionFilter(m, directionFilter)) return false;
@@ -56,7 +58,7 @@ export default function TransactionsScreen() {
       }
       return true;
     });
-  }, [data, directionFilter, search, role]);
+  }, [pages.items, directionFilter, search, role]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -167,6 +169,25 @@ export default function TransactionsScreen() {
     </View>
   ) : undefined;
 
+  const loadOlder =
+    pages.hasMore || pages.moreError ? (
+      <View style={{ alignItems: 'center', gap: 6, paddingBottom: spacing.lg }}>
+        {pages.hasMore ? (
+          <Pressable
+            onPress={pages.loadMore}
+            disabled={pages.loadingMore}
+            accessibilityRole="button"
+            accessibilityLabel="Load older transactions"
+            accessibilityState={{ disabled: pages.loadingMore, busy: pages.loadingMore }}
+            style={[styles.pageNavBtn, { minHeight: 44, justifyContent: 'center' }]}
+          >
+            <Text style={styles.pageNavBtnText}>{pages.loadingMore ? 'Loading older...' : 'Load older transactions'}</Text>
+          </Pressable>
+        ) : null}
+        {pages.moreError ? <Text style={styles.paginationInfo} accessibilityRole="alert">{pages.moreError}</Text> : null}
+      </View>
+    ) : null;
+
   return (
     <Screen padded={false} edges={[]}>
       <DataList
@@ -175,9 +196,17 @@ export default function TransactionsScreen() {
         error={error}
         onRefresh={refresh}
         title={t('transactionsTitle')}
+        duplicatesHeader
         subtitle={t('walletActivitySubtitle')}
         headerExtra={headerExtra}
-        footer={footer}
+        footer={
+          footer || loadOlder ? (
+            <View>
+              {footer}
+              {loadOlder}
+            </View>
+          ) : undefined
+        }
         keyExtractor={(m) => m.id}
         renderItem={({ item }) => <Row movement={item} />}
         emptyIcon="swap-horizontal-outline"
@@ -206,7 +235,7 @@ function Row({ movement }: { movement: Movement }) {
         </Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={2}>
           {cleanTitle}
         </Text>
         {movement.createdAt ? <Text style={styles.date}>{formatDate(movement.createdAt)}</Text> : null}
@@ -225,15 +254,15 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: c.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.border,
     padding: spacing.md,
   },
-  icon: { width: 40, height: 40, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   sign: { fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   body: { flex: 1, gap: 2 },
-  title: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  title: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text, lineHeight: 19 },
   date: { fontSize: fontSize.xs, color: c.textMuted },
   amount: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
 
@@ -249,8 +278,8 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.xs,
   },
   filterPill: {
-    paddingHorizontal: 12,
-    height: 30,
+    paddingHorizontal: 14,
+    minHeight: 40,
     borderRadius: radii.full,
     backgroundColor: c.surface,
     borderWidth: 1,
@@ -264,11 +293,11 @@ const useStyles = makeStyles((c) => ({
   },
   filterPillText: {
     fontFamily: fonts.bold,
-    fontSize: 12,
-    color: c.textMuted,
+    fontSize: 13,
+    color: c.textSoft,
   },
   filterPillTextActive: {
-    color: '#ffffff',
+    color: c.textOnPrimary,
   },
   searchWrap: {
     flexDirection: 'row',
@@ -278,12 +307,12 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.borderSoft,
-    paddingHorizontal: spacing.sm,
-    height: 38,
+    paddingHorizontal: spacing.md,
+    height: 44,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: c.text,
     paddingVertical: 0,
   },

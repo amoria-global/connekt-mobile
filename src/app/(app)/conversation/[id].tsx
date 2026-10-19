@@ -3,7 +3,6 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   listMessages,
@@ -227,6 +227,8 @@ export default function ConversationScreen() {
             <Pressable
               style={styles.retryBtn}
               onPress={() => void fetchMessages(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
             >
               <Text style={styles.retryText}>{t('b3_conv_retry')}</Text>
             </Pressable>
@@ -265,6 +267,7 @@ export default function ConversationScreen() {
           <TextInput
             style={styles.input}
             placeholder={t('b3_conv_placeholder')}
+            accessibilityLabel="Message"
             placeholderTextColor={colors.textMuted}
             value={draft}
             onChangeText={setDraft}
@@ -274,6 +277,9 @@ export default function ConversationScreen() {
           <Pressable
             onPress={onSend}
             disabled={!draft.trim() || sending}
+            accessibilityRole="button"
+            accessibilityLabel={sending ? 'Sending message' : 'Send message'}
+            accessibilityState={{ disabled: !draft.trim() || sending, busy: sending }}
             style={[styles.sendBtn, (!draft.trim() || sending) && styles.sendDisabled]}
           >
             {sending ? (
@@ -321,6 +327,9 @@ function Bubble({
     <Pressable
       onLongPress={onLongPress}
       disabled={!onLongPress}
+      accessible
+      accessibilityLabel={`${mine ? 'You' : 'They'}: ${message.text}${timeStr ? `, ${timeStr}` : ''}`}
+      accessibilityHint={onLongPress ? 'Long press to report this message' : undefined}
       style={[styles.bubbleWrap, mine ? styles.bubbleWrapMine : styles.bubbleWrapTheirs]}
     >
       <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
@@ -340,6 +349,8 @@ const useStyles = makeStyles((c) => ({
   muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   retryBtn: {
     marginTop: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xs,
     backgroundColor: c.primary,
@@ -354,10 +365,10 @@ const useStyles = makeStyles((c) => ({
   bubbleWrapTheirs: { alignSelf: 'flex-start' },
   bubble: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2, borderRadius: radii.lg },
   bubbleMine: { backgroundColor: c.primary, borderBottomRightRadius: 4 },
-  bubbleTheirs: { backgroundColor: c.surface, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.borderSoft },
+  bubbleTheirs: { backgroundColor: c.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.borderSoft },
   bubbleText: { fontSize: 15, lineHeight: 21, color: c.text },
   bubbleTextMine: { color: c.textOnPrimary },
-  timeText: { fontSize: 10, color: c.textMuted, alignSelf: 'flex-end', marginTop: 3 },
+  timeText: { fontSize: 12, color: c.textMuted, alignSelf: 'flex-end', marginTop: 3 },
   timeTextMine: { color: 'rgba(255, 255, 255, 0.75)' },
   composer: {
     flexDirection: 'row',
@@ -384,8 +395,8 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.background,
   },
   sendBtn: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radii.full,
     backgroundColor: c.primary,
     alignItems: 'center',

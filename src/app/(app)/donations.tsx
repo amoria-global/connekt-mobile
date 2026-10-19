@@ -50,7 +50,7 @@ export default function DonationsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} />
+      <ScreenHeader duplicatesHeader title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.section}>{t('b2_donationsSuggestedAmounts')}</Text>
         <View style={styles.tierRow}>

@@ -9,6 +9,7 @@ import { VerifiedAvatar } from '@/components/ui/VerifiedAvatar';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 import { CoverCarousel } from './CoverCarousel';
+import { startingPriceText } from './pricing';
 
 export function PhotographerCard({
   photographer,
@@ -162,7 +163,7 @@ export function PhotographerCard({
           <View style={styles.priceWrap}>
             <Text style={styles.priceLabel}>{tr('PRICING')}</Text>
             <Text style={styles.priceValue} numberOfLines={1}>
-              {photographer.startingPrice ? `From $${photographer.startingPrice}` : tr('On request')}
+              {tr(startingPriceText(photographer))}
             </Text>
           </View>
 

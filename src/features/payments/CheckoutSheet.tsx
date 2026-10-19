@@ -31,7 +31,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
-import { detectPaymentCountry, getPaymentOptions, type PaymentOperator } from '@/features/reference/api';
+import { usePaymentEligibility } from '@/features/payments/usePaymentEligibility';
 import { formatPhoneE164, isPlausibleMobile, phoneHintForCountry } from '@/features/payments/formatPhone';
 import { getPublicPaymentStatus } from '@/features/photos/api';
 import {
@@ -45,11 +45,6 @@ import { useSharedT } from '@/i18n/sharedStrings';
 
 type Stage = 'form' | 'starting' | 'awaiting' | 'success' | 'failed' | 'unknown';
 type Tile = { id: string; name: string; provider: string; isCard: boolean };
-
-const DEFAULT_OPERATORS: PaymentOperator[] = [
-  { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
-  { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' },
-];
 
 export type StartInput = { card: true } | { card: false; phone: string; telecomProvider: string };
 
@@ -86,9 +81,10 @@ export function CheckoutSheet({
   const insets = useSafeAreaInsets();
   const { tr } = useSharedT();
 
-  const [country, setCountry] = useState('RW');
-  const [operators, setOperators] = useState<PaymentOperator[]>(DEFAULT_OPERATORS);
-  const [supportsCard, setSupportsCard] = useState(true);
+  // Country and methods come from the backend only; nothing defaults to Rwanda.
+  const eligibility = usePaymentEligibility(visible);
+  const { operators, supportsCard } = eligibility;
+  const country = eligibility.country ?? '';
   const [methodId, setMethodId] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
   const [stage, setStage] = useState<Stage>('form');
@@ -106,36 +102,18 @@ export function CheckoutSheet({
     settledRef.current = false;
   }, [visible, resetKey]);
 
-  useEffect(() => {
-    if (!visible) return;
-    let cancelled = false;
-    (async () => {
-      const detected = (await detectPaymentCountry().catch(() => undefined)) || 'RW';
-      if (cancelled) return;
-      setCountry(detected);
-      const opts = await getPaymentOptions(detected).catch(() => null);
-      if (cancelled || !opts) return;
-      setSupportsCard(opts.supportsCard);
-      if (opts.operators.length > 0) setOperators(opts.operators);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [visible]);
-
   useEffect(() => () => cancelPoll.current?.(), []);
 
-  // The buyer can pick another country; the operator list follows it.
-  const changeCountry = useCallback(async (iso2: string) => {
-    setCountry(iso2);
-    setMethodId(null);
-    setPhone('');
-    const opts = await getPaymentOptions(iso2).catch(() => null);
-    if (!opts) return;
-    setSupportsCard(opts.supportsCard);
-    setOperators(opts.operators);
-  }, []);
-
+  // The buyer can pick another country; the method list follows it and a method
+  // that is no longer offered cannot stay selected.
+  const changeCountry = useCallback(
+    (iso2: string) => {
+      setMethodId(null);
+      setPhone('');
+      return eligibility.changeCountry(iso2);
+    },
+    [eligibility.changeCountry],
+  );
   const tiles: Tile[] = useMemo(() => {
     const list: Tile[] = operators.map((o) => ({
       id: o.id.toLowerCase(),
@@ -259,6 +237,8 @@ export function CheckoutSheet({
                   onSelect={setMethodId}
                   country={country}
                   onCountryChange={changeCountry}
+                  mobileMoneyState={eligibility.mobileMoney}
+                  onRetry={eligibility.retry}
                   disabled={stage === 'starting'}
                 />
 

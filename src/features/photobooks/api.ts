@@ -4,7 +4,7 @@
  * - Detail: GET /api/remote/customer/events/photobooks/{id}
  * Response uses PhotobookResponseDTO (name, status, coverImage, mediaItems[]…).
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
 
 export type Photobook = {
@@ -52,14 +52,32 @@ function mapPhotobook(r: Raw): Photobook {
   };
 }
 
-export async function listPhotobooks(): Promise<Photobook[]> {
-  const res = await api.get<ApiEnvelope<unknown>>('/customer/events/photobooks');
-  const data = Array.isArray(res?.data) ? (res.data as Raw[]) : [];
-  return data.map(mapPhotobook).filter((p) => p.id);
+/** A Spring Page (`data.content`) or a plain array, like the web's `result.data.content || result.data`. */
+function rows(data: unknown): Raw[] {
+  if (Array.isArray(data)) return data as Raw[];
+  const c = (data as { content?: unknown } | null | undefined)?.content;
+  return Array.isArray(c) ? (c as Raw[]) : [];
 }
 
-export async function getPhotobook(id: string): Promise<PhotobookDetail> {
-  const res = await api.get<ApiEnvelope<Raw>>(`/customer/events/photobooks/${encodeURIComponent(id)}`);
+export async function listPhotobooks(): Promise<Photobook[]> {
+  // getOk: an HTTP 200 carrying action 0 is a failure, not an empty shelf.
+  const res = await api.getOk<ApiEnvelope<unknown>>('/customer/events/photobooks');
+  return rows(res?.data).map(mapPhotobook).filter((p) => p.id);
+}
+
+/**
+ * Photobooks clients (or coordinators) sent TO this photographer to edit and return. Web parity:
+ * GET /photographer/photobooks, the "received photobooks" list. The customer endpoint above lists the books the
+ * signed-in user owns as a customer, which is a different set, so a photographer saw none of these on mobile.
+ */
+export async function listReceivedPhotobooks(): Promise<Photobook[]> {
+  const res = await api.getOk<ApiEnvelope<unknown>>('/photographer/photobooks');
+  return rows(res?.data).map(mapPhotobook).filter((p) => p.id);
+}
+
+export async function getPhotobook(id: string, received = false): Promise<PhotobookDetail> {
+  const base = received ? '/photographer/photobooks' : '/customer/events/photobooks';
+  const res = await api.getOk<ApiEnvelope<Raw>>(`${base}/${encodeURIComponent(id)}`);
   const d = (res?.data ?? {}) as Raw;
   const media = Array.isArray(d.mediaItems) ? (d.mediaItems as Raw[]) : [];
   return {
@@ -73,6 +91,16 @@ export async function getPhotobook(id: string): Promise<PhotobookDetail> {
       .map((m) => ({ id: String(m.id ?? ''), url: str(m.fileUrl) ?? str(m.url), caption: str(m.caption) }))
       .filter((p) => p.id),
   };
+}
+
+/** Send an edited received photobook back to its client (web: POST /photographer/photobooks/{id}/resubmit). */
+export async function resubmitPhotobook(id: string): Promise<void> {
+  requireOk(await api.post(`/photographer/photobooks/${encodeURIComponent(id)}/resubmit`));
+}
+
+/** Remove a received photobook from this photographer's list (web: DELETE /photographer/photobooks/{id}, a dismissal). */
+export async function dismissReceivedPhotobook(id: string): Promise<void> {
+  requireOk(await api.delete(`/photographer/photobooks/${encodeURIComponent(id)}`));
 }
 
 // ────── Photobook authoring (Photographer / Coordinator) ────────────────

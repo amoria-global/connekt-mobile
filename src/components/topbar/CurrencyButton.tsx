@@ -11,7 +11,7 @@ const flagUri = (flag: string) => `https://flagcdn.com/w40/${flag}.png`;
  * Display-currency selector button. A compact flag + code chip opens the
  * CurrencySelectorSheet listing all available currencies.
  */
-export function CurrencyButton({ compact }: { compact?: boolean } = {}) {
+export function CurrencyButton({ compact, bar }: { compact?: boolean; bar?: boolean } = {}) {
   const styles = useStyles();
   const [open, setOpen] = useState(false);
   const currency = useCurrency((s) => s.currency);
@@ -27,6 +27,7 @@ export function CurrencyButton({ compact }: { compact?: boolean } = {}) {
         style={({ pressed }) => [
           styles.chip,
           compact && styles.chipCompact,
+          bar && styles.chipBar,
           pressed && styles.pressed,
         ]}
       >
@@ -62,6 +63,15 @@ const useStyles = makeStyles((c, e) => ({
     height: 34,
     minWidth: 34,
     marginRight: spacing.xs,
+  },
+  chipBar: {
+    height: 40,
+    minWidth: 40,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: c.border,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   pressed: {
     opacity: 0.85,

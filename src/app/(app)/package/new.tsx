@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { createPackage, updatePackage, type Package, type ServiceType } from '@/features/packages/api';
 import { listCurrencies } from '@/features/reference/api';
+import { OptionsNote } from '@/components/ui/OptionsNote';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
@@ -121,7 +122,8 @@ export default function NewPackageScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>{isEditing ? t('b2_pkgNewEditTitle') : t('b2_pkgNewCreateTitle')}</Text>
+        {/* The native header already says "New package"; the body title stays only for editing. */}
+        {isEditing ? <Text style={styles.title}>{t('b2_pkgNewEditTitle')}</Text> : null}
 
         {/* Tier */}
         <View style={styles.group}>
@@ -155,6 +157,9 @@ export default function NewPackageScreen() {
           </View>
           <View style={styles.rowItem}>
             <Text style={styles.label}>{t('b2_pkgNewCurrency')}</Text>
+            {!currencies.data?.length ? (
+              <OptionsNote what="currencies" loading={currencies.loading} onRetry={() => void currencies.refresh()} />
+            ) : null}
             <View style={styles.chips}>
               {(currencies.data ?? []).map((c) => {
                 const active = currencyId === c.id;

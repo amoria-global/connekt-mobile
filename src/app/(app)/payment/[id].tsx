@@ -66,7 +66,7 @@ export default function PaymentDetailScreen() {
       >
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>{data?.title}</Text>
-          <Text style={styles.amount}>{data?.amount != null ? formatPrice(data.amount, data.currency) : '—'}</Text>
+          <Text style={styles.amount} numberOfLines={1} adjustsFontSizeToFit>{data?.amount != null ? formatPrice(data.amount, data.currency) : 'Amount unavailable'}</Text>
           <StatusPill status={data?.status} />
         </View>
 

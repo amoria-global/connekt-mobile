@@ -19,9 +19,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Modal,
   Pressable,
   Share,
   StyleSheet,
@@ -29,12 +27,17 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
-import { getPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
+import { useRole } from '@/features/auth/role';
+import { PhotoViewer } from '@/features/gallery/PhotoViewer';
+import { PhotoCell } from '@/features/gallery/PhotoGrid';
+import { dismissReceivedPhotobook, getPhotobook, resubmitPhotobook, type PhotobookPhoto } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
+import { isApiError } from '@/store/auth';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
@@ -169,14 +172,32 @@ const I18N = {
     extraPhotosSub: 'Fotos adicionales',
   },
 } as const;
+import { chipColors } from '@/features/photobooks/statusChip';
+
+const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
+  PUBLISHED: { label: 'Published · Live', bg: '#D1FAE5', fg: '#047857' },
+  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
+  PENDING: { label: 'Pending review', bg: '#FEF3C7', fg: '#92400E' },
+  SENT: { label: 'Delivered', bg: '#DBEAFE', fg: '#1D4ED8' },
+  SENT_TO_PHOTOGRAPHER: { label: 'To edit', bg: '#FEF3C7', fg: '#92400E' },
+  PHOTOGRAPHER_EDITING: { label: 'Editing', bg: '#DBEAFE', fg: '#1D4ED8' },
+  RESUBMITTED: { label: 'Resubmitted', bg: '#DBEAFE', fg: '#1D4ED8' },
+  COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
+};
+
+const PhotoGap = () => <View style={{ height: 3 }} />;
 
 export default function PhotobookDetailScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const { isPhotographer } = useRole();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, received: receivedParam } = useLocalSearchParams<{ id: string; received?: string }>();
+  // Opened from the photographer's "Received from clients" shelf: read it, and resubmit or dismiss it, through the
+  // photographer endpoints. The customer endpoint 404s for a book the signed-in user does not own as a customer.
+  const received = receivedParam === '1';
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { language } = useLanguage();
@@ -192,31 +213,18 @@ export default function PhotobookDetailScreen() {
     [tr],
   );
 
-  const { data, loading, error, refresh } = useAsync(useCallback(() => getPhotobook(id), [id]));
+  const { data, loading, error, refresh } = useAsync(useCallback(() => getPhotobook(id, received), [id, received]));
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [payDeclarationId, setPayDeclarationId] = useState<string | null>(null);
   const payBusy = false;
-  const [activePhoto, setActivePhoto] = useState<PhotobookPhoto | null>(null);
+  const [viewerIndex, setViewerIndex] = useState(-1);
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [gridCols, setGridCols] = useState<2 | 3>(3);
 
   const photos = useMemo(() => data?.photos ?? [], [data?.photos]);
 
-  const activePhotoIndex = useMemo(() => {
-    if (!activePhoto) return -1;
-    return photos.findIndex((p) => p.id === activePhoto.id);
-  }, [activePhoto, photos]);
-
-  const onNextPhoto = () => {
-    if (activePhotoIndex >= 0 && activePhotoIndex < photos.length - 1) {
-      setActivePhoto(photos[activePhotoIndex + 1]);
-    }
-  };
-
-  const onPrevPhoto = () => {
-    if (activePhotoIndex > 0) {
-      setActivePhoto(photos[activePhotoIndex - 1]);
-    }
-  };
+  const openPhoto = useCallback((photoId: string) => setViewerIndex(photos.findIndex((p) => p.id === photoId)), [photos]);
 
   const onShareBook = () => {
     const title = data?.name || tr.photobookFallback;
@@ -228,22 +236,22 @@ export default function PhotobookDetailScreen() {
     }).catch(() => {});
   };
 
-  const onShareActivePhoto = () => {
-    if (!activePhoto?.url) return;
+  const onShareActivePhoto = (photo: PhotobookPhoto) => {
+    if (!photo.url) return;
     const bookName = data?.name || tr.photobookFallback;
     Share.share({
       title: data?.name || tr.photoFallback,
-      message: tr.sharePhotoMsg(bookName, activePhoto.url),
-      url: activePhoto.url,
+      message: tr.sharePhotoMsg(bookName, photo.url),
+      url: photo.url,
     }).catch(() => {});
   };
 
-  const onSaveActivePhoto = async () => {
-    if (!activePhoto?.url) return;
+  const onSaveActivePhoto = async (photo: PhotobookPhoto) => {
+    if (!photo.url) return;
     setSavingPhoto(true);
     try {
-      const filename = `connekt-photobook-${activePhoto.id}.jpg`;
-      const res = await savePhotoToGallery(activePhoto.url, filename, {
+      const filename = `connekt-photobook-${photo.id}.jpg`;
+      const res = await savePhotoToGallery(photo.url, filename, {
         notifyOnSuccess: true,
         customSuccessMessage: tr.photoSavedMsg,
       });
@@ -267,7 +275,37 @@ export default function PhotobookDetailScreen() {
     setPayDeclarationId(declarationId);
   };
 
-  const gap = 2;
+  const runAction = async (op: () => Promise<void>, onDone: () => void, fallback: string) => {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await op();
+      onDone();
+    } catch (e) {
+      setActionError(isApiError(e) ? e.message : fallback);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+  const onResubmit = () =>
+    Alert.alert('Send back to the client?', 'The client will see your edited photobook.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Resubmit',
+        onPress: () => void runAction(() => resubmitPhotobook(id), () => void refresh(), 'Could not resubmit. Please try again.'),
+      },
+    ]);
+  const onDismiss = () =>
+    Alert.alert('Remove from your list?', 'This hides the photobook from your received list.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => void runAction(() => dismissReceivedPhotobook(id), () => router.back(), 'Could not remove it. Please try again.'),
+      },
+    ]);
+
+  const gap = 3;
   const cell = (width - gap * (gridCols - 1)) / gridCols;
 
   if (loading && !data) {
@@ -300,11 +338,12 @@ export default function PhotobookDetailScreen() {
 
   const coverUrl = data?.coverImage || photos[0]?.url;
   const statusKey = (data?.status ?? '').toUpperCase();
-  const statusMeta = statusMetaMap[statusKey] ?? {
+  const baseMeta = statusMetaMap[statusKey] ?? {
     label: data?.status || tr.statusBook,
     bg: 'rgba(0,0,0,0.6)',
     fg: '#fff',
   };
+  const statusMeta = { ...baseMeta, ...chipColors(baseMeta, isDark, colors) };
 
   return (
     <Screen padded={false}>
@@ -350,14 +389,19 @@ export default function PhotobookDetailScreen() {
                   <Ionicons name="chevron-back" size={20} color="#fff" />
                 </Pressable>
 
-                <Pressable
-                  style={styles.heroNavCircle}
-                  onPress={onShareBook}
-                  hitSlop={8}
-                  accessibilityLabel={tr.shareBookA11y}
-                >
-                  <Ionicons name="share-outline" size={18} color="#fff" />
-                </Pressable>
+                {received ? (
+                  // The share link points at the customer view of a book, which a received book does not have.
+                  <View />
+                ) : (
+                  <Pressable
+                    style={styles.heroNavCircle}
+                    onPress={onShareBook}
+                    hitSlop={8}
+                    accessibilityLabel={tr.shareBookA11y}
+                  >
+                    <Ionicons name="share-outline" size={18} color="#fff" />
+                  </Pressable>
+                )}
               </View>
 
               {/* Hero Bottom Info */}
@@ -398,8 +442,37 @@ export default function PhotobookDetailScreen() {
               </View>
             ) : null}
 
+            {received ? (
+              <View style={styles.descCard}>
+                <Pressable
+                  onPress={onResubmit}
+                  disabled={actionBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Resubmit to client"
+                  accessibilityState={{ disabled: actionBusy, busy: actionBusy }}
+                  style={[styles.retryBtn, { minHeight: 48, justifyContent: 'center', alignItems: 'center' }]}
+                >
+                  <Text style={styles.retryBtnText}>{actionBusy ? 'Working...' : 'Resubmit to client'}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={onDismiss}
+                  disabled={actionBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove from my list"
+                  style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={[styles.muted, { color: colors.textSoft, fontWeight: '600' }]}>Remove from my list</Text>
+                </Pressable>
+                {actionError ? (
+                  <Text style={[styles.muted, { color: colors.error }]} accessibilityRole="alert">
+                    {actionError}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
             {/* Extras Payment Banner */}
-            {data?.paymentRequired && data?.extraPhotosAmount && digitalPurchasesEnabled ? (
+            {!received && data?.paymentRequired && data?.extraPhotosAmount && digitalPurchasesEnabled ? (
               <Pressable
                 style={({ pressed }) => [styles.payBanner, pressed && { opacity: 0.9 }]}
                 onPress={() => void onPayExtras()}
@@ -469,20 +542,12 @@ export default function PhotobookDetailScreen() {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={[styles.photoCell, { width: cell, height: cell }]}
-            onPress={() => setActivePhoto(item)}
-            android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
-          >
-            <Image
-              source={{ uri: item.url }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              transition={150}
-            />
-          </Pressable>
-        )}
+        initialNumToRender={18}
+        windowSize={7}
+        maxToRenderPerBatch={12}
+        removeClippedSubviews
+        ItemSeparatorComponent={PhotoGap}
+        renderItem={({ item, index }) => <PhotoCell photo={item} size={cell} position={index + 1} total={photos.length} onOpen={openPhoto} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
@@ -490,142 +555,24 @@ export default function PhotobookDetailScreen() {
             </View>
             <Text style={styles.emptyTitle}>{tr.emptyTitle}</Text>
             <Text style={styles.emptySubtitle}>
-              {tr.emptySubtitle}
+              {received
+                ? 'This photobook has no photos yet.'
+                : tr.emptySubtitle}
             </Text>
           </View>
         }
       />
 
-      {/* World-Class Fullscreen Photo Lightbox Modal */}
-      <Modal
-        visible={!!activePhoto}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setActivePhoto(null)}
-      >
-        <View style={styles.lightboxBackdrop}>
-          {/* Top Bar */}
-          <View style={[styles.lightboxTopBar, { paddingTop: Math.max(insets.top + 6, 18) }]}>
-            <Pressable
-              style={styles.lightboxGlassCircle}
-              onPress={() => setActivePhoto(null)}
-              hitSlop={8}
-              accessibilityLabel={tr.closeViewerA11y}
-            >
-              <Ionicons name="close" size={20} color="#fff" />
-            </Pressable>
-
-            {activePhotoIndex >= 0 ? (
-              <Text style={styles.lightboxCounter}>
-                {tr.counterOf(activePhotoIndex + 1, photos.length)}
-              </Text>
-            ) : null}
-
-            <Pressable
-              style={styles.lightboxGlassCircle}
-              onPress={onShareActivePhoto}
-              hitSlop={8}
-              accessibilityLabel={tr.sharePhotoA11y}
-            >
-              <Ionicons name="share-outline" size={17} color="#fff" />
-            </Pressable>
-          </View>
-
-          {/* Central Image View with Invisible Tap Navigation Zones */}
-          <View style={styles.lightboxImageContainer}>
-            {activePhoto?.url ? (
-              <Image
-                source={{ uri: activePhoto.url }}
-                style={styles.lightboxImage}
-                contentFit="contain"
-                transition={200}
-              />
-            ) : null}
-
-            {/* Tap left zone */}
-            {activePhotoIndex > 0 ? (
-              <Pressable
-                style={styles.leftTapZone}
-                onPress={onPrevPhoto}
-                accessibilityLabel={tr.prevPhotoA11y}
-              />
-            ) : null}
-
-            {/* Tap right zone */}
-            {activePhotoIndex >= 0 && activePhotoIndex < photos.length - 1 ? (
-              <Pressable
-                style={styles.rightTapZone}
-                onPress={onNextPhoto}
-                accessibilityLabel={tr.nextPhotoA11y}
-              />
-            ) : null}
-          </View>
-
-          {/* Bottom Floating Glass Navigation & Download Pill */}
-          <View
-            style={[
-              styles.lightboxBottomBar,
-              { paddingBottom: Math.max(insets.bottom + 8, 24) },
-            ]}
-          >
-            <View style={styles.lightboxControlPill}>
-              {/* Previous Photo Button */}
-              <Pressable
-                style={[
-                  styles.pillNavBtn,
-                  activePhotoIndex <= 0 && styles.pillNavBtnDisabled,
-                ]}
-                onPress={onPrevPhoto}
-                disabled={activePhotoIndex <= 0}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={19}
-                  color={activePhotoIndex <= 0 ? 'rgba(255,255,255,0.3)' : '#fff'}
-                />
-              </Pressable>
-
-              {/* Save to Camera Roll Action */}
-              <Pressable
-                style={[styles.pillSaveBtn, savingPhoto && styles.btnDisabled]}
-                onPress={onSaveActivePhoto}
-                disabled={savingPhoto}
-              >
-                {savingPhoto ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="download-outline" size={16} color="#fff" />
-                    <Text style={styles.pillSaveText}>{tr.saveToCameraRoll}</Text>
-                  </>
-                )}
-              </Pressable>
-
-              {/* Next Photo Button */}
-              <Pressable
-                style={[
-                  styles.pillNavBtn,
-                  activePhotoIndex >= photos.length - 1 && styles.pillNavBtnDisabled,
-                ]}
-                onPress={onNextPhoto}
-                disabled={activePhotoIndex >= photos.length - 1}
-                hitSlop={8}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={19}
-                  color={
-                    activePhotoIndex >= photos.length - 1
-                      ? 'rgba(255,255,255,0.3)'
-                      : '#fff'
-                  }
-                />
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <PhotoViewer
+        photos={photos}
+        index={viewerIndex}
+        onIndexChange={setViewerIndex}
+        onClose={() => setViewerIndex(-1)}
+        onSave={onSaveActivePhoto}
+        onShare={onShareActivePhoto}
+        saving={savingPhoto}
+        saveColor={isPhotographer ? colors.primary : colors.accent}
+      />
       <HandoffCheckoutSheet
         visible={!!payDeclarationId}
         onClose={() => setPayDeclarationId(null)}

@@ -8,19 +8,18 @@
  *     frosted status badge, and rich typography.
  *   • Modern Floating Action Button: Solid high-contrast "+ New Photobook" anchored
  *     safely above bottom insets.
- *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
+ *   • Night-studio pass: spine-edged cover cards with the API's own status, count and byline, skeleton loading,
+ *     an error with Try again, and the accent on the active filter for client and coordinator (the photographer
+ *     keeps the primary colour).
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Image } from 'expo-image';
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -28,9 +27,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
-import { listPhotobooks, type Photobook } from '@/features/photobooks/api';
+import { listPhotobooks, listReceivedPhotobooks, type Photobook } from '@/features/photobooks/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/store/language';
+import { PhotobookCard, PhotobookGridSkeleton } from '@/features/photobooks/PhotobookCard';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'SENT';
@@ -134,22 +134,28 @@ export default function PhotobooksScreen() {
   const canCreate = isPhotographer || isCoordinator;
   const { language } = useLanguage();
   const tr = I18N[language] || I18N.en;
+  const accent = !isPhotographer;
 
-  const statusMeta: Record<string, { label: string; bg: string; fg: string }> = useMemo(
-    () => ({
-      PUBLISHED: { label: tr.statusPublished, bg: '#D1FAE5', fg: '#047857' },
-      DRAFT: { label: tr.statusDraft, bg: '#E5E7EB', fg: '#374151' },
-      PENDING: { label: tr.statusPending, bg: '#FEF3C7', fg: '#92400E' },
-      SENT: { label: tr.statusSent, bg: '#DBEAFE', fg: '#1D4ED8' },
-    }),
-    [tr],
+  // A photographer has two shelves: books they made, and books clients sent them to edit (web "received photobooks").
+  const [shelf, setShelf] = useState<'mine' | 'received'>('mine');
+  const mine = useAsync(useCallback(() => listPhotobooks(), []));
+  const receivedList = useAsync(useCallback(() => (isPhotographer ? listReceivedPhotobooks() : Promise.resolve([])), [isPhotographer]));
+  const received = isPhotographer && shelf === 'received';
+  // Coming back from a book (resubmitted or removed there) must not show the old shelf. Quiet, so the list does not flash.
+  const refreshMine = mine.refreshQuietly;
+  const refreshReceived = receivedList.refreshQuietly;
+  useFocusEffect(
+    useCallback(() => {
+      void refreshMine();
+      void refreshReceived();
+    }, [refreshMine, refreshReceived]),
   );
-
-  const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotobooks(), []));
+  const { data, loading, error, refresh } = received ? receivedList : mine;
   const [filter, setFilter] = useState<StatusFilter>('ALL');
   const [search, setSearch] = useState('');
 
-  const photobooks = data ?? [];
+  const photobooks: Photobook[] = useMemo(() => data ?? [], [data]);
+  const openBook = useCallback((id: string, isReceived: boolean) => router.push((isReceived ? `/photobook/${id}?received=1` : `/photobook/${id}`) as Href), [router]);
 
   const counts = useMemo(() => {
     const c: Record<StatusFilter, number> = { ALL: photobooks.length, PUBLISHED: 0, DRAFT: 0, SENT: 0 };
@@ -164,11 +170,13 @@ export default function PhotobooksScreen() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return photobooks.filter((p) => {
+    return photobooks.filter((p: Photobook) => {
       const s = (p.status ?? '').toUpperCase();
-      if (filter === 'PUBLISHED' && s !== 'PUBLISHED') return false;
-      if (filter === 'DRAFT' && s !== 'DRAFT') return false;
-      if (filter === 'SENT' && s !== 'SENT') return false;
+      if (!received) {
+        if (filter === 'PUBLISHED' && s !== 'PUBLISHED') return false;
+        if (filter === 'DRAFT' && s !== 'DRAFT') return false;
+        if (filter === 'SENT' && s !== 'SENT') return false;
+      }
       if (!q) return true;
       return (
         p.name.toLowerCase().includes(q) ||
@@ -176,7 +184,7 @@ export default function PhotobooksScreen() {
         (p.photographerName ?? '').toLowerCase().includes(q)
       );
     });
-  }, [photobooks, filter, search]);
+  }, [photobooks, filter, search, received]);
 
   const header = (
     <View style={styles.header}>
@@ -193,8 +201,26 @@ export default function PhotobooksScreen() {
         </View>
       </View>
 
+      {isPhotographer ? (
+        <View style={styles.filterRow} accessibilityRole="tablist">
+          {(['mine', 'received'] as const).map((k) => (
+            <Pressable
+              key={k}
+              onPress={() => setShelf(k)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: shelf === k }}
+              style={[styles.filterPill, shelf === k && styles.filterPillActive, { minHeight: 44 }]}
+            >
+              <Text style={[styles.filterPillText, shelf === k && styles.filterPillTextActive]}>
+                {k === 'mine' ? 'My photobooks' : 'Received from clients'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       {/* Filter Segment Row */}
-      <ScrollView
+      {received ? null : <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
@@ -213,7 +239,9 @@ export default function PhotobooksScreen() {
             <Pressable
               key={f}
               onPress={() => setFilter(f)}
-              style={[styles.filterPill, active && styles.filterPillActive]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={[styles.filterPill, active && styles.filterPillActive, active && accent && styles.filterPillAccent]}
             >
               <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
                 {label}
@@ -226,7 +254,7 @@ export default function PhotobooksScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </ScrollView>}
 
       {/* Integrated Search Bar */}
       <View style={styles.searchBar}>
@@ -264,74 +292,13 @@ export default function PhotobooksScreen() {
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
         }
         ListHeaderComponent={header}
-        renderItem={({ item }) => {
-          const statusKey = (item.status ?? '').toUpperCase();
-          const tone = statusMeta[statusKey] ?? {
-            label: item.status || tr.statusBook,
-            bg: 'rgba(0,0,0,0.55)',
-            fg: '#fff',
-          };
-
-          return (
-            <Pressable
-              style={styles.card}
-              onPress={() => router.push(`/photobook/${item.id}` as Href)}
-              android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-            >
-              <View style={styles.cover}>
-                {item.coverImage ? (
-                  <Image
-                    source={{ uri: item.coverImage }}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                ) : (
-                  <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
-                    <Ionicons name="book-outline" size={32} color={colors.textMuted} />
-                  </View>
-                )}
-
-                {/* Scrim Overlay */}
-                <View style={styles.cardScrim} />
-
-                {/* Status Badge in Top Corner */}
-                <View style={styles.cardTop}>
-                  <View style={[styles.statusBadge, { backgroundColor: tone.bg }]}>
-                    <Text style={[styles.statusBadgeText, { color: tone.fg }]}>
-                      {tone.label}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Bottom Overlay: Photo count */}
-                <View style={styles.cardBottom}>
-                  <View style={styles.photoCountChip}>
-                    <Ionicons name="images" size={11} color="#fff" />
-                    <Text style={styles.photoCountText}>
-                      {tr.photosCount(item.mediaCount != null ? item.mediaCount : 0)}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.cardMeta} numberOfLines={1}>
-                  {item.photographerName ? tr.byPhotographer(item.photographerName) : tr.eventCollection}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        }}
+        initialNumToRender={6}
+        windowSize={7}
+        removeClippedSubviews
+        renderItem={({ item }) => <PhotobookCard book={item} received={received} onOpen={openBook} />}
         ListEmptyComponent={
           loading ? (
-            <View style={styles.centerBox}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>{tr.loading}</Text>
-            </View>
+            <PhotobookGridSkeleton />
           ) : error ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBox}>
@@ -341,7 +308,7 @@ export default function PhotobooksScreen() {
               <Text style={styles.emptySubtitle}>
                 {tr.errorSubtitle}
               </Text>
-              <Pressable style={styles.emptyBtn} onPress={refresh}>
+              <Pressable style={styles.emptyBtn} onPress={refresh} accessibilityRole="button" accessibilityLabel={tr.retry}>
                 <Text style={styles.emptyBtnText}>{tr.retry}</Text>
               </Pressable>
             </View>
@@ -351,16 +318,18 @@ export default function PhotobooksScreen() {
                 <Ionicons name="book-outline" size={40} color={colors.textMuted} />
               </View>
               <Text style={styles.emptyTitle}>
-                {search || filter !== 'ALL' ? tr.noMatching : tr.noBooksYet}
+                {search || (!received && filter !== 'ALL') ? tr.noMatching : received ? 'Nothing received yet' : tr.noBooksYet}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {search || filter !== 'ALL'
+                {search || (!received && filter !== 'ALL')
                   ? tr.noMatchingDesc
+                  : received
+                  ? 'Photobooks your clients send you to edit will appear here.'
                   : canCreate
                   ? tr.canCreateDesc
                   : tr.guestEmptyDesc}
               </Text>
-              {canCreate && !search && filter === 'ALL' ? (
+              {canCreate && !received && !search && filter === 'ALL' ? (
                 <Pressable
                   style={styles.emptyBtn}
                   onPress={() => router.push('/photobook/new' as Href)}
@@ -375,7 +344,7 @@ export default function PhotobooksScreen() {
       />
 
       {/* Floating Action Button — Create New Photobook */}
-      {canCreate ? (
+      {canCreate && !received ? (
         <Pressable
           style={[
             styles.fab,
@@ -458,6 +427,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     borderColor: c.primary,
   },
+  filterPillAccent: { backgroundColor: c.accent, borderColor: c.accent },
   filterPillText: {
     fontFamily: fonts.bold,
     fontSize: 13,
@@ -507,6 +477,8 @@ const useStyles = makeStyles((c) => ({
   // Hardcover Book Cards (3:4 ratio)
   card: {
     flex: 1,
+    // A lone last card must stay one column wide, not stretch across the grid.
+    maxWidth: '49%',
     borderRadius: radii.lg,
     backgroundColor: c.surface,
     borderWidth: 1,

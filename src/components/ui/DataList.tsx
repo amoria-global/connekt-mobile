@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRole } from '@/features/auth/role';
 import { EmptyState } from './EmptyState';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -33,6 +34,8 @@ type Props<T> = {
   footer?: ReactElement;
   /** Extra top padding so content clears a floating top bar. */
   topInset?: number;
+  /** The native stack header already shows `title`; photographer screens then keep only the subtitle. */
+  duplicatesHeader?: boolean;
 };
 
 export function DataList<T>({
@@ -50,10 +53,12 @@ export function DataList<T>({
   headerExtra,
   footer,
   topInset = 0,
+  duplicatesHeader,
 }: Props<T>): ReactElement {
   const styles = useStyles();
   const { colors } = useTheme();
   const { tr } = useSharedT();
+  const flat = useRole().isPhotographer;
   if (loading && !data) {
     return (
       <View style={[styles.centered, { paddingTop: topInset }]}>
@@ -70,12 +75,12 @@ export function DataList<T>({
         {/* This branch renders no list, so there is nothing to pull — without an
             explicit control the user's only way out is to leave the screen. */}
         <Pressable
-          style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.75 }]}
+          style={({ pressed }) => [styles.retryBtn, flat && styles.retryFlat, pressed && { opacity: 0.75 }]}
           onPress={onRefresh}
           accessibilityRole="button"
         >
-          <Ionicons name="refresh" size={16} color={colors.textOnPrimary} />
-          <Text style={styles.retryText}>{tr('Try again')}</Text>
+          <Ionicons name="refresh" size={16} color={flat ? colors.link : colors.textOnPrimary} />
+          <Text style={[styles.retryText, flat && { color: colors.link }]}>{tr('Try again')}</Text>
         </Pressable>
       </View>
     );
@@ -84,7 +89,7 @@ export function DataList<T>({
   const header =
     title || headerExtra ? (
       <View style={styles.header}>
-        {title ? <Text style={styles.title}>{tr(title)}</Text> : null}
+        {title && !(flat && duplicatesHeader) ? <Text style={styles.title} accessibilityRole="header">{tr(title)}</Text> : null}
         {subtitle ? <Text style={styles.subtitle}>{tr(subtitle)}</Text> : null}
         {headerExtra ? <View style={styles.headerExtra}>{headerExtra}</View> : null}
       </View>
@@ -127,6 +132,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.lg,
     backgroundColor: c.primary,
   },
+  retryFlat: { minHeight: 44, borderRadius: radii.md, backgroundColor: 'transparent', borderWidth: 1.25, borderColor: c.primary },
   retryText: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   listContent: { padding: spacing.xl, gap: spacing.md, flexGrow: 1 },
   header: { gap: 2, marginBottom: spacing.xs },

@@ -33,11 +33,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import { useAuth } from '@/store/auth';
-import {
-  detectPaymentCountry,
-  getPaymentOptions,
-  type PaymentOperator,
-} from '@/features/reference/api';
+import { usePaymentEligibility } from '@/features/payments/usePaymentEligibility';
 import { getGeoPaymentStatus, type GeoPaymentStatus } from '@/features/payments/geo';
 import {
   isPlausibleMobile,
@@ -118,12 +114,9 @@ export function PhotoCheckoutSheet({
   const { tr } = useSharedT();
 
   // Country & operator data
-  const [country, setCountry] = useState('RW');
-  const [supportsCard, setSupportsCard] = useState(true);
-  const [operators, setOperators] = useState<PaymentOperator[]>([
-    { id: 'MTN', name: 'MTN Mobile Money', type: 'MOBILE_MONEY' },
-    { id: 'AIRTEL', name: 'Airtel Money', type: 'MOBILE_MONEY' },
-  ]);
+  const eligibility = usePaymentEligibility(visible);
+  const { operators, supportsCard } = eligibility;
+  const country = eligibility.country ?? '';
 
   // Geo status
   const [geo, setGeo] = useState<GeoPaymentStatus>({
@@ -152,8 +145,9 @@ export function PhotoCheckoutSheet({
     );
   }, [countrySearch]);
 
-  const selectCountry = async (cIso2: string) => {
-    setCountry(cIso2);
+  const selectCountry = (cIso2: string) => {
+    setMethod(null);
+    void eligibility.changeCountry(cIso2);
     setCountryPickerOpen(false);
     setCountrySearch('');
     setPhone((prev) => {
@@ -163,14 +157,6 @@ export function PhotoCheckoutSheet({
       if (d.startsWith('0')) d = d.replace(/^0+/, '');
       return d.slice(0, 10);
     });
-    try {
-      const opts = await getPaymentOptions(cIso2).catch(() => null);
-      if (opts) {
-        setSupportsCard(opts.supportsCard);
-        if (opts.operators.length > 0) setOperators(opts.operators);
-        setMethod(null);
-      }
-    } catch {}
   };
 
   const handlePhoneChange = (text: string) => {
@@ -215,34 +201,15 @@ export function PhotoCheckoutSheet({
     }
   }, [visible, user]);
 
-  // Load geo status and payment options
+  // Load geo status (country and methods come from usePaymentEligibility)
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const detected = (await detectPaymentCountry().catch(() => undefined)) || 'RW';
-        if (cancelled) return;
-        setCountry(detected);
-
-        const [opts, g] = await Promise.all([
-          getPaymentOptions(detected).catch(() => null),
-          getGeoPaymentStatus().catch(() => null),
-        ]);
-
-        if (cancelled) return;
-        if (opts) {
-          setSupportsCard(opts.supportsCard);
-          if (opts.operators.length > 0) {
-            setOperators(opts.operators);
-          }
-        }
-        if (g) setGeo(g);
-      } catch {
-        // Safe fallbacks remain
-      }
-    })();
-
+    getGeoPaymentStatus()
+      .then((g) => {
+        if (!cancelled && g) setGeo(g);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -517,6 +484,8 @@ export function PhotoCheckoutSheet({
                   onSelect={setMethod}
                   country={country}
                   onCountryChange={selectCountry}
+                  mobileMoneyState={eligibility.mobileMoney}
+                  onRetry={eligibility.retry}
                   disableMobileMoney={geo.blocked || geo.disableMobileMoney}
                   disableCards={geo.blocked}
                 />

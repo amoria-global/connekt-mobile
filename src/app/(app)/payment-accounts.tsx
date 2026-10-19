@@ -4,7 +4,8 @@
  * on the same withdrawal-methods endpoints (see features/paymentAccounts).
  */
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert } from '@/components/ui/dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
@@ -87,7 +88,7 @@ export default function PaymentAccountsScreen() {
           <RefreshControl refreshing={false} onRefresh={accounts.refresh} tintColor={colors.primary} />
         }
       >
-        <ScreenHeader title={t('b1_payAccTitle')} subtitle={t('b1_payAccSubtitle')} />
+        <ScreenHeader duplicatesHeader title={t('b1_payAccTitle')} subtitle={t('b1_payAccSubtitle')} />
 
         <View style={styles.body}>
           {accounts.loading && !accounts.data ? (
@@ -133,7 +134,7 @@ export default function PaymentAccountsScreen() {
                       </View>
                       <View style={{ flex: 1, gap: 2 }}>
                         <View style={styles.labelRow}>
-                          <Text style={styles.cardLabel} numberOfLines={1}>{a.label}</Text>
+                          <Text style={styles.cardLabel} numberOfLines={2}>{a.label}</Text>
                           {a.isDefault ? (
                             <View style={styles.defaultPill}>
                               <Text style={styles.defaultText}>{t('b1_payAccDefault')}</Text>
@@ -142,7 +143,7 @@ export default function PaymentAccountsScreen() {
                         </View>
                         <Text style={styles.cardNumber}>{maskAccountNumber(a.accountNumber)}</Text>
                         {a.accountName ? (
-                          <Text style={styles.cardName} numberOfLines={1}>{a.accountName}</Text>
+                          <Text style={styles.cardName} numberOfLines={2}>{a.accountName}</Text>
                         ) : null}
                       </View>
                     </View>
@@ -243,7 +244,7 @@ const useStyles = makeStyles((c) => ({
   cardDefault: { borderColor: c.primary },
   cardTop: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   kindIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  labelRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   cardLabel: { flexShrink: 1, fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   defaultPill: {
     paddingHorizontal: spacing.sm,

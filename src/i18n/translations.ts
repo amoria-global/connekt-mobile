@@ -59,6 +59,7 @@ export const translations = {
     newHereCreateAccount: 'New here? Create an account',
     postNoticeText: 'You chose to post an event. Sign in or create an account to publish your event.',
     dismissNotice: 'Dismiss',
+    dismissVerificationBanner: 'Dismiss verification banner',
 
     // Guest Cards
     exploreWithoutAccount: 'Explore without account',
@@ -340,7 +341,7 @@ export const translations = {
     newestFirst: 'Newest first',
     oldestFirst: 'Oldest first',
     acceptBooking: 'Accept',
-    declineBooking: 'Decline',
+    declineBooking: 'Deny',
     albums: 'Albums',
     photobooks: 'Photobooks',
     content: 'Content',
@@ -354,6 +355,7 @@ export const translations = {
     withdrawFunds: 'Withdraw funds',
     payrollReport: 'Payroll report',
     retry: 'Retry',
+    tryAgain: 'Try again',
 
     // Inbox & Chat
     general: 'General',
@@ -399,12 +401,12 @@ export const translations = {
     tryDifferentFilter: 'Try a different filter or search term.',
     eventsBookedAppear: 'Events you get booked for will appear here.',
     createNewEvent: 'Create new event',
-    sortEvents: 'Sort Events',
+    sortEvents: 'Sort events',
     chooseOrder: 'Choose an order for your event list',
     newestCreatedFirst: 'Newest created first',
     oldestCreatedFirst: 'Oldest created first',
     eventDateUpcomingFirst: 'Event date (Upcoming first)',
-    titleAZ: 'Title (A–Z)',
+    titleAZ: 'Title (A to Z)',
     newestCreatedDesc: 'Recently booked or created events appear first',
     oldestCreatedDesc: 'Earliest booked or created events first',
     eventDateUpcomingDesc: 'Scheduled event date & time in chronological order',
@@ -559,7 +561,7 @@ export const translations = {
     photoCollection: 'Photo collection',
     eventCollection: 'Event Collection',
     loadingCollections: 'Loading collections…',
-    couldNotLoadAlbums: "Couldn't load albums",
+    couldNotLoadAlbums: 'Could not load albums',
     checkNetworkRetry: 'Please check your network connection and pull down to retry.',
     noMatchingCollections: 'No matching collections',
     noGalleriesShared: 'No galleries shared',
@@ -730,6 +732,7 @@ export const translations = {
     newHereCreateAccount: 'Nouveau ici ? Créer un compte',
     postNoticeText: 'Vous avez choisi de publier un événement. Connectez-vous ou créez un compte pour le publier.',
     dismissNotice: 'Fermer',
+    dismissVerificationBanner: 'Ignorer la bannière de vérification',
 
     // Guest Cards
     exploreWithoutAccount: 'Explorer sans compte',
@@ -1025,6 +1028,7 @@ export const translations = {
     withdrawFunds: 'Retirer des fonds',
     payrollReport: 'Rapport de paie',
     retry: 'Réessayer',
+    tryAgain: 'Réessayer',
 
     // Inbox & Chat
     general: 'Général',
@@ -1401,6 +1405,7 @@ export const translations = {
     newHereCreateAccount: '¿Nuevo aquí? Crea una cuenta',
     postNoticeText: 'Elegiste publicar un evento. Inicia sesión o crea una cuenta para publicarlo.',
     dismissNotice: 'Descartar',
+    dismissVerificationBanner: 'Descartar el banner de verificación',
 
     // Guest Cards
     exploreWithoutAccount: 'Explorar sin cuenta',
@@ -1696,6 +1701,7 @@ export const translations = {
     withdrawFunds: 'Retirar fondos',
     payrollReport: 'Informe de nómina',
     retry: 'Reintentar',
+    tryAgain: 'Intentar de nuevo',
 
     // Inbox & Chat
     general: 'General',

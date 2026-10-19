@@ -227,10 +227,13 @@ export function CoordinatorHome() {
               style={({ pressed }) => [styles.quickActionPrimaryBtn, pressed && styles.btnPressed]}
               onPress={() => router.push('/event/new' as never)}
               accessibilityRole="button"
-              accessibilityLabel="Create a new event"
+              accessibilityLabel={t('createEvent')}
             >
               <Ionicons name="add" size={18} color="#FFFFFF" />
-              <Text style={styles.quickActionPrimaryBtnText}>{t('createEvent')}</Text>
+              {/* On a 360dp phone the label met the button edge; it now keeps its padding and shrinks if it must. */}
+              <Text style={styles.quickActionPrimaryBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} maxFontSizeMultiplier={1.2}>
+                {t('createEvent')}
+              </Text>
             </Pressable>
 
             {/* Secondary Action: Gallery (the Team it replaced was retired for album collaboration) */}
@@ -238,10 +241,12 @@ export function CoordinatorHome() {
               style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
               onPress={() => router.push('/gallery' as never)}
               accessibilityRole="button"
-              accessibilityLabel="Gallery"
+              accessibilityLabel={t('gallery')}
             >
               <Ionicons name="images-outline" size={15} color={colors.primary} />
-              <Text style={styles.quickActionSecondaryBtnText}>{t('gallery')}</Text>
+              <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                {t('gallery')}
+              </Text>
             </Pressable>
 
             {/* Tertiary Action: Photographers */}
@@ -249,10 +254,10 @@ export function CoordinatorHome() {
               style={({ pressed }) => [styles.quickActionSecondaryBtn, pressed && styles.btnPressed]}
               onPress={() => router.push('/photographers' as never)}
               accessibilityRole="button"
-              accessibilityLabel="Photographers"
+              accessibilityLabel={t('menuPhotographers')}
             >
               <Ionicons name="camera-outline" size={15} color={colors.primary} />
-              <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1}>
+              <Text style={styles.quickActionSecondaryBtnText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                 {t('menuPhotographers')}
               </Text>
             </Pressable>
@@ -262,10 +267,10 @@ export function CoordinatorHome() {
               style={({ pressed }) => [styles.quickActionLiveBtn, pressed && styles.btnPressed]}
               onPress={() => router.push('/streams' as never)}
               accessibilityRole="button"
-              accessibilityLabel="Live Streams"
+              accessibilityLabel={t('liveNow')}
             >
               <Ionicons name="videocam" size={14} color="#EF4444" />
-              <Text style={styles.quickActionLiveBtnText}>{t('liveNow')}</Text>
+              <Text style={styles.quickActionLiveBtnText} maxFontSizeMultiplier={1.2}>{t('liveNow')}</Text>
             </Pressable>
           </GlassCard>
         </View>
@@ -432,8 +437,10 @@ export function CoordinatorHome() {
                 accessibilityRole="button"
                 accessibilityLabel="View revenue in wallet"
               >
-                <Text style={styles.snapshotLabel}>REVENUE</Text>
-                <Text style={[styles.snapshotValue, { color: '#083A85' }]}>
+                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
+                  REVENUE
+                </Text>
+                <Text style={[styles.snapshotValue, { color: colors.link }]}>
                   {formatPrice(a?.totalRevenue || 0, currency)}
                 </Text>
               </Pressable>
@@ -444,7 +451,9 @@ export function CoordinatorHome() {
                 accessibilityRole="button"
                 accessibilityLabel="View events"
               >
-                <Text style={styles.snapshotLabel}>EVENTS</Text>
+                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
+                  EVENTS
+                </Text>
                 <Text style={[styles.snapshotValue, { color: '#F20C8F' }]}>
                   {String(a?.totalEvents || 0)}
                 </Text>
@@ -456,7 +465,9 @@ export function CoordinatorHome() {
                 accessibilityRole="button"
                 accessibilityLabel="View photographers"
               >
-                <Text style={styles.snapshotLabel}>PHOTOGRAPHERS</Text>
+                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
+                  PHOTOGRAPHERS
+                </Text>
                 <Text style={[styles.snapshotValue, { color: '#10B981' }]}>
                   {String(a?.totalPhotographers || 0)}
                 </Text>
@@ -743,6 +754,7 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    paddingHorizontal: 12,
     height: 42,
     borderRadius: radii.lg,
     backgroundColor: c.primary,

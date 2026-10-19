@@ -87,9 +87,14 @@ export default function JoinInviteScreen() {
   const styles = useStyles();
   const { language } = useLanguage();
   const s = JOIN_INV_I18N[language] ?? JOIN_INV_I18N.en;
-  const [preview, setPreview] = useState<InvitePreview | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [joining, setJoining] = useState(false);
+  // Everything below belongs to one token. State is keyed by it, so a new link can never show the previous album,
+  // error or "joining" spinner, without resetting state inside an effect.
+  const [loaded, setLoaded] = useState<{ token: string; preview: InvitePreview | null; error: string | null } | null>(null);
+  const [joiningToken, setJoiningToken] = useState<string | null>(null);
+  const here = loaded && loaded.token === token ? loaded : null;
+  const preview = here?.preview ?? null;
+  const error = here?.error ?? null;
+  const joining = joiningToken === token;
 
   const BLOCKED: Record<string, { icon: 'person-outline' | 'person-remove-outline' | 'ban-outline' | 'time-outline'; title: string; message: string }> = {
     OWNER: { icon: 'person-outline', title: s.ownerTitle, message: s.ownerMsg },
@@ -100,21 +105,31 @@ export default function JoinInviteScreen() {
 
   useEffect(() => {
     if (!token) return;
+    let current = true;
     previewInvite(token)
-      .then(setPreview)
-      .catch((e) => setError(isApiError(e) ? e.message : s.invalidLink));
+      .then((p) => current && setLoaded({ token, preview: p, error: null }))
+      .catch(
+        (e) =>
+          current &&
+          setLoaded({ token, preview: null, error: isApiError(e) ? e.message : s.invalidLink }),
+      );
+    return () => {
+      current = false;
+    };
   }, [token, s.invalidLink]);
 
   const join = async () => {
     if (!token) return;
-    setJoining(true);
-    setError(null);
+    setJoiningToken(token);
+    setLoaded((l) => (l && l.token === token ? { ...l, error: null } : l));
     try {
       const albumId = await acceptInvite(token);
       router.replace(`/collaborate/joined/${albumId}` as Href);
     } catch (e) {
-      setError(isApiError(e) ? e.message : s.errJoin);
-      setJoining(false);
+      setLoaded((l) =>
+        l && l.token === token ? { ...l, error: isApiError(e) ? e.message : s.errJoin } : l,
+      );
+      setJoiningToken(null);
     }
   };
 

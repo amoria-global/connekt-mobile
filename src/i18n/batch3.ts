@@ -232,6 +232,7 @@ export const batch3En = {
   b3_evdet_step_album: 'Album Delivered',
   b3_evdet_step_photobook: 'Photobook',
   b3_evdet_step_completed: 'Completed',
+  b3_danger_zone: 'Danger zone',
 
   // event/candidates.tsx
   b3_cand_load_err: 'Could not load the photographers who answered.',
@@ -508,6 +509,7 @@ export const batch3Fr: Record<keyof typeof batch3En, string> = {
   b3_evdet_step_album: 'Album livré',
   b3_evdet_step_photobook: 'Livre photo',
   b3_evdet_step_completed: 'Terminé',
+  b3_danger_zone: 'Zone de danger',
 
   // event/candidates.tsx
   b3_cand_load_err: 'Impossible de charger les photographes ayant répondu.',
@@ -784,6 +786,7 @@ export const batch3Es: Record<keyof typeof batch3En, string> = {
   b3_evdet_step_album: 'Álbum entregado',
   b3_evdet_step_photobook: 'Fotolibro',
   b3_evdet_step_completed: 'Completado',
+  b3_danger_zone: 'Zona de peligro',
 
   // event/candidates.tsx
   b3_cand_load_err: 'No se pudieron cargar los fotógrafos que respondieron.',

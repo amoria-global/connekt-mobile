@@ -33,6 +33,7 @@ export default function ClientsScreen() {
         error={error}
         onRefresh={refresh}
         title={t('b2_clientsTitle')}
+        duplicatesHeader
         subtitle={isCoordinator ? t('b2_clientsSubtitleCoord') : t('b2_clientsSubtitlePhotog')}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => {

@@ -2,7 +2,7 @@
  * Photographer discovery (/api/remote/customer/photographers).
  * Mapped defensively; text search is applied client-side over the result set.
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
 
 export type Photographer = {
@@ -18,6 +18,8 @@ export type Photographer = {
   category?: string;
   specialties?: string[];
   startingPrice?: number;
+  /** Currency of the package the starting price comes from, when the API states it. */
+  startingPriceCurrency?: string;
   currentStatus?: string;
   isVerified?: boolean;
 };
@@ -52,6 +54,9 @@ function mapPhotographer(r: Raw): Photographer {
   const packages = Array.isArray(r.packages) ? r.packages : [];
   const prices = packages.map(p => num(p.price)).filter((p): p is number => p !== undefined);
   const startingPrice = prices.length > 0 ? Math.min(...prices) : undefined;
+  // The currency belongs to the package the starting price comes from, never to a different, dearer one.
+  const cheapest = startingPrice === undefined ? undefined : packages.find((p) => num(p.price) === startingPrice);
+  const startingPriceCurrency = cheapest ? (str(cheapest.currency) ?? str(cheapest.currencyCode) ?? str(cheapest.currencyAbbreviation)) : undefined;
 
   const projects = Array.isArray(r.projects) ? r.projects : [];
   const projectImages = projects
@@ -106,6 +111,7 @@ function mapPhotographer(r: Raw): Photographer {
     category,
     specialties: specialtiesList,
     startingPrice,
+    startingPriceCurrency,
     currentStatus,
     isVerified,
   };
@@ -126,8 +132,9 @@ export async function listPhotographers(): Promise<Photographer[]> {
   const size = 100;
   const all: any[] = [];
   for (let page = 0; page < 50; page++) {
-    const res = await api.get<ApiEnvelope<any>>(
-      `/public/photographers/list?page=${page}&size=${size}`,
+    // A refused page answers HTTP 200 with action:0; read as an empty page it said "no photographers".
+    const res = requireOk(
+      await api.get<ApiEnvelope<any>>(`/public/photographers/list?page=${page}&size=${size}`),
     );
     const rows = Array.isArray(res?.data?.content)
       ? res.data.content
