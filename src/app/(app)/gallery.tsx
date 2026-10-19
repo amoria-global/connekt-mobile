@@ -492,7 +492,7 @@ const useStyles = makeStyles((c) => ({
   titleCol: { gap: 2 },
   titleEyebrow: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
     letterSpacing: 1.2,
   },
@@ -590,7 +590,7 @@ const useStyles = makeStyles((c) => ({
   },
   segmentCountText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: c.textMuted,
   },
   segmentCountTextActive: {
@@ -647,7 +647,7 @@ const useStyles = makeStyles((c) => ({
   },
   sortIndicatorText: {
     fontFamily: fonts.bold,
-    fontSize: 11.5,
+    fontSize: 12,
     color: c.textMuted,
   },
 
@@ -712,7 +712,7 @@ const useStyles = makeStyles((c) => ({
   },
   photoCountText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: '#fff',
   },
   gridCardBody: {
@@ -798,7 +798,7 @@ const useStyles = makeStyles((c) => ({
   kindTagDefault: { backgroundColor: 'rgba(0,0,0,0.55)' },
   kindTagText: {
     fontFamily: fonts.bold,
-    fontSize: 9.5,
+    fontSize: 12,
     color: '#fff',
     letterSpacing: 0.5,
   },

@@ -730,7 +730,7 @@ const useStyles = makeStyles((c) => ({
   },
   unreadCounterText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: '#fff',
   },
   headerActionsRight: {
@@ -793,7 +793,7 @@ const useStyles = makeStyles((c) => ({
   },
   filterCountBadgeText: {
     fontFamily: fonts.bold,
-    fontSize: 10,
+    fontSize: 12,
     color: '#2563EB',
   },
   filterCountBadgeTextActive: {
@@ -903,7 +903,7 @@ const useStyles = makeStyles((c) => ({
   },
   amountPillText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: '#059669',
   },
 

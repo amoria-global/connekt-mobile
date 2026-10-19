@@ -631,7 +631,7 @@ const useStyles = makeStyles((colors) => ({
     borderColor: '#FFFFFF',
   },
   locationPillText: {
-    fontSize: fontSize.xs,
+    fontSize: 12,
     fontWeight: fontWeight.bold,
     color: colors.text,
   },
@@ -674,7 +674,7 @@ const useStyles = makeStyles((colors) => ({
     borderColor: colors.primary,
   },
   radiusChipText: {
-    fontSize: fontSize.xs,
+    fontSize: 12,
     fontWeight: fontWeight.medium,
     color: colors.textMuted,
   },
@@ -749,7 +749,7 @@ const useStyles = makeStyles((colors) => ({
     color: colors.text,
   },
   cardBiz: {
-    fontSize: fontSize.xs,
+    fontSize: 12,
     color: colors.textMuted,
     marginTop: 1,
   },
@@ -765,7 +765,7 @@ const useStyles = makeStyles((colors) => ({
     gap: 3,
   },
   distanceText: {
-    fontSize: fontSize.xs,
+    fontSize: 12,
     fontWeight: fontWeight.semibold,
     color: '#0284C7',
   },
@@ -775,7 +775,7 @@ const useStyles = makeStyles((colors) => ({
     gap: 3,
   },
   ratingText: {
-    fontSize: fontSize.xs,
+    fontSize: 12,
     fontWeight: fontWeight.bold,
     color: '#F59E0B',
   },
@@ -827,7 +827,7 @@ const useStyles = makeStyles((colors) => ({
     borderColor: colors.border,
   },
   viewProfileText: {
-    fontSize: fontSize.xs,
+    fontSize: 12,
     fontWeight: fontWeight.semibold,
     color: colors.text,
   },
@@ -841,7 +841,7 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.accent,
   },
   bookNowText: {
-    fontSize: fontSize.xs,
+    fontSize: 12,
     fontWeight: fontWeight.bold,
     color: '#FFFFFF',
   },
