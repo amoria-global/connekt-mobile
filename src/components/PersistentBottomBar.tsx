@@ -43,7 +43,6 @@ import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
-import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 const BAR_CONTENT_HEIGHT = 56;
@@ -497,7 +496,6 @@ export function MoreSheet({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [languageSheetOpen, setLanguageSheetOpen] = useState(false);
-  const [currencySheetOpen, setCurrencySheetOpen] = useState(false);
 
   // Live unread notification count
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
@@ -671,18 +669,7 @@ export function MoreSheet({
       },
     });
 
-    // 13. Display Currency (cash icon, opens currency selector)
-    list.push({
-      id: 'currency',
-      label: t('currencyPreference'),
-      icon: 'cash-outline',
-      onPress: () => {
-        onClose();
-        setTimeout(() => setCurrencySheetOpen(true), 150);
-      },
-    });
-
-    // 14. Preferences / Settings (All roles in salo-run bottom nav)
+    // 13. Preferences / Settings (All roles in salo-run bottom nav)
     list.push({
       id: 'preferences',
       label: t('menuSettings'),
@@ -808,11 +795,6 @@ export function MoreSheet({
       <LanguageSelectorSheet
         visible={languageSheetOpen}
         onClose={() => setLanguageSheetOpen(false)}
-      />
-
-      <CurrencySelectorSheet
-        visible={currencySheetOpen}
-        onClose={() => setCurrencySheetOpen(false)}
       />
     </Modal>
   );
