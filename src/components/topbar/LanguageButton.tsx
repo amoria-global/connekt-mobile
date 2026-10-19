@@ -42,21 +42,21 @@ export function LanguageButton({ compact }: { compact?: boolean } = {}) {
 
 const useStyles = makeStyles((c, e) => ({
   chip: {
-    height: 46,
-    minWidth: 46,
-    paddingHorizontal: spacing.sm,
+    height: 40,
+    minWidth: 40,
+    paddingHorizontal: spacing.xs + 4,
     borderRadius: radii.full,
     backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 4,
     ...e(2),
   },
   chipCompact: {
     height: 34,
     minWidth: 34,
-    marginRight: spacing.xs,
+    paddingHorizontal: spacing.xs + 2,
   },
   pressed: {
     opacity: 0.85,
@@ -66,6 +66,6 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     color: c.text,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 }));
