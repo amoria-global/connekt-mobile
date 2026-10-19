@@ -35,30 +35,114 @@ import {
   type ContentApprovalStatus,
 } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 type Filter = 'ALL' | ContentApprovalStatus;
 
-const STATUS_META: Record<ContentApprovalStatus, { label: string; bg: string; fg: string }> = {
-  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
-  PENDING_APPROVAL: { label: 'In Review', bg: '#FEF3C7', fg: '#92400E' },
-  APPROVED: { label: 'Live · Approved', bg: '#D1FAE5', fg: '#047857' },
-  REJECTED: { label: 'Needs Changes', bg: '#FEE2E2', fg: '#B91C1C' },
-};
-
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'ALL', label: 'All' },
-  { key: 'DRAFT', label: 'Drafts' },
-  { key: 'PENDING_APPROVAL', label: 'In Review' },
-  { key: 'APPROVED', label: 'Live' },
-  { key: 'REJECTED', label: 'Needs Changes' },
-];
+const CA_I18N = {
+  en: {
+    statusDraft: 'Draft',
+    statusInReview: 'In Review',
+    statusApproved: 'Live · Approved',
+    statusRejected: 'Needs Changes',
+    filterAll: 'All',
+    filterDrafts: 'Drafts',
+    filterInReview: 'In Review',
+    filterLive: 'Live',
+    filterRejected: 'Needs Changes',
+    eyebrow: 'STOCK & COMMERCIAL',
+    title: 'Content Albums',
+    searchPlaceholder: 'Search stock collections by title or tag…',
+    photosCount: '{count} photos',
+    stockLibrary: 'Stock Library',
+    loadingText: 'Loading stock albums…',
+    errLoadTitle: "Couldn't load content albums",
+    errLoadSub: 'Please check your network connection and pull down to retry.',
+    retry: 'Retry',
+    emptyNoMatch: 'No matching content albums',
+    emptyNoneYet: 'No content albums yet',
+    emptyNoMatchSub: 'Try selecting a different approval status or clearing your search.',
+    emptyNoneYetSub: "Publish high-resolution stock photos to monetize them in Connekt's public catalog.",
+    newBtn: 'New Content Album',
+    newBtnA11y: 'New content album',
+  },
+  fr: {
+    statusDraft: 'Brouillon',
+    statusInReview: 'En examen',
+    statusApproved: 'En ligne · Approuvé',
+    statusRejected: 'Modifications requises',
+    filterAll: 'Tous',
+    filterDrafts: 'Brouillons',
+    filterInReview: 'En examen',
+    filterLive: 'En ligne',
+    filterRejected: 'Modifications requises',
+    eyebrow: 'BANQUE D’IMAGES & COMMERCIAL',
+    title: 'Albums de contenu',
+    searchPlaceholder: 'Rechercher des collections par titre ou mot-clé…',
+    photosCount: '{count} photos',
+    stockLibrary: 'Banque d’images',
+    loadingText: 'Chargement des albums de contenu…',
+    errLoadTitle: 'Impossible de charger les albums de contenu',
+    errLoadSub: 'Vérifiez votre connexion réseau et tirez vers le bas pour réessayer.',
+    retry: 'Réessayer',
+    emptyNoMatch: 'Aucun album correspondant',
+    emptyNoneYet: 'Aucun album de contenu pour le moment',
+    emptyNoMatchSub: 'Essayez de sélectionner un autre statut ou d’effacer votre recherche.',
+    emptyNoneYetSub: 'Publiez des photos haute résolution pour les monétiser dans le catalogue public Connekt.',
+    newBtn: 'Nouvel album de contenu',
+    newBtnA11y: 'Nouvel album de contenu',
+  },
+  es: {
+    statusDraft: 'Borrador',
+    statusInReview: 'En revisión',
+    statusApproved: 'Publicado · Aprobado',
+    statusRejected: 'Requiere cambios',
+    filterAll: 'Todos',
+    filterDrafts: 'Borradores',
+    filterInReview: 'En revisión',
+    filterLive: 'Publicados',
+    filterRejected: 'Requiere cambios',
+    eyebrow: 'STOCK Y COMERCIAL',
+    title: 'Álbumes de contenido',
+    searchPlaceholder: 'Buscar colecciones por título o etiqueta…',
+    photosCount: '{count} fotos',
+    stockLibrary: 'Biblioteca de stock',
+    loadingText: 'Cargando álbumes de contenido…',
+    errLoadTitle: 'No se pudieron cargar los álbumes de contenido',
+    errLoadSub: 'Comprueba tu conexión de red y desliza hacia abajo para reintentar.',
+    retry: 'Reintentar',
+    emptyNoMatch: 'No hay álbumes coincidentes',
+    emptyNoneYet: 'Aún no hay álbumes de contenido',
+    emptyNoMatchSub: 'Intenta seleccionar otro estado de aprobación o borrar tu búsqueda.',
+    emptyNoneYetSub: 'Publica fotos de alta resolución para monetizarlas en el catálogo público de Connekt.',
+    newBtn: 'Nuevo álbum de contenido',
+    newBtnA11y: 'Nuevo álbum de contenido',
+  },
+} as const;
 
 export default function ContentAlbumsScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { language } = useLanguage();
+  const s = CA_I18N[language] ?? CA_I18N.en;
+
+  const STATUS_META: Record<ContentApprovalStatus, { label: string; bg: string; fg: string }> = {
+    DRAFT: { label: s.statusDraft, bg: '#E5E7EB', fg: '#374151' },
+    PENDING_APPROVAL: { label: s.statusInReview, bg: '#FEF3C7', fg: '#92400E' },
+    APPROVED: { label: s.statusApproved, bg: '#D1FAE5', fg: '#047857' },
+    REJECTED: { label: s.statusRejected, bg: '#FEE2E2', fg: '#B91C1C' },
+  };
+
+  const FILTERS: { key: Filter; label: string }[] = [
+    { key: 'ALL', label: s.filterAll },
+    { key: 'DRAFT', label: s.filterDrafts },
+    { key: 'PENDING_APPROVAL', label: s.filterInReview },
+    { key: 'APPROVED', label: s.filterLive },
+    { key: 'REJECTED', label: s.filterRejected },
+  ];
 
   const { data, loading, error, refresh } = useAsync(useCallback(() => listContentAlbums(), []));
   const [filter, setFilter] = useState<Filter>('ALL');
@@ -95,9 +179,9 @@ export default function ContentAlbumsScreen() {
       {/* Top Title & Total Badge Row */}
       <View style={styles.titleRow}>
         <View style={styles.titleCol}>
-          <Text style={styles.eyebrow}>STOCK & COMMERCIAL</Text>
+          <Text style={styles.eyebrow}>{s.eyebrow}</Text>
           <View style={styles.titleWithBadge}>
-            <Text style={styles.h1}>Content Albums</Text>
+            <Text style={styles.h1}>{s.title}</Text>
             <View style={styles.totalBadge}>
               <Text style={styles.totalBadgeText}>{albums.length}</Text>
             </View>
@@ -138,7 +222,7 @@ export default function ContentAlbumsScreen() {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search stock collections by title or tag…"
+          placeholder={s.searchPlaceholder}
           placeholderTextColor={colors.textMuted}
           style={styles.searchInput}
           autoCapitalize="none"
@@ -215,7 +299,7 @@ export default function ContentAlbumsScreen() {
                   <View style={styles.photoCountChip}>
                     <Ionicons name="images" size={11} color="#fff" />
                     <Text style={styles.photoCountText}>
-                      {typeof item.photoCount === 'number' ? item.photoCount : 0} photos
+                      {s.photosCount.replace('{count}', String(typeof item.photoCount === 'number' ? item.photoCount : 0))}
                     </Text>
                   </View>
                 </View>
@@ -226,7 +310,7 @@ export default function ContentAlbumsScreen() {
                   {item.name}
                 </Text>
                 <Text style={styles.cardMeta} numberOfLines={1}>
-                  {item.categoryLabel ? item.categoryLabel : 'Stock Library'}
+                  {item.categoryLabel ? item.categoryLabel : s.stockLibrary}
                 </Text>
               </View>
             </Pressable>
@@ -236,19 +320,19 @@ export default function ContentAlbumsScreen() {
           loading ? (
             <View style={styles.centerBox}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Loading stock albums…</Text>
+              <Text style={styles.loadingText}>{s.loadingText}</Text>
             </View>
           ) : error ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBox}>
                 <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
               </View>
-              <Text style={styles.emptyTitle}>Couldn&apos;t load content albums</Text>
+              <Text style={styles.emptyTitle}>{s.errLoadTitle}</Text>
               <Text style={styles.emptySubtitle}>
-                Please check your network connection and pull down to retry.
+                {s.errLoadSub}
               </Text>
               <Pressable style={styles.emptyBtn} onPress={refresh}>
-                <Text style={styles.emptyBtnText}>Retry</Text>
+                <Text style={styles.emptyBtnText}>{s.retry}</Text>
               </Pressable>
             </View>
           ) : (
@@ -257,12 +341,12 @@ export default function ContentAlbumsScreen() {
                 <Ionicons name="images-outline" size={40} color={colors.textMuted} />
               </View>
               <Text style={styles.emptyTitle}>
-                {search || filter !== 'ALL' ? 'No matching content albums' : 'No content albums yet'}
+                {search || filter !== 'ALL' ? s.emptyNoMatch : s.emptyNoneYet}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {search || filter !== 'ALL'
-                  ? 'Try selecting a different approval status or clearing your search.'
-                  : 'Publish high-resolution stock photos to monetize them in Connekt\'s public catalog.'}
+                  ? s.emptyNoMatchSub
+                  : s.emptyNoneYetSub}
               </Text>
               {!search && filter === 'ALL' ? (
                 <Pressable
@@ -270,7 +354,7 @@ export default function ContentAlbumsScreen() {
                   onPress={() => router.push('/content-album/new' as Href)}
                 >
                   <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={styles.emptyBtnText}>New Content Album</Text>
+                  <Text style={styles.emptyBtnText}>{s.newBtn}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -287,10 +371,10 @@ export default function ContentAlbumsScreen() {
         onPress={() => router.push('/content-album/new' as Href)}
         android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
         accessibilityRole="button"
-        accessibilityLabel="New content album"
+        accessibilityLabel={s.newBtnA11y}
       >
         <Ionicons name="add" size={20} color="#fff" />
-        <Text style={styles.fabText}>New Content Album</Text>
+        <Text style={styles.fabText}>{s.newBtn}</Text>
       </Pressable>
     </Screen>
   );

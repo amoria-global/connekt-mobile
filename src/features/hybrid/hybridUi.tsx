@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useLanguage } from '@/store/language';
 import { serverNowMs } from './api';
 import type { RecommendationTier } from './types';
 
@@ -29,6 +30,33 @@ export const MODE_META = {
   },
 };
 
+const MODE_META_I18N = {
+  fr: {
+    DIRECT: {
+      label: 'Trouver un photographe',
+      short: 'Réservation directe',
+      line: 'Parcourez les photographes, choisissez-en un et envoyez-lui une demande.',
+    },
+    HYBRID: {
+      label: 'Publier mon événement',
+      short: 'Réservation sur mesure',
+      line: "Décrivez l'événement ; les photographes disponibles qui correspondent disent oui ; vous choisissez.",
+    },
+  },
+  es: {
+    DIRECT: {
+      label: 'Buscar un fotógrafo',
+      short: 'Reserva directa',
+      line: 'Explora fotógrafos, elige uno y envíale una solicitud.',
+    },
+    HYBRID: {
+      label: 'Publicar mi evento',
+      short: 'Reserva emparejada',
+      line: 'Describes el evento; los fotógrafos disponibles que encajan dicen que sí; tú eliges uno.',
+    },
+  },
+} as const;
+
 export type BookingModeKey = keyof typeof MODE_META;
 
 export function modeOf(bookingMode?: string | null): BookingModeKey {
@@ -39,6 +67,19 @@ export const TIER_META: Record<RecommendationTier, { label: string; hint: string
   HIGH: { label: 'Top match', hint: 'Closest fit to what you asked for', color: '#047857', bg: 'rgba(16,185,129,0.12)', icon: 'sparkles' },
   MEDIUM: { label: 'Good match', hint: 'Fits most of your requirements', color: '#083A85', bg: 'rgba(8,58,133,0.10)', icon: 'thumbs-up-outline' },
   LOW: { label: 'Possible match', hint: 'Available, with fewer requirements matched', color: '#9A3412', bg: 'rgba(234,88,12,0.10)', icon: 'checkmark' },
+};
+
+const TIER_META_I18N: Record<'fr' | 'es', Record<RecommendationTier, { label: string; hint: string }>> = {
+  fr: {
+    HIGH: { label: 'Meilleure correspondance', hint: 'Le plus proche de ce que vous avez demandé' },
+    MEDIUM: { label: 'Bonne correspondance', hint: 'Correspond à la plupart de vos critères' },
+    LOW: { label: 'Correspondance possible', hint: 'Disponible, avec moins de critères remplis' },
+  },
+  es: {
+    HIGH: { label: 'Mejor coincidencia', hint: 'El más cercano a lo que pediste' },
+    MEDIUM: { label: 'Buena coincidencia', hint: 'Cumple la mayoría de tus requisitos' },
+    LOW: { label: 'Coincidencia posible', hint: 'Disponible, con menos requisitos cumplidos' },
+  },
 };
 
 const FRIENDLY_STATUS: Record<string, string> = {
@@ -52,8 +93,35 @@ const FRIENDLY_STATUS: Record<string, string> = {
   BOOKED: 'Booked',
 };
 
+const FRIENDLY_STATUS_I18N: Record<'fr' | 'es', Record<string, string>> = {
+  fr: {
+    MATCHING: 'Recherche en cours',
+    PUBLISHED_PENDING_ASSIGNMENT: 'Recherche de photographes',
+    CANDIDATES_AVAILABLE: 'Des photographes ont dit oui',
+    MATCHES_AWAITING_SELECTION: 'Choisissez votre photographe',
+    HYBRID_TIMEOUT: 'Recherche terminée',
+    MATCHING_FAILED: 'Aucune correspondance',
+    UNASSIGNED: "Besoin d'un photographe",
+    BOOKED: 'Réservé',
+  },
+  es: {
+    MATCHING: 'Buscando coincidencias',
+    PUBLISHED_PENDING_ASSIGNMENT: 'Buscando fotógrafos',
+    CANDIDATES_AVAILABLE: 'Fotógrafos dijeron que sí',
+    MATCHES_AWAITING_SELECTION: 'Elige a tu fotógrafo',
+    HYBRID_TIMEOUT: 'Búsqueda finalizada',
+    MATCHING_FAILED: 'Sin coincidencias aún',
+    UNASSIGNED: 'Necesita un fotógrafo',
+    BOOKED: 'Reservado',
+  },
+};
+
 export function friendlyEventStatus(status?: string | null): string {
   const s = (status || '').toUpperCase();
+  const lang = useLanguage.getState().language;
+  if (lang !== 'en' && FRIENDLY_STATUS_I18N[lang]?.[s]) {
+    return FRIENDLY_STATUS_I18N[lang][s];
+  }
   return FRIENDLY_STATUS[s] || s.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -75,17 +143,26 @@ export function durationBetween(start: string, end: string): number {
 
 export function durationText(minutes?: number): string {
   if (!minutes || minutes <= 0) return '';
+  const lang = useLanguage.getState().language;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  const hrs = h === 0 ? '' : `${h} ${h === 1 ? 'hr' : 'hrs'}`;
+  const hrUnit = lang === 'en' ? (h === 1 ? 'hr' : 'hrs') : 'h';
+  const hrs = h === 0 ? '' : `${h} ${hrUnit}`;
   return m === 0 ? hrs : `${hrs ? hrs + ' ' : ''}${m} min`;
 }
 
 export function budgetLabel(min?: number | null, max?: number | null): string | null {
+  const lang = useLanguage.getState().language;
   const f = (n: number) => Math.round(n).toLocaleString('en-US');
   if (min == null && max == null) return null;
   if (min != null && max != null) return `${f(min)} - ${f(max)} RWF`;
-  if (max != null) return `Up to ${f(max)} RWF`;
+  if (max != null) {
+    if (lang === 'fr') return `Jusqu'à ${f(max)} RWF`;
+    if (lang === 'es') return `Hasta ${f(max)} RWF`;
+    return `Up to ${f(max)} RWF`;
+  }
+  if (lang === 'fr') return `À partir de ${f(min as number)} RWF`;
+  if (lang === 'es') return `Desde ${f(min as number)} RWF`;
   return `From ${f(min as number)} RWF`;
 }
 
@@ -108,15 +185,19 @@ export function useCountdown(targetIso?: string | null) {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export function countdownString(c: ReturnType<typeof useCountdown>, doneText = 'Now'): string {
+export function countdownString(c: ReturnType<typeof useCountdown>, doneText?: string): string {
   if (!c) return '';
-  if (c.done) return doneText;
-  if (c.days > 0) return `${pad(c.days)}d ${pad(c.hours)}h ${pad(c.minutes)}m ${pad(c.seconds)}s`;
+  const lang = useLanguage.getState().language;
+  const fallbackDone = lang === 'fr' ? 'Maintenant' : lang === 'es' ? 'Ahora' : 'Now';
+  if (c.done) return doneText ?? fallbackDone;
+  const dUnit = lang === 'fr' ? 'j' : 'd';
+  if (c.days > 0) return `${pad(c.days)}${dUnit} ${pad(c.hours)}h ${pad(c.minutes)}m ${pad(c.seconds)}s`;
   if (c.hours > 0) return `${pad(c.hours)}h ${pad(c.minutes)}m ${pad(c.seconds)}s`;
   return `${pad(c.minutes)}m ${pad(c.seconds)}s`;
 }
 
 export function CountdownText({ to, doneText, style }: { to?: string | null; doneText?: string; style?: any }) {
+  useLanguage();
   const c = useCountdown(to);
   if (!c) return null;
   return <Text style={[{ fontVariant: ['tabular-nums'] }, style]}>{countdownString(c, doneText)}</Text>;
@@ -149,22 +230,26 @@ const useStyles = makeStyles((c) => ({
 
 export function ModeBadge({ mode }: { mode: BookingModeKey }) {
   const styles = useStyles();
+  const { language } = useLanguage();
   const m = MODE_META[mode];
+  const loc = language === 'en' ? m : MODE_META_I18N[language][mode];
   return (
-    <View style={[styles.badge, { backgroundColor: m.soft }]} accessibilityLabel={`${m.label}: ${m.line}`}>
+    <View style={[styles.badge, { backgroundColor: m.soft }]} accessibilityLabel={`${loc.label}: ${loc.line}`}>
       <Ionicons name={m.icon} size={12} color={m.color} />
-      <Text style={[styles.badgeText, { color: m.color }]}>{m.label}</Text>
+      <Text style={[styles.badgeText, { color: m.color }]}>{loc.label}</Text>
     </View>
   );
 }
 
 export function TierBadge({ tier }: { tier: RecommendationTier }) {
   const styles = useStyles();
+  const { language } = useLanguage();
   const t = TIER_META[tier];
+  const loc = language === 'en' ? t : TIER_META_I18N[language][tier];
   return (
-    <View style={[styles.badge, { backgroundColor: t.bg }]} accessibilityLabel={`${t.label}. ${t.hint}`}>
+    <View style={[styles.badge, { backgroundColor: t.bg }]} accessibilityLabel={`${loc.label}. ${loc.hint}`}>
       <Ionicons name={t.icon} size={11} color={t.color} />
-      <Text style={[styles.badgeText, { color: t.color }]}>{t.label}</Text>
+      <Text style={[styles.badgeText, { color: t.color }]}>{loc.label}</Text>
     </View>
   );
 }
@@ -201,16 +286,35 @@ export function OptionCard({
 }
 
 /** A large event-start clock for booked events. */
-export function EventStartClock({ startAt, label = 'EVENT STARTS IN' }: { startAt?: string | null; label?: string }) {
+export function EventStartClock({ startAt, label }: { startAt?: string | null; label?: string }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { language } = useLanguage();
   const c = useCountdown(startAt);
   if (!c) return null;
-  if (c.done) return <Text style={{ fontWeight: fontWeight.bold, color: colors.primary }}>The event has started</Text>;
-  const parts: [number, string][] = [[c.days, 'days'], [c.hours, 'hrs'], [c.minutes, 'min'], [c.seconds, 'sec']];
+  const startedText =
+    language === 'fr'
+      ? "L'événement a commencé"
+      : language === 'es'
+        ? 'El evento ha comenzado'
+        : 'The event has started';
+  if (c.done) return <Text style={{ fontWeight: fontWeight.bold, color: colors.primary }}>{startedText}</Text>;
+  const defaultLabel =
+    language === 'fr'
+      ? "L'ÉVÉNEMENT COMMENCE DANS"
+      : language === 'es'
+        ? 'EL EVENTO COMIENZA EN'
+        : 'EVENT STARTS IN';
+  const resolvedLabel = label ?? defaultLabel;
+  const parts: [number, string][] =
+    language === 'fr'
+      ? [[c.days, 'jours'], [c.hours, 'h'], [c.minutes, 'min'], [c.seconds, 'sec']]
+      : language === 'es'
+        ? [[c.days, 'días'], [c.hours, 'hrs'], [c.minutes, 'min'], [c.seconds, 'seg']]
+        : [[c.days, 'days'], [c.hours, 'hrs'], [c.minutes, 'min'], [c.seconds, 'sec']];
   return (
-    <View accessibilityLabel={`${label.toLowerCase()} ${countdownString(c)}`}>
-      <Text style={styles.clockTitle}>{label}</Text>
+    <View accessibilityLabel={`${resolvedLabel.toLowerCase()} ${countdownString(c)}`}>
+      <Text style={styles.clockTitle}>{resolvedLabel}</Text>
       <View style={styles.clockWrap}>
         {parts.map(([v, l]) => (
           <View key={l} style={styles.clockCell}>

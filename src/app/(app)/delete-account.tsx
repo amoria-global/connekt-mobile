@@ -12,20 +12,22 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { deleteAccount } from '@/features/profile/api';
 import { isApiError, useAuth } from '@/store/auth';
+import { useLanguage, type TranslationKey } from '@/store/language';
 import { colors, spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 
 const CONFIRM_WORD = 'DELETE';
 
-const CONSEQUENCES = [
-  'Your profile, name, email, and phone number are permanently removed.',
-  'You lose access to your bookings, purchased photos, and streams.',
-  'Your photos and identity documents are deleted from your account.',
-  'This cannot be undone. You will need to create a new account to return.',
+const CONSEQUENCE_KEYS: TranslationKey[] = [
+  'b1_deleteConsequence1',
+  'b1_deleteConsequence2',
+  'b1_deleteConsequence3',
+  'b1_deleteConsequence4',
 ];
 
 export default function DeleteAccountScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useLanguage();
   const logout = useAuth((s) => s.logout);
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function DeleteAccountScreen() {
       // Clear the local session; the app's root guard redirects to sign-in.
       await logout();
     } catch (err) {
-      setError(isApiError(err) ? err.message : 'Could not delete your account. Please try again.');
+      setError(isApiError(err) ? err.message : t('b1_deleteErr'));
       setSubmitting(false);
     }
   };
@@ -54,27 +56,26 @@ export default function DeleteAccountScreen() {
           <Ionicons name="warning-outline" size={30} color={colors.error} />
         </View>
 
-        <Text style={styles.title}>Delete your account</Text>
+        <Text style={styles.title}>{t('b1_deleteTitle')}</Text>
         <Text style={styles.subtitle}>
-          Deleting your Connekyt account is permanent. Please read what happens before you continue.
+          {t('b1_deleteSubtitle')}
         </Text>
 
         <View style={styles.card}>
-          {CONSEQUENCES.map((c) => (
-            <View key={c} style={styles.bulletRow}>
+          {CONSEQUENCE_KEYS.map((key) => (
+            <View key={key} style={styles.bulletRow}>
               <Ionicons name="close-circle" size={16} color={colors.error} style={{ marginTop: 2 }} />
-              <Text style={styles.bulletText}>{c}</Text>
+              <Text style={styles.bulletText}>{t(key)}</Text>
             </View>
           ))}
         </View>
 
         <Text style={styles.note}>
-          Some transaction records may be retained where required by law, but they are no longer
-          linked to your personal information.
+          {t('b1_deleteNote')}
         </Text>
 
         <Text style={styles.confirmLabel}>
-          Type <Text style={styles.confirmWord}>{CONFIRM_WORD}</Text> to confirm
+          {t('b1_deleteTypePrefix')} <Text style={styles.confirmWord}>{CONFIRM_WORD}</Text> {t('b1_deleteTypeSuffix')}
         </Text>
         <Input
           value={confirm}
@@ -86,7 +87,7 @@ export default function DeleteAccountScreen() {
         />
 
         <Button
-          title="Permanently delete my account"
+          title={t('b1_deleteBtn')}
           onPress={onDelete}
           loading={submitting}
           disabled={!canDelete}

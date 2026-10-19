@@ -49,12 +49,14 @@ import {
 import { getEvent } from '@/features/events/api';
 import type { EventItem } from '@/features/events/types';
 import { env } from '@/config/env';
+import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth, isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 
 export default function StreamControlScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { t } = useLanguage();
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [creds, setCreds] = useState<StreamCredentials>({});
@@ -176,7 +178,7 @@ export default function StreamControlScreen() {
           setError(null);
         }
       } catch (e) {
-        if (!cancelled) setError(isApiError(e) ? e.message : 'Could not reach the studio.');
+        if (!cancelled) setError(isApiError(e) ? e.message : t('b2_streamCtrlErrReachStudio'));
       } finally {
         if (!cancelled) setBootLoading(false);
       }
@@ -184,7 +186,7 @@ export default function StreamControlScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, bootNonce]);
+  }, [id, bootNonce, t]);
 
   const refreshConfig = useCallback(async () => {
     try {
@@ -247,7 +249,7 @@ export default function StreamControlScreen() {
       await refreshConfig();
     } catch (e) {
       setOptimisticStatus(null);
-      setError(isApiError(e) ? e.message : 'Please try again.');
+      setError(isApiError(e) ? e.message : t('b2_streamCtrlErrTryAgain'));
     } finally {
       setBusy(null);
     }
@@ -261,7 +263,7 @@ export default function StreamControlScreen() {
       await refreshConfig();
     } catch (e) {
       setOptimisticStatus(null);
-      setError(isApiError(e) ? e.message : 'Could not pause.');
+      setError(isApiError(e) ? e.message : t('b2_streamCtrlErrPause'));
     } finally {
       setBusy(null);
     }
@@ -275,7 +277,7 @@ export default function StreamControlScreen() {
       await refreshConfig();
     } catch (e) {
       setOptimisticStatus(null);
-      setError(isApiError(e) ? e.message : 'Could not resume.');
+      setError(isApiError(e) ? e.message : t('b2_streamCtrlErrResume'));
     } finally {
       setBusy(null);
     }
@@ -292,7 +294,7 @@ export default function StreamControlScreen() {
       setOptimisticStatus('ended');
       await refreshConfig();
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not end the stream.');
+      setError(isApiError(e) ? e.message : t('b2_streamCtrlErrEnd'));
     } finally {
       setBusy(null);
     }
@@ -311,7 +313,7 @@ export default function StreamControlScreen() {
       setPublishStatus('idle');
       await refreshConfig();
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not reset the stream.');
+      setError(isApiError(e) ? e.message : t('b2_streamCtrlErrReset'));
     } finally {
       setBusy(null);
     }
@@ -322,14 +324,15 @@ export default function StreamControlScreen() {
     const tokenParam = inviteToken ? `&token=${encodeURIComponent(inviteToken)}` : '';
     const streamUrl = `${env.webBaseUrl}/user/events/live-stream?eventId=${encodeURIComponent(id)}${tokenParam}`;
     try {
+      const title = event?.title || t('b2_streamCtrlLiveStreamFallback');
       await Share.share({
-        title: event?.title || 'Live Stream',
-        message: `Watch "${event?.title || 'Live Stream'}" live on Connekt:\n${streamUrl}`,
+        title,
+        message: t('b2_streamCtrlShareMessage').replace('{title}', title).replace('{url}', streamUrl),
       });
     } catch {
       /* dismissed */
     }
-  }, [id, inviteToken, event?.title]);
+  }, [id, inviteToken, event?.title, t]);
 
   const shareValue = useCallback(async (label: string, value?: string) => {
     if (!value) return;
@@ -345,10 +348,10 @@ export default function StreamControlScreen() {
     const fp = await getDeviceId().catch(() => 'photographer-device');
     const photographerId = user?.customerId ? String(user.customerId) : 'photographer';
     const photographerName = user
-      ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'Host'
-      : 'Host';
+      ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || t('b2_streamCtrlHost')
+      : t('b2_streamCtrlHost');
     return { fp, photographerId, photographerName };
-  }, [user]);
+  }, [user, t]);
 
   const postHostMessage = useCallback(
     async (message: string) => {
@@ -361,8 +364,8 @@ export default function StreamControlScreen() {
       }
       const localMsg: PublicStreamChat = {
         id: `photographer-${Date.now()}`,
-        viewerName: `${photographerName} (Host)`,
-        senderName: `${photographerName} (Host)`,
+        viewerName: `${photographerName} (${t('b2_streamCtrlHost')})`,
+        senderName: `${photographerName} (${t('b2_streamCtrlHost')})`,
         senderId: photographerId,
         message,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -370,7 +373,7 @@ export default function StreamControlScreen() {
       };
       setChats((prev) => [...prev, localMsg]);
     },
-    [hostIdentity, id],
+    [hostIdentity, id, t],
   );
 
   const onSendChat = useCallback(async () => {
@@ -384,15 +387,15 @@ export default function StreamControlScreen() {
       setChatDraft('');
       setReplyingTo(null);
     } catch (err) {
-      setError(isApiError(err) ? err.message : 'Could not send your message. Check your connection and try again.');
+      setError(isApiError(err) ? err.message : t('b2_streamCtrlErrSendChat'));
     } finally {
       setChatSending(false);
     }
-  }, [chatDraft, chatSending, id, replyingTo, postHostMessage]);
+  }, [chatDraft, chatSending, id, replyingTo, postHostMessage, t]);
 
   const onSelectReply = useCallback((c: PublicStreamChat) => {
-    setReplyingTo({ id: c.id, sender: c.viewerName || c.senderName || 'Viewer', text: c.message });
-  }, []);
+    setReplyingTo({ id: c.id, sender: c.viewerName || c.senderName || t('b2_streamCtrlViewer'), text: c.message });
+  }, [t]);
 
   // ── Adapter: existing state → studio view model ──────────────────────────
   const vm = createStreamerLiveViewModel({
@@ -417,7 +420,7 @@ export default function StreamControlScreen() {
   );
 
   const onExit = useCallback(() => router.back(), [router]);
-  const eventTitle = event?.title || 'Live broadcast';
+  const eventTitle = event?.title || t('b2_streamCtrlLiveBroadcast');
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (bootLoading && !whipUrl) {
@@ -474,8 +477,8 @@ export default function StreamControlScreen() {
         onExit={onExit}
         inviteToken={inviteToken}
         onShareStream={onShareStream}
-        onShareInvite={() => shareValue('Viewer Access Code', inviteToken)}
-        onShareWhip={() => shareValue('WHIP Server URL', whipUrl)}
+        onShareInvite={() => shareValue(t('b2_streamCtrlViewerAccessCode'), inviteToken)}
+        onShareWhip={() => shareValue(t('b2_streamCtrlWhipServerUrl'), whipUrl)}
         chats={chats}
         hostCustomerId={user?.customerId}
         chatDraft={chatDraft}

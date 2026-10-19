@@ -1,14 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { LivePill, LiveTwinkle } from '@/components/ui/live';
 import type { Stream } from './api';
+import { GlassOnMedia } from '@/components/ui/GlassCard';
 
 export function StreamCard({ stream }: { stream: Stream }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const initial = (stream.photographerName || stream.title || 'C').charAt(0).toUpperCase();
 
   return (
@@ -26,27 +29,27 @@ export function StreamCard({ stream }: { stream: Stream }) {
         {/* Top Badges */}
         <View style={styles.thumbTopRow}>
           {stream.isLive ? (
-            <LivePill size="sm" sparkle />
+            <LivePill size="sm" sparkle label={t('streamLiveBadge')} />
           ) : (
-            <View style={styles.offAirBadge}>
-              <Text style={styles.offAirText}>STANDBY</Text>
-            </View>
+            <GlassOnMedia style={styles.offAirBadge} edge>
+              <Text style={styles.offAirText}>{t('streamStandbyBadge')}</Text>
+            </GlassOnMedia>
           )}
 
           {stream.viewerCount != null && stream.isLive ? (
-            <View style={styles.viewerBadge}>
+            <GlassOnMedia style={styles.viewerBadge} edge>
               <Ionicons name="eye" size={11} color="#fff" />
               <Text style={styles.viewerBadgeText}>{stream.viewerCount}</Text>
-            </View>
+            </GlassOnMedia>
           ) : null}
         </View>
 
         {/* Bottom thumbnail tag */}
         <View style={styles.thumbBottomRow}>
-          <View style={styles.tuneInPill}>
+          <GlassOnMedia style={styles.tuneInPill} edge>
             <Ionicons name="play" size={10} color="#fff" />
-            <Text style={styles.tuneInText}>Watch Stream</Text>
-          </View>
+            <Text style={styles.tuneInText}>{t('streamWatchStream')}</Text>
+          </GlassOnMedia>
         </View>
       </View>
 
@@ -60,7 +63,7 @@ export function StreamCard({ stream }: { stream: Stream }) {
             <Text style={styles.creatorAvatarText}>{initial}</Text>
           </View>
           <Text style={styles.creatorName} numberOfLines={1}>
-            {stream.photographerName || 'Connekyt Broadcaster'}
+            {stream.photographerName || t('streamBroadcasterFallback')}
           </Text>
           <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
         </View>

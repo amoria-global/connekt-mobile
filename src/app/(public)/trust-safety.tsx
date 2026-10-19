@@ -1,45 +1,28 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles } from '@/theme';
-
-const SECTIONS = [
-  {
-    title: 'Trust & Safety',
-    content: `Safety, security, and trust are the foundations of the Amoria Connekyt community. We are committed to creating an environment where clients feel secure booking creative services and professionals feel safe delivering them.`
-  },
-  {
-    title: 'Identity Verification (KYC)',
-    content: `We require identity verification for creators receiving payments and for high-value client transactions to prevent fraud and build a trustworthy community. This includes verifying government-issued IDs and cross-referencing information.`
-  },
-  {
-    title: 'Secure Payments',
-    content: `Our Hold & Release payment model ensures that funds are held securely during the service and only released upon successful completion. We partner with licensed, secure payment gateways to process all transactions safely.`
-  },
-  {
-    title: 'Community Guidelines',
-    content: `We expect all users to act with professionalism and respect. Harassment, discrimination, fraud, or abuse will not be tolerated and may result in immediate account suspension or termination.`
-  },
-  {
-    title: 'Dispute Resolution',
-    content: `In the rare event of a disagreement, our dedicated support team provides impartial mediation. We use platform communication and booking details to reach fair resolutions based on our policies.`
-  },
-  {
-    title: 'Reporting Issues',
-    content: `If you encounter suspicious behavior, inappropriate content, or feel unsafe at any point, you can report the issue directly through our platform. Our Trust & Safety team reviews all reports promptly.`
-  }
-];
 
 export default function TrustSafetyScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
+  const sections = [
+    { title: t('b4_trustSec1Title'), content: t('b4_trustSec1Content') },
+    { title: t('b4_trustSec2Title'), content: t('b4_trustSec2Content') },
+    { title: t('b4_trustSec3Title'), content: t('b4_trustSec3Content') },
+    { title: t('b4_trustSec4Title'), content: t('b4_trustSec4Content') },
+    { title: t('b4_trustSec5Title'), content: t('b4_trustSec5Content') },
+    { title: t('b4_trustSec6Title'), content: t('b4_trustSec6Content') },
+  ];
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Trust & Safety</Text>
-          <Text style={styles.subtitle}>Protecting our community</Text>
+          <Text style={styles.title}>{t('b4_trustTitle')}</Text>
+          <Text style={styles.subtitle}>{t('b4_trustSubtitle')}</Text>
         </View>
 
-        {SECTIONS.map((section, idx) => (
+        {sections.map((section, idx) => (
           <View key={idx} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             <Text style={styles.bodyText}>{section.content}</Text>

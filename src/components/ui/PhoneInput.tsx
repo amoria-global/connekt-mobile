@@ -43,6 +43,7 @@ import {
   validateNsn,
 } from '@/lib/phoneKit';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme , type Palette as ThemePalette } from '@/theme';
+import { glassTile } from './GlassCard';
 
 /** Emitted on every change. `digits` is the backend wire format. */
 export interface PhoneValue {
@@ -127,6 +128,12 @@ const makeLight = (c: ThemePalette): Palette => ({
   itemPressed: '#F1F5FB',
 });
 
+/** The themed variant on a glass panel: the field frosts instead of sitting solid. */
+const makeGlass = (c: ThemePalette): Palette => {
+  const tile = glassTile(c);
+  return { ...makeLight(c), rowBg: tile.backgroundColor, border: tile.borderColor };
+};
+
 const DARK: Palette = {
   text: '#FFFFFF',
   label: 'rgba(255,255,255,0.82)',
@@ -152,6 +159,8 @@ export type PhoneInputProps = {
   onChange: (value: PhoneValue) => void;
   /** Dark surfaces for stream overlays / dark sheets. */
   dark?: boolean;
+  /** Translucent field for a glass panel; see `Input`'s `glass`. Ignored with `dark`. */
+  glass?: boolean;
   label?: string;
   /** External error (form-level validation) — overrides the built-in hint. */
   error?: string;
@@ -163,13 +172,14 @@ export function PhoneInput({
   initialNsn,
   onChange,
   dark = false,
+  glass = false,
   label,
   error,
   placeholder,
 }: PhoneInputProps) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const ui = dark ? DARK : makeLight(colors);
+  const ui = dark ? DARK : glass ? makeGlass(colors) : makeLight(colors);
 
   const [country, setCountry] = useState<PhoneCountry | null>(
     () => phoneCountryFor(defaultIso2) ?? phoneCountryFor('RW'),

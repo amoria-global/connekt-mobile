@@ -1,20 +1,20 @@
 import { Button } from '@/components/ui/Button';
+import { AuthGlassLayout } from '@/features/auth/AuthGlassLayout';
 import { OtpInput } from '@/components/ui/OtpInput';
-import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/store/language';
 import { resendOtp, verifyOtp } from '@/features/auth/api';
 import { isApiError, useAuth } from '@/store/auth';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
-import { Ionicons } from '@expo/vector-icons';
+import { fontSize, fontWeight, makeStyles, spacing } from '@/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 const RESEND_COOLDOWN_S = 30;
 
 export default function VerifyOtpScreen() {
   const styles = useStyles();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { t } = useLanguage();
   const { customerId, email, phone } = useLocalSearchParams<{
     customerId: string;
     email?: string;
@@ -89,126 +89,52 @@ export default function VerifyOtpScreen() {
   };
 
   return (
-    <Screen padded={false}>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
-          hitSlop={12}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </Pressable>
-      </View>
+    <AuthGlassLayout
+      title={t('verifyYourAccount')}
+      subtitle={t('verifyCodeSent', { channel })}
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/login'))}
+    >
+      <OtpInput
+        glass
+        label={t('verificationCode')}
+        value={otp}
+        onChange={(v) => {
+          setOtp(v);
+          if (error) setError(null);
+        }}
+        onComplete={(completedCode) => {
+          void onVerify(completedCode);
+        }}
+        error={error ?? (missingCustomer ? missingMessage : undefined)}
+      />
 
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('../../../assets/images/logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.title}>Verify your account</Text>
-          <Text style={styles.subtitle}>
-            We sent a verification code to <Text style={styles.email}>{channel}</Text>. Enter it below to activate your account.
-          </Text>
-        </View>
+      {info ? <Text style={styles.info}>{info}</Text> : null}
 
-        <OtpInput
-          label="Verification code"
-          value={otp}
-          onChange={(v) => {
-            setOtp(v);
-            if (error) setError(null);
-          }}
-          onComplete={(completedCode) => {
-            void onVerify(completedCode);
-          }}
-          error={error ?? (missingCustomer ? missingMessage : undefined)}
-        />
+      <Button title={t('verifyBtn')} onPress={() => onVerify()} loading={submitting} />
 
-        {info ? <Text style={styles.info}>{info}</Text> : null}
-
-        <Button title="Verify" onPress={() => onVerify()} loading={submitting} />
-
-        <Pressable
-          onPress={onResend}
-          disabled={resending || cooldown > 0 || missingCustomer}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: resending || cooldown > 0 || missingCustomer }}
-          style={styles.resend}
-        >
-          <Text style={styles.resendText}>
-            Didn&apos;t get a code?{' '}
-            {resending ? (
-              <Text style={styles.muted}>Sending...</Text>
-            ) : cooldown > 0 ? (
-              <Text style={styles.muted}>Resend in {cooldown}s</Text>
-            ) : (
-              <Text style={styles.link}>Resend</Text>
-            )}
-          </Text>
-        </Pressable>
-      </View>
-    </Screen>
+      <Pressable
+        onPress={onResend}
+        disabled={resending || cooldown > 0 || missingCustomer}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: resending || cooldown > 0 || missingCustomer }}
+        style={styles.resend}
+      >
+        <Text style={styles.resendText}>
+          {t('didntGetCode')}{' '}
+          {resending ? (
+            <Text style={styles.muted}>{t('resendingText')}</Text>
+          ) : cooldown > 0 ? (
+            <Text style={styles.muted}>{t('resendInText', { count: cooldown })}</Text>
+          ) : (
+            <Text style={styles.link}>{t('resendText')}</Text>
+          )}
+        </Text>
+      </Pressable>
+    </AuthGlassLayout>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  topBar: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xs,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  backBtnPressed: {
-    opacity: 0.75,
-    backgroundColor: c.borderSoft,
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.lg,
-  },
-  header: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  logo: {
-    width: 44,
-    height: 44,
-    marginBottom: spacing.xs,
-  },
-  title: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: fontSize.md,
-    color: c.textMuted,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  email: {
-    color: c.text,
-    fontWeight: fontWeight.bold,
-  },
   info: {
     color: c.success,
     fontSize: fontSize.sm,

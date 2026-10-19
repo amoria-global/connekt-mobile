@@ -58,6 +58,10 @@ import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } fr
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
+import { useLanguage } from '@/hooks/useLanguage';
+import { translate, type TranslationKey } from '@/i18n/translations';
+const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
+
 /**
  * Required → optional split mirrors the web event form: title /
  * category / date / start time and the headline location + organizer +
@@ -91,6 +95,7 @@ type FormValues = z.infer<typeof schema>;
 const MIN_RWF = 100;
 
 export default function NewEventScreen() {
+  useLanguage();
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors, gradients } = useTheme();
@@ -440,7 +445,7 @@ export default function NewEventScreen() {
 
   const clearAllGeoRules = () => {
     Alert.alert(
-      'Remove all location prices?',
+      tr('b3_evnew_geo_clear_title'),
       'Are you sure you want to remove all custom location prices? Viewers will pay the default stream price.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -587,7 +592,7 @@ export default function NewEventScreen() {
       }
       if (coverFailed) {
         Alert.alert(
-          'Cover photo not uploaded',
+          tr('b3_evnew_cover_not_uploaded_title'),
           `${coverFailed}\n\nYour event was created, but it needs a cover photo before it can be published. Open the event and edit it to add one.`,
         );
       }
@@ -623,7 +628,7 @@ export default function NewEventScreen() {
       >
           {isBooking ? (
             <LinearGradient colors={gradients.heroBlue} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner}>
-              <Text style={styles.bannerLabel}>Booking</Text>
+              <Text style={styles.bannerLabel}>{tr('b3_evnew_booking')}</Text>
               <Text style={styles.bannerName}>{params.photographerName ?? 'Photographer'}</Text>
               {amount ? <Text style={styles.bannerPrice}>{formatPrice(amount, params.currency)}</Text> : null}
             </LinearGradient>
@@ -636,7 +641,7 @@ export default function NewEventScreen() {
             <Text style={styles.formEyebrow}>EVENT</Text>
             {/* Cover photo (required) */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Cover photo</Text>
+              <Text style={styles.fieldLabel}>{tr('b3_evnew_cover_photo')}</Text>
               <Pressable onPress={pickCover} style={[styles.cover, !!coverError && styles.coverError]}>
                 {cover || existingCover ? (
                   <>
@@ -648,7 +653,7 @@ export default function NewEventScreen() {
                 ) : (
                   <View style={styles.coverPlaceholder}>
                     <Ionicons name="image-outline" size={28} color={colors.primary} />
-                    <Text style={styles.coverHint}>Add a cover photo</Text>
+                    <Text style={styles.coverHint}>{tr('b3_evnew_add_cover')}</Text>
                   </View>
                 )}
               </Pressable>
@@ -659,13 +664,13 @@ export default function NewEventScreen() {
               control={control}
               name="title"
               render={({ field: { onChange, onBlur, value } }) => (
-                <Input label="Event title" placeholder="e.g. Sarah's Wedding" value={value} onChangeText={onChange} onBlur={onBlur} error={errors.title?.message} />
+                <Input label={tr('b3_evnew_title_label')} placeholder={tr('b3_evnew_title_ph')} value={value} onChangeText={onChange} onBlur={onBlur} error={errors.title?.message} />
               )}
             />
 
             {/* Category */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Category</Text>
+              <Text style={styles.fieldLabel}>{tr('b3_evnew_category_label')}</Text>
               {isCoordinator ? (
                 <Controller
                   control={control}
@@ -711,7 +716,7 @@ export default function NewEventScreen() {
                   control={control}
                   name="category"
                   render={({ field: { onChange, onBlur, value } }) => (
-                    <Input placeholder="e.g. Wedding, Portrait" value={value} onChangeText={onChange} onBlur={onBlur} />
+                    <Input placeholder={tr('b3_evnew_category_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
                   )}
                 />
               )}
@@ -723,7 +728,7 @@ export default function NewEventScreen() {
               control={control}
               name="eventDate"
               render={({ field: { onChange, value } }) => (
-                <DateField label="Date" value={value} onChange={onChange} error={errors.eventDate?.message} minimumDate={new Date()} />
+                <DateField label={tr('b3_evnew_date_label')} value={value} onChange={onChange} error={errors.eventDate?.message} minimumDate={new Date()} />
               )}
             />
 
@@ -733,7 +738,7 @@ export default function NewEventScreen() {
                   control={control}
                   name="startTime"
                   render={({ field: { onChange, value } }) => (
-                    <TimeField label="Start time" value={value} onChange={onChange} error={errors.startTime?.message} />
+                    <TimeField label={tr('b3_evnew_start_label')} value={value} onChange={onChange} error={errors.startTime?.message} />
                   )}
                 />
               </View>
@@ -742,7 +747,7 @@ export default function NewEventScreen() {
                   control={control}
                   name="endTime"
                   render={({ field: { onChange, value } }) => (
-                    <TimeField label="End time (optional)" value={value ?? ''} onChange={onChange} />
+                    <TimeField label={tr('b3_evnew_end_label')} value={value ?? ''} onChange={onChange} />
                   )}
                 />
               </View>
@@ -756,9 +761,9 @@ export default function NewEventScreen() {
                     <Ionicons name="pricetag-outline" size={18} color={colors.primary} />
                   </View>
                   <View style={styles.flex}>
-                    <Text style={styles.sectionHeading}>Event Pricing & Stream Fee</Text>
+                    <Text style={styles.sectionHeading}>{tr('b3_evnew_pricing_heading')}</Text>
                     <Text style={styles.sectionSubheading}>
-                      Set default attendee live stream entry fee (0 for free stream)
+                      {tr('b3_evnew_pricing_sub')}
                     </Text>
                   </View>
                 </View>
@@ -770,7 +775,7 @@ export default function NewEventScreen() {
                       name="price"
                       render={({ field: { onChange, onBlur, value } }) => (
                         <Input
-                          label="Default Price"
+                          label={tr('b3_evnew_default_price')}
                           placeholder="0"
                           keyboardType="number-pad"
                           value={value}
@@ -782,7 +787,7 @@ export default function NewEventScreen() {
                   </View>
 
                   <View style={styles.rowItem}>
-                    <Text style={styles.fieldLabel}>Currency</Text>
+                    <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -822,9 +827,9 @@ export default function NewEventScreen() {
                     <Ionicons name="earth" size={18} color={colors.primary} />
                   </View>
                   <View style={styles.flex}>
-                    <Text style={styles.sectionHeading}>Location-based Geo-pricing</Text>
+                    <Text style={styles.sectionHeading}>{tr('b3_evnew_geo_heading')}</Text>
                     <Text style={styles.sectionSubheading}>
-                      Override stream price based on viewer continent or country
+                      {tr('b3_evnew_geo_sub')}
                     </Text>
                   </View>
                   <Ionicons
@@ -837,13 +842,13 @@ export default function NewEventScreen() {
                 {showGeoPricing ? (
                   <View style={styles.geoBody}>
                     <Text style={styles.geoIntroText}>
-                      Viewers from countries or continents with rules will pay their regional price. All other locations pay the default price.
+                      {tr('b3_evnew_geo_intro')}
                     </Text>
 
                     {/* Filter Tabs & Search */}
                     <View style={styles.fieldGroup}>
                       <View style={styles.geoFilterHeader}>
-                        <Text style={styles.fieldLabel}>Select Locations</Text>
+                        <Text style={styles.fieldLabel}>{tr('b3_evnew_select_locations')}</Text>
                         <View style={styles.geoTabsRow}>
                           {(['ALL', 'CONTINENT', 'COUNTRY'] as const).map((tab) => (
                             <Pressable
@@ -873,7 +878,7 @@ export default function NewEventScreen() {
 
                       {/* Search Bar */}
                       <Input
-                        placeholder="Search continent or country (e.g. Africa, Rwanda, UK)..."
+                        placeholder={tr('b3_evnew_geo_search_ph')}
                         value={geoSearchQuery}
                         onChangeText={setGeoSearchQuery}
                         leftElement={
@@ -894,7 +899,7 @@ export default function NewEventScreen() {
                               Selected ({selectedGeoLocations.length}):
                             </Text>
                             <Pressable onPress={clearSelectedGeoLocations} hitSlop={6}>
-                              <Text style={styles.clearSelectionLink}>Clear all</Text>
+                              <Text style={styles.clearSelectionLink}>{tr('b3_evnew_clear_all')}</Text>
                             </Pressable>
                           </View>
                           <ScrollView
@@ -939,7 +944,7 @@ export default function NewEventScreen() {
                           </Text>
                           {filteredGeoRegions.length > 1 && filteredGeoRegions.length <= 15 ? (
                             <Pressable onPress={selectAllMatching} hitSlop={6}>
-                              <Text style={styles.selectAllLink}>Select all shown</Text>
+                              <Text style={styles.selectAllLink}>{tr('b3_evnew_select_all_shown')}</Text>
                             </Pressable>
                           ) : null}
                         </View>
@@ -1032,7 +1037,7 @@ export default function NewEventScreen() {
                         />
                       </View>
                       <View style={styles.rowItem}>
-                        <Text style={styles.fieldLabel}>Currency</Text>
+                        <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
                         <ScrollView
                           horizontal
                           showsHorizontalScrollIndicator={false}
@@ -1078,7 +1083,7 @@ export default function NewEventScreen() {
                             Active Location Prices ({geoRules.length})
                           </Text>
                           <Pressable onPress={clearAllGeoRules} hitSlop={6}>
-                            <Text style={styles.clearAllRulesText}>Remove all</Text>
+                            <Text style={styles.clearAllRulesText}>{tr('b3_evnew_remove_all')}</Text>
                           </Pressable>
                         </View>
                         {geoRules.map((rule, idx) => (
@@ -1120,7 +1125,7 @@ export default function NewEventScreen() {
                       </View>
                     ) : (
                       <Text style={styles.noRulesText}>
-                        No geo-prices configured yet. Viewers from all regions will pay the default price.
+                        {tr('b3_evnew_no_geo_rules')}
                       </Text>
                     )}
 
@@ -1133,7 +1138,7 @@ export default function NewEventScreen() {
                       >
                         <Ionicons name="open-outline" size={16} color={colors.primary} />
                         <Text style={styles.openDedicatedGeoText}>
-                          Open full Geo-pricing manager
+                          {tr('b3_evnew_open_geo_mgr')}
                         </Text>
                       </Pressable>
                     ) : null}
@@ -1144,7 +1149,7 @@ export default function NewEventScreen() {
 
             {/* Visibility drives the whole model, so it's always visible. */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Who covers this event?</Text>
+              <Text style={styles.fieldLabel}>{tr('b3_evnew_who_covers')}</Text>
               <Segmented
                 value={visibility}
                 onChange={(v) => setVisibility(v)}
@@ -1174,8 +1179,8 @@ export default function NewEventScreen() {
                 name="price"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <Input
-                    label="Live stream fee (RWF)"
-                    placeholder="Minimum 100"
+                    label={tr('b3_evnew_stream_fee_label')}
+                    placeholder={tr('b3_evnew_stream_fee_ph')}
                     keyboardType="number-pad"
                     value={value}
                     onChangeText={onChange}
@@ -1187,7 +1192,7 @@ export default function NewEventScreen() {
 
             {/* More options */}
             <Pressable style={styles.moreToggle} onPress={() => setShowMore((v) => !v)}>
-              <Text style={styles.moreToggleText}>More options (optional)</Text>
+              <Text style={styles.moreToggleText}>{tr('b3_evnew_more_options')}</Text>
               <Ionicons name={showMore ? 'chevron-up' : 'chevron-down'} size={18} color={colors.primary} />
             </Pressable>
 
@@ -1195,7 +1200,7 @@ export default function NewEventScreen() {
               <View style={styles.moreSection}>
                 {/* Location breakdown */}
                 <Controller control={control} name="venueName" render={({ field: { onChange, onBlur, value } }) => (
-                  <Input label="Venue name" placeholder="e.g. Kigali Convention Centre" value={value} onChangeText={onChange} onBlur={onBlur} />
+                  <Input label={tr('b3_evnew_venue_label')} placeholder={tr('b3_evnew_venue_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
                 )} />
                 <Pressable
                   onPress={() => setInPerson((v) => !v)}
@@ -1209,24 +1214,24 @@ export default function NewEventScreen() {
                     color={inPerson ? colors.primary : colors.textMuted}
                   />
                   <View style={styles.attestBody}>
-                    <Text style={styles.attestTitle}>Guests can attend in person at this venue</Text>
+                    <Text style={styles.attestTitle}>{tr('b3_evnew_in_person_title')}</Text>
                     <Text style={styles.hint}>
-                      Untick if this is a stream-only event. Viewers then get the live stream as a ticket.
+                      {tr('b3_evnew_in_person_hint')}
                     </Text>
                   </View>
                 </Pressable>
                 <Controller control={control} name="address" render={({ field: { onChange, onBlur, value } }) => (
-                  <Input label="Address" placeholder="Street / area" value={value} onChangeText={onChange} onBlur={onBlur} />
+                  <Input label={tr('b3_evnew_address_label')} placeholder={tr('b3_evnew_address_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
                 )} />
                 <View style={styles.row}>
                   <View style={styles.rowItem}>
                     <Controller control={control} name="city" render={({ field: { onChange, onBlur, value } }) => (
-                      <Input label="City" placeholder="City" value={value} onChangeText={onChange} onBlur={onBlur} />
+                      <Input label={tr('b3_evnew_city_label')} placeholder={tr('b3_evnew_city_label')} value={value} onChangeText={onChange} onBlur={onBlur} />
                     )} />
                   </View>
                   <View style={styles.rowItem}>
                     <Controller control={control} name="country" render={({ field: { onChange, onBlur, value } }) => (
-                      <Input label="Country" placeholder="Country" value={value} onChangeText={onChange} onBlur={onBlur} />
+                      <Input label={tr('b3_evnew_country_label')} placeholder={tr('b3_evnew_country_label')} value={value} onChangeText={onChange} onBlur={onBlur} />
                     )} />
                   </View>
                 </View>
@@ -1235,17 +1240,17 @@ export default function NewEventScreen() {
                 <View style={styles.row}>
                   <View style={styles.rowItem}>
                     <Controller control={control} name="maxGuests" render={({ field: { onChange, onBlur, value } }) => (
-                      <Input label="Max guests" placeholder="0" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
+                      <Input label={tr('b3_evnew_max_guests')} placeholder="0" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
                     )} />
                   </View>
                 </View>
 
                 {/* Tags */}
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Tags</Text>
+                  <Text style={styles.fieldLabel}>{tr('b3_evnew_tags')}</Text>
                   <View style={styles.tagRow}>
                     <View style={styles.tagInput}>
-                      <Input placeholder="Add a tag" value={tagInput} onChangeText={setTagInput} onSubmitEditing={addTag} returnKeyType="done" />
+                      <Input placeholder={tr('b3_evnew_add_tag_ph')} value={tagInput} onChangeText={setTagInput} onSubmitEditing={addTag} returnKeyType="done" />
                     </View>
                     <Pressable style={styles.tagAdd} onPress={addTag}>
                       <Ionicons name="add" size={20} color={colors.textOnPrimary} />
@@ -1265,14 +1270,14 @@ export default function NewEventScreen() {
 
                 {/* Organizer */}
                 <Controller control={control} name="organizer" render={({ field: { onChange, onBlur, value } }) => (
-                  <Input label="Organizer" placeholder="Organizer name" value={value} onChangeText={onChange} onBlur={onBlur} />
+                  <Input label={tr('b3_evnew_organizer_label')} placeholder={tr('b3_evnew_organizer_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
                 )} />
 
                 {/* Assign photographer — public events only; a private event is
                     self-streamed and never takes a photographer. */}
                 {!isBooking && visibility === 'PUBLIC' ? (
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Photographer (optional)</Text>
+                    <Text style={styles.fieldLabel}>{tr('b3_evnew_photog_opt')}</Text>
                     {selPhotog ? (
                       <View style={styles.assignCard}>
                         <View style={styles.flex}>
@@ -1283,7 +1288,7 @@ export default function NewEventScreen() {
                               {selPackage.price != null ? ` · ${formatPrice(selPackage.price, selPackage.currency)}` : ''}
                             </Text>
                           ) : (
-                            <Text style={styles.assignSub}>No package selected</Text>
+                            <Text style={styles.assignSub}>{tr('b3_evnew_no_pkg')}</Text>
                           )}
                         </View>
                         <Pressable onPress={clearAssignment} hitSlop={8}>
@@ -1299,7 +1304,7 @@ export default function NewEventScreen() {
                         }}
                       >
                         <Ionicons name="person-add-outline" size={18} color={colors.primary} />
-                        <Text style={styles.assignBtnText}>Assign a photographer</Text>
+                        <Text style={styles.assignBtnText}>{tr('b3_evnew_assign_photog')}</Text>
                       </Pressable>
                     )}
                   </View>
@@ -1308,8 +1313,8 @@ export default function NewEventScreen() {
                 {/* Escrow (only when a package is in play) */}
                 {hasPackage ? (
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Upfront payment (escrow)</Text>
-                    <Text style={styles.hint}>Held in escrow, released on completion.</Text>
+                    <Text style={styles.fieldLabel}>{tr('b3_evnew_escrow_label')}</Text>
+                    <Text style={styles.hint}>{tr('b3_evnew_escrow_hint')}</Text>
                     <Segmented
                       value={escrow}
                       onChange={(v) => setEscrow(v)}
@@ -1329,7 +1334,7 @@ export default function NewEventScreen() {
               control={control}
               name="description"
               render={({ field: { onChange, onBlur, value } }) => (
-                <Input label="Description" placeholder="Any details for the photographer" value={value} onChangeText={onChange} onBlur={onBlur} multiline style={styles.multiline} />
+                <Input label={tr('b3_evnew_desc_label')} placeholder={tr('b3_evnew_desc_ph')} value={value} onChangeText={onChange} onBlur={onBlur} multiline style={styles.multiline} />
               )}
             />
 
@@ -1377,7 +1382,7 @@ export default function NewEventScreen() {
                   data={photographers.data ?? []}
                   keyExtractor={(p) => p.id}
                   contentContainerStyle={styles.pickerList}
-                  ListEmptyComponent={<Text style={styles.pickerEmpty}>No photographers found.</Text>}
+                  ListEmptyComponent={<Text style={styles.pickerEmpty}>{tr('b3_evnew_no_photogs')}</Text>}
                   renderItem={({ item }) => (
                     <Pressable style={styles.pickerRow} onPress={() => choosePhotographer(item)}>
                       <View style={styles.flex}>
@@ -1396,7 +1401,7 @@ export default function NewEventScreen() {
                 data={pkgs}
                 keyExtractor={(p) => p.id}
                 contentContainerStyle={styles.pickerList}
-                ListEmptyComponent={<Text style={styles.pickerEmpty}>This photographer has no packages.</Text>}
+                ListEmptyComponent={<Text style={styles.pickerEmpty}>{tr('b3_evnew_no_pkgs')}</Text>}
                 renderItem={({ item }) => (
                   <Pressable
                     style={styles.pickerRow}
@@ -1421,8 +1426,8 @@ export default function NewEventScreen() {
         visible={!!payEventId}
         onClose={() => router.replace(`/event/${payEventId}`)}
         handoff={payEventId ? { type: 'BOOKING_DECLARATION', eventId: payEventId } : null}
-        title="Booking payment"
-        subtitle="Reserve your date"
+        title={tr('b3_evnew_booking_payment')}
+        subtitle={tr('b3_evnew_reserve_date')}
       />
     </Screen>
   );

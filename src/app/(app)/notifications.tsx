@@ -49,6 +49,7 @@ import { notificationTarget } from '@/features/notifications/routing';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 
 type FilterOption = 'all' | 'unread' | 'booking' | 'payment_group' | 'album' | 'security';
 type DateGroup = 'Today' | 'Yesterday' | 'This Week' | 'Earlier';
@@ -83,6 +84,7 @@ function cleanNarrative(n: AppNotification) {
 export default function NotificationsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { language, t } = useLanguage();
   const { colors, isDark } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -341,16 +343,16 @@ export default function NotificationsScreen() {
 
   // Filter options
   const filterOptions: { key: FilterOption; label: string; count?: number }[] = useMemo(() => {
-    const paymentLabel = isCoordinator ? 'Stream Fees' : isPhotographer ? 'Payments' : 'Gifts';
+    const paymentLabel = isCoordinator ? t('streamRevenue') : isPhotographer ? t('payments') : t('gifts');
     return [
-      { key: 'all', label: 'All' },
-      { key: 'unread', label: 'Unread', count: unreadCount },
-      { key: 'booking', label: 'Bookings' },
+      { key: 'all', label: t('filterAll') },
+      { key: 'unread', label: t('unread'), count: unreadCount },
+      { key: 'booking', label: t('bookings') },
       { key: 'payment_group', label: paymentLabel },
-      { key: 'album', label: 'Albums' },
-      { key: 'security', label: 'Security' },
+      { key: 'album', label: t('albums') },
+      { key: 'security', label: t('security') },
     ];
-  }, [isCoordinator, isPhotographer, unreadCount]);
+  }, [isCoordinator, isPhotographer, unreadCount, t]);
 
   // Filtered notifications
   const filteredNotifications = useMemo(() => {
@@ -410,7 +412,7 @@ export default function NotificationsScreen() {
         </Pressable>
 
         <View style={styles.headerTitleWrap}>
-          <Text style={styles.headerTitle}>Notifications</Text>
+          <Text style={styles.headerTitle}>{t('notificationsTitle')}</Text>
           {unreadCount > 0 ? (
             <View style={styles.unreadCounterPill}>
               <Text style={styles.unreadCounterText}>{unreadCount}</Text>
@@ -424,10 +426,10 @@ export default function NotificationsScreen() {
               onPress={onMarkAllRead}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Mark all as read"
+              accessibilityLabel={t('markAllAsRead')}
               style={({ pressed }) => [styles.markAllLink, pressed && styles.pressedOpacity]}
             >
-              <Text style={styles.markAllLinkText}>Mark all</Text>
+              <Text style={styles.markAllLinkText}>{t('markAll')}</Text>
             </Pressable>
           ) : null}
 
@@ -520,27 +522,36 @@ export default function NotificationsScreen() {
               <Ionicons name="notifications-outline" size={32} color={colors.textMuted} />
             </View>
             <Text style={styles.emptyTitle}>
-              {activeFilter === 'unread' ? 'All caught up' : 'No activity yet'}
+              {activeFilter === 'unread' ? t('allCaughtUp') : t('noActivityYet')}
             </Text>
             <Text style={styles.emptySub}>
               {activeFilter === 'unread'
-                ? 'You have reviewed all your new updates.'
-                : 'When bookings, payments, or media updates arrive, they will appear here.'}
+                ? t('reviewedAllUpdates')
+                : t('activityWillAppearHere')}
             </Text>
             {activeFilter !== 'all' ? (
               <Pressable onPress={() => setActiveFilter('all')} style={styles.resetPill}>
-                <Text style={styles.resetPillText}>View all notifications</Text>
+                <Text style={styles.resetPillText}>{t('viewAllNotifications')}</Text>
               </Pressable>
             ) : null}
           </View>
         ) : (
           /* Instagram Chronological Activity Feed */
-          groupedNotifications.map((group) => (
-            <View key={group.title} style={styles.groupSection}>
-              {/* Subtle Section Header */}
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{group.title}</Text>
-              </View>
+          groupedNotifications.map((group) => {
+            const groupTitle =
+              group.title === 'Today'
+                ? t('today')
+                : group.title === 'Yesterday'
+                ? t('yesterday')
+                : group.title === 'This Week'
+                ? t('thisWeek')
+                : t('earlier');
+            return (
+              <View key={group.title} style={styles.groupSection}>
+                {/* Subtle Section Header */}
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>{groupTitle}</Text>
+                </View>
 
               {/* Activity Rows */}
               {group.items.map((item) => {
@@ -621,7 +632,8 @@ export default function NotificationsScreen() {
                 );
               })}
             </View>
-          ))
+          );
+        })
         )}
       </ScrollView>
     </Screen>

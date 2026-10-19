@@ -49,6 +49,72 @@ import { isApiError } from '@/store/auth';
 import type { EventItem } from '@/features/events/types';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
+import { useLanguage } from '@/hooks/useLanguage';
+const ALB_MAP: Record<string, { fr: string; es: string }> = {
+  'Cancel': { fr: 'Annuler', es: 'Cancelar' },
+  'Change': { fr: 'Modifier', es: 'Cambiar' },
+  'Choose an event booking…': { fr: 'Choisir une réservation d’événement…', es: 'Elegir una reserva de evento…' },
+  'Clear all': { fr: 'Tout effacer', es: 'Borrar todo' },
+  'Create Album': { fr: 'Créer l’album', es: 'Crear álbum' },
+  'Event Album': { fr: 'Album d’événement', es: 'Álbum de evento' },
+  'FREE': { fr: 'GRATUIT', es: 'GRATIS' },
+  'FREE Album Details': { fr: 'Détails de l’album GRATUIT', es: 'Detalles del álbum GRATIS' },
+  'NEW COLLECTION': { fr: 'NOUVELLE COLLECTION', es: 'NUEVA COLECCIÓN' },
+  'PAID': { fr: 'PAYANT', es: 'DE PAGO' },
+  'PAID Album Details': { fr: 'Détails de l’album PAYANT', es: 'Detalles del álbum DE PAGO' },
+  'Personal Album': { fr: 'Album personnel', es: 'Álbum personal' },
+  'Select Event': { fr: 'Sélectionner un événement', es: 'Seleccionar evento' },
+  '• Album expires in 60 days with warning': { fr: '• L’album expire dans 60 jours avec avertissement', es: '• El álbum caduca en 60 días con aviso' },
+  '• Full-resolution downloads enabled': { fr: '• Téléchargements haute résolution activés', es: '• Descargas en alta resolución habilitadas' },
+  '• Indexed for facial-recognition search': { fr: '• Indexé pour la recherche par reconnaissance faciale', es: '• Indexado para búsqueda por reconocimiento facial' },
+  '• NOT indexed on public face search': { fr: '• NON indexé dans la recherche faciale publique', es: '• NO indexado en la búsqueda facial pública' },
+  '• Platform takes 30% commission per sale': { fr: '• La plateforme prélève 30 % de commission par vente', es: '• La plataforma toma un 30% de comisión por venta' },
+  '• Recipient receives email with access code': { fr: '• Le destinataire reçoit un e-mail avec le code d’accès', es: '• El destinatario recibe un correo con el código de acceso' },
+  'ALBUM DETAILS': { fr: 'DÉTAILS DE L’ALBUM', es: 'DETALLES DEL ÁLBUM' },
+  'ALBUM TITLE': { fr: 'TITRE DE L’ALBUM', es: 'TÍTULO DEL ÁLBUM' },
+  'DESCRIPTION (OPTIONAL)': { fr: 'DESCRIPTION (OPTIONNEL)', es: 'DESCRIPCIÓN (OPCIONAL)' },
+  'EVENT BOOKING': { fr: 'RÉSERVATION D’ÉVÉNEMENT', es: 'RESERVA DE EVENTO' },
+  'ALBUM TYPE': { fr: 'TYPE D’ALBUM', es: 'TIPO DE ÁLBUM' },
+  'PRICING & ACCESS': { fr: 'TARIFICATION ET ACCÈS', es: 'PRECIOS Y ACCESO' },
+  'PRICE PER PHOTO': { fr: 'PRIX PAR PHOTO', es: 'PRECIO POR FOTO' },
+  'CURRENCY': { fr: 'DEVISE', es: 'MONEDA' },
+  'RECIPIENT EMAIL': { fr: 'E-MAIL DU DESTINATAIRE', es: 'CORREO DEL DESTINATARIO' },
+  'RECIPIENT NAME (OPTIONAL)': { fr: 'NOM DU DESTINATAIRE (OPTIONNEL)', es: 'NOMBRE DEL DESTINATARIO (OPCIONAL)' },
+  'COVER PHOTO (OPTIONAL)': { fr: 'PHOTO DE COUVERTURE (OPTIONNEL)', es: 'FOTO DE PORTADA (OPCIONAL)' },
+  'ALBUM PHOTOS': { fr: 'PHOTOS DE L’ALBUM', es: 'FOTOS DEL ÁLBUM' },
+  'Ready to upload': { fr: 'Prêt à téléverser', es: 'Listo para subir' },
+  'Add Photos': { fr: 'Ajouter des photos', es: 'Añadir fotos' },
+  'Album Options': { fr: 'Options de l’album', es: 'Opciones del álbum' },
+  'Copy public web viewing link': { fr: 'Copier le lien public de visionnage', es: 'Copiar enlace público de visualización' },
+  'Couldn&apos;t load album': { fr: 'Impossible de charger l’album', es: 'No se pudo cargar el álbum' },
+  'Delete Album': { fr: 'Supprimer l’album', es: 'Eliminar álbum' },
+  'Email gallery access link directly': { fr: 'Envoyer le lien d’accès par e-mail', es: 'Enviar enlace de acceso por correo' },
+  'Face-AI Indexing': { fr: 'Indexation IA faciale', es: 'Indexación facial con IA' },
+  'LOCKED': { fr: 'VERROUILLÉ', es: 'BLOQUEADO' },
+  'Loading album…': { fr: 'Chargement de l’album…', es: 'Cargando álbum…' },
+  'Locked': { fr: 'Verrouillé', es: 'Bloqueado' },
+  'PHOTOS': { fr: 'PHOTOS', es: 'FOTOS' },
+  'Permanently remove this collection': { fr: 'Supprimer définitivement cette collection', es: 'Eliminar permanentemente esta colección' },
+  'Photographer': { fr: 'Photographe', es: 'Fotógrafo' },
+  'Photos are in cold storage. Contact support to restore this album.': { fr: 'Les photos sont archivées. Contactez le support pour restaurer cet album.', es: 'Las fotos están archivadas. Contacta con soporte para restaurar este álbum.' },
+  'Publish to Connekt stock catalog': { fr: 'Publier dans le catalogue Connekt', es: 'Publicar en el catálogo de Connekt' },
+  'Retry': { fr: 'Réessayer', es: 'Reintentar' },
+  'Save to Camera Roll': { fr: 'Enregistrer dans la pellicule', es: 'Guardar en el carrete' },
+  'Send to Client': { fr: 'Envoyer au client', es: 'Enviar al cliente' },
+  'Share': { fr: 'Partager', es: 'Compartir' },
+  'Share Album Link': { fr: 'Partager le lien de l’album', es: 'Compartir enlace del álbum' },
+  'Submit for Review': { fr: 'Soumettre pour examen', es: 'Enviar a revisión' },
+  'This album has no photos': { fr: 'Cet album ne contient aucune photo', es: 'Este álbum no tiene fotos' },
+  'This album is locked': { fr: 'Cet album est verrouillé', es: 'Este álbum está bloqueado' },
+  'Unlock this album to view and download all high-resolution photos.': { fr: 'Déverrouillez cet album pour voir et télécharger toutes les photos haute résolution.', es: 'Desbloquea este álbum para ver y descargar todas las fotos en alta resolución.' },
+  'Upload Photos': { fr: 'Téléverser des photos', es: 'Subir fotos' }
+};
+const trAlb = (s: string) => {
+  const lang = useLanguage.getState().language;
+  if (lang === 'en') return s;
+  return ALB_MAP[s]?.[lang] ?? s;
+};
+
 type Mode = 'event' | 'personal';
 type PersonalType = 'PAID' | 'FREE';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -61,6 +127,7 @@ function shortDate(iso?: string) {
 }
 
 export default function NewAlbumScreen() {
+  useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -251,8 +318,8 @@ export default function NewAlbumScreen() {
             <Ionicons name="chevron-back" size={20} color={colors.text} />
           </Pressable>
           <View style={{ flex: 1, gap: 1 }}>
-            <Text style={styles.eyebrow}>NEW COLLECTION</Text>
-            <Text style={styles.h1}>Create Album</Text>
+            <Text style={styles.eyebrow}>{trAlb('NEW COLLECTION')}</Text>
+            <Text style={styles.h1}>{trAlb('Create Album')}</Text>
           </View>
         </View>
 
@@ -268,7 +335,7 @@ export default function NewAlbumScreen() {
               color={mode === 'event' ? colors.primary : colors.textMuted}
             />
             <Text style={[styles.modeTabText, mode === 'event' && styles.modeTabTextActive]}>
-              Event Album
+              {trAlb('Event Album')}
             </Text>
           </Pressable>
 
@@ -282,7 +349,7 @@ export default function NewAlbumScreen() {
               color={mode === 'personal' ? colors.primary : colors.textMuted}
             />
             <Text style={[styles.modeTabText, mode === 'personal' && styles.modeTabTextActive]}>
-              Personal Album
+              {trAlb('Personal Album')}
             </Text>
           </Pressable>
         </View>
@@ -314,7 +381,7 @@ export default function NewAlbumScreen() {
                   onPress={() => setEventPickerOpen(true)}
                   hitSlop={8}
                 >
-                  <Text style={styles.changeEventText}>Change</Text>
+                  <Text style={styles.changeEventText}>{trAlb('Change')}</Text>
                 </Pressable>
               </View>
             ) : (
@@ -322,14 +389,14 @@ export default function NewAlbumScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                   <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
                   <Text style={styles.selectPlaceholder} numberOfLines={1}>
-                    Choose an event booking…
+                    {trAlb('Choose an event booking…')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
               </Pressable>
             )}
 
-            <FieldLabel text="ALBUM TITLE" required />
+            <FieldLabel text={trAlb('ALBUM TITLE')} required />
             <TextInput
               style={styles.input}
               value={title}
@@ -374,14 +441,14 @@ export default function NewAlbumScreen() {
             <View style={styles.note}>
               <Ionicons name="information-circle" size={18} color={colors.primary} />
               <Text style={styles.noteText}>
-                Personal albums can be <Text style={styles.bold}>PAID</Text> with facial
+                Personal albums can be <Text style={styles.bold}>{trAlb('PAID')}</Text> with facial
                 recognition search, or{' '}
-                <Text style={[styles.bold, { color: '#059669' }]}>FREE</Text> with private email
+                <Text style={[styles.bold, { color: '#059669' }]}>{trAlb('FREE')}</Text> with private email
                 invite access.
               </Text>
             </View>
 
-            <FieldLabel text="ALBUM TYPE" required />
+            <FieldLabel text={trAlb('ALBUM TYPE')} required />
             <View style={styles.typeRow}>
               <TypeCard
                 active={personalType === 'PAID'}
@@ -409,7 +476,7 @@ export default function NewAlbumScreen() {
               />
             </View>
 
-            <FieldLabel text="ALBUM TITLE" required />
+            <FieldLabel text={trAlb('ALBUM TITLE')} required />
             <TextInput
               style={styles.input}
               value={title}
@@ -463,10 +530,10 @@ export default function NewAlbumScreen() {
             {personalType === 'PAID' ? (
               <>
                 <View style={[styles.detailNote, styles.detailNoteInfo]}>
-                  <Text style={styles.detailNoteTitle}>PAID Album Details</Text>
-                  <Text style={styles.detailNoteText}>• Indexed for facial-recognition search</Text>
-                  <Text style={styles.detailNoteText}>• Platform takes 30% commission per sale</Text>
-                  <Text style={styles.detailNoteText}>• Album expires in 60 days with warning</Text>
+                  <Text style={styles.detailNoteTitle}>{trAlb('PAID Album Details')}</Text>
+                  <Text style={styles.detailNoteText}>{trAlb('• Indexed for facial-recognition search')}</Text>
+                  <Text style={styles.detailNoteText}>{trAlb('• Platform takes 30% commission per sale')}</Text>
+                  <Text style={styles.detailNoteText}>{trAlb('• Album expires in 60 days with warning')}</Text>
                 </View>
 
                 <FieldLabel text="PRICE PER IMAGE" required />
@@ -479,7 +546,7 @@ export default function NewAlbumScreen() {
                   keyboardType="number-pad"
                 />
 
-                <FieldLabel text="CURRENCY" required />
+                <FieldLabel text={trAlb('CURRENCY')} required />
                 <View style={styles.chips}>
                   {(currencies.data ?? []).map((c) => {
                     const active = currencyId === c.id;
@@ -501,14 +568,14 @@ export default function NewAlbumScreen() {
               <>
                 <View style={[styles.detailNote, styles.detailNoteFree]}>
                   <Text style={[styles.detailNoteTitle, { color: '#059669' }]}>
-                    FREE Album Details
+                    {trAlb('FREE Album Details')}
                   </Text>
-                  <Text style={styles.detailNoteText}>• NOT indexed on public face search</Text>
-                  <Text style={styles.detailNoteText}>• Recipient receives email with access code</Text>
-                  <Text style={styles.detailNoteText}>• Full-resolution downloads enabled</Text>
+                  <Text style={styles.detailNoteText}>{trAlb('• NOT indexed on public face search')}</Text>
+                  <Text style={styles.detailNoteText}>{trAlb('• Recipient receives email with access code')}</Text>
+                  <Text style={styles.detailNoteText}>{trAlb('• Full-resolution downloads enabled')}</Text>
                 </View>
 
-                <FieldLabel text="RECIPIENT EMAIL" required />
+                <FieldLabel text={trAlb('RECIPIENT EMAIL')} required />
                 <TextInput
                   style={styles.input}
                   value={recipientEmail}
@@ -570,7 +637,7 @@ export default function NewAlbumScreen() {
               <View style={styles.thumbsHeader}>
                 <Text style={styles.thumbsTitle}>{images.length} photos ready to upload</Text>
                 <Pressable onPress={() => setImages([])} hitSlop={8}>
-                  <Text style={styles.clearPhotosText}>Clear all</Text>
+                  <Text style={styles.clearPhotosText}>{trAlb('Clear all')}</Text>
                 </Pressable>
               </View>
 
@@ -616,7 +683,7 @@ export default function NewAlbumScreen() {
             onPress={() => router.back()}
             disabled={submitting}
           >
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{trAlb('Cancel')}</Text>
           </Pressable>
           <Pressable
             style={[styles.btn, styles.create, submitting && styles.btnDisabled]}
@@ -626,7 +693,7 @@ export default function NewAlbumScreen() {
             {submitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.createText}>Create Album</Text>
+              <Text style={styles.createText}>{trAlb('Create Album')}</Text>
             )}
           </Pressable>
         </View>
@@ -643,7 +710,7 @@ export default function NewAlbumScreen() {
           <Pressable style={styles.picker} onPress={(e) => e.stopPropagation()}>
             <View style={styles.pickerHandle} />
             <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Event</Text>
+              <Text style={styles.pickerTitle}>{trAlb('Select Event')}</Text>
               <Pressable onPress={() => setEventPickerOpen(false)} hitSlop={8}>
                 <Ionicons name="close" size={20} color={colors.textMuted} />
               </Pressable>

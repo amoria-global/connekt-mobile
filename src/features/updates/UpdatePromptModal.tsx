@@ -10,6 +10,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { updateNow, useAppUpdates, useUpdateChecks } from './useAppUpdates';
 
 export function UpdatePromptModal() {
@@ -17,6 +18,7 @@ export function UpdatePromptModal() {
     useAppUpdates();
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const [working, setWorking] = useState(false);
 
   // Launch and foreground-resume checks run here, once, for the whole app.
@@ -57,15 +59,15 @@ export function UpdatePromptModal() {
           </View>
 
           <Text style={styles.title}>
-            {failed ? 'Update did not finish' : 'Update required'}
+            {tr(failed ? 'Update did not finish' : 'Update required')}
           </Text>
 
           <Text style={styles.body}>
             {failed
-              ? `${errorMessage} Check your connection and try again.`
+              ? `${errorMessage} ${tr('Check your connection and try again.')}`
               : isDownloading
-                ? 'Downloading the latest version of Connekyt. This only takes a moment.'
-                : `A new version of Connekyt is ready${currentVersion ? ` (current v${currentVersion})` : ''}. Update now to keep using the app.`}
+                ? tr('Downloading the latest version of Connekyt. This only takes a moment.')
+                : `${tr('A new version of Connekyt is ready')}${currentVersion ? ` (current v${currentVersion})` : ''}. ${tr('Update now to keep using the app.')}`}
           </Text>
 
           {isDownloading ? (
@@ -79,7 +81,7 @@ export function UpdatePromptModal() {
                 />
               </View>
               <Text style={styles.progressLabel}>
-                {downloadProgress > 0 ? `Downloading... ${Math.round(downloadProgress * 100)}%` : 'Preparing update...'}
+                {downloadProgress > 0 ? `${tr('Downloading…')} ${Math.round(downloadProgress * 100)}%` : tr('Preparing update…')}
               </Text>
             </View>
           ) : null}
@@ -97,7 +99,7 @@ export function UpdatePromptModal() {
             ) : (
               <>
                 <Ionicons name="refresh-outline" size={18} color="#fff" />
-                <Text style={styles.primaryBtnText}>Update now</Text>
+                <Text style={styles.primaryBtnText}>{tr('Update now')}</Text>
               </>
             )}
           </Pressable>

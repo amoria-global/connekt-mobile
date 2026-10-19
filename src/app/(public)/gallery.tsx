@@ -9,9 +9,11 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useRole } from '@/features/auth/role';
 import { listGalleries } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
+import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function GalleryScreen() {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -23,13 +25,13 @@ export default function GalleryScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <ScreenHeader
-        title={isPhotographer ? 'My Albums' : 'Galleries'}
-        subtitle={isPhotographer ? 'Your photo collections' : 'Photos from your events'}
+        title={isPhotographer ? t('b4_myAlbums') : t('b4_galleries')}
+        subtitle={isPhotographer ? t('b4_yourPhotoCollections') : t('b4_photosFromYourEvents')}
       />
       {!isPhotographer ? (
         <Pressable style={styles.photobookLink} onPress={() => router.push('/photobooks' as Href)}>
           <Ionicons name="book-outline" size={20} color={colors.primary} />
-          <Text style={styles.photobookText}>Photobooks</Text>
+          <Text style={styles.photobookText}>{t('b4_photobooks')}</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Pressable>
       ) : null}
@@ -56,19 +58,19 @@ export default function GalleryScreen() {
                 {item.name}
               </Text>
               <Text style={styles.meta}>
-                {item.photoCount != null ? `${item.photoCount} photos` : 'Album'}
-                {item.locked ? ' · 🔒 Locked' : ''}
+                {item.photoCount != null ? t('b4_photoCount', { count: item.photoCount }) : t('b4_album')}
+                {item.locked ? t('b4_lockedSuffix') : ''}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </Pressable>
         )}
         emptyIcon="images-outline"
-        emptyTitle={isPhotographer ? 'No albums yet' : 'No galleries yet'}
+        emptyTitle={isPhotographer ? t('b4_noAlbumsYet') : t('b4_noGalleriesYet')}
         emptyMessage={
           isPhotographer
-            ? 'Tap + to create a paid album and sell your photo collections.'
-            : 'Photos from your events will appear here once a photographer shares them.'
+            ? t('b4_emptyAlbumsPhotographer')
+            : t('b4_emptyGalleriesClient')
         }
       />
       {isPhotographer ? <Fab icon="add" onPress={() => router.push('/album/new')} /> : null}

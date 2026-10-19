@@ -1,50 +1,51 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { spacing, fontSize, makeStyles } from '@/theme';
-
-const values = [
-  { title: 'Innovation', desc: 'Pioneering creative tools and smart solutions for the photography industry.' },
-  { title: 'Trust', desc: 'Building confidence through verified professionals and secure transactions.' },
-  { title: 'Excellence', desc: 'Setting the highest standards in creative quality and client satisfaction.' },
-  { title: 'Wellness', desc: 'Supporting the well-being and growth of our creative community.' },
-  { title: 'Growth', desc: 'Empowering photographers to expand their reach and build lasting careers.' },
-];
+import { useLanguage } from '@/hooks/useLanguage';
 
 export default function AboutScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
+  const values = [
+    { title: t('b4_valInnovationTitle'), desc: t('b4_valInnovationDesc') },
+    { title: t('b4_valTrustTitle'), desc: t('b4_valTrustDesc') },
+    { title: t('b4_valExcellenceTitle'), desc: t('b4_valExcellenceDesc') },
+    { title: t('b4_valWellnessTitle'), desc: t('b4_valWellnessDesc') },
+    { title: t('b4_valGrowthTitle'), desc: t('b4_valGrowthDesc') },
+  ];
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>About Amoria Connekyt</Text>
-          <Text style={styles.subtitle}>The Smart Way to Capture Life</Text>
+          <Text style={styles.title}>{t('b4_aboutTitle')}</Text>
+          <Text style={styles.subtitle}>{t('b4_aboutSubtitle')}</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Our Mission</Text>
+          <Text style={styles.sectionTitle}>{t('b4_aboutMissionTitle')}</Text>
           <Text style={styles.bodyText}>
-            To empower creators and communities through technology that connects people, promotes emotional wellness, and transforms creative work into meaningful global opportunities.
+            {t('b4_aboutMissionBody')}
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Our Vision</Text>
+          <Text style={styles.sectionTitle}>{t('b4_aboutVisionTitle')}</Text>
           <Text style={styles.bodyText}>
-            To become Africa's leading creative connection platform; a space where every memory matters, creativity meets opportunity, and technology fosters global emotional wellbeing.
+            {t('b4_aboutVisionBody')}
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Our Journey</Text>
+          <Text style={styles.sectionTitle}>{t('b4_aboutJourneyTitle')}</Text>
           <Text style={styles.bodyText}>
-            <Text style={styles.bold}>The Birth of Our Vision:</Text> What started as an idea has blossomed into a platform that addresses the obstacles and setbacks creators face in the industry, providing them with the right tools to promote themselves properly.{'\n\n'}
-            <Text style={styles.bold}>Scaling Our Impact:</Text> What began as a passion for supporting event creators and storytellers has heavily shaped our growth. We listen to our customers and use their feedback to drive developments.{'\n\n'}
-            <Text style={styles.bold}>Expanding Horizons:</Text> With a strong foundation built on trust and innovation, we are expanding into new markets and empowering creators across continents.
+            <Text style={styles.bold}>{t('b4_aboutJourney1Title')}</Text> {t('b4_aboutJourney1Body')}{'\n\n'}
+            <Text style={styles.bold}>{t('b4_aboutJourney2Title')}</Text> {t('b4_aboutJourney2Body')}{'\n\n'}
+            <Text style={styles.bold}>{t('b4_aboutJourney3Title')}</Text> {t('b4_aboutJourney3Body')}
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Core Values</Text>
+          <Text style={styles.sectionTitle}>{t('b4_aboutCoreValuesTitle')}</Text>
           {values.map((v, i) => (
             <View key={i} style={styles.valueCard}>
               <Text style={styles.valueTitle}>{v.title}</Text>

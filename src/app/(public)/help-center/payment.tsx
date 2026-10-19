@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { useLanguage } from '@/hooks/useLanguage';
 import { spacing, fontSize, makeStyles } from '@/theme';
 
 export default function PaymentHelpScreen() {
   const styles = useStyles();
+  const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('escrow');
 
   const toggleSection = (id: string) => {
@@ -15,9 +17,9 @@ export default function PaymentHelpScreen() {
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Payment</Text>
+          <Text style={styles.title}>{t('b4_hcCatPaymentName')}</Text>
           <Text style={styles.subtitle}>
-            Learn how payments, escrow, refunds, and earnings work on Amoria Connekyt
+            {t('b4_hcPaymentSubtitle')}
           </Text>
         </View>
 
@@ -26,20 +28,20 @@ export default function PaymentHelpScreen() {
             style={styles.accordionHeader}
             onPress={() => toggleSection('escrow')}
           >
-            <Text style={styles.accordionTitle}>How Escrow Works</Text>
+            <Text style={styles.accordionTitle}>{t('b4_hcHowEscrowWorks')}</Text>
             <Text style={styles.accordionIcon}>{openSection === 'escrow' ? '−' : '+'}</Text>
           </TouchableOpacity>
 
           {openSection === 'escrow' && (
             <View style={styles.accordionContent}>
               <Text style={styles.bodyText}>
-                Our escrow system ensures both clients and photographers are protected throughout the booking process.
+                {t('b4_hcEscrowIntro')}
               </Text>
               <View style={[styles.card, { borderColor: '#10B98126', backgroundColor: '#10B9810A' }]}>
-                <Text style={styles.listItem}><Text style={styles.bold}>1. Payment is Held:</Text> The client pays upfront, and funds are held safely.</Text>
-                <Text style={styles.listItem}><Text style={styles.bold}>2. Services Rendered:</Text> The photographer completes the shoot.</Text>
-                <Text style={styles.listItem}><Text style={styles.bold}>3. Approval:</Text> The client approves the delivered photos.</Text>
-                <Text style={styles.listItem}><Text style={styles.bold}>4. Funds Released:</Text> The photographer receives payment.</Text>
+                <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcEscrowStep1Title')}</Text> {t('b4_hcEscrowStep1Desc')}</Text>
+                <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcEscrowStep2Title')}</Text> {t('b4_hcEscrowStep2Desc')}</Text>
+                <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcEscrowStep3Title')}</Text> {t('b4_hcEscrowStep3Desc')}</Text>
+                <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcEscrowStep4Title')}</Text> {t('b4_hcEscrowStep4Desc')}</Text>
               </View>
             </View>
           )}
@@ -48,14 +50,14 @@ export default function PaymentHelpScreen() {
             style={styles.accordionHeader}
             onPress={() => toggleSection('refunds')}
           >
-            <Text style={styles.accordionTitle}>Refunds & Cancellations</Text>
+            <Text style={styles.accordionTitle}>{t('b4_hcRefundsCancellations')}</Text>
             <Text style={styles.accordionIcon}>{openSection === 'refunds' ? '−' : '+'}</Text>
           </TouchableOpacity>
 
           {openSection === 'refunds' && (
             <View style={styles.accordionContent}>
               <Text style={styles.bodyText}>
-                Refunds are handled based on the photographer's cancellation policy. If a photographer cancels, clients receive a full refund.
+                {t('b4_hcRefundsBody')}
               </Text>
             </View>
           )}
