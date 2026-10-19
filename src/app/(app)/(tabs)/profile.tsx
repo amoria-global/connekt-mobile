@@ -961,7 +961,7 @@ const useStyles = makeStyles((c) => ({
   },
   highlightLabel: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     color: c.text,
     textAlign: 'center',
   },
@@ -1091,7 +1091,7 @@ const useStyles = makeStyles((c) => ({
   },
   updateBadgeReadyText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: '#fff',
   },
   deleteLinkRow: {

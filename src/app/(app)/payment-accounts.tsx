@@ -201,7 +201,7 @@ const useStyles = makeStyles((c) => ({
   center: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing['3xl'] },
   muted: { fontSize: fontSize.sm, color: c.textMuted },
   sectionLabel: {
-    fontSize: fontSize.xs,
+    fontSize: 12,
     fontWeight: fontWeight.bold,
     color: c.textMuted,
     textTransform: 'uppercase',
@@ -248,7 +248,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
     backgroundColor: c.tint,
   },
-  defaultText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.primary },
+  defaultText: { fontSize: 12, fontWeight: fontWeight.bold, color: c.primary },
   cardNumber: { fontSize: fontSize.sm, color: c.textSoft, letterSpacing: 0.5 },
   cardName: { fontSize: fontSize.sm, color: c.textMuted },
   actions: {

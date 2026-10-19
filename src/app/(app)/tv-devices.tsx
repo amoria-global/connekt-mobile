@@ -87,7 +87,7 @@ const useStyles = makeStyles((c) => ({
   },
   payOnTvText: { flex: 1 },
   payOnTvTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
-  payOnTvSub: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
+  payOnTvSub: { fontSize: 12, color: c.textMuted, marginTop: 2 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -100,5 +100,5 @@ const useStyles = makeStyles((c) => ({
   },
   rowText: { flex: 1 },
   label: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
-  meta: { fontSize: fontSize.xs, color: c.textMuted, marginTop: 2 },
+  meta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
 }));

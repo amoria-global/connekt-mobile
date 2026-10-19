@@ -222,7 +222,7 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.borderSoft,
   },
   optionActive: { backgroundColor: c.primary, borderColor: c.primary },
-  optionText: { fontSize: fontSize.xs, color: c.textSoft, fontWeight: fontWeight.semibold },
+  optionText: { fontSize: 12, color: c.textSoft, fontWeight: fontWeight.semibold },
   optionTextActive: { color: c.textOnPrimary },
   notes: { marginTop: 4 },
   cancel: { alignItems: 'center', paddingVertical: spacing.md },
