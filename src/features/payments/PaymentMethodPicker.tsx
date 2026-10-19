@@ -242,7 +242,7 @@ const useStyles = makeStyles((c) => ({
   },
   flag: { fontSize: 18 },
   countryName: { flex: 1, color: c.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  countryChange: { color: c.primary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  countryChange: { color: c.primary, fontSize: 12, fontWeight: fontWeight.bold },
   mainRow: { gap: spacing.sm },
   // Mobile Money and Cards sit side by side; the network list opens full width below.
   tiles: { flexDirection: 'row', gap: spacing.sm },
@@ -264,7 +264,7 @@ const useStyles = makeStyles((c) => ({
   mainText: { alignSelf: 'stretch' },
   mainTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.extrabold },
   mainTitleActive: { color: c.primary },
-  mainSub: { color: c.textMuted, fontSize: fontSize.xs, marginTop: 2 },
+  mainSub: { color: c.textMuted, fontSize: 12, marginTop: 2 },
   logoBox: {
     borderRadius: radii.md,
     overflow: 'hidden',

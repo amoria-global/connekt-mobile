@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EventsChart } from '@/features/analytics/EventsChart';
+import { EventsHistogram, SpendingTrendChart } from '@/features/client/ClientWalletAnalytics';
 import { useRouter, Stack } from 'expo-router';
 import {
   ActivityIndicator,
@@ -906,10 +907,17 @@ type StatCardItem = {
         </View>
 
         {/* Shape 3: Vertical Dual-Column Bar Chart */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionCardTitle}>Performance</Text>
-          {isPhotographer ? <EventsChart points={photogPerf} /> : <SaloPerformanceChart data={activePerf} height={180} />}
-        </View>
+        {isClient ? (
+          <>
+            <SpendingTrendChart points={activePerf} />
+            <EventsHistogram points={activePerf} />
+          </>
+        ) : (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionCardTitle}>Performance</Text>
+            {isPhotographer ? <EventsChart points={photogPerf} /> : <SaloPerformanceChart data={activePerf} height={180} />}
+          </View>
+        )}
 
         {/* Shape 4: Horizontal Proportion Ribbon Bar */}
         <View style={styles.sectionCard}>
@@ -1418,11 +1426,11 @@ const cardStyles = StyleSheet.create({
     borderRadius: 9999,
   },
   trendText: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: '700',
   },
   timeframeText: {
-    fontSize: 10,
+    fontSize: 12,
     flexShrink: 1,
   },
   arrowCircle: {
@@ -1647,7 +1655,7 @@ function TrendCurveChart({
               }}
             >
               <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
-              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>
                 0 activity recorded for this period
               </Text>
             </View>
@@ -1689,7 +1697,7 @@ const trendStyles = StyleSheet.create({
     fontWeight: '700',
   },
   subheadline: {
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 1,
   },
   peakPill: {
@@ -1701,7 +1709,7 @@ const trendStyles = StyleSheet.create({
     borderRadius: 9999,
   },
   peakPillText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   xAxisRow: {
@@ -1711,7 +1719,7 @@ const trendStyles = StyleSheet.create({
     marginTop: 6,
   },
   xDayLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
 });
@@ -1861,7 +1869,7 @@ function DonutBreakdownChart({
           }}
         >
           <Ionicons name="information-circle-outline" size={13} color={colors.textMuted} />
-          <Text style={{ fontSize: 11, color: colors.textMuted }}>
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>
             0 allocation events recorded for this timeframe
           </Text>
         </View>
@@ -1883,7 +1891,7 @@ const donutStyles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 11.5,
+    fontSize: 12,
     marginTop: 2,
   },
   contentRow: {
@@ -1912,7 +1920,7 @@ const donutStyles = StyleSheet.create({
     textAlign: 'center',
   },
   centerLabelText: {
-    fontSize: 8,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.6,
     marginTop: 1,
@@ -1940,7 +1948,7 @@ const donutStyles = StyleSheet.create({
     fontWeight: '700',
   },
   legendSub: {
-    fontSize: 10.5,
+    fontSize: 12,
     marginTop: 1,
   },
   pctBadge: {
@@ -1949,7 +1957,7 @@ const donutStyles = StyleSheet.create({
     borderRadius: 6,
   },
   pctText: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: '700',
   },
 });
@@ -2040,7 +2048,7 @@ const ratioStyles = StyleSheet.create({
     borderRadius: 3.5,
   },
   labelText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '500',
   },
 });
@@ -2162,7 +2170,7 @@ function SaloPerformanceChart({
                 }}
               >
                 <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
-                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>
                   0 performance recorded for this period
                 </Text>
               </View>
@@ -2210,7 +2218,7 @@ const perfStyles = StyleSheet.create({
     paddingRight: 6,
   },
   yAxisLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '600',
   },
   plotArea: {
@@ -2264,7 +2272,7 @@ const perfStyles = StyleSheet.create({
   xDayLabel: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   legendRow: {
@@ -2286,7 +2294,7 @@ const perfStyles = StyleSheet.create({
     borderRadius: 2,
   },
   legendText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '500',
   },
 });
@@ -2483,7 +2491,7 @@ const rowStyles = StyleSheet.create({
     borderRadius: 6,
   },
   statusBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   activityDot: {
@@ -2492,14 +2500,14 @@ const rowStyles = StyleSheet.create({
     borderRadius: 4,
   },
   activityLabel: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   meta: {
-    fontSize: 11,
+    fontSize: 12,
   },
   amount: {
     fontSize: 14,
@@ -2596,7 +2604,7 @@ const useStyles = makeStyles((c, e) => ({
     gap: 4,
   },
   customDateLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: c.textMuted,
   },
@@ -2746,7 +2754,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 4,
   },
   pendingStatusBadgeTextFailed: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: '700',
     color: c.error,
   },
@@ -2757,12 +2765,12 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 4,
   },
   pendingStatusBadgeTextPartial: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: '700',
     color: c.info,
   },
   pendingCardEvent: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: c.textMuted,
     marginTop: 2,
   },
@@ -2783,7 +2791,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 6,
   },
   pendingPayBtnText: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: '700',
     color: c.textOnPrimary,
   },

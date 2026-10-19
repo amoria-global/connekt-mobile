@@ -77,6 +77,8 @@ jest.mock('@/store/auth', () => {
   };
 });
 
+const walletFixture = require('@/features/wallet/__fixtures__/wallet-me-client.json');
+
 const ok = (data: unknown) => ({ action: 1, message: 'ok', data });
 const refused = (message: string) => ({ action: 0, message });
 
@@ -86,11 +88,12 @@ const flat = (node: ReactTestInstance): string =>
     .map((t) => (Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children ?? '')))
     .join(' | ');
 
-type Routes = Partial<Record<'analytics' | 'events' | 'pending' | 'activities' | 'photographers' | 'bookmarks', unknown>>;
+type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'pending' | 'activities' | 'photographers' | 'bookmarks', unknown>>;
 
 function serve(routes: Routes) {
   const defaults: Routes = {
-    analytics: ok({ totalPhotos: 0 }),
+    wallet: walletFixture,
+    analytics: ok({ totalPhotos: 0, totalEvents: 0, upcomingEvents: 0, completedEvents: 0, cancelledEvents: 0, totalBookings: 0, bookmarkedPhotographers: 0 }),
     events: ok([]),
     pending: ok([]),
     activities: ok([]),
@@ -99,19 +102,21 @@ function serve(routes: Routes) {
   };
   const r = { ...defaults, ...routes };
   mockGet.mockImplementation(async (path: string) => {
-    const v = path.startsWith('/customer/analytics/recent-activities')
-      ? r.activities
-      : path.startsWith('/customer/analytics')
-        ? r.analytics
-        : path.startsWith('/customer/events')
-          ? r.events
-          : path.startsWith('/customer/payments/pending')
-            ? r.pending
-            : path.startsWith('/public/photographers/list')
-              ? r.photographers
-              : path.startsWith('/customer/photographers/bookmarks')
-                ? r.bookmarks
-                : refused('unrouted');
+    const v = path.startsWith('/wallet/me')
+      ? r.wallet
+      : path.startsWith('/customer/analytics/recent-activities')
+        ? r.activities
+        : path.startsWith('/customer/analytics')
+          ? r.analytics
+          : path.startsWith('/customer/events')
+            ? r.events
+            : path.startsWith('/customer/payments/pending')
+              ? r.pending
+              : path.startsWith('/public/photographers/list')
+                ? r.photographers
+                : path.startsWith('/customer/photographers/bookmarks')
+                  ? r.bookmarks
+                  : refused('unrouted');
     if (v instanceof Error) throw v;
     return v;
   });
@@ -148,19 +153,25 @@ beforeEach(() => {
 });
 
 describe('client home as rendered', () => {
-  it('leads with the next event: countdown, confirmation, and what is owed in USD', async () => {
+  it('leads with the next event: countdown, confirmation, and masks amounts until shown', async () => {
     serve({
       events: ok([{ id: 'e1', title: 'Yubire Wedding', eventDate: inDays(8), startTime: '10:00', location: 'Kigali', bookingStatus: 'ACCEPTED', photographer: { firstName: 'Eric', lastName: 'M' } }]),
       pending: ok([{ id: 'p1', eventTitle: 'Yubire Wedding', photographerName: 'Eric M', amountInUsd: 300, paidAmountInUsd: 100, status: 'PENDING' }]),
     });
     const r = await mount();
+    const masked = flat(r.root);
+    expect(masked).toContain('Welcome back, Aline');
+    expect(masked).toContain('Yubire Wedding');
+    expect(masked).toContain('8 days to go');
+    expect(masked).toContain('Photographer confirmed');
+    expect(masked).toContain('Photographer: Eric M');
+    expect(masked).toContain('••••');
+    expect(masked).not.toContain('$200.00');
+
+    await press(r, 'Show amounts');
     const text = flat(r.root);
-    expect(text).toContain('Welcome back, Aline');
-    expect(text).toContain('Yubire Wedding');
-    expect(text).toContain('8 days to go');
-    expect(text).toContain('Photographer confirmed');
-    expect(text).toContain('Photographer: Eric M');
     expect(text).toContain('$200.00'); // 300 minus 100 paid, a USD ledger value
+    expect(text).toContain('$100.00'); // wallet lifetime spend from wallet-me-client.json
     expect(text).not.toMatch(/NaN|undefined/);
   });
 
