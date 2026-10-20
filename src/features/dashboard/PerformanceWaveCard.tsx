@@ -38,6 +38,7 @@ import Svg, {
 import { fonts, fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { HIDDEN_AMOUNT } from '@/features/photographer/money';
 import type {
   AnalyticsPeriod,
   CoordinatorAnalytics,
@@ -61,6 +62,10 @@ export interface PerformanceWaveCardProps {
   selectedMetric?: MetricKey;
   onSelectMetric?: (key: MetricKey) => void;
   performanceData?: PerformancePoint[] | null;
+  /** Mask money figures, like the rest of the Home. Counts are not money and stay visible. */
+  hidden?: boolean;
+  /** What to say when there is no series. Pass a failure sentence when the read failed, so a failure is not read as "no activity". */
+  emptyText?: string;
 }
 
 interface DataPoint {
@@ -169,6 +174,8 @@ export function PerformanceWaveCard({
   selectedMetric: externalSelectedMetric,
   onSelectMetric,
   performanceData,
+  hidden = false,
+  emptyText = 'No trend data for this period',
 }: PerformanceWaveCardProps) {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
@@ -262,12 +269,13 @@ export function PerformanceWaveCard({
 
   // Extract raw metric value: use the period-specific trend value if returned from API,
   // falling back to analytics snapshot if not set.
-  const totalValue = useMemo(() => {
+  const totalValue = useMemo<number | null>(() => {
     if (trendData?.value != null) {
       return trendData.value;
     }
-    if (!analytics) return 0;
-    return analytics[activeMetric] ?? 0;
+    // Not loaded or failed: unknown, never a zero.
+    if (!analytics) return null;
+    return analytics[activeMetric] ?? null;
   }, [trendData?.value, analytics, activeMetric]);
 
   // Generate the 6 data points with heights matching the organic wave shape or real performance data
@@ -315,7 +323,7 @@ export function PerformanceWaveCard({
       if (!perfValues) {
         displayValue = '';
       } else if (meta.isMoney) {
-        displayValue = formatPrice(pointVal, currency);
+        displayValue = hidden ? HIDDEN_AMOUNT : formatPrice(pointVal, currency);
       } else {
         displayValue = String(pointVal);
       }
@@ -339,6 +347,7 @@ export function PerformanceWaveCard({
     dateLabels,
     performanceData,
     activeMetric,
+    hidden,
   ]);
 
   // Trend line curve path (white line in reference)
@@ -371,9 +380,16 @@ export function PerformanceWaveCard({
   const endPoint = points[points.length - 1];
 
   // Formatted active metric headline
-  const formattedHeadline = meta.isMoney
-    ? formatPrice(totalValue, currency)
-    : `${totalValue} ${meta.unit}`;
+  const formattedHeadline =
+    totalValue == null
+      ? 'N/A'
+      : meta.isMoney
+        ? hidden
+          ? HIDDEN_AMOUNT
+          : formatPrice(totalValue, currency)
+        : `${totalValue} ${meta.unit}`;
+  // Only a real series gets a wave, anchor values and an apex label; otherwise the chart is a flat baseline and says so.
+  const hasSeries = points.some((p) => p.displayValue !== '');
 
   return (
     <View style={styles.cardContainer} testID="performance-wave-card">
@@ -503,7 +519,7 @@ export function PerformanceWaveCard({
           </Defs>
 
           {/* Layer 1: Background Translucent Rolling Cyan Wave */}
-          <Path d={backgroundWavePath} fill="url(#waveGlowGradient)" />
+          {hasSeries ? <Path d={backgroundWavePath} fill="url(#waveGlowGradient)" /> : null}
 
           {/* Layer 2: Foreground Crisp White Trend Line Curve */}
           <Path
@@ -536,7 +552,7 @@ export function PerformanceWaveCard({
                 fontWeight="700"
                 textAnchor="middle"
               >
-                0
+                {startPoint.displayValue}
               </SvgText>
               {/* Start circle dot */}
               <Circle cx={startPoint.x} cy={startPoint.y} r="5" fill="#FFFFFF" />
@@ -565,7 +581,7 @@ export function PerformanceWaveCard({
                 fontWeight="700"
                 textAnchor="middle"
               >
-                0
+                {endPoint.displayValue}
               </SvgText>
               {/* End circle dot */}
               <Circle cx={endPoint.x} cy={endPoint.y} r="5" fill="#FFFFFF" />
@@ -595,9 +611,7 @@ export function PerformanceWaveCard({
                 fontWeight="800"
                 textAnchor="middle"
               >
-                {activePoint.displayValue !== '0'
-                  ? activePoint.displayValue
-                  : activePoint.value || (meta.isMoney ? '$60' : '60')}
+                {activePoint.displayValue}
               </SvgText>
 
               {/* Outer glow beacon aura */}
@@ -654,6 +668,11 @@ export function PerformanceWaveCard({
             );
           })}
         </Svg>
+        {hasSeries ? null : (
+          <Text style={styles.noSeries} accessibilityLiveRegion="polite">
+            {emptyText}
+          </Text>
+        )}
       </View>
 
       {/* ── 4. X-Axis Timeline Dates (11/10  12/10  13/10  14/10 ...) ───── */}
@@ -846,6 +865,13 @@ const styles = StyleSheet.create({
   },
   svg: {
     overflow: 'visible',
+  },
+  noSeries: {
+    position: 'absolute',
+    top: 60,
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
   },
   datesRow: {
     flexDirection: 'row',

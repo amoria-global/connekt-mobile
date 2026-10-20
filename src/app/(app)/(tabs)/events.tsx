@@ -3,7 +3,6 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
 import { PhotographerEventsDashboard } from '@/features/events/PhotographerEventsDashboard';
-import { OwnerEventsDashboard } from '@/features/events/OwnerEventsDashboard';
 import { ClientEventsDashboard } from '@/features/events/ClientEventsDashboard';
 import ExploreEventsScreen from '@/app/(public)/explore-events';
 import { useLanguage } from '@/store/language';
@@ -35,7 +34,7 @@ export default function EventsScreen() {
   if (isCoordinator) {
     return (
       <Screen padded={false} edges={[]}>
-        <OwnerEventsDashboard coordinator initialSearch={initialSearch} topInset={topBarHeight} />
+        <ClientEventsDashboard coordinator initialSearch={initialSearch} topInset={topBarHeight} />
         <TopBar />
       </Screen>
     );

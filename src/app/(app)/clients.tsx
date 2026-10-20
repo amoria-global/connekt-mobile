@@ -1,15 +1,21 @@
-import { useCallback } from 'react';
+/**
+ * Clients: the people a photographer or coordinator works for, one row each with what they have booked and spent.
+ * A failed read is an error with a retry, never "no clients"; the spend is shown in the currency the feed names.
+ */
+import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DataList } from '@/components/ui/DataList';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
+import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
+import { ListRow } from '@/features/client/studio';
+import { Card, EmptyNote, ErrorNotice, SectionHeader, SkeletonCard } from '@/features/photographer/kit';
 import { listClients } from '@/features/clients/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useRole } from '@/features/auth/role';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
@@ -24,97 +30,112 @@ export default function ClientsScreen() {
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => listClients(isCoordinator), [isCoordinator]),
   );
+  const [pulling, setPulling] = useState(false);
+  const onPull = useCallback(async () => {
+    setPulling(true);
+    try {
+      await refresh();
+    } finally {
+      setPulling(false);
+    }
+  }, [refresh]);
+
+  const failed = !!error && !data;
+  const showSkeleton = loading && !data && !error;
 
   return (
     <Screen padded={false}>
-      <DataList
-        data={data}
-        loading={loading}
-        error={error}
-        onRefresh={refresh}
-        title={t('b2_clientsTitle')}
-        duplicatesHeader
-        subtitle={isCoordinator ? t('b2_clientsSubtitleCoord') : t('b2_clientsSubtitlePhotog')}
-        keyExtractor={(c) => c.id}
-        renderItem={({ item }) => {
-          const initials = (item.name[0] ?? '?').toUpperCase();
-          return (
-            <Pressable
-              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              onPress={() => router.push(`/client/${item.id}` as Href)}
-            >
-              {item.avatar ? (
-                <Image source={{ uri: item.avatar }} style={styles.avatar} contentFit="cover" />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.initials}>{initials}</Text>
-                </View>
-              )}
-              <View style={styles.body}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                {item.email ? (
-                  <Text style={styles.email} numberOfLines={1}>
-                    {item.email}
-                  </Text>
-                ) : null}
-                {item.bookings != null ? (
-                  <Text style={styles.meta}>
-                    {(item.bookings === 1 ? t('b2_clientsBookingsOne') : t('b2_clientsBookingsOther')).replace('{count}', String(item.bookings))}
-                  </Text>
-                ) : null}
-              </View>
-              {item.totalSpent != null ? (
-                <Text style={styles.spent}>{formatPrice(item.totalSpent, item.currency)}</Text>
-              ) : null}
-              <Pressable
-                hitSlop={8}
-                style={styles.chatAction}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  router.push(`/conversation/${item.id}?name=${encodeURIComponent(item.name)}` as Href);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t('b2_clientsMessageA11y').replace('{name}', item.name)}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={19} color={colors.primary} />
-              </Pressable>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
-          );
-        }}
-        emptyIcon="people-outline"
-        emptyTitle={t('b2_clientsEmptyTitle')}
-        emptyMessage={t('b2_clientsEmptyMessage')}
-      />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPull} tintColor={colors.accent} />}
+      >
+        <UserHeaderBand
+          flush
+          duplicatesHeader
+          title={t('b2_clientsTitle')}
+          subtitle={isCoordinator ? t('b2_clientsSubtitleCoord') : t('b2_clientsSubtitlePhotog')}
+        />
+        {failed ? <ErrorNotice flush message={error as string} onRetry={refresh} /> : null}
+        {showSkeleton ? (
+          <View style={styles.group}>
+            <SkeletonCard height={72} />
+            <SkeletonCard height={72} />
+            <SkeletonCard height={72} />
+          </View>
+        ) : null}
+        {data && data.length === 0 ? (
+          <View style={styles.flushNote}>
+            <EmptyNote compact icon="people-outline" title={t('b2_clientsEmptyTitle')} body={t('b2_clientsEmptyMessage')} />
+          </View>
+        ) : null}
+        {data && data.length > 0 ? (
+          <>
+            <SectionHeader flush title={`${data.length} ${data.length === 1 ? 'client' : 'clients'}`} />
+            <Card style={styles.card}>
+              {data.map((item, index) => {
+                const bookings =
+                  item.bookings != null
+                    ? (item.bookings === 1 ? t('b2_clientsBookingsOne') : t('b2_clientsBookingsOther')).replace('{count}', String(item.bookings))
+                    : undefined;
+                return (
+                  <ListRow
+                    key={item.id}
+                    divider={index < data.length - 1}
+                    title={item.name}
+                    titleLines={4}
+                    metaLines={5}
+                    meta={[item.email, bookings].filter(Boolean).join('\n') || undefined}
+                    onPress={() => router.push(`/client/${item.id}` as Href)}
+                    leading={
+                      item.avatar ? (
+                        <Image source={{ uri: item.avatar }} style={styles.avatar} contentFit="cover" />
+                      ) : (
+                        <View style={[styles.avatar, styles.avatarFallback]}>
+                          <Text style={styles.avatarText}>{(item.name[0] ?? '?').toUpperCase()}</Text>
+                        </View>
+                      )
+                    }
+                    trailing={
+                      <View style={styles.trailing}>
+                        {item.totalSpent != null ? (
+                          <Text style={styles.spent} maxFontSizeMultiplier={1.3}>
+                            {formatPrice(item.totalSpent, item.currency)}
+                          </Text>
+                        ) : null}
+                        <Pressable
+                          hitSlop={8}
+                          style={styles.chatAction}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            router.push(`/conversation/${item.id}?name=${encodeURIComponent(item.name)}` as Href);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('b2_clientsMessageA11y').replace('{name}', item.name)}
+                        >
+                          <Ionicons name="chatbubble-ellipses-outline" size={19} color={colors.primary} />
+                        </Pressable>
+                      </View>
+                    }
+                  />
+                );
+              })}
+            </Card>
+          </>
+        ) : null}
+      </ScrollView>
     </Screen>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    padding: spacing.md,
-  },
-  pressed: { opacity: 0.7 },
-  avatar: { width: 48, height: 48, borderRadius: radii.full, backgroundColor: c.surfaceMuted },
+  content: { padding: spacing.lg, gap: spacing.lg, flexGrow: 1 },
+  group: { gap: spacing.sm },
+  flushNote: { marginHorizontal: -spacing.lg },
+  card: { marginHorizontal: 0, padding: 0 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.surfaceMuted },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
-  initials: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  body: { flex: 1, gap: 1 },
-  name: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
-  email: { fontSize: fontSize.sm, color: c.textMuted },
-  meta: { fontSize: fontSize.xs, color: c.textMuted },
+  avatarText: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  trailing: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   spent: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.primary },
-  chatAction: {
-    padding: spacing.xs,
-    borderRadius: radii.full,
-    backgroundColor: c.tint,
-  },
+  chatAction: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: c.tint },
 }));
