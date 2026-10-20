@@ -97,6 +97,7 @@ export default function BlockedAccountsScreen() {
                   key={item.id}
                   divider={index < blocked.length - 1}
                   title={item.name}
+                  titleLines={3}
                   leading={
                     item.profilePicture ? (
                       <Image source={{ uri: item.profilePicture }} style={styles.avatar} />
