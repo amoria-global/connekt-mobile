@@ -16,7 +16,6 @@ import { Stack, useRouter, type Href } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   Linking,
   Pressable,
   RefreshControl,
@@ -47,6 +46,7 @@ import {
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { SkeletonCard } from '@/features/photographer/kit';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -501,8 +501,10 @@ export default function NotificationsScreen() {
         }
       >
         {loading && !refreshing ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={colors.primary} />
+          <View style={{ gap: spacing.sm, padding: spacing.lg }} accessibilityLabel="Loading">
+            <SkeletonCard height={72} />
+            <SkeletonCard height={72} />
+            <SkeletonCard height={72} />
           </View>
         ) : loadError && notifications.length === 0 ? (
           <View style={styles.emptyWrap} accessibilityRole="alert">

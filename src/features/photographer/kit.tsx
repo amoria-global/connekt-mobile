@@ -29,18 +29,21 @@ export function SectionHeader({
   actionLabel,
   onAction,
   right,
+  flush,
 }: {
   title: string;
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
   right?: ReactNode;
+  /** Drops the side padding when the parent already provides the gutter. */
+  flush?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { tr } = useSharedT();
   return (
-    <View style={styles.sectionHeader}>
+    <View style={[styles.sectionHeader, flush && { paddingHorizontal: 0 }]}>
       <View style={styles.sectionHeaderText}>
         <Text style={styles.sectionTitle} accessibilityRole="header" numberOfLines={1}>
           {tr(title)}
@@ -461,16 +464,19 @@ export function ErrorNotice({
   message,
   onRetry,
   compact,
+  flush,
 }: {
   message: string;
   onRetry?: () => void;
   compact?: boolean;
+  /** Drops the side margin when the parent already provides the gutter. */
+  flush?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { tr } = useSharedT();
   return (
-    <View style={[styles.notice, { backgroundColor: colors.errorBg }]} accessibilityRole="alert">
+    <View style={[styles.notice, { backgroundColor: colors.errorBg }, flush && { marginHorizontal: 0 }]} accessibilityRole="alert">
       <Ionicons name="cloud-offline-outline" size={compact ? 18 : 22} color={colors.error} />
       <Text style={[styles.noticeText, { color: colors.error }]}>{tr(message)}</Text>
       {onRetry ? (
