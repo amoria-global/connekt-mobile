@@ -8,7 +8,12 @@
  *
  * Every action the old coordinator-shared list had is kept: open, edit, share, QR for a
  * published event, the hybrid "Choose" and "Post" steps, create (direct or hybrid), find
- * a photographer, explore events. Coordinators keep OwnerEventsDashboard unchanged.
+ * a photographer, explore events.
+ *
+ * `coordinator` runs the same screen over the coordinator's own feed: Photographers and Geo pricing replace
+ * Explore events, each card also names the client, and the primary action manages the event (where the
+ * stream is controlled) instead of opening the client's viewing room. Nothing is added to or removed from
+ * what a coordinator could already do.
  *
  * A failed read is an error with a retry, never "No events yet". A failed refresh keeps
  * the last list on screen and says so.
@@ -41,7 +46,7 @@ import { LiveButton, LivePill, LiveTwinkle } from '@/components/ui/live';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
 import { formatDate } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
-import { listEvents } from './api';
+import { listCoordinatorEvents, listEvents } from './api';
 import { EventQrSheet } from './EventQrSheet';
 import type { EventItem } from './types';
 import {
@@ -71,12 +76,20 @@ function whenText(e: EventItem): string {
   return parts.join(' · ') || 'No date yet';
 }
 
-export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { topInset?: number; initialSearch?: string }) {
+export function ClientEventsDashboard({
+  topInset = 0,
+  initialSearch = '',
+  coordinator = false,
+}: {
+  topInset?: number;
+  initialSearch?: string;
+  coordinator?: boolean;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data, loading, error, refresh, refreshQuietly } = useAsync(listEvents);
+  const { data, loading, error, refresh, refreshQuietly } = useAsync(coordinator ? listCoordinatorEvents : listEvents);
   const [pulling, setPulling] = useState(false);
 
   // Quiet on return from an edit so the change shows without a spinner flash. Not on the first
@@ -158,14 +171,20 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
           <Text style={styles.title} accessibilityRole="header">
             Events
           </Text>
-          <Text style={styles.subtitle}>Your bookings, sessions and live events.</Text>
+          <Text style={styles.subtitle}>
+            {coordinator ? 'Events you coordinate: bookings, photographers and live sessions.' : 'Your bookings, sessions and live events.'}
+          </Text>
         </View>
         <ActionButton label="New" icon="add" variant="primary" compact onPress={newEvent} />
       </View>
 
       <View style={[styles.row, styles.pad]}>
         <ActionButton label="Photographers" icon="search-outline" compact onPress={() => open('/photographers')} style={styles.flex} />
-        <ActionButton label="Explore events" icon="compass-outline" compact onPress={() => setExploreOpen(true)} style={styles.flex} />
+        {coordinator ? (
+          <ActionButton label="Geo pricing" icon="globe-outline" compact onPress={() => open('/event/geo-pricing')} style={styles.flex} />
+        ) : (
+          <ActionButton label="Explore events" icon="compass-outline" compact onPress={() => setExploreOpen(true)} style={styles.flex} />
+        )}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityLabel="Filter events">
@@ -258,7 +277,8 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
           <EventRow
             event={item}
             onOpen={() => open(`/event/${item.id}`)}
-            onWatchLive={() => open(`/(public)/events/live-stream?id=${item.id}`)}
+            coordinator={coordinator}
+            onWatchLive={() => open(coordinator ? `/event/${item.id}` : `/(public)/events/live-stream?id=${item.id}`)}
             onEdit={() => open(`/event/new?editId=${item.id}`)}
             onShare={() => share(item)}
             onQr={() => setQrTarget(item)}
@@ -278,7 +298,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
               events={sorted}
               allEvents={events ?? []}
               busyId={null}
-              onOpen={(e) => open(isLiveNow(e) ? `/(public)/events/live-stream?id=${e.id}` : `/event/${e.id}`)}
+              onOpen={(e) => open(isLiveNow(e) && !coordinator ? `/(public)/events/live-stream?id=${e.id}` : `/event/${e.id}`)}
               onAccept={() => {}}
               onDecline={() => {}}
               onCreate={newEvent}
@@ -318,7 +338,11 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
             <EmptyNote
               icon="calendar-outline"
               title="No events yet"
-              body="Book a photographer directly or post your event and let photographers answer."
+              body={
+                coordinator
+                  ? 'Create an event to start coordinating photographers and streams.'
+                  : 'Book a photographer directly or post your event and let photographers answer.'
+              }
               actionLabel="Create event"
               onAction={newEvent}
             />
@@ -396,6 +420,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
 
 function EventRow({
   event,
+  coordinator,
   onOpen,
   onWatchLive,
   onEdit,
@@ -405,6 +430,7 @@ function EventRow({
   onPost,
 }: {
   event: EventItem;
+  coordinator: boolean;
   onOpen: () => void;
   onWatchLive: () => void;
   onEdit: () => void;
@@ -480,6 +506,7 @@ function EventRow({
             {event.location ? (
               <MetaTile icon="location" label="Location" text={event.location} accent={colors.accent} />
             ) : null}
+            {coordinator && event.clientName ? <MetaTile icon="person" label="Client" text={event.clientName} accent={colors.primary} /> : null}
             <MetaTile
               icon="camera"
               label="Photographer"
@@ -497,14 +524,14 @@ function EventRow({
             ) : null}
             {live ? (
               <LiveButton
-                label="Watch live"
+                label={coordinator ? 'Control live' : 'Watch live'}
                 size="sm"
                 icon="play"
                 onPress={onWatchLive}
                 style={styles.flex}
               />
             ) : (
-              <ActionButton label="View booking" icon="arrow-forward-outline" variant="primary" compact onPress={onOpen} style={styles.flex} />
+              <ActionButton label={coordinator ? 'Manage event' : 'View booking'} icon="arrow-forward-outline" variant="primary" compact onPress={onOpen} style={styles.flex} />
             )}
           </View>
 
