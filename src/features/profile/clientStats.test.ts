@@ -1,4 +1,4 @@
-import { clientStats, kycLabel } from './clientStats';
+import { clientStats, coordinatorStats, kycLabel } from './clientStats';
 
 describe('clientStats', () => {
   it('a missing count is a dash, a real zero stays a zero', () => {
@@ -32,5 +32,30 @@ describe('kycLabel', () => {
   });
   it('an unknown word is shown plainly rather than guessed', () => {
     expect(kycLabel('SUSPENDED_FOR_AUDIT')).toBe('Suspended for audit');
+  });
+});
+
+describe('coordinatorStats', () => {
+  it('shows a dash for a missing count or rating, never 0, 5.0 or a fixed "Active"', () => {
+    const s = coordinatorStats({});
+    expect(s).toEqual([
+      { label: 'Events', value: '—' },
+      { label: 'Rating', value: '—' },
+      { label: 'Identity', value: '—' },
+    ]);
+    expect(JSON.stringify(coordinatorStats(null))).not.toMatch(/Active|5\.0/);
+  });
+
+  it('shows the figures the account really has', () => {
+    const s = coordinatorStats({ completedEvents: 12, rating: 4.26, kycStatus: 'APPROVED' });
+    expect(s).toEqual([
+      { label: 'Events', value: '12' },
+      { label: 'Rating', value: '4.3' },
+      { label: 'Identity', value: 'Verified' },
+    ]);
+  });
+
+  it('keeps a real zero as 0', () => {
+    expect(coordinatorStats({ completedEvents: 0 })[0].value).toBe('0');
   });
 });
