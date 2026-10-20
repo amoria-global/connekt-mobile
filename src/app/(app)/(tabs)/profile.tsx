@@ -55,7 +55,7 @@ function roleLabel(type?: string) {
 }
 
 function formatJoinedDate(iso?: string): string {
-  if (!iso) return 'Recent';
+  if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -353,9 +353,11 @@ export default function ProfileScreen() {
             </View>
           ) : null}
 
-          <Text style={styles.joinedText}>
-            {t('memberSince', { date: formatJoinedDate(user?.joinedFrom) })}
-          </Text>
+          {user?.joinedFrom ? (
+            <Text style={styles.joinedText}>
+              {t('memberSince', { date: formatJoinedDate(user.joinedFrom) })}
+            </Text>
+          ) : null}
         </View>
 
         {/* ── Action Buttons Row (Instagram style) ────────────────────── */}
