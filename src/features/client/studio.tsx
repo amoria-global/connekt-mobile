@@ -75,6 +75,7 @@ export function ListRow({
   divider,
   accessibilityLabel,
   destructive,
+  titleLines = 2,
 }: {
   title: string;
   meta?: string;
@@ -87,6 +88,8 @@ export function ListRow({
   divider?: boolean;
   accessibilityLabel?: string;
   destructive?: boolean;
+  /** Lines the title may use before it is cut; raise it for sentences that must be read in full. */
+  titleLines?: number;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -102,7 +105,7 @@ export function ListRow({
           </View>
         ) : null)}
       <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, destructive && { color: colors.error }]} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+        <Text style={[styles.rowTitle, destructive && { color: colors.error }]} numberOfLines={titleLines} maxFontSizeMultiplier={1.3}>
           {tr(title)}
         </Text>
         {meta ? (

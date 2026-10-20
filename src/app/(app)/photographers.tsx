@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter, Stack } from 'expo-router';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -31,6 +30,7 @@ import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { SkeletonCard } from '@/features/photographer/kit';
 import { env } from '@/config/env';
 import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapView';
 
@@ -927,9 +927,10 @@ export default function PhotographersScreen() {
             />
           </View>
         ) : loading && !data ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>{tr('b2_photogsLoading')}</Text>
+          <View style={styles.skeletonList} accessibilityLabel={tr('b2_photogsLoading')}>
+            <SkeletonCard height={110} />
+            <SkeletonCard height={110} />
+            <SkeletonCard height={110} />
           </View>
         ) : error && !data?.length ? (
           <View style={styles.centered}>
@@ -1106,6 +1107,7 @@ export default function PhotographersScreen() {
 }
 
 const useStyles = makeStyles((c, e) => ({
+  skeletonList: { gap: spacing.md, padding: spacing.lg },
   centered: {
     flex: 1,
     alignItems: 'center',
