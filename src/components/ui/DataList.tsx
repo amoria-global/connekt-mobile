@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRole } from '@/features/auth/role';
 import { EmptyState } from './EmptyState';
+import { SkeletonCard } from '@/features/photographer/kit';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
@@ -36,6 +37,8 @@ type Props<T> = {
   topInset?: number;
   /** The native stack header already shows `title`; photographer screens then keep only the subtitle. */
   duplicatesHeader?: boolean;
+  /** Show this many skeleton cards while the first read is in flight, instead of a spinner. */
+  skeletonRows?: number;
 };
 
 export function DataList<T>({
@@ -54,11 +57,21 @@ export function DataList<T>({
   footer,
   topInset = 0,
   duplicatesHeader,
+  skeletonRows,
 }: Props<T>): ReactElement {
   const styles = useStyles();
   const { colors } = useTheme();
   const { tr } = useSharedT();
   const flat = useRole().isPhotographer;
+  if (loading && !data && skeletonRows) {
+    return (
+      <View style={[styles.skeletons, { paddingTop: topInset }]}>
+        {Array.from({ length: skeletonRows }, (_, i) => (
+          <SkeletonCard key={i} height={72} />
+        ))}
+      </View>
+    );
+  }
   if (loading && !data) {
     return (
       <View style={[styles.centered, { paddingTop: topInset }]}>
@@ -120,6 +133,7 @@ export function DataList<T>({
 }
 
 const useStyles = makeStyles((c) => ({
+  skeletons: { padding: spacing.xl, gap: spacing.md },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
   retryBtn: {

@@ -1,3 +1,6 @@
+import { movementTitle } from '@/features/wallet/movementLabel';
+import { ListRow } from '@/features/client/studio';
+import { Card, Chip } from '@/features/photographer/kit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,7 +54,7 @@ export default function TransactionsScreen() {
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const rawTitle = m.description || m.category || 'Transaction';
-        const cleanTitle = cleanTransactionTitle(rawTitle).toLowerCase();
+        const cleanTitle = movementTitle(cleanTransactionTitle(rawTitle)).toLowerCase();
         const matchCat = (m.category ?? '').toLowerCase().includes(q);
         const matchAmt = String(m.amount).includes(q);
         if (!cleanTitle.includes(q) && !matchCat && !matchAmt) return false;
@@ -79,15 +82,7 @@ export default function TransactionsScreen() {
           else if (d.value === 'out') label = `${t('moneyOut')} (−)`;
           else if (d.value === 'withdrawals') label = t('withdrawals');
           return (
-            <Pressable
-              key={d.value}
-              onPress={() => setDirectionFilter(d.value)}
-              style={[styles.filterPill, active && styles.filterPillActive]}
-            >
-              <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
-                {label}
-              </Text>
-            </Pressable>
+            <Chip key={d.value} label={label} selected={active} onPress={() => setDirectionFilter(d.value)} />
           );
         })}
       </View>
@@ -191,7 +186,8 @@ export default function TransactionsScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <DataList
-        data={paginatedData}
+        data={data ? paginatedData : null}
+        skeletonRows={4}
         loading={loading}
         error={error}
         onRefresh={refresh}
@@ -226,29 +222,28 @@ function Row({ movement }: { movement: Movement }) {
   const styles = useStyles();
   const inbound = movement.direction === 'in';
   const rawTitle = movement.description || movement.category || 'Transaction';
-  const cleanTitle = cleanTransactionTitle(rawTitle);
+  const cleanTitle = movementTitle(cleanTransactionTitle(rawTitle));
   return (
-    <View style={styles.row}>
-      <View style={[styles.icon, { backgroundColor: inbound ? colors.successBg : colors.errorBg }]}>
-        <Text style={[styles.sign, { color: inbound ? colors.success : colors.error }]}>
-          {inbound ? '↓' : '↑'}
-        </Text>
-      </View>
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={2}>
-          {cleanTitle}
-        </Text>
-        {movement.createdAt ? <Text style={styles.date}>{formatDate(movement.createdAt)}</Text> : null}
-      </View>
-      <Text style={[styles.amount, { color: inbound ? colors.success : colors.text }]}>
-        {inbound ? '+' : '-'}
-        {formatPrice(movement.amount, movement.currency)}
-      </Text>
-    </View>
+    <Card style={styles.rowCard}>
+      <ListRow
+        icon={inbound ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
+        tone={inbound ? 'success' : 'error'}
+        titleLines={4}
+        title={cleanTitle}
+        meta={movement.createdAt ? formatDate(movement.createdAt) : undefined}
+        trailing={
+          <Text style={[styles.amount, { color: inbound ? colors.success : colors.text }]} maxFontSizeMultiplier={1.3}>
+            {inbound ? '+' : '-'}
+            {formatPrice(movement.amount, movement.currency)}
+          </Text>
+        }
+      />
+    </Card>
   );
 }
 
 const useStyles = makeStyles((c) => ({
+  rowCard: { marginHorizontal: 0, padding: 0 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -276,6 +271,7 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    flexWrap: 'wrap',
   },
   filterPill: {
     paddingHorizontal: 14,
