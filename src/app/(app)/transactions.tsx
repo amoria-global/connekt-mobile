@@ -227,6 +227,7 @@ function Row({ movement }: { movement: Movement }) {
       <ListRow
         icon={inbound ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
         tone={inbound ? 'success' : 'error'}
+        titleLines={4}
         title={cleanTitle}
         meta={movement.createdAt ? formatDate(movement.createdAt) : undefined}
         trailing={
@@ -241,7 +242,7 @@ function Row({ movement }: { movement: Movement }) {
 }
 
 const useStyles = makeStyles((c) => ({
-  rowCard: { padding: 0 },
+  rowCard: { marginHorizontal: 0, padding: 0 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -269,6 +270,7 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+    flexWrap: 'wrap',
   },
   filterPill: {
     paddingHorizontal: 14,

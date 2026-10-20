@@ -77,9 +77,9 @@ export default function PreferencesScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <UserHeaderBand eyebrow="SETTINGS" title={t('preferencesTitle')} subtitle={t('preferencesSubtitle')} duplicatesHeader />
+        <UserHeaderBand flush eyebrow="SETTINGS" title={t('preferencesTitle')} subtitle={t('preferencesSubtitle')} duplicatesHeader />
 
-        <SectionHeader title="App" />
+        <SectionHeader flush title="App" />
         <Card style={styles.card}>
           <ListRow
             icon="globe-outline"
@@ -100,14 +100,14 @@ export default function PreferencesScreen() {
           />
         </Card>
 
-        <SectionHeader title="Notifications" />
+        <SectionHeader flush title="Alert types" />
         {loading && !data ? (
           <View style={styles.group}>
             <SkeletonCard height={72} />
             <SkeletonCard height={72} />
           </View>
         ) : error && !data ? (
-          <ErrorNotice message={error} onRetry={refresh} />
+          <ErrorNotice flush message={error} onRetry={refresh} />
         ) : (
           <>
             <Card style={styles.card}>
@@ -198,7 +198,7 @@ const TOGGLE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 const useStyles = makeStyles((c) => ({
   group: { gap: spacing.sm },
   scroll: { padding: spacing.lg, gap: spacing.lg },
-  card: { padding: 0 },
+  card: { marginHorizontal: 0, padding: 0 },
   valueText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.link },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, minHeight: 64 },
   dndCard: { marginTop: spacing.sm },

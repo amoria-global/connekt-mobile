@@ -52,12 +52,12 @@ export default function DeleteAccountScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <UserHeaderBand eyebrow="ACCOUNT" title={t('b1_deleteTitle')} subtitle={t('b1_deleteSubtitle')} duplicatesHeader />
+        <UserHeaderBand flush eyebrow="ACCOUNT" title={t('b1_deleteTitle')} subtitle={t('b1_deleteSubtitle')} duplicatesHeader />
 
-        <SectionHeader title="What happens" />
+        <SectionHeader flush title="What happens" />
         <Card style={styles.card}>
           {CONSEQUENCE_KEYS.map((key, index) => (
-            <ListRow key={key} icon="close-circle" tone="error" title={t(key)} divider={index < CONSEQUENCE_KEYS.length - 1} />
+            <ListRow key={key} icon="close-circle" tone="error" titleLines={8} title={t(key)} divider={index < CONSEQUENCE_KEYS.length - 1} />
           ))}
         </Card>
         <Text style={styles.note}>{t('b1_deleteNote')}</Text>
@@ -91,7 +91,7 @@ export default function DeleteAccountScreen() {
 
 const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.lg, gap: spacing.lg },
-  card: { padding: 0 },
+  card: { marginHorizontal: 0, padding: 0 },
   note: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted, lineHeight: 18 },
   danger: {
     gap: spacing.md,

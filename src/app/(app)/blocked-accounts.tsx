@@ -75,8 +75,8 @@ export default function BlockedAccountsScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading && blocked.length > 0} onRefresh={load} tintColor={colors.accent} />}
       >
-        <UserHeaderBand title={t('b1_blockedTitle')} subtitle={t('b1_blockedSubtitle')} duplicatesHeader />
-        {error ? <ErrorNotice message={error} onRetry={load} /> : null}
+        <UserHeaderBand flush title={t('b1_blockedTitle')} subtitle={t('b1_blockedSubtitle')} duplicatesHeader />
+        {error ? <ErrorNotice flush message={error} onRetry={load} /> : null}
         {showSkeleton ? (
           <View style={styles.group}>
             <SkeletonCard height={64} />
@@ -84,11 +84,13 @@ export default function BlockedAccountsScreen() {
           </View>
         ) : null}
         {!error && !showSkeleton && blocked.length === 0 ? (
-          <EmptyNote compact icon="shield-checkmark-outline" title={t('b1_blockedEmptyTitle')} body={t('b1_blockedEmptyBody')} />
+          <View style={styles.flushNote}>
+            <EmptyNote compact icon="shield-checkmark-outline" title={t('b1_blockedEmptyTitle')} body={t('b1_blockedEmptyBody')} />
+          </View>
         ) : null}
         {blocked.length > 0 ? (
           <>
-            <SectionHeader title={t('b1_blockedTitle')} subtitle={String(blocked.length)} />
+            <SectionHeader flush title={t('b1_blockedTitle')} subtitle={String(blocked.length)} />
             <Card style={styles.card}>
               {blocked.map((item, index) => (
                 <ListRow
@@ -127,7 +129,8 @@ export default function BlockedAccountsScreen() {
 const useStyles = makeStyles((c) => ({
   content: { padding: spacing.lg, gap: spacing.lg, flexGrow: 1 },
   group: { gap: spacing.sm },
-  card: { padding: 0 },
+  flushNote: { marginHorizontal: -spacing.lg },
+  card: { marginHorizontal: 0, padding: 0 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.surfaceMuted },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: c.primary, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
