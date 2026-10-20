@@ -17,7 +17,7 @@ export const FALLBACK_TITLE = 'Transaction';
 function wordsFromCode(code: string): string {
   const known = KNOWN[code];
   if (known) return known;
-  const parts = code.split('_');
+  const parts = code.split('_').filter(Boolean);
   while (parts.length > 0 && PREFIX.test(parts[0])) parts.shift();
   return parts.join(' ').toLowerCase();
 }
