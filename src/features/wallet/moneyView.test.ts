@@ -5,6 +5,7 @@ import {
   isVisibleToRole,
   matchesDirectionFilter,
   selectWalletStats,
+  toRole,
 } from './moneyView';
 
 // A photographer's wallet showed $0.00 available beside Stream bonus $11.40, Album
@@ -84,5 +85,21 @@ describe('wallet list filters for a photographer', () => {
     expect(isVisibleToRole(mv('PLATFORM_FEE', 'out'), 'photographer')).toBe(false);
     expect(isVisibleToRole(mv('TIPS', 'in'), 'photographer')).toBe(true);
     expect(isVisibleToRole(mv('CLIENT_SPEND', 'out'), 'client')).toBe(true);
+  });
+});
+
+describe('coordinator wallet', () => {
+  it('maps the app role "Coordinator" and the backend role to the coordinator view, not the client one', () => {
+    expect(toRole('Coordinator')).toBe('event-coordinator');
+    expect(toRole('EVENT_COORDINATOR')).toBe('event-coordinator');
+    expect(toRole('event-coordinator')).toBe('event-coordinator');
+    expect(toRole('Client')).toBe('client');
+    expect(toRole(undefined)).toBe('client');
+  });
+
+  it('leads with the available balance, not "Total spent"', () => {
+    const stats = selectWalletStats(wallet({ balanceAvailable: 80, clientSpent: 450 }), toRole('Coordinator'));
+    expect(stats.hero.label).toBe('Available balance');
+    expect(stats.hero.value).toBe(80);
   });
 });
