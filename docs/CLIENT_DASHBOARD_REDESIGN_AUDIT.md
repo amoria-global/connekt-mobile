@@ -382,3 +382,21 @@ All sub-12px body, meta, badge, pill, and caption font sizes (`7.5`–`11.5` and
 - **Jest (`npx jest`)**: All touched and regression suites pass (`ClientHome.render.test.tsx`, `PhotographerHome.render.test.tsx`, `ClientCharts.test.tsx`, `walletTab.render.test.tsx`, `WalletAnalytics.test.tsx`, `ClientEventsDashboard.render.test.tsx`, `ScheduleView.test.tsx`, `paymentsScreen.render.test.tsx`).
 - **Device / Emulator**: Not run in this pass (`adb devices` had no physical phone attached and host free physical RAM was ~970 MB, below the ~2 GB required to boot the Android emulator and Metro). Visual verification of this fourth pass is via `react-test-renderer` Jest tests only.
 
+
+## 5. Gap-closing device pass and batch 2 audit (2026-10-20, emulator)
+
+Device: Pixel 5 emulator (API 34, software rendering). No physical phone. No iOS.
+
+| Screen | Light | Dark | 1.6x | Result |
+|---|---|---|---|---|
+| Photobooks list | seen | seen | seen | clean, chips and cards intact |
+| Photobook detail (no cover) | not re-seen | not seen | seen | FOUND: hero caption overlapped the chips and title. Fixed (caption removed, icon higher), re-seen |
+| Inbox | seen | seen | seen | clean |
+| Notifications | seen | seen | seen | clean |
+| Profile | seen | not seen | seen | FOUND: "Member since Recent" invented a date. Line now omitted when there is no join date (code only, not re-seen) |
+| Photographer profile | seen | seen | seen | clean |
+| Edit profile, Preferences, Two-factor, Blocked accounts, Delete account, Donate, Transactions, Content albums | seen | seen (listed screens other than Edit profile and Delete account captured; two captures landed on the wrong screen) | seen (Edit profile did not navigate) | Coherent with the rest of the app, no overlap or clipping at 1.6x. Not restyled. |
+
+Batch 2 findings, not changed: Content albums shows a second "New Content Album" button next to the empty-state one, and its search placeholder truncates at 1.6x; Transactions shows backend description text (for example "MS1_PHOTOBOOK_HOLD ...") verbatim; Blocked accounts has a large empty gap above the empty state.
+
+Not verified: booking wizard, conversation, Photobook detail with photos in dark, any screen on a physical phone or iOS, scroll smoothness.
