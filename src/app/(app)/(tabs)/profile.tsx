@@ -29,7 +29,7 @@ import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
-import { clientStats } from '@/features/profile/clientStats';
+import { clientStats, coordinatorStats } from '@/features/profile/clientStats';
 import { KycBadge } from '@/features/kyc/KycBadge';
 import { getKyc } from '@/features/kyc/api';
 import {
@@ -215,11 +215,7 @@ export default function ProfileScreen() {
       ];
     }
     if (isCoordinator) {
-      return [
-        { label: 'Events', value: user?.completedEvents ?? 0 },
-        { label: 'Rating', value: user?.rating != null ? user.rating.toFixed(1) : '5.0' },
-        { label: 'Status', value: 'Active' },
-      ];
+      return coordinatorStats(user);
     }
     // Clients: a missing count is a dash, never a zero, and there is no invented "Active".
     return clientStats(user);

@@ -1,4 +1,4 @@
-import { bookingTrack } from './bookingTrack';
+import { bookingTrack, progressView } from './bookingTrack';
 
 const states = (e: Parameters<typeof bookingTrack>[0]) => bookingTrack(e)?.map((s) => `${s.label}:${s.state}`);
 
@@ -22,5 +22,23 @@ describe('bookingTrack', () => {
     expect(bookingTrack({ status: 'CANCELLED' })).toBeNull();
     expect(bookingTrack({ bookingStatus: 'DECLINED' })).toBeNull();
     expect(bookingTrack(undefined)).toBeNull();
+  });
+});
+
+describe('progressView', () => {
+  const live = { status: 'PUBLISHED', bookingStatus: 'ACCEPTED' };
+  it('gives clients and coordinators exactly one progress view: the labelled track', () => {
+    expect(progressView(live, false, true)).toBe('track');
+  });
+  it('gives photographers the plain stepper', () => {
+    expect(progressView(live, true, false)).toBe('stepper');
+  });
+  it('falls back to the stepper for an owner when there is no track, and shows nothing for a cancelled booking', () => {
+    expect(progressView(null, false, true)).toBe('stepper');
+    expect(progressView({ status: 'CANCELLED' }, false, true)).toBe('none');
+    expect(progressView({ status: 'CANCELLED' }, true, false)).toBe('none');
+  });
+  it('shows nothing to a viewer', () => {
+    expect(progressView(live, false, false)).toBe('none');
   });
 });
