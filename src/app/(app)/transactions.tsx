@@ -186,7 +186,8 @@ export default function TransactionsScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <DataList
-        data={paginatedData}
+        data={data ? paginatedData : null}
+        skeletonRows={4}
         loading={loading}
         error={error}
         onRefresh={refresh}
