@@ -50,11 +50,11 @@ export default function DonationsScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <UserHeaderBand eyebrow="GIVING" title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} duplicatesHeader />
+        <UserHeaderBand flush eyebrow="GIVING" title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} duplicatesHeader />
 
         <HeroActionCard title={t('b2_donationsButton')} subtitle={t('b2_donationsSubtitle')} icon="heart" onPress={onDonate} />
 
-        <SectionHeader title={t('b2_donationsSuggestedAmounts')} />
+        <SectionHeader flush title={t('b2_donationsSuggestedAmounts')} />
         <View style={styles.tierRow}>
           {tiers.map((tier) => (
             <View key={tier} style={styles.tier}>
@@ -63,14 +63,14 @@ export default function DonationsScreen() {
           ))}
         </View>
 
-        <SectionHeader title={t('b2_donationsHistoryTitle')} />
+        <SectionHeader flush title={t('b2_donationsHistoryTitle')} />
         {history.loading && !history.data ? (
           <View style={styles.group}>
             <SkeletonCard height={64} />
             <SkeletonCard height={64} />
           </View>
         ) : history.error && !history.data ? (
-          <ErrorNotice message={history.error} onRetry={history.refresh} />
+          <ErrorNotice flush message={history.error} onRetry={history.refresh} />
         ) : history.data?.length ? (
           <Card style={styles.card}>
             {history.data.map((d, index) => (
@@ -86,7 +86,9 @@ export default function DonationsScreen() {
             ))}
           </Card>
         ) : (
-          <EmptyNote compact icon="heart-outline" title={t('b2_donationsEmpty')} />
+          <View style={styles.flushNote}>
+            <EmptyNote compact icon="heart-outline" title={t('b2_donationsEmpty')} />
+          </View>
         )}
       </ScrollView>
     </Screen>
@@ -96,7 +98,8 @@ export default function DonationsScreen() {
 const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: 120 },
   group: { gap: spacing.sm },
-  card: { padding: 0 },
+  flushNote: { marginHorizontal: -spacing.lg },
+  card: { marginHorizontal: 0, padding: 0 },
   tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tier: {
     flexGrow: 1,

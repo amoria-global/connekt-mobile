@@ -307,14 +307,16 @@ export default function ContentAlbumsScreen() {
               <SkeletonCard height={120} />
             </View>
           ) : error ? (
-            <ErrorNotice message={s.errLoadTitle} onRetry={refresh} />
+            <ErrorNotice flush message={s.errLoadTitle} onRetry={refresh} />
           ) : (
-            <EmptyNote
-              compact
-              icon="images-outline"
-              title={search || filter !== 'ALL' ? s.emptyNoMatch : s.emptyNoneYet}
-              body={search || filter !== 'ALL' ? s.emptyNoMatchSub : s.emptyNoneYetSub}
-            />
+            <View style={{ marginHorizontal: -spacing.lg }}>
+              <EmptyNote
+                compact
+                icon="images-outline"
+                title={search || filter !== 'ALL' ? s.emptyNoMatch : s.emptyNoneYet}
+                body={search || filter !== 'ALL' ? s.emptyNoMatchSub : s.emptyNoneYetSub}
+              />
+            </View>
           )
         }
       />

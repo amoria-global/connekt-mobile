@@ -73,7 +73,7 @@ export default function TwoFactorScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <UserHeaderBand eyebrow="SECURITY" title={t('b1_twoFactorTitle')} subtitle={t('b1_twoFactorSubtitle')} duplicatesHeader />
+          <UserHeaderBand flush eyebrow="SECURITY" title={t('b1_twoFactorTitle')} subtitle={t('b1_twoFactorSubtitle')} duplicatesHeader />
           <Card style={styles.card}>
             <ListRow
               icon={enabled ? 'shield-checkmark' : 'shield-outline'}
@@ -82,11 +82,11 @@ export default function TwoFactorScreen() {
               trailing={<StatusBadge label={enabled ? 'ON' : 'OFF'} tone={enabled ? 'success' : 'neutral'} />}
             />
           </Card>
-          {error && !data ? <ErrorNotice message={error} onRetry={refresh} /> : null}
+          {error && !data ? <ErrorNotice flush message={error} onRetry={refresh} /> : null}
 
           {enabled ? (
             <>
-              <SectionHeader title={t('b1_twoFactorDisableBtn')} />
+              <SectionHeader flush title={t('b1_twoFactorDisableBtn')} />
               <Card style={styles.section}>
                 <Text style={styles.body}>{t('b1_twoFactorDisableBody')}</Text>
                 <Input label={t('b1_twoFactorAuthCodeLabel')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
@@ -98,7 +98,7 @@ export default function TwoFactorScreen() {
             </>
           ) : setup ? (
             <>
-              <SectionHeader title={t('b1_twoFactorVerifyBtn')} />
+              <SectionHeader flush title={t('b1_twoFactorVerifyBtn')} />
               <Card style={styles.section}>
                 <Text style={styles.body}>{t('b1_twoFactorScanBody')}</Text>
                 {setup.qrCode ? <Image source={{ uri: setup.qrCode }} style={styles.qr} contentFit="contain" /> : null}
@@ -109,18 +109,18 @@ export default function TwoFactorScreen() {
                 ) : null}
                 <Input label={t('b1_twoFactorSixDigitLabel')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
               </Card>
-              <ActionButton variant="accent" label={t('b1_twoFactorVerifyBtn')} onPress={onEnable} busy={busy} disabled={busy} />
+              <ActionButton variant="primary" label={t('b1_twoFactorVerifyBtn')} onPress={onEnable} busy={busy} disabled={busy} />
             </>
           ) : (
             <>
               <Card style={styles.section}>
                 <Text style={styles.body}>{t('b1_twoFactorIntroBody')}</Text>
               </Card>
-              <ActionButton variant="accent" icon="shield-checkmark-outline" label={t('b1_twoFactorEnableBtn')} onPress={onStartSetup} busy={busy} disabled={busy} />
+              <ActionButton variant="primary" icon="shield-checkmark-outline" label={t('b1_twoFactorEnableBtn')} onPress={onStartSetup} busy={busy} disabled={busy} />
             </>
           )}
 
-          {msg ? <ErrorNotice message={msg} compact /> : null}
+          {msg ? <ErrorNotice flush message={msg} compact /> : null}
         </ScrollView>
       )}
     </Screen>
@@ -129,8 +129,8 @@ export default function TwoFactorScreen() {
 
 const useStyles = makeStyles((c) => ({
   scroll: { padding: spacing.lg, gap: spacing.lg },
-  card: { padding: 0 },
-  section: { gap: spacing.md, padding: spacing.lg },
+  card: { marginHorizontal: 0, padding: 0 },
+  section: { marginHorizontal: 0, gap: spacing.md, padding: spacing.lg },
   body: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 21 },
   qr: { width: 200, height: 200, alignSelf: 'center', backgroundColor: c.surface, borderRadius: radii.md },
   secret: { fontSize: fontSize.sm, color: c.textSoft, textAlign: 'center' },

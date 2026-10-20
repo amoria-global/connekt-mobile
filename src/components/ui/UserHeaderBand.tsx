@@ -13,6 +13,7 @@ export function UserHeaderBand({
   subtitle,
   duplicatesHeader,
   hideTitle: forceHideTitle,
+  flush,
   children,
 }: {
   eyebrow?: string;
@@ -22,6 +23,8 @@ export function UserHeaderBand({
   duplicatesHeader?: boolean;
   /** Drops the title for every role (the screen's native header already says it). Default behaviour is unchanged. */
   hideTitle?: boolean;
+  /** Drops the side padding when the parent already provides the gutter. */
+  flush?: boolean;
   children?: React.ReactNode;
 }) {
   const styles = useStyles();
@@ -29,7 +32,7 @@ export function UserHeaderBand({
   const hideTitle = forceHideTitle || (isPhotographer && duplicatesHeader);
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, flush && { paddingHorizontal: 0 }]}>
       {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
       {hideTitle ? null : <Text style={styles.title} accessibilityRole="header">{title}</Text>}
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}

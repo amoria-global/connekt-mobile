@@ -48,7 +48,7 @@ export default function EditProfileScreen() {
   const styles = useStyles();
   const { t } = useLanguage();
   const router = useRouter();
-  const { isCoordinator, isPhotographer } = useRole();
+  const { isCoordinator } = useRole();
   const user = useAuth((s) => s.user);
   const updateUser = useAuth((s) => s.updateUser);
   const customerRole = user?.customerType;
@@ -265,7 +265,7 @@ export default function EditProfileScreen() {
           </Card>
 
           <View style={styles.form}>
-            <SectionHeader title="Personal details" />
+            <SectionHeader flush title="Personal details" />
             <Card style={styles.fields}>
               <Input label={t('b1_editProfileFirstName')} value={firstName} onChangeText={setFirstName} />
               <Input label={t('b1_editProfileLastName')} value={lastName} onChangeText={setLastName} />
@@ -280,7 +280,7 @@ export default function EditProfileScreen() {
 
             {isCoordinator ? (
               <>
-                <SectionHeader title={t('b1_editProfileOrgTitle')} subtitle={t('b1_editProfileOrgSubtitle')} />
+                <SectionHeader flush title={t('b1_editProfileOrgTitle')} subtitle={t('b1_editProfileOrgSubtitle')} />
                 <Card style={styles.fields}>
                   <Input
                     label={t('b1_editProfileOrgNameLabel')}
@@ -318,12 +318,12 @@ export default function EditProfileScreen() {
               </>
             ) : null}
 
-            {error ? <ErrorNotice message={error} compact /> : null}
+            {error ? <ErrorNotice flush message={error} compact /> : null}
           </View>
         </ScrollView>
         <View style={styles.stickyBar}>
           <ActionButton
-            variant={isPhotographer ? 'primary' : 'accent'}
+            variant="primary"
             icon="checkmark"
             label={t('b1_editProfileSaveBtn')}
             onPress={onSave}
@@ -339,15 +339,15 @@ export default function EditProfileScreen() {
 const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, gap: spacing.lg, alignItems: 'stretch', paddingBottom: spacing.xl },
-  headerCard: { padding: 0, overflow: 'hidden', paddingBottom: spacing.lg },
+  headerCard: { marginHorizontal: 0, padding: 0, overflow: 'hidden', paddingBottom: spacing.lg },
   identity: { alignItems: 'center', gap: 2, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   identityName: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
   identityMeta: { fontSize: fontSize.sm, color: c.textMuted },
-  fields: { gap: spacing.lg, padding: spacing.lg },
+  fields: { marginHorizontal: 0, gap: spacing.lg, padding: spacing.lg },
   stickyBar: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: c.borderSoft, backgroundColor: c.background },
   coverWrap: { alignSelf: 'stretch' },
   cover: { width: '100%', height: 130, backgroundColor: c.surfaceMuted },
-  coverFallback: { alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 1, borderColor: c.borderSoft },
+  coverFallback: { alignItems: 'center', justifyContent: 'flex-start', paddingTop: spacing.md, gap: spacing.xs, borderWidth: 1, borderColor: c.borderSoft },
   coverHint: { fontSize: fontSize.sm, color: c.textMuted, fontWeight: fontWeight.semibold },
   coverBadge: {
     position: 'absolute',
