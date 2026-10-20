@@ -421,3 +421,39 @@ Branch `feat/client-dashboard-batch3`. Frontend only; no merge, push to main or 
 Shared changes (defaults unchanged for existing screens): `SectionHeader`, `UserHeaderBand` and `ErrorNotice` gained an opt-in `flush`; `ListRow` gained `titleLines`.
 
 Not seen: Blocked accounts with real blocked users, its error state, and the loading skeletons on every screen (the fixture answers instantly); Two-factor in the enabled and QR setup states; Edit profile as a coordinator; Donate history with rows; Transactions pagination; photobook detail with photos in dark (the fixture book has no photos). Existing lint errors remain in `blocked-accounts.tsx`, `preferences.tsx` and `transactions.tsx` (set-state-in-effect, memoization), which predate this branch.
+
+## 7. Batch 3 follow-up: loading, error and data states (2026-10-20, emulator)
+
+Device: Pixel 5 emulator, fixture backend with a configurable delay and a fail-everything mode (outside the repo). A loading state only appears on the first visit to a screen after a cold start, so each mode was checked from a force-stopped app. No physical phone, no iOS.
+
+### Transaction labels
+`movementLabel.ts` (5 tests): `MS1_PHOTOBOOK_HOLD` reads "Photobook hold", every leading milestone tag (MS1_, V2_) is stripped, underscores become spaces, a title with nothing readable left shows "Transaction". Text without codes is untouched.
+
+### Loading skeletons (fixture delay 6s) and error with retry (fail-everything mode)
+
+| Screen | Loading, light | Loading, dark | Error + retry, light | Error + retry, dark | Fixed in this pass |
+|---|---|---|---|---|---|
+| Home | skeleton under Upcoming event | seen | seen (error row with Try again) | seen | none needed |
+| Photographers | skeleton cards | seen | seen (Retry) | seen | was a spinner, now skeletons |
+| Gallery | skeleton grid | seen | seen | seen | none needed |
+| Payments | skeleton rows | seen | seen | seen | chip counts showed 0 while loading or failed, now hidden |
+| Inbox | skeleton rows | seen | seen | seen | was a spinner, now skeletons |
+| Notifications | skeleton rows | seen | seen | seen | was a spinner, now skeletons |
+| Transactions | skeleton rows | seen | seen | seen | showed "No transactions yet" while loading, now skeletons |
+
+Retry was exercised once end to end: failing Payments, turning the failure off and tapping Try again loaded the data. The other Try again controls were seen but not tapped.
+
+### Data states (light, dark and 1.6x each, all seen)
+
+| State | Result |
+|---|---|
+| Blocked accounts, three users, one with a long name | ListRows with Unblock; long name wraps to three lines at 1.6x |
+| Two-factor off, QR setup, enabled | Status badge flips ON, danger zone with Disable appears; the QR is a fixture image, real scanning not tested |
+| Donate history rows | three rows with per-currency amounts |
+| Transactions, 120 rows | 1/7 client pages ("Showing 1-8 of 50"), Load older transactions present; codes shown in words |
+| Photobook with 30 photos | three-column grid under the hero; the earlier "0 curated photos" was a fixture route clash, not an app bug |
+
+Not seen: Unblock, Enable and Disable were not submitted for real (the fixture accepts them), the Load older button was not tapped, pagination Next was not tapped, and the dark and 1.6x views of the QR step were seen only as far as the screenshot shows.
+
+### Screenshot gallery
+`docs/client-redesign-screens/`: 27 screens, light and dark, with an index in its README.
