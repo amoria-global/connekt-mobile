@@ -1,3 +1,4 @@
+import { movementTitle } from '@/features/wallet/movementLabel';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,7 +52,7 @@ export default function TransactionsScreen() {
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const rawTitle = m.description || m.category || 'Transaction';
-        const cleanTitle = cleanTransactionTitle(rawTitle).toLowerCase();
+        const cleanTitle = movementTitle(cleanTransactionTitle(rawTitle)).toLowerCase();
         const matchCat = (m.category ?? '').toLowerCase().includes(q);
         const matchAmt = String(m.amount).includes(q);
         if (!cleanTitle.includes(q) && !matchCat && !matchAmt) return false;
@@ -226,7 +227,7 @@ function Row({ movement }: { movement: Movement }) {
   const styles = useStyles();
   const inbound = movement.direction === 'in';
   const rawTitle = movement.description || movement.category || 'Transaction';
-  const cleanTitle = cleanTransactionTitle(rawTitle);
+  const cleanTitle = movementTitle(cleanTransactionTitle(rawTitle));
   return (
     <View style={styles.row}>
       <View style={[styles.icon, { backgroundColor: inbound ? colors.successBg : colors.errorBg }]}>
