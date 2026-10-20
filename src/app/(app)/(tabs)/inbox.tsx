@@ -31,6 +31,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { SkeletonCard } from '@/features/photographer/kit';
 
 type FilterType = 'ALL' | 'CREATORS' | 'UNREAD';
 type SortType = 'recent' | 'unread' | 'name' | 'oldest';
@@ -363,8 +364,10 @@ export default function InboxScreen() {
         }
         ListEmptyComponent={
           loading ? (
-            <View style={styles.emptyContainer}>
-              <ActivityIndicator size="small" color={colors.primary} />
+            <View style={{ gap: spacing.sm, padding: spacing.lg }} accessibilityLabel="Loading">
+              <SkeletonCard height={72} />
+              <SkeletonCard height={72} />
+              <SkeletonCard height={72} />
             </View>
           ) : error && !data ? (
             // A failed read is not an empty inbox.

@@ -177,6 +177,8 @@ function PaymentsContent() {
         ? streamingLoading
         : giftsLoading;
 
+  const currentError = section === 'events' ? paymentsError : section === 'streaming' ? streamingError : giftsError;
+
   // What is owed comes from the pending feed (its USD balance and its real paid amount), never from the history
   // record: that carries the amount in its own currency and no paid amount, and the sheet labels it as USD.
   const [payChecking, setPayChecking] = useState(false);
@@ -346,7 +348,7 @@ function PaymentsContent() {
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
             {(['all', 'paid', 'pending', 'failed'] as const).map((f) => (
-              <Chip key={f} label={f === 'all' ? 'All' : STATUS_TONE[f].label} selected={filter === f} count={counts[f]} onPress={() => setFilter(f)} />
+              <Chip key={f} label={f === 'all' ? 'All' : STATUS_TONE[f].label} selected={filter === f} count={currentLoading || currentError ? undefined : counts[f]} onPress={() => setFilter(f)} />
             ))}
           </ScrollView>
         </>

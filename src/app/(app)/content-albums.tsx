@@ -16,7 +16,6 @@ import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   FlatList,
   Keyboard,
   Pressable,
@@ -28,6 +27,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Chip, EmptyNote, ErrorNotice, SkeletonCard } from '@/features/photographer/kit';
 import { Screen } from '@/components/ui/Screen';
 import {
   listContentAlbums,
@@ -53,7 +53,7 @@ const CA_I18N = {
     filterRejected: 'Needs Changes',
     eyebrow: 'STOCK & COMMERCIAL',
     title: 'Content Albums',
-    searchPlaceholder: 'Search stock collections by title or tag…',
+    searchPlaceholder: 'Search by title or tag…',
     photosCount: '{count} photos',
     stockLibrary: 'Stock Library',
     loadingText: 'Loading stock albums…',
@@ -79,7 +79,7 @@ const CA_I18N = {
     filterRejected: 'Modifications requises',
     eyebrow: 'BANQUE D’IMAGES & COMMERCIAL',
     title: 'Albums de contenu',
-    searchPlaceholder: 'Rechercher des collections par titre ou mot-clé…',
+    searchPlaceholder: 'Rechercher par titre ou mot-clé…',
     photosCount: '{count} photos',
     stockLibrary: 'Banque d’images',
     loadingText: 'Chargement des albums de contenu…',
@@ -105,7 +105,7 @@ const CA_I18N = {
     filterRejected: 'Requiere cambios',
     eyebrow: 'STOCK Y COMERCIAL',
     title: 'Álbumes de contenido',
-    searchPlaceholder: 'Buscar colecciones por título o etiqueta…',
+    searchPlaceholder: 'Buscar por título o etiqueta…',
     photosCount: '{count} fotos',
     stockLibrary: 'Biblioteca de stock',
     loadingText: 'Cargando álbumes de contenido…',
@@ -195,25 +195,9 @@ export default function ContentAlbumsScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
       >
-        {FILTERS.map((f) => {
-          const active = filter === f.key;
-          return (
-            <Pressable
-              key={f.key}
-              onPress={() => setFilter(f.key)}
-              style={[styles.filterPill, active && styles.filterPillActive]}
-            >
-              <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
-                {f.label}
-              </Text>
-              <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
-                <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
-                  {counts[f.key]}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        })}
+        {FILTERS.map((f) => (
+          <Chip key={f.key} label={f.label} count={counts[f.key]} selected={filter === f.key} onPress={() => setFilter(f.key)} />
+        ))}
       </ScrollView>
 
       {/* Integrated Search Bar */}
@@ -318,45 +302,20 @@ export default function ContentAlbumsScreen() {
         }}
         ListEmptyComponent={
           loading ? (
-            <View style={styles.centerBox}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>{s.loadingText}</Text>
+            <View style={styles.skeletons}>
+              <SkeletonCard height={120} />
+              <SkeletonCard height={120} />
             </View>
           ) : error ? (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconBox}>
-                <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
-              </View>
-              <Text style={styles.emptyTitle}>{s.errLoadTitle}</Text>
-              <Text style={styles.emptySubtitle}>
-                {s.errLoadSub}
-              </Text>
-              <Pressable style={styles.emptyBtn} onPress={refresh}>
-                <Text style={styles.emptyBtnText}>{s.retry}</Text>
-              </Pressable>
-            </View>
+            <ErrorNotice flush message={s.errLoadTitle} onRetry={refresh} />
           ) : (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconBox}>
-                <Ionicons name="images-outline" size={40} color={colors.textMuted} />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {search || filter !== 'ALL' ? s.emptyNoMatch : s.emptyNoneYet}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {search || filter !== 'ALL'
-                  ? s.emptyNoMatchSub
-                  : s.emptyNoneYetSub}
-              </Text>
-              {!search && filter === 'ALL' ? (
-                <Pressable
-                  style={styles.emptyBtn}
-                  onPress={() => router.push('/content-album/new' as Href)}
-                >
-                  <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={styles.emptyBtnText}>{s.newBtn}</Text>
-                </Pressable>
-              ) : null}
+            <View style={{ marginHorizontal: -spacing.lg }}>
+              <EmptyNote
+                compact
+                icon="images-outline"
+                title={search || filter !== 'ALL' ? s.emptyNoMatch : s.emptyNoneYet}
+                body={search || filter !== 'ALL' ? s.emptyNoMatchSub : s.emptyNoneYetSub}
+              />
             </View>
           )
         }
@@ -382,6 +341,7 @@ export default function ContentAlbumsScreen() {
 
 const useStyles = makeStyles((c) => ({
   list: { paddingHorizontal: spacing.lg, gap: spacing.md },
+  skeletons: { gap: spacing.sm },
   header: { paddingTop: spacing.md, gap: spacing.md, marginBottom: spacing.xs },
 
   // Title Row

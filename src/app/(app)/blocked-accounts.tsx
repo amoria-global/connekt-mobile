@@ -4,16 +4,17 @@
  * and neither party can message the other until the block is lifted.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
-import { Ionicons } from '@expo/vector-icons';
-import { DataList } from '@/components/ui/DataList';
+import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
+import { ListRow } from '@/features/client/studio';
+import { ActionButton, Card, EmptyNote, ErrorNotice, SectionHeader, SkeletonCard } from '@/features/photographer/kit';
 import { Screen } from '@/components/ui/Screen';
 import { useModeration } from '@/features/moderation/useModeration';
 import type { BlockedUser } from '@/features/moderation/api';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function BlockedAccountsScreen() {
   const { colors } = useTheme();
@@ -66,67 +67,72 @@ export default function BlockedAccountsScreen() {
     );
   };
 
+  const showSkeleton = loading && blocked.length === 0 && !error;
+
   return (
     <Screen padded={false}>
-      <DataList
-        data={blocked}
-        loading={loading}
-        error={error}
-        onRefresh={load}
-        title={t('b1_blockedTitle')}
-        duplicatesHeader
-        subtitle={t('b1_blockedSubtitle')}
-        keyExtractor={(u) => u.id}
-        emptyIcon="shield-checkmark-outline"
-        emptyTitle={t('b1_blockedEmptyTitle')}
-        emptyMessage={t('b1_blockedEmptyBody')}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            {item.profilePicture ? (
-              <Image source={{ uri: item.profilePicture }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarText}>
-                  {(item.name?.[0] ?? '?').toUpperCase()}
-                </Text>
-              </View>
-            )}
-            <Text style={styles.name} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Pressable
-              style={({ pressed }) => [styles.unblock, pressed && { opacity: 0.7 }]}
-              onPress={() => onUnblock(item)}
-              disabled={busyId === item.id}
-            >
-              <Ionicons name="close-circle-outline" size={16} color={colors.primary} />
-              <Text style={styles.unblockText}>
-                {busyId === item.id ? t('b1_blockedWorking') : t('b1_blockedUnblock')}
-              </Text>
-            </Pressable>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading && blocked.length > 0} onRefresh={load} tintColor={colors.accent} />}
+      >
+        <UserHeaderBand flush title={t('b1_blockedTitle')} subtitle={t('b1_blockedSubtitle')} duplicatesHeader />
+        {error ? <ErrorNotice flush message={error} onRetry={load} /> : null}
+        {showSkeleton ? (
+          <View style={styles.group}>
+            <SkeletonCard height={64} />
+            <SkeletonCard height={64} />
           </View>
-        )}
-      />
+        ) : null}
+        {!error && !showSkeleton && blocked.length === 0 ? (
+          <View style={styles.flushNote}>
+            <EmptyNote compact icon="shield-checkmark-outline" title={t('b1_blockedEmptyTitle')} body={t('b1_blockedEmptyBody')} />
+          </View>
+        ) : null}
+        {blocked.length > 0 ? (
+          <>
+            <SectionHeader flush title={t('b1_blockedTitle')} subtitle={String(blocked.length)} />
+            <Card style={styles.card}>
+              {blocked.map((item, index) => (
+                <ListRow
+                  key={item.id}
+                  divider={index < blocked.length - 1}
+                  title={item.name}
+                  titleLines={3}
+                  leading={
+                    item.profilePicture ? (
+                      <Image source={{ uri: item.profilePicture }} style={styles.avatar} />
+                    ) : (
+                      <View style={[styles.avatar, styles.avatarFallback]}>
+                        <Text style={styles.avatarText}>{(item.name?.[0] ?? '?').toUpperCase()}</Text>
+                      </View>
+                    )
+                  }
+                  trailing={
+                    <ActionButton
+                      compact
+                      variant="secondary"
+                      icon="close-circle-outline"
+                      label={busyId === item.id ? t('b1_blockedWorking') : t('b1_blockedUnblock')}
+                      disabled={busyId === item.id}
+                      onPress={() => onUnblock(item)}
+                    />
+                  }
+                />
+              ))}
+            </Card>
+          </>
+        ) : null}
+      </ScrollView>
     </Screen>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
+  content: { padding: spacing.lg, gap: spacing.lg, flexGrow: 1 },
+  group: { gap: spacing.sm },
+  flushNote: { marginHorizontal: -spacing.lg },
+  card: { marginHorizontal: 0, padding: 0 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.surfaceMuted },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: c.primary, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
-  name: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.md, color: c.text },
-  unblock: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  unblockText: { color: c.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.xs },
 }));
