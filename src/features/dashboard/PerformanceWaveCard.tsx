@@ -64,6 +64,8 @@ export interface PerformanceWaveCardProps {
   performanceData?: PerformancePoint[] | null;
   /** Mask money figures, like the rest of the Home. Counts are not money and stay visible. */
   hidden?: boolean;
+  /** What to say when there is no series. Pass a failure sentence when the read failed, so a failure is not read as "no activity". */
+  emptyText?: string;
 }
 
 interface DataPoint {
@@ -173,6 +175,7 @@ export function PerformanceWaveCard({
   onSelectMetric,
   performanceData,
   hidden = false,
+  emptyText = 'No trend data for this period',
 }: PerformanceWaveCardProps) {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
@@ -667,7 +670,7 @@ export function PerformanceWaveCard({
         </Svg>
         {hasSeries ? null : (
           <Text style={styles.noSeries} accessibilityLiveRegion="polite">
-            No trend data for this period
+            {emptyText}
           </Text>
         )}
       </View>
