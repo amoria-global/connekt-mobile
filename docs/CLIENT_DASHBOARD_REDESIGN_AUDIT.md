@@ -400,3 +400,24 @@ Device: Pixel 5 emulator (API 34, software rendering). No physical phone. No iOS
 Batch 2 findings, not changed: Content albums shows a second "New Content Album" button next to the empty-state one, and its search placeholder truncates at 1.6x; Transactions shows backend description text (for example "MS1_PHOTOBOOK_HOLD ...") verbatim; Blocked accounts has a large empty gap above the empty state.
 
 Not verified: booking wizard, conversation, Photobook detail with photos in dark, any screen on a physical phone or iOS, scroll smoothness.
+
+## 6. Batch 3: settings and account screens (2026-10-20, emulator)
+
+Branch `feat/client-dashboard-batch3`. Frontend only; no merge, push to main or OTA from this branch. Device: Pixel 5 emulator, fixture backend with synthetic data; no physical phone, no iOS.
+
+| Screen | What changed | Light | Dark | 1.6x |
+|---|---|---|---|---|
+| Transactions | Backend codes shown in words (`movementLabel.ts`, 3 tests), shared Chip filters (wrap at 1.6x), ListRow cards with icon tiles | seen | seen | seen |
+| Blocked accounts | ListRow group with avatar and Unblock action, skeleton, error retry, compact empty state (gap removed) | seen (empty state) | seen (empty state) | seen (empty state) |
+| Two-factor | Status card with ON/OFF badge, grouped sections, separated DANGER ZONE for disable | seen (off state) | seen (off state) | seen (off state) |
+| Delete account | Consequences as ListRows, separated DANGER ZONE with typed DELETE confirmation | seen | seen | seen (text no longer truncated) |
+| Donate | Hero donate action, suggested amounts, history as ListRows, skeleton, error, empty | seen | seen | seen |
+| Preferences | App and Alert types sections, icon tiles, toggles with accessibility labels | seen | seen | seen |
+| Edit profile | Profile header card, grouped field sections, sticky solid Save bar | seen | seen | seen |
+| Content albums | Shared chips, single New Content Album action, shorter search placeholder, skeleton, error, empty | seen | seen | seen |
+| Booking wizard (step 1) | not changed | seen | seen | seen |
+| Conversation | not changed | seen | seen | seen |
+
+Shared changes (defaults unchanged for existing screens): `SectionHeader`, `UserHeaderBand` and `ErrorNotice` gained an opt-in `flush`; `ListRow` gained `titleLines`.
+
+Not seen: Blocked accounts with real blocked users, its error state, and the loading skeletons on every screen (the fixture answers instantly); Two-factor in the enabled and QR setup states; Edit profile as a coordinator; Donate history with rows; Transactions pagination; photobook detail with photos in dark (the fixture book has no photos). Existing lint errors remain in `blocked-accounts.tsx`, `preferences.tsx` and `transactions.tsx` (set-state-in-effect, memoization), which predate this branch.
