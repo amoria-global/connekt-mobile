@@ -1012,7 +1012,7 @@ export default function NewEventScreen() {
                           })}
                           {filteredGeoRegions.length === 0 ? (
                             <Text style={styles.noMatchText}>
-                              No regions match "{geoSearchQuery}".
+                              No regions match &quot;{geoSearchQuery}&quot;.
                             </Text>
                           ) : null}
                         </ScrollView>
