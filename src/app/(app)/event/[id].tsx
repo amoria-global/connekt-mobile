@@ -12,7 +12,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { useRole } from '@/features/auth/role';
 import { IconTile } from '@/features/photographer/kit';
 import { ProgressTrack } from '@/features/client/studio';
-import { bookingTrack } from '@/features/events/bookingTrack';
+import { bookingTrack, progressView } from '@/features/events/bookingTrack';
 import {
   acceptEventBooking,
   confirmCompletion,
@@ -608,12 +608,13 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Booking progress */}
-        {(isPhotog || ownsEvents) && !ev?.status?.toUpperCase().includes('CANCEL') ? (
+        {/* Owners get the labelled track below; the plain stepper is the photographer's, and the owner's fallback when there is no track. */}
+        {progressView(ev, isPhotog, ownsEvents) === 'stepper' ? (
           <InfoCard icon="git-commit-outline" title={tr('b3_evdet_booking_progress')}>
             <ProgressStepper currentIndex={bookingStepIndex(ev)} />
           </InfoCard>
         ) : null}
-        {!isPhotog && ownsEvents && bookingTrack(ev) ? (
+        {progressView(ev, isPhotog, ownsEvents) === 'track' ? (
           <InfoCard icon="git-commit-outline" title="Booking Progress">
             <ProgressTrack steps={bookingTrack(ev)!} label="Booking progress" />
           </InfoCard>
