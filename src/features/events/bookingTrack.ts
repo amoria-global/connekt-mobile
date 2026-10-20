@@ -12,6 +12,21 @@ import type { EventItem } from '@/features/events/types';
 const ACCEPTED_STATUSES = new Set(['UPCOMING', 'PUBLISHED', 'PAUSED', 'ONGOING', 'IN_PROGRESS', 'AWAITING_REVIEW', 'COMPLETED', 'DONE']);
 const EVENT_DAY_STATUSES = new Set(['ONGOING', 'IN_PROGRESS', 'AWAITING_REVIEW', 'COMPLETED', 'DONE']);
 
+/**
+ * Which progress view the event page draws: the labelled track for an owner (client or coordinator) whenever there is
+ * one, the plain stepper for a photographer and as the owner's fallback. Never both: the page used to stack two
+ * "Booking Progress" cards for every client and coordinator.
+ */
+export function progressView(
+  ev: Pick<EventItem, 'status' | 'bookingStatus'> | null | undefined,
+  isPhotographer: boolean,
+  ownsEvents: boolean,
+): 'track' | 'stepper' | 'none' {
+  if ((ev?.status ?? '').toUpperCase().includes('CANCEL')) return 'none';
+  if (!isPhotographer && ownsEvents && bookingTrack(ev)) return 'track';
+  return isPhotographer || ownsEvents ? 'stepper' : 'none';
+}
+
 export function bookingTrack(ev?: Pick<EventItem, 'status' | 'bookingStatus'> | null): TrackStep[] | null {
   if (!ev) return null;
   const s = (ev.status ?? '').toUpperCase();
