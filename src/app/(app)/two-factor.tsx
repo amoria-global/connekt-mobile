@@ -1,19 +1,18 @@
 import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
+import { ScrollView, Text, View } from 'react-native';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
+import { ListRow } from '@/features/client/studio';
+import { ActionButton, Card, ErrorNotice, SectionHeader, SkeletonCard, StatusBadge } from '@/features/photographer/kit';
 import { disableTotp, enableTotp, getTotpStatus, setupTotp, type TotpSetup } from '@/features/security/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 export default function TwoFactorScreen() {
-  const { colors } = useTheme();
   const styles = useStyles();
   const { t } = useLanguage();
   const { data, loading, error, refresh } = useAsync(useCallback(() => getTotpStatus(), []));
@@ -63,61 +62,65 @@ export default function TwoFactorScreen() {
     }
   };
 
+  const enabled = !!data?.enabled;
+
   return (
     <Screen padded={false}>
-      <ScreenHeader title={t('b1_twoFactorTitle')} subtitle={t('b1_twoFactorSubtitle')} />
       {loading && !data ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.scroll}>
+          <SkeletonCard height={72} />
+          <SkeletonCard height={140} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={[styles.statusCard, data?.enabled && styles.statusOn]}>
-            <Ionicons
-              name={data?.enabled ? 'shield-checkmark' : 'shield-outline'}
-              size={26}
-              color={data?.enabled ? colors.success : colors.textMuted}
+          <UserHeaderBand eyebrow="SECURITY" title={t('b1_twoFactorTitle')} subtitle={t('b1_twoFactorSubtitle')} duplicatesHeader />
+          <Card style={styles.card}>
+            <ListRow
+              icon={enabled ? 'shield-checkmark' : 'shield-outline'}
+              tone={enabled ? 'success' : 'primary'}
+              title={enabled ? t('b1_twoFactorStatusOn') : t('b1_twoFactorStatusOff')}
+              trailing={<StatusBadge label={enabled ? 'ON' : 'OFF'} tone={enabled ? 'success' : 'neutral'} />}
             />
-            <Text style={styles.statusText}>
-              {data?.enabled ? t('b1_twoFactorStatusOn') : t('b1_twoFactorStatusOff')}
-            </Text>
-          </View>
-          {error && !data ? <Text style={styles.error}>{error}</Text> : null}
+          </Card>
+          {error && !data ? <ErrorNotice message={error} onRetry={refresh} /> : null}
 
-          {data?.enabled ? (
-            <View style={styles.section}>
-              <Text style={styles.body}>
-                {t('b1_twoFactorDisableBody')}
-              </Text>
-              <Input label={t('b1_twoFactorAuthCodeLabel')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
-              <Button title={t('b1_twoFactorDisableBtn')} variant="ghost" onPress={onDisable} loading={busy} />
-            </View>
+          {enabled ? (
+            <>
+              <SectionHeader title={t('b1_twoFactorDisableBtn')} />
+              <Card style={styles.section}>
+                <Text style={styles.body}>{t('b1_twoFactorDisableBody')}</Text>
+                <Input label={t('b1_twoFactorAuthCodeLabel')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
+              </Card>
+              <View style={styles.danger}>
+                <Text style={styles.dangerEyebrow}>DANGER ZONE</Text>
+                <ActionButton variant="destructive" label={t('b1_twoFactorDisableBtn')} onPress={onDisable} busy={busy} disabled={busy} />
+              </View>
+            </>
           ) : setup ? (
-            <View style={styles.section}>
-              <Text style={styles.body}>
-                {t('b1_twoFactorScanBody')}
-              </Text>
-              {setup.qrCode ? (
-                <Image source={{ uri: setup.qrCode }} style={styles.qr} contentFit="contain" />
-              ) : null}
-              {setup.secret ? (
-                <Text style={styles.secret}>
-                  {t('b1_twoFactorManualKey')} <Text style={styles.secretCode}>{setup.secret}</Text>
-                </Text>
-              ) : null}
-              <Input label={t('b1_twoFactorSixDigitLabel')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
-              <Button title={t('b1_twoFactorVerifyBtn')} onPress={onEnable} loading={busy} />
-            </View>
+            <>
+              <SectionHeader title={t('b1_twoFactorVerifyBtn')} />
+              <Card style={styles.section}>
+                <Text style={styles.body}>{t('b1_twoFactorScanBody')}</Text>
+                {setup.qrCode ? <Image source={{ uri: setup.qrCode }} style={styles.qr} contentFit="contain" /> : null}
+                {setup.secret ? (
+                  <Text style={styles.secret}>
+                    {t('b1_twoFactorManualKey')} <Text style={styles.secretCode}>{setup.secret}</Text>
+                  </Text>
+                ) : null}
+                <Input label={t('b1_twoFactorSixDigitLabel')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
+              </Card>
+              <ActionButton variant="accent" label={t('b1_twoFactorVerifyBtn')} onPress={onEnable} busy={busy} disabled={busy} />
+            </>
           ) : (
-            <View style={styles.section}>
-              <Text style={styles.body}>
-                {t('b1_twoFactorIntroBody')}
-              </Text>
-              <Button title={t('b1_twoFactorEnableBtn')} onPress={onStartSetup} loading={busy} />
-            </View>
+            <>
+              <Card style={styles.section}>
+                <Text style={styles.body}>{t('b1_twoFactorIntroBody')}</Text>
+              </Card>
+              <ActionButton variant="accent" icon="shield-checkmark-outline" label={t('b1_twoFactorEnableBtn')} onPress={onStartSetup} busy={busy} disabled={busy} />
+            </>
           )}
 
-          {msg ? <Text style={styles.error}>{msg}</Text> : null}
+          {msg ? <ErrorNotice message={msg} compact /> : null}
         </ScrollView>
       )}
     </Screen>
@@ -125,24 +128,13 @@ export default function TwoFactorScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: spacing.xl, gap: spacing.lg },
-  statusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    padding: spacing.lg,
-  },
-  statusOn: { borderColor: c.success, backgroundColor: c.successBg },
-  statusText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
-  section: { gap: spacing.lg },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
+  card: { padding: 0 },
+  section: { gap: spacing.md, padding: spacing.lg },
   body: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 21 },
   qr: { width: 200, height: 200, alignSelf: 'center', backgroundColor: c.surface, borderRadius: radii.md },
   secret: { fontSize: fontSize.sm, color: c.textSoft, textAlign: 'center' },
   secretCode: { fontWeight: fontWeight.bold, color: c.text },
-  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
+  danger: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: c.borderSoft, paddingTop: spacing.lg },
+  dangerEyebrow: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.error, letterSpacing: 1 },
 }));
