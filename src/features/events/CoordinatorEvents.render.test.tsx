@@ -1,6 +1,6 @@
 import React from 'react';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
-import { Text, TextInput } from 'react-native';
+import { Text } from 'react-native';
 
 import { ClientEventsDashboard } from '@/features/events/ClientEventsDashboard';
 import { dayKey, shiftDays } from '@/features/photographer/schedule';
@@ -94,7 +94,6 @@ const press = async (node: ReactTestInstance | undefined, what: string) => {
 };
 
 const future = shiftDays(dayKey(new Date()), 10);
-const past = shiftDays(dayKey(new Date()), -10);
 
 beforeEach(() => {
   mockGet.mockReset();
