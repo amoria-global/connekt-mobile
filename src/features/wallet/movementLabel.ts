@@ -8,7 +8,7 @@ const KNOWN: Record<string, string> = {
   MS1_UPFRONT: 'upfront payment',
 };
 
-const CODE = /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g;
+const CODE = /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+_*/g;
 /** A leading release or milestone tag such as MS1, MS12 or V2. */
 const PREFIX = /^[A-Z]{1,3}\d+$/;
 
