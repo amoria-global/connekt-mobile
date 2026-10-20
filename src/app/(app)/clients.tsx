@@ -82,7 +82,8 @@ export default function ClientsScreen() {
                     key={item.id}
                     divider={index < data.length - 1}
                     title={item.name}
-                    titleLines={3}
+                    titleLines={4}
+                    metaLines={5}
                     meta={[item.email, bookings].filter(Boolean).join('\n') || undefined}
                     onPress={() => router.push(`/client/${item.id}` as Href)}
                     leading={
