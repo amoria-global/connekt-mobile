@@ -69,3 +69,11 @@ describe('performance wave card as rendered', () => {
     expect(r.root.findAll((n) => n.props?.fill === 'url(#waveGlowGradient)').length).toBeGreaterThan(0);
   });
 });
+
+describe('performance wave card, failed read', () => {
+  it('says the data could not be loaded instead of "no trend data"', () => {
+    const text = flat(mount({ emptyText: 'Trend data could not be loaded' }).root);
+    expect(text).toContain('Trend data could not be loaded');
+    expect(text).not.toContain('No trend data for this period');
+  });
+});

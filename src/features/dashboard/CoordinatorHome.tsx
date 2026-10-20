@@ -146,6 +146,9 @@ export function CoordinatorHome() {
     );
   }, [eventList, q]);
 
+  // Revenue is shown in the wallet currency, so a failed wallet read leaves it N/A and needs its own retry.
+  const walletFailed = !!wallet.error && !wallet.data;
+  const trendFailed = (!!perfState.error && !perfState.data) || (!!trendsState.error && !trendsState.data);
   const open = (path: string) => router.push(path as never);
   const openEvent = (e: EventItem) => open(`/event/${e.id}`);
   const figure = (v: number | undefined) => (aFailed ? 'N/A' : String(v ?? 0));
@@ -298,7 +301,15 @@ export function CoordinatorHome() {
 
             {/* 3. Overview */}
             <SectionHeader title="Overview" subtitle="Lifetime figures for your account" actionLabel="Analytics" onAction={() => open('/analytics')} />
-            {aFailed ? <ErrorNotice message={analytics.error as string} onRetry={analytics.refresh} /> : null}
+            {aFailed || walletFailed ? (
+              <ErrorNotice
+                message={(analytics.error || wallet.error) as string}
+                onRetry={() => {
+                  void analytics.refresh();
+                  void wallet.refresh();
+                }}
+              />
+            ) : null}
             <HCarousel
               label="Overview figures"
               itemWidth={168}
@@ -393,7 +404,16 @@ export function CoordinatorHome() {
 
             {/* 6. Performance */}
             <SectionHeader title="Performance" subtitle="Trends for the period you pick" />
-            {trendsState.error && !trendsState.data ? <ErrorNotice message={trendsState.error} onRetry={trendsState.refresh} compact /> : null}
+            {trendFailed ? (
+              <ErrorNotice
+                message={(perfState.error || trendsState.error) as string}
+                onRetry={() => {
+                  void trendsState.refresh();
+                  void perfState.refresh();
+                }}
+                compact
+              />
+            ) : null}
             <View style={styles.wave}>
               <PerformanceWaveCard
                 analytics={a}
@@ -405,6 +425,7 @@ export function CoordinatorHome() {
                 onSelectMetric={setSelectedWaveMetric}
                 performanceData={perfState.data}
                 hidden={hidden}
+                emptyText={trendFailed ? 'Trend data could not be loaded' : undefined}
               />
             </View>
           </>

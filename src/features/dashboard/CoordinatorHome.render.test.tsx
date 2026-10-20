@@ -47,7 +47,10 @@ jest.mock('@/components/ui/live', () => {
   };
 });
 jest.mock('@/features/kyc/KycBanner', () => ({ KycBanner: () => null }));
-jest.mock('@/features/dashboard/PerformanceWaveCard', () => ({ PerformanceWaveCard: () => null }));
+jest.mock('@/features/dashboard/PerformanceWaveCard', () => {
+  const { Text } = require('react-native');
+  return { PerformanceWaveCard: ({ emptyText }: { emptyText?: string }) => <Text>{`wave:${emptyText ?? 'default'}`}</Text> };
+});
 const mockPaySheet = jest.fn();
 jest.mock('@/features/payments/PayNowSheet', () => ({
   PayNowSheet: (props: unknown) => {
@@ -165,6 +168,16 @@ describe('coordinator home as rendered', () => {
     expect(text).toContain('N/A');
   });
 
+  it('a refused wallet read leaves revenue N/A and offers a retry, while the counts still show', async () => {
+    serve({ wallet: refused('Could not load your wallet') });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Could not load your wallet');
+    expect(text).toContain('Try again');
+    expect(r.root.findAll((n) => n.props?.accessibilityLabel === 'Revenue, N/A').length).toBeGreaterThan(0);
+    expect(r.root.findAll((n) => n.props?.accessibilityLabel === 'Events, 7').length).toBeGreaterThan(0);
+  });
+
   it('a refused events read is an error with a retry, not "No upcoming events"', async () => {
     serve({ events: refused('Could not load your events') });
     const r = await mount();
@@ -179,6 +192,16 @@ describe('coordinator home as rendered', () => {
     const text = flat(r.root);
     expect(text).toContain('Action required');
     expect(text).toContain('Could not load payments');
+  });
+
+  it('a refused trends read is an error with a retry, and the chart does not claim there is no data', async () => {
+    mockGet.mockImplementation(async (path: string) =>
+      path.startsWith('/coordinator/analytics/trends') ? refused('Could not load trends') : path.startsWith('/coordinator/analytics/performance') ? ok([]) : path.startsWith('/wallet/me') ? walletFixture : path.startsWith('/coordinator/analytics') ? analyticsOk : path.startsWith('/coordinator/events') ? ok([]) : ok([]),
+    );
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Could not load trends');
+    expect(text).toContain('wave:Trend data could not be loaded');
   });
 
   it('a genuinely empty account offers to create an event', async () => {
