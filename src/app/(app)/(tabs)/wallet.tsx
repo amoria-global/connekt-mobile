@@ -402,7 +402,7 @@ export default function WalletScreen() {
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
           {showOverview && tabbed && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : 'Earnings breakdown'}</Text>
+              <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : isCoordinator ? 'Balance breakdown' : 'Earnings breakdown'}</Text>
               <View style={styles.rowsCard}>
                 {visibleCards.map((card, i) => {
                   const p = PALETTE[card.color] ?? PALETTE.neutral;

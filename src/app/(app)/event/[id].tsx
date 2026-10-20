@@ -966,7 +966,7 @@ function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue} numberOfLines={2}>
+        <Text style={styles.detailValue} numberOfLines={5}>
           {value}
         </Text>
       </View>
