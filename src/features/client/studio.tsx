@@ -76,6 +76,7 @@ export function ListRow({
   accessibilityLabel,
   destructive,
   titleLines = 2,
+  metaLines = 2,
 }: {
   title: string;
   meta?: string;
@@ -90,6 +91,8 @@ export function ListRow({
   destructive?: boolean;
   /** Lines the title may use before it is cut; raise it for sentences that must be read in full. */
   titleLines?: number;
+  /** Lines the meta may use before it is cut; raise it when the meta carries something to read in full (an email). */
+  metaLines?: number;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -109,7 +112,7 @@ export function ListRow({
           {tr(title)}
         </Text>
         {meta ? (
-          <Text style={styles.rowMeta} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+          <Text style={styles.rowMeta} numberOfLines={metaLines} maxFontSizeMultiplier={1.3}>
             {tr(meta)}
           </Text>
         ) : null}

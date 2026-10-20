@@ -170,8 +170,9 @@ export default function WalletScreen() {
   // The pending row appears only when the wallet reports a pending figure (a reported 0 still shows); no figure is never drawn as $0.00.
   const pendingLabel = stats?.pendingChip?.label ?? 'Pending release';
   const pendingValue = stats?.pendingChip?.value ?? 0;
-  // Photographers and clients get the sectioned wallet; coordinators keep the single long screen.
-  const tabbed = isPhotographer || !!isClient;
+  // Photographers, clients and coordinators get the sectioned wallet. Coordinators have no Analytics tab: that
+  // view charts a client's spending or a photographer's earnings, neither of which is theirs.
+  const tabbed = isPhotographer || !!isClient || isCoordinator;
   const showOverview = !tabbed || walletTab === 'overview';
   const showAnalytics = tabbed && walletTab === 'analytics';
   const showActivity = !tabbed || walletTab === 'activity';
@@ -238,7 +239,7 @@ export default function WalletScreen() {
                 onChange={setWalletTab}
                 tabs={[
                   { key: 'overview', label: 'Overview' },
-                  { key: 'analytics', label: 'Analytics' },
+                  ...(isCoordinator ? [] : [{ key: 'analytics' as const, label: 'Analytics' }]),
                   { key: 'activity', label: 'Activity' },
                 ]}
               />
@@ -401,7 +402,7 @@ export default function WalletScreen() {
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
           {showOverview && tabbed && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : 'Earnings breakdown'}</Text>
+              <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : isCoordinator ? 'Balance breakdown' : 'Earnings breakdown'}</Text>
               <View style={styles.rowsCard}>
                 {visibleCards.map((card, i) => {
                   const p = PALETTE[card.color] ?? PALETTE.neutral;

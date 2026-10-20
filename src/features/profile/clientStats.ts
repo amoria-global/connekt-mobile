@@ -22,6 +22,18 @@ export function kycLabel(status?: string | null): string {
   return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase().replace(/_/g, ' ');
 }
 
+/** A coordinator's three figures. A missing count or rating is a dash: there is no default 5.0 and no invented "Active". */
+export function coordinatorStats(
+  u?: { completedEvents?: number | null; rating?: number | null; kycStatus?: string | null } | null,
+): StatItem[] {
+  const n = (v?: number | null) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '—');
+  return [
+    { label: 'Events', value: n(u?.completedEvents) },
+    { label: 'Rating', value: typeof u?.rating === 'number' && Number.isFinite(u.rating) ? u.rating.toFixed(1) : '—' },
+    { label: 'Identity', value: kycLabel(u?.kycStatus) },
+  ];
+}
+
 export function clientStats(u?: { completedEvents?: number | null; reviewsCount?: number | null; kycStatus?: string | null } | null): StatItem[] {
   const n = (v?: number | null) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '—');
   return [
