@@ -265,7 +265,7 @@ export function CoordinatorHome() {
             </View>
             <View style={styles.row}>
               <ActionButton label={t('gallery')} icon="images-outline" onPress={() => open('/gallery')} style={styles.flex} />
-              <ActionButton label={t('menuPhotographers')} icon="camera-outline" onPress={() => open('/photographers')} style={styles.flex} />
+              <ActionButton label="Photographers" icon="camera-outline" onPress={() => open('/photographers')} style={styles.flex} />
             </View>
             <View style={styles.stack}>
               <ActionButton
@@ -404,6 +404,7 @@ export function CoordinatorHome() {
                 selectedMetric={selectedWaveMetric}
                 onSelectMetric={setSelectedWaveMetric}
                 performanceData={perfState.data}
+                hidden={hidden}
               />
             </View>
           </>
