@@ -282,7 +282,7 @@ export default function EventCandidatesScreen() {
           handoff={{ type: 'BOOKING_DECLARATION', declarationId: payHandoff.declarationId }}
           title={t('b3_cand_first_payment')}
           subtitle={payHandoff.name}
-          amountLabel={formatPrice(payHandoff.depositAmount ?? 0, payHandoff.currency)}
+          amountLabel={typeof payHandoff.depositAmount === 'number' && Number.isFinite(payHandoff.depositAmount) ? formatPrice(payHandoff.depositAmount, payHandoff.currency) : undefined}
           onSettled={() => {
             setCheckoutOpen(false);
             Alert.alert(t('b3_cand_booked_alert_title'), t('b3_cand_booked_alert_msg', { name: payHandoff.name }), [
