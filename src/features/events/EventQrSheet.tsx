@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { eventQrLink, qrMatrix } from '@/features/events/scanIntent';
 import { fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const QUIET = 2; // modules of white margin around the code
 const NAVY = '#083A85';
@@ -59,8 +60,8 @@ export function EventQrSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={tr('Close')} />
-      <View style={[styles.sheet, { backgroundColor: colors.elevated, paddingBottom: spacing.lg + insets.bottom }]}>
+      <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <GlassSheetHost style={[styles.sheet, { backgroundColor: colors.elevated, paddingBottom: spacing.lg + insets.bottom }]}>
         <View style={styles.head}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: colors.text }]}>
@@ -97,7 +98,8 @@ export function EventQrSheet({
           <Ionicons name="share-social" size={18} color="#fff" />
           <Text style={styles.btnText}>{tr('Share link')}</Text>
         </Pressable>
-      </View>
+      </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
@@ -105,8 +107,6 @@ export function EventQrSheet({
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(5,8,18,0.6)' },
   sheet: {
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.lg,
   },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.md },

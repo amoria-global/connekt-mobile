@@ -38,6 +38,8 @@ import { formatDate } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { GlassSurface, glassTile } from '@/components/ui/GlassCard';
+import { glassField } from '@/components/ui/GlassModal';
 
 const RECENT_SEARCHES_KEY = 'connekt.global_search_recents';
 
@@ -238,6 +240,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
       statusBarTranslucent
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
+        <GlassSurface detached strength="thick" />
         {/* Top Search Bar */}
         <View style={styles.searchBarRow}>
           <Pressable
@@ -555,7 +558,6 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
 const useStyles = makeStyles((c, e) => ({
   container: {
     flex: 1,
-    backgroundColor: c.background,
   },
   pressed: {
     opacity: 0.85,
@@ -570,7 +572,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.borderSoft,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   backBtn: {
     width: 40,
@@ -584,9 +586,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: c.background,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
+    ...glassField(c),
     borderRadius: radii.full,
     paddingHorizontal: spacing.md,
     height: 44,
@@ -609,13 +609,13 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.borderSoft,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   scopeChip: {
     paddingHorizontal: 12,
     paddingVertical: 5.5,
     borderRadius: radii.full,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   scopeChipActive: {
     backgroundColor: c.primary,
@@ -667,7 +667,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     paddingHorizontal: 12,
@@ -692,7 +692,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     padding: spacing.md,
@@ -720,7 +720,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     borderRadius: radii.xl,
@@ -731,13 +731,13 @@ const useStyles = makeStyles((c, e) => ({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   eventThumb: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   resultInfo: {
     flex: 1,
@@ -767,7 +767,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.full,
@@ -806,7 +806,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.3)',
     borderRadius: radii.xl,
@@ -817,7 +817,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 46,
     height: 46,
     borderRadius: 12,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   liveCardInfo: {
     flex: 1,
@@ -864,7 +864,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     paddingHorizontal: 12,
@@ -905,7 +905,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 8,
     marginBottom: 8,
     borderRadius: radii.md,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   failBannerText: { flex: 1, color: c.text, fontSize: 13, lineHeight: 18 },
   retryBtn: {

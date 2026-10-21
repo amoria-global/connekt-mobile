@@ -65,6 +65,15 @@ repo and its `EXPO_PUBLIC_*` values are inlined at publish time, so check it bef
 publishing; an exported shell variable wins over it, which makes a stale `.env` easy to
 miss.
 
+## Modals use the glass kit
+
+Every `<Modal>` draws the sign-in sheet's frosted glass look from `src/components/ui/GlassModal.tsx`: wrap the
+panel in `GlassScrim` (blurred dim, closes on outside tap) and `GlassSheetHost` (the glass panel; `variant="dialog"`
+for a centred one), or use the shared `Sheet` / `Alert` dialog, which are built on them. Keep colour, border and radius
+out of the host's style, and use `glassTile(c)` / `glassField(c)` for rows and inputs on the glass, never a solid card
+colour. `src/test/glassModals.rule.test.ts` fails on a modal that skips this; the only exemptions are full-screen
+media viewers, incoming-call screens and native page sheets, each listed there with its reason.
+
 ## Google and Apple sign-in
 
 Client ids are per platform and per Google Cloud project, and the type is fixed when the
