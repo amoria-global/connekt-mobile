@@ -48,6 +48,7 @@ import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { paymentBucket } from '@/features/payments/statusBucket';
 import { summarizePayments } from '@/features/payments/summary';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 
 type Filter = 'all' | 'paid' | 'pending' | 'failed';
 type Section = 'events' | 'streaming' | 'gifts';
@@ -85,6 +86,7 @@ function PaymentsContent() {
   useCurrency((s) => s.currency);
   const { colors, gradients } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const router = useRouter();
   const { role, isCoordinator } = useRole();
 
@@ -378,7 +380,7 @@ function PaymentsContent() {
           data={filteredPayments}
           keyExtractor={(p) => p.id}
           ListHeaderComponent={header}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           ItemSeparatorComponent={RowGap}
           refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
@@ -445,7 +447,7 @@ function PaymentsContent() {
           data={streamingPayments}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={header}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           ItemSeparatorComponent={RowGap}
           refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
@@ -485,7 +487,7 @@ function PaymentsContent() {
           data={giftPayments}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={header}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           ItemSeparatorComponent={RowGap}
           refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
@@ -537,7 +539,7 @@ function PaymentsContent() {
 }
 
 const useStyles = makeStyles((c) => ({
-  list: { paddingBottom: 120 },
+  list: {},
   rowCard: { marginHorizontal: spacing.lg, backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft, overflow: 'hidden' },
   skeletons: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   emptyWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },

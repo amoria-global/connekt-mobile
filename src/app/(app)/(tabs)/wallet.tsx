@@ -58,6 +58,7 @@ import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
 import { ClientWalletAnalytics } from '@/features/client/ClientWalletAnalytics';
 import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -66,6 +67,7 @@ export default function WalletScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const { tr } = useSharedT();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -196,7 +198,7 @@ export default function WalletScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}
+          contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md, paddingBottom: clearance }]}
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -958,7 +960,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
   },
   retryBtnText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.lg },
+  scroll: { paddingHorizontal: spacing.lg, gap: spacing.lg },
 
   heroTopRow: {
     width: '100%',

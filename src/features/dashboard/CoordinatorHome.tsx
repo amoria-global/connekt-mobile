@@ -64,6 +64,7 @@ import { formatDate } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not hand memo hooks a new array every render. */
@@ -91,6 +92,7 @@ export function CoordinatorHome() {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const user = useAuth((s) => s.user);
@@ -166,7 +168,7 @@ export function CoordinatorHome() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: 140 }}
+        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets

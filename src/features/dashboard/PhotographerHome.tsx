@@ -75,6 +75,7 @@ import {
   upcomingEvents as pickUpcoming,
 } from '@/features/photographer/schedule';
 import type { EventItem } from '@/features/events/types';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 /** Analytics totals and the transaction feed are USD ledger values. */
 const LEDGER_CURRENCY = 'USD';
@@ -125,6 +126,7 @@ export function PhotographerHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const { colors } = useTheme();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -271,7 +273,7 @@ export function PhotographerHome() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: 140 }}
+        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
