@@ -389,7 +389,7 @@ export default function OwnerAlbumScreen() {
               <View key={inv.id} style={styles.row}>
                 <Ionicons name="link-outline" size={20} color={colors.primary} />
                 <View style={styles.flex}>
-                  <Text style={styles.rowTitle} numberOfLines={1}>{inv.note || tr.inviteLinkFallback}</Text>
+                  <Text style={styles.rowTitle} numberOfLines={2}>{inv.note || tr.inviteLinkFallback}</Text>
                   <Text style={styles.muted}>
                     {tr.joinedCountMeta.replace('{count}', String(inv.joinedCount)).replace('{left}', daysLeft(inv.expiresAt))}
                   </Text>

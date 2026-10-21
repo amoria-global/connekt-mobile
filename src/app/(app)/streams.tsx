@@ -10,7 +10,7 @@ import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
 import { ActionButton, Chip, EmptyNote, ErrorNotice, SkeletonCard } from '@/features/photographer/kit';
 import { listStreams } from '@/features/streams/api';
 import { StreamCard } from '@/features/streams/StreamCard';
-import { STREAM_FILTERS, countByPhase, filterStreams, type StreamFilter } from '@/features/streams/streamsModel';
+import { STREAM_FILTERS, countByPhase, filterStreams, streamHref, type StreamFilter } from '@/features/streams/streamsModel';
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useRole } from '@/features/auth/role';
@@ -114,7 +114,7 @@ export default function StreamsScreen() {
             <StreamCard
               key={`${s.id}-${s.streamId ?? ''}`}
               stream={s}
-              onPress={() => router.push(`/stream/${s.id}` as Href)}
+              onPress={() => router.push(streamHref(s.id, isCoordinator))}
               footer={
                 isCoordinator ? (
                   <ActionButton

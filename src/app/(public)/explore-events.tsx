@@ -928,7 +928,7 @@ export default function ExploreEventsScreen() {
                 </View>
                 <View style={styles.suggestionTextCol}>
                   <View style={styles.suggestionTitleRow}>
-                    <Text style={styles.suggestionTitle} numberOfLines={1}>
+                    <Text style={styles.suggestionTitle} numberOfLines={2}>
                       {item.title}
                     </Text>
                     {item.badge ? (
@@ -938,7 +938,7 @@ export default function ExploreEventsScreen() {
                     ) : null}
                   </View>
                   {item.subtitle ? (
-                    <Text style={styles.suggestionSubtitle} numberOfLines={1}>
+                    <Text style={styles.suggestionSubtitle} numberOfLines={2}>
                       {item.subtitle}
                     </Text>
                   ) : null}
@@ -1294,7 +1294,7 @@ function PosterCard({
         {event.location ? (
           <View style={styles.cardRow}>
             <Ionicons name="location-outline" size={13} color={colors.textMuted} />
-            <Text style={styles.cardVenue} numberOfLines={1}>
+            <Text style={styles.cardVenue} numberOfLines={2}>
               {event.location}
             </Text>
           </View>
@@ -1311,7 +1311,7 @@ function PosterCard({
                 <Text style={styles.orgInitial}>{org.initial}</Text>
               )}
             </View>
-            <Text style={styles.orgName} numberOfLines={1}>
+            <Text style={styles.orgName} numberOfLines={2}>
               {org.label}
             </Text>
           </View>

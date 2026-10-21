@@ -54,7 +54,7 @@ export default function GalleryScreen() {
               </View>
             )}
             <View style={styles.body}>
-              <Text style={styles.name} numberOfLines={1}>
+              <Text style={styles.name} numberOfLines={2}>
                 {item.name}
               </Text>
               <Text style={styles.meta}>

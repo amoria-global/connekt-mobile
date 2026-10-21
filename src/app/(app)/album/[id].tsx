@@ -485,7 +485,7 @@ export default function AlbumDetailScreen() {
                 {data?.eventLocation ? (
                   <View style={styles.metaChip}>
                     <Ionicons name="location-outline" size={12} color={colors.textMuted} />
-                    <Text style={styles.metaChipText} numberOfLines={1}>
+                    <Text style={styles.metaChipText} numberOfLines={2}>
                       {data.eventLocation}
                     </Text>
                   </View>
@@ -524,7 +524,7 @@ export default function AlbumDetailScreen() {
                   )}
                 </View>
                 <View style={styles.photographerInfo}>
-                  <Text style={styles.photographerName} numberOfLines={1}>
+                  <Text style={styles.photographerName} numberOfLines={2}>
                     {data.photographer}
                   </Text>
                   <Text style={styles.photographerRole}>Photographer</Text>

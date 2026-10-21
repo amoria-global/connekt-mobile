@@ -379,7 +379,7 @@ function AgendaRow({
               {event.title || (isClient ? 'Event' : 'Photo shoot')}
             </Text>
             {meta ? (
-              <Text style={styles.rowMeta} numberOfLines={1}>
+              <Text style={styles.rowMeta} numberOfLines={2}>
                 {meta}
               </Text>
             ) : null}

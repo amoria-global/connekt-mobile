@@ -208,7 +208,7 @@ function PhotoCell({
       {/* Caption if present */}
       {eventTitle ? (
         <View style={styles.caption} pointerEvents="none">
-          <Text style={styles.captionText} numberOfLines={1}>{eventTitle}</Text>
+          <Text style={styles.captionText} numberOfLines={2}>{eventTitle}</Text>
         </View>
       ) : null}
 
