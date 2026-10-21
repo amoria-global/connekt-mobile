@@ -45,11 +45,11 @@ export function SectionHeader({
   return (
     <View style={[styles.sectionHeader, flush && { paddingHorizontal: 0 }]}>
       <View style={styles.sectionHeaderText}>
-        <Text style={styles.sectionTitle} accessibilityRole="header" numberOfLines={1}>
+        <Text style={styles.sectionTitle} accessibilityRole="header" numberOfLines={3}>
           {tr(title)}
         </Text>
         {subtitle ? (
-          <Text style={styles.sectionSubtitle} numberOfLines={2}>
+          <Text style={styles.sectionSubtitle} numberOfLines={4}>
             {tr(subtitle)}
           </Text>
         ) : null}

@@ -460,7 +460,7 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
       <View style={styles.cardTop}>
         <IconTile icon={failed ? 'alert-circle-outline' : 'time-outline'} tone={failed ? 'error' : 'warning'} />
         <View style={styles.flex}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
+          <Text style={styles.cardTitle} numberOfLines={3}>
             {payment.eventName}
           </Text>
           <Text style={styles.cardMeta} numberOfLines={2}>

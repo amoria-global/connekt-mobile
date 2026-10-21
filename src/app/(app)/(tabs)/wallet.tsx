@@ -418,7 +418,7 @@ export default function WalletScreen() {
                       <View style={[styles.rowTile, { backgroundColor: p.tint }]}>
                         <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={15} color={p.bar} />
                       </View>
-                      <Text style={styles.rowLabel} numberOfLines={1}>
+                      <Text style={styles.rowLabel} numberOfLines={3}>
                         {card.label}
                       </Text>
                       <Text style={styles.rowValue} numberOfLines={1}>
@@ -477,10 +477,10 @@ export default function WalletScreen() {
                             <Ionicons name={isIn ? 'arrow-down' : 'arrow-up'} size={15} color={palette.text} />
                           </View>
                           <View style={styles.rowBody}>
-                            <Text style={styles.rowLabel} numberOfLines={1}>
+                            <Text style={styles.rowLabel} numberOfLines={3}>
                               {item.title}
                             </Text>
-                            <Text style={styles.rowMeta} numberOfLines={1}>
+                            <Text style={styles.rowMeta} numberOfLines={3}>
                               {item.tag} · {formatRelativeTime(item.timestamp)}
                             </Text>
                           </View>
@@ -536,7 +536,7 @@ export default function WalletScreen() {
                             color={p.bar}
                           />
                         </View>
-                        <Text style={styles.potLabel} numberOfLines={1}>
+                        <Text style={styles.potLabel} numberOfLines={3}>
                           {card.label}
                         </Text>
                       </View>
