@@ -68,6 +68,7 @@ import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 // The stream-ticket endpoint takes MTN or AIRTEL for mobile money, as before.
@@ -588,8 +589,8 @@ function EventPaymentInner() {
         animationType="fade"
         onRequestClose={() => setCountryModalOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
-          <View style={styles.modalSheet}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{tr('b4_selectPaymentCountry')}</Text>
             <ScrollView style={{ maxHeight: 360 }}>
               {PAYMENT_COUNTRIES.map((c) => (
@@ -612,8 +613,8 @@ function EventPaymentInner() {
                 </Pressable>
               ))}
             </ScrollView>
-          </View>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -943,13 +944,9 @@ const useStyles = makeStyles((c) => ({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.background,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.lg,
     gap: spacing.md,
   },

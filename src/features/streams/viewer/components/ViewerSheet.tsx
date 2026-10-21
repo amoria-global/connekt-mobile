@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts } from '@/theme';
 import { V } from '../viewerTheme';
 import type { IconName } from '../types';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 /** Minimal bottom-sheet shell (scrim tap closes). Reduced motion -> no slide. */
 export const ViewerSheet = memo(function ViewerSheet({
@@ -31,19 +32,15 @@ export const ViewerSheet = memo(function ViewerSheet({
       statusBarTranslucent
       navigationBarTranslucent
     >
-      <Pressable
-        style={styles.scrim}
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close"
-      />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
+      <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.grabber} />
         <Text style={styles.title} accessibilityRole="header">
           {title}
         </Text>
         {children}
-      </View>
+      </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 });
@@ -82,9 +79,6 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     alignSelf: 'center',
     width: '100%',
-    backgroundColor: V.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
     paddingTop: 8,
   },
   grabber: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: V.border, marginBottom: 8 },
