@@ -5,11 +5,11 @@
  */
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Image } from 'expo-image';
 import { makeStyles, radii } from '@/theme';
 import { Skeleton } from '@/features/photographer/kit';
+import { FallbackImage } from './FallbackImage';
 
-export type GridPhoto = { id: string; url?: string };
+export type GridPhoto = { id: string; url?: string; fullUrl?: string };
 
 function PhotoCellImpl({ photo, size, position, total, onOpen, onHold }: { photo: GridPhoto; size: number; position: number; total: number; onOpen: (id: string) => void; onHold?: (id: string) => void }) {
   const styles = useStyles();
@@ -21,8 +21,9 @@ function PhotoCellImpl({ photo, size, position, total, onOpen, onHold }: { photo
       accessibilityRole="imagebutton"
       accessibilityLabel={`Photo ${position} of ${total}`}
     >
-      <Image
-        source={{ uri: photo.url }}
+      <FallbackImage
+        uri={photo.url}
+        fallbackUri={photo.fullUrl && photo.fullUrl !== photo.url ? photo.fullUrl : undefined}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         transition={120}

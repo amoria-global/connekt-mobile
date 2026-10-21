@@ -11,6 +11,7 @@ import { env } from '@/config/env';
 import type { PickedImage } from '@/services/imagePicker';
 import type { ApiError, ApiEnvelope, ID } from '@/types';
 import { appendFile } from '@/utils/upload';
+import { encodeImageUrl, galleryThumbUrl } from './imageUrls';
 
 export function normalizeImageUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
@@ -22,22 +23,24 @@ export function normalizeImageUrl(url?: string | null): string | undefined {
   if (/^https?:\/\//i.test(trimmed)) {
     const OLD_IP = 'http://197.243.24.101';
     if (trimmed.startsWith(OLD_IP)) {
-      return trimmed.replace(OLD_IP, backendRoot);
+      return encodeImageUrl(trimmed.replace(OLD_IP, backendRoot));
     }
-    return trimmed;
+    return encodeImageUrl(trimmed);
   }
 
   if (trimmed.startsWith('/')) {
-    return `${backendRoot}${trimmed}`;
+    return encodeImageUrl(`${backendRoot}${trimmed}`);
   }
 
-  return `${backendRoot}/${trimmed}`;
+  return encodeImageUrl(`${backendRoot}/${trimmed}`);
 }
 
 export type GalleryItem = {
   id: ID;
   name: string;
   coverPhoto?: string;
+  /** The original behind `coverPhoto` when that is a thumbnail, to fall back to. */
+  coverFull?: string;
   photoCount?: number;
   locked?: boolean;
   /**
@@ -94,10 +97,13 @@ function mapGallery(r: Raw): GalleryItem {
     str(r.coverImage) ??
     str(r.fileUrl) ??
     str(r.url);
+  const cover = normalizeImageUrl(rawCover);
+  const coverThumb = galleryThumbUrl(cover);
   return {
     id: String(r.id ?? ''),
     name: str(r.title) ?? str(r.name) ?? 'Album',
-    coverPhoto: normalizeImageUrl(rawCover),
+    coverPhoto: coverThumb ?? cover,
+    coverFull: coverThumb ? cover : undefined,
     photoCount: num(r.photoCount) ?? num(r.photosCount),
     locked: r.isLocked === true || r.locked === true,
     isContent,
@@ -193,10 +199,14 @@ export async function getAlbum(id: string, role?: string | boolean): Promise<Alb
         const rawThumb = str(i.thumbnailUrl) ?? str(i.thumbnail) ?? str(i.previewUrl);
         const rawOriginal = str(i.fileUrl) ?? str(i.url) ?? str(i.filePath) ?? str(i.path);
         const bestUrl = rawThumb || rawOriginal;
+        const original = normalizeImageUrl(rawOriginal || bestUrl) ?? '';
+        // No thumbnail field comes with an album's photos, and the original of a paid album is refused
+        // without a login, so point the grid at the public thumbnail the backend derives from the name.
+        const thumb = normalizeImageUrl(rawThumb) ?? galleryThumbUrl(original);
         return {
           id: String(i.id ?? ''),
-          url: normalizeImageUrl(bestUrl) ?? '',
-          fullUrl: normalizeImageUrl(rawOriginal || bestUrl) ?? '',
+          url: thumb ?? normalizeImageUrl(bestUrl) ?? '',
+          fullUrl: original,
           caption: str(i.caption),
         };
       })
