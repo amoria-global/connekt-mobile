@@ -33,6 +33,15 @@ export const SHARED_STRINGS: Record<string, { fr: string; es: string }> = {
   'Go back': { fr: 'Retour', es: 'Volver' },
   'Not now': { fr: 'Pas maintenant', es: 'Ahora no' },
 
+  // Get help (Home)
+  'Need help?': { fr: "Besoin d'aide ?", es: '¿Necesitas ayuda?' },
+  'Get help': { fr: "Obtenir de l'aide", es: 'Obtener ayuda' },
+  'Contact support': { fr: 'Contacter le support', es: 'Contactar con soporte' },
+  'Find answers in the Help Center, or message our support team.': {
+    fr: "Trouvez des réponses dans le Centre d'aide, ou écrivez à notre équipe d'assistance.",
+    es: 'Encuentra respuestas en el Centro de ayuda o escribe a nuestro equipo de soporte.',
+  },
+
   // Contact Form
   'Reach us your way': { fr: 'Contactez-nous à votre façon', es: 'Contáctanos a tu manera' },
   'Send another': { fr: 'Envoyer un autre message', es: 'Enviar otro mensaje' },

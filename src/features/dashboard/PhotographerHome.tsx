@@ -34,6 +34,7 @@ import { GoalsSection } from '@/features/photographer/GoalsSection';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
+import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { MatchingProfilePrompt } from '@/features/hybrid/MatchingProfile';
 import { IncomingOpportunityAlertModal } from '@/features/hybrid/IncomingOpportunityAlertModal';
 import { listOpportunities, approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
@@ -549,10 +550,10 @@ export function PhotographerHome() {
                     </View>
                   )}
                   <View style={styles.txText}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>
+                    <Text style={styles.cardTitle} numberOfLines={3}>
                       {c.name}
                     </Text>
-                    <Text style={styles.cardMeta} numberOfLines={1}>
+                    <Text style={styles.cardMeta} numberOfLines={3}>
                       {c.totalEvents ? `${c.totalEvents} shoot${c.totalEvents > 1 ? 's' : ''}` : 'Client'}
                     </Text>
                   </View>
@@ -561,6 +562,8 @@ export function PhotographerHome() {
             />
           </>
         ) : null}
+
+        <GetHelpCard />
       </ScrollView>
 
       <TopBar />

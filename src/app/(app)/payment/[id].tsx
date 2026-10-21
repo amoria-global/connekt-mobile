@@ -112,7 +112,7 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={[styles.rowValue, mono && styles.mono]} numberOfLines={1}>
+      <Text style={[styles.rowValue, mono && styles.mono]} numberOfLines={3}>
         {value}
       </Text>
     </View>

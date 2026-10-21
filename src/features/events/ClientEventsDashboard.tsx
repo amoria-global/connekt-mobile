@@ -477,7 +477,7 @@ function EventRow({
           <View style={styles.coverTopRow}>
             <View style={styles.coverDatePill}>
               <Ionicons name="calendar" size={12} color="#FFFFFF" />
-              <Text style={styles.coverDateText} numberOfLines={1}>
+              <Text style={styles.coverDateText} numberOfLines={2}>
                 {whenText(event)}
               </Text>
             </View>
@@ -565,7 +565,7 @@ function MetaTile({
       </View>
       <View style={styles.metaTileTextCol}>
         <Text style={styles.metaTileLabel}>{label}</Text>
-        <Text style={styles.metaTileValue} numberOfLines={1}>
+        <Text style={styles.metaTileValue} numberOfLines={4}>
           {text}
         </Text>
       </View>
