@@ -4,6 +4,7 @@ import { Text } from 'react-native';
 
 import AnalyticsScreen from '@/app/(app)/analytics';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
+import { coordinatorAnalytics, customerAnalytics } from '@/test/analyticsPayloads';
 
 /**
  * Client and coordinator analytics over a faked transport. Before the fix a refused headline request drew
@@ -73,8 +74,8 @@ beforeEach(() => {
 });
 
 describe.each([
-  ['CLIENT', '/customer/analytics', { totalEvents: 0, totalSpent: 0, pendingAmount: 0, gifts: 0, totalBookings: 0, bookmarkedPhotographers: 0 }, 'Total Spent'],
-  ['COORDINATOR', '/coordinator/analytics', { totalEvents: 0, totalRevenue: 0, totalPending: 0, totalPaid: 0, totalPhotographers: 0 }, 'Total Revenue'],
+  ['CLIENT', '/customer/analytics', customerAnalytics(), 'Total Spent'],
+  ['COORDINATOR', '/coordinator/analytics', coordinatorAnalytics(), 'Total Revenue'],
 ] as const)('%s analytics as rendered', (role, prefix, zeros, headlineTitle) => {
   beforeEach(() => {
     mockRole = role;
@@ -99,7 +100,7 @@ describe.each([
 });
 
 describe('performance charts plot the feed they were given', () => {
-  const headline = ok({ totalEvents: 3, totalSpent: 500, pendingAmount: 0, gifts: 0, totalBookings: 3, bookmarkedPhotographers: 1 });
+  const headline = ok(customerAnalytics({ totalEvents: 3, totalSpent: 500, pendingAmount: 0, gifts: 0, totalBookings: 3, bookmarkedPhotographers: 1 }));
   function servePerf(perf: unknown) {
     mockGet.mockImplementation(async (path: string) => {
       if (path === '/customer/analytics') return headline;

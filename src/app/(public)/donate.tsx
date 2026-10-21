@@ -34,13 +34,13 @@ import {
   createPublicDonation,
   getDonationTiers,
   initiatePublicDonationPayment,
-  resolveCurrencyId,
   type InitiatePublicDonationPayload,
 } from '@/features/donations/api';
 import { pollStatus } from '@/features/payments/nativeCheckout';
 import { getPublicPaymentStatus } from '@/features/photos/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
+import { useCurrency } from '@/store/currency';
 import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
 import { usePaymentEligibility } from '@/features/payments/usePaymentEligibility';
 import { listCurrencies } from '@/features/reference/api';
@@ -66,13 +66,6 @@ type MethodTile = {
   provider: string;
   isCard: boolean;
 };
-
-const FALLBACK_TIERS: { amount: number }[] = [
-  { amount: 1000 },
-  { amount: 5000 },
-  { amount: 10000 },
-  { amount: 25000 },
-];
 
 const PAYMENT_COUNTRIES: { iso2: string; name: string; dial: string }[] = [
   { iso2: 'RW', name: 'Rwanda', dial: '250' },
@@ -119,41 +112,6 @@ const COUNTRY_TO_CURRENCY_CODE: Record<string, string> = {
   SL: 'SLE',
 };
 
-const CURRENCY_DEFAULT_TIERS: Record<string, number[]> = {
-  USD: [5, 10, 25, 50],
-  EUR: [5, 10, 25, 50],
-  GBP: [5, 10, 25, 50],
-  KES: [200, 500, 1000, 2500],
-  UGX: [5000, 10000, 25000, 50000],
-  TZS: [2500, 5000, 10000, 25000],
-  NGN: [1000, 2500, 5000, 10000],
-  GHS: [20, 50, 100, 200],
-  ZMW: [50, 100, 250, 500],
-  MWK: [2000, 5000, 10000, 25000],
-  XOF: [1000, 2500, 5000, 10000],
-  XAF: [1000, 2500, 5000, 10000],
-  CDF: [2500, 5000, 10000, 25000],
-  ETB: [200, 500, 1000, 2500],
-  RWF: [1000, 5000, 10000, 25000],
-};
-
-const FALLBACK_CURRENCIES: { id: string; code: string; name: string; symbol: string }[] = [
-  { id: '490c5ab1-a150-459e-be6b-d45131a1e13a', code: 'RWF', name: 'Rwandan franc', symbol: 'RF' },
-  { id: 'b807b880-6b57-4208-bf87-549a1535b2f3', code: 'USD', name: 'US Dollar', symbol: '$' },
-  { id: '5070cf4e-9a1f-4b26-9dae-97a6013ad4b0', code: 'EUR', name: 'Euro', symbol: '€' },
-  { id: 'e82f75a7-fe33-4b90-85a1-ae13919e0921', code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh' },
-  { id: '68e02a65-2e52-4e78-b07d-2c516ec12675', code: 'UGX', name: 'Ugandan Shilling', symbol: 'USh' },
-  { id: '1f742d3f-f838-49d2-90df-890e0c2af8fe', code: 'TZS', name: 'Tanzanian Shilling', symbol: 'TSh' },
-  { id: 'dd9cb53f-dcd1-4a01-ae17-624925d05fe6', code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
-  { id: '8b1dd030-3e2e-4ea2-8052-b283111743a9', code: 'GHS', name: 'Ghanaian Cedi', symbol: 'GH₵' },
-  { id: '8e38f423-174f-4bd1-8c2c-f2d9409433f0', code: 'ZMW', name: 'Zambian Kwacha', symbol: 'ZK' },
-  { id: '6bf7bebd-a637-4024-a27e-6c61baff8d5d', code: 'MWK', name: 'Malawian Kwacha', symbol: 'MK' },
-  { id: 'aa958d33-caf5-4a28-973b-b4923f426de5', code: 'XOF', name: 'West African CFA Franc', symbol: 'CFA' },
-  { id: '7b3e123a-eeb3-4cad-bd0f-f8e6f6c77ae1', code: 'XAF', name: 'Central African CFA Franc', symbol: 'FCFA' },
-  { id: 'dd9c32d0-f7cd-4da8-93d1-9b94190f391c', code: 'CDF', name: 'Congolese Franc', symbol: 'FC' },
-  { id: 'd3825531-935a-46ad-a8d9-959dfc403b6d', code: 'ETB', name: 'Ethiopian Birr', symbol: 'Br' },
-];
-
 export default function PublicDonateScreen() {
   useLanguage();
   const { colors } = useTheme();
@@ -171,31 +129,41 @@ export default function PublicDonateScreen() {
   );
 
   // Currency Selection
-  const [currencyCode, setCurrencyCode] = useState('RWF');
+  // Starts on the currency the user already chose for the app; the list below comes from the backend, and if that
+  // currency is not in it the first listed one is used. No currency is assumed here.
+  const preferredCurrency = useCurrency((s) => s.currency);
+  const [chosenCurrency, setChosenCurrency] = useState<string>(preferredCurrency);
   const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
+
+  const currenciesAsync = useAsync(useCallback(() => listCurrencies(), []));
+  const availableCurrencies = useMemo(() => currenciesAsync.data ?? [], [currenciesAsync.data]);
+  // The chosen currency if the backend lists it, otherwise the first listed one (derived, so no effect has to correct it).
+  const currencyCode =
+    availableCurrencies.length > 0 && !availableCurrencies.some((c) => c.code.toUpperCase() === chosenCurrency.toUpperCase())
+      ? availableCurrencies[0].code
+      : chosenCurrency;
 
   const tiersAsync = useAsync(
     useCallback(() => getDonationTiers(currencyCode), [currencyCode]),
   );
-  const currenciesAsync = useAsync(useCallback(() => listCurrencies(), []));
 
-  // Preset tiers based on active currency (prefer live backend tiers, fallback to CURRENCY_DEFAULT_TIERS)
+  // Preset amounts are the backend's tiers for the active currency. With none, there are no presets and the donor types an amount.
   const presetAmounts = useMemo(() => {
     if (tiersAsync.data && tiersAsync.data.length > 0) {
       return tiersAsync.data.slice(0, 4).map((t) => t.amount);
     }
-    return CURRENCY_DEFAULT_TIERS[currencyCode] || [1000, 5000, 10000, 25000];
+    return [];
   }, [currencyCode, tiersAsync.data]);
 
   // Selected amount & custom amount
-  const [selectedAmount, setSelectedAmount] = useState<number>(5000);
+  const [selectedAmount, setSelectedAmount] = useState<number>(0);
   const [isCustom, setIsCustom] = useState(false);
-  const [amountInputText, setAmountInputText] = useState('5,000');
+  const [amountInputText, setAmountInputText] = useState('');
   const [isAmountFocused, setIsAmountFocused] = useState(false);
   const amountInputRef = useRef<TextInput>(null);
 
-  const availableCurrencies = currenciesAsync.data?.length ? currenciesAsync.data : FALLBACK_CURRENCIES;
+  const currenciesUnavailable = !currenciesAsync.loading && availableCurrencies.length === 0;
 
   const filteredCurrencies = useMemo(() => {
     const q = currencySearch.trim().toLowerCase();
@@ -209,14 +177,13 @@ export default function PublicDonateScreen() {
   }, [availableCurrencies, currencySearch]);
 
   const onSelectCurrency = (code: string) => {
-    setCurrencyCode(code);
+    setChosenCurrency(code);
     setCurrencyModalOpen(false);
     setCurrencySearch('');
-    const tiers = CURRENCY_DEFAULT_TIERS[code] || [1000, 5000, 10000, 25000];
-    const defaultAmount = tiers[1] || tiers[0] || 5000;
-    setSelectedAmount(defaultAmount);
+    // The new currency's backend tiers arrive in a moment and pick the default amount (see the effect below).
+    setSelectedAmount(0);
     setIsCustom(false);
-    setAmountInputText(defaultAmount.toLocaleString());
+    setAmountInputText('');
   };
 
   // Whenever dynamic tiers arrive from backend for the selected currency, keep preset aligned if not custom
@@ -367,8 +334,7 @@ export default function PublicDonateScreen() {
   const onSelectCustom = () => {
     setIsCustom(true);
     if (!amountInputText || amountInputText === '0') {
-      const fallback = selectedAmount > 0 ? selectedAmount : 5000;
-      setAmountInputText(fallback.toLocaleString());
+      setAmountInputText(selectedAmount > 0 ? selectedAmount.toLocaleString() : '');
     }
     setTimeout(() => {
       amountInputRef.current?.focus();
@@ -431,13 +397,14 @@ export default function PublicDonateScreen() {
       const matchedCur = currenciesAsync.data?.find(
         (c) => c.code.toUpperCase() === currencyCode.toUpperCase(),
       );
-      const effectiveCurrencyId = matchedCur?.id || resolveCurrencyId(currencyCode);
+      if (!matchedCur) throw { status: 400, message: 'Currencies could not be loaded. Please try again.' };
+      const effectiveCurrencyId = matchedCur.id;
 
       const created = await createPublicDonation({
         amount: activeAmount,
         currencyId: effectiveCurrencyId,
         currencyCode,
-        donorName: donorName.trim() || 'Anonymous Supporter',
+        donorName: donorName.trim() || undefined,
         donorEmail: donorEmail.trim() || undefined,
         message: donorMessage.trim() || undefined,
         paymentMethod: isCard ? 'CARD' : 'MOBILE_MONEY',
@@ -947,6 +914,14 @@ export default function PublicDonateScreen() {
             </View>
 
             <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
+              {currenciesUnavailable ? (
+                <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+                  <Text style={styles.countryRowName}>Currencies could not be loaded.</Text>
+                  <Pressable onPress={currenciesAsync.refresh} accessibilityRole="button">
+                    <Text style={styles.currencySubCode}>Try again</Text>
+                  </Pressable>
+                </View>
+              ) : null}
               {filteredCurrencies.map((c) => (
                 <Pressable
                   key={c.code}

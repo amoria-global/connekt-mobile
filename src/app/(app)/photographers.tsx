@@ -20,6 +20,7 @@ import {
   inviteCoordinatorPhotographer,
   listBookmarkedPhotographers,
   listPhotographers,
+  listSpecialties,
   unbookmarkPhotographer,
   type Photographer,
 } from '@/features/photographers/api';
@@ -43,32 +44,6 @@ const ALL_CATEGORIES = 'All Categories';
 const ALL_LOCATIONS = 'All Locations';
 const ALL_PRICES = 'All Prices';
 const ALL_RATINGS = 'All Ratings';
-
-export const STANDARD_CATEGORIES = [
-  'Weddings',
-  'Portraits',
-  'Events',
-  'Studio',
-  'Fashion',
-  'Birthdays',
-  'Family',
-  'Corporate',
-  'Graduation',
-  'Videography',
-  'Drone & Aerial',
-  'Commercial',
-] as const;
-
-export const POPULAR_LOCATIONS = [
-  'Kampala',
-  'Entebbe',
-  'Jinja',
-  'Mbarara',
-  'Gulu',
-  'Kigali',
-  'Nairobi',
-  'Dar es Salaam',
-] as const;
 
 const PRICE_BUCKETS = [
   { label: 'Under $100', min: 0, max: 100 },
@@ -268,6 +243,8 @@ export default function PhotographersScreen() {
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotographers(), []));
+  // Categories are the platform's specialties plus whatever the directory itself uses; cities come from the directory only.
+  const specialties = useAsync(useCallback(() => listSpecialties(), []));
 
   const submitInvite = async () => {
     if (!inviteEmail.includes('@')) {
@@ -304,7 +281,7 @@ export default function PhotographersScreen() {
       });
     });
 
-    const list: string[] = [ALL_CATEGORIES, ...STANDARD_CATEGORIES];
+    const list: string[] = [ALL_CATEGORIES, ...(specialties.data ?? [])];
 
     dynamicSet.forEach((item) => {
       const itemNorm = normalizeTerm(item);
@@ -325,7 +302,7 @@ export default function PhotographersScreen() {
     });
 
     return list;
-  }, [data]);
+  }, [data, specialties.data]);
 
   const locationOptions = useMemo(() => {
     const set = new Set<string>();
@@ -333,7 +310,7 @@ export default function PhotographersScreen() {
       if (p.location && p.location.trim()) set.add(p.location.trim());
     });
 
-    const list: string[] = [ALL_LOCATIONS, ...POPULAR_LOCATIONS];
+    const list: string[] = [ALL_LOCATIONS];
 
     set.forEach((loc) => {
       const locNorm = normalizeTerm(loc);
