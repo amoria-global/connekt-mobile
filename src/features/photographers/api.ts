@@ -126,6 +126,24 @@ function mapPackage(r: Raw): PhotographerPackage {
   };
 }
 
+/** The photographer specialties the platform defines (`GET /public/specialties`), as plain names. */
+export async function listSpecialties(): Promise<string[]> {
+  const res = requireOk(await api.get<ApiEnvelope<unknown>>('/public/specialties', { skipAuth: true }));
+  const data = (res as { data?: unknown })?.data;
+  if (!Array.isArray(data)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const row of data) {
+    const name = typeof row === 'string' ? row : typeof (row as { name?: unknown })?.name === 'string' ? (row as { name: string }).name : '';
+    const clean = name.trim();
+    if (clean && !seen.has(clean.toLowerCase())) {
+      seen.add(clean.toLowerCase());
+      out.push(clean);
+    }
+  }
+  return out;
+}
+
 export async function listPhotographers(): Promise<Photographer[]> {
   // Walk every page — fetching only the first 50 hid the rest of the
   // directory (the screen paginates over whatever this returns).

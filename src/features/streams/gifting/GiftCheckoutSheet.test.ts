@@ -7,7 +7,7 @@ jest.mock('@/features/payments/CheckoutSheet', () => ({ CheckoutSheet: () => nul
 jest.mock('@/features/streams/gifting/GiftOverlay', () => ({ formatGiftUsd: (n: number) => `$${n}` }));
 
 const gift = { code: 'LION', name: 'Lion', emoji: 'L', amountUsd: 50 } as never;
-const base = { viewerId: 'v1', deviceFingerprint: 'fp', gift };
+const base = { currencyId: 'usd-id-from-backend', viewerId: 'v1', deviceFingerprint: 'fp', gift };
 
 describe('buildGiftRequest', () => {
   it('prices by gift code and never invents a phone for a card', () => {
@@ -32,14 +32,19 @@ describe('buildGiftRequest', () => {
 });
 
 describe('buildAuthGiftRequest', () => {
+  it('carries the currency id it is given, never one of its own', () => {
+    const r = buildAuthGiftRequest({ currencyId: 'usd-id-from-backend', eventId: 'e1', gift, input: { card: true } });
+    expect(r.currencyId).toBe('usd-id-from-backend');
+    expect(buildGiftRequest({ ...base, input: { card: true } }).currencyId).toBe('usd-id-from-backend');
+  });
   it('names the gift, never an amount, and no viewer or device for a signed-in sender', () => {
-    const r = buildAuthGiftRequest({ eventId: 'e1', gift, input: { card: false, phone: '254712345678', telecomProvider: 'MPESA' } });
+    const r = buildAuthGiftRequest({ currencyId: 'c', eventId: 'e1', gift, input: { card: false, phone: '254712345678', telecomProvider: 'MPESA' } });
     expect(r).toEqual(expect.objectContaining({ eventId: 'e1', giftCode: 'LION', paymentMethod: 'MOBILE_MONEY', telecomProvider: 'MPESA' }));
     expect(r).not.toHaveProperty('amount');
     expect(r).not.toHaveProperty('viewerId');
   });
   it('sends no phone for a card', () => {
-    const r = buildAuthGiftRequest({ eventId: 'e1', gift, input: { card: true } });
+    const r = buildAuthGiftRequest({ currencyId: 'c', eventId: 'e1', gift, input: { card: true } });
     expect(r.paymentMethod).toBe('CARD');
     expect(r.phone).toBeUndefined();
   });

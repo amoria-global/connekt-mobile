@@ -64,3 +64,29 @@ export async function getPaymentOptions(country: string): Promise<PaymentOptions
       .filter((o) => o.id),
   };
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let currencyList: Promise<Currency[]> | null = null;
+
+/**
+ * The backend's id for a currency, read from `/public/currencies`. An id passes through unchanged. A code that the
+ * backend does not list is an error: the app used to carry a table of production ids and fall back to RWF for any
+ * code it did not know, which would have charged or recorded a donation in the wrong currency.
+ */
+export async function currencyIdFor(codeOrId: string | undefined): Promise<string> {
+  if (!codeOrId) throw { status: 400, message: 'Choose a currency first.' };
+  if (UUID_REGEX.test(codeOrId)) return codeOrId;
+  currencyList ??= listCurrencies().catch((e) => {
+    currencyList = null; // a failed read must not be remembered
+    throw e;
+  });
+  const list = await currencyList;
+  const hit = list.find((c) => c.code.toUpperCase() === codeOrId.toUpperCase());
+  if (!hit) throw { status: 400, message: `${codeOrId.toUpperCase()} is not available right now.` };
+  return hit.id;
+}
+
+/** Test seam: forget the remembered list. */
+export function resetCurrencyCache() {
+  currencyList = null;
+}
