@@ -90,6 +90,7 @@ import {
 import { useCurrency } from '@/store/currency';
 import { formatDate } from '@/utils/format';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { DashboardGreeting } from './DashboardGreeting';
 
 /**
  * The client's trend chart, the same card as the coordinator Home. The performance feed carries what was paid
@@ -314,22 +315,20 @@ export function ClientHome() {
         <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />
 
         {/* 1. Orientation */}
-        <View style={styles.header}>
-          <View style={styles.flex}>
-            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-              Welcome back, {name}
-            </Text>
-            <Text style={styles.subtitle}>{longDate() || 'Your events, photos and bookings'}</Text>
-          </View>
-          <Pressable
-            onPress={() => setHidden((h) => !h)}
-            accessibilityRole="button"
-            accessibilityLabel={hidden ? 'Show amounts' : 'Hide amounts'}
-            style={({ pressed }) => [styles.eye, pressed && styles.pressed]}
-          >
-            <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
-          </Pressable>
-        </View>
+        <DashboardGreeting
+          name={name}
+          subtitle={longDate() || 'Your events, photos and bookings'}
+          trailing={
+            <Pressable
+              onPress={() => setHidden((h) => !h)}
+              accessibilityRole="button"
+              accessibilityLabel={hidden ? 'Show amounts' : 'Hide amounts'}
+              style={({ pressed }) => [styles.eye, pressed && styles.pressed]}
+            >
+              <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
+            </Pressable>
+          }
+        />
 
         <Pressable
           onPress={() => setSearchOpen(true)}
@@ -786,10 +785,7 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
 }
 
 const useStyles = makeStyles((c) => ({
-  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  title: { color: c.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
-  subtitle: { color: c.textMuted, fontSize: 13, marginTop: 2 },
+  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
