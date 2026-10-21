@@ -111,7 +111,7 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
               segments={sources.map((x, i) => ({ value: x.value, color: hues[i % hues.length] }))}
             >
               <View style={styles.ringCentre}>
-                <Text style={styles.ringTotal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} maxFontSizeMultiplier={1.2}>
+                <Text style={styles.ringTotal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} maxFontSizeMultiplier={1.6}>
                   {moneyText(sourceTotal, currency)}
                 </Text>
                 <Text style={styles.ringCaption}>Combined</Text>
@@ -230,7 +230,7 @@ export function PaymentTrendChart({ points }: { points: readonly PerformancePoin
         <TrendChart values={points.map((p) => p.value1)} peakIndex={points.indexOf(top)} />
         <View style={styles.labels}>
           {points.map((p, i) => (
-            <Text key={`${p.day}-${i}`} style={[styles.barLabel, p === top && styles.barLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            <Text key={`${p.day}-${i}`} style={[styles.barLabel, p === top && styles.barLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.6}>
               {p.day}
             </Text>
           ))}

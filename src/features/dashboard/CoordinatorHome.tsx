@@ -27,6 +27,7 @@ import { LiveButton } from '@/components/ui/live';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
+import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import {
@@ -58,7 +59,7 @@ import { moneyText } from '@/features/photographer/money';
 import { HeroActionCard, ListRow } from '@/features/client/studio';
 import { DUE_CURRENCY, clientStatus, dueText, isLiveNow, payable, remaining } from '@/features/client/homeModel';
 import { clock12, dayKey, eventDay, upcomingEvents } from '@/features/photographer/schedule';
-import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
+import { PerformanceWaveCard } from '@/features/dashboard/PerformanceWaveCard';
 import { formatDate } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -96,7 +97,7 @@ export function CoordinatorHome() {
   const name = user?.firstName || user?.organizationName || 'Coordinator';
 
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
-  const [selectedWaveMetric, setSelectedWaveMetric] = useState<MetricKey>('totalRevenue');
+  const [selectedWaveMetric, setSelectedWaveMetric] = useState<string>('totalRevenue');
   const [searchQuery, setSearchQuery] = useState('');
   const [pulling, setPulling] = useState(false);
   // Amounts start hidden, like the photographer and client Home.
@@ -204,7 +205,7 @@ export function CoordinatorHome() {
             style={styles.searchInput}
             returnKeyType="search"
             accessibilityLabel="Search your events"
-            maxFontSizeMultiplier={1.3}
+            maxFontSizeMultiplier={1.6}
             autoCapitalize="none"
             autoCorrect={false}
             onSubmitEditing={() => {
@@ -430,6 +431,8 @@ export function CoordinatorHome() {
             </View>
           </>
         )}
+
+        {q ? null : <GetHelpCard />}
       </ScrollView>
 
       <TopBar />
@@ -457,7 +460,7 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
       <View style={styles.cardTop}>
         <IconTile icon={failed ? 'alert-circle-outline' : 'time-outline'} tone={failed ? 'error' : 'warning'} />
         <View style={styles.flex}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
+          <Text style={styles.cardTitle} numberOfLines={3}>
             {payment.eventName}
           </Text>
           <Text style={styles.cardMeta} numberOfLines={2}>

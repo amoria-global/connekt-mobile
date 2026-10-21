@@ -96,7 +96,7 @@ const flat = (node: ReactTestInstance): string =>
     .map((t) => (Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children ?? '')))
     .join(' | ');
 
-type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'pending' | 'activities' | 'photographers' | 'bookmarks', unknown>>;
+type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'pending' | 'activities' | 'photographers' | 'bookmarks' | 'trends' | 'performance', unknown>>;
 
 function serve(routes: Routes) {
   const defaults: Routes = {
@@ -107,12 +107,18 @@ function serve(routes: Routes) {
     activities: ok([]),
     photographers: ok([]),
     bookmarks: ok([]),
+    trends: ok({}),
+    performance: ok([]),
   };
   const r = { ...defaults, ...routes };
   mockGet.mockImplementation(async (path: string) => {
     const v = path.startsWith('/wallet/me')
       ? r.wallet
-      : path.startsWith('/customer/analytics/recent-activities')
+      : path.startsWith('/customer/analytics/trends')
+        ? r.trends
+        : path.startsWith('/customer/analytics/performance')
+          ? r.performance
+          : path.startsWith('/customer/analytics/recent-activities')
         ? r.activities
         : path.startsWith('/customer/analytics')
           ? r.analytics
@@ -150,6 +156,14 @@ const press = async (r: TestRenderer.ReactTestRenderer, label: string) => {
 };
 
 const inDays = (n: number) => shiftDays(dayKey(new Date()), n);
+
+const pressText = async (r: TestRenderer.ReactTestRenderer, text: string) => {
+  const node = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.findAllByType(Text).some((t) => t.props.children === text))[0];
+  if (!node) throw new Error(`nothing to press with text "${text}"`);
+  await act(async () => {
+    node.props.onPress();
+  });
+};
 
 beforeEach(() => {
   mockGet.mockReset();
@@ -324,5 +338,51 @@ describe('client home as rendered', () => {
     const text = flat(r.root);
     expect(text).toContain('Could not load activity');
     expect(text).not.toContain('Nothing yet');
+  });
+});
+
+describe('get help on the home', () => {
+  it('offers the existing Help Center and the Contact us form', async () => {
+    serve({});
+    const r = await mount();
+    expect(flat(r.root)).toContain('Need help?');
+    await pressText(r, 'Get help');
+    expect(mockPush).toHaveBeenLastCalledWith('/help-center');
+    await pressText(r, 'Contact support');
+    expect(mockPush).toHaveBeenLastCalledWith('/contact_us');
+  });
+});
+
+describe('client trend chart', () => {
+  const week = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => ({ day, value1: i === 5 ? 40 : 0, value2: i === 5 ? 2 : 0 }));
+
+  it('shows the performance card with the client metrics, spend first', async () => {
+    serve({ performance: ok(week), trends: ok({ totalSpent: { value: 40, changePercent: 12, trend: 'up' }, events: { value: 2, changePercent: 0, trend: 'up' } }) });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Performance');
+    expect(text).toContain('TOTAL SPENT');
+    expect(text).toContain('Spent');
+    expect(text).toContain('Events');
+    expect(text).not.toContain('Photographers, ');
+    // the client chart has no coordinator-only metrics
+    expect(text).not.toMatch(/Clients \|/);
+  });
+
+  it('masks the spend figure until amounts are shown', async () => {
+    serve({ performance: ok(week), trends: ok({ totalSpent: { value: 40, changePercent: 0, trend: 'up' } }) });
+    const r = await mount();
+    const masked = flat(r.root);
+    expect(masked).not.toContain('$40.00');
+    await press(r, 'Show amounts');
+    expect(flat(r.root)).toContain('$40.00');
+  });
+
+  it('a refused trends read is an error with a retry, and the chart says it could not load', async () => {
+    serve({ trends: refused('Could not load trends') });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Could not load trends');
+    expect(text).toContain('Trend data could not be loaded');
   });
 });
