@@ -124,7 +124,7 @@ export function mapStream(r: Raw): Stream {
   return {
     id: String(r.eventId ?? r.id ?? r.streamId ?? ''),
     streamId: str(r.id) ?? str(r.streamId),
-    title: str(r.streamTitle) ?? str(r.eventTitle) ?? str(r.title) ?? 'Live stream',
+    title: str(r.streamTitle) ?? str(r.eventTitle) ?? str(r.title) ?? 'Untitled stream',
     eventTitle: str(r.eventTitle),
     photographerName: photographerName?.trim() || undefined,
     thumbnail: streamImageUrl(str(r.coverImage) ?? str(r.eventPhoto) ?? str(r.thumbnail) ?? str(r.photographerImage)),
@@ -182,7 +182,7 @@ export async function getStream(id: string, asCoordinator = false): Promise<Stre
       str(d.hlsManifestUrl) ?? str(d.playbackUrl) ?? str(d.hls) ?? derivedHls,
     whepUrl: str(d.whepUrl),
     eventId: String(d.id ?? id),
-    title: str(d.title) ?? 'Live stream',
+    title: str(d.title) ?? 'Untitled stream',
     isLive: str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended',
     phase:
       str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended'

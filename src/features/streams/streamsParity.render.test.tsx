@@ -236,7 +236,7 @@ describe('chat and video sheets', () => {
     await press(r, 'Videos', 0);
     let text = flat(r.root);
     expect(text).toMatch(/Total videos:[^|]*\| 2/);
-    expect(text).toMatch(/Max duration:[^|]*\| 1 minute/);
+    expect(text).not.toContain('Max duration');
     expect(text).toContain('NEW');
     const tile = r.root.find((n) => typeof n.props?.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Video from Grace'));
     await act(async () => {
