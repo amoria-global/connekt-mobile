@@ -42,3 +42,20 @@ export function clientStats(u?: { completedEvents?: number | null; reviewsCount?
     { label: 'Identity', value: kycLabel(u?.kycStatus) },
   ];
 }
+
+/**
+ * A photographer's four figures. The old row drew `Jobs 0`, `Reviews 0` and `Rating 5.0` for an account the API had no
+ * figures for; a missing count or rating is a dash, and a rating exists only once there are reviews behind it.
+ */
+export function photographerStats(
+  u?: { completedEvents?: number | null; reviewsCount?: number | null; rating?: number | null; acceptanceRate?: number | null } | null,
+): StatItem[] {
+  const n = (v?: number | null) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '—');
+  const rated = typeof u?.rating === 'number' && Number.isFinite(u.rating) && u.rating > 0;
+  return [
+    { label: 'Jobs', value: n(u?.completedEvents) },
+    { label: 'Reviews', value: n(u?.reviewsCount) },
+    { label: 'Rating', value: rated ? (u!.rating as number).toFixed(1) : '—' },
+    { label: 'Acceptance', value: typeof u?.acceptanceRate === 'number' && Number.isFinite(u.acceptanceRate) ? `${u.acceptanceRate}%` : '—' },
+  ];
+}

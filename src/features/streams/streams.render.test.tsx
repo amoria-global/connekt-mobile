@@ -184,6 +184,17 @@ describe('streams screen as rendered', () => {
     expect(text).not.toContain('Manage event');
   });
 
+  it('a client opens a stream in the access-aware viewer (a paid-to-watch stream is not theirs to read as an owner)', async () => {
+    mockRole = 'Client';
+    mockGet.mockImplementation(async () => ok(clientRows));
+    const r = await mount();
+    const card = r.root.findAll((n) => typeof n.props?.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Yubire Wedding') && typeof n.props.onPress === 'function')[0];
+    await act(async () => {
+      card.props.onPress();
+    });
+    expect(mockPush).toHaveBeenLastCalledWith('/(public)/events/live-stream?id=e9');
+  });
+
   it('filters by phase', async () => {
     mockGet.mockImplementation(async () => ok(coordinatorRows));
     const r = await mount();

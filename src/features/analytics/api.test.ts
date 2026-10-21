@@ -7,6 +7,7 @@ import {
   getPhotographerAnalytics,
   getPhotographerRecentTransactions,
   getCoordinatorAnalytics,
+  getCoordinatorPhotographers,
   cleanTransactionTitle,
   cleanTransactionStatus,
 } from './api';
@@ -19,6 +20,20 @@ jest.mock('@/api/client', () => {
 describe('Analytics API Client', () => {
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('coordinator photographers: a missing status or event count stays missing (no "Active", no 0)', async () => {
+    (api.get as jest.Mock).mockResolvedValueOnce({
+      action: 1,
+      data: [
+        { id: 'p1', name: 'Eric', status: 'SUSPENDED', totalEvents: 0 },
+        { id: 'p2', name: 'Grace' },
+      ],
+    });
+    const rows = await getCoordinatorPhotographers(5);
+    expect(rows[0]).toMatchObject({ status: 'SUSPENDED', totalEvents: 0 });
+    expect(rows[1].status).toBeUndefined();
+    expect(rows[1].totalEvents).toBeUndefined();
   });
 
   it('fetches and maps customer analytics defensively', async () => {
