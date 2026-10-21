@@ -78,6 +78,11 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
   const [eventResults, setEventResults] = useState<PublicEvent[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
+  // A failed read is not "no results": either source failing shows its own notice and a retry.
+  const [directoryFailed, setDirectoryFailed] = useState(false);
+  const [eventsFailed, setEventsFailed] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
+
   const inputRef = useRef<TextInput>(null);
 
   // Load directory cache and recents on open
@@ -85,9 +90,10 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
     if (!visible) return;
 
     // Fetch photographer directory once for instant fuzzy searching
+    setDirectoryFailed(false);
     listPhotographers()
       .then((list) => setPhotographers(list))
-      .catch(() => {});
+      .catch(() => setDirectoryFailed(true));
 
     // Load recent searches
     storage
@@ -106,7 +112,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
     if (initialQuery) {
       setQuery(initialQuery);
     }
-  }, [visible, initialQuery]);
+  }, [visible, initialQuery, retryTick]);
 
   const saveRecentSearch = useCallback(
     async (term: string) => {
@@ -132,24 +138,34 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
     const term = query.trim();
     if (!term) {
       setEventResults([]);
+      setEventsFailed(false);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    // Only the newest term may write: a slow answer for "wed" must not replace the results for "wedding".
+    let current = true;
     const timer = setTimeout(async () => {
       try {
         const res = await listPublicEventsDetailed({ search: term, size: 8 });
+        if (!current) return;
         setEventResults(res.content || []);
+        setEventsFailed(false);
       } catch {
+        if (!current) return;
         setEventResults([]);
+        setEventsFailed(true);
       } finally {
-        setLoading(false);
+        if (current) setLoading(false);
       }
     }, 280);
 
-    return () => clearTimeout(timer);
-  }, [query]);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [query, retryTick]);
 
   // Filter photographers in memory based on query
   const filteredPhotographers = useMemo(() => {
@@ -330,6 +346,20 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loadingText}>{tr('Searching platform...')}</Text>
             </View>
+          ) : !hasResults && (eventsFailed || directoryFailed) ? (
+            <View style={styles.emptyWrap}>
+              <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>{tr('Search is unavailable right now')}</Text>
+              <Text style={styles.emptySub}>{tr('Check your connection and try again.')}</Text>
+              <Pressable
+                onPress={() => setRetryTick((n) => n + 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Try again"
+                style={styles.retryBtn}
+              >
+                <Text style={styles.retryText} maxFontSizeMultiplier={1.6}>Try again</Text>
+              </Pressable>
+            </View>
           ) : !hasResults ? (
             <View style={styles.emptyWrap}>
               <Ionicons name="search-outline" size={44} color={colors.textMuted} />
@@ -340,6 +370,19 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
             </View>
           ) : (
             <View style={styles.resultsWrap}>
+              {eventsFailed || directoryFailed ? (
+                <Pressable
+                  onPress={() => setRetryTick((n) => n + 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try again"
+                  style={styles.failBanner}
+                >
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.failBannerText} maxFontSizeMultiplier={1.6}>
+                    {tr('Some results could not be loaded. Tap to try again.')}
+                  </Text>
+                </Pressable>
+              ) : null}
               {/* Live Broadcasts section (Top Priority) */}
               {(scope === 'all' || scope === 'events') && liveEvents.length > 0 && (
                 <View style={styles.section}>
@@ -359,10 +402,10 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                         contentFit="cover"
                       />
                       <View style={styles.liveCardInfo}>
-                        <Text style={styles.liveCardTitle} numberOfLines={1}>
+                        <Text style={styles.liveCardTitle} numberOfLines={2}>
                           {ev.title}
                         </Text>
-                        <Text style={styles.liveCardSub} numberOfLines={1}>
+                        <Text style={styles.liveCardSub} numberOfLines={2}>
                           {ev.photographerName || ev.eventOrganizer || tr('Live Stream')}
                         </Text>
                       </View>
@@ -397,12 +440,12 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                         />
                         <View style={styles.resultInfo}>
                           <View style={styles.rowInline}>
-                            <Text style={styles.resultTitle} numberOfLines={1}>
+                            <Text style={styles.resultTitle} numberOfLines={2}>
                               {p.name}
                             </Text>
                             <Ionicons name="checkmark-circle" size={14} color="#3B82F6" />
                           </View>
-                          <Text style={styles.resultSub} numberOfLines={1}>
+                          <Text style={styles.resultSub} numberOfLines={2}>
                             {[p.category, p.location].filter(Boolean).join(' · ')}
                           </Text>
                         </View>
@@ -444,10 +487,10 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                           contentFit="cover"
                         />
                         <View style={styles.resultInfo}>
-                          <Text style={styles.resultTitle} numberOfLines={1}>
+                          <Text style={styles.resultTitle} numberOfLines={2}>
                             {ev.title}
                           </Text>
-                          <Text style={styles.resultSub} numberOfLines={1}>
+                          <Text style={styles.resultSub} numberOfLines={2}>
                             {[
                               isLive ? 'LIVE NOW' : ev.eventDate ? formatDate(ev.eventDate) : null,
                               ev.location,
@@ -842,6 +885,28 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: spacing.xl,
     gap: spacing.sm,
   },
+  failBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 8,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceMuted,
+  },
+  failBannerText: { flex: 1, color: c.text, fontSize: 13, lineHeight: 18 },
+  retryBtn: {
+    marginTop: 14,
+    minHeight: 44,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.primary,
+  },
+  retryText: { color: c.textOnPrimary, fontSize: 14, fontWeight: '800' },
   emptyTitle: {
     fontFamily: fonts.bold,
     fontSize: fontSize.sm,

@@ -408,7 +408,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
           )}
 
           <View style={styles.sheetHeaderCenter}>
-            <Text style={styles.sheetHeaderTitle} numberOfLines={1}>
+            <Text style={styles.sheetHeaderTitle} numberOfLines={2}>
               {bookingSuccess ? tr('Booking Confirmed') : photographerName ? `${tr('Book Now')} ${photographerName}` : tr('Booking Request')}
             </Text>
             {!bookingSuccess && (

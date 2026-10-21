@@ -1,4 +1,4 @@
-import { clientStats, coordinatorStats, kycLabel } from './clientStats';
+import { clientStats, coordinatorStats, kycLabel, photographerStats } from './clientStats';
 
 describe('clientStats', () => {
   it('a missing count is a dash, a real zero stays a zero', () => {
@@ -57,5 +57,23 @@ describe('coordinatorStats', () => {
 
   it('keeps a real zero as 0', () => {
     expect(coordinatorStats({ completedEvents: 0 })[0].value).toBe('0');
+  });
+});
+
+describe('photographerStats', () => {
+  it('has no default 5.0, no zero counts and no invented acceptance for an account with no figures', () => {
+    expect(photographerStats({})).toEqual([
+      { label: 'Jobs', value: '—' },
+      { label: 'Reviews', value: '—' },
+      { label: 'Rating', value: '—' },
+      { label: 'Acceptance', value: '—' },
+    ]);
+  });
+  it('shows real figures and keeps a real zero', () => {
+    const s = photographerStats({ completedEvents: 0, reviewsCount: 8, rating: 4.26, acceptanceRate: 90 });
+    expect(s.map((x) => x.value)).toEqual(['0', '8', '4.3', '90%']);
+  });
+  it('a rating of 0 with no reviews behind it is not shown as a rating', () => {
+    expect(photographerStats({ rating: 0, reviewsCount: 0 })[2].value).toBe('—');
   });
 });

@@ -279,10 +279,10 @@ export function IncomingOpportunityAlertModal({
                 <Ionicons name="location-outline" size={17} color={colors.primary} />
               </View>
               <View style={styles.logisticsTextWrap}>
-                <Text style={styles.logisticsPrimary} numberOfLines={1}>
+                <Text style={styles.logisticsPrimary} numberOfLines={2}>
                   {opportunity.city || opportunity.venue || 'Location shared on booking'}
                 </Text>
-                <Text style={styles.logisticsSecondary} numberOfLines={1}>
+                <Text style={styles.logisticsSecondary} numberOfLines={2}>
                   {opportunity.distanceLabel || opportunity.venue || ''}
                 </Text>
               </View>
@@ -295,7 +295,7 @@ export function IncomingOpportunityAlertModal({
               {opportunity.matchReasons.slice(0, 4).map((reason) => (
                 <View key={reason} style={styles.instructionsHeader}>
                   <Ionicons name="checkmark-circle" size={13} color="#10B981" />
-                  <Text style={styles.instructionsText} numberOfLines={1}>{reason}</Text>
+                  <Text style={styles.instructionsText} numberOfLines={2}>{reason}</Text>
                 </View>
               ))}
             </View>

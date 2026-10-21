@@ -615,7 +615,7 @@ export default function EventDetailScreen() {
           </InfoCard>
         ) : null}
         {progressView(ev, isPhotog, ownsEvents) === 'track' ? (
-          <InfoCard icon="git-commit-outline" title="Booking Progress">
+          <InfoCard icon="git-commit-outline" title={tr('b3_evdet_booking_progress')}>
             <ProgressTrack steps={bookingTrack(ev)!} label="Booking progress" />
           </InfoCard>
         ) : null}

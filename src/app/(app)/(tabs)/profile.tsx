@@ -29,7 +29,7 @@ import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
-import { clientStats, coordinatorStats } from '@/features/profile/clientStats';
+import { clientStats, coordinatorStats, photographerStats } from '@/features/profile/clientStats';
 import { KycBadge } from '@/features/kyc/KycBadge';
 import { getKyc } from '@/features/kyc/api';
 import {
@@ -204,15 +204,7 @@ export default function ProfileScreen() {
 
   const stats = useMemo(() => {
     if (isPhotographer) {
-      return [
-        { label: 'Jobs', value: user?.completedEvents ?? 0 },
-        { label: 'Reviews', value: user?.reviewsCount ?? 0 },
-        { label: 'Rating', value: user?.rating != null ? user.rating.toFixed(1) : '5.0' },
-        {
-          label: 'Acceptance',
-          value: typeof user?.acceptanceRate === 'number' ? `${user.acceptanceRate}%` : '—',
-        },
-      ];
+      return photographerStats(user);
     }
     if (isCoordinator) {
       return coordinatorStats(user);

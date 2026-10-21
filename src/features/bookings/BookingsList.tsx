@@ -67,7 +67,7 @@ export function BookingsList({ title, subtitle, topInset }: Props) {
       renderItem={({ item }) => (
         <View style={styles.card}>
           <View style={styles.topRow}>
-            <Text style={styles.title} numberOfLines={1}>
+            <Text style={styles.title} numberOfLines={2}>
               {item.eventTitle}
             </Text>
             <StatusPill status={item.status} />
