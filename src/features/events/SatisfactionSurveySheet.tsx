@@ -7,12 +7,13 @@
  * because the server scores an omitted answer as its worst value.
  */
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import type { SatisfactionLevel, SatisfactionSurvey, ServiceDelivery } from './survey';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 type Props = {
   visible: boolean;
@@ -124,8 +125,8 @@ export function SatisfactionSurveySheet({ visible, onClose, onSubmit, submitting
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+      <GlassScrim style={styles.backdrop} onPress={onClose}>
+        <GlassSheetHost style={styles.sheet}>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>{tr('How did it go?')}</Text>
             <Text style={styles.hint}>
@@ -184,18 +185,15 @@ export function SatisfactionSurveySheet({ visible, onClose, onSubmit, submitting
               <Text style={styles.cancelText}>{tr('Not now')}</Text>
             </Pressable>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     maxHeight: '90%',
   },

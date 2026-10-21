@@ -51,6 +51,8 @@ import { generateAndSharePhotoInvoice } from './invoicePdf';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CARD_GRACE_MS = 180_000; // 3 min grace window for card 3DS / entry
@@ -390,13 +392,11 @@ export function PhotoCheckoutSheet({
       animationType="slide"
       onRequestClose={() => !busy && onClose()}
     >
-      <Pressable style={styles.backdrop} onPress={() => !busy && onClose()} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
         style={styles.sheetContainer}
-      >
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+      ><GlassScrim onPress={() => !busy && onClose()} style={{ flex: 1, justifyContent: 'flex-end' }}><GlassSheetHost style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
           <View style={styles.handle} />
           <View style={styles.headRow}>
             <Text style={styles.title}>
@@ -705,22 +705,15 @@ export function PhotoCheckoutSheet({
               />
             </View>
           ) : null}
-        </View>
-      </KeyboardAvoidingView>
+        </GlassSheetHost></GlassScrim></KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const useStyles = makeStyles((c, e) => ({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: c.scrim },
+  backdrop: { ...StyleSheet.absoluteFill,},
   sheetContainer: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.elevated,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: c.border,
     paddingHorizontal: spacing.lg,
     paddingTop: 12,
     maxHeight: '92%',
@@ -771,7 +764,7 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   input: {
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderRadius: radii.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -831,7 +824,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     paddingHorizontal: 10,
     paddingVertical: 13,
     borderRadius: radii.md,
@@ -844,7 +837,7 @@ const useStyles = makeStyles((c, e) => ({
 
   pickerOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: c.elevated,
+    ...glassTile(c),
     borderTopLeftRadius: radii['2xl'],
     borderTopRightRadius: radii['2xl'],
     paddingHorizontal: spacing.lg,
@@ -866,7 +859,7 @@ const useStyles = makeStyles((c, e) => ({
   pickerSearch: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.border,
@@ -940,7 +933,7 @@ const useStyles = makeStyles((c, e) => ({
     marginTop: 6,
     ...e(1),
   },
-  payBtnDisabled: { backgroundColor: c.surfaceMuted, opacity: 0.6 },
+  payBtnDisabled: { ...glassTile(c), opacity: 0.6 },
   payBtnText: { color: c.textOnPrimary, fontWeight: fontWeight.bold, fontSize: 15 },
   payBtnTextDisabled: { color: c.textMuted },
 
@@ -989,7 +982,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: c.surface,
+    ...glassTile(c),
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: radii.sm,
@@ -1023,8 +1016,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: 22,
     borderRadius: radii.full,
     borderWidth: 1.5,
-    borderColor: c.border,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },

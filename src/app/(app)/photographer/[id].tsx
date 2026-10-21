@@ -33,6 +33,8 @@ import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/th
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 
 function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyphMap; onPress?: () => void; style?: any }) {
@@ -692,8 +694,8 @@ export default function PhotographerProfileScreen() {
         animationType="slide"
         onRequestClose={() => setReportOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setReportOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setReportOpen(false)}>
+          <GlassSheetHost style={styles.sheet}>
             <Text style={styles.sheetTitle}>Report photographer</Text>
             <Text style={styles.sheetHint}>
               Pick a reason and add details so our team can take action.
@@ -720,8 +722,8 @@ export default function PhotographerProfileScreen() {
               style={styles.modalInput}
             />
             <Button title="Submit report" onPress={submitReport} loading={reportSubmitting} />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Rebook sheet — only enabled if there are packages */}
@@ -731,8 +733,8 @@ export default function PhotographerProfileScreen() {
         animationType="slide"
         onRequestClose={() => setRebookOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setRebookOpen(false)}>
-          <Pressable style={[styles.sheet, { maxHeight: '90%' }]} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setRebookOpen(false)}>
+          <GlassSheetHost style={[styles.sheet, { maxHeight: '90%' }]}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <Text style={styles.sheetTitle}>Rebook photographer</Text>
               <Text style={styles.sheetHint}>
@@ -808,8 +810,8 @@ export default function PhotographerProfileScreen() {
                 loading={rebookSubmitting}
               />
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </View>
   );
@@ -843,11 +845,8 @@ const useStyles = makeStyles((c, e) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
   muted: { color: c.textMuted, fontSize: fontSize.sm, marginTop: 10 },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },
@@ -861,7 +860,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
   },

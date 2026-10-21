@@ -75,6 +75,7 @@ import { LiveButton, LivePill } from '@/components/ui/live';
 import { clearReminder, getReminder, isValidReminderEmail, setReminder } from '@/features/events/reminder';
 import { registerForPushNotifications } from '@/features/notifications/push';
 import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -1110,10 +1111,9 @@ export default function PublicEventDetailScreen() {
       {/* Get notified: a guest gives an email; a signed-in member needs nothing here. */}
       <Modal visible={reminderAsk} transparent animationType="slide" onRequestClose={() => setReminderAsk(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <Pressable style={styles.modalBackdrop} onPress={() => !reminderBusy && setReminderAsk(false)}>
-            <Pressable
+          <GlassScrim style={styles.modalBackdrop} onPress={() => !reminderBusy && setReminderAsk(false)}>
+            <GlassSheetHost
               style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
-              onPress={(e) => e.stopPropagation()}
             >
               <Text style={styles.modalTitle}>Get notified</Text>
               <Text style={styles.modalHint}>
@@ -1147,8 +1147,8 @@ export default function PublicEventDetailScreen() {
               <Pressable onPress={() => setReminderAsk(false)} style={{ alignSelf: 'center', marginTop: 4 }}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </Pressable>
-            </Pressable>
-          </Pressable>
+            </GlassSheetHost>
+          </GlassScrim>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -1173,8 +1173,8 @@ export default function PublicEventDetailScreen() {
         animationType="slide"
         onRequestClose={() => setVerifyOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setVerifyOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setVerifyOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{t('b4_verifyYourAccessTitle')}</Text>
             <Text style={styles.modalHint}>
               {t('b4_verifyModalHint')}
@@ -1203,8 +1203,8 @@ export default function PublicEventDetailScreen() {
             <Pressable onPress={() => setVerifyOpen(false)} style={{ alignSelf: 'center', marginTop: 4 }}>
               <Text style={styles.cancelText}>{t('b4_cancel')}</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -1740,11 +1740,8 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   // Modal
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },

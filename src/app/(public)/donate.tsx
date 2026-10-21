@@ -56,6 +56,8 @@ import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } fr
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 type Stage = 'form' | 'awaiting' | 'success' | 'unconfirmed';
@@ -834,8 +836,8 @@ export default function PublicDonateScreen() {
         animationType="fade"
         onRequestClose={() => setCountryModalOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
-          <View style={styles.modalSheet}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Select Payment Country</Text>
               <Pressable onPress={() => setCountryModalOpen(false)} hitSlop={8}>
@@ -876,8 +878,8 @@ export default function PublicDonateScreen() {
                 </Pressable>
               ))}
             </ScrollView>
-          </View>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Currency Selection Modal */}
@@ -887,8 +889,8 @@ export default function PublicDonateScreen() {
         animationType="fade"
         onRequestClose={() => setCurrencyModalOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setCurrencyModalOpen(false)}>
-          <View style={styles.modalSheet}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setCurrencyModalOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>{tr('b4_selectDonationCurrency')}</Text>
               <Pressable onPress={() => setCurrencyModalOpen(false)} hitSlop={8}>
@@ -941,8 +943,8 @@ export default function PublicDonateScreen() {
                 </Pressable>
               ))}
             </ScrollView>
-          </View>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -1415,13 +1417,9 @@ const useStyles = makeStyles((c, e) => ({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.background,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.lg,
     gap: spacing.md,
   },
@@ -1439,7 +1437,7 @@ const useStyles = makeStyles((c, e) => ({
   pickerSearch: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.border,

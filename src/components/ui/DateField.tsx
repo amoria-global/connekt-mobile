@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 export type DateFieldProps = {
   label?: string;
@@ -80,8 +81,8 @@ export function DateField({
       {/* iOS: bottom-sheet spinner with Done/Cancel. */}
       {Platform.OS === 'ios' ? (
         <Modal visible={show} transparent animationType="slide" onRequestClose={() => setShow(false)}>
-          <Pressable style={styles.backdrop} onPress={() => setShow(false)}>
-            <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+          <GlassScrim style={styles.backdrop} onPress={() => setShow(false)}>
+            <GlassSheetHost style={styles.sheet}>
               <View style={styles.sheetHeader}>
                 <Pressable onPress={() => setShow(false)} hitSlop={8}>
                   <Text style={styles.cancel}>{tr('Cancel')}</Text>
@@ -108,8 +109,8 @@ export function DateField({
                   if (d) setTemp(d);
                 }}
               />
-            </Pressable>
-          </Pressable>
+            </GlassSheetHost>
+          </GlassScrim>
         </Modal>
       ) : null}
     </View>
@@ -136,11 +137,8 @@ const useStyles = makeStyles((c) => ({
   placeholder: { color: c.textMuted },
   error: { fontSize: fontSize.xs, color: c.error },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     paddingBottom: spacing['2xl'],
   },
   sheetHeader: {
