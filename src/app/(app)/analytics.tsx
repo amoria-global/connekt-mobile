@@ -122,8 +122,8 @@ export default function AnalyticsScreen() {
   const [photogTransactions, setPhotogTransactions] = useState<RecentTransaction[]>([]);
   // null: not loaded or failed. Never drawn as zeros.
   const [photogPerf, setPhotogPerf] = useState<PerformancePoint[] | null>(null);
-  // Why the headline figures are missing, so a failed load is not shown as zeros.
-  const [photogError, setPhotogError] = useState<string | null>(null);
+  // Why the headline figures are missing (any role), so a failed load is not shown as zeros.
+  const [loadError, setLoadError] = useState<string | null>(null);
   // Only the newest load may write state: switching period quickly must not let a slow old answer win.
   const loadTicket = useRef(0);
 
@@ -156,6 +156,11 @@ export default function AnalyticsScreen() {
           getCustomerPerformance(period, from, to),
         ]);
         if (ticket !== loadTicket.current) return;
+        setLoadError(
+          a.status === 'rejected'
+            ? ((a.reason as { message?: string } | undefined)?.message ?? 'Could not load your analytics.')
+            : null,
+        );
         if (a.status === 'fulfilled') setClientData(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (pending.status === 'fulfilled') setClientPendingPayments(pending.value);
@@ -173,6 +178,11 @@ export default function AnalyticsScreen() {
           getCoordinatorPerformance(period, from, to),
         ]);
         if (ticket !== loadTicket.current) return;
+        setLoadError(
+          a.status === 'rejected'
+            ? ((a.reason as { message?: string } | undefined)?.message ?? 'Could not load your analytics.')
+            : null,
+        );
         if (a.status === 'fulfilled') setCoordData(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (pending.status === 'fulfilled') setCoordPendingPayments(pending.value);
@@ -188,7 +198,7 @@ export default function AnalyticsScreen() {
           getPhotographerPerformance(period, from, to),
         ]);
         if (ticket !== loadTicket.current) return;
-        setPhotogError(
+        setLoadError(
           a.status === 'rejected'
             ? ((a.reason as { message?: string } | undefined)?.message ?? 'Could not load your analytics.')
             : null,
@@ -215,7 +225,8 @@ export default function AnalyticsScreen() {
     load(true);
   }, [load]);
 
-  const photogUnavailable = isPhotographer && !!photogError && !photogData;
+  const roleData = isClient ? clientData : isCoordinator ? coordData : photogData;
+  const photogUnavailable = !!loadError && !roleData;
 
   // Current timeframe label (matches salo-run periodLabel)
   const periodLabel = useMemo(() => {
@@ -257,7 +268,7 @@ type StatCardItem = {
       return [
         {
           title: 'Total Spent',
-          value: formatPrice(clientData?.totalSpent || 0, currency),
+          value: formatPrice(clientData?.totalSpent, currency),
           percentage: trends.totalSpent?.percentage,
           trend: trends.totalSpent?.direction ?? 'up',
           iconName: 'wallet-outline' as const,
@@ -267,7 +278,7 @@ type StatCardItem = {
         },
         {
           title: 'Pending',
-          value: formatPrice(clientData?.pendingAmount || 0, currency),
+          value: formatPrice(clientData?.pendingAmount, currency),
           percentage: trends.pending?.percentage,
           trend: trends.pending?.direction ?? 'up',
           iconName: 'time-outline' as const,
@@ -282,7 +293,7 @@ type StatCardItem = {
         },
         {
           title: 'Bookings',
-          value: String(clientData?.totalBookings || 0),
+          value: clientData ? String(clientData.totalBookings ?? 0) : 'N/A',
           percentage: trends.events?.percentage,
           trend: trends.events?.direction ?? 'up',
           iconName: 'people-outline' as const,
@@ -293,7 +304,7 @@ type StatCardItem = {
         },
         {
           title: 'Gifts',
-          value: formatPrice(clientData?.gifts || 0, currency),
+          value: formatPrice(clientData?.gifts, currency),
           percentage: trends.gifts?.percentage,
           trend: trends.gifts?.direction ?? 'up',
           iconName: 'gift-outline' as const,
@@ -307,7 +318,7 @@ type StatCardItem = {
         },
         {
           title: 'Favorites',
-          value: String(clientData?.bookmarkedPhotographers || 0),
+          value: clientData ? String(clientData.bookmarkedPhotographers ?? 0) : 'N/A',
           percentage: trends.photographers?.percentage,
           trend: trends.photographers?.direction ?? 'up',
           iconName: 'star-outline' as const,
@@ -321,7 +332,7 @@ type StatCardItem = {
       return [
         {
           title: 'Total Revenue',
-          value: formatPrice(coordData?.totalRevenue || 0, currency),
+          value: formatPrice(coordData?.totalRevenue, currency),
           percentage: trends.totalRevenue?.percentage,
           trend: trends.totalRevenue?.direction ?? 'up',
           iconName: 'cash-outline' as const,
@@ -331,7 +342,7 @@ type StatCardItem = {
         },
         {
           title: 'Pending',
-          value: formatPrice(coordData?.totalPending || 0, currency),
+          value: formatPrice(coordData?.totalPending, currency),
           percentage: trends.totalPending?.percentage,
           trend: trends.totalPending?.direction ?? 'up',
           iconName: 'time-outline' as const,
@@ -346,7 +357,7 @@ type StatCardItem = {
         },
         {
           title: 'Events',
-          value: String(coordData?.totalEvents || 0),
+          value: coordData ? String(coordData.totalEvents ?? 0) : 'N/A',
           percentage: trends.totalEvents?.percentage,
           trend: trends.totalEvents?.direction ?? 'up',
           iconName: 'calendar-outline' as const,
@@ -357,7 +368,7 @@ type StatCardItem = {
         },
         {
           title: 'Total Paid',
-          value: formatPrice(coordData?.totalPaid || 0, currency),
+          value: formatPrice(coordData?.totalPaid, currency),
           percentage: trends.totalPaid?.percentage,
           trend: trends.totalPaid?.direction ?? 'up',
           iconName: 'card-outline' as const,
@@ -371,7 +382,7 @@ type StatCardItem = {
         },
         {
           title: 'Photographers',
-          value: String(coordData?.totalPhotographers || 0),
+          value: coordData ? String(coordData.totalPhotographers ?? 0) : 'N/A',
           percentage: trends.totalPhotographers?.percentage,
           trend: trends.totalPhotographers?.direction ?? 'up',
           iconName: 'camera-outline' as const,
@@ -651,8 +662,8 @@ type StatCardItem = {
           />
         }
       >
-        {isPhotographer && photogError ? (
-          <ErrorNotice message={photogError} onRetry={() => load()} />
+        {loadError ? (
+          <ErrorNotice message={loadError} onRetry={() => load()} />
         ) : null}
 
         {/* ── Segmented Timeframe Filter Tabs (salo-run .ck-tabs) ─────────── */}
@@ -1081,7 +1092,7 @@ type StatCardItem = {
                     <PhotographerItemRow
                       key={p.id}
                       name={p.name}
-                      event={`${p.totalEvents} event${p.totalEvents === 1 ? '' : 's'}`}
+                      event={p.totalEvents == null ? '' : `${p.totalEvents} event${p.totalEvents === 1 ? '' : 's'}`}
                       avatar={p.avatar}
                       status={p.status}
                       onPress={() => router.push('/photographers' as never)}

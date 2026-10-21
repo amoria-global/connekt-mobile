@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 /**
  * What the Streams screen decides, kept out of the screen so each rule can be tested.
  * Live first, then upcoming, then ended; inside a phase the most recent date first. A row with no date sorts last in its phase.
@@ -55,4 +56,14 @@ export function viewersLabel(count: number | undefined, phase: StreamPhase): str
   const n = count.toLocaleString('en-US');
   if (phase === 'live') return `${n} watching`;
   return `${n} ${count === 1 ? 'viewer' : 'viewers'}`;
+}
+
+/**
+ * Where a card opens. A coordinator created the event, so the owner viewer (`/stream/<event id>`, which reads
+ * `/customer/events/{id}`) admits them. A client's history also holds streams they only PAID to watch
+ * (ClientStreamService unions creator, paid and guest-email events); that endpoint refuses a non-creator, so clients
+ * go where the rest of the client app sends them to watch: the access-aware public viewer.
+ */
+export function streamHref(eventId: string, asCoordinator: boolean): Href {
+  return (asCoordinator ? `/stream/${eventId}` : `/(public)/events/live-stream?id=${encodeURIComponent(eventId)}`) as Href;
 }
