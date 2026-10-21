@@ -95,7 +95,7 @@ function GoalCard({ plan, rating, hidden, onEdit }: { plan: Plan; rating: number
     >
       <Card style={[styles.goal, { marginHorizontal: 0 }]}>
         <View style={styles.goalTop}>
-          <Text style={styles.goalName} numberOfLines={1}>
+          <Text style={styles.goalName} numberOfLines={2}>
             {plan.name}
           </Text>
           <Ionicons name="create-outline" size={18} color={colors.textMuted} />

@@ -490,8 +490,9 @@ export type CoordinatorPhotographer = {
   name: string;
   email?: string;
   avatar?: string;
-  totalEvents: number;
-  status: string;
+  /** Absent when the API did not say: never a zero or an "Active" the account was not given. */
+  totalEvents?: number;
+  status?: string;
 };
 
 export async function getCoordinatorPerformance(
@@ -529,8 +530,8 @@ export async function getCoordinatorPhotographers(size = 5): Promise<Coordinator
     name: str(r.name) ?? str(r.firstName) ?? 'Photographer',
     email: str(r.email),
     avatar: str(r.avatar) ?? str(r.profilePicture),
-    totalEvents: num(r.totalEvents) ?? 0,
-    status: str(r.status) ?? 'Active',
+    totalEvents: num(r.totalEvents),
+    status: str(r.status),
   })).filter((p) => p.id);
 }
 

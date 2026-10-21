@@ -315,7 +315,7 @@ export default function BrowsePhotosScreen() {
           </Pressable>
         ) : null}
         <View style={styles.cardFooter}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.photographerName}</Text>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.photographerName}</Text>
           {digitalPurchasesEnabled ? (
             <Text style={styles.cardPrice}>{sym(item.buyerCurrency)}{item.buyerPrice}</Text>
           ) : null}

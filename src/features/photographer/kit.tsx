@@ -271,7 +271,7 @@ export function ActionButton({
           <Text style={[styles.actionText, styles.actionTextLeft, stacked && { textAlign: 'center' }, { color: fg }]} numberOfLines={1} maxFontSizeMultiplier={1.6}>
             {tr(label)}
           </Text>
-          <Text style={[styles.actionCaption, stacked && { textAlign: 'center' }, variant === 'primary' && { color: colors.textOnPrimary, opacity: 0.85 }]} numberOfLines={1} maxFontSizeMultiplier={1.6}>
+          <Text style={[styles.actionCaption, stacked && { textAlign: 'center' }, variant === 'primary' && { color: colors.textOnPrimary, opacity: 0.85 }]} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {tr(caption)}
           </Text>
         </View>

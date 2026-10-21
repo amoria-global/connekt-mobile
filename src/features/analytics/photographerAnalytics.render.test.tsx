@@ -102,4 +102,14 @@ describe('photographer analytics screen as rendered', () => {
     expect(text).toContain('Totals are all time.');
     expect(text).not.toContain('Total Earnings');
   });
+
+  it('stat card titles may wrap: "Lifetime earnings" is not cut to "Lifetime ea..." at large text', async () => {
+    serve(ok({ totalEarnings: 4820, pendingPayments: 300, totalClients: 11, bonuses: 0, averageRating: 4.6 }));
+    const r = await mount();
+    for (const title of ['Lifetime earnings', 'Pending release', 'Clients served', 'Lifetime bonuses']) {
+      const t = r.root.findAllByType(Text).find((n) => n.props.children === title);
+      expect(t).toBeDefined();
+      expect(t!.props.numberOfLines).toBeGreaterThanOrEqual(2);
+    }
+  });
 });

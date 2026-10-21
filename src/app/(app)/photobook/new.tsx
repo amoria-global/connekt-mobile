@@ -338,7 +338,7 @@ export default function NewPhotobookScreen() {
                   <Ionicons name="calendar" size={18} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.selectedEventTitle} numberOfLines={1}>
+                  <Text style={styles.selectedEventTitle} numberOfLines={2}>
                     {selectedEvent.title}
                   </Text>
                   <Text style={styles.selectedEventMeta}>
@@ -540,7 +540,7 @@ export default function NewPhotobookScreen() {
                       }}
                     >
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={styles.pickerRowTitle} numberOfLines={1}>
+                        <Text style={styles.pickerRowTitle} numberOfLines={2}>
                           {ev.title}
                         </Text>
                         <Text style={styles.pickerRowMeta}>

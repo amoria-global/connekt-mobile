@@ -253,11 +253,11 @@ export default function EditProfileScreen() {
             </Pressable>
 
             <View style={styles.identity}>
-              <Text style={styles.identityName} numberOfLines={1}>
+              <Text style={styles.identityName} numberOfLines={2}>
                 {`${firstName} ${lastName}`.trim() || user?.email || ''}
               </Text>
               {user?.email ? (
-                <Text style={styles.identityMeta} numberOfLines={1}>
+                <Text style={styles.identityMeta} numberOfLines={2}>
                   {user.email}
                 </Text>
               ) : null}

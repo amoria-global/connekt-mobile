@@ -778,7 +778,7 @@ function PhotographerEventCard({
         {event.location ? (
           <View style={styles.locRow}>
             <Ionicons name="location" size={12} color="rgba(255,255,255,0.85)" />
-            <Text style={styles.locText} numberOfLines={1}>
+            <Text style={styles.locText} numberOfLines={2}>
               {event.location}
             </Text>
           </View>
@@ -796,7 +796,7 @@ function PhotographerEventCard({
                 </Text>
               </View>
             )}
-            <Text style={styles.clientName} numberOfLines={1}>
+            <Text style={styles.clientName} numberOfLines={2}>
               {event.clientName || 'Client'}
             </Text>
           </View>
@@ -1009,7 +1009,7 @@ function SheetMeta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
   return (
     <View style={styles.sheetMeta}>
       <Ionicons name={icon} size={13} color={colors.accent} />
-      <Text style={styles.sheetMetaText} numberOfLines={1}>
+      <Text style={styles.sheetMetaText} numberOfLines={2}>
         {text}
       </Text>
     </View>

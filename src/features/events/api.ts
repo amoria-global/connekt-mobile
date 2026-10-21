@@ -377,9 +377,9 @@ export async function listPublicEventsDetailed(
   if (params.dateRange) qs.set('dateRange', params.dateRange);
   if (params.search) qs.set('search', params.search);
 
-  const res = await api.get<ApiEnvelope<Record<string, unknown>>>(
-    `/public/events/list?${qs.toString()}`,
-    { skipAuth: true },
+  // A refused request answers HTTP 200 with action:0; read as an empty page it said "no events" (Explore, search).
+  const res = requireOk(
+    await api.get<ApiEnvelope<Record<string, unknown>>>(`/public/events/list?${qs.toString()}`, { skipAuth: true }),
   );
   const d = (res?.data ?? {}) as Record<string, unknown>;
   const content = Array.isArray(d.content) ? (d.content as RawEvent[]) : [];

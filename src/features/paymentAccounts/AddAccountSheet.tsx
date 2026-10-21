@@ -261,7 +261,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                 accessibilityLabel={`Country ${eligibility.country ? paymentCountryName(eligibility.country) : 'not set'}. Tap to change.`}
               >
                 <Text style={styles.countryFlag}>{flagEmoji(eligibility.country)}</Text>
-                <Text style={styles.countryName} numberOfLines={1}>
+                <Text style={styles.countryName} numberOfLines={2}>
                   {checkingCountry ? 'Checking your country...' : eligibility.country ? paymentCountryName(eligibility.country) : 'Choose your country'}
                 </Text>
                 <Text style={styles.countryChange}>Change</Text>

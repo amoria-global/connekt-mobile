@@ -84,7 +84,7 @@ export default function PreferencesScreen() {
           <ListRow
             icon="globe-outline"
             title={t('languageSectionTitle')}
-            meta={t('languageSectionSubtitle')}
+            meta={t('languageSectionSubtitle')} metaLines={4}
             trailing={<Text style={styles.valueText}>{currentLangInfo.nativeLabel}</Text>}
             onPress={() => setLangSheetVisible(true)}
             accessibilityLabel={`${t('languageSectionTitle')}: currently ${currentLangInfo.nativeLabel}`}
@@ -93,7 +93,7 @@ export default function PreferencesScreen() {
           <ListRow
             icon="cash-outline"
             title={t('currencySectionTitle')}
-            meta={t('currencySectionSubtitle')}
+            meta={t('currencySectionSubtitle')} metaLines={4}
             trailing={<Text style={styles.valueText}>{currency}</Text>}
             onPress={() => setCurrencySheetVisible(true)}
             accessibilityLabel={`${t('currencySectionTitle')}: currently ${currency}`}
