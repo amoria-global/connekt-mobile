@@ -29,7 +29,7 @@
  *     (web `.ve-wishes` → POST /public/events/{id}/wishes)
  *   • Donation link (non-cancelled events)
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,6 +74,7 @@ import { useCurrency } from '@/store/currency';
 import { LiveButton, LivePill } from '@/components/ui/live';
 import { clearReminder, getReminder, isValidReminderEmail, setReminder } from '@/features/events/reminder';
 import { registerForPushNotifications } from '@/features/notifications/push';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -260,6 +261,52 @@ function msToCountdown(ms: number) {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * The "Starts in" card. It owns the one-second clock, so only this card re-renders each second
+ * and not the whole event screen above it.
+ */
+function EventCountdown({ start }: { start: Date | null }) {
+  const { t } = useLanguage();
+  const { colors } = useTheme();
+  const styles = useStyles();
+  const startMs = start ? start.getTime() : null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (startMs === null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [startMs]);
+  if (startMs === null || startMs - now <= 0) return null;
+  const countdown = msToCountdown(startMs - now);
+  return (
+    <View style={styles.countdownCard}>
+      <Text style={styles.countdownEyebrow}>
+        <Ionicons name="hourglass-outline" size={12} color={colors.primary} /> {t('b4_startsIn')}
+      </Text>
+      <View style={styles.countdownGrid}>
+        {countdown.days > 0 ? (
+          <View style={styles.countdownCell}>
+            <Text style={styles.countdownNum}>{pad(countdown.days)}</Text>
+            <Text style={styles.countdownUnit}>{countdown.days === 1 ? t('b4_daySingular') : t('b4_dayPlural')}</Text>
+          </View>
+        ) : null}
+        <View style={styles.countdownCell}>
+          <Text style={styles.countdownNum}>{pad(countdown.hours)}</Text>
+          <Text style={styles.countdownUnit}>{t('b4_hr')}</Text>
+        </View>
+        <View style={styles.countdownCell}>
+          <Text style={styles.countdownNum}>{pad(countdown.minutes)}</Text>
+          <Text style={styles.countdownUnit}>{t('b4_min')}</Text>
+        </View>
+        <View style={styles.countdownCell}>
+          <Text style={styles.countdownNum}>{pad(countdown.seconds)}</Text>
+          <Text style={styles.countdownUnit}>{t('b4_sec')}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function PublicEventDetailScreen() {
@@ -268,6 +315,7 @@ export default function PublicEventDetailScreen() {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -311,21 +359,6 @@ export default function PublicEventDetailScreen() {
       setIsSaved(set.has(id));
     } catch { /* ignore */ }
   };
-
-  // Countdown
-  const [msUntilStart, setMsUntilStart] = useState<number | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => {
-    if (!data) return;
-    const start = parseEventStart(data.eventDate, data.startTime);
-    if (!start) return;
-    const tick = () => setMsUntilStart(start.getTime() - Date.now());
-    tick();
-    countdownRef.current = setInterval(tick, 1000);
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, [data]);
 
   // Description expand/collapse (web `.ve-readmore`)
   const [descExpanded, setDescExpanded] = useState(false);
@@ -647,11 +680,6 @@ export default function PublicEventDetailScreen() {
       data.eventOrganizer
     : data.eventOrganizer;
 
-  const countdown =
-    status.isUpcoming && msUntilStart !== null && msUntilStart > 0
-      ? msToCountdown(msUntilStart)
-      : null;
-
   const desc = data.description ?? '';
   const descTruncated = desc.length > DESC_LIMIT && !descExpanded;
   const descText = descTruncated ? `${desc.slice(0, DESC_LIMIT)}…` : desc;
@@ -717,7 +745,7 @@ export default function PublicEventDetailScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, showStickyBar && { paddingBottom: 140 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: clearance }, showStickyBar && { paddingBottom: 140 }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -832,35 +860,7 @@ export default function PublicEventDetailScreen() {
           ) : null}
 
           {/* Countdown card (web `.ve-countdown-card`) */}
-          {countdown ? (
-            <View style={styles.countdownCard}>
-              <Text style={styles.countdownEyebrow}>
-                <Ionicons name="hourglass-outline" size={12} color={colors.primary} /> {t('b4_startsIn')}
-              </Text>
-              <View style={styles.countdownGrid}>
-                {countdown.days > 0 ? (
-                  <View style={styles.countdownCell}>
-                    <Text style={styles.countdownNum}>{pad(countdown.days)}</Text>
-                    <Text style={styles.countdownUnit}>
-                      {countdown.days === 1 ? t('b4_daySingular') : t('b4_dayPlural')}
-                    </Text>
-                  </View>
-                ) : null}
-                <View style={styles.countdownCell}>
-                  <Text style={styles.countdownNum}>{pad(countdown.hours)}</Text>
-                  <Text style={styles.countdownUnit}>{t('b4_hr')}</Text>
-                </View>
-                <View style={styles.countdownCell}>
-                  <Text style={styles.countdownNum}>{pad(countdown.minutes)}</Text>
-                  <Text style={styles.countdownUnit}>{t('b4_min')}</Text>
-                </View>
-                <View style={styles.countdownCell}>
-                  <Text style={styles.countdownNum}>{pad(countdown.seconds)}</Text>
-                  <Text style={styles.countdownUnit}>{t('b4_sec')}</Text>
-                </View>
-              </View>
-            </View>
-          ) : null}
+          {status.isUpcoming ? <EventCountdown start={parseEventStart(data.eventDate, data.startTime)} /> : null}
 
           {/* Event quick-info card */}
           {!status.isCompleted ? (
@@ -1269,7 +1269,7 @@ const useStyles = makeStyles((c, e) => ({
     padding: spacing.xl,
   },
   errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { paddingBottom: 120 },
+  scroll: {},
 
   // ── Hero ──────────────────────────────────────────────────────────────────
   heroWrap: { width: '100%', height: 280, position: 'relative' },

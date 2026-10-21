@@ -45,6 +45,7 @@ import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
 import { useCurrency } from '@/store/currency';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 type ProfileTab = 'details' | 'settings' | 'account';
 
@@ -64,6 +65,7 @@ function formatJoinedDate(iso?: string): string {
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const { language, t } = useLanguage();
@@ -230,7 +232,7 @@ export default function ProfileScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Background Profile Cover Photo ──────────────────────────── */}
@@ -751,7 +753,7 @@ function MenuRow({
 const COVER_HEIGHT = 140;
 
 const useStyles = makeStyles((c) => ({
-  scroll: { paddingBottom: 110 },
+  scroll: {},
   pressed: { opacity: 0.75 },
 
   // Background Profile Cover Photo

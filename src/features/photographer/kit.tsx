@@ -101,7 +101,7 @@ export function HCarousel<T>({
       data={data as T[]}
       keyExtractor={keyOf}
       renderItem={({ item }) => <View style={{ width: cardW }}>{renderItem(item)}</View>}
-      ItemSeparatorComponent={() => <View style={{ width: gap }} />}
+      ItemSeparatorComponent={Gap}
       showsHorizontalScrollIndicator={false}
       snapToInterval={cardW + gap}
       decelerationRate="fast"
@@ -684,3 +684,8 @@ export const useStyles = makeStyles((c, elevation) => ({
   emptyTitle: { color: c.text, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   emptyBody: { color: c.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'center' },
 }));
+
+/** Module level so the carousel keeps one separator type and does not remount each gap on every render. */
+function Gap() {
+  return <View style={{ width: spacing.md }} />;
+}

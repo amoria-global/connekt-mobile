@@ -59,6 +59,7 @@ import {
   type EventFilter,
   type EventSort,
 } from './clientEventsModel';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 const PAGE_SIZE = 8;
@@ -86,6 +87,7 @@ export function ClientEventsDashboard({
   coordinator?: boolean;
 }) {
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -269,8 +271,8 @@ export function ClientEventsDashboard({
         data={isList ? rows : []}
         keyExtractor={(e) => String(e.id)}
         ListHeaderComponent={header}
-        contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
+        ItemSeparatorComponent={ListGap}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPull} tintColor={colors.primary} progressViewOffset={topInset} />}
         renderItem={({ item }) => (
@@ -601,7 +603,7 @@ const useStyles = makeStyles((c, e) => ({
   container: { flex: 1 },
   flex: { flex: 1, minWidth: 0 },
   // The kit cards, notices and empty states carry their own side margins; only the plain header rows need padding.
-  listContent: { paddingBottom: 140 },
+  listContent: {},
   pad: { paddingHorizontal: spacing.lg },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   title: { color: c.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
@@ -821,3 +823,8 @@ const useStyles = makeStyles((c, e) => ({
   sortLabel: { color: c.text, fontSize: 15, fontWeight: '700' },
   sortDesc: { color: c.textMuted, fontSize: 12 },
 }));
+
+/** Module level, so the list keeps one separator type and does not remount every gap on each render. */
+function ListGap() {
+  return <View style={{ height: spacing.md }} />;
+}

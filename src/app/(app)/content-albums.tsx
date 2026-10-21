@@ -233,7 +233,7 @@ export default function ContentAlbumsScreen() {
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          { paddingBottom: insets.bottom + spacing.xl },
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

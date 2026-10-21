@@ -47,6 +47,7 @@ import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } fr
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/store/language';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 
 
 type SavedGroupCode = {
@@ -76,6 +77,7 @@ export default function JoinPackageScreen() {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { id, codeReady } = useLocalSearchParams<{ id: string; codeReady?: string }>();
   const router = useRouter();
   const { data, loading, error } = useAsync(
@@ -180,7 +182,7 @@ export default function JoinPackageScreen() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}>
         {/* Saved group code (shown after payment returns with code) */}
         {savedCode ? (
           <View style={styles.codeCard}>
@@ -326,7 +328,7 @@ export default function JoinPackageScreen() {
 const useStyles = makeStyles((c) => ({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 120 },
+  scroll: { padding: spacing.xl, gap: spacing.lg },
 
   // Saved group code card (shown after payment)
   codeCard: {

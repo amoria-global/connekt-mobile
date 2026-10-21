@@ -19,12 +19,14 @@ import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 
 export default function DonationsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { t } = useLanguage();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const history = useAsync(useCallback(() => listDonations(), []));
   const tiersAsync = useAsync(useCallback(() => getDonationTiers(), []));
   // The backend's suggested amounts, each in the currency it names. With none (or a failed read) the section is left out.
@@ -48,7 +50,7 @@ export default function DonationsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}>
         <UserHeaderBand flush eyebrow="GIVING" title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} duplicatesHeader />
 
         <HeroActionCard title={t('b2_donationsButton')} subtitle={t('b2_donationsSubtitle')} icon="heart" onPress={onDonate} />
@@ -101,7 +103,7 @@ export default function DonationsScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
-  scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: 120 },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
   group: { gap: spacing.sm },
   flushNote: { marginHorizontal: -spacing.lg },
   card: { marginHorizontal: 0, padding: 0 },

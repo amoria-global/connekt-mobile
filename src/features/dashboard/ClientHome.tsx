@@ -91,6 +91,7 @@ import { useCurrency } from '@/store/currency';
 import { formatDate } from '@/utils/format';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import { DashboardGreeting } from './DashboardGreeting';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 /**
  * The client's trend chart, the same card as the coordinator Home. The performance feed carries what was paid
@@ -174,6 +175,7 @@ export function ClientHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const { colors } = useTheme();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -300,7 +302,7 @@ export function ClientHome() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: 140 }}
+        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={

@@ -79,6 +79,7 @@ import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useThe
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 // ────── Greetings (web parity: pages/client/home.tsx:64-114) ──────────────
 
@@ -173,6 +174,7 @@ export default function HomeScreen() {
   const { language, t } = useLanguage();
   const { colors, gradients } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const user = useAuth((s) => s.user);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [payNowOpen, setPayNowOpen] = useState(false);
@@ -198,18 +200,10 @@ export default function HomeScreen() {
 
   // ── Greeting + cycling lead copy ────────────────────────────────────────
   const [timeOfDay, setTimeOfDay] = useState<keyof typeof GREETINGS>(getTimeOfDay);
-  const [greetingIndex, setGreetingIndex] = useState(0);
   useEffect(() => {
     const tick = setInterval(() => setTimeOfDay(getTimeOfDay()), 60_000);
     return () => clearInterval(tick);
   }, []);
-  useEffect(() => {
-    const cycle = setInterval(
-      () => setGreetingIndex((i) => (i + 1) % GREETINGS[timeOfDay].length),
-      5_000,
-    );
-    return () => clearInterval(cycle);
-  }, [timeOfDay]);
 
   const subtitle = (isCoordinator ? SUBTITLES_COORDINATOR : SUBTITLES_CLIENT)[timeOfDay];
 
@@ -441,7 +435,7 @@ export default function HomeScreen() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md, paddingBottom: clearance }]}>
         <KycBanner />
         {showsDashboard ? (
           <>
@@ -1090,7 +1084,7 @@ function RecentPaymentRow({
 // ────── Styles ────────────────────────────────────────────────────────────
 
 const useStyles = makeStyles((c, e) => ({
-  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120, gap: spacing.lg },
+  scroll: { paddingHorizontal: spacing.xl, gap: spacing.lg },
 
   // Hero
   hero: {
