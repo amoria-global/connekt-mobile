@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, G, Path } from 'react-native-svg';
+import { axisLabel, chartSeries } from '@/features/analytics/chartSeries';
 import {
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
@@ -65,16 +66,6 @@ import { ErrorNotice } from '@/features/photographer/kit';
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
-
-const DEFAULT_DAYS = [
-  { day: 'Sun', value1: 0, value2: 0 },
-  { day: 'Mon', value1: 0, value2: 0 },
-  { day: 'Tue', value1: 0, value2: 0 },
-  { day: 'Wed', value1: 0, value2: 0 },
-  { day: 'Thu', value1: 0, value2: 0 },
-  { day: 'Fri', value1: 0, value2: 0 },
-  { day: 'Sat', value1: 0, value2: 0 },
-];
 
 const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -126,6 +117,8 @@ export default function AnalyticsScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Only the newest load may write state: switching period quickly must not let a slow old answer win.
   const loadTicket = useRef(0);
+  // The performance read failed (any role): the charts say so instead of drawing "zero activity".
+  const [perfFailed, setPerfFailed] = useState(false);
 
   // ── Shared ────────────────────────────────────────────────────────────────
   const [trends, setTrends] = useState<TrendsMap>({});
@@ -167,6 +160,7 @@ export default function AnalyticsScreen() {
         if (activities.status === 'fulfilled') setClientActivities(activities.value);
         if (photographers.status === 'fulfilled') setClientPhotographers(photographers.value);
         if (payments.status === 'fulfilled') setClientPayments(payments.value);
+        setPerfFailed(perf.status === 'rejected');
         if (perf.status === 'fulfilled') setClientPerf(perf.value);
       } else if (isCoordinator) {
         const [a, t, pending, photographers, activities, perf] = await Promise.allSettled([
@@ -188,6 +182,7 @@ export default function AnalyticsScreen() {
         if (pending.status === 'fulfilled') setCoordPendingPayments(pending.value);
         if (photographers.status === 'fulfilled') setCoordPhotographers(photographers.value);
         if (activities.status === 'fulfilled') setCoordActivities(activities.value);
+        setPerfFailed(perf.status === 'rejected');
         if (perf.status === 'fulfilled') setCoordPerf(perf.value);
       } else if (isPhotographer) {
         const [a, t, clients, transactions, perf] = await Promise.allSettled([
@@ -207,6 +202,7 @@ export default function AnalyticsScreen() {
         if (t.status === 'fulfilled') setTrends(t.value);
         if (clients.status === 'fulfilled') setPhotogClients(clients.value);
         if (transactions.status === 'fulfilled') setPhotogTransactions(transactions.value);
+        setPerfFailed(perf.status === 'rejected');
         setPhotogPerf(perf.status === 'fulfilled' ? perf.value : null);
       }
     } finally {
@@ -237,7 +233,9 @@ export default function AnalyticsScreen() {
   }, [period, customFrom, customTo]);
 
   // Active performance data for chart
-  const activePerf = isClient
+  const activePerf = perfFailed
+    ? []
+    : isClient
     ? clientPerf
     : isCoordinator
       ? coordPerf
@@ -908,7 +906,7 @@ type StatCardItem = {
         <>
         {/* Shape 1: Curved Wave Spline Area Chart */}
         <View style={styles.sectionCard}>
-          <TrendCurveChart data={activePerf} height={160} />
+          <TrendCurveChart data={activePerf} height={160} unavailable={perfFailed} />
         </View>
 
         {/* Shape 2: Concentric Circular Donut Ring Chart */}
@@ -931,7 +929,7 @@ type StatCardItem = {
         ) : (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionCardTitle}>{tr('b2_analyticsPerformance')}</Text>
-            {isPhotographer ? <EventsChart points={photogPerf} /> : <SaloPerformanceChart data={activePerf} height={180} />}
+            {isPhotographer ? <EventsChart points={photogPerf} /> : <SaloPerformanceChart data={activePerf} height={180} unavailable={perfFailed} />}
           </View>
         )}
 
@@ -1464,23 +1462,17 @@ const cardStyles = StyleSheet.create({
 function TrendCurveChart({
   data,
   height = 155,
+  unavailable = false,
 }: {
   data: PerformancePoint[];
   height?: number;
+  /** The performance read failed: say so instead of "zero activity". */
+  unavailable?: boolean;
 }) {
   const { colors } = useTheme();
   const [layoutWidth, setLayoutWidth] = useState(320);
 
-  const chartData = useMemo(() => {
-    if (data.length === 7) return data;
-    if (data.length > 0) {
-      return DEFAULT_DAYS.map((def) => {
-        const found = data.find((d) => d.day.toLowerCase().startsWith(def.day.toLowerCase()));
-        return found || def;
-      });
-    }
-    return DEFAULT_DAYS;
-  }, [data]);
+  const chartData = useMemo(() => chartSeries(data), [data]);
 
   const points = useMemo(() => {
     const rawValues = chartData.map((d) => (d.value1 || 0) + (d.value2 || 0));
@@ -1674,7 +1666,7 @@ function TrendCurveChart({
             >
               <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
-                {tr('b2_analyticsZeroActivityPeriod')}
+                {unavailable ? 'Chart data is unavailable' : tr('b2_analyticsZeroActivityPeriod')}
               </Text>
             </View>
           </View>
@@ -1691,7 +1683,7 @@ function TrendCurveChart({
               { color: !points.isAllZero && pt.day === points.peak?.day ? colors.accent : colors.textMuted },
             ]}
           >
-            {pt.day.slice(0, 3)}
+            {axisLabel(pt.day)}
           </Text>
         ))}
       </View>
@@ -2076,28 +2068,21 @@ const ratioStyles = StyleSheet.create({
 function SaloPerformanceChart({
   data,
   height = 180,
+  unavailable = false,
 }: {
   data: PerformancePoint[];
   height?: number;
+  unavailable?: boolean;
 }) {
   const { colors } = useTheme();
   const bar1Color = colors.primary;
   const bar2Color = colors.accent;
 
-  const chartData = useMemo(() => {
-    if (data.length === 7) return data;
-    if (data.length > 0) {
-      // Map existing points to day names
-      return DEFAULT_DAYS.map((def) => {
-        const found = data.find((d) => d.day.toLowerCase().startsWith(def.day.toLowerCase()));
-        return found || def;
-      });
-    }
-    return DEFAULT_DAYS;
-  }, [data]);
+  const chartData = useMemo(() => chartSeries(data), [data]);
 
   const allValues = chartData.flatMap((d) => [d.value1, d.value2]);
   const maxValue = Math.max(...allValues, 0);
+  // With no activity there is no scale to print: only the baseline 0, not an invented 0..100 axis.
   const roundedMax = maxValue > 0 ? Math.ceil(maxValue / 50) * 50 : 100;
   const scale = (height - 30) / roundedMax;
   const yAxisLabels = [roundedMax, roundedMax * 0.75, roundedMax * 0.5, roundedMax * 0.25, 0];
@@ -2109,7 +2094,7 @@ function SaloPerformanceChart({
         <View style={[perfStyles.yAxis, { height: height - 20 }]}>
           {yAxisLabels.map((lbl, idx) => (
             <Text key={idx} style={[perfStyles.yAxisLabel, { color: colors.textMuted }]}>
-              {Math.round(lbl)}
+              {maxValue > 0 || lbl === 0 ? Math.round(lbl) : ''}
             </Text>
           ))}
         </View>
@@ -2189,7 +2174,7 @@ function SaloPerformanceChart({
               >
                 <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
                 <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
-                  {tr('b2_analyticsZeroPerformancePeriod')}
+                  {unavailable ? 'Chart data is unavailable' : tr('b2_analyticsZeroPerformancePeriod')}
                 </Text>
               </View>
             </View>
@@ -2203,7 +2188,7 @@ function SaloPerformanceChart({
         <View style={perfStyles.xAxisLabels}>
           {chartData.map((item, idx) => (
             <Text key={idx} style={[perfStyles.xDayLabel, { color: colors.textMuted }]}>
-              {item.day.slice(0, 3)}
+              {axisLabel(item.day)}
             </Text>
           ))}
         </View>
