@@ -111,19 +111,19 @@ export function PhotographerCard({
       {/* CARD BODY */}
       <View style={styles.detailsContainer}>
         {/* Name & Headline */}
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={styles.name} numberOfLines={3}>
           {photographer.name}
         </Text>
 
         <View style={styles.metaRow}>
-          <Text style={styles.headline} numberOfLines={1}>
+          <Text style={styles.headline} numberOfLines={3}>
             {photographer.category || tr('Photographer')}
           </Text>
           {photographer.location ? (
             <>
               <Text style={styles.metaDot}>·</Text>
               <Ionicons name="location-sharp" size={10} color={colors.primary} />
-              <Text style={styles.locationText} numberOfLines={1}>
+              <Text style={styles.locationText} numberOfLines={3}>
                 {photographer.location}
               </Text>
             </>
@@ -150,7 +150,7 @@ export function PhotographerCard({
           <View style={styles.chipsRow}>
             {specialties.slice(0, 2).map((s, idx) => (
               <View key={idx} style={styles.specialtyChip}>
-                <Text style={styles.specialtyChipText} numberOfLines={1}>
+                <Text style={styles.specialtyChipText} numberOfLines={2}>
                   {s}
                 </Text>
               </View>

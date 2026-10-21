@@ -77,3 +77,43 @@ describe('performance wave card, failed read', () => {
     expect(text).not.toContain('No trend data for this period');
   });
 });
+
+describe('performance wave card, buckets and currency', () => {
+  const dates = (r: TestRenderer.ReactTestRenderer) =>
+    r.root.findAll((n) => typeof n.props?.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Select date ')).filter((n) => typeof n.props.onPress === 'function').map((n) => n.props.accessibilityLabel.replace('Select date ', ''));
+
+  it('keeps every day of a seven day week (Friday used to be dropped)', () => {
+    const week = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => ({ day, value1: 0, value2: i === 5 ? 3 : 0 }));
+    const r = mount({ performanceData: week, selectedMetric: 'totalEvents' });
+    const seen = Array.from(new Set(dates(r)));
+    expect(seen).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+    const fri = r.root.findAll((n) => n.props?.accessibilityLabel === 'Select date Fri' && typeof n.props.onPress === 'function')[0];
+    act(() => {
+      fri.props.onPress();
+    });
+    expect(r.root.findAll((n) => n.props?.children === '3').length).toBeGreaterThan(0);
+  });
+
+  it('a four week month has four points, with no invented leading zero or repeated last value', () => {
+    const month = ['Week 1', 'Week 2', 'Week 3', 'Week 4'].map((day, i) => ({ day, value1: (i + 1) * 10, value2: 0 }));
+    const r = mount({ performanceData: month });
+    expect(Array.from(new Set(dates(r)))).toEqual(['Week 1', 'Week 2', 'Week 3', 'Week 4']);
+    const text = flat(r.root);
+    expect(text).not.toMatch(/Current|End/);
+  });
+
+  it('money without a known currency is N/A, never labelled with a guessed one', () => {
+    const r = mount({ currency: undefined });
+    expect(flat(r.root)).toContain('N/A');
+    expect(flat(r.root)).not.toContain('$1,500.00');
+  });
+
+  it('draws the metrics it is given, so another role can have its own', () => {
+    const metrics = { totalSpent: { title: 'TOTAL SPENT', shortTitle: 'Spent', unit: 'USD', icon: 'wallet-outline' as const, color: '#00E5FF', accentGlow: '#00E5FF', isMoney: true, series: 'value1' as const, trendKeys: ['totalSpent'] } };
+    const r = mount({ metrics, analytics: { totalSpent: 200 }, selectedMetric: 'totalSpent' });
+    const text = flat(r.root);
+    expect(text).toContain('TOTAL SPENT');
+    expect(text).toContain('$200.00');
+    expect(text).not.toContain('Photographers');
+  });
+});

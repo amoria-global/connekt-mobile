@@ -294,7 +294,7 @@ export default function WalletScreen() {
                       accessibilityLabel="Withdraw funds"
                     >
                       <Ionicons name="cash-outline" size={15} color="#ffffff" />
-                      <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.25}>
+                      <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.6}>
                         Withdraw funds
                       </Text>
                     </Pressable>
@@ -310,13 +310,13 @@ export default function WalletScreen() {
                     }, not included in your available balance`}
                   >
                     <Ionicons name="time-outline" size={15} color={colors.warning} />
-                    <Text style={styles.pendingStripLabel} maxFontSizeMultiplier={1.2}>
+                    <Text style={styles.pendingStripLabel} maxFontSizeMultiplier={1.6}>
                       {pendingLabel}
                     </Text>
-                    <Text style={styles.pendingStripAmount} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                    <Text style={styles.pendingStripAmount} numberOfLines={1} maxFontSizeMultiplier={1.6}>
                       {balanceHidden ? '••••' : formatPrice(pendingValue, data?.wallet.currency)}
                     </Text>
-                    <Text style={styles.pendingStripNote} numberOfLines={2} maxFontSizeMultiplier={1.15}>
+                    <Text style={styles.pendingStripNote} numberOfLines={2} maxFontSizeMultiplier={1.6}>
                       Not in available balance
                     </Text>
                   </View>
@@ -418,7 +418,7 @@ export default function WalletScreen() {
                       <View style={[styles.rowTile, { backgroundColor: p.tint }]}>
                         <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={15} color={p.bar} />
                       </View>
-                      <Text style={styles.rowLabel} numberOfLines={1}>
+                      <Text style={styles.rowLabel} numberOfLines={3}>
                         {card.label}
                       </Text>
                       <Text style={styles.rowValue} numberOfLines={1}>
@@ -477,10 +477,10 @@ export default function WalletScreen() {
                             <Ionicons name={isIn ? 'arrow-down' : 'arrow-up'} size={15} color={palette.text} />
                           </View>
                           <View style={styles.rowBody}>
-                            <Text style={styles.rowLabel} numberOfLines={1}>
+                            <Text style={styles.rowLabel} numberOfLines={3}>
                               {item.title}
                             </Text>
-                            <Text style={styles.rowMeta} numberOfLines={1}>
+                            <Text style={styles.rowMeta} numberOfLines={3}>
                               {item.tag} · {formatRelativeTime(item.timestamp)}
                             </Text>
                           </View>
@@ -504,7 +504,7 @@ export default function WalletScreen() {
                     style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85 }]}
                   >
                     <IconTile icon={l.icon} tone="primary" size={30} />
-                    <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+                    <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.6}>
                       {l.label === 'Payroll report' ? 'Earnings report' : l.label}
                     </Text>
                     <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
@@ -536,7 +536,7 @@ export default function WalletScreen() {
                             color={p.bar}
                           />
                         </View>
-                        <Text style={styles.potLabel} numberOfLines={1}>
+                        <Text style={styles.potLabel} numberOfLines={3}>
                           {card.label}
                         </Text>
                       </View>
