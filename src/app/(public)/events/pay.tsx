@@ -67,6 +67,7 @@ import { formatPrice } from '@/utils/format';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 // The stream-ticket endpoint takes MTN or AIRTEL for mobile money, as before.
@@ -106,6 +107,7 @@ export default function EventPaymentScreen() {
 function EventPaymentInner() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { id, device: tvDevice } = useLocalSearchParams<{ id: string; device?: string }>();
   // Pay-on-TV: a phone pays for a TV. Access is bound to the TV's device id
   // (from its QR), never this phone's, and this phone must not remember the
@@ -354,7 +356,7 @@ function EventPaymentInner() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]} keyboardShouldPersistTaps="handled">
         {/* Header Summary */}
         <View style={styles.summary}>
           <Text style={styles.summaryEvent} numberOfLines={2}>
@@ -633,7 +635,6 @@ const useStyles = makeStyles((c) => ({
   scroll: {
     padding: spacing.lg,
     gap: spacing.lg,
-    paddingBottom: 100,
   },
   summary: {
     padding: spacing.lg,

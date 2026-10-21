@@ -37,6 +37,7 @@ import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapV
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 const ITEMS_PER_PAGE = 8;
@@ -161,6 +162,7 @@ export default function PhotographersScreen() {
   useLanguage();
   const { colors, isDark } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const responsive = useResponsive();
   const { isCoordinator } = useRole();
   const router = useRouter();
@@ -924,7 +926,7 @@ export default function PhotographersScreen() {
             ListHeaderComponent={renderHeader}
             ListFooterComponent={renderFooter}
             numColumns={columns}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
             columnWrapperStyle={styles.columnWrapper}
             keyboardShouldPersistTaps="handled"
             refreshControl={
@@ -1105,7 +1107,6 @@ const useStyles = makeStyles((c, e) => ({
   },
   listContent: {
     flexGrow: 1,
-    paddingBottom: 110,
     backgroundColor: c.background,
   },
   columnWrapper: {
