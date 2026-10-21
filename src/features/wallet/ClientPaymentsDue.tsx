@@ -54,7 +54,7 @@ export function ClientPaymentsDue({ hidden, version }: { hidden: boolean; versio
                 <View style={styles.top}>
                   <IconTile icon={failed ? 'alert-circle-outline' : 'time-outline'} tone={failed ? 'error' : 'warning'} />
                   <View style={styles.text}>
-                    <Text style={styles.title} numberOfLines={1}>
+                    <Text style={styles.title} numberOfLines={2}>
                       {p.eventName}
                     </Text>
                     <Text style={styles.meta} numberOfLines={2}>

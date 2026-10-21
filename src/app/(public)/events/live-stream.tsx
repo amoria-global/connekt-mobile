@@ -2043,8 +2043,8 @@ export default function PublicLiveStreamScreen() {
                 </View>
               )}
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.ytEventTitle} numberOfLines={1}>{eventTitle}</Text>
-                <Text style={styles.ytHostName} numberOfLines={1}>
+                <Text style={styles.ytEventTitle} numberOfLines={2}>{eventTitle}</Text>
+                <Text style={styles.ytHostName} numberOfLines={2}>
                   {hostName ?? 'Event Host'}
                 </Text>
               </View>
