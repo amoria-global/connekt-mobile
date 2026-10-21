@@ -21,6 +21,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,6 +70,8 @@ export default function WalletScreen() {
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
+  // At large text two tiles per row leave "Transactions" too little width and it breaks mid-word: one per row.
+  const { fontScale } = useWindowDimensions();
 
   const { isPhotographer, isCoordinator, isClient, role } = useRole();
   const user = useAuth((s) => s.user);
@@ -501,7 +504,7 @@ export default function WalletScreen() {
                     onPress={() => router.push(l.href)}
                     accessibilityRole="button"
                     accessibilityLabel={l.label === 'Payroll report' ? 'Export earnings report' : l.label}
-                    style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85 }]}
+                    style={({ pressed }) => [styles.tile, fontScale > 1.3 && { flexBasis: '100%' }, pressed && { opacity: 0.85 }]}
                   >
                     <IconTile icon={l.icon} tone="primary" size={30} />
                     <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.6}>

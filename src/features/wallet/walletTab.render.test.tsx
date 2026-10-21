@@ -218,6 +218,21 @@ describe('photographer wallet tabs', () => {
     expect(text).not.toContain('Earnings breakdown');
   });
 
+  it('at large text the quick links take a full row each, so "Transactions" is not broken mid-word', async () => {
+    const { Dimensions } = jest.requireActual('react-native');
+    const spy = jest.spyOn(Dimensions, 'get').mockImplementation((k: string) => ({ width: 393, height: 852, scale: 2.75, fontScale: 1.6, ...(k ? {} : {}) }) as never);
+    try {
+      serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+      const r = await mount();
+      await reveal(r);
+      const tile = r.root.findAll((n) => n.props?.accessibilityLabel === 'Transactions' && typeof n.props.style === 'function')[0];
+      const flat1 = ([] as unknown[]).concat(tile.props.style({ pressed: false })).flat().filter(Boolean) as { flexBasis?: unknown }[];
+      expect(flat1.some((st) => st.flexBasis === '100%')).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('analytics labels balances as balances and never invents a period earnings figure', async () => {
     serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
     const r = await mount();
