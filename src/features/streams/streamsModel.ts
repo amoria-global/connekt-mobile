@@ -1,7 +1,8 @@
 import type { Href } from 'expo-router';
 /**
  * What the Streams screen decides, kept out of the screen so each rule can be tested.
- * Live first, then upcoming, then ended; inside a phase the most recent date first. A row with no date sorts last in its phase.
+ * Newest stream date first, whatever the phase, which is the web page's order (streams.tsx sorts on streamDate descending).
+ * A row with no date sorts last.
  */
 import type { Stream, StreamPhase } from './api';
 
@@ -14,8 +15,6 @@ export const STREAM_FILTERS: { key: StreamFilter; label: string }[] = [
   { key: 'ended', label: 'Replays' },
 ];
 
-const ORDER: Record<StreamPhase, number> = { live: 0, upcoming: 1, ended: 2 };
-
 export function countByPhase(streams: readonly Stream[]): Record<StreamFilter, number> {
   const c: Record<StreamFilter, number> = { all: streams.length, live: 0, upcoming: 0, ended: 0 };
   for (const s of streams) c[s.phase] += 1;
@@ -24,8 +23,6 @@ export function countByPhase(streams: readonly Stream[]): Record<StreamFilter, n
 
 export function sortStreams(streams: readonly Stream[]): Stream[] {
   return [...streams].sort((a, b) => {
-    const byPhase = ORDER[a.phase] - ORDER[b.phase];
-    if (byPhase !== 0) return byPhase;
     const da = a.date ?? '';
     const db = b.date ?? '';
     if (da !== db) return da < db ? 1 : -1; // newer first; an empty date sorts last
@@ -74,11 +71,16 @@ export function streamHref(eventId: string, asCoordinator: boolean): Href {
 /** What the chat history added to a stream, loaded after the list. Absent until read, and absent when the read failed. */
 export type StreamCounts = { messages: number; videos: number };
 
-/** Web: a stream matches when the query is in its title or its event type, case-insensitive. */
+/** Web: a stream matches when the query is in its event title, stream title or event type, case-insensitive. */
 export function searchStreams(streams: readonly Stream[], query: string): Stream[] {
   const q = query.trim().toLowerCase();
   if (!q) return [...streams];
-  return streams.filter((s) => s.title.toLowerCase().includes(q) || (s.eventType ?? '').toLowerCase().includes(q));
+  return streams.filter(
+    (s) =>
+      s.title.toLowerCase().includes(q) ||
+      (s.eventTitle ?? '').toLowerCase().includes(q) ||
+      (s.eventType ?? '').toLowerCase().includes(q),
+  );
 }
 
 /** Web: the event type filter, "all" or an exact case-insensitive type. */

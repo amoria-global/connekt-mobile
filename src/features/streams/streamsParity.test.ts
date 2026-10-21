@@ -21,6 +21,10 @@ describe('search and type filter (web streams.tsx)', () => {
     expect(searchStreams(list, '').length).toBe(3);
     expect(searchStreams(list, 'zzz')).toEqual([]);
   });
+  it('also matches the event title when the stream title differs (the web checks both)', () => {
+    const l = [s({ id: '1', title: 'Full day', eventTitle: 'Yubire Wedding' })];
+    expect(searchStreams(l, 'yubire').map((x) => x.id)).toEqual(['1']);
+  });
   it('filters by an exact type, and all keeps everything', () => {
     expect(filterByType(list, 'wedding').map((x) => x.id)).toEqual(['1']);
     expect(filterByType(list, 'all').length).toBe(3);

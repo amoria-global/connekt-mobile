@@ -3,7 +3,7 @@ import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { Text } from 'react-native';
 
 import StreamsScreen from '@/app/(app)/streams';
-import { deleteStreamRecord, listStreamHistory } from '@/features/streams/api';
+import { deleteStreamRecord, listStreamHistory, markVideoViewed } from '@/features/streams/api';
 import '@/test/autoUnmount';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -15,9 +15,10 @@ import '@/test/autoUnmount';
  */
 const mockGet = jest.fn();
 const mockDelete = jest.fn();
+const mockPatch = jest.fn();
 jest.mock('@/api/client', () => {
   const actual = jest.requireActual('@/api/client');
-  return { ...actual, api: { get: (...a: unknown[]) => mockGet(...a), delete: (...a: unknown[]) => mockDelete(...a) } };
+  return { ...actual, api: { get: (...a: unknown[]) => mockGet(...a), delete: (...a: unknown[]) => mockDelete(...a), patch: (...a: unknown[]) => mockPatch(...a) } };
 });
 const mockPush = jest.fn();
 let mockRole = 'Coordinator';
@@ -116,6 +117,7 @@ const press = async (r: TestRenderer.ReactTestRenderer, text: string, nth = 0) =
 beforeEach(() => {
   mockGet.mockReset();
   mockDelete.mockReset();
+  mockPatch.mockReset();
   mockPush.mockReset();
   mockAlert.mockReset();
   mockRole = 'Coordinator';
@@ -181,7 +183,7 @@ describe('search and event type filter', () => {
       input.props.onChangeText('zzz');
     });
     text = flat(r.root);
-    expect(text).toContain('No streams found');
+    expect(text).toContain('No completed streams found');
     await press(r, 'Clear filters');
     expect(flat(r.root)).toContain('Friday Night Concert');
   });
@@ -290,5 +292,40 @@ describe('delete', () => {
     await deleteStreamRecord({ id: 'e9', streamId: 'r1' }, false);
     expect(mockDelete).toHaveBeenNthCalledWith(1, '/customer/streams/r1');
     expect(mockDelete).toHaveBeenNthCalledWith(2, '/customer/streams/e9');
+  });
+});
+
+describe('same as the web, where the web is the reference', () => {
+  it('lists newest stream date first whatever the phase (streams.tsx sorts on streamDate descending)', async () => {
+    route();
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text.indexOf('Friday Night Concert')).toBeLessThan(text.indexOf('Amina Birthday'));
+  });
+
+  it('uses the web wording for an empty library and for a search that finds nothing', async () => {
+    route({ '/coordinator/streams': () => ok([]) });
+    const r = await mount();
+    expect(flat(r.root)).toContain('No completed streams found');
+    expect(flat(r.root)).toContain('Your completed event streams will appear here with viewer messages and videos.');
+  });
+
+  it('opening a new video makes the call the web makes, with the stream record id, and the screen does not depend on it', async () => {
+    route();
+    mockPatch.mockRejectedValue({ message: 'Video not found' });
+    const r = await mount();
+    await press(r, 'Videos', 0);
+    const tile = r.root.find((n) => typeof n.props?.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Video from Grace'));
+    await act(async () => {
+      tile.props.onPress();
+    });
+    expect(mockPatch).toHaveBeenCalledWith('/coordinator/streams/s1/videos/v1/viewed');
+    expect(flat(r.root)).toContain('1 new');
+  });
+
+  it('uses the customer route for a client', async () => {
+    mockPatch.mockResolvedValue({ action: 1 });
+    await markVideoViewed('r1', 'v9', false);
+    expect(mockPatch).toHaveBeenCalledWith('/customer/streams/r1/videos/v9/viewed');
   });
 });
