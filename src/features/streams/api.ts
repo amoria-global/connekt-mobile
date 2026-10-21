@@ -17,6 +17,8 @@ export type Stream = {
   /** The stream record id, kept for deletes. */
   streamId?: string;
   title: string;
+  /** The event's own title, kept apart from the stream title because the web searches both. */
+  eventTitle?: string;
   photographerName?: string;
   thumbnail?: string;
   isLive: boolean;
@@ -123,6 +125,7 @@ export function mapStream(r: Raw): Stream {
     id: String(r.eventId ?? r.id ?? r.streamId ?? ''),
     streamId: str(r.id) ?? str(r.streamId),
     title: str(r.streamTitle) ?? str(r.eventTitle) ?? str(r.title) ?? 'Live stream',
+    eventTitle: str(r.eventTitle),
     photographerName: photographerName?.trim() || undefined,
     thumbnail: streamImageUrl(str(r.coverImage) ?? str(r.eventPhoto) ?? str(r.thumbnail) ?? str(r.photographerImage)),
     photographerImage: streamImageUrl(str(r.photographerImage) ?? str(photographer.profilePicture)),
@@ -1164,4 +1167,19 @@ export async function loadStreamEventExtras(eventId: string): Promise<Partial<St
     photographerName:
       str(e.photographerName) ?? ([str(ph.firstName), str(ph.lastName)].filter(Boolean).join(' ') || undefined),
   };
+}
+
+/**
+ * Tells the backend a video message was opened, the call the web makes (streams.tsx markVideoAsViewed):
+ * `PATCH /{role}/streams/{streamId}/videos/{videoId}/viewed`, fire and forget. Today the backend cannot honour it for
+ * these ids (it looks the video up as an EventMedia and compares the stream id to an event id, and the coordinator
+ * route does not exist), so a failure is ignored, exactly as on the web. The screen keeps its own viewed state.
+ */
+export async function markVideoViewed(streamId: string, videoId: string, asCoordinator: boolean): Promise<void> {
+  const role = asCoordinator ? 'coordinator' : 'customer';
+  try {
+    await api.patch(`/${role}/streams/${encodeURIComponent(streamId)}/videos/${encodeURIComponent(videoId)}/viewed`);
+  } catch {
+    /* the web ignores this too */
+  }
 }

@@ -129,9 +129,9 @@ describe('stream mapping from the real feeds', () => {
 
 describe('stream list model', () => {
   const streams = coordinatorRows.map(mapStream);
-  it('counts and filters by phase, live first', () => {
+  it('counts and filters by phase, newest date first like the web', () => {
     expect(countByPhase(streams)).toEqual({ all: 3, live: 1, upcoming: 1, ended: 1 });
-    expect(sortStreams(streams).map((s) => s.phase)).toEqual(['live', 'upcoming', 'ended']);
+    expect(sortStreams(streams).map((s) => s.phase)).toEqual(['upcoming', 'live', 'ended']);
     expect(filterStreams(streams, 'ended').map((s) => s.id)).toEqual(['e3']);
   });
   it('labels the date and time, and nothing for a missing date', () => {
@@ -165,7 +165,7 @@ describe('streams screen as rendered', () => {
     await act(async () => {
       manage[0].props.onPress();
     });
-    expect(mockPush).toHaveBeenLastCalledWith('/event/e1');
+    expect(mockPush).toHaveBeenLastCalledWith('/event/e2');
     const card = r.root.findAll((n) => typeof n.props?.accessibilityLabel === 'string' && n.props.accessibilityLabel.startsWith('Friday Night Concert') && typeof n.props.onPress === 'function')[0];
     await act(async () => {
       card.props.onPress();
@@ -208,19 +208,19 @@ describe('streams screen as rendered', () => {
     expect(text).not.toContain('Friday Night Concert');
   });
 
-  it('a refused read is an error with a retry, not "no live streams"', async () => {
+  it('a refused read is an error with a retry, not "no streams"', async () => {
     mockGet.mockImplementation(async () => refused('Could not load streams'));
     const r = await mount();
     const text = flat(r.root);
     expect(text).toContain('Could not load streams');
     expect(text).toContain('Try again');
-    expect(text).not.toContain('No live streams');
+    expect(text).not.toContain('No completed streams found');
   });
 
   it('a genuinely empty list says so', async () => {
     mockGet.mockImplementation(async () => ok([]));
     const r = await mount();
-    expect(flat(r.root)).toContain('No live streams');
+    expect(flat(r.root)).toContain('No completed streams found');
     expect(flat(r.root)).not.toContain('Try again');
   });
 });

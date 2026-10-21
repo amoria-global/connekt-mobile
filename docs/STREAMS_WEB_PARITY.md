@@ -58,7 +58,23 @@ and viewer roles have no Streams page on the web.
 | View chats, Videos (player, NEW, viewed) | Done, as bottom sheets |
 | Delete | Done with the web wording; a refusal is shown, not swallowed |
 | Delete id order | Stream record id, then event id |
-| Phase filter, live and upcoming rows, open viewer, Manage event | Kept (mobile only) |
+| List order | Newest stream date first, whatever the phase (as the web sorts) |
+| Search | Matches event title, stream title and event type, as the web does |
+| Mark viewed | Same call as the web, fire and forget, failure ignored; the screen keeps its own state |
+| Empty library and no-match wording | The web's own text |
+| Photographer picture on the card | Shown, with the icon as fallback |
+| Header | "Library" eyebrow as on the web |
+| Phase filter, live and upcoming rows, open viewer, Manage event, pull to refresh | Kept (mobile only) |
+
+### Differences that remain, on purpose or by limit
+
+| Difference | Why |
+|---|---|
+| Page title is the app's "Live Streams", not "Completed streams" | The list holds live and upcoming rows too (as the web's coordinator list does), so "Completed" would be false |
+| No duration shown | Both feeds send `0:00:00` or nothing; the web prints that zero, mobile shows a duration only when the feed has a real one |
+| Video tiles use the message thumbnail or a dark tile | The web draws the first video frame in a `<video>`; a frame grab needs a native module this build does not ship |
+| Date shows "Oct 9, 2026 · 20:00" | The web prints seconds as sent ("20:00:00"); trimmed for a phone |
+| Type chips come from the list | The web hard-codes four types and hides any other |
 
 Not verified on a device (the emulator would not stay up) or against the live backend with a signed-in account.
 Video playback in the sheet is untested beyond rendering with the player mocked.

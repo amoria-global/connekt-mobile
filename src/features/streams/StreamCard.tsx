@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Pressable, Text, View } from 'react-native';
 import { LivePill, LiveTwinkle } from '@/components/ui/live';
 import { Card, StatusBadge } from '@/features/photographer/kit';
@@ -76,7 +77,11 @@ export function StreamCard({
             ) : null}
             {facts.map((f) => (
               <View key={f.key} style={styles.fact}>
-                <Ionicons name={f.icon} size={13} color={colors.textMuted} />
+                {f.key === 'who' && stream.photographerImage ? (
+                  <Image source={{ uri: stream.photographerImage }} style={styles.avatar} contentFit="cover" accessibilityIgnoresInvertColors />
+                ) : (
+                  <Ionicons name={f.icon} size={13} color={colors.textMuted} />
+                )}
                 <Text style={styles.factText} maxFontSizeMultiplier={1.6}>
                   {f.text}
                 </Text>
@@ -98,6 +103,7 @@ const useStyles = makeStyles((c) => ({
   text: { flex: 1, minWidth: 0, gap: 4, alignItems: 'flex-start' },
   title: { color: c.text, fontSize: 16, fontWeight: '700', lineHeight: 22 },
   type: { color: c.textMuted, fontSize: 12 },
+  avatar: { width: 18, height: 18, borderRadius: 9 },
   fact: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 1 },
   factText: { flex: 1, minWidth: 0, color: c.textMuted, fontSize: 13, lineHeight: 18 },
   footer: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },

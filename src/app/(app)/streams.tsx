@@ -13,7 +13,7 @@ import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
 import { ActionButton, Chip, EmptyNote, ErrorNotice, SkeletonCard } from '@/features/photographer/kit';
-import { deleteStreamRecord, listStreams, type Stream } from '@/features/streams/api';
+import { deleteStreamRecord, listStreams, markVideoViewed, type Stream } from '@/features/streams/api';
 import { StreamCard } from '@/features/streams/StreamCard';
 import { StreamChatsSheet, StreamVideosSheet } from '@/features/streams/StreamHistorySheets';
 import {
@@ -131,6 +131,7 @@ export default function StreamsScreen() {
         <UserHeaderBand
           flush
           duplicatesHeader
+          eyebrow="Library"
           title={t('b2_streamsTitle')}
           subtitle="Browse messages and videos from your event streams."
         />
@@ -211,12 +212,8 @@ export default function StreamsScreen() {
             <EmptyNote
               compact
               icon="videocam-outline"
-              title={t('b2_streamsEmptyTitle')}
-              body={
-                isCoordinator
-                  ? 'Streams of your events appear here once an event goes live.'
-                  : 'Streams you host or pay to watch appear here, with their messages and videos.'
-              }
+              title="No completed streams found"
+              body="Your completed event streams will appear here with viewer messages and videos."
             />
           </View>
         ) : null}
@@ -225,7 +222,7 @@ export default function StreamsScreen() {
             <EmptyNote
               compact
               icon="funnel-outline"
-              title="No streams found"
+              title="No completed streams found"
               body={narrowing ? 'Try a different keyword or filter. Your past streams will appear here once they match.' : 'Nothing to show yet.'}
               actionLabel={narrowing ? 'Clear filters' : undefined}
               onAction={
@@ -296,7 +293,10 @@ export default function StreamsScreen() {
           stream={sheetStream}
           state={sheetState}
           viewed={viewed}
-          onOpenVideo={(id) => setViewed((prev) => new Set(prev).add(id))}
+          onOpenVideo={(id) => {
+            setViewed((prev) => new Set(prev).add(id));
+            void markVideoViewed(sheetStream.streamId ?? sheetStream.id, id, isCoordinator);
+          }}
           onClose={() => setSheet(null)}
         />
       ) : null}
