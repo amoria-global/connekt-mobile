@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Pressable, Text, View } from 'react-native';
 import { LivePill, LiveTwinkle } from '@/components/ui/live';
 import { Card, StatusBadge } from '@/features/photographer/kit';
@@ -15,7 +16,23 @@ import { viewersLabel, whenLabel } from './streamsModel';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-export function StreamCard({ stream, onPress, footer }: { stream: Stream; onPress: () => void; footer?: ReactNode }) {
+export function StreamCard({
+  stream,
+  onPress,
+  footer,
+  messages,
+  videos,
+  unviewed,
+}: {
+  stream: Stream;
+  onPress: () => void;
+  footer?: ReactNode;
+  /** Totals resolved with the chat history (the feed's own totals can be 0 when the history has rows). */
+  messages?: number;
+  videos?: number;
+  /** Video messages not opened yet, the web's "N new" badge. */
+  unviewed?: number;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
   const when = whenLabel(stream);
@@ -25,10 +42,11 @@ export function StreamCard({ stream, onPress, footer }: { stream: Stream; onPres
     ...(when ? [{ key: 'when', icon: 'calendar-outline' as const, text: when }] : []),
     ...(audience ? [{ key: 'aud', icon: 'eye-outline' as const, text: audience }] : []),
     ...(stream.duration ? [{ key: 'dur', icon: 'time-outline' as const, text: stream.duration }] : []),
-    ...(stream.messageCount ? [{ key: 'msg', icon: 'chatbubble-outline' as const, text: `${stream.messageCount.toLocaleString('en-US')} messages` }] : []),
+    ...(messages ? [{ key: 'msg', icon: 'chatbubble-outline' as const, text: `${messages.toLocaleString('en-US')} ${messages === 1 ? 'message' : 'messages'}` }] : []),
+    ...(videos ? [{ key: 'vid', icon: 'videocam-outline' as const, text: `${videos.toLocaleString('en-US')} ${videos === 1 ? 'video message' : 'video messages'}` }] : []),
   ];
   const live = stream.phase === 'live';
-  const a11y = [stream.title, live ? 'Live now' : stream.phase === 'ended' ? 'Replay' : 'Upcoming', ...facts.map((f) => f.text)].join(', ');
+  const a11y = [stream.title, live ? 'Live now' : stream.phase === 'ended' ? 'Replay' : 'Upcoming', ...(unviewed ? [`${unviewed} new videos`] : []), ...facts.map((f) => f.text)].join(', ');
 
   return (
     <LiveTwinkle active={live} radius={radii.lg}>
@@ -48,6 +66,7 @@ export function StreamCard({ stream, onPress, footer }: { stream: Stream; onPres
             ) : (
               <StatusBadge label="Upcoming" tone="info" icon="time-outline" />
             )}
+            {unviewed ? <StatusBadge label={`${unviewed} new`} tone="error" icon="ellipse" /> : null}
             <Text style={styles.title} numberOfLines={4} maxFontSizeMultiplier={1.6}>
               {stream.title}
             </Text>
@@ -58,7 +77,11 @@ export function StreamCard({ stream, onPress, footer }: { stream: Stream; onPres
             ) : null}
             {facts.map((f) => (
               <View key={f.key} style={styles.fact}>
-                <Ionicons name={f.icon} size={13} color={colors.textMuted} />
+                {f.key === 'who' && stream.photographerImage ? (
+                  <Image source={{ uri: stream.photographerImage }} style={styles.avatar} contentFit="cover" accessibilityIgnoresInvertColors />
+                ) : (
+                  <Ionicons name={f.icon} size={13} color={colors.textMuted} />
+                )}
                 <Text style={styles.factText} maxFontSizeMultiplier={1.6}>
                   {f.text}
                 </Text>
@@ -80,6 +103,7 @@ const useStyles = makeStyles((c) => ({
   text: { flex: 1, minWidth: 0, gap: 4, alignItems: 'flex-start' },
   title: { color: c.text, fontSize: 16, fontWeight: '700', lineHeight: 22 },
   type: { color: c.textMuted, fontSize: 12 },
+  avatar: { width: 18, height: 18, borderRadius: 9 },
   fact: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 1 },
   factText: { flex: 1, minWidth: 0, color: c.textMuted, fontSize: 13, lineHeight: 18 },
   footer: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
