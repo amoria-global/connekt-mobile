@@ -58,6 +58,7 @@ import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
 import { ClientWalletAnalytics } from '@/features/client/ClientWalletAnalytics';
 import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { WithdrawMethodPrompt } from '@/features/paymentAccounts/WithdrawMethodPrompt';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
@@ -939,6 +940,8 @@ export default function WalletScreen() {
       </Modal>
 
       <TopBar />
+      {/* Photographers and coordinators with no withdrawal method are asked to add one every time they open the wallet. */}
+      {canWithdraw ? <WithdrawMethodPrompt role={role} /> : null}
     </Screen>
   );
 }
