@@ -181,7 +181,7 @@ function CardCopy({ chip, title, subtitle }: { chip: React.ReactNode; title: str
         <View style={styles.cardFooter}>
           <View style={styles.cardText}>
             <Text style={styles.cardTitle}>{title}</Text>
-            <Text style={styles.cardSub} numberOfLines={1}>{subtitle}</Text>
+            <Text style={styles.cardSub} numberOfLines={2}>{subtitle}</Text>
           </View>
           <View style={styles.arrow}>
             <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />

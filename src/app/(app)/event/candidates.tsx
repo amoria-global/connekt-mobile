@@ -208,7 +208,7 @@ export default function EventCandidatesScreen() {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.eyebrow, { color: MODE_META.HYBRID.color }]}>{t('b3_cand_eyebrow')}</Text>
-          <Text style={styles.title} numberOfLines={1} accessibilityRole="header">{data?.eventTitle || t('b3_cand_your_event')}</Text>
+          <Text style={styles.title} numberOfLines={2} accessibilityRole="header">{data?.eventTitle || t('b3_cand_your_event')}</Text>
         </View>
       </View>
 

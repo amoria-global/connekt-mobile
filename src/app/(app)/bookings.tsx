@@ -537,7 +537,7 @@ function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: strin
   return (
     <View style={styles.row}>
       <Ionicons name={icon} size={14} color={colors.textMuted} />
-      <Text style={styles.rowText} numberOfLines={1}>
+      <Text style={styles.rowText} numberOfLines={2}>
         {text}
       </Text>
     </View>

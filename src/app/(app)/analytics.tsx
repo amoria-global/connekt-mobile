@@ -840,7 +840,7 @@ type StatCardItem = {
                     </View>
                     <View style={styles.pendingCardDetails}>
                       <View style={styles.pendingCardNameRow}>
-                        <Text style={styles.pendingCardName} numberOfLines={1}>
+                        <Text style={styles.pendingCardName} numberOfLines={2}>
                           {payment.photographerName}
                         </Text>
                         {isFailed && (
@@ -854,7 +854,7 @@ type StatCardItem = {
                           </View>
                         )}
                       </View>
-                      <Text style={styles.pendingCardEvent} numberOfLines={1}>
+                      <Text style={styles.pendingCardEvent} numberOfLines={2}>
                         {payment.eventName}
                       </Text>
                     </View>
@@ -1843,7 +1843,7 @@ function DonutBreakdownChart({
             <View key={idx} style={donutStyles.legendItem}>
               <View style={[donutStyles.legendDot, { backgroundColor: ring.color }]} />
               <View style={donutStyles.legendInfo}>
-                <Text style={[donutStyles.legendLabel, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[donutStyles.legendLabel, { color: colors.text }]} numberOfLines={2}>
                   {ring.label}
                 </Text>
                 <Text style={[donutStyles.legendSub, { color: colors.textMuted }]}>
@@ -2354,10 +2354,10 @@ function PhotographerItemRow({
         )}
       </View>
       <View style={rowStyles.infoCol}>
-        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={1}>
+        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={2}>
           {name}
         </Text>
-        <Text style={[rowStyles.sub, { color: colors.textMuted }]} numberOfLines={1}>
+        <Text style={[rowStyles.sub, { color: colors.textMuted }]} numberOfLines={2}>
           {event}
         </Text>
       </View>
@@ -2431,7 +2431,7 @@ function PaymentItemRow({
         )}
       </View>
       <View style={rowStyles.infoCol}>
-        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={1}>
+        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={2}>
           {cleanName}
         </Text>
         <Text

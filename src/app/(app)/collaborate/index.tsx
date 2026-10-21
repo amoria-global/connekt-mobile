@@ -262,7 +262,7 @@ export default function CollaborateHub() {
                   )}
                 </View>
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{a.title}</Text>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{a.title}</Text>
                   <View style={styles.metaRow}>
                     <Text style={styles.meta}><Ionicons name="image-outline" size={13} /> {s.photosCount.replace('{count}', String(a.imageCount))}</Text>
                     <Text style={styles.meta}>
@@ -285,7 +285,7 @@ export default function CollaborateHub() {
               accessibilityRole="button" accessibilityLabel={`${a.title}, ${a.owner.name}`}>
               <View style={styles.cover}><AlbumCover uri={a.coverImage} title={a.title} /></View>
               <View style={styles.cardBody}>
-                <Text style={styles.cardTitle} numberOfLines={1}>{a.title}</Text>
+                <Text style={styles.cardTitle} numberOfLines={2}>{a.title}</Text>
                 <PersonRow person={a.owner} caption={s.albumOwner} size={28} />
                 <View style={styles.countsRow}>
                   <Text style={[styles.count, { color: colors.warning }]}>{s.waitingCount.replace('{count}', String(a.counts.pending))}</Text>

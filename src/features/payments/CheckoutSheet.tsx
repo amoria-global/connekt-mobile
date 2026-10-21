@@ -198,7 +198,7 @@ export function CheckoutSheet({
 
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
             <View style={styles.summary}>
-              <Text style={styles.summaryEvent} numberOfLines={1}>{title}</Text>
+              <Text style={styles.summaryEvent} numberOfLines={2}>{title}</Text>
               {subtitle ? <Text style={styles.summarySub}>{subtitle}</Text> : null}
               {amountLabel ? <Text style={styles.summaryAmount}>{amountLabel}</Text> : null}
             </View>

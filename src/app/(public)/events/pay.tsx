@@ -357,7 +357,7 @@ function EventPaymentInner() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {/* Header Summary */}
         <View style={styles.summary}>
-          <Text style={styles.summaryEvent} numberOfLines={1}>
+          <Text style={styles.summaryEvent} numberOfLines={2}>
             {data.title}
           </Text>
           <Text style={styles.summarySub}>
@@ -378,10 +378,10 @@ function EventPaymentInner() {
               <View style={styles.signedInCard}>
                 <Ionicons name="person-circle" size={24} color={colors.primary} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.signedInName} numberOfLines={1}>
+                  <Text style={styles.signedInName} numberOfLines={2}>
                     {name || 'Signed in'}
                   </Text>
-                  {email ? <Text style={styles.signedInEmail} numberOfLines={1}>{email}</Text> : null}
+                  {email ? <Text style={styles.signedInEmail} numberOfLines={2}>{email}</Text> : null}
                 </View>
               </View>
             ) : (

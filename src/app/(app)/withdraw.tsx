@@ -683,7 +683,7 @@ export default function WithdrawScreen() {
                               />
                             </View>
                             <View style={styles.activityInfo}>
-                              <Text style={styles.activityTitle} numberOfLines={1}>
+                              <Text style={styles.activityTitle} numberOfLines={2}>
                                 {item.description || item.category || (isIn ? 'Credit' : 'Withdrawal')}
                               </Text>
                               {item.createdAt ? (

@@ -684,7 +684,7 @@ export default function WalletScreen() {
                         {/* Title & Metadata */}
                         <View style={styles.activityBody}>
                           <View style={styles.activityTitleRow}>
-                            <Text style={styles.activityTitle} numberOfLines={1}>
+                            <Text style={styles.activityTitle} numberOfLines={2}>
                               {item.title}
                             </Text>
                             <View style={[styles.tagBadge, { backgroundColor: palette.bg }]}>
@@ -697,7 +697,7 @@ export default function WalletScreen() {
                           <View style={styles.activityMetaRow}>
                             {item.subtitle ? (
                               <>
-                                <Text style={styles.activitySubtitle} numberOfLines={1}>
+                                <Text style={styles.activitySubtitle} numberOfLines={2}>
                                   {item.subtitle}
                                 </Text>
                                 <Text style={styles.activityBullet}>•</Text>

@@ -359,10 +359,10 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                         contentFit="cover"
                       />
                       <View style={styles.liveCardInfo}>
-                        <Text style={styles.liveCardTitle} numberOfLines={1}>
+                        <Text style={styles.liveCardTitle} numberOfLines={2}>
                           {ev.title}
                         </Text>
-                        <Text style={styles.liveCardSub} numberOfLines={1}>
+                        <Text style={styles.liveCardSub} numberOfLines={2}>
                           {ev.photographerName || ev.eventOrganizer || tr('Live Stream')}
                         </Text>
                       </View>
@@ -397,12 +397,12 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                         />
                         <View style={styles.resultInfo}>
                           <View style={styles.rowInline}>
-                            <Text style={styles.resultTitle} numberOfLines={1}>
+                            <Text style={styles.resultTitle} numberOfLines={2}>
                               {p.name}
                             </Text>
                             <Ionicons name="checkmark-circle" size={14} color="#3B82F6" />
                           </View>
-                          <Text style={styles.resultSub} numberOfLines={1}>
+                          <Text style={styles.resultSub} numberOfLines={2}>
                             {[p.category, p.location].filter(Boolean).join(' · ')}
                           </Text>
                         </View>
@@ -444,10 +444,10 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                           contentFit="cover"
                         />
                         <View style={styles.resultInfo}>
-                          <Text style={styles.resultTitle} numberOfLines={1}>
+                          <Text style={styles.resultTitle} numberOfLines={2}>
                             {ev.title}
                           </Text>
-                          <Text style={styles.resultSub} numberOfLines={1}>
+                          <Text style={styles.resultSub} numberOfLines={2}>
                             {[
                               isLive ? 'LIVE NOW' : ev.eventDate ? formatDate(ev.eventDate) : null,
                               ev.location,
