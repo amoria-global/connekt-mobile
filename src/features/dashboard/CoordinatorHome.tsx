@@ -59,7 +59,7 @@ import { moneyText } from '@/features/photographer/money';
 import { HeroActionCard, ListRow } from '@/features/client/studio';
 import { DUE_CURRENCY, clientStatus, dueText, isLiveNow, payable, remaining } from '@/features/client/homeModel';
 import { clock12, dayKey, eventDay, upcomingEvents } from '@/features/photographer/schedule';
-import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
+import { PerformanceWaveCard } from '@/features/dashboard/PerformanceWaveCard';
 import { formatDate } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -97,7 +97,7 @@ export function CoordinatorHome() {
   const name = user?.firstName || user?.organizationName || 'Coordinator';
 
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
-  const [selectedWaveMetric, setSelectedWaveMetric] = useState<MetricKey>('totalRevenue');
+  const [selectedWaveMetric, setSelectedWaveMetric] = useState<string>('totalRevenue');
   const [searchQuery, setSearchQuery] = useState('');
   const [pulling, setPulling] = useState(false);
   // Amounts start hidden, like the photographer and client Home.
