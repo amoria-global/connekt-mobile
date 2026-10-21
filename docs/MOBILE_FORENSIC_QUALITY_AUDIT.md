@@ -94,3 +94,59 @@ Environment notes: a gray gear overlay at the top right of every shot is an Andr
 ## 9. Final gates (last run on the final tree)
 
 `npx tsc --noEmit` exit 0; `npx jest` 123 suites passed, 970 passed, 1 skipped, 971 total; `git diff --check` exit 0; `npx expo lint` 575 problems (319 errors), identical to baseline `6559730`.
+
+## 10. Post-release verification (2026-10-21, run on `main` at `b02e9f8`)
+
+Evidence-only pass. No application code was changed, nothing was published, no workflow was dispatched.
+
+### 10.1 Repository and release state (verified)
+
+| Check | Result |
+|---|---|
+| Local `main` = `origin/main` = `b02e9f8`; anchors `66a2468`, `62adec0`, `2938cab`, `b02e9f8` all exist | `git cat-file`, `git log` |
+| `origin/production` = `151c316`, and `b02e9f8` is an ancestor of it | `git merge-base --is-ancestor` |
+| Android manifest (runtime 2.2.2, channel production) | update `01a15e4d-b54e-7a02-a980-b56bd5988843`, created 2026-10-21T11:51:53Z |
+| iOS manifest (runtime 2.2.2, channel production) | update `01a15e57-480a-7939-b907-da5cce914aa3`, created 2026-10-21T12:02:20Z |
+| `app.json` version and runtime | 2.2.2, matches the manifests |
+| Screenshots in `docs/forensic-screens/` | 11 files present |
+| The four deleted components | no importer in any quote style; no barrel, route or test reference. Only a stale comment remains at `src/app/(app)/(tabs)/index.tsx:249` ("see EventsList"), harmless |
+| `ChooseRoleBottomSheet` | still imported at `src/app/(auth)/login.tsx:14` and rendered at line 417 |
+
+Not verified: that an installed app applied these updates. Only the manifests were read. No production build is installed in the available environment, and the only runnable client is a development build.
+
+### 10.2 Quality gates on `main` `b02e9f8`
+
+| Command | Result |
+|---|---|
+| `npx tsc --noEmit` | exit 0 |
+| `npx jest` | 123 suites passed; 970 passed, 1 skipped, 971 total |
+| `npx eslint .` | exit 1: 319 errors, 253 warnings (572 problems; the earlier 575 included 3 warnings in the deleted components) |
+| Lint in CI | `.github/workflows/ci.yml` runs `yarn lint` with `continue-on-error: true`, so lint is not blocking |
+| Lint on files this work modified | for all 51 modified source files, the baseline version at `6559730` (linted through stdin) and the current version have identical error and warning counts. The audit introduced no new lint finding. The debt itself is pre-existing, concentrated in `live-stream.tsx` (20 errors), `IncomingOpportunityAlertModal.tsx` (9), `GlobalSearchModal.tsx` (6) and `FindMyPhotos.tsx` (3) |
+| EAS build | not run |
+
+Test coverage after the cleanup: the one removed assertion in `moneyHonesty.test.ts` read only `MultipleDonutOverviewCard.tsx`, which no longer exists. The neighbouring assertion on `payments/api.ts` (no `* 0.65`) and the rest of the file are intact. Chart, wallet and analytics honesty is covered by behavioural tests (`roleAnalytics.render`, `chartSeries`, `walletTab.render`, `PerformanceWaveCard` tests). No other test reads a deleted file (every `src/...` path read by a test exists).
+
+### 10.3 Android device pass: BLOCKED
+
+The Pixel 5 API 34 emulator could not be run on this machine in this pass. Chrome was closed with the user's permission. Three attempts (snapshot boot, cold boot, cold boot with software GPU and 2 GB) ended in "System UI isn't responding" or an emulator crash (`crashpad_handler` faults in the Windows Application log). Free RAM was 0.6 to 0.8 GB (7.9 GB total installed). Metro, the fixture server and the emulator were stopped afterwards. Consequently none of the following were verified on a device in this pass: client 1.6x screens, payment sheets, booking steps 2 and 3, coordinator dark mode and 1.6x, photographer dark mode, the viewer role, the 74 two-line rows, and the running app's applied update id.
+
+The earlier evidence in section 8 stands and is unchanged.
+
+### 10.4 Stream routing, from source
+
+- `streamHref(eventId, asCoordinator)` sends clients to `/(public)/events/live-stream?id=<eventId>` and coordinators to `/stream/<eventId>`. Unit and render tests cover both (`streams.render.test.tsx`: "a client opens a stream in the access-aware viewer").
+- A failed coordinator read is an error with retry; there is no fallback to `/customer/streams` (`listStreams` uses `requireOk` and a role-specific path; test "does not fall back to the customer feed").
+- The client route is the existing public viewer, so any access check remains the backend's. The frontend adds no bypass.
+- Potential risk (new, not changed): `mapStream` in `src/features/streams/api.ts` builds `id` as `eventId ?? id ?? streamId`. A row with no `eventId` would navigate with the stream record id. The viewer would ask the backend for an event that does not exist and show its not found state, so it is not an unrelated event, but the card would be a dead link. The backend DTO carries `eventId` (verified in the earlier session), so this is latent. Next evidence: a real response from `/customer/streams` with a row lacking `eventId`.
+- Playback and replay content: still unverified (needs the real backend or a fixture event that matches).
+
+### 10.5 Outstanding items
+
+| Item | Cause | Consequence | Next evidence |
+|---|---|---|---|
+| Device pass for the gaps in 10.3 | emulator unstable at under 1 GB free RAM | those screens rest on source review and Jest only | rerun on a machine with 4 GB or more free, or a physical phone |
+| Installed-app update id | no production build available | manifest served, application unconfirmed | open a production build and read the update id from the app |
+| iOS | no simulator or device | visual and runtime status unknown | an iOS device or simulator |
+| Live backend | fixture only | authorization and playback unproven | authorized read-only account |
+| Lint debt | 319 errors, non-blocking in CI | none for the changed files | separate cleanup task |
