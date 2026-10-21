@@ -17,6 +17,8 @@ import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { countItems, type Release } from './releaseNotes';
 import { updateNow, useAppUpdates, useUpdateChecks } from './useAppUpdates';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 const DEFAULT_ICON: IconName = 'sparkles-outline';
@@ -65,12 +67,14 @@ export function UpdatePromptModal() {
   return (
     <Modal
       visible
+      transparent
       animationType="slide"
       statusBarTranslucent
       // Android back must not close a mandatory update.
       onRequestClose={() => {}}
     >
-      <View style={[styles.root, { paddingTop: Math.max(insets.top, spacing.lg) }]} accessibilityViewIsModal>
+      <GlassScrim style={styles.scrim}>
+      <GlassSheetHost style={[styles.root, { paddingTop: spacing.lg }]}>
         <View style={styles.header}>
           <View style={styles.iconCircle}>
             <Ionicons
@@ -169,13 +173,15 @@ export function UpdatePromptModal() {
           </Pressable>
           <Text style={styles.footnote}>The app restarts to apply the update. Your account and data stay as they are.</Text>
         </View>
-      </View>
+      </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  root: { flex: 1, backgroundColor: c.background },
+  scrim: { justifyContent: 'flex-end', paddingTop: spacing.xl },
+  root: { height: '94%' },
   header: { alignItems: 'center', paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, gap: spacing.sm },
   iconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.tint, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 24, fontFamily: fonts.bold, color: c.text, textAlign: 'center' },
@@ -194,17 +200,15 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.md,
     padding: spacing.md,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   itemIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.tint, justifyContent: 'center', alignItems: 'center' },
   itemText: { flex: 1, minWidth: 0, gap: 4 },
   itemTitle: { fontSize: 15, fontFamily: fonts.bold, color: c.text },
   itemBody: { fontSize: 14, fontFamily: fonts.regular, color: c.textMuted, lineHeight: 21 },
-  footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm, borderTopWidth: 1, borderTopColor: c.borderSoft, backgroundColor: c.background },
+  footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm, borderTopWidth: 1, borderTopColor: c.borderSoft },
   progressContainer: { width: '100%' },
-  progressTrack: { width: '100%', height: 6, borderRadius: radii.full, backgroundColor: c.surfaceMuted, overflow: 'hidden' },
+  progressTrack: { width: '100%', height: 6, borderRadius: radii.full, ...glassTile(c), overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: radii.full, backgroundColor: c.primary },
   progressLabel: { fontSize: 12, fontFamily: fonts.regular, color: c.textMuted, textAlign: 'center', marginTop: spacing.xs },
   primaryBtn: {

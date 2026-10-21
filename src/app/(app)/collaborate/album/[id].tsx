@@ -7,6 +7,7 @@
  *  - History: photos already approved or rejected.
  */
 import { useCallback, useMemo, useState } from 'react';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -505,8 +506,8 @@ function RejectSheet({ count, note, onNote, busy, onCancel, onConfirm }: {
   const { language } = useLanguage();
   const tr = OA_I18N[language] ?? OA_I18N.en;
   return (
-    <View style={styles.sheetBackdrop}>
-      <View style={styles.sheet}>
+    <GlassScrim style={styles.sheetBackdrop}>
+      <GlassSheetHost style={styles.sheet}>
         <Text style={styles.sheetTitle}>{tr.rejectSheetTitle.replace('{count}', String(count))}</Text>
         <Text style={styles.muted}>{tr.rejectSheetSub}</Text>
         <TextInput
@@ -523,8 +524,8 @@ function RejectSheet({ count, note, onNote, busy, onCancel, onConfirm }: {
           <Button title={tr.cancel} variant="ghost" style={styles.flex} onPress={onCancel} />
           <Button title={tr.reject} variant="danger" style={styles.flex} loading={busy} onPress={onConfirm} />
         </View>
-      </View>
-    </View>
+      </GlassSheetHost>
+    </GlassScrim>
   );
 }
 
@@ -566,8 +567,8 @@ const useStyles = makeStyles((c, e) => ({
   previewImage: { width: '100%', height: '62%' },
   previewPanel: { backgroundColor: c.elevated, margin: spacing.lg, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.md },
   previewActions: { flexDirection: 'row', gap: spacing.md },
-  sheetBackdrop: { ...StyleFill, backgroundColor: c.scrim, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.elevated, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.xl, gap: spacing.md },
+  sheetBackdrop: { ...StyleFill, justifyContent: 'flex-end' },
+  sheet: { padding: spacing.xl, gap: spacing.md },
   sheetTitle: { color: c.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   noteInput: {
     minHeight: 88, borderWidth: 1, borderColor: c.border, borderRadius: radii.md, padding: spacing.md,

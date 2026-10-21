@@ -16,22 +16,15 @@
  * so the tray itself never appears on Android.
  */
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGiftCatalog, type GiftCatalogItem } from '@/features/streams/api';
 import { useCurrency } from '@/store/currency';
 import { isApiError } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, useTheme , makeStyles} from '@/theme';
+import { spacing, radii, fontSize, fontWeight, useTheme, makeStyles, darkPalette } from '@/theme';
 import { formatGiftUsd, formatGiftUsdBase } from './GiftOverlay';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 type Tier = 'POPULAR' | 'PREMIUM';
 
@@ -112,13 +105,8 @@ export function GiftTray({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable
-        style={s.scrim}
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close gift tray"
-      />
-      <View style={[s.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
+      <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <GlassSheetHost style={[s.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
         <View style={s.grab} />
         <View style={s.sheetHead}>
           <Text style={s.sheetTitle}>Send a gift</Text>
@@ -248,27 +236,21 @@ export function GiftTray({
             })}
           </ScrollView>
         )}
-      </View>
+      </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
 
-// Dark-glass sheet over the live video — fixed dark surface by design
-// (matches the live screens), not a light/dark theme surface.
+// Glass sheet over the live video, in the app's shared glass look; every colour is a theme token so it reads in light and dark.
 const useS = makeStyles((c) => ({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: {
-    backgroundColor: 'rgba(18,21,30,0.98)',
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-  },
+  scrim: { flex: 1 },
+  sheet: {},
   grab: {
     width: 40,
     height: 4,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: c.border,
     alignSelf: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
@@ -280,8 +262,8 @@ const useS = makeStyles((c) => ({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  sheetTitle: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.extrabold },
-  sheetHint: { color: 'rgba(255,255,255,0.55)', fontSize: fontSize.xs },
+  sheetTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.extrabold },
+  sheetHint: { color: c.textMuted, fontSize: fontSize.xs },
 
   viewRow: {
     flexDirection: 'row',
@@ -291,7 +273,7 @@ const useS = makeStyles((c) => ({
     paddingBottom: spacing.sm,
   },
   viewLabel: {
-    color: 'rgba(255,255,255,0.45)',
+    color: c.textMuted,
     fontSize: 10,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.6,
@@ -302,16 +284,15 @@ const useS = makeStyles((c) => ({
     paddingVertical: 4,
     paddingHorizontal: spacing.md,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    ...glassTile(c),
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   viewPillOn: {
     backgroundColor: 'rgba(242,12,143,0.16)',
     borderColor: 'rgba(242,12,143,0.55)',
   },
-  viewPillText: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: fontWeight.bold },
-  viewPillTextOn: { color: c.textOnPrimary },
+  viewPillText: { color: c.textSoft, fontSize: 11, fontWeight: fontWeight.bold },
+  viewPillTextOn: { color: c.text },
 
   tabs: { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   tab: { paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.lg, borderRadius: radii.full },
@@ -320,8 +301,8 @@ const useS = makeStyles((c) => ({
     borderWidth: 1,
     borderColor: 'rgba(242,12,143,0.55)',
   },
-  tabText: { color: 'rgba(255,255,255,0.65)', fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-  tabTextOn: { color: c.textOnPrimary },
+  tabText: { color: c.textSoft, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  tabTextOn: { color: c.text },
 
   grid: {
     flexDirection: 'row',
@@ -333,19 +314,18 @@ const useS = makeStyles((c) => ({
   tile: {
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    ...glassTile(c),
     borderRadius: radii.md,
     paddingVertical: spacing.md,
     paddingHorizontal: 6,
     minHeight: 118,
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   tileSel: { borderColor: c.accent, backgroundColor: 'rgba(242,12,143,0.14)' },
   tileEmoji: { fontSize: 30, lineHeight: 34 },
-  tileName: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: fontWeight.semibold, alignSelf: 'stretch', textAlign: 'center' },
-  tilePrice: { color: '#ffd166', fontSize: fontSize.xs, fontWeight: fontWeight.extrabold, alignSelf: 'stretch', textAlign: 'center' },
-  tileLocal: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: fontWeight.semibold, alignSelf: 'stretch', textAlign: 'center' },
+  tileName: { color: c.textSoft, fontSize: 11, fontWeight: fontWeight.semibold, alignSelf: 'stretch', textAlign: 'center' },
+  tilePrice: { color: c === darkPalette ? '#ffd166' : '#B45309', fontSize: fontSize.xs, fontWeight: fontWeight.extrabold, alignSelf: 'stretch', textAlign: 'center' },
+  tileLocal: { color: c.textMuted, fontSize: 9, fontWeight: fontWeight.semibold, alignSelf: 'stretch', textAlign: 'center' },
   tileSend: {
     backgroundColor: c.accent,
     borderRadius: radii.full,
@@ -368,7 +348,7 @@ const useS = makeStyles((c) => ({
   },
   stateEmoji: { fontSize: 30 },
   stateText: {
-    color: 'rgba(255,255,255,0.7)',
+    color: c.textSoft,
     fontSize: fontSize.sm,
     textAlign: 'center',
     lineHeight: 20,

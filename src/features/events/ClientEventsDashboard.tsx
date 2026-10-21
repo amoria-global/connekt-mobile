@@ -60,6 +60,7 @@ import {
   type EventSort,
 } from './clientEventsModel';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 const PAGE_SIZE = 8;
@@ -355,11 +356,9 @@ export function ClientEventsDashboard({
       <EventQrSheet visible={!!qrTarget} onClose={() => setQrTarget(null)} eventId={qrTarget?.id ?? ''} title={qrTarget?.title ?? ''} published={!!qrTarget?.published} />
 
       <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setSortOpen(false)} accessibilityLabel="Close sort options">
-          <Pressable
+        <GlassScrim style={styles.backdrop} onPress={() => setSortOpen(false)} accessibilityLabel="Close sort options">
+          <GlassSheetHost
             style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) }]}
-            onPress={(e) => e.stopPropagation()}
-            accessibilityViewIsModal
           >
             <View style={styles.handle} />
             <Text style={styles.sheetTitle} accessibilityRole="header">
@@ -389,8 +388,8 @@ export function ClientEventsDashboard({
                 </Pressable>
               );
             })}
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       <ExploreChoiceSheet
@@ -808,11 +807,8 @@ const useStyles = makeStyles((c, e) => ({
   },
   footer: { alignItems: 'center', gap: spacing.sm, paddingTop: spacing.lg },
   count: { color: c.textMuted, fontSize: 13 },
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', },
   sheet: {
-    backgroundColor: c.card,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },

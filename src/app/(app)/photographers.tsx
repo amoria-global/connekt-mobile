@@ -38,6 +38,8 @@ import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapV
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 const ITEMS_PER_PAGE = 8;
@@ -991,8 +993,8 @@ export default function PhotographersScreen() {
         animationType="fade"
         onRequestClose={() => setInviteOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setInviteOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setInviteOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{tr('b2_photogsInviteModalTitle')}</Text>
             <Text style={styles.modalHint}>
@@ -1027,8 +1029,8 @@ export default function PhotographersScreen() {
                 loading={inviteSubmitting}
               />
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Filter Bottom Sheet Modal */}
@@ -1038,8 +1040,8 @@ export default function PhotographersScreen() {
         animationType="slide"
         onRequestClose={() => setSheet(null)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setSheet(null)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setSheet(null)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.modalTitle}>{activeSheet?.title}</Text>
@@ -1078,8 +1080,8 @@ export default function PhotographersScreen() {
                 );
               })}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </>
   );
@@ -1547,13 +1549,9 @@ const useStyles = makeStyles((c, e) => ({
   // Modals & Bottom Sheets
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.elevated,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     padding: spacing.lg,
     paddingBottom: 40,
     gap: spacing.sm,
@@ -1585,7 +1583,7 @@ const useStyles = makeStyles((c, e) => ({
     lineHeight: 17,
   },
   modalInput: {
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     borderRadius: radii.md,

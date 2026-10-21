@@ -10,14 +10,16 @@
  * canPayDeclarationHere). Anything else is view-only.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type PendingPayment } from '@/features/analytics/api';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { canPayDeclarationHere } from '@/features/payments/policy';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+
 
 export function PayNowSheet({
   payment,
@@ -57,9 +59,8 @@ export function PayNowSheet({
   // Not something the signed-in user owes: explain instead of offering a dead button.
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={styles.sheetContainer}>
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.lg) }]}>
+      <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <GlassSheetHost style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.lg) }]}>
           <View style={styles.handle} />
           <View style={styles.headRow}>
             <Text style={styles.title}>{payment.eventName}</Text>
@@ -70,19 +71,14 @@ export function PayNowSheet({
           <Text style={styles.note}>
             {t('payNowViewerPurchaseNote')}
           </Text>
-        </View>
-      </View>
+        </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,18,23,0.55)' },
-  sheetContainer: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     gap: spacing.md,

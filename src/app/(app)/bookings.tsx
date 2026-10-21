@@ -59,6 +59,7 @@ import { useCurrency } from '@/store/currency';
 import { env } from '@/config/env';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 type Tab = 'direct' | 'opportunities';
 
@@ -484,14 +485,11 @@ export default function BookingsScreen() {
           setReason('');
         }}
       >
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => {
+        <GlassScrim onPress={() => {
             setRejecting(null);
             setReason('');
-          }}
-        />
-        <View style={styles.sheet}>
+          }} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <GlassSheetHost style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.sheetTitle}>Reject booking</Text>
           <Text style={styles.sheetSub}>
@@ -512,7 +510,8 @@ export default function BookingsScreen() {
             loading={busyId === rejecting?.id}
             disabled={!reason.trim() || busyId === rejecting?.id}
           />
-        </View>
+        </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Full-Screen Incoming Opportunity Alert (Uber / Ringing Call Style) */}
@@ -605,9 +604,6 @@ const useStyles = makeStyles((c) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,

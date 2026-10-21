@@ -42,6 +42,7 @@ import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
@@ -786,8 +787,8 @@ export default function EventDetailScreen() {
 
       {/* Rate photographer sheet */}
       <Modal visible={reviewOpen} transparent animationType="slide" onRequestClose={() => setReviewOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setReviewOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.backdrop} onPress={() => setReviewOpen(false)}>
+          <GlassSheetHost style={styles.sheet}>
             <Text style={styles.sheetTitle}>Rate {data?.photographerName}</Text>
             <View style={styles.starRow}>
               <StarInput value={rating} onChange={setRating} />
@@ -800,14 +801,14 @@ export default function EventDetailScreen() {
               style={styles.commentInput}
             />
             <Button title={tr('b3_evdet_submit_review')} onPress={onSubmitReview} loading={busy === 'review'} />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Confirm completion sheet */}
       <Modal visible={completionOpen} transparent animationType="slide" onRequestClose={() => setCompletionOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setCompletionOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.backdrop} onPress={() => setCompletionOpen(false)}>
+          <GlassSheetHost style={styles.sheet}>
             <Text style={styles.sheetTitle}>{tr('b3_evdet_confirm_completion')}</Text>
             <Text style={styles.sheetHint}>
               Confirm the event went ahead, or request changes if something needs fixing. Confirming
@@ -829,8 +830,8 @@ export default function EventDetailScreen() {
             >
               <Text style={styles.requestChangesText}>{tr('b3_evdet_request_changes')}</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       <EventQrSheet
@@ -1274,11 +1275,8 @@ const useStyles = makeStyles((c) => ({
   stepLabelDone: { fontFamily: fonts.bold, color: c.text },
 
   // Modals
-  backdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     padding: spacing.xl,
     gap: spacing.md,
   },
