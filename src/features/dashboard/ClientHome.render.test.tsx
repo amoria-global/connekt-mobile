@@ -182,7 +182,9 @@ describe('client home as rendered', () => {
     });
     const r = await mount();
     const masked = flat(r.root);
-    expect(masked).toContain('Welcome back, Aline');
+    const heading = r.root.findAll((x) => x.props.accessibilityRole === 'header' && /, Aline$/.test(String(x.props.accessibilityLabel ?? '')));
+    expect(heading.length).toBeGreaterThan(0);
+    expect(masked).toContain('Your dashboard');
     expect(masked).toContain('Yubire Wedding');
     expect(masked).toContain('8 days to go');
     expect(masked).toContain('Photographer confirmed');

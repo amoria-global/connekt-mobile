@@ -2,7 +2,7 @@
  * PhotographerHome: the photographer's working dashboard.
  *
  * Reading order follows what a photographer opens the app for:
- *   1. Orientation: greeting, date, privacy toggle.
+ *   1. Orientation: DashboardGreeting hero (rotating greeting, date, privacy toggle).
  *   2. Money now: available to withdraw and pending release (from the wallet).
  *   3. Actions: create event, share profile, opportunities, collaborate.
  *   4. Needs your reply: booking requests and open opportunities.
@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
+import { DashboardGreeting } from './DashboardGreeting';
 import { photographerProfileUrl } from '@/features/photographer/profileLink';
 import { useForegroundPolling } from '@/hooks/useForegroundPolling';
 import { GoalsSection } from '@/features/photographer/GoalsSection';
@@ -82,14 +83,6 @@ const OPPORTUNITY_POLL_MS = 6000;
 const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not give memo hooks a new array every render. */
 const EMPTY: never[] = [];
-
-function greeting(now = new Date()): string {
-  const h = now.getHours();
-  if (h >= 5 && h < 12) return 'Good morning';
-  if (h >= 12 && h < 17) return 'Good afternoon';
-  if (h >= 17 && h < 22) return 'Good evening';
-  return 'Hello';
-}
 
 function longDate(now = new Date()): string {
   try {
@@ -285,23 +278,21 @@ export function PhotographerHome() {
         <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />
 
         {/* 1. Orientation */}
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-              {greeting()}, {name}
-            </Text>
-            <Text style={styles.date}>{longDate()}</Text>
-          </View>
-          <Pressable
-            onPress={() => setHidden((v) => !v)}
-            accessibilityRole="button"
-            accessibilityLabel={privacyLabel}
-            accessibilityState={{ checked: !hidden }}
-            style={({ pressed }) => [styles.eye, pressed && { opacity: 0.8 }]}
-          >
-            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={19} color={colors.textSoft} />
-          </Pressable>
-        </View>
+        <DashboardGreeting
+          name={name}
+          subtitle={longDate()}
+          trailing={
+            <Pressable
+              onPress={() => setHidden((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={privacyLabel}
+              accessibilityState={{ checked: !hidden }}
+              style={({ pressed }) => [styles.eye, pressed && { opacity: 0.8 }]}
+            >
+              <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={19} color={colors.textSoft} />
+            </Pressable>
+          }
+        />
 
         {/* 2. Money now */}
         {wallet.error && !wallet.data ? (
@@ -582,16 +573,6 @@ export function PhotographerHome() {
 }
 
 const useStyles = makeStyles((c, elevation) => ({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  headerText: { flex: 1, minWidth: 0 },
-  title: { color: c.text, fontSize: 23, fontWeight: '800', lineHeight: 28 },
-  date: { color: c.textMuted, fontSize: 13, marginTop: 2 },
   eye: {
     width: 44,
     height: 44,
