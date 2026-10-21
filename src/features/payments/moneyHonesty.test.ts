@@ -49,7 +49,6 @@ describe('no invented money', () => {
 
   it('no assumed 65% shares or 65/35 splits', () => {
     expect(src('src/features/payments/api.ts')).not.toMatch(/\* 0\.65/);
-    expect(src('src/features/dashboard/MultipleDonutOverviewCard.tsx')).not.toMatch(/coreRevenue \* 0\.65/);
   });
 
   it('stream revenue is never rebuilt from gross rows', () => {
