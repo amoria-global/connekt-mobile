@@ -114,7 +114,7 @@ export function PriorityCard({
             {title}
           </Text>
           {subtitle ? (
-            <Text style={styles.meta} numberOfLines={1}>
+            <Text style={styles.meta} numberOfLines={3}>
               {subtitle}
             </Text>
           ) : null}
@@ -249,7 +249,7 @@ export function EarningRow({
         <Text style={styles.rowTitle} numberOfLines={2}>
           {title}
         </Text>
-        <Text style={styles.meta} numberOfLines={1}>
+        <Text style={styles.meta} numberOfLines={3}>
           {when}
         </Text>
       </View>

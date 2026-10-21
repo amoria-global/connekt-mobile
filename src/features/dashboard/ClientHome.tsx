@@ -438,7 +438,7 @@ export function ClientHome() {
                     <View style={styles.attentionTop}>
                       <IconTile icon="images-outline" tone="success" />
                       <View style={styles.flex}>
-                        <Text style={styles.cardTitle} numberOfLines={1}>
+                        <Text style={styles.cardTitle} numberOfLines={3}>
                           Photos ready
                         </Text>
                         <Text style={styles.cardMeta}>{photosReady} in your albums</Text>
@@ -610,11 +610,11 @@ export function ClientHome() {
                 >
                   <IconTile icon={k.icon} tone={k.tone} />
                   <View style={styles.flex}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>
+                    <Text style={styles.cardTitle} numberOfLines={3}>
                       {a.title}
                     </Text>
                     {a.message ? (
-                      <Text style={styles.cardMeta} numberOfLines={2}>
+                      <Text style={styles.cardMeta} numberOfLines={4}>
                         {a.message}
                       </Text>
                     ) : null}
@@ -768,7 +768,7 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
       <View style={styles.attentionTop}>
         <IconTile icon={failed ? 'alert-circle-outline' : 'time-outline'} tone={failed ? 'error' : 'warning'} />
         <View style={styles.flex}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
+          <Text style={styles.cardTitle} numberOfLines={3}>
             {payment.eventName}
           </Text>
           <Text style={styles.cardMeta} numberOfLines={2}>

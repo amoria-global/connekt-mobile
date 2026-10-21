@@ -53,12 +53,12 @@ function PhotographerRowImpl({
         )}
         <View style={styles.body}>
           <View style={styles.nameRow}>
-            <Text style={styles.name} numberOfLines={1} maxFontSizeMultiplier={1.6}>
+            <Text style={styles.name} numberOfLines={3} maxFontSizeMultiplier={1.6}>
               {p.name}
             </Text>
             {p.isVerified ? <Ionicons name="checkmark-circle" size={16} color={colors.link} accessibilityLabel="Verified" /> : null}
           </View>
-          <Text style={styles.meta} numberOfLines={1} maxFontSizeMultiplier={1.6}>
+          <Text style={styles.meta} numberOfLines={3} maxFontSizeMultiplier={1.6}>
             {[p.category, p.location].filter(Boolean).join(' · ') || 'Photographer'}
           </Text>
           <View style={styles.factsRow}>
@@ -80,7 +80,7 @@ function PhotographerRowImpl({
             <View style={styles.tags}>
               {tags.map((t) => (
                 <View key={t} style={styles.tag}>
-                  <Text style={styles.tagText} numberOfLines={1}>
+                  <Text style={styles.tagText} numberOfLines={2}>
                     {t}
                   </Text>
                 </View>
