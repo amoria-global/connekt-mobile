@@ -27,6 +27,7 @@ import { LiveButton } from '@/components/ui/live';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
+import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import {
@@ -430,6 +431,8 @@ export function CoordinatorHome() {
             </View>
           </>
         )}
+
+        {q ? null : <GetHelpCard />}
       </ScrollView>
 
       <TopBar />

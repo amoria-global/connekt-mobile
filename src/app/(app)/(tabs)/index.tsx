@@ -45,6 +45,7 @@ import { pendingPostDelivery, pendingPostEvent } from '@/features/hybrid/postEve
 import { env } from '@/config/env';
 import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
 import { CoordinatorHome } from '@/features/dashboard/CoordinatorHome';
+import { GetHelpCard } from '@/features/support/GetHelpCard';
 import {
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
@@ -639,6 +640,8 @@ export default function HomeScreen() {
         ) : (
           <Text style={styles.muted}>Nothing here yet.</Text>
         )}
+
+        <GetHelpCard />
       </ScrollView>
 
       <FindPhotosBottomSheet

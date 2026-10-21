@@ -66,6 +66,7 @@ import {
 import { Thumb, ShootCard } from '@/features/photographer/homeParts';
 import { moneyText } from '@/features/photographer/money';
 import { HeroActionCard } from '@/features/client/studio';
+import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { ClientOverview } from '@/features/client/ClientOverview';
 import { getWallet } from '@/features/wallet/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
@@ -553,6 +554,9 @@ export function ClientHome() {
             })}
           </Card>
         )}
+
+        {/* 8. Support */}
+        <GetHelpCard />
       </ScrollView>
 
       <TopBar />
