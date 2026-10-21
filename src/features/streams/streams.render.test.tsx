@@ -23,6 +23,7 @@ const mockPush = jest.fn();
 let mockRole = 'Coordinator';
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: jest.fn() }) }));
 jest.mock('expo-image', () => ({ Image: () => null }));
+jest.mock('expo-video', () => ({ useVideoPlayer: () => ({}), VideoView: () => null }));
 jest.mock('@/components/ui/Screen', () => ({ Screen: ({ children }: { children: React.ReactNode }) => children }));
 jest.mock('@/components/ui/live', () => {
   const { Text, View } = require('react-native');

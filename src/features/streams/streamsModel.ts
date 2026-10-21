@@ -67,3 +67,70 @@ export function viewersLabel(count: number | undefined, phase: StreamPhase): str
 export function streamHref(eventId: string, asCoordinator: boolean): Href {
   return (asCoordinator ? `/stream/${eventId}` : `/(public)/events/live-stream?id=${encodeURIComponent(eventId)}`) as Href;
 }
+
+// --- Web dashboard parity: search, event type filter, totals, unviewed videos -------------------------------------
+// app/pages/client/streams.tsx is the reference for each rule below.
+
+/** What the chat history added to a stream, loaded after the list. Absent until read, and absent when the read failed. */
+export type StreamCounts = { messages: number; videos: number };
+
+/** Web: a stream matches when the query is in its title or its event type, case-insensitive. */
+export function searchStreams(streams: readonly Stream[], query: string): Stream[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...streams];
+  return streams.filter((s) => s.title.toLowerCase().includes(q) || (s.eventType ?? '').toLowerCase().includes(q));
+}
+
+/** Web: the event type filter, "all" or an exact case-insensitive type. */
+export function filterByType(streams: readonly Stream[], type: string): Stream[] {
+  if (type === 'all') return [...streams];
+  return streams.filter((s) => (s.eventType ?? '').toLowerCase() === type.toLowerCase());
+}
+
+/**
+ * The chips of the type filter. The web hard-codes Wedding, Birthday, Corporate and Baby Shower, which hides any other
+ * category. Here the chips are the types the list actually contains, so no stream is unreachable.
+ */
+export function eventTypesOf(streams: readonly Stream[]): string[] {
+  const seen = new Map<string, string>();
+  for (const s of streams) {
+    const t = (s.eventType ?? '').trim();
+    if (t && !seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t);
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/** Web: `s.totalMessages || uniqueMessages.length`. A feed total of 0 is not trusted (the client feed hardcodes video 0). */
+export function messageTotal(s: Stream, c?: StreamCounts): number | undefined {
+  return s.messageCount || c?.messages || (c ? 0 : s.messageCount);
+}
+export function videoTotal(s: Stream, c?: StreamCounts): number | undefined {
+  return s.videoCount || c?.videos || (c ? 0 : s.videoCount);
+}
+
+export type StreamTotals = { streams: number; viewers: number; messages?: number; videos?: number };
+
+/**
+ * The four headline cards. Streams and viewers come from the list. Messages and videos need the chat histories, so they
+ * are `undefined` (shown as a dash) until every stream's history has been read, never a partial sum shown as a total.
+ */
+export function streamTotals(streams: readonly Stream[], counts: Readonly<Record<string, StreamCounts | undefined>>): StreamTotals {
+  const complete = streams.every((s) => counts[s.id] !== undefined);
+  let messages = 0;
+  let videos = 0;
+  for (const s of streams) {
+    messages += messageTotal(s, counts[s.id]) ?? 0;
+    videos += videoTotal(s, counts[s.id]) ?? 0;
+  }
+  return {
+    streams: streams.length,
+    viewers: streams.reduce((a, s) => a + (s.viewerCount ?? 0), 0),
+    messages: complete ? messages : undefined,
+    videos: complete ? videos : undefined,
+  };
+}
+
+/** Web: the "N new" badge counts the videos not yet opened. */
+export function unviewedCount(videoIds: readonly string[], viewed: ReadonlySet<string>): number {
+  return videoIds.filter((id) => !viewed.has(id)).length;
+}
