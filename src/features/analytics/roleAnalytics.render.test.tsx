@@ -97,3 +97,43 @@ describe.each([
     expect(text).not.toContain('N/A');
   });
 });
+
+describe('performance charts plot the feed they were given', () => {
+  const headline = ok({ totalEvents: 3, totalSpent: 500, pendingAmount: 0, gifts: 0, totalBookings: 3, bookmarkedPhotographers: 1 });
+  function servePerf(perf: unknown) {
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === '/customer/analytics') return headline;
+      if (path.startsWith('/customer/analytics/performance')) return perf;
+      if (path.startsWith('/customer/analytics/trends')) return ok({});
+      if (path.startsWith('/wallet/me')) return ok({});
+      return ok([]);
+    });
+  }
+  beforeEach(() => {
+    mockRole = 'CLIENT';
+  });
+
+  it("today's 4-hour blocks keep their own labels instead of being replaced by an all-zero Sun to Sat", async () => {
+    servePerf(ok(['12AM', '4AM', '8AM', '12PM', '4PM', '8PM'].map((day, i) => ({ day, value1: i === 3 ? 250 : 0, value2: i === 3 ? 1 : 0 }))));
+    const text = flat((await mount()).root);
+    expect(text).toContain('12AM');
+    expect(text).toContain('8PM');
+    expect(text).not.toContain('Sun');
+    expect(text).not.toContain('0 activity recorded');
+  });
+
+  it("a month's four weeks keep 'Week 1'..'Week 4'", async () => {
+    servePerf(ok(['Week 1', 'Week 2', 'Week 3', 'Week 4'].map((day, i) => ({ day, value1: i * 100, value2: i }))));
+    const text = flat((await mount()).root);
+    expect(text).toContain('Week 1');
+    expect(text).toContain('Week 4');
+    expect(text).not.toContain('Mon');
+  });
+
+  it('a refused performance read says the chart is unavailable, not zero activity', async () => {
+    servePerf({ action: 0, message: 'nope' });
+    const text = flat((await mount()).root);
+    expect(text).toContain('Chart data is unavailable');
+    expect(text).not.toContain('0 activity recorded');
+  });
+});
