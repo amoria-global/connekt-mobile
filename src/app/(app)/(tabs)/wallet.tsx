@@ -60,6 +60,8 @@ import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { WithdrawMethodPrompt } from '@/features/paymentAccounts/WithdrawMethodPrompt';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -810,9 +812,8 @@ export default function WalletScreen() {
         animationType="slide"
         onRequestClose={() => setSelectedItem(null)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedItem(null)} />
-        <View style={styles.modalSheetOverlay} pointerEvents="box-none">
-          <View
+        <GlassScrim onPress={() => setSelectedItem(null)} style={styles.modalSheetOverlay}>
+        <GlassSheetHost
             style={[
               styles.modalSheet,
               { paddingBottom: Math.max(insets.bottom + 16, 28) },
@@ -935,8 +936,8 @@ export default function WalletScreen() {
                 </Pressable>
               </View>
             )}
-          </View>
-        </View>
+          </GlassSheetHost>
+          </GlassScrim>
       </Modal>
 
       <TopBar />
@@ -1414,9 +1415,6 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     gap: spacing.md,
@@ -1447,7 +1445,7 @@ const useStyles = makeStyles((c) => ({
   modalHeroAmount: { fontFamily: fonts.bold, fontSize: 32, letterSpacing: -0.5 },
   modalHeroTitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
   modalDetailsList: {
-    backgroundColor: c.background,
+    ...glassTile(c),
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: c.borderSoft,

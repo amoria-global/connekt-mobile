@@ -8,6 +8,8 @@
  * Usage: `import { Alert } from '@/components/ui/dialog'` then `Alert.alert(title, message, buttons)` as before.
  * `<DialogHost />` must be mounted once, inside the ThemeProvider (the signed-in layout does this).
  */
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 import { useSyncExternalStore } from 'react';
 import { Alert as NativeAlert, Modal, Pressable, ScrollView, Text, View, type AlertButton, type AlertOptions } from 'react-native';
 import { useAuth } from '@/store/auth';
@@ -95,8 +97,8 @@ export function DialogHost() {
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onBack} statusBarTranslucent>
-      <Pressable style={styles.backdrop} onPress={onBack} accessibilityLabel="Dismiss dialog" accessibilityRole="button">
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
+      <GlassScrim style={styles.backdrop} onPress={onBack} accessibilityLabel="Dismiss dialog">
+        <GlassSheetHost variant="dialog" style={styles.card}>
           <Text style={styles.title} accessibilityRole="header">
             {req.title}
           </Text>
@@ -128,22 +130,18 @@ export function DialogHost() {
               );
             })}
           </View>
-        </Pressable>
-      </Pressable>
+        </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, backgroundColor: c.scrim, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: c.elevated,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: spacing.lg,
+    padding: spacing.xl,
     gap: spacing.md,
   },
   title: { color: c.text, fontSize: fontSize.lg, fontWeight: fontWeight.extrabold },
@@ -157,7 +155,7 @@ const useStyles = makeStyles((c) => ({
   btnPrimary: { backgroundColor: c.primary },
   // Destructive is outlined, not filled: white on the dark palette's light red would fail contrast.
   btnDanger: { backgroundColor: c.errorBg, borderWidth: 1.25, borderColor: c.error },
-  btnQuiet: { backgroundColor: 'transparent', borderWidth: 1.25, borderColor: c.border },
+  btnQuiet: { ...glassTile(c), borderWidth: 1.25 },
   btnText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, textAlign: 'center' },
   btnTextOn: { color: c.textOnPrimary },
   btnTextDanger: { color: c.error },

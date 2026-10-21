@@ -16,7 +16,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BlurView } from 'expo-blur';
-import { GLASS_BAR } from '@/components/ui/GlassCard';
+import { GLASS_BAR, glassTile } from '@/components/ui/GlassCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments, type Href } from 'expo-router';
@@ -44,6 +44,7 @@ import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const BAR_CONTENT_HEIGHT = 56;
 const BUBBLE_SIZE = 60;
@@ -720,8 +721,8 @@ export function MoreSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View
+      <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <GlassSheetHost
         style={[
           styles.sheet,
           { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
@@ -790,7 +791,8 @@ export function MoreSheet({
             </View>
           )}
         </ScrollView>
-      </View>
+      </GlassSheetHost>
+      </GlassScrim>
 
       <LanguageSelectorSheet
         visible={languageSheetOpen}
@@ -904,9 +906,6 @@ const useStyles = makeStyles((c) => ({
 
   backdrop: { flex: 1, backgroundColor: c.scrim },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     paddingTop: spacing.sm,
     maxHeight: '85%',
   },
@@ -935,7 +934,7 @@ const useStyles = makeStyles((c) => ({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -945,7 +944,7 @@ const useStyles = makeStyles((c) => ({
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderRadius: radii.full,
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.lg,

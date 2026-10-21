@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-21-glass-modals",
+            "date": "2026-10-21",
+            "title": "One frosted glass look for every pop-up",
+            "items": [
+              {
+                "icon": "sparkles-outline",
+                "title": "Pop-ups and sheets look like the sign-in screen",
+                "body": "Every pop-up, bottom sheet and dialog now uses the same frosted glass design as the sign-in sheet: a blurred background, a soft see-through panel and clearer buttons, in both light and dark mode."
+              }
+            ]
+          },
+          {
             "id": "2026-10-21-update-screen",
             "date": "2026-10-21",
             "title": "A clearer update screen and a wallet reminder",

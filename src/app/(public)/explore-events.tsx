@@ -73,6 +73,8 @@ import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { canShowDigitalPrice } from '@/features/payments/policy';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 
 const PAGE_SIZE = 8;
@@ -1152,13 +1154,12 @@ export default function ExploreEventsScreen() {
         animationType="fade"
         onRequestClose={() => setSortSheetOpen(false)}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
-          <Pressable
+        <GlassScrim style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
+          <GlassSheetHost
             style={[
               styles.sortSheet,
               { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) },
             ]}
-            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.sheetHandle} />
             <View style={styles.sortSheetHeader}>
@@ -1219,8 +1220,8 @@ export default function ExploreEventsScreen() {
                 );
               })}
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -1444,10 +1445,9 @@ function FilterChip({
         animationType="slide"
         onRequestClose={() => setOpen(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)}>
-          <Pressable
+        <GlassScrim style={styles.modalOverlay} onPress={() => setOpen(false)}>
+          <GlassSheetHost
             style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}
-            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
@@ -1504,8 +1504,8 @@ function FilterChip({
                 );
               }}
             />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </>
   );
@@ -1840,13 +1840,9 @@ const useStyles = makeStyles((c, e) => ({
   // Filter Modal Sheet
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingTop: 12,
     paddingHorizontal: spacing.xl,
     maxHeight: '75%',
@@ -1882,7 +1878,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2182,13 +2178,9 @@ const useStyles = makeStyles((c, e) => ({
   // Sort sheet
   sheetBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
   sortSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
@@ -2237,7 +2229,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 36,
     height: 36,
     borderRadius: radii.sm,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },
