@@ -49,7 +49,7 @@ Branch `fix/mobile-forensic-quality-audit`, started from `409782b` (the `fix/one
 
 ## 5. Potential risks (not demonstrated, not changed)
 
-- Unreferenced components (no importer): `features/bookings/BookingsList.tsx`, `features/events/EventsList.tsx`, `features/dashboard/MultipleDonutOverviewCard.tsx` (defaults `currency='USD'`), `features/auth/ChooseRoleBottomSheet.tsx`, `components/ui/Rating.tsx`. Unreachable, so no user impact; removal is a separate decision.
+- Removed in a follow-up (no importer anywhere): `BookingsList`, `EventsList`, `MultipleDonutOverviewCard`, `components/ui/Rating`. `ChooseRoleBottomSheet` was listed here in error: `login.tsx` imports it, so it stays.
 - `wallet/api.ts` falls back to `'USD'` when the wallet carries no currency; `ClientHome` labels spend in the wallet currency, an assumption the trends feed does not confirm.
 - `getCustomerAnalytics` fills missing fields from `defaultCustomerAnalytics()` (zeros) after a successful response.
 - The performance endpoint ignores `from`/`to` (`CustomerAnalyticsController` only reads `period`), so "Custom" shows the week.
