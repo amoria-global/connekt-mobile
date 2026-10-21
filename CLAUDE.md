@@ -47,6 +47,11 @@ merge `main` into `production`. Do **not** reset or force-push `production` onto
 build's commit: it carries commits `main` does not, including this pipeline itself, and a
 reset discards them silently. The full procedure is in `docs/RELEASING.md`.
 
+**Release notes are part of every release.** The update prompt shows users what is new before they tap
+"Update now", and reads it from `expo.extra.releaseNotes` in `app.json`. Before publishing anything user visible, add a
+release at the top of that list with one plain-language item per feature or fix (rules in `docs/RELEASING.md`, validated
+by `src/features/updates/releaseNotes.test.ts`). Never publish without it.
+
 Verify a publish two ways, never by trusting the CLI output alone:
 
 - Fetch the manifest a phone would fetch, with headers `expo-runtime-version`,
