@@ -19,17 +19,18 @@ import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
-
-const FALLBACK_TIERS = [1000, 5000, 10000, 25000];
+import { useStackClearance } from '@/hooks/useScrollClearance';
 
 export default function DonationsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { t } = useLanguage();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const history = useAsync(useCallback(() => listDonations(), []));
   const tiersAsync = useAsync(useCallback(() => getDonationTiers(), []));
-  const tiers = tiersAsync.data?.length ? tiersAsync.data.map((tier) => tier.amount) : FALLBACK_TIERS;
+  // The backend's suggested amounts, each in the currency it names. With none (or a failed read) the section is left out.
+  const tiers = tiersAsync.data ?? [];
 
   const router = useRouter();
   // The donate screen completes the payment in the app; refresh the history
@@ -49,19 +50,25 @@ export default function DonationsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}>
         <UserHeaderBand flush eyebrow="GIVING" title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} duplicatesHeader />
 
         <HeroActionCard title={t('b2_donationsButton')} subtitle={t('b2_donationsSubtitle')} icon="heart" onPress={onDonate} />
 
-        <SectionHeader flush title={t('b2_donationsSuggestedAmounts')} />
-        <View style={styles.tierRow}>
-          {tiers.map((tier) => (
-            <View key={tier} style={styles.tier}>
-              <Text style={styles.tierText} maxFontSizeMultiplier={1.6}>{formatPrice(tier, 'RWF')}</Text>
+        {tiers.length > 0 ? (
+          <>
+            <SectionHeader flush title={t('b2_donationsSuggestedAmounts')} />
+            <View style={styles.tierRow}>
+              {tiers.map((tier) => (
+                <View key={`${tier.currency ?? ''}-${tier.amount}`} style={styles.tier}>
+                  <Text style={styles.tierText} maxFontSizeMultiplier={1.6}>
+                    {tier.currency ? formatPrice(tier.amount, tier.currency) : tier.amount.toLocaleString('en-US')}
+                  </Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
+          </>
+        ) : null}
 
         <SectionHeader flush title={t('b2_donationsHistoryTitle')} />
         {history.loading && !history.data ? (
@@ -96,7 +103,7 @@ export default function DonationsScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
-  scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: 120 },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
   group: { gap: spacing.sm },
   flushNote: { marginHorizontal: -spacing.lg },
   card: { marginHorizontal: 0, padding: 0 },

@@ -11,6 +11,7 @@ import {
   cleanTransactionTitle,
   cleanTransactionStatus,
 } from './api';
+import { coordinatorAnalytics, customerAnalytics, photographerAnalytics } from '@/test/analyticsPayloads';
 
 jest.mock('@/api/client', () => {
   const get = jest.fn();
@@ -39,7 +40,7 @@ describe('Analytics API Client', () => {
   it('fetches and maps customer analytics defensively', async () => {
     (api.get as jest.Mock).mockResolvedValueOnce({
       action: 1,
-      data: {
+      data: customerAnalytics({
         totalEvents: 10,
         totalBookings: 8,
         totalSpent: 1250.5,
@@ -47,7 +48,7 @@ describe('Analytics API Client', () => {
         gifts: 50.0,
         totalPhotos: 240,
         bookmarkedPhotographers: 5,
-      },
+      }),
     });
 
     const result = await getCustomerAnalytics();
@@ -127,14 +128,21 @@ describe('Analytics API Client', () => {
     });
   });
 
+  it('a payload that leaves a figure out is an error, never a zero', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ action: 1, data: { totalEvents: 10, totalSpent: 5 } });
+    await expect(getCustomerAnalytics()).rejects.toMatchObject({ message: expect.stringContaining('unavailable') });
+    await expect(getPhotographerAnalytics()).rejects.toMatchObject({ message: expect.stringContaining('unavailable') });
+    await expect(getCoordinatorAnalytics()).rejects.toMatchObject({ message: expect.stringContaining('unavailable') });
+  });
+
   it('fetches photographer analytics defensively', async () => {
     (api.get as jest.Mock).mockResolvedValueOnce({
       action: 1,
-      data: {
+      data: photographerAnalytics({
         totalEarnings: 3200,
         totalClients: 14,
         averageRating: 4.9,
-      },
+      }),
     });
 
     const result = await getPhotographerAnalytics();
@@ -147,11 +155,11 @@ describe('Analytics API Client', () => {
   it('fetches coordinator analytics defensively', async () => {
     (api.get as jest.Mock).mockResolvedValueOnce({
       action: 1,
-      data: {
+      data: coordinatorAnalytics({
         totalRevenue: 15000,
         totalEvents: 42,
         totalPhotographers: 18,
-      },
+      }),
     });
 
     const result = await getCoordinatorAnalytics();

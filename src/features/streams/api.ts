@@ -5,6 +5,7 @@ import { api, requireOk } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
 import { isApiError } from '@/store/auth';
 import { appendFile } from '@/utils/upload';
+import { normalizeImageUrl } from '@/features/gallery/api';
 
 /** Where a stream is in its life. `ended` covers replays, which is most of a client's list. */
 export type StreamPhase = 'live' | 'upcoming' | 'ended';
@@ -16,6 +17,8 @@ export type Stream = {
   /** The stream record id, kept for deletes. */
   streamId?: string;
   title: string;
+  /** The event's own title, kept apart from the stream title because the web searches both. */
+  eventTitle?: string;
   photographerName?: string;
   thumbnail?: string;
   isLive: boolean;
@@ -28,6 +31,10 @@ export type Stream = {
   time?: string;
   duration?: string;
   eventType?: string;
+  photographerImage?: string;
+  description?: string;
+  /** Video messages in the history. The client feed hardcodes 0, so 0 here means "ask the chats", see streamsModel. */
+  videoCount?: number;
 };
 
 export type StreamDetail = Stream & {
@@ -92,6 +99,20 @@ export function streamPhase(r: Raw): StreamPhase {
   return status === 'paused' ? 'live' : 'upcoming';
 }
 
+/**
+ * Image urls in the stream feeds, read the way the web dashboard reads them (streams.tsx normalizeImg):
+ * a bare file name is a profile photo, and the client feed builds an event cover under /uploads/event/media/ while
+ * the file is saved under /uploads/event/photos/ (ClientStreamService vs FilePath.EVENT_PHOTOS), so the rewrite is
+ * what makes the cover load. Verified against production: photos/<file> answers 200, media/<file> answers 404.
+ */
+export function streamImageUrl(url?: string): string | undefined {
+  if (!url || url === 'null' || url.endsWith('/null')) return undefined;
+  let u = url;
+  if (!u.includes('/') && !u.startsWith('http')) u = `/uploads/profile/photos/${u}`;
+  u = u.replace('/uploads/event/media/', '/uploads/event/photos/');
+  return normalizeImageUrl(u);
+}
+
 export function mapStream(r: Raw): Stream {
   const photographer = (r.photographer ?? {}) as Raw;
   const photographerName =
@@ -103,9 +124,13 @@ export function mapStream(r: Raw): Stream {
   return {
     id: String(r.eventId ?? r.id ?? r.streamId ?? ''),
     streamId: str(r.id) ?? str(r.streamId),
-    title: str(r.streamTitle) ?? str(r.eventTitle) ?? str(r.title) ?? 'Live stream',
+    title: str(r.streamTitle) ?? str(r.eventTitle) ?? str(r.title) ?? 'Untitled stream',
+    eventTitle: str(r.eventTitle),
     photographerName: photographerName?.trim() || undefined,
-    thumbnail: str(r.coverImage) ?? str(r.eventPhoto) ?? str(r.thumbnail) ?? str(r.photographerImage),
+    thumbnail: streamImageUrl(str(r.coverImage) ?? str(r.eventPhoto) ?? str(r.thumbnail) ?? str(r.photographerImage)),
+    photographerImage: streamImageUrl(str(r.photographerImage) ?? str(photographer.profilePicture)),
+    description: str(r.description),
+    videoCount: num(r.totalVideoMessages),
     isLive: phase === 'live',
     phase,
     viewerCount: viewers,
@@ -157,7 +182,7 @@ export async function getStream(id: string, asCoordinator = false): Promise<Stre
       str(d.hlsManifestUrl) ?? str(d.playbackUrl) ?? str(d.hls) ?? derivedHls,
     whepUrl: str(d.whepUrl),
     eventId: String(d.id ?? id),
-    title: str(d.title) ?? 'Live stream',
+    title: str(d.title) ?? 'Untitled stream',
     isLive: str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended',
     phase:
       str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended'
@@ -1039,5 +1064,122 @@ export async function sendInAppStreamChat(
   );
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not send message.' };
+  }
+}
+
+// --- Stream history: chats, video messages, delete (web dashboard parity) -----------------------------------------
+// The web Streams page (app/pages/client/streams.tsx) is the reference: per stream it reads the chat history from the
+// role's own endpoint, splits it into text and video messages, enriches the card from the public event, and lets the
+// owner delete the record.
+
+export type StreamMessage = {
+  id: string;
+  username: string;
+  avatar?: string;
+  message: string;
+  /** Wall-clock label the backend formats ("3:42 PM"). */
+  time?: string;
+  chatType?: string;
+};
+
+export type StreamVideo = {
+  id: string;
+  username: string;
+  avatar?: string;
+  videoUrl: string;
+  thumbnailUrl?: string;
+  duration: string;
+  time?: string;
+};
+
+export type StreamHistory = { messages: StreamMessage[]; videos: StreamVideo[] };
+
+/**
+ * The chat history of one stream. A coordinator reads `/coordinator/streams/{eventId}/chats`, a client
+ * `/customer/events/{eventId}/chats` (the same split the web makes). The response is a raw page with no `action`, so
+ * only a transport failure is an error; a page with no rows is a real empty history.
+ */
+export async function listStreamHistory(eventId: string, asCoordinator: boolean): Promise<StreamHistory> {
+  const id = encodeURIComponent(eventId);
+  const path = asCoordinator
+    ? `/coordinator/streams/${id}/chats?page=0&size=500`
+    : `/customer/events/${id}/chats?page=0&size=500`;
+  const res = await api.get<ApiEnvelope<unknown> & { data?: unknown }>(path);
+  const rows = pageContent((res as { data?: unknown })?.data);
+  const messages: StreamMessage[] = [];
+  const videos: StreamVideo[] = [];
+  const seen = new Set<string>();
+  for (const m of rows) {
+    const rid = String(m.id ?? '');
+    if (!rid || seen.has(rid)) continue;
+    seen.add(rid);
+    const username = str(m.viewerUsername) ?? '';
+    const avatar = streamImageUrl(str(m.viewerAvatar));
+    const videoUrl = streamImageUrl(str(m.videoUrl));
+    if (str(m.videoUrl)) {
+      videos.push({
+        id: rid,
+        username,
+        avatar,
+        videoUrl: videoUrl ?? '',
+        thumbnailUrl: streamImageUrl(str(m.thumbnailUrl)),
+        duration: str(m.duration) ?? '0:00',
+        time: str(m.time),
+      });
+    } else {
+      messages.push({ id: rid, username, avatar, message: str(m.message) ?? '', time: str(m.time), chatType: str(m.chatType) });
+    }
+  }
+  return { messages, videos };
+}
+
+/**
+ * Delete a stream record: `DELETE /{role}/streams/{id}` with the record id first and, when that fails, the event id,
+ * exactly the web's order (the backend accepts either). Unlike the web, a failure is reported: the client endpoint only
+ * lets the creator delete, and a viewer who paid for the stream must be told, not shown a card that stays.
+ */
+export async function deleteStreamRecord(
+  stream: { id: string; streamId?: string },
+  asCoordinator: boolean,
+): Promise<void> {
+  const base = asCoordinator ? '/coordinator/streams' : '/customer/streams';
+  const first = stream.streamId ?? stream.id;
+  try {
+    requireOk(await api.delete<ApiEnvelope<unknown>>(`${base}/${encodeURIComponent(first)}`));
+  } catch (e) {
+    if (first === stream.id) throw e;
+    requireOk(await api.delete<ApiEnvelope<unknown>>(`${base}/${encodeURIComponent(stream.id)}`));
+  }
+}
+
+/**
+ * What the public event adds to a card: its cover, the photographer and the description. Read from the raw payload the
+ * way the web does (evt.eventPhoto, evt.photographerName or evt.photographer{}, evt.photographerImage).
+ */
+export async function loadStreamEventExtras(eventId: string): Promise<Partial<Stream>> {
+  const res = await api.get<ApiEnvelope<Raw>>(`/public/events/${encodeURIComponent(eventId)}`, { skipAuth: true });
+  const e = (res?.data ?? {}) as Raw;
+  const ph = (e.photographer ?? {}) as Raw;
+  return {
+    thumbnail: streamImageUrl(str(e.eventPhoto) ?? str(e.coverImage)),
+    photographerImage: streamImageUrl(str(e.photographerImage) ?? str(ph.profilePicture)),
+    description: str(e.description),
+    photographerName:
+      str(e.photographerName) ?? ([str(ph.firstName), str(ph.lastName)].filter(Boolean).join(' ') || undefined),
+  };
+}
+
+/**
+ * Tells the backend a video message was opened, the call the web makes (streams.tsx markVideoAsViewed):
+ * `PATCH /{role}/streams/{streamId}/videos/{videoId}/viewed`, fire and forget. Today the backend cannot honour it for
+ * these ids (it looks the video up as an EventMedia and compares the stream id to an event id, and the coordinator
+ * route does not exist), so a failure is ignored, exactly as on the web. The screen keeps its own viewed state.
+ */
+export async function markVideoViewed(streamId: string, videoId: string, asCoordinator: boolean): Promise<void> {
+  const role = asCoordinator ? 'coordinator' : 'customer';
+  try {
+    await api.patch(`/${role}/streams/${encodeURIComponent(streamId)}/videos/${encodeURIComponent(videoId)}/viewed`);
+  } catch {
+    /* the web ignores this too */
   }
 }

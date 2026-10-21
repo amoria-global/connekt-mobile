@@ -30,7 +30,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { listPhotographers, type Photographer } from '@/features/photographers/api';
+import { listPhotographers, listSpecialties, type Photographer } from '@/features/photographers/api';
 import { listPublicEventsDetailed } from '@/features/events/api';
 import { isEventLive, type PublicEvent } from '@/features/events/types';
 import { storage } from '@/services/storage';
@@ -41,19 +41,19 @@ import { useSharedT } from '@/i18n/sharedStrings';
 
 const RECENT_SEARCHES_KEY = 'connekt.global_search_recents';
 
-const POPULAR_STYLES = [
-  { name: 'Live Streams', icon: 'videocam' as const, color: '#EF4444' },
-  { name: 'Weddings', icon: 'heart' as const, color: '#F20C8F' },
-  { name: 'Portraits', icon: 'person' as const, color: '#3B82F6' },
-  { name: 'Events', icon: 'calendar' as const, color: '#0EA5E9' },
-  { name: 'Birthdays', icon: 'gift' as const, color: '#F59E0B' },
-  { name: 'Studio', icon: 'camera' as const, color: '#10B981' },
-  { name: 'Fashion', icon: 'shirt-outline' as const, color: '#8B5CF6' },
-  { name: 'Graduation', icon: 'school-outline' as const, color: '#EC4899' },
-  { name: 'Family', icon: 'people-outline' as const, color: '#14B8A6' },
-  { name: 'Corporate', icon: 'briefcase-outline' as const, color: '#64748B' },
+/** Decorative only: each category gets the next of these, by position. The names come from the backend. */
+const STYLE_LOOKS: { icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
+  { icon: 'heart', color: '#F20C8F' },
+  { icon: 'person', color: '#3B82F6' },
+  { icon: 'calendar', color: '#0EA5E9' },
+  { icon: 'gift', color: '#F59E0B' },
+  { icon: 'camera', color: '#10B981' },
+  { icon: 'shirt-outline', color: '#8B5CF6' },
+  { icon: 'school-outline', color: '#EC4899' },
+  { icon: 'people-outline', color: '#14B8A6' },
+  { icon: 'briefcase-outline', color: '#64748B' },
 ];
-
+const LIVE_STYLE = { name: 'Live Streams', icon: 'videocam' as const, color: '#EF4444' };
 type SearchScope = 'all' | 'photographers' | 'events' | 'styles';
 
 interface GlobalSearchModalProps {
@@ -77,6 +77,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
   const [photographers, setPhotographers] = useState<Photographer[]>([]);
   const [eventResults, setEventResults] = useState<PublicEvent[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [specialtyNames, setSpecialtyNames] = useState<string[]>([]);
 
   // A failed read is not "no results": either source failing shows its own notice and a retry.
   const [directoryFailed, setDirectoryFailed] = useState(false);
@@ -94,6 +95,11 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
     listPhotographers()
       .then((list) => setPhotographers(list))
       .catch(() => setDirectoryFailed(true));
+
+    // The categories offered under "Explore by Category" are the platform's own; if they cannot be read, only Live Streams is offered.
+    listSpecialties()
+      .then((names) => setSpecialtyNames(names))
+      .catch(() => setSpecialtyNames([]));
 
     // Load recent searches
     storage
@@ -181,12 +187,17 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
       .slice(0, 8);
   }, [photographers, query]);
 
+  const popularStyles = useMemo(
+    () => [LIVE_STYLE, ...specialtyNames.map((name, i) => ({ name, ...STYLE_LOOKS[i % STYLE_LOOKS.length] }))],
+    [specialtyNames],
+  );
+
   // Filter styles/categories
   const matchingStyles = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return [];
-    return POPULAR_STYLES.filter((s) => s.name.toLowerCase().includes(term));
-  }, [query]);
+    return popularStyles.filter((s) => s.name.toLowerCase().includes(term));
+  }, [query, popularStyles]);
 
   // Check for active live streams
   const liveEvents = useMemo(() => {
@@ -325,7 +336,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{tr('Explore by Category')}</Text>
                 <View style={styles.styleGrid}>
-                  {POPULAR_STYLES.map((st) => (
+                  {popularStyles.map((st) => (
                     <Pressable
                       key={st.name}
                       style={({ pressed }) => [styles.styleCard, pressed && styles.pressed]}

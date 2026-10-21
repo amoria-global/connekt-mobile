@@ -4,6 +4,7 @@ import { Text } from 'react-native';
 
 import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
+import { photographerAnalytics } from '@/test/analyticsPayloads';
 
 /**
  * RENDERED screen (react-test-renderer under jest-expo, not a device): the real
@@ -68,7 +69,7 @@ type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'clients' | 'tr
 function serve(routes: Routes) {
   const defaults: Routes = {
     wallet: walletFixture,
-    analytics: ok({ totalEarnings: 850, completedEvents: 15, totalClients: 7, totalBookings: 20, totalPhotosUploaded: 300, averageRating: 0 }),
+    analytics: ok(photographerAnalytics({ totalEarnings: 850, completedEvents: 15, totalClients: 7, totalBookings: 20, totalPhotosUploaded: 300, averageRating: 0 })),
     events: ok([]),
     clients: ok([]),
     transactions: ok([]),
