@@ -922,10 +922,15 @@ type StatCardItem = {
 
         {/* Shape 3: Vertical Dual-Column Bar Chart */}
         {isClient ? (
-          <>
-            <SpendingTrendChart points={activePerf} />
-            <EventsHistogram points={activePerf} />
-          </>
+          perfFailed ? (
+            // A refused read is not "No payments in this period": say so, with a retry.
+            <ErrorNotice compact message="Payment and event charts are unavailable." onRetry={() => load()} />
+          ) : (
+            <>
+              <SpendingTrendChart points={activePerf} />
+              <EventsHistogram points={activePerf} />
+            </>
+          )
         ) : (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionCardTitle}>{tr('b2_analyticsPerformance')}</Text>
@@ -1552,7 +1557,7 @@ function TrendCurveChart({
           >
             <Ionicons name="time-outline" size={12} color={colors.textMuted} />
             <Text style={[trendStyles.peakPillText, { color: colors.textMuted }]}>
-              {tr('b2_analyticsNoActivityYet')}
+              {unavailable ? 'Unavailable' : tr('b2_analyticsNoActivityYet')}
             </Text>
           </View>
         ) : points.peak ? (

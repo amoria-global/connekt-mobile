@@ -134,6 +134,10 @@ describe('performance charts plot the feed they were given', () => {
     servePerf({ action: 0, message: 'nope' });
     const text = flat((await mount()).root);
     expect(text).toContain('Chart data is unavailable');
+    expect(text).toContain('Payment and event charts are unavailable.');
+    expect(text).not.toContain('No activity yet');
     expect(text).not.toContain('0 activity recorded');
+    expect(text).not.toContain('No payments in this period');
+    expect(text).not.toContain('No events in this period');
   });
 });
