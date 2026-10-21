@@ -140,12 +140,17 @@
           {
             "id": "2026-10-21-update-screen",
             "date": "2026-10-21",
-            "title": "A clearer update screen",
+            "title": "A clearer update screen and a wallet reminder",
             "items": [
               {
                 "icon": "list-outline",
                 "title": "See what changed before you update",
                 "body": "When an update is ready, this screen now lists every new feature and fix, in plain words, before you tap Update now. If you missed earlier updates, you see those changes too."
+              },
+              {
+                "icon": "wallet-outline",
+                "title": "Set up how you get paid",
+                "body": "If you are a photographer or coordinator and have not added a withdrawal method yet, your wallet now tells you as soon as you open it, with the three steps to add one. Choose Do it later and it reminds you on your next visit."
               }
             ]
           },
