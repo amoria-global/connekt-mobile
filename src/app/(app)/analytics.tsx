@@ -1304,7 +1304,7 @@ function SaloStatCard({
     >
       {/* Top row: Title + Brand Tint Squircle Icon (or Micro-Donut) */}
       <View style={cardStyles.headerRow}>
-        <Text style={[cardStyles.title, { color: colors.textMuted }]} numberOfLines={1}>
+        <Text style={[cardStyles.title, { color: colors.textMuted }]} numberOfLines={2}>
           {title}
         </Text>
         {chartType === 'donut' && donutData ? (
@@ -1538,7 +1538,7 @@ function TrendCurveChart({
       }}
     >
       <View style={trendStyles.headerRow}>
-        <View>
+        <View style={{ flexShrink: 1 }}>
           <Text style={[trendStyles.headline, { color: colors.text }]}>{tr('b2_analyticsTrendTitle')}</Text>
           <Text style={[trendStyles.subheadline, { color: colors.textMuted }]}>
             {tr('b2_analyticsTrendSubtitle')}
@@ -1703,8 +1703,10 @@ const trendStyles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 8,
   },
   headline: {
