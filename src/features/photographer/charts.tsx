@@ -195,7 +195,7 @@ export function TrendChart({
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '800' }} maxFontSizeMultiplier={1.2}>
+          <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '800' }} maxFontSizeMultiplier={1.6}>
             {peakLabel}
           </Text>
         </View>

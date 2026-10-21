@@ -98,7 +98,7 @@ export default function ClientsScreen() {
                     trailing={
                       <View style={styles.trailing}>
                         {item.totalSpent != null ? (
-                          <Text style={styles.spent} maxFontSizeMultiplier={1.3}>
+                          <Text style={styles.spent} maxFontSizeMultiplier={1.6}>
                             {formatPrice(item.totalSpent, item.currency)}
                           </Text>
                         ) : null}

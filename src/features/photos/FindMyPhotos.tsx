@@ -26,6 +26,7 @@ import {
   View,
   useWindowDimensions,
   Modal,
+  PixelRatio,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -1216,7 +1217,8 @@ export function FindMyPhotos() {
 
       /* Pick options */
       ) : (
-        <View style={styles.webPickOptions}>
+        // Three tiles side by side are about 90dp wide each; at large text their words break mid-word, so they stack.
+        <View style={[styles.webPickOptions, PixelRatio.getFontScale() > 1.3 && styles.webPickOptionsStacked]}>
           <Pressable
             style={({ pressed }) => [
               styles.webPickCard,
@@ -2819,6 +2821,7 @@ const useStyles = makeStyles((c, e) => ({
 
   // Pick options
   webPickOptions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+  webPickOptionsStacked: { flexDirection: 'column' },
   // Tiles on the glass sheet: frosted, not solid cards.
   webPickCard: {
     flex: 1,

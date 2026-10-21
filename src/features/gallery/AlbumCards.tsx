@@ -47,7 +47,7 @@ function CountChip({ count }: { count?: number }) {
   return (
     <View style={styles.chip}>
       <Ionicons name="images" size={11} color="#fff" />
-      <Text style={styles.chipText} maxFontSizeMultiplier={1.2}>
+      <Text style={styles.chipText} maxFontSizeMultiplier={1.6}>
         {text}
       </Text>
     </View>
@@ -77,13 +77,13 @@ function AlbumHeroImpl({ album, showPhotographer, onOpen }: { album: GalleryItem
         </View>
       </View>
       <View style={styles.heroBottom}>
-        <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.25}>
+        <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.6}>
           {album.name}
         </Text>
         <View style={styles.heroMeta}>
           <CountChip count={album.photoCount} />
           {sub ? (
-            <Text style={styles.heroSub} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+            <Text style={styles.heroSub} numberOfLines={2} maxFontSizeMultiplier={1.6}>
               {sub}
             </Text>
           ) : null}
@@ -118,11 +118,11 @@ function AlbumGridCardImpl({ album, showPhotographer, onOpen }: { album: Gallery
         </View>
       </View>
       <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+        <Text style={styles.cardTitle} numberOfLines={3} maxFontSizeMultiplier={1.6}>
           {album.name}
         </Text>
         {sub ? (
-          <Text style={styles.cardSub} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+          <Text style={styles.cardSub} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {sub}
           </Text>
         ) : null}
@@ -158,11 +158,11 @@ function AlbumListRowImpl({ album, showPhotographer, onOpen }: { album: GalleryI
           </View>
           {photoCountText(album.photoCount) ? <Text style={styles.rowCount}>{photoCountText(album.photoCount)}</Text> : null}
         </View>
-        <Text style={styles.rowTitle} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+        <Text style={styles.rowTitle} numberOfLines={3} maxFontSizeMultiplier={1.6}>
           {album.name}
         </Text>
         {sub ? (
-          <Text style={styles.cardSub} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+          <Text style={styles.cardSub} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {sub}
           </Text>
         ) : null}

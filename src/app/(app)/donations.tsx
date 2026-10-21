@@ -58,7 +58,7 @@ export default function DonationsScreen() {
         <View style={styles.tierRow}>
           {tiers.map((tier) => (
             <View key={tier} style={styles.tier}>
-              <Text style={styles.tierText} maxFontSizeMultiplier={1.3}>{formatPrice(tier, 'RWF')}</Text>
+              <Text style={styles.tierText} maxFontSizeMultiplier={1.6}>{formatPrice(tier, 'RWF')}</Text>
             </View>
           ))}
         </View>

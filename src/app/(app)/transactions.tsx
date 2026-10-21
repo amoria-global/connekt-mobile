@@ -232,7 +232,7 @@ function Row({ movement }: { movement: Movement }) {
         title={cleanTitle}
         meta={movement.createdAt ? formatDate(movement.createdAt) : undefined}
         trailing={
-          <Text style={[styles.amount, { color: inbound ? colors.success : colors.text }]} maxFontSizeMultiplier={1.3}>
+          <Text style={[styles.amount, { color: inbound ? colors.success : colors.text }]} maxFontSizeMultiplier={1.6}>
             {inbound ? '+' : '-'}
             {formatPrice(movement.amount, movement.currency)}
           </Text>

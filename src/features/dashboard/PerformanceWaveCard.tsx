@@ -381,7 +381,7 @@ export function PerformanceWaveCard({
         <View style={styles.headerLeft}>
           <View style={styles.eyebrowRow}>
             <View style={[styles.glowingDot, { backgroundColor: meta.color }]} />
-            <Text style={styles.eyebrowText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} maxFontSizeMultiplier={1.15}>
+            <Text style={styles.eyebrowText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} maxFontSizeMultiplier={1.6}>
               {meta.title}
             </Text>
           </View>

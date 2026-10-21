@@ -157,7 +157,7 @@ export function BusinessOverview({
         <Card style={[styles.flush, styles.earnCard]}>
           <View style={styles.earnHead}>
             <IconTile icon="cash-outline" tone="success" size={30} />
-            <Text style={styles.earnLabel} maxFontSizeMultiplier={1.25}>
+            <Text style={styles.earnLabel} maxFontSizeMultiplier={1.6}>
               Lifetime earnings
             </Text>
           </View>
@@ -167,7 +167,7 @@ export function BusinessOverview({
           <Text style={styles.meta}>{earningsCaption}</Text>
         </Card>
         <Card style={[styles.flush, styles.ratingCard]}>
-          <Text style={styles.earnLabel} maxFontSizeMultiplier={1.25}>
+          <Text style={styles.earnLabel} maxFontSizeMultiplier={1.6}>
             Reviews
           </Text>
           <ProgressRing
@@ -179,13 +179,13 @@ export function BusinessOverview({
           >
             {ratingText ? (
               <View style={styles.ringCentre}>
-                <Text style={styles.ringValue} maxFontSizeMultiplier={1.2}>
+                <Text style={styles.ringValue} maxFontSizeMultiplier={1.6}>
                   {ratingText}
                 </Text>
                 <Text style={styles.ringOutOf}>out of 5</Text>
               </View>
             ) : (
-              <Text style={styles.ringNone} maxFontSizeMultiplier={1.2}>
+              <Text style={styles.ringNone} maxFontSizeMultiplier={1.6}>
                 {loadingReviews ? 'N/A' : 'No reviews yet'}
               </Text>
             )}
@@ -205,7 +205,7 @@ export function BusinessOverview({
             <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {loading ? ' ' : t.value}
             </Text>
-            <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.2}>
+            <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.6}>
               {t.label}
             </Text>
           </View>

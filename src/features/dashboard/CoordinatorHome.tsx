@@ -205,7 +205,7 @@ export function CoordinatorHome() {
             style={styles.searchInput}
             returnKeyType="search"
             accessibilityLabel="Search your events"
-            maxFontSizeMultiplier={1.3}
+            maxFontSizeMultiplier={1.6}
             autoCapitalize="none"
             autoCorrect={false}
             onSubmitEditing={() => {
