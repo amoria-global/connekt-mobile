@@ -572,7 +572,7 @@ export function PerformanceWaveCard({
           ) : null}
 
           {/* Layer 5: Active Beacon Point (Highlight needle & glowing cyan pin) */}
-          {activePoint ? (
+          {activePoint && hasSeries ? (
             <>
               {/* Vertical needle line extending up from active point to apex */}
               <Line
