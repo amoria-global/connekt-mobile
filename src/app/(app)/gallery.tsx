@@ -39,6 +39,8 @@ import { AlbumGridCard, AlbumGridSkeleton, AlbumHero, AlbumListRow } from '@/fea
 import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { useLanguage } from '@/store/language';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 type AlbumFilter = 'all' | 'event' | 'personal' | 'locked';
 type AlbumSort = 'newest' | 'oldest' | 'photos_desc' | 'name_asc';
@@ -401,13 +403,12 @@ export default function GalleryScreen() {
         animationType="fade"
         onRequestClose={() => setSortSheetOpen(false)}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
-          <Pressable
+        <GlassScrim style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
+          <GlassSheetHost
             style={[
               styles.sortSheet,
               { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) },
             ]}
-            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.sheetHandle} />
             <View style={styles.sortSheetHeader}>
@@ -468,8 +469,8 @@ export default function GalleryScreen() {
                 );
               })}
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -887,7 +888,7 @@ const useStyles = makeStyles((c) => ({
   },
 
   // Sort Sheet
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,26,0.6)', justifyContent: 'flex-end' },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end' },
   sheetHandle: {
     width: 38,
     height: 4,
@@ -897,9 +898,6 @@ const useStyles = makeStyles((c) => ({
     marginBottom: spacing.xs,
   },
   sortSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.md,
   },
@@ -915,7 +913,7 @@ const useStyles = makeStyles((c) => ({
     width: 32,
     height: 32,
     borderRadius: radii.full,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -926,7 +924,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.md,
     borderRadius: radii.lg,
     gap: spacing.md,
-    backgroundColor: c.background,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
@@ -938,7 +936,7 @@ const useStyles = makeStyles((c) => ({
     width: 36,
     height: 36,
     borderRadius: radii.md,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },

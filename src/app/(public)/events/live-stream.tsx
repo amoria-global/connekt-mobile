@@ -122,14 +122,15 @@ import { isApiError, useAuth } from '@/store/auth';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette } from '@/theme';
 import { EndedEventCard } from '@/features/streams/viewer/components/EndedEventCard';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
-import { GlassLayer, glassClear } from '@/components/ui/GlassCard';
+import { GlassLayer, glassClear, glassTile } from '@/components/ui/GlassCard';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /** The side-rail toggles' "on" state: a white wash over the glass. */
@@ -1669,10 +1670,9 @@ export default function PublicLiveStreamScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.modalKeyboard}
       >
-      <Pressable style={styles.modalBackdrop} onPress={closeInfoModal}>
-        <Pressable
+      <GlassScrim style={styles.modalBackdrop} onPress={closeInfoModal}>
+        <GlassSheetHost
           style={[styles.modalSheet, { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
-          onPress={(e) => e.stopPropagation()}
         >
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalContent}>
             <Text style={styles.modalTitle}>
@@ -1729,8 +1729,8 @@ export default function PublicLiveStreamScreen() {
               </Pressable>
             ) : null}
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </GlassSheetHost>
+      </GlassScrim>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -2292,8 +2292,8 @@ export default function PublicLiveStreamScreen() {
 
       {/* Device-conflict modal */}
       <Modal visible={conflictOpen} transparent animationType="slide" onRequestClose={() => setConflictOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setConflictOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setConflictOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{tr('b4_watchingOnAnotherDeviceTitle')}</Text>
             <Text style={styles.modalHint}>
               Only one device can watch on the same paid ticket at a time. It'll free up
@@ -2304,8 +2304,8 @@ export default function PublicLiveStreamScreen() {
               onPress={onRetryDeviceAccess}
               loading={conflictBusy}
             />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {renderInfoModal(infoModalOpen && !chatFullscreen)}
@@ -2361,6 +2361,7 @@ function GiftConfirmSheet({
   onClose: () => void;
   onConfirm: () => Promise<void>;
 }) {
+  const gcStyles = useGcStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
@@ -2378,8 +2379,8 @@ function GiftConfirmSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={gcStyles.scrim} onPress={onClose} />
-      <View style={[gcStyles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+      <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <GlassSheetHost style={[gcStyles.sheet, { paddingBottom: insets.bottom + 24 }]}>
         <View style={gcStyles.handle} />
 
         {/* Gift preview */}
@@ -2418,24 +2419,22 @@ function GiftConfirmSheet({
         <Pressable onPress={onClose} hitSlop={10} style={gcStyles.cancel}>
           <Text style={gcStyles.cancelText}>{tr('b4_cancel')}</Text>
         </Pressable>
-      </View>
+      </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
 
-const gcStyles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+const useGcStyles = makeStyles((c) => ({
+  scrim: { flex: 1, },
   sheet: {
-    backgroundColor: '#12151e',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
     paddingHorizontal: 20,
     paddingTop: 12,
     gap: 16,
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: c.border,
     alignSelf: 'center',
     marginBottom: 4,
   },
@@ -2443,21 +2442,21 @@ const gcStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingVertical: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    ...glassTile(c),
     borderRadius: 14,
   },
   emoji: { fontSize: 52 },
-  giftName: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  giftPrice: { color: '#ffd166', fontSize: 22, fontWeight: '800' },
+  giftName: { color: c.text, fontSize: 18, fontWeight: '700' },
+  giftPrice: { color: c === darkPalette ? '#ffd166' : '#B45309', fontSize: 22, fontWeight: '800' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: 'rgba(99,179,237,0.1)',
+    ...glassTile(c),
     borderRadius: 10,
     padding: 12,
   },
-  infoText: { flex: 1, color: '#90cdf4', fontSize: 12, lineHeight: 18 },
+  infoText: { flex: 1, color: c.textSoft, fontSize: 12, lineHeight: 18 },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2469,8 +2468,8 @@ const gcStyles = StyleSheet.create({
   },
   ctaText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   cancel: { alignItems: 'center', paddingVertical: 8 },
-  cancelText: { color: 'rgba(255,255,255,0.45)', fontSize: 13 },
-});
+  cancelText: { color: c.textMuted, fontSize: 13 },
+}));
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 
@@ -3073,11 +3072,8 @@ const useStyles = makeStyles((c, e) => ({
 
   modalKeyboard: { flex: 1 },
   modalContent: { gap: spacing.md },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },
