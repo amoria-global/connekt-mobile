@@ -64,6 +64,7 @@ import { formatDate } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { DashboardGreeting } from './DashboardGreeting';
 
 const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not hand memo hooks a new array every render. */
@@ -178,22 +179,20 @@ export function CoordinatorHome() {
         <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />
 
         {/* 1. Orientation */}
-        <View style={styles.header}>
-          <View style={styles.flex}>
-            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-              {`Welcome back, ${name}`}
-            </Text>
-            <Text style={styles.subtitle}>{longDate() || `${t('roleCoordinatorTitle')} workspace`}</Text>
-          </View>
-          <Pressable
-            onPress={() => setHidden((h) => !h)}
-            accessibilityRole="button"
-            accessibilityLabel={hidden ? 'Show amounts' : 'Hide amounts'}
-            style={({ pressed }) => [styles.eye, pressed && styles.pressed]}
-          >
-            <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
-          </Pressable>
-        </View>
+        <DashboardGreeting
+          name={name}
+          subtitle={longDate() || `${t('roleCoordinatorTitle')} workspace`}
+          trailing={
+            <Pressable
+              onPress={() => setHidden((h) => !h)}
+              accessibilityRole="button"
+              accessibilityLabel={hidden ? 'Show amounts' : 'Hide amounts'}
+              style={({ pressed }) => [styles.eye, pressed && styles.pressed]}
+            >
+              <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
+            </Pressable>
+          }
+        />
 
         <View style={styles.search}>
           <Ionicons name="search" size={18} color={colors.textMuted} />
@@ -480,10 +479,7 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
 }
 
 const useStyles = makeStyles((c) => ({
-  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  title: { color: c.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
-  subtitle: { color: c.textMuted, fontSize: 13, marginTop: 2 },
+  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
   search: {
     flexDirection: 'row',
     alignItems: 'center',

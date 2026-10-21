@@ -154,7 +154,9 @@ describe('coordinator home as rendered', () => {
     });
     const r = await mount();
     const masked = flat(r.root);
-    expect(masked).toContain('Welcome back, Marie');
+    const heading = r.root.findAll((x) => x.props.accessibilityRole === 'header' && /, Marie$/.test(String(x.props.accessibilityLabel ?? '')));
+    expect(heading.length).toBeGreaterThan(0);
+    expect(masked).toContain('Your dashboard');
     expect(masked).toContain('Yubire Wedding');
     expect(masked).toContain('Action required');
     expect(masked).toContain('••••');
