@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import { ClientHome } from '@/features/dashboard/ClientHome';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
 import { dayKey, shiftDays } from '@/features/photographer/schedule';
+import { customerAnalytics } from '@/test/analyticsPayloads';
 
 /**
  * RENDERED screen (react-test-renderer under jest-expo, not a device): the real
@@ -101,7 +102,7 @@ type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'pending' | 'ac
 function serve(routes: Routes) {
   const defaults: Routes = {
     wallet: walletFixture,
-    analytics: ok({ totalPhotos: 0, totalEvents: 0, upcomingEvents: 0, completedEvents: 0, cancelledEvents: 0, totalBookings: 0, bookmarkedPhotographers: 0 }),
+    analytics: ok(customerAnalytics()),
     events: ok([]),
     pending: ok([]),
     activities: ok([]),
@@ -291,7 +292,7 @@ describe('client home as rendered', () => {
   });
 
   it('delivered photos are surfaced and open the albums', async () => {
-    serve({ analytics: ok({ totalPhotos: 42 }) });
+    serve({ analytics: ok(customerAnalytics({ totalPhotos: 42 })) });
     const r = await mount();
     expect(flat(r.root)).toContain('42 in your albums');
     const btn = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.findAllByType(Text).some((t) => t.props.children === 'Review photos'))[0];

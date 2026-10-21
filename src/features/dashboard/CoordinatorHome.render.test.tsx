@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import { CoordinatorHome } from '@/features/dashboard/CoordinatorHome';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
 import { dayKey, shiftDays } from '@/features/photographer/schedule';
+import { coordinatorAnalytics } from '@/test/analyticsPayloads';
 
 /**
  * RENDERED screen (react-test-renderer under jest-expo, not a device): the real coordinator
@@ -80,7 +81,7 @@ const flat = (node: ReactTestInstance): string =>
 
 type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'pending', unknown>>;
 
-const analyticsOk = ok({ totalCustomers: 4, totalPhotographers: 3, totalEvents: 7, totalRevenue: 1500, activeStreams: 1 });
+const analyticsOk = ok(coordinatorAnalytics({ totalCustomers: 4, totalPhotographers: 3, totalEvents: 7, totalRevenue: 1500, activeStreams: 1 }));
 
 function serve(routes: Routes) {
   const r: Routes = { wallet: walletFixture, analytics: analyticsOk, events: ok([]), pending: ok([]), ...routes };
