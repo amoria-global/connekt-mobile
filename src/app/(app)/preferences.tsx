@@ -141,8 +141,8 @@ export default function PreferencesScreen() {
                   <View key={toggleItem.key} style={[styles.row, i > 0 && styles.rowBorder]}>
                     <IconTile icon={TOGGLE_ICONS[toggleItem.key] ?? 'notifications-outline'} tone="primary" size={36} />
                     <View style={styles.rowBody}>
-                      <Text style={styles.rowLabel} maxFontSizeMultiplier={1.3}>{label}</Text>
-                      <Text style={styles.rowDesc} maxFontSizeMultiplier={1.3}>{desc}</Text>
+                      <Text style={styles.rowLabel} maxFontSizeMultiplier={1.6}>{label}</Text>
+                      <Text style={styles.rowDesc} maxFontSizeMultiplier={1.6}>{desc}</Text>
                     </View>
                     <Switch
                       value={values[toggleItem.key] ?? true}

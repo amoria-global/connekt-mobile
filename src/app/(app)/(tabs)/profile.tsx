@@ -343,7 +343,7 @@ export default function ProfileScreen() {
           {user?.address ? (
             <View style={styles.locationLink}>
               <Ionicons name="location-outline" size={13} color={colors.textMuted} />
-              <Text style={styles.locationText} numberOfLines={1}>
+              <Text style={styles.locationText} numberOfLines={3}>
                 {user.address}
               </Text>
             </View>
@@ -433,7 +433,7 @@ export default function ProfileScreen() {
               <View style={styles.highlightCircle}>
                 <Ionicons name={h.icon} size={22} color={colors.text} />
               </View>
-              <Text style={styles.highlightLabel} numberOfLines={1}>
+              <Text style={styles.highlightLabel} numberOfLines={2}>
                 {h.label}
               </Text>
             </Pressable>
@@ -505,7 +505,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>{t('email')}</Text>
-                <Text style={styles.detailValue} numberOfLines={1}>
+                <Text style={styles.detailValue} numberOfLines={4}>
                   {user?.email || '—'}
                 </Text>
               </View>

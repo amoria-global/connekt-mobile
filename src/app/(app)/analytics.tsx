@@ -1351,7 +1351,7 @@ function SaloStatCard({
                 {percentage}
               </Text>
             </View>
-            <Text style={[cardStyles.timeframeText, { color: colors.textMuted }]} numberOfLines={1}>
+            <Text style={[cardStyles.timeframeText, { color: colors.textMuted }]} numberOfLines={3}>
               vs {timeframe}
             </Text>
           </View>
@@ -1412,8 +1412,10 @@ const cardStyles = StyleSheet.create({
   },
   footerRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 4,
     minHeight: 22,
   },
   trendRow: {
@@ -2568,13 +2570,20 @@ const useStyles = makeStyles((c, e) => ({
   // Segmented Timeframe Filter Tabs (salo-run .ck-tabs)
   filterTabsContainer: {
     flexDirection: 'row',
+    // At large text four tabs no longer fit one row; they wrap instead of overlapping.
+    flexWrap: 'wrap',
     backgroundColor: c.surfaceMuted,
     borderRadius: 10,
     padding: 3,
     gap: 3,
   },
   filterTab: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 0,
+    minWidth: 76,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 6,
     paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
@@ -2584,6 +2593,7 @@ const useStyles = makeStyles((c, e) => ({
     ...e(1),
   },
   filterTabText: {
+    textAlign: 'center',
     fontSize: 12,
     fontWeight: '600',
     color: c.textMuted,
