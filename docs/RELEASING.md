@@ -23,6 +23,7 @@ the refusal is information, not an obstacle.
 ## Path A — JavaScript-only, reaches phones over the air
 
 1. Branch off `main`, make the fix, then `yarn typecheck` and `yarn test`.
+   **Write the release notes** (next section) in the same branch, before anything is published.
 2. Run the gate. Expect "Safe to publish to the production channel".
 3. Merge into `main` with `--no-ff` and push.
 4. The rest is automatic:
@@ -38,6 +39,27 @@ Put `[skip publish]` in the commit subject for documentation, CI or bookkeeping 
 merge subject when every promoted non-merge commit carries it. One unmarked commit in the
 range means real JavaScript is being promoted, and the merge publishes as normal. So mark
 every commit in a documentation-only batch, or the batch publishes.
+
+## Release notes: say what changed before the user taps Update
+
+Every update the app finds is mandatory, and the prompt that appears is a full screen that lists what the update changes
+above the "Update now" button. Users complained that the old prompt explained nothing. The text comes from
+`app.json` under `expo.extra.releaseNotes`, which rides inside each published update's manifest (so the phone reads it
+before installing). A release without notes shows "This update has no written notes", which is a failure of this process.
+
+Before you publish anything that changes what a user sees or can do:
+
+1. Add a release at the **top** of `expo.extra.releaseNotes.releases` in `app.json`:
+   `{ "id": "<date>-<slug>", "date": "YYYY-MM-DD", "title": "...", "items": [ { "icon": "<ionicons name>", "title": "...", "body": "..." } ] }`.
+2. One item per feature or fix a person would notice, in plain words, as a full sentence or two (at least 40 characters).
+   Say what they can now do, not what you changed in code. Fixes count: "Album photos load again" is an item.
+3. No em or en dashes. Keep the 5 most recent releases and delete older ones, so the list stays short.
+4. A phone that skipped updates is shown every release newer than the one it runs, so never edit an old entry; add a new one.
+5. `yarn test` validates the notes (`src/features/updates/releaseNotes.test.ts`). The OTA gate does not look at them, and
+   `extra` does not touch the natives, so adding notes never needs a store build.
+
+The notes only help phones that already run a build containing this prompt: the first update that carries the prompt is
+introduced by the old one.
 
 ## Path B — touches natives, needs a store build
 
