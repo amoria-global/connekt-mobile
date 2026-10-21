@@ -220,7 +220,7 @@ describe('photographer wallet tabs', () => {
 
   it('at large text the quick links take a full row each, so "Transactions" is not broken mid-word', async () => {
     const { Dimensions } = jest.requireActual('react-native');
-    const spy = jest.spyOn(Dimensions, 'get').mockImplementation((k: string) => ({ width: 393, height: 852, scale: 2.75, fontScale: 1.6, ...(k ? {} : {}) }) as never);
+    const spy = jest.spyOn(Dimensions, 'get').mockImplementation(() => ({ width: 393, height: 852, scale: 2.75, fontScale: 1.6 }) as never);
     try {
       serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
       const r = await mount();
