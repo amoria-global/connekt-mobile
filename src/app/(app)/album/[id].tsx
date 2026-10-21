@@ -16,6 +16,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
+import { FallbackImage } from '@/features/gallery/FallbackImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -401,8 +402,9 @@ export default function AlbumDetailScreen() {
             {/* Cover Showcase Card (if a cover image exists) */}
             {coverUrl ? (
               <View style={styles.coverCard}>
-                <Image
-                  source={{ uri: coverUrl }}
+                <FallbackImage
+                  uri={coverUrl}
+                  fallbackUri={data?.coverPhoto ? data.coverFull : images[0]?.fullUrl}
                   style={StyleSheet.absoluteFill}
                   contentFit="cover"
                   transition={250}

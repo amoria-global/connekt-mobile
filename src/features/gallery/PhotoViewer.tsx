@@ -6,7 +6,7 @@
 import { memo, useCallback, useRef } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, Text, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { FallbackImage } from './FallbackImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { makeStyles, radii, spacing } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -34,8 +34,9 @@ const Page = memo(function Page({ photo, width }: { photo: ViewerPhoto; width: n
   return (
     <View style={[styles.page, { width }]}>
       {full ? (
-        <Image
-          source={{ uri: full }}
+        <FallbackImage
+          signed
+          uri={full}
           placeholder={photo.url && photo.url !== full ? { uri: photo.url } : undefined}
           style={styles.image}
           contentFit="contain"
