@@ -78,3 +78,10 @@ and viewer roles have no Streams page on the web.
 
 Not verified on a device (the emulator would not stay up) or against the live backend with a signed-in account.
 Video playback in the sheet is untested beyond rendering with the player mocked.
+
+### Hard-coded values left out on purpose
+
+| Value | Why it is not on mobile |
+|---|---|
+| "Max duration: 1 minute" in the Videos sheet | The web prints it as fixed text. The backend defines no such limit (no setting, no check), so it is an unsupported claim, not data |
+| "Live stream" as a title when none is sent | A replay or upcoming row is not live. Mobile says "Untitled stream" |

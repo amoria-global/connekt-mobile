@@ -118,9 +118,6 @@ export function StreamVideosSheet({
               <Text style={styles.summaryText}>
                 Total videos: <Text style={styles.strong}>{h.videos.length}</Text>
               </Text>
-              <Text style={styles.summaryText}>
-                Max duration: <Text style={styles.strong}>1 minute</Text>
-              </Text>
             </View>
             {current ? (
               <View>
