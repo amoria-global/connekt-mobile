@@ -1,18 +1,33 @@
 /**
  * Live streams (/api/remote/streams). Viewers browse, join, and tip.
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
 import { isApiError } from '@/store/auth';
 import { appendFile } from '@/utils/upload';
 
+/** Where a stream is in its life. `ended` covers replays, which is most of a client's list. */
+export type StreamPhase = 'live' | 'upcoming' | 'ended';
+
 export type Stream = {
+  /** The EVENT id. The viewer, `getStream` and `joinStream` all take an event id; the list rows carry the stream
+   *  record's own id as `id` and the event's as `eventId`, and routing on the former opened "not found". */
   id: ID;
+  /** The stream record id, kept for deletes. */
+  streamId?: string;
   title: string;
   photographerName?: string;
   thumbnail?: string;
   isLive: boolean;
+  phase: StreamPhase;
+  /** Peak viewers when the feed has it, else total distinct viewers. Absent when the feed says nothing. */
   viewerCount?: number;
+  messageCount?: number;
+  /** Event or stream date as the feed gave it (YYYY-MM-DD), and its time (HH:mm). */
+  date?: string;
+  time?: string;
+  duration?: string;
+  eventType?: string;
 };
 
 export type StreamDetail = Stream & {
@@ -61,45 +76,59 @@ function giftMetaStr(v: unknown): string | undefined {
   return undefined;
 }
 
-function mapStream(r: Raw): Stream {
+/**
+ * Both list feeds (`/coordinator/streams`, `/customer/streams`) name things differently from the stream detail:
+ * `id` is the stream record, `eventId` the event, the title is `streamTitle` or `eventTitle`, the photographer is a
+ * string, and the audience is `peakViewers` or `totalViewers`. Reading `title`, `photographer{}` and `viewerCount`
+ * (as this used to) gave every card the title "Live stream" and no photographer or audience.
+ */
+export function streamPhase(r: Raw): StreamPhase {
+  const status = (str(r.streamStatus) ?? str(r.status) ?? '').toLowerCase();
+  if (status === 'ended' || !!r.endedAt || !!str(r.replayUrl)) return 'ended';
+  if (['live', 'connected', 'streaming'].includes(status) || bool(r.isLive) || (!!r.startedAt && !r.endedAt)) return 'live';
+  // The customer feed is completed streams only: a row with a duration or a past stream date has already aired.
+  const duration = str(r.duration);
+  if (duration && duration !== '0:00:00') return 'ended';
+  return status === 'paused' ? 'live' : 'upcoming';
+}
+
+export function mapStream(r: Raw): Stream {
   const photographer = (r.photographer ?? {}) as Raw;
   const photographerName =
-    [str(photographer.firstName), str(photographer.lastName)].filter(Boolean).join(' ') ||
-    str(photographer.name);
+    str(r.photographerName) ??
+    ([str(photographer.firstName), str(photographer.lastName)].filter(Boolean).join(' ') ||
+    str(photographer.name));
+  const phase = streamPhase(r);
+  const viewers = num(r.peakViewers) ?? num(r.totalViewers) ?? num(r.viewerCount);
   return {
-    id: String(r.id ?? r.streamId ?? ''),
-    title: str(r.title) ?? 'Live stream',
-    photographerName,
-    thumbnail: str(r.thumbnail) ?? str(r.coverImage),
-    isLive: bool(r.isLive) || bool(r.status) || !!r.startedAt && !r.endedAt,
-    viewerCount: num(r.viewerCount),
+    id: String(r.eventId ?? r.id ?? r.streamId ?? ''),
+    streamId: str(r.id) ?? str(r.streamId),
+    title: str(r.streamTitle) ?? str(r.eventTitle) ?? str(r.title) ?? 'Live stream',
+    photographerName: photographerName?.trim() || undefined,
+    thumbnail: str(r.coverImage) ?? str(r.eventPhoto) ?? str(r.thumbnail) ?? str(r.photographerImage),
+    isLive: phase === 'live',
+    phase,
+    viewerCount: viewers,
+    messageCount: num(r.totalMessages),
+    date: (str(r.streamDate) ?? str(r.eventDate))?.slice(0, 10),
+    time: (str(r.streamTime) ?? str(r.eventTime))?.slice(0, 5),
+    duration: str(r.duration) && str(r.duration) !== '0:00:00' ? str(r.duration) : undefined,
+    eventType: str(r.eventType),
   };
 }
 
 export async function listStreams(asCoordinator = false): Promise<Stream[]> {
+  // A refused read (HTTP 200, action 0) is an error, not an empty list. A failed coordinator read used to fall
+  // back to the customer feed, which put a different account's history under a coordinator's name.
   const base = asCoordinator ? '/coordinator/streams' : '/customer/streams';
-  try {
-    const res = await api.get<ApiEnvelope<unknown>>(base);
-    const raw = res?.data;
-    const data: Raw[] = Array.isArray(raw)
-      ? (raw as Raw[])
-      : Array.isArray((raw as any)?.content)
-        ? ((raw as any).content as Raw[])
-        : [];
-    return data.map(mapStream).filter((s) => s.id);
-  } catch (err) {
-    if (asCoordinator) {
-      const fallbackRes = await api.get<ApiEnvelope<unknown>>('/customer/streams');
-      const raw = fallbackRes?.data;
-      const data: Raw[] = Array.isArray(raw)
-        ? (raw as Raw[])
-        : Array.isArray((raw as any)?.content)
-          ? ((raw as any).content as Raw[])
-          : [];
-      return data.map(mapStream).filter((s) => s.id);
-    }
-    throw err;
-  }
+  const res = requireOk(await api.get<ApiEnvelope<unknown>>(base));
+  const raw = res?.data;
+  const data: Raw[] = Array.isArray(raw)
+    ? (raw as Raw[])
+    : Array.isArray((raw as { content?: unknown } | undefined)?.content)
+      ? ((raw as { content: Raw[] }).content)
+      : [];
+  return data.map(mapStream).filter((s) => s.id);
 }
 
 /**
@@ -111,18 +140,9 @@ export async function listStreams(asCoordinator = false): Promise<Stream[]> {
  */
 export async function getStream(id: string, asCoordinator = false): Promise<StreamDetail> {
   const base = asCoordinator ? '/coordinator/events' : '/customer/events';
-  let d: Raw = {};
-  try {
-    const res = await api.get<ApiEnvelope<Raw>>(`${base}/${encodeURIComponent(id)}`);
-    d = (res?.data ?? {}) as Raw;
-  } catch (err) {
-    if (asCoordinator) {
-      const fallbackRes = await api.get<ApiEnvelope<Raw>>(`/customer/events/${encodeURIComponent(id)}`);
-      d = (fallbackRes?.data ?? {}) as Raw;
-    } else {
-      throw err;
-    }
-  }
+  // A refused read is an error; it used to leave an empty event that rendered as a stream with no title or feed.
+  const res = requireOk(await api.get<ApiEnvelope<Raw>>(`${base}/${encodeURIComponent(id)}`));
+  const d = (res?.data ?? {}) as Raw;
   // playbackUrl is HLS only; we derive it from whepUrl when the
   // backend's hlsManifestUrl is null (the same fallback as the public
   // access-status path — Cloudflare's manifest URL shares the customer
@@ -139,6 +159,12 @@ export async function getStream(id: string, asCoordinator = false): Promise<Stre
     eventId: String(d.id ?? id),
     title: str(d.title) ?? 'Live stream',
     isLive: str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended',
+    phase:
+      str(d.eventStatus)?.toUpperCase() === 'ONGOING' && str(d.streamStatus) !== 'ended'
+        ? 'live'
+        : str(d.streamStatus) === 'ended' || ['COMPLETED', 'DONE'].includes((str(d.eventStatus) ?? '').toUpperCase())
+          ? 'ended'
+          : 'upcoming',
     thumbnail: str(d.eventPhoto) ?? str(d.thumbnail) ?? str(d.coverImage),
   };
 }
