@@ -494,14 +494,14 @@ export function DirectBookingMapView({
             />
             <View style={styles.cardInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.cardName} numberOfLines={1}>
+                <Text style={styles.cardName} numberOfLines={2}>
                   {selectedPhotographer.fullName}
                 </Text>
                 {selectedPhotographer.verified && (
                   <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
                 )}
               </View>
-              <Text style={styles.cardBiz} numberOfLines={1}>
+              <Text style={styles.cardBiz} numberOfLines={2}>
                 {selectedPhotographer.businessName || 'Verified Creative Studio'}
               </Text>
               <View style={styles.metaRow}>

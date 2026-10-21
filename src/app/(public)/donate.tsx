@@ -533,10 +533,10 @@ export default function PublicDonateScreen() {
               <Ionicons name="heart" size={16} color="#E11D48" />
             </View>
             <View style={styles.compactHeroInfo}>
-              <Text style={styles.compactHeroTitle} numberOfLines={1}>
+              <Text style={styles.compactHeroTitle} numberOfLines={2}>
                 {event.data?.title ? event.data.title : 'Connekyt Community Cause'}
               </Text>
-              <Text style={styles.compactHeroSub} numberOfLines={1}>
+              <Text style={styles.compactHeroSub} numberOfLines={2}>
                 {event.data?.eventOrganizer
                   ? `by ${event.data.eventOrganizer} · 100% reaches the cause`
                   : '100% of proceeds reach the creator'}

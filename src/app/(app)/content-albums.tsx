@@ -290,10 +290,10 @@ export default function ContentAlbumsScreen() {
               </View>
 
               <View style={styles.cardBody}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
+                <Text style={styles.cardTitle} numberOfLines={2}>
                   {item.name}
                 </Text>
-                <Text style={styles.cardMeta} numberOfLines={1}>
+                <Text style={styles.cardMeta} numberOfLines={2}>
                   {item.categoryLabel ? item.categoryLabel : s.stockLibrary}
                 </Text>
               </View>

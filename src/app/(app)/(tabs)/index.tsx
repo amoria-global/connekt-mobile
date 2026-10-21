@@ -624,11 +624,11 @@ export default function HomeScreen() {
               onPress={item.onPress}
             >
               <View style={styles.previewBody}>
-                <Text style={styles.previewTitle} numberOfLines={1}>
+                <Text style={styles.previewTitle} numberOfLines={2}>
                   {item.title}
                 </Text>
                 {item.subtitle ? (
-                  <Text style={styles.previewSub} numberOfLines={1}>
+                  <Text style={styles.previewSub} numberOfLines={2}>
                     {item.subtitle}
                   </Text>
                 ) : null}
@@ -839,7 +839,7 @@ function PendingPaymentsAlert({
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.payNameRow}>
-                <Text style={styles.payName} numberOfLines={1}>
+                <Text style={styles.payName} numberOfLines={2}>
                   {p.photographerName}
                 </Text>
                 {p.status === 'failed' ? (
@@ -852,7 +852,7 @@ function PendingPaymentsAlert({
                   </View>
                 ) : null}
               </View>
-              <Text style={styles.payEvent} numberOfLines={1}>
+              <Text style={styles.payEvent} numberOfLines={2}>
                 {p.eventName}
               </Text>
               <Text
@@ -1067,8 +1067,8 @@ function PhotographerRow({
         )}
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.photogName} numberOfLines={1}>{photographer.name}</Text>
-        <Text style={styles.photogEvent} numberOfLines={1}>{photographer.event}</Text>
+        <Text style={styles.photogName} numberOfLines={2}>{photographer.name}</Text>
+        <Text style={styles.photogEvent} numberOfLines={2}>{photographer.event}</Text>
       </View>
       <View style={[styles.photogChip, { backgroundColor: chip.bg }]}>
         <Text style={[styles.photogChipText, { color: chip.text }]}>{photographer.status}</Text>
@@ -1099,7 +1099,7 @@ function RecentPaymentRow({
         )}
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.photogName} numberOfLines={1}>{payment.name}</Text>
+        <Text style={styles.photogName} numberOfLines={2}>{payment.name}</Text>
         <Text style={[styles.photogEvent, { color: typeColor }]}>{payment.type}</Text>
       </View>
       <Text style={[styles.recentPayAmount, { color: isFailure ? colors.error : colors.primary }]}>
