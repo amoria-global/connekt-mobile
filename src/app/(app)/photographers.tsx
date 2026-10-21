@@ -20,6 +20,7 @@ import {
   inviteCoordinatorPhotographer,
   listBookmarkedPhotographers,
   listPhotographers,
+  listSpecialties,
   unbookmarkPhotographer,
   type Photographer,
 } from '@/features/photographers/api';
@@ -36,6 +37,7 @@ import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapV
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 const ITEMS_PER_PAGE = 8;
@@ -43,32 +45,6 @@ const ALL_CATEGORIES = 'All Categories';
 const ALL_LOCATIONS = 'All Locations';
 const ALL_PRICES = 'All Prices';
 const ALL_RATINGS = 'All Ratings';
-
-export const STANDARD_CATEGORIES = [
-  'Weddings',
-  'Portraits',
-  'Events',
-  'Studio',
-  'Fashion',
-  'Birthdays',
-  'Family',
-  'Corporate',
-  'Graduation',
-  'Videography',
-  'Drone & Aerial',
-  'Commercial',
-] as const;
-
-export const POPULAR_LOCATIONS = [
-  'Kampala',
-  'Entebbe',
-  'Jinja',
-  'Mbarara',
-  'Gulu',
-  'Kigali',
-  'Nairobi',
-  'Dar es Salaam',
-] as const;
 
 const PRICE_BUCKETS = [
   { label: 'Under $100', min: 0, max: 100 },
@@ -186,6 +162,7 @@ export default function PhotographersScreen() {
   useLanguage();
   const { colors, isDark } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const responsive = useResponsive();
   const { isCoordinator } = useRole();
   const router = useRouter();
@@ -268,6 +245,8 @@ export default function PhotographersScreen() {
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotographers(), []));
+  // Categories are the platform's specialties plus whatever the directory itself uses; cities come from the directory only.
+  const specialties = useAsync(useCallback(() => listSpecialties(), []));
 
   const submitInvite = async () => {
     if (!inviteEmail.includes('@')) {
@@ -304,7 +283,7 @@ export default function PhotographersScreen() {
       });
     });
 
-    const list: string[] = [ALL_CATEGORIES, ...STANDARD_CATEGORIES];
+    const list: string[] = [ALL_CATEGORIES, ...(specialties.data ?? [])];
 
     dynamicSet.forEach((item) => {
       const itemNorm = normalizeTerm(item);
@@ -325,7 +304,7 @@ export default function PhotographersScreen() {
     });
 
     return list;
-  }, [data]);
+  }, [data, specialties.data]);
 
   const locationOptions = useMemo(() => {
     const set = new Set<string>();
@@ -333,7 +312,7 @@ export default function PhotographersScreen() {
       if (p.location && p.location.trim()) set.add(p.location.trim());
     });
 
-    const list: string[] = [ALL_LOCATIONS, ...POPULAR_LOCATIONS];
+    const list: string[] = [ALL_LOCATIONS];
 
     set.forEach((loc) => {
       const locNorm = normalizeTerm(loc);
@@ -947,7 +926,7 @@ export default function PhotographersScreen() {
             ListHeaderComponent={renderHeader}
             ListFooterComponent={renderFooter}
             numColumns={columns}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
             columnWrapperStyle={styles.columnWrapper}
             keyboardShouldPersistTaps="handled"
             refreshControl={
@@ -1128,7 +1107,6 @@ const useStyles = makeStyles((c, e) => ({
   },
   listContent: {
     flexGrow: 1,
-    paddingBottom: 110,
     backgroundColor: c.background,
   },
   columnWrapper: {

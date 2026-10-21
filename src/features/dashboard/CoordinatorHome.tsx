@@ -39,7 +39,7 @@ import {
   type PendingPayment,
   type TrendsMap,
 } from '@/features/analytics/api';
-import { listCoordinatorEvents } from '@/features/events/api';
+import { listCoordinatorEvents, listEventCategories } from '@/features/events/api';
 import type { EventItem } from '@/features/events/types';
 import { getWallet } from '@/features/wallet/api';
 import {
@@ -64,12 +64,12 @@ import { formatDate } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { DashboardGreeting } from './DashboardGreeting';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not hand memo hooks a new array every render. */
 const EMPTY: never[] = [];
-
-const CATEGORY_CHIPS = ['All', 'Wedding', 'Corporate', 'Birthday', 'Concert', 'Conference', 'Sports', 'Graduation', 'Fashion', 'Entertainment'];
 
 function longDate(now = new Date()): string {
   try {
@@ -91,6 +91,7 @@ export function CoordinatorHome() {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const user = useAuth((s) => s.user);
@@ -106,6 +107,8 @@ export function CoordinatorHome() {
 
   const analytics = useAsync(useCallback(() => getCoordinatorAnalytics(), []));
   const events = useAsync(useCallback(() => listCoordinatorEvents(), []));
+  // The event types come from the backend's category list; with none, the row is left out rather than guessed.
+  const categories = useAsync(useCallback(() => listEventCategories(), []));
   const pending = useAsync(useCallback(() => getCoordinatorPendingPayments(), []));
   const wallet = useAsync(useCallback(() => getWallet(), []));
   const trendsState = useAsync(useCallback(() => getCoordinatorTrends(period), [period]));
@@ -166,7 +169,7 @@ export function CoordinatorHome() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: 140 }}
+        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets
@@ -178,22 +181,20 @@ export function CoordinatorHome() {
         <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />
 
         {/* 1. Orientation */}
-        <View style={styles.header}>
-          <View style={styles.flex}>
-            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-              {`Welcome back, ${name}`}
-            </Text>
-            <Text style={styles.subtitle}>{longDate() || `${t('roleCoordinatorTitle')} workspace`}</Text>
-          </View>
-          <Pressable
-            onPress={() => setHidden((h) => !h)}
-            accessibilityRole="button"
-            accessibilityLabel={hidden ? 'Show amounts' : 'Hide amounts'}
-            style={({ pressed }) => [styles.eye, pressed && styles.pressed]}
-          >
-            <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
-          </Pressable>
-        </View>
+        <DashboardGreeting
+          name={name}
+          subtitle={longDate() || `${t('roleCoordinatorTitle')} workspace`}
+          trailing={
+            <Pressable
+              onPress={() => setHidden((h) => !h)}
+              accessibilityRole="button"
+              accessibilityLabel={hidden ? 'Show amounts' : 'Hide amounts'}
+              style={({ pressed }) => [styles.eye, pressed && styles.pressed]}
+            >
+              <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
+            </Pressable>
+          }
+        />
 
         <View style={styles.search}>
           <Ionicons name="search" size={18} color={colors.textMuted} />
@@ -282,6 +283,7 @@ export function CoordinatorHome() {
             </View>
 
             {/* Event types: a quick way into the Events tab, filtered */}
+            {categories.data && categories.data.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -290,7 +292,7 @@ export function CoordinatorHome() {
               contentContainerStyle={styles.chips}
               style={styles.chipsWrap}
             >
-              {CATEGORY_CHIPS.map((c) => (
+              {['All', ...categories.data].map((c) => (
                 <Chip
                   key={c}
                   label={c}
@@ -299,6 +301,7 @@ export function CoordinatorHome() {
                 />
               ))}
             </ScrollView>
+            ) : null}
 
             {/* 3. Overview */}
             <SectionHeader title="Overview" subtitle="Lifetime figures for your account" actionLabel="Analytics" onAction={() => open('/analytics')} />
@@ -478,10 +481,7 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
 }
 
 const useStyles = makeStyles((c) => ({
-  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  title: { color: c.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
-  subtitle: { color: c.textMuted, fontSize: 13, marginTop: 2 },
+  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
   search: {
     flexDirection: 'row',
     alignItems: 'center',

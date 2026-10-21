@@ -23,7 +23,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Image as RNImage } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   ActivityIndicator,
   Pressable,
@@ -34,7 +33,7 @@ import {
   View,
 } from 'react-native';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
-import { GlassBackdrop, GlassCard } from '@/components/ui/GlassCard';
+import { DashboardGreeting } from '@/features/dashboard/DashboardGreeting';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
@@ -80,6 +79,7 @@ import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useThe
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 // ────── Greetings (web parity: pages/client/home.tsx:64-114) ──────────────
 
@@ -174,6 +174,7 @@ export default function HomeScreen() {
   const { language, t } = useLanguage();
   const { colors, gradients } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const user = useAuth((s) => s.user);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [payNowOpen, setPayNowOpen] = useState(false);
@@ -199,28 +200,11 @@ export default function HomeScreen() {
 
   // ── Greeting + cycling lead copy ────────────────────────────────────────
   const [timeOfDay, setTimeOfDay] = useState<keyof typeof GREETINGS>(getTimeOfDay);
-  const [greetingIndex, setGreetingIndex] = useState(0);
   useEffect(() => {
     const tick = setInterval(() => setTimeOfDay(getTimeOfDay()), 60_000);
     return () => clearInterval(tick);
   }, []);
-  useEffect(() => {
-    const cycle = setInterval(
-      () => setGreetingIndex((i) => (i + 1) % GREETINGS[timeOfDay].length),
-      5_000,
-    );
-    return () => clearInterval(cycle);
-  }, [timeOfDay]);
 
-  const greetingKey =
-    timeOfDay === 'morning'
-      ? 'goodMorning'
-      : timeOfDay === 'afternoon'
-      ? 'goodAfternoon'
-      : timeOfDay === 'evening'
-      ? 'goodEvening'
-      : 'goodNight';
-  const currentGreeting = t(greetingKey);
   const subtitle = (isCoordinator ? SUBTITLES_COORDINATOR : SUBTITLES_CLIENT)[timeOfDay];
 
   // ── Period filter ──────────────────────────────────────────────────────
@@ -451,12 +435,11 @@ export default function HomeScreen() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md, paddingBottom: clearance }]}>
         <KycBanner />
         {showsDashboard ? (
           <>
             <DashboardHero
-              greeting={currentGreeting}
               name={name}
               subtitle={subtitle}
               stats={heroStats}
@@ -669,47 +652,34 @@ export default function HomeScreen() {
 // ────── Components ────────────────────────────────────────────────────────
 
 function DashboardHero({
-  greeting,
   name,
   subtitle,
   stats,
 }: {
-  greeting: string;
   name: string;
   subtitle: string;
   stats: { label: string; value: string; tone: string }[];
 }) {
-  const { colors, gradients } = useTheme();
   const styles = useStyles();
-  const glassTarget = useRef<View>(null);
   return (
-    <LinearGradient
-      colors={[...gradients.wash]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.hero}
-    >
-      <GlassBackdrop ref={glassTarget} />
-      <View style={styles.heroAccent} />
-      <Text style={styles.heroEyebrow}>YOUR DASHBOARD</Text>
-      <Text style={styles.heroTitle}>
-        {greeting}, <Text style={{ color: colors.accent }}>{name}</Text>
-      </Text>
-      <Text style={styles.heroSub}>{subtitle}</Text>
-
-      {stats.length > 0 ? (
-        <GlassCard blurTarget={glassTarget} style={styles.heroStatsCard}>
-          {stats.map((s) => (
-            <View key={s.label} style={styles.heroStatCell}>
-              <Text style={styles.heroStatLabel}>{s.label}</Text>
-              <Text style={[styles.heroStatValue, { color: s.tone }]} numberOfLines={1}>
-                {s.value}
-              </Text>
-            </View>
-          ))}
-        </GlassCard>
-      ) : null}
-    </LinearGradient>
+    <DashboardGreeting
+      name={name}
+      subtitle={subtitle}
+      footer={
+        stats.length > 0 ? (
+          <View style={styles.heroStatsCard}>
+            {stats.map((s) => (
+              <View key={s.label} style={styles.heroStatCell}>
+                <Text style={styles.heroStatLabel}>{s.label}</Text>
+                <Text style={[styles.heroStatValue, { color: s.tone }]} numberOfLines={1}>
+                  {s.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null
+      }
+    />
   );
 }
 
@@ -980,14 +950,16 @@ function SimpleHeader({
   const styles = useStyles();
   return (
     <>
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Hello, {name} 👋</Text>
-        {role ? (
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{role}</Text>
-          </View>
-        ) : null}
-      </View>
+      <DashboardGreeting
+        name={name}
+        trailing={
+          role ? (
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>{role}</Text>
+            </View>
+          ) : null
+        }
+      />
 
       <Pressable
         style={({ pressed }) => [styles.balanceCard, pressed && styles.cardPressed]}
@@ -1112,7 +1084,7 @@ function RecentPaymentRow({
 // ────── Styles ────────────────────────────────────────────────────────────
 
 const useStyles = makeStyles((c, e) => ({
-  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120, gap: spacing.lg },
+  scroll: { paddingHorizontal: spacing.xl, gap: spacing.lg },
 
   // Hero
   hero: {
@@ -1144,7 +1116,11 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     padding: spacing.md,
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
   },
   heroStatCell: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
   heroStatLabel: {
@@ -1270,8 +1246,6 @@ const useStyles = makeStyles((c, e) => ({
   activityTime: { fontSize: 10, color: c.textMuted },
 
   // Legacy header (Photographer / Viewer)
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  greeting: { fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold, color: c.text },
   roleBadge: {
     backgroundColor: c.infoBg,
     paddingHorizontal: spacing.md,

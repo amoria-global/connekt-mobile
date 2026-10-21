@@ -123,11 +123,13 @@ import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { EndedEventCard } from '@/features/streams/viewer/components/EndedEventCard';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { GlassLayer, glassClear } from '@/components/ui/GlassCard';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /** The side-rail toggles' "on" state: a white wash over the glass. */
@@ -796,6 +798,7 @@ function LiveChatPanel({
 export default function PublicLiveStreamScreen() {
   useLanguage();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { colors } = useTheme();
   const {
     id,
@@ -1744,97 +1747,16 @@ export default function PublicLiveStreamScreen() {
     undefined;
   const hostImage = event.data?.creator?.profilePicture;
 
-  // Non-live placeholder card (ended, cancelled, photo finder, upcoming)
+  // Non-live placeholder card (photo finder, upcoming). An ended or cancelled event has its own card below.
   const offlineStageContent = (
     <>
       <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
       <View style={styles.placeholderScrim} />
       <StreamWatermark position="top-right" />
-      {status.isCancelled || status.isEnded ? (
-        <View style={styles.placeholderContentFlow}>
-          <Ionicons
-            name={status.isCancelled ? 'close-circle' : 'archive'}
-            size={42}
-            color="rgba(255,255,255,0.85)"
-          />
-          <Text style={styles.placeholderHeadline}>
-            {status.isCancelled ? 'Event cancelled' : 'Event ended'}
-          </Text>
-          {status.isEnded ? (
-            <View style={{ alignItems: 'center', marginTop: 4, gap: 12 }}>
-              <Text
-                style={{
-                  color: 'rgba(255,255,255,0.78)',
-                  fontSize: 13,
-                  textAlign: 'center',
-                  lineHeight: 19,
-                }}
-              >
-                {tr('b4_attendedInPersonFindPhotos')}
-              </Text>
-              <View style={{ flexDirection: 'column', gap: 10, alignItems: 'center', width: '100%' }}>
-                <Pressable
-                  style={({ pressed }) => [
-                    {
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      backgroundColor: 'rgba(255,255,255,0.18)',
-                      paddingHorizontal: 20,
-                      paddingVertical: 12,
-                      borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.3)',
-                      width: '100%',
-                    },
-                    pressed && { opacity: 0.85 },
-                  ]}
-                  onPress={() => (id ? router.push(`/(public)/event/${id}` as never) : router.back())}
-                  accessibilityRole="button"
-                  accessibilityLabel="View Event Details"
-                >
-                  <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
-                    View Details
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    {
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      backgroundColor: '#4F46E5',
-                      paddingHorizontal: 20,
-                      paddingVertical: 12,
-                      borderRadius: 999,
-                      width: '100%',
-                    },
-                    pressed && { opacity: 0.85 },
-                  ]}
-                  onPress={() => router.push('/find-photos' as never)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Find My Photos"
-                >
-                  <Ionicons name="search" size={16} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
-                    Find My Photos
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-        </View>
-      ) : (
-        <View style={styles.placeholderContent}>
-          <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.placeholderText}>
-            {tr('b4_streamWillAppearOnceLive')}
-          </Text>
-        </View>
-      )}
+      <View style={styles.placeholderContent}>
+        <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
+        <Text style={styles.placeholderText}>{tr('b4_streamWillAppearOnceLive')}</Text>
+      </View>
     </>
   );
 
@@ -2126,7 +2048,7 @@ export default function PublicLiveStreamScreen() {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={[styles.scroll, status.isLive && { paddingBottom: insets.bottom + 84 }]}>
+          <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }, status.isLive && { paddingBottom: insets.bottom + 84 }]}>
             {status.isLive && isMiniPlayer ? (
               <Pressable
                 style={styles.ytBrowseNotice}
@@ -2164,7 +2086,17 @@ export default function PublicLiveStreamScreen() {
                 </View>
               </Pressable>
             ) : (
-              <View style={[styles.playerStage, (status.isEnded || status.isCancelled) ? styles.playerStageEnded : styles.playerStageRatio]}>{offlineStageContent}</View>
+              status.isEnded || status.isCancelled ? (
+                <EndedEventCard
+                  cover={eventThumbSource}
+                  cancelled={status.isCancelled}
+                  message={tr('b4_attendedInPersonFindPhotos')}
+                  onDetails={() => (id ? router.push(`/(public)/event/${id}` as never) : router.back())}
+                  onFindPhotos={() => router.push('/find-photos' as never)}
+                />
+              ) : (
+                <View style={[styles.playerStage, styles.playerStageRatio]}>{offlineStageContent}</View>
+              )
             )}
 
             {tokenError ? (
@@ -2592,7 +2524,7 @@ const useStyles = makeStyles((c, e) => ({
     height: 40,
   },
 
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 140 },
+  scroll: { padding: spacing.xl, gap: spacing.lg },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   title: { flex: 1, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text },
@@ -2715,7 +2647,6 @@ const useStyles = makeStyles((c, e) => ({
     position: 'relative',
   },
   playerStageRatio: { aspectRatio: 16 / 9 },
-  playerStageEnded: { minHeight: 280 },
 
   // Live full-bleed: the video fills the whole screen, everything overlays.
   liveRoot: { flex: 1, backgroundColor: '#000' },

@@ -315,7 +315,7 @@ export default function GalleryScreen() {
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: Math.max(insets.bottom + 80, 96) },
+          { paddingBottom: insets.bottom + spacing.xl },
         ]}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />

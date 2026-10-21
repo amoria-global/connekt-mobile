@@ -3,13 +3,13 @@ import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { Text, TextInput } from 'react-native';
 
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
-import { listPhotographers } from '@/features/photographers/api';
+import { listPhotographers, listSpecialties } from '@/features/photographers/api';
 import { listPublicEventsDetailed } from '@/features/events/api';
 import '@/test/autoUnmount';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-jest.mock('@/features/photographers/api', () => ({ listPhotographers: jest.fn() }));
+jest.mock('@/features/photographers/api', () => ({ listPhotographers: jest.fn(), listSpecialties: jest.fn() }));
 jest.mock('@/features/events/api', () => ({ listPublicEventsDetailed: jest.fn() }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('expo-image', () => ({ Image: () => null }));
@@ -18,6 +18,7 @@ jest.mock('@/services/storage', () => ({ storage: { get: jest.fn(async () => nul
 
 const mockPhotogs = listPhotographers as jest.Mock;
 const mockEvents = listPublicEventsDetailed as jest.Mock;
+const mockSpecialties = listSpecialties as jest.Mock;
 const flat = (node: ReactTestInstance): string =>
   node
     .findAllByType(Text)
@@ -38,10 +39,13 @@ async function open(query: string) {
 beforeEach(() => {
   mockPhotogs.mockReset();
   mockEvents.mockReset();
+  mockSpecialties.mockReset();
+  mockSpecialties.mockResolvedValue([]);
 });
 
 describe('global search failure states', () => {
   it('a failed events request is "unavailable" with a retry, not "No results found"', async () => {
+    mockSpecialties.mockResolvedValue(['Weddings']); // a matching category is still something to show, so the notice is a banner
     mockPhotogs.mockResolvedValue([]);
     mockEvents.mockRejectedValue(new Error('offline'));
     const text = flat((await open('wedding')).root);
@@ -107,5 +111,28 @@ describe('global search failure states', () => {
       slow({ content: [{ id: 'old', title: 'Stale Wed Result', eventDate: '2026-10-01' }] });
     });
     expect(flat(r.root)).not.toContain('Stale Wed Result');
+  });
+});
+
+describe('explore by category', () => {
+  it('offers the specialties the backend returns, plus Live Streams, and no category of its own', async () => {
+    mockPhotogs.mockResolvedValue([]);
+    mockEvents.mockResolvedValue({ content: [], totalPages: 0, totalElements: 0 });
+    mockSpecialties.mockResolvedValue(['Drone Work', 'Newborn']);
+    const text = flat((await open('')).root);
+    expect(text).toContain('Drone Work');
+    expect(text).toContain('Newborn');
+    expect(text).toContain('Live Streams');
+    expect(text).not.toContain('Weddings');
+    expect(text).not.toContain('Portraits');
+  });
+
+  it('offers only Live Streams when the specialties cannot be read, rather than a guessed list', async () => {
+    mockPhotogs.mockResolvedValue([]);
+    mockEvents.mockResolvedValue({ content: [], totalPages: 0, totalElements: 0 });
+    mockSpecialties.mockRejectedValue(new Error('offline'));
+    const text = flat((await open('')).root);
+    expect(text).toContain('Live Streams');
+    expect(text).not.toContain('Weddings');
   });
 });
