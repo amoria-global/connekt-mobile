@@ -176,7 +176,7 @@ export function SpendingTrendChart({ points }: { points: readonly PerformancePoi
         <TrendChart values={points.map((p) => p.value1)} peakIndex={points.indexOf(top)} />
         <View style={styles.labels}>
           {points.map((p, i) => (
-            <Text key={`${p.day}-${i}`} style={[styles.barLabel, p === top && styles.barLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            <Text key={`${p.day}-${i}`} style={[styles.barLabel, p === top && styles.barLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.6}>
               {p.day}
             </Text>
           ))}

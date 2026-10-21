@@ -855,7 +855,7 @@ export default function ExploreEventsScreen() {
               }}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
-              placeholder="Search events, venues, categories…"
+              placeholder="Search events"
               placeholderTextColor={colors.textMuted}
               style={styles.searchInput}
               returnKeyType="search"

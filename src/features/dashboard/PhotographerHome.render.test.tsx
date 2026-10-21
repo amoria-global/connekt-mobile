@@ -116,6 +116,14 @@ const press = async (r: TestRenderer.ReactTestRenderer, label: string) => {
   });
 };
 
+const pressText = async (r: TestRenderer.ReactTestRenderer, text: string) => {
+  const node = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.findAllByType(Text).some((t) => t.props.children === text))[0];
+  if (!node) throw new Error(`nothing to press with text "${text}"`);
+  await act(async () => {
+    node.props.onPress();
+  });
+};
+
 beforeEach(() => {
   mockGet.mockReset();
   mockPush.mockReset();
@@ -219,5 +227,17 @@ describe('photographer home goals and sharing', () => {
     });
     expect((spy.mock.calls[0][0] as { message: string }).message).toContain('/photographers/joseph-k');
     spy.mockRestore();
+  });
+});
+
+describe('get help on the home', () => {
+  it('offers the existing Help Center and the Contact us form', async () => {
+    serve({});
+    const r = await mount();
+    expect(flat(r.root)).toContain('Need help?');
+    await pressText(r, 'Get help');
+    expect(mockPush).toHaveBeenLastCalledWith('/help-center');
+    await pressText(r, 'Contact support');
+    expect(mockPush).toHaveBeenLastCalledWith('/contact_us');
   });
 });
