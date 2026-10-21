@@ -39,7 +39,7 @@ import {
   type PendingPayment,
   type TrendsMap,
 } from '@/features/analytics/api';
-import { listCoordinatorEvents } from '@/features/events/api';
+import { listCoordinatorEvents, listEventCategories } from '@/features/events/api';
 import type { EventItem } from '@/features/events/types';
 import { getWallet } from '@/features/wallet/api';
 import {
@@ -68,8 +68,6 @@ import { makeStyles, radii, spacing, useTheme } from '@/theme';
 const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not hand memo hooks a new array every render. */
 const EMPTY: never[] = [];
-
-const CATEGORY_CHIPS = ['All', 'Wedding', 'Corporate', 'Birthday', 'Concert', 'Conference', 'Sports', 'Graduation', 'Fashion', 'Entertainment'];
 
 function longDate(now = new Date()): string {
   try {
@@ -106,6 +104,8 @@ export function CoordinatorHome() {
 
   const analytics = useAsync(useCallback(() => getCoordinatorAnalytics(), []));
   const events = useAsync(useCallback(() => listCoordinatorEvents(), []));
+  // The event types come from the backend's category list; with none, the row is left out rather than guessed.
+  const categories = useAsync(useCallback(() => listEventCategories(), []));
   const pending = useAsync(useCallback(() => getCoordinatorPendingPayments(), []));
   const wallet = useAsync(useCallback(() => getWallet(), []));
   const trendsState = useAsync(useCallback(() => getCoordinatorTrends(period), [period]));
@@ -282,6 +282,7 @@ export function CoordinatorHome() {
             </View>
 
             {/* Event types: a quick way into the Events tab, filtered */}
+            {categories.data && categories.data.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -290,7 +291,7 @@ export function CoordinatorHome() {
               contentContainerStyle={styles.chips}
               style={styles.chipsWrap}
             >
-              {CATEGORY_CHIPS.map((c) => (
+              {['All', ...categories.data].map((c) => (
                 <Chip
                   key={c}
                   label={c}
@@ -299,6 +300,7 @@ export function CoordinatorHome() {
                 />
               ))}
             </ScrollView>
+            ) : null}
 
             {/* 3. Overview */}
             <SectionHeader title="Overview" subtitle="Lifetime figures for your account" actionLabel="Analytics" onAction={() => open('/analytics')} />
