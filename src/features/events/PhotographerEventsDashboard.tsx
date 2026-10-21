@@ -57,6 +57,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { EventQrSheet } from './EventQrSheet';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useLanguage } from '@/store/language';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 const PAGE_SIZE = 8;
 
@@ -162,6 +163,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   const { language, t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
 
@@ -515,9 +517,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         keyExtractor={(e) => e.id}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGap}
         ListHeaderComponent={headerWithSchedule}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
         renderItem={({ item }) => (
           <PhotographerEventCard
@@ -1018,7 +1020,7 @@ function SheetMeta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1 },
-  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
+  listContent: { paddingHorizontal: spacing.lg },
   columnWrapper: { gap: spacing.md },
 
 
@@ -1452,3 +1454,8 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.borderSoft,
   },
 }));
+
+/** Module level, so the list keeps one separator type and does not remount every gap on each render. */
+function ListGap() {
+  return <View style={{ height: spacing.md }} />;
+}

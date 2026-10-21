@@ -15,6 +15,7 @@ import { EmptyState } from './EmptyState';
 import { SkeletonCard } from '@/features/photographer/kit';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 
 type Props<T> = {
   data: T[] | null;
@@ -60,6 +61,7 @@ export function DataList<T>({
   skeletonRows,
 }: Props<T>): ReactElement {
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { colors } = useTheme();
   const { tr } = useSharedT();
   const flat = useRole().isPhotographer;
@@ -116,7 +118,7 @@ export function DataList<T>({
       ListHeaderComponent={header}
       contentContainerStyle={[
         styles.listContent, 
-        { paddingTop: topInset + spacing.md, paddingBottom: 120 }
+        { paddingTop: topInset + spacing.md, paddingBottom: clearance }
       ]}
       refreshControl={
         <RefreshControl

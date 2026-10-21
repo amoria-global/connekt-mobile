@@ -35,7 +35,7 @@
  * The public list includes enough stream metadata to render the same feed
  * for signed-in clients and guests without an additional Cloudflare request.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -296,6 +296,23 @@ export default function ExploreEventsScreen() {
       return next;
     });
   }, []);
+
+  const openEvent = useCallback((id: string) => router.push(`/(public)/event/${id}` as never), [router]);
+  const renderEvent = useCallback(
+    ({ item }: { item: PublicEvent }) => (
+      <View style={styles.cardWrap}>
+        <PosterCard
+          event={item}
+          isLive={isEventLive(item, liveStreamIds)}
+          isEnded={isEventEnded(item)}
+          isSaved={saved.has(item.id)}
+          onToggleSave={toggleSaved}
+          onPress={openEvent}
+        />
+      </View>
+    ),
+    [liveStreamIds, saved, toggleSaved, openEvent, styles.cardWrap],
+  );
 
   // Debounce free-text search to mirror the web's form-submit cadence.
   useEffect(() => {
@@ -1078,22 +1095,15 @@ export default function ExploreEventsScreen() {
         keyExtractor={(e) => e.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        renderItem={({ item }) => (
-          <View style={styles.cardWrap}>
-            <PosterCard
-              event={item}
-              isLive={isEventLive(item, liveStreamIds)}
-              isEnded={isEventEnded(item)}
-              isSaved={saved.has(item.id)}
-              onToggleSave={() => toggleSaved(item.id)}
-              onPress={() => router.push(`/(public)/event/${item.id}` as never)}
-            />
-          </View>
-        )}
+        renderItem={renderEvent}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={header}
         ListFooterComponent={footer}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={ListGap}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
@@ -1218,7 +1228,7 @@ export default function ExploreEventsScreen() {
 
 // ────── Card (web `ev-card` 2386-2486) ─────────────────────────────────────
 
-function PosterCard({
+const PosterCard = memo(function PosterCard({
   event,
   isLive,
   isEnded,
@@ -1230,8 +1240,8 @@ function PosterCard({
   isLive: boolean;
   isEnded: boolean;
   isSaved: boolean;
-  onPress: () => void;
-  onToggleSave: () => void;
+  onPress: (id: string) => void;
+  onToggleSave: (id: string) => void;
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -1242,7 +1252,7 @@ function PosterCard({
 
   return (
     <LiveTwinkle active={isLive} radius={radii.lg} style={styles.cardTwinkle}>
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
+    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={() => onPress(event.id)}>
       <View style={styles.cardMedia}>
         <Image
           source={event.eventPhoto ? { uri: event.eventPhoto } : EVENT_COVER_PLACEHOLDER}
@@ -1277,7 +1287,7 @@ function PosterCard({
             style={[styles.bookmark, isSaved && styles.bookmarkSaved]}
             onPress={(e) => {
               e.stopPropagation?.();
-              onToggleSave();
+              onToggleSave(event.id);
             }}
             hitSlop={6}
           >
@@ -1331,7 +1341,7 @@ function PosterCard({
               style={({ pressed }) => [styles.viewCardBtn, pressed && { opacity: 0.85 }]}
               onPress={(e) => {
                 e.stopPropagation?.();
-                onPress();
+                onPress(event.id);
               }}
               accessibilityRole="button"
               accessibilityLabel={`View details for ${event.title}`}
@@ -1363,7 +1373,7 @@ function PosterCard({
               label="Watch Live"
               size="sm"
               icon="play"
-              onPress={onPress}
+              onPress={() => onPress(event.id)}
               accessibilityLabel={`Watch ${event.title} live`}
             />
           </View>
@@ -1373,7 +1383,7 @@ function PosterCard({
               style={({ pressed }) => [styles.viewCardFullBtn, pressed && { opacity: 0.85 }]}
               onPress={(e) => {
                 e.stopPropagation?.();
-                onPress();
+                onPress(event.id);
               }}
               accessibilityRole="button"
               accessibilityLabel={`View details for ${event.title}`}
@@ -1389,7 +1399,7 @@ function PosterCard({
     </Pressable>
     </LiveTwinkle>
   );
-}
+});
 
 // ────── Filter chip dropdown (Bottom Sheet Modal) ──────────────────────────
 
@@ -1503,7 +1513,7 @@ function FilterChip({
 
 const useStyles = makeStyles((c, e) => ({
   // Containers
-  listContent: { paddingBottom: 120, flexGrow: 1 },
+  listContent: { flexGrow: 1 },
   columnWrapper: { paddingHorizontal: spacing.xl, gap: spacing.md },
   cardWrap: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
@@ -2120,7 +2130,7 @@ const useStyles = makeStyles((c, e) => ({
   paginationFooter: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xxl + 40,
+    paddingBottom: spacing.xl,
   },
   pagerBar: {
     flexDirection: 'row',
@@ -2259,3 +2269,8 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: c.borderSoft,
   },
 }));
+
+/** Module level, so the list keeps one separator type and does not remount every gap on each render. */
+function ListGap() {
+  return <View style={{ height: spacing.md }} />;
+}

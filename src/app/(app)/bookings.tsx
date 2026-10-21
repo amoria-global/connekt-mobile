@@ -58,6 +58,7 @@ import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { env } from '@/config/env';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 
 type Tab = 'direct' | 'opportunities';
 
@@ -65,6 +66,7 @@ export default function BookingsScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { tr } = useSharedT();
   const router = useRouter();
   const { tab, candidate } = useLocalSearchParams<{ tab?: string; candidate?: string }>();
@@ -284,7 +286,7 @@ export default function BookingsScreen() {
           </View>
         ) : (
           <ScrollView
-            contentContainerStyle={styles.list}
+            contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
             refreshControl={
               <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
             }
@@ -420,7 +422,7 @@ export default function BookingsScreen() {
       ) : (
         /* TAB 2: OPEN OPPORTUNITIES (HYBRID) */
         <ScrollView
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           refreshControl={
             <RefreshControl
               refreshing={loadingOpp}
@@ -550,7 +552,7 @@ const useStyles = makeStyles((c) => ({
   stateWrap: { flex: 1, padding: spacing.lg, justifyContent: 'center' },
   actionBtn: { flex: 1 },
   statusLine: { alignSelf: 'flex-start', marginBottom: 2 },
-  list: { paddingBottom: 120, gap: spacing.md },
+  list: { gap: spacing.md },
   card: {
     marginHorizontal: spacing.lg,
     backgroundColor: c.card,

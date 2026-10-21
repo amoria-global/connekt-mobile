@@ -41,6 +41,7 @@ import { useCurrency } from '@/store/currency';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
@@ -51,6 +52,7 @@ export default function EventDetailScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { ownsEvents, isPhotographer, isCoordinator } = useRole();
@@ -506,7 +508,7 @@ export default function EventDetailScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -1120,7 +1122,6 @@ const useStyles = makeStyles((c) => ({
   scroll: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: 120,
     gap: spacing.lg,
   },
 

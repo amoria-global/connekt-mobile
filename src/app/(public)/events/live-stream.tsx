@@ -128,6 +128,7 @@ import { GlassLayer, glassClear } from '@/components/ui/GlassCard';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /** The side-rail toggles' "on" state: a white wash over the glass. */
@@ -796,6 +797,7 @@ function LiveChatPanel({
 export default function PublicLiveStreamScreen() {
   useLanguage();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { colors } = useTheme();
   const {
     id,
@@ -2126,7 +2128,7 @@ export default function PublicLiveStreamScreen() {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={[styles.scroll, status.isLive && { paddingBottom: insets.bottom + 84 }]}>
+          <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }, status.isLive && { paddingBottom: insets.bottom + 84 }]}>
             {status.isLive && isMiniPlayer ? (
               <Pressable
                 style={styles.ytBrowseNotice}
@@ -2592,7 +2594,7 @@ const useStyles = makeStyles((c, e) => ({
     height: 40,
   },
 
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 140 },
+  scroll: { padding: spacing.xl, gap: spacing.lg },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   title: { flex: 1, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text },
