@@ -62,7 +62,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { pickShortVideo } from '@/features/streams/pickShortVideo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { HlsPlayer } from '@/features/streams/HlsPlayer';
 import { StreamWatermark } from '@/features/streams/StreamWatermark';
@@ -119,6 +119,8 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { reportContent, reportPublicChatMessage } from '@/features/moderation/api';
 import { useModeration } from '@/features/moderation/useModeration';
 import { isApiError, useAuth } from '@/store/auth';
+import { accountIdentity } from '@/features/events/guestIdentity';
+import { registerAccountViewer } from '@/features/streams/accountViewer';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -851,16 +853,22 @@ export default function PublicLiveStreamScreen() {
   const [tokenError, setTokenError] = useState<string | null>(null);
 
   // ── Viewer-info modal (web "Verify your access") ─────────────────────────
+  // A signed-in account already has a name and an email: it is never asked for them again.
+  const account = accountIdentity(useAuth((a) => a.user));
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoName, setInfoName] = useState('');
   const [infoEmail, setInfoEmail] = useState('');
   const [infoPhone, setInfoPhone] = useState<PhoneValue | null>(null);
   const [infoBusy, setInfoBusy] = useState(false);
+  // A signed-in account's own details stand in until the person types something else.
+  const accountName = infoName || account?.name || '';
+  const accountEmail = infoEmail || account?.email || '';
   const [infoError, setInfoError] = useState<string | null>(null);
 
   // Prefill name/email from a previously-saved viewer profile so a
   // returning free viewer doesn't retype them.
   useEffect(() => {
+    if (account) return; // the form fields default to the account (see accountName / accountEmail below)
     storage
       .get('viewerProfile')
       .then((raw) => {
@@ -874,7 +882,7 @@ export default function PublicLiveStreamScreen() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [account]);
 
   // ── Device-conflict modal ────────────────────────────────────────────────
   const [conflictOpen, setConflictOpen] = useState(false);
@@ -1407,7 +1415,7 @@ export default function PublicLiveStreamScreen() {
   };
 
   const onSubmitViewerInfo = async () => {
-    if (!infoName.trim() || !infoEmail.includes('@')) {
+    if (!accountName.trim() || !accountEmail.includes('@')) {
       setInfoError(
         status.isPaid ? 'Enter the name and email you used at checkout.' : 'Enter your name and email to join.',
       );
@@ -1424,8 +1432,8 @@ export default function PublicLiveStreamScreen() {
     try {
       const fingerprint = await getDeviceId();
       const reg = await registerAnonymousViewer(id, {
-        name: infoName.trim(),
-        email: infoEmail.trim(),
+        name: accountName.trim(),
+        email: accountEmail.trim(),
         // Free events don't collect a phone. The backend now allows an empty
         // phone, but until it's redeployed the register endpoint still
         // @NotBlank-rejects it — so send a harmless placeholder (it's only
@@ -1448,10 +1456,10 @@ export default function PublicLiveStreamScreen() {
       await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
       // Remember the viewer so we can prefill the form next time.
       await storage
-        .set('viewerProfile', JSON.stringify({ name: infoName.trim(), email: infoEmail.trim() }))
+        .set('viewerProfile', JSON.stringify({ name: accountName.trim(), email: accountEmail.trim() }))
         .catch(() => {});
       setViewerId(reg.viewerId);
-      setViewerName(infoName.trim());
+      setViewerName(accountName.trim());
       if (reg.hlsManifestUrl) {
         setManifestUrl(reg.hlsManifestUrl);
         setAccessGranted(true);
@@ -1479,29 +1487,46 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
+  /**
+   * The viewer id comments and video messages are sent under. A signed-in account on a FREE event is registered as a viewer
+   * silently with its own name and email, so it never sees the form (it used to, every time). Everyone else, and any
+   * PAID event (access is matched to a purchase), still gets the form, prefilled from the account when there is one.
+   */
+  const ensureViewerId = async (): Promise<string | undefined> => {
+    if (viewerId) return viewerId;
+    const registered = await registerAccountViewer(id, account, { paid: status.isPaid });
+    if (registered && account) {
+      setViewerId(registered);
+      setViewerName(account.name);
+    }
+    return registered;
+  };
+
   const onSendChat = async () => {
     const msg = chatDraft.trim();
     if (!msg) return;
-    if (!viewerId) {
+    setChatSending(true);
+    setChatError(null);
+    const vId = await ensureViewerId();
+    if (!vId) {
+      setChatSending(false);
       setChatError(status.isPaid ? 'Verify your access to chat.' : 'Add your name and email to comment.');
       setInfoModalOpen(true);
       return;
     }
-    setChatSending(true);
-    setChatError(null);
     try {
       const fingerprint = await getDeviceId();
       try {
-        await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+        await sendPublicStreamChat(id, { viewerId: vId, deviceFingerprint: fingerprint, message: msg });
       } catch (e) {
         // Backend rejects when the stored fingerprint doesn't match the one
         // registered for this viewerId (e.g. after reinstall / storage wipe).
         // Silently attempt to re-bind this device then retry once.
         const msg2 = isApiError(e) ? e.message.toLowerCase() : '';
         if (msg2.includes('fingerprint') || msg2.includes('mismatch') || msg2.includes('device')) {
-          const retry = await retryAnonymousDeviceAccess(id, viewerId, fingerprint);
+          const retry = await retryAnonymousDeviceAccess(id, vId, fingerprint);
           if (retry.ok) {
-            await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+            await sendPublicStreamChat(id, { viewerId: vId, deviceFingerprint: fingerprint, message: msg });
           } else {
             throw e; // other device still active — surface the real error
           }
@@ -1533,10 +1558,11 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
-  // Record (or pick) a ≤60s clip and post it as a video message — the
-  // mobile equivalent of the web's "Send 1-min video message" button.
+  // Record (or pick) a clip of at most one minute and post it as a video message, the mobile form of the web's
+  // "Send 1-min video message". A signed-in account is never asked for its name and email (see ensureViewerId).
   const onSendVideoWish = async () => {
-    if (!viewerId) {
+    const vId = await ensureViewerId();
+    if (!vId) {
       setChatError(
         status.isPaid
           ? 'Verify your access to send a video message.'
@@ -1547,51 +1573,17 @@ export default function PublicLiveStreamScreen() {
     }
     setChatError(null);
     try {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      let result: ImagePicker.ImagePickerResult;
-      if (perm.granted) {
-        result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ['videos'],
-          videoMaxDuration: 60,
-          quality: 0.7,
-        });
-        // User cancelled the camera — offer the library as a fallback so
-        // they can still send a clip they already recorded.
-        if (result.canceled) {
-          result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['videos'],
-            videoMaxDuration: 60,
-            quality: 0.7,
-          });
-        }
-      } else {
-        result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['videos'],
-          videoMaxDuration: 60,
-          quality: 0.7,
-        });
-      }
-      if (result.canceled || !result.assets?.length) return;
-      const asset = result.assets[0];
-
+      const video = await pickShortVideo();
+      if (!video) return;
       setVideoSending(true);
       const fingerprint = await getDeviceId();
-      const videoPayload = {
-        viewerId,
-        deviceFingerprint: fingerprint,
-        video: {
-          uri: asset.uri,
-          name: asset.fileName ?? `wish-${Date.now()}.mp4`,
-          mimeType: asset.mimeType ?? 'video/mp4',
-        },
-        content: chatDraft.trim() || undefined,
-      };
+      const videoPayload = { viewerId: vId, deviceFingerprint: fingerprint, video, content: chatDraft.trim() || undefined };
       try {
         await sendPublicVideoChat(id, videoPayload);
       } catch (e) {
         const msg2 = isApiError(e) ? e.message.toLowerCase() : '';
         if (msg2.includes('fingerprint') || msg2.includes('mismatch') || msg2.includes('device')) {
-          const retry = await retryAnonymousDeviceAccess(id, viewerId, fingerprint);
+          const retry = await retryAnonymousDeviceAccess(id, vId, fingerprint);
           if (retry.ok) {
             await sendPublicVideoChat(id, videoPayload);
           } else {
@@ -1687,14 +1679,14 @@ export default function PublicLiveStreamScreen() {
             </Text>
             <Input
               label="Name"
-              value={infoName}
+              value={accountName}
               onChangeText={setInfoName}
               placeholder="Full name"
               autoCapitalize="words"
             />
             <Input
               label="Email"
-              value={infoEmail}
+              value={accountEmail}
               onChangeText={setInfoEmail}
               placeholder="you@example.com"
               autoCapitalize="none"

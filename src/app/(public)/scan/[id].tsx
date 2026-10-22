@@ -35,7 +35,7 @@ export default function ScanEventScreen() {
     (async () => {
       if (!ready) await setPendingScanEvent(id).catch(() => {});
       // First-run terms come before everything else; the layout takes over from there.
-      if (termsAccepted) router.replace(`/(public)/event/${id}` as Href);
+      if (termsAccepted) router.replace(`/(public)/event/${id}?src=qr` as Href);
     })();
   }, [rawId, status, termsAccepted, router]);
 
