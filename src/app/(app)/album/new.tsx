@@ -52,6 +52,7 @@ import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { useLanguage } from '@/hooks/useLanguage';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 const ALB_MAP: Record<string, { fr: string; es: string }> = {
   'Cancel': { fr: 'Annuler', es: 'Cancelar' },
   'Change': { fr: 'Modifier', es: 'Cambiar' },
@@ -140,7 +141,9 @@ export default function NewAlbumScreen() {
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
 
   const [mode, setMode] = useState<Mode>('event');
-  const [personalType, setPersonalType] = useState<PersonalType>('PAID');
+  // A shared workspace cannot create paid albums: pricing and sales are the owner's money side.
+  const isShared = useWorkspace(selectIsShared);
+  const [personalType, setPersonalType] = useState<PersonalType>(isShared ? 'FREE' : 'PAID');
 
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [eventPickerOpen, setEventPickerOpen] = useState(false);
@@ -452,7 +455,7 @@ export default function NewAlbumScreen() {
 
             <FieldLabel text={trAlb('ALBUM TYPE')} required />
             <View style={styles.typeRow}>
-              <TypeCard
+              {isShared ? null : <TypeCard
                 active={personalType === 'PAID'}
                 icon="scan"
                 tag="MONETIZED"
@@ -463,7 +466,7 @@ export default function NewAlbumScreen() {
                   '70% photographer payout',
                 ]}
                 onPress={() => setPersonalType('PAID')}
-              />
+              />}
               <TypeCard
                 active={personalType === 'FREE'}
                 icon="mail"

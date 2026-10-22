@@ -15,6 +15,7 @@ import { CurrencyButton } from './CurrencyButton';
 import { LanguageButton } from './LanguageButton';
 import { NotificationButton } from './NotificationButton';
 import { ProfileButton } from './ProfileButton';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 
 const BAR_HEIGHT = 60;
 /** The photographer chrome is a tighter bar (the prototype's header is a single quiet row). */
@@ -51,6 +52,7 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
   const { role, isPhotographer } = useRole();
+  const isShared = useWorkspace(selectIsShared);
   const compact = isPhotographer;
   const barHeight = compact ? COMPACT_BAR_HEIGHT : BAR_HEIGHT;
 
@@ -85,12 +87,12 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </Pressable>
         ) : (
-          <ProfileButton user={user} compact={compact} onPress={() => router.push('/profile')} />
+          <ProfileButton user={user} compact={compact} onPress={() => router.push(isShared ? '/more' : '/profile')} />
         )}
         <BrandPill style={styles.brand} flat={compact} />
         <CurrencyButton compact={compact} />
         <LanguageButton compact={compact} />
-        <NotificationButton compact={compact} hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
+        {isShared ? null : <NotificationButton compact={compact} hasUnread={hasUnread} onPress={() => router.push('/notifications')} />}
       </View>
     </View>
   );

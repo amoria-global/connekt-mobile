@@ -18,6 +18,7 @@ import { useRole } from '@/features/auth/role';
 import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 
 export default function ClientsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
@@ -27,6 +28,8 @@ export default function ClientsScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   const { isCoordinator } = useRole();
+  // In a workspace the photographer was invited to, the spend, the client page and chat belong to the owner.
+  const isShared = useWorkspace(selectIsShared);
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => listClients(isCoordinator), [isCoordinator]),
   );
@@ -85,7 +88,7 @@ export default function ClientsScreen() {
                     titleLines={4}
                     metaLines={5}
                     meta={[item.email, bookings].filter(Boolean).join('\n') || undefined}
-                    onPress={() => router.push(`/client/${item.id}` as Href)}
+                    onPress={isShared ? undefined : () => router.push(`/client/${item.id}` as Href)}
                     leading={
                       item.avatar ? (
                         <Image source={{ uri: item.avatar }} style={styles.avatar} contentFit="cover" />
@@ -97,12 +100,12 @@ export default function ClientsScreen() {
                     }
                     trailing={
                       <View style={styles.trailing}>
-                        {item.totalSpent != null ? (
+                        {!isShared && item.totalSpent != null ? (
                           <Text style={styles.spent} maxFontSizeMultiplier={1.6}>
                             {formatPrice(item.totalSpent, item.currency)}
                           </Text>
                         ) : null}
-                        <Pressable
+                        {isShared ? null : <Pressable
                           hitSlop={8}
                           style={styles.chatAction}
                           onPress={(e) => {
@@ -113,7 +116,7 @@ export default function ClientsScreen() {
                           accessibilityLabel={t('b2_clientsMessageA11y').replace('{name}', item.name)}
                         >
                           <Ionicons name="chatbubble-ellipses-outline" size={19} color={colors.primary} />
-                        </Pressable>
+                        </Pressable>}
                       </View>
                     }
                   />

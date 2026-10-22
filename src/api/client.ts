@@ -8,6 +8,7 @@
 import { env } from '@/config/env';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
+import { WORKSPACE_NOT_AVAILABLE, workspaceHeaders } from '@/features/workspace/model';
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
@@ -23,6 +24,12 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
 let onAuthExpired: (() => void) | null = null;
 export function setOnAuthExpired(cb: () => void) {
   onAuthExpired = cb;
+}
+
+/** Called when the server refuses the selected workspace (membership ended, or never existed). */
+let onWorkspaceLost: (() => void) | null = null;
+export function setOnWorkspaceLost(cb: (() => void) | null) {
+  onWorkspaceLost = cb;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -42,9 +49,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     ...(headers as Record<string, string>),
   };
 
+  let sentWorkspace = false;
   if (!skipAuth) {
     const token = await storage.get(StorageKeys.authToken);
     if (token) finalHeaders.Authorization = `Bearer ${token}`;
+    // Working inside another photographer's workspace: the call names it, and the server checks the membership on
+    // every request. Read per request, so a switch applies to the very next call. Calls about the signed-in
+    // person themself never carry it.
+    const workspace = await storage.get(StorageKeys.activeWorkspace).catch(() => null);
+    const named = workspaceHeaders(path, workspace);
+    sentWorkspace = Object.keys(named).length > 0;
+    Object.assign(finalHeaders, named);
   }
 
   // File uploads, face scans, and KYC documents take longer to transmit and process on backend.
@@ -81,6 +96,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     const payload = isJson ? await res.json() : await res.text();
 
     if (!res.ok) {
+      // A revoked or unknown workspace is refused with one fixed message. Drop the selection, so the app falls back to
+      // the user's own workspace instead of staying on errors.
+      if (sentWorkspace && res.status === 403 && (payload as { message?: string } | null)?.message === WORKSPACE_NOT_AVAILABLE) {
+        await storage.remove(StorageKeys.activeWorkspace).catch(() => {});
+        onWorkspaceLost?.();
+      }
       throw normalizeError(res.status, payload);
     }
 

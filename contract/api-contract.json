@@ -2514,14 +2514,11 @@
   }, {
     "method" : "POST",
     "path" : "/api/pawapay/callback",
-    "controller" : "PawapayWebhookController#handleWebhook",
+    "controller" : "PawapayWebhookController#receive",
     "body" : {
-      "type" : "JsonNode"
-    },
-    "params" : [ {
-      "name" : "signature",
-      "required" : false
-    } ]
+      "type" : "byte[]",
+      "properties" : [ ]
+    }
   }, {
     "method" : "GET",
     "path" : "/api/pawapay/webhook",
@@ -2529,14 +2526,11 @@
   }, {
     "method" : "POST",
     "path" : "/api/pawapay/webhook",
-    "controller" : "PawapayWebhookController#handleWebhook",
+    "controller" : "PawapayWebhookController#receive",
     "body" : {
-      "type" : "JsonNode"
-    },
-    "params" : [ {
-      "name" : "signature",
-      "required" : false
-    } ]
+      "type" : "byte[]",
+      "properties" : [ ]
+    }
   }, {
     "method" : "GET",
     "path" : "/api/photographer/opportunities",
@@ -2815,6 +2809,14 @@
     "method" : "POST",
     "path" : "/api/remote/admin/wallets/provision-all",
     "controller" : "WalletController#provisionAll"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/admin/wallets/reconciliation/missing-effects",
+    "controller" : "WalletController#missingEffects",
+    "params" : [ {
+      "name" : "graceMinutes",
+      "required" : false
+    } ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/admin/wallets/{id}",
@@ -4184,6 +4186,21 @@
     "controller" : "CustomerRebookController#getRebookRecommendations",
     "pathVariables" : [ "eventId" ]
   }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/customer/events/{eventId}/reminder",
+    "controller" : "EventReminderController#unsubscribeCustomer",
+    "pathVariables" : [ "eventId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/customer/events/{eventId}/reminder",
+    "controller" : "EventReminderController#statusCustomer",
+    "pathVariables" : [ "eventId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/customer/events/{eventId}/reminder",
+    "controller" : "EventReminderController#subscribeCustomer",
+    "pathVariables" : [ "eventId" ]
+  }, {
     "method" : "POST",
     "path" : "/api/remote/customer/events/{eventId}/resume",
     "controller" : "EventRemoteController#resumeEvent",
@@ -5477,14 +5494,11 @@
   }, {
     "method" : "POST",
     "path" : "/api/remote/payments/pawapay/callback",
-    "controller" : "PawapayWebhookController#handleWebhook",
+    "controller" : "PawapayWebhookController#receive",
     "body" : {
-      "type" : "JsonNode"
-    },
-    "params" : [ {
-      "name" : "signature",
-      "required" : false
-    } ]
+      "type" : "byte[]",
+      "properties" : [ ]
+    }
   }, {
     "method" : "GET",
     "path" : "/api/remote/payments/pawapay/webhook",
@@ -5492,14 +5506,11 @@
   }, {
     "method" : "POST",
     "path" : "/api/remote/payments/pawapay/webhook",
-    "controller" : "PawapayWebhookController#handleWebhook",
+    "controller" : "PawapayWebhookController#receive",
     "body" : {
-      "type" : "JsonNode"
-    },
-    "params" : [ {
-      "name" : "signature",
-      "required" : false
-    } ]
+      "type" : "byte[]",
+      "properties" : [ ]
+    }
   }, {
     "method" : "GET",
     "path" : "/api/remote/payments/pending-declarations",
@@ -6722,6 +6733,63 @@
       "required" : false
     } ]
   }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/workspaces/invitations",
+    "controller" : "WorkspaceInvitationController#invite",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/photographer/workspaces/invitations/{id}",
+    "controller" : "WorkspaceInvitationController#cancel",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/workspaces/invitations/{id}/resend",
+    "controller" : "WorkspaceInvitationController#resend",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/workspaces/invitations/{id}/revoke",
+    "controller" : "WorkspaceInvitationController#revoke",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/workspaces/lookup",
+    "controller" : "WorkspaceInvitationController#lookup",
+    "params" : [ {
+      "name" : "email",
+      "required" : true
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/workspaces/mine",
+    "controller" : "WorkspaceInvitationController#mine"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/workspaces/received",
+    "controller" : "WorkspaceInvitationController#received"
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/workspaces/received/{id}/accept",
+    "controller" : "WorkspaceInvitationController#accept",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/workspaces/received/{id}/decline",
+    "controller" : "WorkspaceInvitationController#decline",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/workspaces/received/{id}/leave",
+    "controller" : "WorkspaceInvitationController#leave",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/workspaces/sent",
+    "controller" : "WorkspaceInvitationController#sent"
+  }, {
     "method" : "GET",
     "path" : "/api/remote/public/albums",
     "controller" : "PublicRemoteController#getAlbumByInviteCode",
@@ -7133,6 +7201,32 @@
     "method" : "POST",
     "path" : "/api/remote/public/events/{eventId}/reactions",
     "controller" : "PublicRemoteController#sendPublicReaction",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "eventId" ]
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/public/events/{eventId}/reminder",
+    "controller" : "EventReminderController#unsubscribeGuest",
+    "pathVariables" : [ "eventId" ],
+    "params" : [ {
+      "name" : "email",
+      "required" : true
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/events/{eventId}/reminder",
+    "controller" : "EventReminderController#statusGuest",
+    "pathVariables" : [ "eventId" ],
+    "params" : [ {
+      "name" : "email",
+      "required" : true
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/public/events/{eventId}/reminder",
+    "controller" : "EventReminderController#subscribeGuest",
     "body" : {
       "type" : "Map"
     },
