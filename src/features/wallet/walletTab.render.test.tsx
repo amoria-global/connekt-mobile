@@ -252,7 +252,7 @@ describe('photographer wallet tabs', () => {
     const text = flat(r.root);
     expect(text).toContain('Total spent');
     expect(text).toContain('Lifetime, not a period figure.');
-    expect(text).toContain('Where your money goes');
+    expect(text).toContain('Where your wallet stands');
     expect(text).not.toMatch(/NaN|undefined/);
   });
 
