@@ -212,7 +212,8 @@ describe('ClientWalletAnalytics', () => {
     expect(text).toContain('Total spent');
     expect(text).toContain('$320.00');
     expect(text).toContain('$25.00');
-    expect(text).toContain('Where your money goes');
+    expect(text).toContain('Where your wallet stands');
+    expect(text).not.toContain('Nothing in your wallet');
     expect(text).toContain('Up 15.0% vs last month');
     expect(text).toContain('Spending trend');
     expect(text).toContain('Events in this period');

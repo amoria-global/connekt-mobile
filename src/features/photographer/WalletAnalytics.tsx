@@ -28,7 +28,8 @@ import {
 import type { WalletDTO } from '@/features/wallet/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
 import { ActionButton, Card, ErrorNotice, IconTile, MetricCard, SectionHeader, SegmentedTabs, SkeletonCard } from './kit';
-import { SegmentRing, TrendChart } from './charts';
+import { TrendChart } from './charts';
+import { MoneyBreakdownCard } from '@/features/wallet/MoneyBreakdownCard';
 import { moneyText, percentOf } from './money';
 
 type PeriodKey = Exclude<AnalyticsPeriod, 'custom'>;
@@ -64,7 +65,6 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
   const { colors, isDark } = useTheme();
   // One hue per source, in a fixed order, so a source keeps its colour while the list changes length.
   const hues = [colors.primary, colors.accent, isDark ? '#2DD4E4' : '#0E7490', colors.warning, colors.success];
-  const sourceTotal = sources.reduce((sum, x) => sum + x.value, 0);
 
   return (
     <View>
@@ -97,48 +97,13 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
       </View>
 
       <SectionHeader title="Where your balance comes from" subtitle="Share of your current available balance" />
-      {sources.length === 0 ? (
-        <Card>
-          <Text style={styles.muted}>Nothing in your available balance yet.</Text>
-        </Card>
-      ) : (
-        <Card>
-          <View style={styles.sourceWrap}>
-            <SegmentRing
-              size={108}
-              stroke={14}
-              label={`Available balance by source: ${sources.map((x) => `${x.label} ${x.pct ?? 0} percent`).join(', ')}`}
-              segments={sources.map((x, i) => ({ value: x.value, color: hues[i % hues.length] }))}
-            >
-              <View style={styles.ringCentre}>
-                <Text style={styles.ringTotal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} maxFontSizeMultiplier={1.6}>
-                  {moneyText(sourceTotal, currency)}
-                </Text>
-                <Text style={styles.ringCaption}>Combined</Text>
-              </View>
-            </SegmentRing>
-            <View style={styles.sourceList}>
-              {sources.map((x, i) => (
-                <View
-                  key={x.label}
-                  style={styles.sourceRow}
-                  accessible
-                  accessibilityLabel={`${x.label}, ${moneyText(x.value, currency)}${x.pct != null ? `, ${x.pct} percent` : ''}`}
-                >
-                  <View style={[styles.swatch, { backgroundColor: hues[i % hues.length] }]} />
-                  <Text style={styles.sourceLabel} numberOfLines={2}>
-                    {x.label}
-                  </Text>
-                  <Text style={styles.sourceValue} numberOfLines={1}>
-                    {moneyText(x.value, currency)}
-                  </Text>
-                  <Text style={styles.sourcePct}>{x.pct != null ? `${x.pct}%` : ''}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </Card>
-      )}
+      <MoneyBreakdownCard
+        segments={sources}
+        hues={hues}
+        currency={currency}
+        summary="Available balance by source"
+        emptyText="Nothing in your available balance yet."
+      />
 
       <SectionHeader title="Activity" subtitle="Pick a period" />
       <SegmentedTabs tabs={PERIODS} value={period} onChange={setPeriod} label="Reporting period" />

@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-22-wallet-ring-fix",
+            "date": "2026-10-22",
+            "title": "A clearer balance ring in the wallet Analytics tab",
+            "items": [
+              {
+                "icon": "pie-chart-outline",
+                "title": "The ring no longer overlaps its figures",
+                "body": "In the wallet Analytics tab the total now fits inside the ring, and every amount in the list shows your currency with two decimals instead of a long raw number."
+              },
+              {
+                "icon": "wallet-outline",
+                "title": "Clients now see the balance ring too",
+                "body": "The client wallet Analytics tab now shows the same ring as the photographer and event coordinator wallets, built from your balance, refunds, tips, gifts, donations and what is still processing."
+              }
+            ]
+          },
+          {
             "id": "2026-10-22-coordinator-wallet-analytics",
             "date": "2026-10-22",
             "title": "Analytics in the event coordinator wallet",
@@ -202,43 +219,6 @@
                 "icon": "wallet-outline",
                 "title": "Set up how you get paid",
                 "body": "If you are a photographer or coordinator and have not added a withdrawal method yet, your wallet now tells you as soon as you open it, with the three steps to add one. Choose Do it later and it reminds you on your next visit."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-21",
-            "date": "2026-10-21",
-            "title": "Streams, albums and a cleaner Home",
-            "items": [
-              {
-                "icon": "hand-left-outline",
-                "title": "A welcome that matches the website",
-                "body": "Every Home now opens with a banner that greets you by time of day, rotates its greeting, and shows your name in the Connekyt blue to pink colours."
-              },
-              {
-                "icon": "videocam-outline",
-                "title": "Streams work like the dashboard",
-                "body": "Totals for streams, viewers, chat messages and video messages. Search your streams, filter by event type, read the chat of any stream, watch viewers' video messages with new ones marked, and delete a stream record after confirming."
-              },
-              {
-                "icon": "images-outline",
-                "title": "Album photos and covers load again",
-                "body": "Photos and covers in your albums, including paid albums and file names with spaces, now appear instead of grey boxes."
-              },
-              {
-                "icon": "speedometer-outline",
-                "title": "Smoother scrolling, no empty space",
-                "body": "Screens no longer leave a large empty band at the end of a list, and the public event page and Explore Events render with less lag."
-              },
-              {
-                "icon": "cash-outline",
-                "title": "Real figures, no guesses",
-                "body": "Donation amounts, currencies, event categories and photographer specialties now come from our servers instead of fixed lists. If a figure cannot be loaded, the app says so instead of showing zero."
-              },
-              {
-                "icon": "camera-outline",
-                "title": "A clearer Event Ended screen",
-                "body": "When an event is over, you get the event photo, a short explanation and two clear buttons: Find my photos and View event details."
               }
             ]
           }
