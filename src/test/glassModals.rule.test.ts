@@ -15,6 +15,7 @@ const EXEMPT: Record<string, { count: number; why: string }> = {
   'features/photos/FindMyPhotos.tsx': { count: 1, why: 'full-screen photo lightbox' },
   'features/bookings/BookingRequestCallModal.tsx': { count: 1, why: 'incoming booking call screen' },
   'features/hybrid/IncomingOpportunityAlertModal.tsx': { count: 1, why: 'incoming opportunity call screen' },
+  'features/updates/UpdatePromptModal.tsx': { count: 1, why: 'full-screen blocking update screen with its own fixed dark gradient' },
   'features/payments/CountrySelectModal.tsx': { count: 1, why: 'native iOS page sheet picker' },
 };
 
