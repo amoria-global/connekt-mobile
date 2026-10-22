@@ -43,8 +43,6 @@ import { ClientHome } from '@/features/dashboard/ClientHome';
 import { pendingPostDelivery, pendingPostEvent } from '@/features/hybrid/postEventIntent';
 import { env } from '@/config/env';
 import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
-import { SharedWorkspaceHome } from '@/features/workspace/SharedWorkspaceHome';
-import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { CoordinatorHome } from '@/features/dashboard/CoordinatorHome';
 import { GetHelpCard } from '@/features/support/GetHelpCard';
 import {
@@ -170,14 +168,7 @@ const PERIOD_LABEL: Record<AnalyticsPeriod, string> = {
   custom: 'custom',
 };
 
-/** In a workspace the photographer was invited to, the owner's Home (earnings, balance, payments) is never loaded. */
 export default function HomeScreen() {
-  const { isPhotographer } = useRole();
-  const isShared = useWorkspace(selectIsShared);
-  return isPhotographer && isShared ? <SharedWorkspaceHome /> : <OwnHomeScreen />;
-}
-
-function OwnHomeScreen() {
   // Re-render when the display currency or language changes
   useCurrency((s) => s.currency);
   const { language, t } = useLanguage();

@@ -50,16 +50,16 @@ describe('which calls carry the workspace', () => {
 describe('screens that do not exist in a shared workspace', () => {
   it('blocks money, account, notification, chat and collaboration screens and their sub screens', () => {
     for (const p of [
-      '/wallet', '/wallet/movements', '/transactions', '/withdraw', '/payroll', '/analytics', '/payments', '/payment/p1', '/payment-accounts',
+      '/wallet', '/wallet/movements', '/transactions', '/withdraw', '/payroll', '/payments', '/payment/p1', '/payment-accounts',
       '/donations', '/notifications', '/inbox', '/conversation/c1', '/preferences', '/profile', '/edit-profile', '/kyc', '/two-factor',
-      '/delete-account', '/collaborate', '/collaborate/join/abc', '/client/c1',
+      '/delete-account', '/collaborate', '/collaborate/join/abc',
     ]) {
       expect(isBlockedInSharedWorkspace(p)).toBe(true);
     }
   });
 
   it('leaves the work screens open', () => {
-    for (const p of ['/', '/events', '/event/e1', '/clients', '/bookings', '/album/a1', '/gallery', '/packages', '/photobooks', '/more']) {
+    for (const p of ['/', '/events', '/event/e1', '/clients', '/client/c1', '/analytics', '/bookings', '/content-albums', '/album/a1', '/gallery', '/packages', '/photobooks', '/more']) {
       expect(isBlockedInSharedWorkspace(p)).toBe(false);
     }
     expect(isBlockedInSharedWorkspace(null)).toBe(false);

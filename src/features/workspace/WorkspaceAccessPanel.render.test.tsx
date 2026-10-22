@@ -95,7 +95,7 @@ describe('workspace access panel', () => {
     const r = await mount();
     const t = text(r.root);
     expect(t).toContain('Let another photographer work in your workspace');
-    expect(t).toContain('cannot see your wallet, payments or account settings');
+    expect(t).toContain('cannot withdraw, see transactions or change account settings');
     expect(t).toContain('You have not invited anyone yet');
   });
 
@@ -183,7 +183,7 @@ describe('workspace access panel', () => {
     mockApi.answerInvitation.mockResolvedValue(inv({ id: 'r1', status: 'ACCEPTED' }));
     const r = await mount();
     expect(text(r.root)).toContain('Invitations for you');
-    expect(text(r.root)).toContain('Wallet and payments stay with them');
+    expect(text(r.root)).toContain('Withdrawals and transactions stay with them');
     mockApi.listReceivedInvitations.mockResolvedValue([inv({ id: 'r1', status: 'ACCEPTED' })]);
     const accept = pressAll(r, 'Accept')[0];
     await act(async () => {

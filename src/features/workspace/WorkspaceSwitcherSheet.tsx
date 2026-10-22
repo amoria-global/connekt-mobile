@@ -28,7 +28,7 @@ export function WorkspaceSwitcherSheet({ visible, onClose }: { visible: boolean;
 
   const rows: { id: string | null; title: string; caption: string }[] = [
     { id: null, title: 'My workspace', caption: 'Your own bookings, wallet and settings' },
-    ...memberships.map((m) => ({ id: m.workspaceId, title: `${m.owner.name}'s workspace`, caption: 'Work as a collaborator. Wallet and settings stay with them.' })),
+    ...memberships.map((m) => ({ id: m.workspaceId, title: `${m.owner.name}'s workspace`, caption: 'Work as a collaborator. Withdrawals, transactions and settings stay with them.' })),
   ];
 
   return (

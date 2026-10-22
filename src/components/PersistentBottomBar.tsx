@@ -721,7 +721,7 @@ export function MoreSheet({
     // In a shared workspace only the work entries stay: money, the owner's account, notifications and collaboration
     // belong to the owner.
     if (isShared && isPhotographer) {
-      const hidden = new Set(['profile', 'streams', 'calendar', 'opportunities', 'collaborate', 'transactions', 'donations', 'notifications', 'preferences']);
+      const hidden = new Set(['profile', 'streams', 'calendar', 'collaborate', 'transactions', 'donations', 'notifications', 'preferences']);
       return list.filter((i) => !hidden.has(i.id));
     }
     return list;
