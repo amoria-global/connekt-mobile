@@ -256,15 +256,21 @@ describe('photographer wallet tabs', () => {
     expect(text).not.toMatch(/NaN|undefined/);
   });
 
-  it('coordinators get Overview and Activity tabs, no Analytics, and the coordinator wallet view', async () => {
+  it('coordinators get Overview, Analytics and Activity tabs and the coordinator wallet view', async () => {
     mockRole = 'COORDINATOR';
     serve('wallet-me-client.json', 'wallet-movements-client.json');
     const r = await mount();
     const overview = flat(r.root);
-    expect(overview).not.toContain('Analytics');
+    expect(overview).toContain('Analytics');
     // The app's role name "Coordinator" used to fall through to the client view and read "Total spent".
     expect(overview).toContain('Available balance');
     expect(overview).not.toContain('Total spent');
+    await openTab(r, 'Analytics');
+    const text = flat(r.root);
+    expect(text).toContain('Available to withdraw');
+    expect(text).toContain('Current balance, not a period figure.');
+    expect(text).toContain('Where your balance comes from');
+    expect(text).not.toMatch(/Total spent|NaN|undefined/);
     await openTab(r, 'Activity');
     expect(flat(r.root)).toContain('Showing');
   });
