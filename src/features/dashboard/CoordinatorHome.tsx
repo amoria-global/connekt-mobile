@@ -273,6 +273,9 @@ export function CoordinatorHome() {
               <ActionButton label="Photographers" icon="camera-outline" onPress={() => open('/photographers')} style={styles.flex} />
             </View>
             <View style={styles.stack}>
+              <ActionButton label="Calendar" caption="Events and payments by day" icon="calendar-outline" onPress={() => open('/calendar')} />
+            </View>
+            <View style={styles.stack}>
               <ActionButton
                 label="Live streams"
                 caption={anyLive ? 'Live now' : 'Control and watch'}

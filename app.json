@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-22-coordinator-calendar",
+            "date": "2026-10-22",
+            "title": "A Calendar for event coordinators",
+            "items": [
+              {
+                "icon": "calendar-outline",
+                "title": "See your events and payments by day",
+                "body": "Event coordinators now have a Calendar screen with Month, Week and Agenda views. Your events appear on their date with the time and place, live events are marked, and payments you still owe show on their due date."
+              },
+              {
+                "icon": "filter-outline",
+                "title": "Filter and jump straight to the work",
+                "body": "Filter the calendar to events, live events or payments, tap Today to come back, and open an event or the payments screen straight from its card. Find Calendar on your Home screen and in the More menu."
+              }
+            ]
+          },
+          {
             "id": "2026-10-22-client-wallet-ring",
             "date": "2026-10-22",
             "title": "The client wallet ring now always shows",
@@ -192,28 +209,6 @@
                 "icon": "trending-up-outline",
                 "title": "Events and revenue by period",
                 "body": "Pick Today, Week or Month to see how many events and photographers you worked with, a revenue trend, and the number of events in each interval, all compared with the previous period."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-22-video-wish",
-            "date": "2026-10-22",
-            "title": "Video wishes, a simpler event page after scanning, and no repeated sign-in details",
-            "items": [
-              {
-                "icon": "videocam-outline",
-                "title": "Send a 1 minute video wish before an event",
-                "body": "On an upcoming event you can now record a video wish of up to one minute for the organizer, just like on the website. Your text wishes also work again, they were being refused before."
-              },
-              {
-                "icon": "qr-code-outline",
-                "title": "A simpler page when you scan an event QR code",
-                "body": "Scanning an event QR code now shows the essentials first: the event name, date, place, price and what you can do. A Show full details button opens everything else when you want it."
-              },
-              {
-                "icon": "person-circle-outline",
-                "title": "No more typing your name and email again",
-                "body": "If you are signed in, wishes and live stream comments and video messages use your account name and email automatically. Guests only enter theirs once and the app remembers them."
               }
             ]
           }
