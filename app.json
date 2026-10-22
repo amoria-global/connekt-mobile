@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-22-coordinator-wallet-analytics",
+            "date": "2026-10-22",
+            "title": "Analytics in the event coordinator wallet",
+            "items": [
+              {
+                "icon": "stats-chart-outline",
+                "title": "A new Analytics tab in your wallet",
+                "body": "The event coordinator wallet now has the same Analytics tab as the photographer wallet, with your available balance, what is still processing, and a chart of where your balance comes from."
+              },
+              {
+                "icon": "trending-up-outline",
+                "title": "Events and revenue by period",
+                "body": "Pick Today, Week or Month to see how many events and photographers you worked with, a revenue trend, and the number of events in each interval, all compared with the previous period."
+              }
+            ]
+          },
+          {
             "id": "2026-10-22-video-wish",
             "date": "2026-10-22",
             "title": "Video wishes, a simpler event page after scanning, and no repeated sign-in details",

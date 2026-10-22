@@ -56,6 +56,7 @@ import { canUsePaymentsScreen } from '@/features/payments/access';
 import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
 import { ClientWalletAnalytics } from '@/features/client/ClientWalletAnalytics';
+import { CoordinatorWalletAnalytics } from '@/features/wallet/CoordinatorWalletAnalytics';
 import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { WithdrawMethodPrompt } from '@/features/paymentAccounts/WithdrawMethodPrompt';
@@ -178,8 +179,8 @@ export default function WalletScreen() {
   // The pending row appears only when the wallet reports a pending figure (a reported 0 still shows); no figure is never drawn as $0.00.
   const pendingLabel = stats?.pendingChip?.label ?? 'Pending release';
   const pendingValue = stats?.pendingChip?.value ?? 0;
-  // Photographers, clients and coordinators get the sectioned wallet. Coordinators have no Analytics tab: that
-  // view charts a client's spending or a photographer's earnings, neither of which is theirs.
+  // Photographers, clients and coordinators get the sectioned wallet, each with an Analytics tab drawn from their own
+  // figures (earnings, spending, or the coordinator's balance and event revenue).
   const tabbed = isPhotographer || !!isClient || isCoordinator;
   const showOverview = !tabbed || walletTab === 'overview';
   const showAnalytics = tabbed && walletTab === 'analytics';
@@ -247,7 +248,7 @@ export default function WalletScreen() {
                 onChange={setWalletTab}
                 tabs={[
                   { key: 'overview', label: 'Overview' },
-                  ...(isCoordinator ? [] : [{ key: 'analytics' as const, label: 'Analytics' }]),
+                  { key: 'analytics' as const, label: 'Analytics' },
                   { key: 'activity', label: 'Activity' },
                 ]}
               />
@@ -395,7 +396,13 @@ export default function WalletScreen() {
           {showAnalytics ? (
             // The analytics blocks carry their own side margins, so cancel the scroll's padding.
             <View style={styles.walletBleed}>
-              {isPhotographer ? <WalletAnalytics wallet={data?.wallet ?? null} /> : <ClientWalletAnalytics wallet={data?.wallet ?? null} />}
+              {isPhotographer ? (
+                <WalletAnalytics wallet={data?.wallet ?? null} />
+              ) : isCoordinator ? (
+                <CoordinatorWalletAnalytics wallet={data?.wallet ?? null} />
+              ) : (
+                <ClientWalletAnalytics wallet={data?.wallet ?? null} />
+              )}
             </View>
           ) : null}
 
