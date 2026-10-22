@@ -17,7 +17,8 @@ const OWNER = '3f2a9c1e-5b7d-4c8e-9a10-0b1c2d3e4f50';
 
 describe('which calls carry the workspace', () => {
   it('names the workspace on the work calls', () => {
-    for (const p of ['/photographer/events', '/photographer/clients', '/photographer/bookings/b1/accept', '/customer/galleries', '/photographer/albums']) {
+    for (const p of ['/photographer/events', '/photographer/clients', '/photographer/bookings/b1/accept', '/customer/galleries', '/photographer/albums',
+      '/wallet/me', '/photographer/analytics', '/photographer/opportunities', '/photographer/notifications/unread-count', '/chat/conversations']) {
       expect(workspaceHeaders(p, OWNER)).toEqual({ [WORKSPACE_HEADER]: OWNER });
     }
   });
@@ -25,7 +26,7 @@ describe('which calls carry the workspace', () => {
   it('keeps calls about the signed-in person themself out of the workspace', () => {
     for (const p of [
       '/auth/refresh', '/public/events', '/customer/profile', '/customer/kyc/status', '/customer/totp/enable', '/customer/notifications',
-      '/photographer/notifications/unread-count', '/photographer/workspaces/mine', '/photographer/profile-summary', '/team/me/permissions',
+      '/photographer/workspaces/mine', '/photographer/profile-summary', '/team/me/permissions',
     ]) {
       expect(isPersonalCall(p)).toBe(true);
       expect(workspaceHeaders(p, OWNER)).toEqual({});
@@ -50,8 +51,8 @@ describe('which calls carry the workspace', () => {
 describe('screens that do not exist in a shared workspace', () => {
   it('blocks money, account, notification, chat and collaboration screens and their sub screens', () => {
     for (const p of [
-      '/wallet', '/wallet/movements', '/transactions', '/withdraw', '/payroll', '/payments', '/payment/p1', '/payment-accounts',
-      '/donations', '/notifications', '/inbox', '/conversation/c1', '/preferences', '/profile', '/edit-profile', '/kyc', '/two-factor',
+      '/wallet/movements', '/transactions', '/withdraw', '/payroll', '/payments', '/payment/p1', '/payment-accounts',
+      '/donations', '/preferences', '/profile', '/edit-profile', '/kyc', '/two-factor',
       '/delete-account', '/collaborate', '/collaborate/join/abc',
     ]) {
       expect(isBlockedInSharedWorkspace(p)).toBe(true);
@@ -59,7 +60,7 @@ describe('screens that do not exist in a shared workspace', () => {
   });
 
   it('leaves the work screens open', () => {
-    for (const p of ['/', '/events', '/event/e1', '/clients', '/client/c1', '/analytics', '/bookings', '/content-albums', '/album/a1', '/gallery', '/packages', '/photobooks', '/more']) {
+    for (const p of ['/', '/events', '/event/e1', '/clients', '/client/c1', '/analytics', '/wallet', '/notifications', '/inbox', '/conversation/c1', '/bookings', '/content-albums', '/album/a1', '/gallery', '/packages', '/photobooks', '/more']) {
       expect(isBlockedInSharedWorkspace(p)).toBe(false);
     }
     expect(isBlockedInSharedWorkspace(null)).toBe(false);
@@ -67,6 +68,7 @@ describe('screens that do not exist in a shared workspace', () => {
 
   it('does not block a path that merely starts with the same letters', () => {
     expect(isBlockedInSharedWorkspace('/walletish')).toBe(false);
+    expect(isBlockedInSharedWorkspace('/wallet')).toBe(false);
     expect(isBlockedInSharedWorkspace('/clients')).toBe(false);
   });
 });

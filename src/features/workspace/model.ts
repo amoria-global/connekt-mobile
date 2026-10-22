@@ -104,7 +104,6 @@ const PERSONAL_PATHS = [
   '/customer/kyc',
   '/customer/totp',
   '/customer/notifications',
-  '/photographer/notifications',
   '/photographer/workspaces',
   '/photographer/profile-summary',
   '/photographer/pending-changes',
@@ -138,12 +137,13 @@ export function workspaceHeaders(pathOrUrl: string, workspaceId: string | null |
 // ─── Screens that do not exist in a shared workspace ───
 
 /**
- * Route paths (as expo-router reports them) that are not part of a shared workspace: everything about money, the
- * owner's account, notifications, chat and managing who else is invited. The server refuses the
- * matching calls regardless; this keeps menus, tabs and deep links honest.
+ * Route paths (as expo-router reports them) that are not part of a shared workspace: withdrawing, the transaction
+ * history, payroll and payments, donating, the owner's account settings and managing who else is invited. The Wallet
+ * tab IS available (its overview shows the balance); its withdraw button and activity list are left out of it. The
+ * server refuses the matching calls regardless; this keeps menus, tabs and deep links honest.
  */
 const SHARED_BLOCKED_ROUTES = [
-  '/wallet',
+  '/wallet/movements',
   '/transactions',
   '/withdraw',
   '/payroll',
@@ -152,9 +152,6 @@ const SHARED_BLOCKED_ROUTES = [
   '/payment-accounts',
   '/donations',
   '/pay-on-tv',
-  '/notifications',
-  '/inbox',
-  '/conversation',
   '/preferences',
   '/profile',
   '/edit-profile',

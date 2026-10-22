@@ -60,6 +60,7 @@ import { CoordinatorWalletAnalytics } from '@/features/wallet/CoordinatorWalletA
 import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { WithdrawMethodPrompt } from '@/features/paymentAccounts/WithdrawMethodPrompt';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
@@ -81,7 +82,10 @@ export default function WalletScreen() {
 
   const { isPhotographer, isCoordinator, isClient, role } = useRole();
   const user = useAuth((s) => s.user);
-  const canWithdraw = isPhotographer || isCoordinator;
+  // In a workspace the photographer was invited to, the balance and summaries are visible; withdrawing and the activity
+  // list (the transaction history) stay with the owner, so they are neither offered nor requested.
+  const isShared = useWorkspace(selectIsShared);
+  const canWithdraw = (isPhotographer || isCoordinator) && !isShared;
 
   const [activeFilter, setActiveFilter] = useState('All');
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
@@ -101,11 +105,13 @@ export default function WalletScreen() {
   const fetchData = useCallback(async () => {
     const [wallet, history] = await Promise.all([
       getWallet(),
-      // A failed history read is reported, not shown as an empty history.
-      listWalletMovementsPage(0, 50).then((m) => ({ m, failed: false }), () => ({ m: null as MovementPage | null, failed: true })),
+      // A failed history read is reported, not shown as an empty history. A collaborator never asks for it.
+      isShared
+        ? Promise.resolve({ m: null as MovementPage | null, failed: false })
+        : listWalletMovementsPage(0, 50).then((m) => ({ m, failed: false }), () => ({ m: null as MovementPage | null, failed: true })),
     ]);
     return { wallet, history: history.m, movementsFailed: history.failed };
-  }, []);
+  }, [isShared]);
 
   const { data, loading, error, refresh } = useAsync(fetchData);
 
@@ -163,7 +169,7 @@ export default function WalletScreen() {
     return filteredActivityItems.slice(start, start + PAGE_SIZE);
   }, [filteredActivityItems, safePage]);
 
-  const links: Link[] = [
+  const links: Link[] = isShared ? [] : [
     { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
     // Photographers receive payments, they do not make them: no Payments screen for them.
     ...(canUsePaymentsScreen(role)
@@ -249,7 +255,7 @@ export default function WalletScreen() {
                 tabs={[
                   { key: 'overview', label: 'Overview' },
                   { key: 'analytics' as const, label: 'Analytics' },
-                  { key: 'activity', label: 'Activity' },
+                  ...(isShared ? [] : [{ key: 'activity' as const, label: 'Activity' }]),
                 ]}
               />
             </View>
@@ -446,8 +452,13 @@ export default function WalletScreen() {
             </View>
           )}
 
+          {/* A collaborator does not see the activity list: it is the owner's transaction history. */}
+          {showOverview && tabbed && isShared ? (
+            <Text style={styles.recentNote} accessibilityRole="text">Withdrawals and the transaction history stay with the workspace owner.</Text>
+          ) : null}
+
           {/* The latest movements, then the places money is managed. */}
-          {showOverview && tabbed ? (
+          {showOverview && tabbed && !isShared ? (
             <>
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
