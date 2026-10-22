@@ -143,7 +143,7 @@ function useProtectedRoute() {
     const goOr = (fallback: string) => {
       takePendingScanEvent()
         .catch(() => null)
-        .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}` : fallback) as Href));
+        .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}?src=qr` : fallback) as Href));
     };
 
     if (status === 'authenticated') {
