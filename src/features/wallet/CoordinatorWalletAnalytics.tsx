@@ -28,7 +28,8 @@ import { ActionButton, Card, ErrorNotice, IconTile, MetricCard, SectionHeader, S
 import { TrendChart } from '@/features/photographer/charts';
 import { moneyText } from '@/features/photographer/money';
 import { trendCaption } from '@/features/photographer/WalletAnalytics';
-import { CountBars, StatusBreakdownCard } from '@/features/client/ClientCharts';
+import { CountBars } from '@/features/client/ClientCharts';
+import { MoneyBreakdownCard } from './MoneyBreakdownCard';
 
 type PeriodKey = Exclude<AnalyticsPeriod, 'custom'>;
 const PERIODS: readonly { key: PeriodKey; label: string }[] = [
@@ -50,9 +51,8 @@ export function CoordinatorWalletAnalytics({ wallet }: { wallet: WalletDTO | nul
     () =>
       (stats?.cards ?? [])
         .filter((c) => !c.hidden && c.label !== 'Total withdrawn' && c.value > 0)
-        .map((c, i) => ({ key: c.label, label: c.label, value: c.value, color: hues[i % hues.length] })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stats, isDark],
+        .map((c) => ({ label: c.label, value: c.value })),
+    [stats],
   );
 
   return (
@@ -86,9 +86,10 @@ export function CoordinatorWalletAnalytics({ wallet }: { wallet: WalletDTO | nul
       </View>
 
       <SectionHeader title="Where your balance comes from" subtitle="Share of what your wallet reports" />
-      <StatusBreakdownCard
+      <MoneyBreakdownCard
         segments={segments}
-        centerLabel="by source"
+        hues={hues}
+        currency={currency}
         summary="Wallet figures by source"
         emptyText="Nothing in your wallet yet."
       />
