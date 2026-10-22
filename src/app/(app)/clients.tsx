@@ -28,7 +28,7 @@ export default function ClientsScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   const { isCoordinator } = useRole();
-  // In a workspace the photographer was invited to, the spend, the client page and chat belong to the owner.
+  // Chat is not part of a shared workspace (messages would go out as the owner), so the message button is not offered.
   const isShared = useWorkspace(selectIsShared);
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => listClients(isCoordinator), [isCoordinator]),
@@ -88,7 +88,7 @@ export default function ClientsScreen() {
                     titleLines={4}
                     metaLines={5}
                     meta={[item.email, bookings].filter(Boolean).join('\n') || undefined}
-                    onPress={isShared ? undefined : () => router.push(`/client/${item.id}` as Href)}
+                    onPress={() => router.push(`/client/${item.id}` as Href)}
                     leading={
                       item.avatar ? (
                         <Image source={{ uri: item.avatar }} style={styles.avatar} contentFit="cover" />
@@ -100,7 +100,7 @@ export default function ClientsScreen() {
                     }
                     trailing={
                       <View style={styles.trailing}>
-                        {!isShared && item.totalSpent != null ? (
+                        {item.totalSpent != null ? (
                           <Text style={styles.spent} maxFontSizeMultiplier={1.6}>
                             {formatPrice(item.totalSpent, item.currency)}
                           </Text>

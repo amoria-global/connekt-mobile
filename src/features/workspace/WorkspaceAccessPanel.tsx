@@ -126,8 +126,7 @@ export function WorkspaceAccessPanel() {
         <View style={styles.flex}>
           <Text style={styles.explainTitle}>Let another photographer work in your workspace</Text>
           <Text style={styles.muted}>
-            They sign in with their own account and switch into your workspace. They can handle bookings, events, albums and clients
-            with you. They cannot see your wallet, payments or account settings, and they do not become you.
+            They sign in with their own account and switch into your workspace. They can handle bookings, events, opportunities, albums and clients with you, and see your balance and analytics. They cannot withdraw, see transactions or change account settings, and they do not become you.
           </Text>
         </View>
       </View>
@@ -325,7 +324,7 @@ function ReceivedRow({ inv, busy, onAccept, onDecline, onOpen, onLeave }: {
       <View style={styles.statusLine}><StatusBadge inv={inv} /></View>
       <Text style={styles.muted}>
         {inv.status === 'PENDING'
-          ? `${inv.owner.name} invited you to work in their workspace. You would handle bookings, events, albums and clients. Wallet and payments stay with them.`
+          ? `${inv.owner.name} invited you to work in their workspace. You would handle bookings, events, albums and clients, and see their balance and analytics. Withdrawals and transactions stay with them.`
           : v.meaning.invitee}
       </Text>
       <View style={styles.actions}>

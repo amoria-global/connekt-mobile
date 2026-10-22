@@ -139,7 +139,7 @@ export function workspaceHeaders(pathOrUrl: string, workspaceId: string | null |
 
 /**
  * Route paths (as expo-router reports them) that are not part of a shared workspace: everything about money, the
- * owner's account, notifications, chat, opportunities and managing who else is invited. The server refuses the
+ * owner's account, notifications, chat and managing who else is invited. The server refuses the
  * matching calls regardless; this keeps menus, tabs and deep links honest.
  */
 const SHARED_BLOCKED_ROUTES = [
@@ -147,11 +147,9 @@ const SHARED_BLOCKED_ROUTES = [
   '/transactions',
   '/withdraw',
   '/payroll',
-  '/analytics',
   '/payments',
   '/payment',
   '/payment-accounts',
-  '/client',
   '/donations',
   '/pay-on-tv',
   '/notifications',
@@ -167,8 +165,6 @@ const SHARED_BLOCKED_ROUTES = [
   '/tv-devices',
   '/connect-to-tv',
   '/collaborate',
-  '/content-albums',
-  '/content-album',
 ];
 
 export function isBlockedInSharedWorkspace(pathname: string | null | undefined): boolean {

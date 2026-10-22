@@ -2,13 +2,12 @@ import React from 'react';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { Text } from 'react-native';
 
-import { SharedWorkspaceHome } from './SharedWorkspaceHome';
 import { WorkspaceChip } from './WorkspaceChip';
 import { WorkspaceSwitcherSheet } from './WorkspaceSwitcherSheet';
 
 /**
- * Inside someone else's workspace the Home draws no money and says whose workspace it is; the header chip appears
- * only there; and the switcher offers the own workspace and each invited one.
+ * The header chip appears only inside someone else's workspace, and the switcher offers the own workspace and each
+ * invited one.
  */
 import '@/test/autoUnmount';
 
@@ -56,35 +55,6 @@ beforeEach(() => {
   mockState.switchTo.mockClear();
   mockPush.mockReset();
   mockReplace.mockReset();
-});
-
-describe('shared workspace home', () => {
-  it('lists what a collaborator can do and what stays with the owner, and draws no money', async () => {
-    mockState.activeId = OWNER;
-    mockState.memberships = [{ workspaceId: OWNER, owner: { id: OWNER, name: 'Aline Uwase' } }];
-    const r = await make(<SharedWorkspaceHome />);
-    const t = text(r.root);
-    expect(t).toContain("Aline Uwase's workspace");
-    expect(t).toContain('Events and bookings');
-    expect(t).toContain('Wallet, balance and earnings');
-    expect(t).toContain('Payments, withdrawals and payout details');
-    expect(t).not.toMatch(/[$]\s?\d|RWF|USD|Total Earnings/);
-  });
-
-  it('opens the work screens and offers the way back', async () => {
-    mockState.activeId = OWNER;
-    mockState.memberships = [{ workspaceId: OWNER, owner: { id: OWNER, name: 'Aline Uwase' } }];
-    const r = await make(<SharedWorkspaceHome />);
-    const press = (label: string) => r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.props.accessibilityLabel === label)[0];
-    await act(async () => { press('Events and bookings').props.onPress(); });
-    expect(mockPush).toHaveBeenCalledWith('/events');
-    await act(async () => { press('Clients').props.onPress(); });
-    expect(mockPush).toHaveBeenCalledWith('/clients');
-    const back = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.findAllByType(Text).length > 0 && text(n) === 'Back to my workspace')[0];
-    await act(async () => { back.props.onPress(); });
-    expect(mockState.switchTo).toHaveBeenCalledWith(null);
-    expect(mockPush.mock.calls.flat().some((p: unknown) => /wallet|transaction|payment/.test(String(p)))).toBe(false);
-  });
 });
 
 describe('workspace chip', () => {
