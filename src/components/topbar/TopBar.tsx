@@ -92,7 +92,7 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
         <BrandPill style={styles.brand} flat={compact} />
         <CurrencyButton compact={compact} />
         <LanguageButton compact={compact} />
-        {isShared ? null : <NotificationButton compact={compact} hasUnread={hasUnread} onPress={() => router.push('/notifications')} />}
+        <NotificationButton compact={compact} hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
       </View>
     </View>
   );

@@ -282,9 +282,8 @@ export function PersistentBottomBar() {
       { key: 'wallet', label: t('tabWallet'), href: '/(tabs)/wallet' as Href, icon: 'wallet-outline', iconFocused: 'wallet', match: ['wallet', 'transactions', 'withdraw', 'payroll'] },
       { key: 'inbox', label: t('tabInbox'), href: '/(tabs)/inbox' as Href, icon: 'chatbubbles-outline', iconFocused: 'chatbubbles', match: ['inbox', 'conversation', 'notifications'] },
       { key: 'more', label: t('tabMore'), href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal', isMore: true, match: [] },
-    // In a workspace the photographer was invited to there is no wallet and no inbox: they stay with the owner.
-    ] as Tab[]).filter((tab) => !(isShared && isPhotographer && (tab.key === 'wallet' || tab.key === 'inbox'))),
-    [language, t, isShared, isPhotographer],
+    ] as Tab[]),
+    [language, t],
   );
 
   const lastActiveKeyRef = useRef<string>('home');
@@ -718,10 +717,9 @@ export function MoreSheet({
       destructive: true,
     });
 
-    // In a shared workspace only the work entries stay: money, the owner's account, notifications and collaboration
-    // belong to the owner.
+    // In a shared workspace the owner's account, the transaction history, donating and collaboration stay with the owner.
     if (isShared && isPhotographer) {
-      const hidden = new Set(['profile', 'streams', 'calendar', 'collaborate', 'transactions', 'donations', 'notifications', 'preferences']);
+      const hidden = new Set(['profile', 'streams', 'calendar', 'collaborate', 'transactions', 'donations', 'preferences']);
       return list.filter((i) => !hidden.has(i.id));
     }
     return list;
