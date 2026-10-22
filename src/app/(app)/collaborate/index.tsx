@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
+import { WorkspaceAccessPanel } from '@/features/workspace/WorkspaceAccessPanel';
 import { listJoinedAlbums, listOwnedAlbums } from '@/features/collab/api';
 import { AlbumCover, PersonRow, Stat } from '@/features/collab/components';
 import { tokenFromInput, type JoinedAlbum, type OwnedAlbum } from '@/features/collab/model';
@@ -20,7 +21,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { isApiError } from '@/store/auth';
 import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
 
-type Tab = 'mine' | 'joined';
+type Tab = 'mine' | 'joined' | 'workspace';
 
 const COLLAB_I18N = {
   en: {
@@ -195,15 +196,15 @@ export default function CollaborateHub() {
           <Text style={styles.subtitle}>{s.subtitle}</Text>
         </View>
 
-        <View style={styles.statsCard}>
+        {tab === 'workspace' ? null : <View style={styles.statsCard}>
           <Stat value={toReview} label={s.toReview} accent />
           <View style={styles.statDivider} />
           <Stat value={collaborators} label={collaborators === 1 ? s.collaborator : s.collaborators} />
           <View style={styles.statDivider} />
           <Stat value={joined.length} label={s.joined} />
-        </View>
+        </View>}
 
-        {joinOpen ? (
+        {tab === 'workspace' ? null : joinOpen ? (
           <View style={styles.joinCard}>
             <Text style={styles.joinLabel}>{s.pasteInviteLabel}</Text>
             <TextInput
@@ -239,12 +240,15 @@ export default function CollaborateHub() {
           options={[
             { value: 'mine', label: s.myAlbumsTab.replace('{count}', String(owned.length)) },
             { value: 'joined', label: s.joinedTab.replace('{count}', String(joined.length)) },
+            { value: 'workspace', label: 'Workspace access' },
           ]}
         />
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        {tab === 'mine' ? (
+        {tab === 'workspace' ? (
+          <WorkspaceAccessPanel />
+        ) : tab === 'mine' ? (
           ownedSorted.length === 0 ? (
             <EmptyState icon="images-outline" title={s.noAlbumsTitle}
               message={s.noAlbumsMsg}

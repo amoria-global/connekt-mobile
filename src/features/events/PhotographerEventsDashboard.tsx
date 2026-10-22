@@ -59,6 +59,7 @@ import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useLanguage } from '@/store/language';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 
 const PAGE_SIZE = 8;
 
@@ -901,6 +902,8 @@ function AcceptBookingSheet({
   const { t } = useLanguage();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  // The payment terms are the owner's money side, so a collaborator in a shared workspace is not shown them.
+  const isShared = useWorkspace(selectIsShared);
 
   return (
     <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
@@ -932,12 +935,14 @@ function AcceptBookingSheet({
             </View>
           ) : null}
 
-          <View style={styles.sheetTerms}>
-            <Ionicons name="shield-checkmark" size={15} color={colors.primary} />
-            <Text style={styles.sheetTermsText}>
-              {t('escrowNote')}
-            </Text>
-          </View>
+          {isShared ? null : (
+            <View style={styles.sheetTerms}>
+              <Ionicons name="shield-checkmark" size={15} color={colors.primary} />
+              <Text style={styles.sheetTermsText}>
+                {t('escrowNote')}
+              </Text>
+            </View>
+          )}
 
           <Text style={styles.sheetNote}>
             {t('availabilityNote')}
