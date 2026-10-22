@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-22-update-screen-look",
+            "date": "2026-10-22",
+            "title": "A new look for the update screen",
+            "items": [
+              {
+                "icon": "color-palette-outline",
+                "title": "The update screen has a fresh gradient look",
+                "body": "The screen that appears when a new version is ready now has a dark background with a soft blue and teal glow and a blue to mint Update now button. What it says and how it works are unchanged."
+              }
+            ]
+          },
+          {
             "id": "2026-10-22-wallet-ring-fix",
             "date": "2026-10-22",
             "title": "A clearer balance ring in the wallet Analytics tab",
@@ -202,23 +214,6 @@
                 "icon": "sparkles-outline",
                 "title": "Pop-ups and sheets look like the sign-in screen",
                 "body": "Every pop-up, bottom sheet and dialog now uses the same frosted glass design as the sign-in sheet: a blurred background, a soft see-through panel and clearer buttons, in both light and dark mode."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-21-update-screen",
-            "date": "2026-10-21",
-            "title": "A clearer update screen and a wallet reminder",
-            "items": [
-              {
-                "icon": "list-outline",
-                "title": "See what changed before you update",
-                "body": "When an update is ready, this screen now lists every new feature and fix, in plain words, before you tap Update now. If you missed earlier updates, you see those changes too."
-              },
-              {
-                "icon": "wallet-outline",
-                "title": "Set up how you get paid",
-                "body": "If you are a photographer or coordinator and have not added a withdrawal method yet, your wallet now tells you as soon as you open it, with the three steps to add one. Choose Do it later and it reminds you on your next visit."
               }
             ]
           }
