@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-22-client-wallet-ring",
+            "date": "2026-10-22",
+            "title": "The client wallet ring now always shows",
+            "items": [
+              {
+                "icon": "pie-chart-outline",
+                "title": "Your wallet ring includes what you have spent",
+                "body": "The Analytics tab of the client wallet now shows its ring as soon as you have spent money, alongside your balance, refunds, tips, gifts, donations and what is still processing."
+              }
+            ]
+          },
+          {
             "id": "2026-10-22-update-screen-look",
             "date": "2026-10-22",
             "title": "A new look for the update screen",
@@ -202,18 +214,6 @@
                 "icon": "person-circle-outline",
                 "title": "No more typing your name and email again",
                 "body": "If you are signed in, wishes and live stream comments and video messages use your account name and email automatically. Guests only enter theirs once and the app remembers them."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-21-glass-modals",
-            "date": "2026-10-21",
-            "title": "One frosted glass look for every pop-up",
-            "items": [
-              {
-                "icon": "sparkles-outline",
-                "title": "Pop-ups and sheets look like the sign-in screen",
-                "body": "Every pop-up, bottom sheet and dialog now uses the same frosted glass design as the sign-in sheet: a blurred background, a soft see-through panel and clearer buttons, in both light and dark mode."
               }
             ]
           }
