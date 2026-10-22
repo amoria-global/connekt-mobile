@@ -492,7 +492,7 @@ export function MoreSheet({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const logout = useAuth((s) => s.logout);
-  const { role, isPhotographer } = useRole();
+  const { role, isPhotographer, isCoordinator } = useRole();
   const { language, t } = useLanguage();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -560,6 +560,16 @@ export function MoreSheet({
       icon: 'videocam-outline',
       href: '/streams' as Href,
     });
+
+    // Calendar: events the coordinator runs and the payments they owe, by day.
+    if (isCoordinator) {
+      list.push({
+        id: 'calendar',
+        label: 'Calendar',
+        icon: 'calendar-outline',
+        href: '/calendar' as Href,
+      });
+    }
 
     // Post My Event opportunities: their own entry, as on the web sidebar.
     if (isPhotographer) {
@@ -688,7 +698,7 @@ export function MoreSheet({
     });
 
     return list;
-  }, [language, t, isPhotographer, unreadCount, opportunityCount, handleLogout, onClose]);
+  }, [language, t, isPhotographer, isCoordinator, unreadCount, opportunityCount, handleLogout, onClose]);
 
   // Filter shortcuts by search query
   const displayedItems = useMemo(() => {

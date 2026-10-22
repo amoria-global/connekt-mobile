@@ -143,6 +143,7 @@ export default function AppLayout() {
         <Stack.Screen name="conversation/[id]" options={{ title: t('navChat') }} />
         <Stack.Screen name="packages" options={{ title: t('navMyPackages') }} />
         <Stack.Screen name="package/new" options={{ title: t('navNewPackage'), presentation: 'modal' }} />
+        <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
         <Stack.Screen name="streams" options={{ title: t('navLiveStreams') }} />
         <Stack.Screen name="stream/[id]" options={{ title: t('navStream'), headerShown: false }} />
         <Stack.Screen name="stream/control/[id]" options={{ title: t('navGoLive'), headerShown: false }} />
