@@ -1,0 +1,218 @@
+import React from 'react';
+import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
+import { Text } from 'react-native';
+
+import PublicEventScreen from '@/app/(public)/event/[id]';
+import '@/test/autoUnmount';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/**
+ * The guest event screen as a scanner meets it. Three things are pinned: a scan from a QR code opens the short version first
+ * (what, when, where, one action) with the rest one tap away; an upcoming event takes a text or a 1-minute video wish; and a
+ * signed-in user is sent as their account, never asked for a name and an email again.
+ */
+const mockSendWish = jest.fn();
+const mockSendVideoWish = jest.fn();
+const mockPick = jest.fn();
+let mockParams: Record<string, string> = { id: 'e1' };
+let mockUser: Record<string, string> | null = null;
+
+jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }) }));
+jest.mock('expo-image', () => ({ Image: () => null }));
+jest.mock('expo-linear-gradient', () => ({ LinearGradient: ({ children }: { children?: React.ReactNode }) => children ?? null }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('@/components/ui/Screen', () => ({ Screen: ({ children }: { children: React.ReactNode }) => children }));
+jest.mock('@/components/ui/live', () => {
+  const { Text: T, Pressable } = require('react-native');
+  return { LiveButton: ({ label }: { label: string }) => <Pressable><T>{label}</T></Pressable>, LivePill: ({ label }: { label: string }) => <T>{label}</T> };
+});
+jest.mock('@/features/notifications/push', () => ({ registerForPushNotifications: jest.fn() }));
+jest.mock('@/features/events/reminder', () => ({
+  clearReminder: jest.fn(),
+  getReminder: jest.fn(async () => null),
+  isValidReminderEmail: () => true,
+  setReminder: jest.fn(),
+}));
+jest.mock('@/utils/deviceId', () => ({ getDeviceId: jest.fn(async () => 'device-1') }));
+jest.mock('@/services/storage', () => ({ storage: { get: jest.fn(async () => null), set: jest.fn(async () => {}), remove: jest.fn(async () => {}) } }));
+jest.mock('@/features/streams/pickShortVideo', () => ({ pickShortVideo: (...a: unknown[]) => mockPick(...a) }));
+jest.mock('@/features/streams/api', () => ({
+  checkAnonymousAccessStatus: jest.fn(),
+  redeemGroupCode: jest.fn(),
+  registerAnonymousViewer: jest.fn(),
+  retryAnonymousDeviceAccess: jest.fn(),
+  sendEventWish: (...a: unknown[]) => mockSendWish(...a),
+  sendEventVideoWish: (...a: unknown[]) => mockSendVideoWish(...a),
+}));
+jest.mock('@/features/events/api', () => ({
+  getPublicEventDetailed: jest.fn(async () => ({
+    id: 'e1',
+    title: 'Yubire Wedding',
+    description: 'A long and lovely description of the day, with every detail a guest might want.',
+    eventDate: '2999-01-02',
+    startTime: '12:00',
+    location: 'Kigali Convention Centre',
+    eventStatus: 'PUBLISHED',
+    eventTags: 'wedding,kigali',
+    eventOrganizer: 'The Mugisha family',
+    photographerName: 'Eric Mugisha',
+    isPaid: false,
+  })),
+}));
+jest.mock('@/store/auth', () => {
+  const state = () => ({ user: mockUser, status: mockUser ? 'authenticated' : 'unauthenticated' });
+  return {
+    useAuth: Object.assign((sel: (s: ReturnType<typeof state>) => unknown) => sel(state()), { getState: state }),
+    isApiError: (e: unknown) => !!e && typeof e === 'object' && 'message' in (e as object),
+  };
+});
+
+const flat = (node: ReactTestInstance): string =>
+  node
+    .findAllByType(Text)
+    .map((t) => (Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children ?? '')))
+    .join(' | ');
+const mount = async () => {
+  let r!: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    r = TestRenderer.create(<PublicEventScreen />);
+  });
+  for (let i = 0; i < 3; i += 1) {
+    await act(async () => {
+      await new Promise((res) => setTimeout(res, 0));
+    });
+  }
+  return r;
+};
+const press = async (r: TestRenderer.ReactTestRenderer, label: string) => {
+  const all = r.root.findAll((n) => typeof n.props?.onPress === 'function' && (n.props.accessibilityLabel === label || n.props.title === label || n.findAllByType(Text).some((t) => [t.props.children].flat().join('') === label)));
+  const node = all.filter((n) => !(n.parent && all.includes(n.parent)))[0];
+  if (!node) throw new Error(`nothing to press: ${label}`);
+  await act(async () => {
+    await node.props.onPress();
+  });
+};
+const type = async (r: TestRenderer.ReactTestRenderer, placeholder: RegExp, value: string) => {
+  const input = r.root.findAll((n) => typeof n.props?.onChangeText === 'function' && placeholder.test(String(n.props.placeholder ?? '')))[0];
+  await act(async () => {
+    input.props.onChangeText(value);
+  });
+};
+
+beforeEach(() => {
+  mockSendWish.mockReset().mockResolvedValue(undefined);
+  mockSendVideoWish.mockReset().mockResolvedValue(undefined);
+  mockPick.mockReset();
+  mockParams = { id: 'e1' };
+  mockUser = null;
+});
+
+describe('opened from a scanned QR code', () => {
+  it('shows the short version first: title, when, where, and the wish, with the rest one tap away', async () => {
+    mockParams = { id: 'e1', src: 'qr' };
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Yubire Wedding');
+    expect(text).toContain('Kigali Convention Centre');
+    expect(text).toContain('Show full details');
+    expect(text).not.toContain('A long and lovely description');
+    expect(text).not.toContain('Eric Mugisha');
+    expect(text).not.toContain('# wedding');
+  });
+
+  it('opens the full page on one tap, and closes it again', async () => {
+    mockParams = { id: 'e1', src: 'qr' };
+    const r = await mount();
+    await press(r, 'Show full details');
+    expect(flat(r.root)).toContain('A long and lovely description');
+    expect(flat(r.root)).toContain('Show less');
+    await press(r, 'Show less');
+    expect(flat(r.root)).not.toContain('A long and lovely description');
+  });
+
+  it('a visit that did not come from a scan shows the whole page, as before', async () => {
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('A long and lovely description');
+    expect(text).not.toContain('Show full details');
+  });
+});
+
+describe('wishes on an upcoming event', () => {
+  it('a guest gives a name and an email once, and the text wish goes out with them', async () => {
+    const r = await mount();
+    await type(r, /name/i, 'Aline');
+    await type(r, /email/i, 'aline@example.test');
+    await type(r, /message|wish/i, 'Congratulations!');
+    await press(r, 'Send wish');
+    expect(mockSendWish).toHaveBeenCalledWith('e1', { name: 'Aline', email: 'aline@example.test', message: 'Congratulations!' });
+  });
+
+  it('refuses a wish with no name or a bad email, and says which', async () => {
+    const r = await mount();
+    await type(r, /message|wish/i, 'Hi');
+    await press(r, 'Send wish');
+    expect(flat(r.root)).toContain('Please enter your name.');
+    await type(r, /name/i, 'Aline');
+    await type(r, /email/i, 'not-an-email');
+    await press(r, 'Send wish');
+    expect(flat(r.root)).toContain('Please enter a valid email.');
+    expect(mockSendWish).not.toHaveBeenCalled();
+  });
+
+  it('offers a 1 minute video wish, records it, and sends it with the caption and the identity', async () => {
+    const video = { uri: 'file:///wish.mp4', name: 'wish.mp4', mimeType: 'video/mp4' };
+    mockPick.mockResolvedValue(video);
+    const r = await mount();
+    expect(flat(r.root)).toContain('Record a 1 minute video wish');
+    await type(r, /name/i, 'Aline');
+    await type(r, /email/i, 'aline@example.test');
+    await type(r, /message|wish/i, 'Best wishes');
+    await press(r, 'Record a 1 minute video wish');
+    expect(mockSendVideoWish).toHaveBeenCalledWith('e1', { name: 'Aline', email: 'aline@example.test', message: 'Best wishes', video });
+    expect(flat(r.root)).toContain('Your video wish was sent to the event organizer!');
+  });
+
+  it('sends nothing when the person backs out of the camera', async () => {
+    mockPick.mockResolvedValue(null);
+    const r = await mount();
+    await type(r, /name/i, 'Aline');
+    await type(r, /email/i, 'aline@example.test');
+    await press(r, 'Record a 1 minute video wish');
+    expect(mockSendVideoWish).not.toHaveBeenCalled();
+  });
+
+  it('shows the backend refusal, as an error and not a success', async () => {
+    mockPick.mockResolvedValue({ uri: 'file:///w.mp4', name: 'w.mp4', mimeType: 'video/mp4' });
+    mockSendVideoWish.mockRejectedValue({ status: 400, message: 'The event is now live. Please join the stream to send messages.' });
+    const r = await mount();
+    await type(r, /name/i, 'Aline');
+    await type(r, /email/i, 'aline@example.test');
+    await press(r, 'Record a 1 minute video wish');
+    expect(flat(r.root)).toContain('The event is now live.');
+    expect(flat(r.root)).not.toContain('Your video wish was sent');
+  });
+});
+
+describe('a signed-in user', () => {
+  it('is sent as their account: no name or email fields, and the wish carries the account identity', async () => {
+    mockUser = { firstName: 'Joseph', lastName: 'Maranatha', email: 'joseph@example.test', customerId: 'c1' };
+    const r = await mount();
+    expect(flat(r.root)).toContain('Sending as Joseph Maranatha (joseph@example.test)');
+    expect(r.root.findAll((n) => /your name|name/i.test(String(n.props?.placeholder ?? '')) && typeof n.props.onChangeText === 'function')).toHaveLength(0);
+    await type(r, /message|wish/i, 'Congratulations!');
+    await press(r, 'Send wish');
+    expect(mockSendWish).toHaveBeenCalledWith('e1', { name: 'Joseph Maranatha', email: 'joseph@example.test', message: 'Congratulations!' });
+  });
+
+  it('can send a video wish without typing anything about themselves', async () => {
+    mockUser = { firstName: 'Joseph', lastName: 'Maranatha', email: 'joseph@example.test', customerId: 'c1' };
+    const video = { uri: 'file:///wish.mp4', name: 'wish.mp4', mimeType: 'video/mp4' };
+    mockPick.mockResolvedValue(video);
+    const r = await mount();
+    await press(r, 'Record a 1 minute video wish');
+    expect(mockSendVideoWish).toHaveBeenCalledWith('e1', { name: 'Joseph Maranatha', email: 'joseph@example.test', message: '', video });
+  });
+});
+
