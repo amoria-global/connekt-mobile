@@ -4,8 +4,8 @@
  * What is, and is not, shown, because money labels must be true:
  *   - Total spent and Processing come from the wallet, in the wallet's own currency. They are
  *     lifetime / current figures, and are labelled so.
- *   - "Where your wallet stands" splits the figures the wallet reports (balance, refunds, tips, gifts, donations).
- *     The wallet gives lifetime spend as one number, so it is not split by kind.
+ *   - "Where your wallet stands" splits the figures the wallet reports (total spent, balance, refunds, tips, gifts,
+ *     donations, processing). The wallet gives lifetime spend as one number, so it is not split by kind.
  *   - The period section (Today / Week / Month) shows event and photographer counts with their
  *     change against the previous period, a spending trend and an events-per-interval histogram.
  *     The backend sums payments across currencies, so the spending curve is relative only and
@@ -48,10 +48,12 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
   const currency = wallet?.currency;
 
   const hues = [colors.primary, colors.accent, isDark ? '#2DD4E4' : '#0E7490', colors.warning, colors.success];
-  // Processing is a wallet figure like the rest, so a client whose money is all still settling still gets a ring.
+  // Total spent and Processing are wallet figures like the rest, so a client who has spent money but holds no balance
+  // still gets a ring (it used to show only an empty-state line for them).
   const segments = useMemo(
     () =>
       [
+        ...(stats ? [{ label: stats.hero.label, value: stats.hero.value }] : []),
         ...(stats?.cards ?? []).filter((c) => !c.hidden).map((c) => ({ label: c.label, value: c.value })),
         ...(stats?.pendingChip ? [{ label: stats.pendingChip.label, value: stats.pendingChip.value }] : []),
       ].filter((x) => x.value > 0),
@@ -89,7 +91,7 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
         currency={currency}
         centerLabel="Combined"
         summary="Wallet figures by source"
-        emptyText="No balance, refunds, tips, gifts or donations in your wallet yet."
+        emptyText="Nothing in your wallet yet."
       />
 
       <SectionHeader title="Activity" subtitle="Pick a period" />
