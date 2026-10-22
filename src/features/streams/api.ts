@@ -5,6 +5,7 @@ import { api, requireOk } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
 import { isApiError } from '@/store/auth';
 import { appendFile } from '@/utils/upload';
+import { getDeviceId } from '@/utils/deviceId';
 import { normalizeImageUrl } from '@/features/gallery/api';
 
 /** Where a stream is in its life. `ended` covers replays, which is most of a client's list. */
@@ -1033,8 +1034,21 @@ export async function redeemGroupCode(
 // ────── Event wishes (web parity: view-event.client.tsx wishes section) ──────
 
 /**
+ * What the wish endpoints answer, turned into something to show. Same cases as the web page (view-event.client.tsx).
+ */
+export function wishErrorMessage(raw: string | undefined, kind: 'text' | 'video'): string {
+  const msg = (raw ?? '').toLowerCase();
+  if (msg.includes('only allowed before')) return 'The event is now live. Please join the stream to send messages.';
+  if (msg.includes('rate') || msg.includes('limit')) return 'You are sending wishes too quickly. Please wait a moment.';
+  if (msg.includes('restricted') || msg.includes('blocked')) return 'Your message contains restricted content (emails, phone numbers, or links).';
+  if (kind === 'video' && (msg.includes('size') || msg.includes('large'))) return 'Video upload failed. Please try a shorter clip.';
+  return raw || (kind === 'video' ? 'Could not send your video wish. Please try again.' : 'Could not send your wish. Please try again.');
+}
+
+/**
  * Send a pre-event text wish to the organizer.
- * Web: POST /api/remote/public/events/{id}/wishes
+ * Web: POST /api/remote/public/events/{id}/wishes. The backend requires `deviceFingerprint` (validateWishCommonFields);
+ * the first mobile version left it out, so every text wish was refused with "deviceFingerprint is required".
  */
 export async function sendEventWish(
   eventId: string,
@@ -1042,11 +1056,40 @@ export async function sendEventWish(
 ): Promise<void> {
   const res = await api.post<ApiEnvelope<Raw>>(
     `/public/events/${encodeURIComponent(eventId)}/wishes`,
-    data,
+    { ...data, deviceFingerprint: await getDeviceId() },
     { skipAuth: true },
   );
   if (res?.action !== 1) {
-    throw { status: 400, message: res?.message || 'Could not send wish.' };
+    throw { status: 400, message: wishErrorMessage(res?.message, 'text') };
+  }
+}
+
+/**
+ * Send a pre-event video wish (at most one minute, see pickShortVideo).
+ * Web: POST /api/remote/public/events/{id}/wishes/video, multipart with name, email, video, deviceFingerprint and an
+ * optional message. Only accepted while the event is PUBLISHED or UPCOMING.
+ */
+export async function sendEventVideoWish(
+  eventId: string,
+  data: { name: string; email: string; message?: string; video: { uri: string; name?: string; mimeType?: string } },
+): Promise<void> {
+  const form = new FormData();
+  await appendFile(form, 'video', {
+    uri: data.video.uri,
+    name: data.video.name ?? `wish-${Date.now()}.mp4`,
+    type: data.video.mimeType ?? 'video/mp4',
+  });
+  form.append('name', data.name);
+  form.append('email', data.email);
+  form.append('deviceFingerprint', await getDeviceId());
+  if (data.message?.trim()) form.append('message', data.message.trim());
+  const res = await api.post<ApiEnvelope<Raw>>(
+    `/public/events/${encodeURIComponent(eventId)}/wishes/video`,
+    form,
+    { skipAuth: true },
+  );
+  if (res?.action !== 1) {
+    throw { status: 400, message: wishErrorMessage(res?.message, 'video') };
   }
 }
 

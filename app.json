@@ -138,6 +138,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-22-video-wish",
+            "date": "2026-10-22",
+            "title": "Video wishes, a simpler event page after scanning, and no repeated sign-in details",
+            "items": [
+              {
+                "icon": "videocam-outline",
+                "title": "Send a 1 minute video wish before an event",
+                "body": "On an upcoming event you can now record a video wish of up to one minute for the organizer, just like on the website. Your text wishes also work again, they were being refused before."
+              },
+              {
+                "icon": "qr-code-outline",
+                "title": "A simpler page when you scan an event QR code",
+                "body": "Scanning an event QR code now shows the essentials first: the event name, date, place, price and what you can do. A Show full details button opens everything else when you want it."
+              },
+              {
+                "icon": "person-circle-outline",
+                "title": "No more typing your name and email again",
+                "body": "If you are signed in, wishes and live stream comments and video messages use your account name and email automatically. Guests only enter theirs once and the app remembers them."
+              }
+            ]
+          },
+          {
             "id": "2026-10-21-glass-modals",
             "date": "2026-10-21",
             "title": "One frosted glass look for every pop-up",
