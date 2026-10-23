@@ -48,6 +48,7 @@ import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Step = 'form' | 'verify' | 'done' | 'failed';
 type Donation = { mode: 'unset' } | { mode: 'skip' } | { mode: 'preset'; value: number } | { mode: 'custom'; text: string };
@@ -59,6 +60,7 @@ export default function WithdrawScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const router = useRouter();
   const { role } = useRole();
 
@@ -330,22 +332,22 @@ export default function WithdrawScreen() {
     return (
       <Screen padded={false} edges={[]}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <ScreenHeader title={copy.title} subtitle={copy.body} />
+          <ScreenHeader title={tr(copy.title)} subtitle={tr(copy.body)} />
           <View style={styles.body}>
             <View style={styles.card}>
-              <Text style={styles.sectionLabel}>Summary</Text>
-              <Row label="Withdrawal" value={formatDisplay(typed, currency)} />
+              <Text style={styles.sectionLabel}>{tr('Summary')}</Text>
+              <Row label={tr('Withdrawal')} value={formatDisplay(typed, currency)} />
               {fee && fee.totalFee > 0 ? (
                 <Row
-                  label={`Fee (${fee.feePercentage}%${fee.additionalCharge > 0 ? ' + flat' : ''})`}
+                  label={`${tr('Fee')} (${fee.feePercentage}%${fee.additionalCharge > 0 ? ' + flat' : ''})`}
                   value={`- ${formatDisplay(usdToDisplay(fee.totalFee, currency), currency)}`}
                 />
               ) : null}
               {donationDisplay > 0 ? (
-                <Row label="Donation" value={formatDisplay(donationDisplay, currency)} />
+                <Row label={tr('Donation')} value={formatDisplay(donationDisplay, currency)} />
               ) : null}
               {fee ? (
-                <Row strong label="You receive" value={formatDisplay(usdToDisplay(fee.netAmount, currency), currency)} />
+                <Row strong label={tr('You receive')} value={formatDisplay(usdToDisplay(fee.netAmount, currency), currency)} />
               ) : null}
             </View>
 
@@ -401,7 +403,7 @@ export default function WithdrawScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <ScreenHeader title="Withdraw" subtitle="Send your earnings to your mobile money or bank account." duplicatesHeader />
+        <ScreenHeader title={tr('Withdraw')} subtitle={tr('Send your earnings to your mobile money or bank account.')} duplicatesHeader />
         <View style={styles.body}>
           {loading ? (
             <View style={styles.center}>
@@ -410,7 +412,7 @@ export default function WithdrawScreen() {
           ) : sources.error ? (
             <View style={styles.card}>
               <Text style={styles.muted}>{sources.error}</Text>
-              <Button title="Try again" variant="outline" onPress={sources.refresh} />
+              <Button title={tr('Try again')} variant="outline" onPress={sources.refresh} />
             </View>
           ) : (
             <>
@@ -423,12 +425,12 @@ export default function WithdrawScreen() {
 
               {sourceList.length > 1 ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>Withdraw from</Text>
+                  <Text style={styles.sectionLabel}>{tr('Withdraw from')}</Text>
                   <View style={styles.chips}>
                     {sourceList.map((s) => (
                       <Chip
                         key={s.source}
-                        label={s.label}
+                        label={tr(s.label)}
                         active={source?.source === s.source}
                         onPress={() => {
                           setSourceKey(s.source);
@@ -443,7 +445,7 @@ export default function WithdrawScreen() {
               {/* Amount */}
               <View style={styles.section}>
                 <View style={styles.sectionHead}>
-                  <Text style={styles.sectionLabel}>Amount</Text>
+                  <Text style={styles.sectionLabel}>{tr('Amount')}</Text>
                   <View style={styles.toggle} accessibilityRole="radiogroup">
                     {currencyList.map((c) => (
                       <Pressable
@@ -491,7 +493,7 @@ export default function WithdrawScreen() {
 
               {/* Payout account */}
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Send to</Text>
+                <Text style={styles.sectionLabel}>{tr('Send to')}</Text>
                 {accountList.length ? (
                   accountList.map((m) => {
                     const on = selectedId === m.id;
@@ -523,7 +525,7 @@ export default function WithdrawScreen() {
                     );
                   })
                 ) : (
-                  <Text style={styles.muted}>No payment account saved yet.</Text>
+                  <Text style={styles.muted}>{tr('No payment account saved yet.')}</Text>
                 )}
                 <Pressable
                   style={styles.linkRow}
@@ -531,7 +533,7 @@ export default function WithdrawScreen() {
                   accessibilityRole="button"
                 >
                   <Text style={styles.link}>
-                    {accountList.length ? 'Manage payment accounts' : '+ Add a payment account'}
+                    {tr(accountList.length ? 'Manage payment accounts' : '+ Add a payment account')}
                   </Text>
                 </Pressable>
               </View>
@@ -540,9 +542,9 @@ export default function WithdrawScreen() {
               <View style={[styles.card, { backgroundColor: colors.tintAccent, borderColor: 'transparent' }]}>
                 <View style={styles.donationHead}>
                   <Ionicons name="heart" size={18} color={colors.accent} />
-                  <Text style={styles.donationTitle}>Give a little back?</Text>
+                  <Text style={styles.donationTitle}>{tr('Give a little back?')}</Text>
                 </View>
-                <Text style={styles.muted}>Add a small donation to help fund community projects and initiatives.</Text>
+                <Text style={styles.muted}>{tr('Add a small donation to help fund community projects and initiatives.')}</Text>
                 <View style={styles.chips}>
                   {donationPresets(rwfRate, currency).map((v) => (
                     <Chip
@@ -555,12 +557,12 @@ export default function WithdrawScreen() {
                   ))}
                   <Chip
                     accent
-                    label="Other"
+                    label={tr('Other')}
                     active={donation.mode === 'custom'}
                     onPress={() => setDonation({ mode: 'custom', text: '' })}
                   />
                   <Chip
-                    label="No thanks"
+                    label={tr('No thanks')}
                     active={donation.mode === 'skip'}
                     onPress={() => setDonation({ mode: 'skip' })}
                   />
@@ -571,7 +573,7 @@ export default function WithdrawScreen() {
                     <TextInput
                       value={donation.text}
                       onChangeText={(t) => setDonation({ mode: 'custom', text: t.replace(/[^0-9.,]/g, '') })}
-                      placeholder="Donation amount"
+                      placeholder={tr('Donation amount')}
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
                       style={styles.amountInputSmall}
@@ -581,11 +583,11 @@ export default function WithdrawScreen() {
                 ) : null}
               </View>
 
-              {formError ? <ErrorBox text={formError} /> : null}
+              {formError ? <ErrorBox text={tr(formError)} /> : null}
 
-              <Button title={busy ? 'Starting…' : 'Continue'} onPress={onContinue} loading={busy} disabled={busy} />
+              <Button title={tr(busy ? 'Starting…' : 'Continue')} onPress={onContinue} loading={busy} disabled={busy} />
               <Text style={styles.footnote}>
-                You will confirm with a code or a selfie next. Withdrawals are reviewed before they are paid out.
+                {tr('You will confirm with a code or a selfie next. Withdrawals are reviewed before they are paid out.')}
               </Text>
 
               {/* Activity Section */}
@@ -593,10 +595,10 @@ export default function WithdrawScreen() {
                 <View style={styles.activityHeaderRow}>
                   <View style={styles.activityTitleWrap}>
                     <Ionicons name="receipt-outline" size={18} color={colors.primary} />
-                    <Text style={styles.activitySectionTitle}>Recent Activity</Text>
+                    <Text style={styles.activitySectionTitle}>{tr('Recent Activity')}</Text>
                   </View>
                   <Pressable onPress={() => router.push('/transactions' as Href)} hitSlop={8}>
-                    <Text style={styles.seeAllText}>View all</Text>
+                    <Text style={styles.seeAllText}>{tr('View all')}</Text>
                   </Pressable>
                 </View>
 
@@ -622,7 +624,7 @@ export default function WithdrawScreen() {
                             isSelected && styles.activityFilterPillTextActive,
                           ]}
                         >
-                          {f.label}
+                          {tr(f.label)}
                         </Text>
                       </Pressable>
                     );

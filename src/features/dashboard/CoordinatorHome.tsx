@@ -52,6 +52,7 @@ import { getWallet } from '@/features/wallet/api';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
 
@@ -90,9 +91,10 @@ function getTimeTagline(): string {
   return 'Late night planning? Your production workspace awaits.';
 }
 
-function getTodayFormatted(): string {
+function getTodayFormatted(lang = 'en'): string {
   try {
-    return new Intl.DateTimeFormat('en-US', {
+    const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-US';
+    return new Intl.DateTimeFormat(locale, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -106,6 +108,7 @@ export function CoordinatorHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { language, t } = useLanguage();
+  const { tr } = useSharedT();
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
@@ -182,8 +185,8 @@ export function CoordinatorHome() {
   const isSearchActive = searchQuery.trim().length > 0;
 
   const greeting = getTimeGreeting(t);
-  const tagline = getTimeTagline();
-  const todayFormatted = getTodayFormatted();
+  const tagline = tr(getTimeTagline());
+  const todayFormatted = getTodayFormatted(language);
 
 
   return (
@@ -296,7 +299,7 @@ export function CoordinatorHome() {
               ref={searchInputRef}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search events, productions, venues..."
+              placeholder={tr('Search events, productions, venues...')}
               placeholderTextColor={colors.textMuted}
               style={styles.searchInput}
               returnKeyType="search"
@@ -362,7 +365,7 @@ export function CoordinatorHome() {
                     color={active ? '#FFFFFF' : colors.textMuted}
                   />
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {c.label}
+                    {tr(c.label)}
                   </Text>
                 </Pressable>
               );
@@ -438,7 +441,7 @@ export function CoordinatorHome() {
                 accessibilityLabel="View revenue in wallet"
               >
                 <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
-                  REVENUE
+                  {tr('REVENUE')}
                 </Text>
                 <Text style={[styles.snapshotValue, { color: colors.link }]}>
                   {formatPrice(a?.totalRevenue || 0, currency)}
@@ -452,7 +455,7 @@ export function CoordinatorHome() {
                 accessibilityLabel="View events"
               >
                 <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
-                  EVENTS
+                  {tr('EVENTS')}
                 </Text>
                 <Text style={[styles.snapshotValue, { color: '#F20C8F' }]}>
                   {String(a?.totalEvents || 0)}
@@ -466,7 +469,7 @@ export function CoordinatorHome() {
                 accessibilityLabel="View photographers"
               >
                 <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
-                  PHOTOGRAPHERS
+                  {tr('PHOTOGRAPHERS')}
                 </Text>
                 <Text style={[styles.snapshotValue, { color: '#10B981' }]}>
                   {String(a?.totalPhotographers || 0)}
@@ -489,7 +492,7 @@ export function CoordinatorHome() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.pendingTitle}>
-                  {hasFailedPayments ? 'Action Required: Pending Payments' : 'Pending Invoices'}
+                  {tr(hasFailedPayments ? 'Action Required: Pending Payments' : 'Pending Invoices')}
                 </Text>
                 <Text style={styles.pendingSub}>
                   {pendingList.length} payment{pendingList.length === 1 ? '' : 's'} totaling{' '}
@@ -517,9 +520,9 @@ export function CoordinatorHome() {
 
         {/* ── Performance & Metrics Infographic Section ───────────────────── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>PERFORMANCE &amp; METRICS</Text>
+          <Text style={styles.sectionTitle}>{tr('PERFORMANCE & METRICS')}</Text>
           <Text style={styles.sectionSubtitle}>
-            Wave trajectory &amp; production performance analytics
+            {tr('Wave trajectory & production performance analytics')}
           </Text>
         </View>
 
@@ -539,15 +542,15 @@ export function CoordinatorHome() {
         {/* ── Upcoming Productions & Events ───────────────────────────────── */}
         <View style={styles.eventsSectionHeader}>
           <View>
-            <Text style={styles.sectionTitle}>UPCOMING PRODUCTIONS</Text>
-            <Text style={styles.sectionSubtitle}>Assigned events and active sessions</Text>
+            <Text style={styles.sectionTitle}>{tr('UPCOMING PRODUCTIONS')}</Text>
+            <Text style={styles.sectionSubtitle}>{tr('Assigned events and active sessions')}</Text>
           </View>
           <Pressable
             onPress={() => router.push('/events' as Href)}
             hitSlop={8}
             style={styles.seeAllBtn}
           >
-            <Text style={styles.seeAllText}>View all</Text>
+            <Text style={styles.seeAllText}>{tr('View all')}</Text>
             <Ionicons name="chevron-forward" size={14} color={colors.primary} />
           </Pressable>
         </View>
@@ -569,16 +572,16 @@ export function CoordinatorHome() {
             <View style={styles.emptyIconWrap}>
               <Ionicons name="calendar-outline" size={28} color={colors.textMuted} />
             </View>
-            <Text style={styles.emptyTitle}>No upcoming events</Text>
+            <Text style={styles.emptyTitle}>{tr('No upcoming events')}</Text>
             <Text style={styles.emptySub}>
-              Launch a new event to start coordinating photographers and streams.
+              {tr('Launch a new event to start coordinating photographers and streams.')}
             </Text>
             <Pressable
               style={styles.emptyActionBtn}
               onPress={() => router.push('/event/new' as Href)}
             >
               <Ionicons name="add" size={16} color="#FFFFFF" />
-              <Text style={styles.emptyActionBtnText}>Create Event</Text>
+              <Text style={styles.emptyActionBtnText}>{tr('Create Event')}</Text>
             </Pressable>
           </View>
         )}
@@ -609,6 +612,7 @@ function CoordinatorEventCard({
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
 
   const isLive = (event.status ?? '').toUpperCase() === 'ONGOING' || event.hasLiveStream;
   const statusColor = isLive ? '#EF4444' : event.published ? '#10B981' : '#F59E0B';
@@ -624,7 +628,7 @@ function CoordinatorEventCard({
       <View style={styles.eventRowLeft}>
         <View style={styles.eventStatusPill}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={[styles.eventStatusText, { color: statusColor }]}>{statusLabel}</Text>
+          <Text style={[styles.eventStatusText, { color: statusColor }]}>{tr(statusLabel)}</Text>
         </View>
 
         <Text style={styles.eventRowTitle} numberOfLines={1}>
@@ -659,7 +663,7 @@ function CoordinatorEventCard({
 
       <View style={styles.eventRowRight}>
         <View style={styles.manageChip}>
-          <Text style={styles.manageChipText}>Manage</Text>
+          <Text style={styles.manageChipText}>{tr('Manage')}</Text>
           <Ionicons name="chevron-forward" size={12} color={colors.primary} />
         </View>
       </View>

@@ -5,7 +5,7 @@
 import type { WalletDTO, Movement } from './api';
 import { useLanguage } from '@/store/language';
 
-const MONEY_TRANSLATIONS: Record<'fr' | 'es', Record<string, string>> = {
+const MONEY_TRANSLATIONS: Record<'fr' | 'es' | 'rw' | 'sw', Record<string, string>> = {
   fr: {
     'Booking earnings': 'Revenus de réservation',
     'Booking payment': 'Paiement de réservation',
@@ -136,12 +136,150 @@ const MONEY_TRANSLATIONS: Record<'fr' | 'es', Record<string, string>> = {
     'Money in (+)': 'Entradas (+)',
     'Money out (−)': 'Salidas (−)',
   },
+  rw: {
+    'Booking earnings': 'Inyungu z’imyanya yafashwe',
+    'Booking payment': 'Ubwishyu bw’umwanya wafashwe',
+    'Event payment': 'Ubwishyu bw’igikorwa',
+    Balance: 'Amafaranga ariho',
+    Booking: 'Gufata umwanya',
+    'Tip received': 'Ishimwe ryakiriwe',
+    'Tip sent': 'Ishimwe ryoherejwe',
+    Tip: 'Ishimwe',
+    'Bonus earned': 'Inyongera yabonetse',
+    Bonus: 'Inyongera',
+    'Gift received': 'Impano yakiriwe',
+    'Gift sent': 'Impano yoherejwe',
+    Gift: 'Impano',
+    'Stream bonus': 'Inyongera ya Live',
+    'Stream revenue': 'Inyungu ya Live',
+    'Stream payment': 'Ubwishyu bwa Live',
+    'Stream fee': 'Ikiguzi cya Live',
+    Stream: 'Imbonankubone',
+    'Donation received': 'Inkunga yakiriwe',
+    'Donation sent': 'Inkunga yoherejwe',
+    Donation: 'Inkunga',
+    Withdrawal: 'Kubikuza',
+    'Refund issued': 'Amafaranga yasubijwe',
+    'Refund received': 'Amafaranga yasubijwe yakiriwe',
+    Refund: 'Gusubizwa amafaranga',
+    'Client payment': 'Ubwishyu bw’umukiriya',
+    'Payment sent': 'Ubwishyu bwoherejwe',
+    'Client spend': 'Ayakoreshejwe n’umukiriya',
+    Payment: 'Ubwishyu',
+    'Ad revenue share': 'Umugabane ku nyungu z’amamaza',
+    'Ad revenue': 'Inyungu z’amamaza',
+    'Photo sale': 'Igurishwa ry’ifoto',
+    'Photo purchase': 'Igura ry’ifoto',
+    Photo: 'Ifoto',
+    'Platform fee': 'Ikiguzi cy’urubuga',
+    Fee: 'Ikiguzi',
+    'Held for delivery': 'Yabitswe kugeza amafoto atanzwe',
+    'Held in escrow': 'Ari mu bubiko bwizewe (Escrow)',
+    Held: 'Yabitswe',
+    'Pending clearance': 'Ategereje kwemezwa',
+    Processing: 'Birimo gukorwa',
+    Pending: 'Bitegereje',
+    Blocked: 'Byahagaritswe',
+    'Balance deduction': 'Igabanywa ku mafaranga ariho',
+    'Balance correction': 'Isuzuma ry’amafaranga ariho',
+    Other: 'Ibindi',
+    'Available to withdraw': 'Ashobora kubikuzwa',
+    Tips: 'Amashimwe',
+    Bonuses: 'Inyongera',
+    'Album sales': 'Igurishwa rya alubumu',
+    Gifts: 'Impano',
+    Donations: 'Inkunga',
+    'In escrow': 'Mu bubiko bwizewe (Escrow)',
+    'Total withdrawn': 'Ayabikujwe yose',
+    'Total spent': 'Ayakoreshejwe yose',
+    'Available balance': 'Amafaranga aboneka',
+    'Refunds received': 'Ayasubijwe yakiriwe',
+    'Event spend': 'Ayakoreshejwe mu birori',
+    All: 'Byose',
+    'Earnings (+)': 'Inyungu (+)',
+    Withdrawals: 'Kubikuza',
+    'Money in (+)': 'Ayinjiye (+)',
+    'Money out (−)': 'Ayasohotse (−)',
+  },
+  sw: {
+    'Booking earnings': 'Mapato ya nafasi',
+    'Booking payment': 'Malipo ya nafasi',
+    'Event payment': 'Malipo ya tukio',
+    Balance: 'Salio',
+    Booking: 'Nafasi',
+    'Tip received': 'Bakshishi iliyopokelewa',
+    'Tip sent': 'Bakshishi iliyotumwa',
+    Tip: 'Bakshishi',
+    'Bonus received': 'Bonasi iliyopokelewa',
+    'Bonus sent': 'Bonasi iliyotumwa',
+    Bonus: 'Bonasi',
+    'Gift received': 'Zawadi iliyopokelewa',
+    'Gift sent': 'Zawadi iliyotumwa',
+    Gift: 'Zawadi',
+    'Stream bonus': 'Bonasi ya utiririshaji',
+    'Stream revenue': 'Mapato ya utiririshaji',
+    'Stream payment': 'Malipo ya utiririshaji',
+    'Stream fee': 'Ada ya utiririshaji',
+    Stream: 'Utiririshaji',
+    'Donation received': 'Mchango uliopokelewa',
+    'Donation sent': 'Mchango uliotumwa',
+    Donation: 'Mchango',
+    Withdrawal: 'Kutoa fedha',
+    'Refund issued': 'Marejesho yametolewa',
+    'Refund received': 'Marejesho yamepokelewa',
+    Refund: 'Marejesho',
+    'Client payment': 'Malipo ya mteja',
+    'Payment sent': 'Malipo yametumwa',
+    'Client spend': 'Matumizi ya mteja',
+    Payment: 'Malipo',
+    'Ad revenue share': 'Gawio la matangazo',
+    'Ad revenue': 'Mapato ya matangazo',
+    'Photo sale': 'Mauzo ya picha',
+    'Photo purchase': 'Ununuzi wa picha',
+    Photo: 'Picha',
+    'Platform fee': 'Ada ya jukwaa',
+    Fee: 'Ada',
+    'Held for delivery': 'Imeshikiliwa kusubiri uwasilishaji',
+    'Held in escrow': 'Imeshikiliwa kwenye dhamana (Escrow)',
+    Held: 'Imeshikiliwa',
+    'Pending clearance': 'Inasubiri idhini',
+    Processing: 'Inashughulikiwa',
+    Pending: 'Inasubiri',
+    Blocked: 'Imezuiwa',
+    'Balance deduction': 'Punguzo la salio',
+    'Balance correction': 'Marekebisho ya salio',
+    Other: 'Nyinginezo',
+    'Available to withdraw': 'Inapatikana kutoa',
+    Tips: 'Bakshishi',
+    Bonuses: 'Bonasi',
+    'Album sales': 'Mauzo ya albamu',
+    Gifts: 'Zawadi',
+    Donations: 'Michango',
+    'In escrow': 'Kwenye dhamana (Escrow)',
+    'Total withdrawn': 'Jumla iliyotolewa',
+    'Total spent': 'Jumla iliyotumika',
+    'Available balance': 'Salio lililopo',
+    'Refunds received': 'Marejesho yaliyopokelewa',
+    'Event spend': 'Matumizi ya tukio',
+    All: 'Yote',
+    'Earnings (+)': 'Mapato (+)',
+    Withdrawals: 'Kutoa fedha',
+    'Money in (+)': 'Pesa iliyoingia (+)',
+    'Money out (−)': 'Pesa iliyotoka (−)',
+  },
 };
+
+import { translateSharedRw } from '@/i18n/kinyarwanda';
+import { translateSharedSw } from '@/i18n/swahili';
 
 function trMoney(text: string): string {
   const lang = useLanguage.getState().language;
   if (lang === 'en') return text;
-  return MONEY_TRANSLATIONS[lang]?.[text] ?? text;
+  const hit = MONEY_TRANSLATIONS[lang]?.[text];
+  if (hit) return hit;
+  if (lang === 'rw') return translateSharedRw(text);
+  if (lang === 'sw') return translateSharedSw(text);
+  return text;
 }
 
 export function translateMoneyTag(tag: string): string {
@@ -594,6 +732,7 @@ export function formatRelativeTime(isoString?: string): string {
   if (seconds < 60) {
     if (lang === 'fr') return "à l'instant";
     if (lang === 'es') return 'justo ahora';
+    if (lang === 'rw') return 'aka kanya';
     return 'just now';
   }
 
@@ -601,6 +740,7 @@ export function formatRelativeTime(isoString?: string): string {
   if (minutes < 60) {
     if (lang === 'fr') return `il y a ${minutes}m`;
     if (lang === 'es') return `hace ${minutes}m`;
+    if (lang === 'rw') return `hashize iminota ${minutes}`;
     return `${minutes}m ago`;
   }
 
@@ -608,6 +748,7 @@ export function formatRelativeTime(isoString?: string): string {
   if (hours < 24) {
     if (lang === 'fr') return `il y a ${hours}h`;
     if (lang === 'es') return `hace ${hours}h`;
+    if (lang === 'rw') return `hashize amasaha ${hours}`;
     return `${hours}h ago`;
   }
 
@@ -615,10 +756,11 @@ export function formatRelativeTime(isoString?: string): string {
   if (days < 7) {
     if (lang === 'fr') return `il y a ${days}j`;
     if (lang === 'es') return `hace ${days}d`;
+    if (lang === 'rw') return `hashize iminsi ${days}`;
     return `${days}d ago`;
   }
 
   const d = new Date(isoString);
-  const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-US';
+  const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : lang === 'rw' ? 'rw-RW' : 'en-US';
   return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }

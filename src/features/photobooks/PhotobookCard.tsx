@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import { Skeleton } from '@/features/photographer/kit';
 import { albumDateText, photoCountText } from '@/features/gallery/albumFacts';
+import { useSharedT } from '@/i18n/sharedStrings';
 import type { Photobook } from './api';
 import { chipColors } from './statusChip';
 
@@ -37,6 +38,7 @@ export function bookByline(b: Pick<Photobook, 'photographerName' | 'createdAt'>)
 function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; received: boolean; onOpen: (id: string, received: boolean) => void }) {
   const styles = useStyles();
   const { colors, isDark } = useTheme();
+  const { tr } = useSharedT();
   const base = STATUS_META[(book.status ?? '').toUpperCase()] ?? { label: book.status || 'Book', bg: 'rgba(0,0,0,0.55)', fg: '#fff' };
   const tone = { ...base, ...chipColors(base, isDark, colors) };
   const count = photoCountText(book.mediaCount);
@@ -61,7 +63,7 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
         <View style={styles.top}>
           <View style={[styles.status, { backgroundColor: tone.bg }]}>
             <Text style={[styles.statusText, { color: tone.fg }]} maxFontSizeMultiplier={1.2}>
-              {tone.label}
+              {tr(tone.label)}
             </Text>
           </View>
         </View>
@@ -70,7 +72,7 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
             <View style={styles.count}>
               <Ionicons name="images" size={11} color="#fff" />
               <Text style={styles.countText} maxFontSizeMultiplier={1.2}>
-                {count}
+                {tr(count)}
               </Text>
             </View>
           </View>
@@ -82,7 +84,7 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
         </Text>
         {by ? (
           <Text style={styles.meta} numberOfLines={1} maxFontSizeMultiplier={1.25}>
-            {by}
+            {tr(by)}
           </Text>
         ) : null}
       </View>

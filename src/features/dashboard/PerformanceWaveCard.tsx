@@ -38,6 +38,7 @@ import Svg, {
 import { fonts, fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useSharedT } from '@/i18n/sharedStrings';
 import type {
   AnalyticsPeriod,
   CoordinatorAnalytics,
@@ -173,6 +174,7 @@ export function PerformanceWaveCard({
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const [internalMetric, setInternalMetric] = useState<MetricKey>('totalRevenue');
   const [activeIndex, setActiveIndex] = useState<number>(3); // Matches 14/10 index in reference image
 
@@ -373,7 +375,7 @@ export function PerformanceWaveCard({
   // Formatted active metric headline
   const formattedHeadline = meta.isMoney
     ? formatPrice(totalValue, currency)
-    : `${totalValue} ${meta.unit}`;
+    : `${totalValue} ${tr(meta.unit)}`;
 
   return (
     <View style={styles.cardContainer} testID="performance-wave-card">
@@ -383,7 +385,7 @@ export function PerformanceWaveCard({
           <View style={styles.eyebrowRow}>
             <View style={[styles.glowingDot, { backgroundColor: meta.color }]} />
             <Text style={styles.eyebrowText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} maxFontSizeMultiplier={1.15}>
-              {meta.title}
+              {tr(meta.title)}
             </Text>
           </View>
           <View style={styles.headlineRow}>
@@ -434,7 +436,7 @@ export function PerformanceWaveCard({
                     isSelected && styles.periodTabTextSelected,
                   ]}
                 >
-                  {p.label}
+                  {tr(p.label)}
                 </Text>
               </Pressable>
             );
@@ -472,7 +474,7 @@ export function PerformanceWaveCard({
                   isSelected && { color: m.color, fontWeight: fontWeight.bold },
                 ]}
               >
-                {m.shortTitle}
+                {tr(m.shortTitle)}
               </Text>
             </Pressable>
           );

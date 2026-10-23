@@ -125,6 +125,11 @@ const I18N = {
   },
 } as const;
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const PB_LIST_RW = buildKinyarwandaDict(I18N.en);
+const PB_LIST_SW = buildSwahiliDict(I18N.en);
+
 export default function PhotobooksScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -133,7 +138,7 @@ export default function PhotobooksScreen() {
   const { isPhotographer, isCoordinator } = useRole();
   const canCreate = isPhotographer || isCoordinator;
   const { language } = useLanguage();
-  const tr = I18N[language] || I18N.en;
+  const tr = language === 'rw' ? PB_LIST_RW : language === 'sw' ? PB_LIST_SW : (I18N as any)[language] || I18N.en;
   const accent = !isPhotographer;
 
   // A photographer has two shelves: books they made, and books clients sent them to edit (web "received photobooks").

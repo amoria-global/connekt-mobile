@@ -13,10 +13,12 @@ import { DUE_CURRENCY, dueText, payable, remaining } from '@/features/client/hom
 import { ActionButton, Card, EmptyNote, ErrorNotice, IconTile, SectionHeader, SkeletonCard } from '@/features/photographer/kit';
 import { moneyText } from '@/features/photographer/money';
 import { useAsync } from '@/hooks/useAsync';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { makeStyles, spacing } from '@/theme';
 
 export function ClientPaymentsDue({ hidden, version }: { hidden: boolean; version?: unknown }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const pending = useAsync(useCallback(() => getCustomerPendingPayments(), []));
   const [paying, setPaying] = useState<PendingPayment | null>(null);
   const dues = useMemo(() => payable(pending.data ?? []), [pending.data]);
@@ -58,8 +60,8 @@ export function ClientPaymentsDue({ hidden, version }: { hidden: boolean; versio
                       {p.eventName}
                     </Text>
                     <Text style={styles.meta} numberOfLines={2}>
-                      {failed ? 'Payment failed' : p.status === 'partially_paid' ? 'Balance due' : 'Payment due'}
-                      {due ? ` · Due ${due}` : ''}
+                      {failed ? tr('Payment failed') : p.status === 'partially_paid' ? tr('Balance due') : tr('Payment due')}
+                      {due ? ` · ${tr('Due')} ${tr(due)}` : ''}
                     </Text>
                   </View>
                   <Text style={styles.amount} accessibilityLabel={`${amount} to pay`}>

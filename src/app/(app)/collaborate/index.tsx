@@ -121,12 +121,17 @@ const COLLAB_I18N = {
   },
 } as const;
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const COLLAB_RW = buildKinyarwandaDict(COLLAB_I18N.en);
+const COLLAB_SW = buildSwahiliDict(COLLAB_I18N.en);
+
 export default function CollaborateHub() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const { language } = useLanguage();
-  const s = COLLAB_I18N[language] ?? COLLAB_I18N.en;
+  const s = language === 'rw' ? COLLAB_RW : language === 'sw' ? COLLAB_SW : (COLLAB_I18N as any)[language] ?? COLLAB_I18N.en;
   const [tab, setTab] = useState<Tab>('mine');
   const [owned, setOwned] = useState<OwnedAlbum[] | null>(null);
   const [joined, setJoined] = useState<JoinedAlbum[] | null>(null);

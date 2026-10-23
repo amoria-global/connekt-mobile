@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from 'react-native';
 
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { glassTile } from './GlassCard';
 
@@ -39,6 +40,7 @@ type Props = {
 export function OtpInput({ value, onChange, error, label, editable = true, onComplete, glass = false }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const refs = useRef<(TextInput | null)[]>([]);
 
   const digits = value.padEnd(LENGTH, ' ').slice(0, LENGTH).split('');
@@ -93,7 +95,7 @@ export function OtpInput({ value, onChange, error, label, editable = true, onCom
 
   return (
     <View style={styles.wrap}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={styles.label}>{tr(label)}</Text> : null}
 
       <View style={styles.row}>
         {Array.from({ length: LENGTH }).map((_, i) => {
@@ -129,7 +131,7 @@ export function OtpInput({ value, onChange, error, label, editable = true, onCom
         })}
       </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={styles.error}>{tr(error)}</Text> : null}
     </View>
   );
 }

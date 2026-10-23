@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fonts } from '@/theme';
 import { S } from './theme';
 
@@ -51,6 +52,7 @@ export function BottomSheet({
 }: Props) {
   const { height: H } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
   const translateY = useRef(new Animated.Value(H)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
@@ -142,7 +144,7 @@ export function BottomSheet({
           {title ? (
             <View style={styles.header}>
               <Text style={styles.title} accessibilityRole="header">
-                {title}
+                {tr(title)}
               </Text>
               <View style={styles.headerRight}>
                 {headerRight}

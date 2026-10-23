@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
@@ -37,6 +38,7 @@ const STATUS_TEXT: Record<HybridProfile['instagramStatus'], string | null> = {
 export function MatchingProfileForm({ onSaved, showWhy = true }: { onSaved?: (p: HybridProfile) => void; showWhy?: boolean }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<HybridProfile | null>(null);
   const [handle, setHandle] = useState('');
@@ -77,12 +79,12 @@ export function MatchingProfileForm({ onSaved, showWhy = true }: { onSaved?: (p:
       {showWhy ? INSTAGRAM_WHY.map((w, i) => (
         <View key={i} style={{ flexDirection: 'row', gap: spacing.sm }}>
           <Ionicons name={(['sparkles-outline', 'eye-outline', 'toggle-outline'] as const)[i]} size={15} color={MODE_META.HYBRID.color} style={{ marginTop: 2 }} />
-          <Text style={[styles.body, { flex: 1 }]}>{w}</Text>
+          <Text style={[styles.body, { flex: 1 }]}>{tr(w)}</Text>
         </View>
       )) : null}
       <View>
-        <Text style={styles.label}>Instagram</Text>
-        <Text style={styles.hint}>Your username or a link, e.g. @yourstudio or instagram.com/yourstudio</Text>
+        <Text style={styles.label}>{tr('Instagram')}</Text>
+        <Text style={styles.hint}>{tr('Your username or a link, e.g. @yourstudio or instagram.com/yourstudio')}</Text>
         <View style={styles.inputRow}>
           <Ionicons name="logo-instagram" size={18} color={colors.textMuted} />
           <TextInput value={handle} onChangeText={setHandle} placeholder="@yourstudio" placeholderTextColor={colors.textMuted}
@@ -91,24 +93,24 @@ export function MatchingProfileForm({ onSaved, showWhy = true }: { onSaved?: (p:
       </View>
       {askCity ? (
         <View>
-          <Text style={styles.label}>Where are you based?</Text>
-          <Text style={styles.hint}>{profile?.resolvedCity && !profile.city ? `From your address we think ${profile.resolvedCity}.` : 'So we can send you events near you.'}</Text>
+          <Text style={styles.label}>{tr('Where are you based?')}</Text>
+          <Text style={styles.hint}>{profile?.resolvedCity && !profile.city ? `From your address we think ${profile.resolvedCity}.` : tr('So we can send you events near you.')}</Text>
           <Pressable onPress={() => setCityOpen(true)} style={styles.inputRow} accessibilityRole="button" accessibilityLabel={`City ${city || 'not chosen'}`}>
             <Ionicons name="location-outline" size={18} color={colors.primary} />
-            <Text style={[styles.input, !city && { color: colors.textMuted }]}>{city || 'Choose your city'}</Text>
+            <Text style={[styles.input, !city && { color: colors.textMuted }]}>{city || tr('Choose your city')}</Text>
             <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
           </Pressable>
         </View>
       ) : null}
-      {error ? <Text style={styles.error}>{error}</Text> : status ? <Text style={styles.status}>{status}</Text> : null}
+      {error ? <Text style={styles.error}>{tr(error)}</Text> : status ? <Text style={styles.status}>{tr(status)}</Text> : null}
       <Pressable onPress={save} disabled={saving || !profile} style={[styles.save, (saving || !profile) && { opacity: 0.6 }]} accessibilityRole="button">
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Save</Text>}
+        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>{tr('Save')}</Text>}
       </Pressable>
 
       <Modal visible={cityOpen} transparent animationType="fade" onRequestClose={() => setCityOpen(false)}>
         <Pressable style={styles.scrim} onPress={() => setCityOpen(false)}>
           <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]} onPress={() => {}}>
-            <Text style={styles.label}>Your city</Text>
+            <Text style={styles.label}>{tr('Your city')}</Text>
             <FlatList data={cities} keyExtractor={(c) => c} style={{ maxHeight: 380 }} renderItem={({ item }) => (
               <Pressable onPress={() => { setCity(item); setCityOpen(false); }} style={[styles.row, item === city && { backgroundColor: colors.tint }]}
                 accessibilityRole="radio" accessibilityState={{ checked: item === city }}>
@@ -125,13 +127,14 @@ export function MatchingProfileForm({ onSaved, showWhy = true }: { onSaved?: (p:
 
 export function MatchingProfileCard() {
   const styles = useStyles();
+  const { tr } = useSharedT();
   return (
     <View style={styles.card}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <View style={styles.icon}><Ionicons name="radio-outline" size={18} color={MODE_META.HYBRID.color} /></View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Matching profile</Text>
-          <Text style={styles.hint}>Used to send you Post My Event opportunities</Text>
+          <Text style={styles.title}>{tr('Matching profile')}</Text>
+          <Text style={styles.hint}>{tr('Used to send you Post My Event opportunities')}</Text>
         </View>
       </View>
       <MatchingProfileForm />
@@ -142,6 +145,7 @@ export function MatchingProfileCard() {
 /** Asks once; snoozed for a week on "Remind me later". */
 export function MatchingProfilePrompt() {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
 
@@ -172,13 +176,13 @@ export function MatchingProfilePrompt() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
             <View style={[styles.icon, { backgroundColor: MODE_META.HYBRID.color }]}><Ionicons name="logo-instagram" size={22} color="#fff" /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title} accessibilityRole="header">Get matched with more events</Text>
-              <Text style={styles.hint}>Takes 20 seconds</Text>
+              <Text style={styles.title} accessibilityRole="header">{tr('Get matched with more events')}</Text>
+              <Text style={styles.hint}>{tr('Takes 20 seconds')}</Text>
             </View>
           </View>
           <MatchingProfileForm onSaved={(p) => { if (!p.needsCity) setTimeout(() => setOpen(false), 1200); }} />
           <Pressable onPress={later} style={{ alignSelf: 'center', padding: spacing.sm }} accessibilityRole="button">
-            <Text style={styles.later}>Remind me later</Text>
+            <Text style={styles.later}>{tr('Remind me later')}</Text>
           </Pressable>
         </Pressable>
       </Pressable>

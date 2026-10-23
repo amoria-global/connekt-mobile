@@ -9,6 +9,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { ActionButton, Card, IconTile, StatusBadge, StatusText } from './kit';
 import { ProgressRing } from './charts';
 
@@ -58,6 +59,7 @@ export type ShootFacts = {
  */
 export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts; actions: ReactNode; flush?: boolean }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   return (
     <Card style={flush ? styles.flush : undefined}>
       <View style={styles.shootRow}>
@@ -65,12 +67,12 @@ export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts;
         <View style={styles.shootText}>
           <StatusBadge {...shoot.status} />
           <Text style={styles.shootTitle} numberOfLines={2}>
-            {shoot.title}
+            {tr(shoot.title)}
           </Text>
-          <MetaLine icon="calendar-outline" text={shoot.when} />
+          <MetaLine icon="calendar-outline" text={tr(shoot.when)} />
           {shoot.location ? <MetaLine icon="location-outline" text={shoot.location} /> : null}
-          {shoot.client ? <MetaLine icon="person-outline" text={`Client: ${shoot.client}`} /> : null}
-          {shoot.photographer ? <MetaLine icon="camera-outline" text={`Photographer: ${shoot.photographer}`} /> : null}
+          {shoot.client ? <MetaLine icon="person-outline" text={`${tr('Client')}: ${shoot.client}`} /> : null}
+          {shoot.photographer ? <MetaLine icon="camera-outline" text={`${tr('Photographer')}: ${shoot.photographer}`} /> : null}
         </View>
       </View>
       <View style={styles.actions}>{actions}</View>
@@ -97,20 +99,21 @@ export function PriorityCard({
   onAction: () => void;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   return (
     <Card>
       <View style={styles.shootRow}>
         <Thumb uri={cover} size={76} />
         <View style={styles.shootText}>
           <Text style={styles.shootTitle} numberOfLines={2}>
-            {title}
+            {tr(title)}
           </Text>
           {subtitle ? (
             <Text style={styles.meta} numberOfLines={1}>
-              {subtitle}
+              {tr(subtitle)}
             </Text>
           ) : null}
-          <MetaLine icon="time-outline" text={when} />
+          <MetaLine icon="time-outline" text={tr(when)} />
           <StatusText {...status} />
         </View>
       </View>
@@ -142,6 +145,7 @@ export function BusinessOverview({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const ratingText = rating != null ? rating.toFixed(1) : null;
   return (
     <View>
@@ -150,17 +154,17 @@ export function BusinessOverview({
           <View style={styles.earnHead}>
             <IconTile icon="cash-outline" tone="success" size={30} />
             <Text style={styles.earnLabel} maxFontSizeMultiplier={1.25}>
-              Lifetime earnings
+              {tr('Lifetime earnings')}
             </Text>
           </View>
           <Text style={styles.earnValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityLabel={`Lifetime earnings, ${earnings}`}>
             {loading ? '' : earnings}
           </Text>
-          <Text style={styles.meta}>{earningsCaption}</Text>
+          <Text style={styles.meta}>{tr(earningsCaption)}</Text>
         </Card>
         <Card style={[styles.flush, styles.ratingCard]}>
           <Text style={styles.earnLabel} maxFontSizeMultiplier={1.25}>
-            Reviews
+            {tr('Reviews')}
           </Text>
           <ProgressRing
             size={92}
@@ -174,18 +178,18 @@ export function BusinessOverview({
                 <Text style={styles.ringValue} maxFontSizeMultiplier={1.2}>
                   {ratingText}
                 </Text>
-                <Text style={styles.ringOutOf}>out of 5</Text>
+                <Text style={styles.ringOutOf}>{tr('out of 5')}</Text>
               </View>
             ) : (
               <Text style={styles.ringNone} maxFontSizeMultiplier={1.2}>
-                {loadingReviews ? 'N/A' : 'No reviews yet'}
+                {loadingReviews ? 'N/A' : tr('No reviews yet')}
               </Text>
             )}
           </ProgressRing>
           {ratingText ? (
             // The rating and the review list come from different endpoints, so a count is shown only when the list has one.
             <Text style={styles.meta}>
-              {reviewCount > 0 ? `${reviewCount} review${reviewCount === 1 ? '' : 's'}` : 'Average rating'}
+              {reviewCount > 0 ? `${reviewCount} ${tr(reviewCount === 1 ? 'review' : 'reviews')}` : tr('Average rating')}
             </Text>
           ) : null}
         </Card>
@@ -198,7 +202,7 @@ export function BusinessOverview({
               {loading ? ' ' : t.value}
             </Text>
             <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.2}>
-              {t.label}
+              {tr(t.label)}
             </Text>
           </View>
         ))}

@@ -80,7 +80,7 @@ describe('mandatory update prompt', () => {
     const r = await mount();
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const t = text(r.root);
-    expect(t).toContain('Update required');
+    expect(t).toContain('New version available');
     expect(t).toContain('Update now');
     expect(t).not.toMatch(/Maybe later|Not Now|Dismiss|Skip|Later|Cancel/i);
     // Exactly one pressable, and it is the update action.

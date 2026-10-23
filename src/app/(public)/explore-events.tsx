@@ -71,6 +71,7 @@ import { isApiError, useAuth } from '@/store/auth';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { canShowDigitalPrice } from '@/features/payments/policy';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
@@ -242,6 +243,7 @@ export default function ExploreEventsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -722,7 +724,7 @@ export default function ExploreEventsScreen() {
         </Pressable>
 
         <View style={styles.topBarPillCenter}>
-          <Text style={styles.topBarPillText}>Explore Events</Text>
+          <Text style={styles.topBarPillText}>{tr('Explore Events')}</Text>
         </View>
 
         <Pressable
@@ -732,7 +734,7 @@ export default function ExploreEventsScreen() {
           accessibilityRole="button"
           accessibilityLabel={isAuthenticated ? 'Dashboard' : 'Sign in'}
         >
-          <Text style={styles.topBarSignInText}>{isAuthenticated ? 'Dashboard' : 'Sign In'}</Text>
+          <Text style={styles.topBarSignInText}>{tr(isAuthenticated ? 'Dashboard' : 'Sign In')}</Text>
         </Pressable>
       </View>
     </View>
@@ -803,7 +805,7 @@ export default function ExploreEventsScreen() {
                       <LivePill size="xs" style={styles.storyLivePill} />
                     ) : !isEnded ? (
                       <View style={styles.storySoonPill}>
-                        <Text style={styles.storySoonPillText}>SOON</Text>
+                        <Text style={styles.storySoonPillText}>{tr('SOON')}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -832,7 +834,7 @@ export default function ExploreEventsScreen() {
                 size={14}
                 color={active ? colors.primary : colors.textMuted}
               />
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tDef.short}</Text>
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tr(tDef.short)}</Text>
               {tDef.value === 'live' && liveCount > 0 ? (
                 <View style={styles.tabCount}>
                   <Text style={styles.tabCountText}>{liveCount}</Text>
@@ -855,7 +857,7 @@ export default function ExploreEventsScreen() {
               }}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
-              placeholder="Search events, venues, categories…"
+              placeholder={tr('Search events, venues, categories…')}
               placeholderTextColor={colors.textMuted}
               style={styles.searchInput}
               returnKeyType="search"
@@ -897,7 +899,7 @@ export default function ExploreEventsScreen() {
         {searchFocused && suggestions.length > 0 ? (
           <View style={styles.suggestionsCard}>
             <View style={styles.suggestionsHeader}>
-              <Text style={styles.suggestionsHeaderTitle}>SUGGESTIONS</Text>
+              <Text style={styles.suggestionsHeaderTitle}>{tr('SUGGESTIONS')}</Text>
               <Text style={styles.suggestionsHeaderCount}>{suggestions.length}</Text>
             </View>
             {suggestions.map((item) => (
@@ -933,18 +935,18 @@ export default function ExploreEventsScreen() {
                     </Text>
                     {item.badge ? (
                       <View style={styles.suggestionBadge}>
-                        <Text style={styles.suggestionBadgeText}>{item.badge}</Text>
+                        <Text style={styles.suggestionBadgeText}>{tr(item.badge)}</Text>
                       </View>
                     ) : null}
                   </View>
                   {item.subtitle ? (
                     <Text style={styles.suggestionSubtitle} numberOfLines={1}>
-                      {item.subtitle}
+                      {tr(item.subtitle)}
                     </Text>
                   ) : null}
                 </View>
                 <View style={styles.suggestionTypeTag}>
-                  <Text style={styles.suggestionTypeTagText}>{item.type}</Text>
+                  <Text style={styles.suggestionTypeTagText}>{tr(item.type)}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
               </Pressable>
@@ -994,10 +996,10 @@ export default function ExploreEventsScreen() {
       </View>
 
       <View style={styles.resultStrip}>
-        <Text style={styles.resultText}>{resultLabel}</Text>
+        <Text style={styles.resultText}>{tr(resultLabel)}</Text>
         {activeFilterCount > 0 ? (
           <Text style={styles.resultFilters}>
-            · {activeFilterCount} filter{activeFilterCount === 1 ? '' : 's'} active
+            · {tr(`${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'} active`)}
           </Text>
         ) : null}
       </View>
@@ -1021,17 +1023,17 @@ export default function ExploreEventsScreen() {
               color={page <= 1 ? colors.textMuted : colors.text}
             />
             <Text style={[styles.pagerBtnText, page <= 1 && styles.pagerBtnTextDisabled]}>
-              Previous
+              {tr('Previous')}
             </Text>
           </Pressable>
 
           <View style={styles.pagerIndicator}>
             <Text style={styles.pagerIndicatorText}>
-              Page <Text style={styles.pagerIndicatorBold}>{page}</Text> of{' '}
+              {tr('Page')} <Text style={styles.pagerIndicatorBold}>{page}</Text> {tr('of')}{' '}
               <Text style={styles.pagerIndicatorBold}>{Math.max(1, totalPages)}</Text>
             </Text>
             <Text style={styles.pagerTotalText}>
-              ({totalElements || data.length} {(totalElements || data.length) === 1 ? 'event' : 'events'})
+              ({tr(`${totalElements || data.length} ${(totalElements || data.length) === 1 ? 'event' : 'events'}`)})
             </Text>
           </View>
 
@@ -1043,7 +1045,7 @@ export default function ExploreEventsScreen() {
             accessibilityLabel="Next page"
           >
             <Text style={[styles.pagerBtnText, page >= totalPages && styles.pagerBtnTextDisabled]}>
-              Next
+              {tr('Next')}
             </Text>
             <Ionicons
               name="chevron-forward"
@@ -1101,7 +1103,7 @@ export default function ExploreEventsScreen() {
           error ? (
             <View style={styles.emptyWrap}>
               <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{tr(error)}</Text>
             </View>
           ) : (
             <View style={styles.emptyWrap}>
@@ -1153,8 +1155,8 @@ export default function ExploreEventsScreen() {
             <View style={styles.sheetHandle} />
             <View style={styles.sortSheetHeader}>
               <View>
-                <Text style={styles.sortSheetTitle}>Sort Events</Text>
-                <Text style={styles.sortSheetSubtitle}>Choose an order for exploring events</Text>
+                <Text style={styles.sortSheetTitle}>{tr('Sort Events')}</Text>
+                <Text style={styles.sortSheetSubtitle}>{tr('Choose an order for exploring events')}</Text>
               </View>
               <Pressable
                 onPress={() => setSortSheetOpen(false)}
@@ -1196,9 +1198,9 @@ export default function ExploreEventsScreen() {
                           active && styles.sortOptionLabelActive,
                         ]}
                       >
-                        {opt.label}
+                        {tr(opt.label)}
                       </Text>
-                      <Text style={styles.sortOptionDesc}>{opt.description}</Text>
+                      <Text style={styles.sortOptionDesc}>{tr(opt.description)}</Text>
                     </View>
                     {active ? (
                       <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
@@ -1234,6 +1236,7 @@ function PosterCard({
   onToggleSave: () => void;
 }) {
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const styles = useStyles();
   const router = useRouter();
   const date = dateParts(event.eventDate);
@@ -1266,11 +1269,11 @@ function PosterCard({
             <LivePill size="sm" sparkle />
           ) : isEnded ? (
             <View style={[styles.statusBadge, styles.statusEnded]}>
-              <Text style={styles.statusText}>ENDED</Text>
+              <Text style={styles.statusText}>{tr('ENDED')}</Text>
             </View>
           ) : (
             <View style={[styles.statusBadge, styles.statusUpcoming]}>
-              <Text style={styles.statusText}>UPCOMING</Text>
+              <Text style={styles.statusText}>{tr('UPCOMING')}</Text>
             </View>
           )}
           <Pressable
@@ -1318,8 +1321,8 @@ function PosterCard({
           <View style={styles.priceChip}>
             <Ionicons name="pricetag" size={11} color={colors.primary} />
             <Text style={styles.priceText}>
-              {price.label ? `${price.label} ` : ''}
-              <Text style={styles.priceNum}>{price.amount}</Text>
+              {price.label ? `${tr(price.label)} ` : ''}
+              <Text style={styles.priceNum}>{tr(price.amount)}</Text>
             </Text>
           </View>
         </View>
@@ -1338,7 +1341,7 @@ function PosterCard({
             >
               <Ionicons name="eye-outline" size={15} color={colors.primary} />
               <Text style={styles.viewCardBtnText} numberOfLines={1}>
-                View Details
+                {tr('View Details')}
               </Text>
             </Pressable>
 
@@ -1353,7 +1356,7 @@ function PosterCard({
             >
               <Ionicons name="search" size={14} color="#FFFFFF" />
               <Text style={styles.findPhotosBtnText} numberOfLines={1}>
-                Find Photos
+                {tr('Find Photos')}
               </Text>
             </Pressable>
           </View>
@@ -1380,7 +1383,7 @@ function PosterCard({
             >
               <Ionicons name="eye-outline" size={15} color={colors.primary} />
               <Text style={styles.viewCardFullBtnText} numberOfLines={1}>
-                View Details
+                {tr('View Details')}
               </Text>
             </Pressable>
           </View>
@@ -1407,6 +1410,7 @@ function FilterChip({
   onChange: (v: string) => void;
 }) {
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
@@ -1423,7 +1427,7 @@ function FilterChip({
       >
         <Ionicons name={icon} size={14} color={active ? colors.primary : colors.textMuted} />
         <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-          {current?.label ?? 'Any'}
+          {tr(current?.label ?? 'Any')}
         </Text>
         <Ionicons name="chevron-down" size={12} color={active ? colors.primary : colors.textMuted} />
       </Pressable>
@@ -1443,7 +1447,7 @@ function FilterChip({
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderTitleRow}>
                 <Ionicons name={icon} size={18} color={colors.primary} />
-                <Text style={styles.modalTitle}>{title}</Text>
+                <Text style={styles.modalTitle}>{tr(title)}</Text>
               </View>
               <Pressable
                 onPress={() => setOpen(false)}
@@ -1483,7 +1487,7 @@ function FilterChip({
                       ]}
                       numberOfLines={2}
                     >
-                      {item.label}
+                      {tr(item.label)}
                     </Text>
                     {selected ? (
                       <Ionicons name="checkmark-circle" size={20} color={colors.primary} />

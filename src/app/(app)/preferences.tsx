@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -98,6 +99,11 @@ export default function PreferencesScreen() {
               <Text style={styles.rowDesc}>{t('languageSectionSubtitle')}</Text>
             </View>
             <View style={styles.langBadge}>
+              <Image
+                source={{ uri: `https://flagcdn.com/w40/${currentLangInfo.flag}.png` }}
+                style={styles.badgeFlag}
+                contentFit="cover"
+              />
               <Text style={styles.langBadgeText}>{currentLangInfo.nativeLabel}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -118,6 +124,13 @@ export default function PreferencesScreen() {
               <Text style={styles.rowDesc}>{t('currencySectionSubtitle')}</Text>
             </View>
             <View style={styles.langBadge}>
+              {currentCurrency?.flag ? (
+                <Image
+                  source={{ uri: `https://flagcdn.com/w40/${currentCurrency.flag}.png` }}
+                  style={styles.badgeFlag}
+                  contentFit="cover"
+                />
+              ) : null}
               <Text style={styles.langBadgeText}>{currency}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -244,12 +257,20 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
   },
   langBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radii.full,
     backgroundColor: c.background,
     borderWidth: 1,
     borderColor: c.borderSoft,
+  },
+  badgeFlag: {
+    width: 16,
+    height: 12,
+    borderRadius: 2,
   },
   langBadgeText: {
     fontSize: fontSize.xs,

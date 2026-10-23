@@ -168,6 +168,11 @@ function cleanErrorMessage(name: string, raw: string): string {
   return clean;
 }
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const JA_RW = buildKinyarwandaDict(JA_I18N.en);
+const JA_SW = buildSwahiliDict(JA_I18N.en);
+
 export default function JoinedAlbumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
@@ -175,7 +180,7 @@ export default function JoinedAlbumScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const { language } = useLanguage();
-  const tr = JA_I18N[language] ?? JA_I18N.en;
+  const tr = language === 'rw' ? JA_RW : language === 'sw' ? JA_SW : (JA_I18N as any)[language] ?? JA_I18N.en;
   const FILTERS: [Filter, string][] = [['ALL', tr.filterAll], ['PENDING', tr.filterWaiting], ['APPROVED', tr.filterAdded], ['REJECTED', tr.filterNotAccepted]];
   const { width } = useWindowDimensions();
   const [data, setData] = useState<JoinedAlbumDetail | null>(null);

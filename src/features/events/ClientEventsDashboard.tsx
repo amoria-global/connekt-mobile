@@ -23,6 +23,7 @@ import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
 import { ModeBadge, friendlyEventStatus, isOpenHybrid, modeOf } from '@/features/hybrid/hybridUi';
 import { env } from '@/config/env';
 import { useAsync } from '@/hooks/useAsync';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import {
   ActionButton,
@@ -72,6 +73,7 @@ function whenText(e: EventItem): string {
 export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { topInset?: number; initialSearch?: string }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { data, loading, error, refresh, refreshQuietly } = useAsync(listEvents);
@@ -145,9 +147,9 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
       <View style={[styles.titleRow, styles.pad]}>
         <View style={styles.flex}>
           <Text style={styles.title} accessibilityRole="header">
-            Events
+            {tr('Events')}
           </Text>
-          <Text style={styles.subtitle}>Your bookings, sessions and live events.</Text>
+          <Text style={styles.subtitle}>{tr('Your bookings, sessions and live events.')}</Text>
         </View>
         <ActionButton label="New" icon="add" variant="primary" compact onPress={newEvent} />
       </View>
@@ -182,7 +184,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
               setSearch(t);
               resetPaging();
             }}
-            placeholder="Search events"
+            placeholder={tr('Search events')}
             placeholderTextColor={colors.textMuted}
             style={styles.searchInput}
             autoCapitalize="none"
@@ -317,7 +319,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
           >
             <View style={styles.handle} />
             <Text style={styles.sheetTitle} accessibilityRole="header">
-              Sort events
+              {tr('Sort events')}
             </Text>
             {SORTS.map((s) => {
               const on = sort === s.key;
@@ -336,8 +338,8 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
                 >
                   <Ionicons name={s.icon} size={20} color={on ? colors.primary : colors.textMuted} />
                   <View style={styles.flex}>
-                    <Text style={styles.sortLabel}>{s.label}</Text>
-                    <Text style={styles.sortDesc}>{s.description}</Text>
+                    <Text style={styles.sortLabel}>{tr(s.label)}</Text>
+                    <Text style={styles.sortDesc}>{tr(s.description)}</Text>
                   </View>
                   {on ? <Ionicons name="checkmark-circle" size={22} color={colors.primary} /> : null}
                 </Pressable>
@@ -393,6 +395,7 @@ function EventRow({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const status = (event.status ?? '').toUpperCase();
   const openHybrid = isOpenHybrid(event.bookingMode, status, !!event.photographerName);
   const canPost =
@@ -413,11 +416,11 @@ function EventRow({
           <Text style={styles.cardTitle} numberOfLines={2}>
             {event.title}
           </Text>
-          <Meta icon="calendar-outline" text={whenText(event)} />
+          <Meta icon="calendar-outline" text={tr(whenText(event))} />
           {event.location ? <Meta icon="location-outline" text={event.location} /> : null}
           <Meta
             icon="camera-outline"
-            text={event.photographerName || (openHybrid ? friendlyEventStatus(status) : 'No photographer yet')}
+            text={event.photographerName || (openHybrid ? tr(friendlyEventStatus(status)) : tr('No photographer yet'))}
           />
         </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />

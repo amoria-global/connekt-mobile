@@ -65,7 +65,7 @@ export default function WalletScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
-  const { tr } = useSharedT();
+  const { language, tr } = useSharedT();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
@@ -110,7 +110,7 @@ export default function WalletScreen() {
   const stats = useMemo(() => {
     if (!data?.wallet) return null;
     return selectWalletStats(data.wallet, dashboardRole);
-  }, [data?.wallet, dashboardRole]);
+  }, [data?.wallet, dashboardRole, language]);
 
   const filterTags = useMemo(() => getFilterTags(dashboardRole), [dashboardRole]);
 
@@ -134,7 +134,7 @@ export default function WalletScreen() {
       items.push(item);
     }
     return items;
-  }, [data?.history, pages.items, dashboardRole, activeFilter, directionFilter, activitySearch]);
+  }, [data?.history, pages.items, dashboardRole, activeFilter, directionFilter, activitySearch, language]);
 
   // The overview preview ignores the Activity tab's filters: it is simply the latest movements.
   const recentItems = useMemo(() => {
@@ -145,7 +145,7 @@ export default function WalletScreen() {
       if (out.length === 3) break;
     }
     return out;
-  }, [pages.items, dashboardRole]);
+  }, [pages.items, dashboardRole, language]);
 
   const totalPages = Math.max(1, Math.ceil(filteredActivityItems.length / PAGE_SIZE));
   const safePage = Math.min(activityPage, totalPages);
@@ -268,7 +268,7 @@ export default function WalletScreen() {
                       color={colors.textMuted}
                     />
                     <Text style={styles.privacyToggleText}>
-                      {balanceHidden ? 'Show' : 'Hide'}
+                      {tr(balanceHidden ? 'Show' : 'Hide')}
                     </Text>
                   </Pressable>
                 </View>
@@ -294,7 +294,7 @@ export default function WalletScreen() {
                     >
                       <Ionicons name="cash-outline" size={15} color="#ffffff" />
                       <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.25}>
-                        Withdraw funds
+                        {tr('Withdraw funds')}
                       </Text>
                     </Pressable>
                   ) : null}
@@ -310,20 +310,20 @@ export default function WalletScreen() {
                   >
                     <Ionicons name="time-outline" size={15} color={colors.warning} />
                     <Text style={styles.pendingStripLabel} maxFontSizeMultiplier={1.2}>
-                      {pendingLabel}
+                      {tr(pendingLabel)}
                     </Text>
                     <Text style={styles.pendingStripAmount} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                       {balanceHidden ? '••••' : formatPrice(pendingValue, data?.wallet.currency)}
                     </Text>
                     <Text style={styles.pendingStripNote} numberOfLines={2} maxFontSizeMultiplier={1.15}>
-                      Not in available balance
+                      {tr('Not in available balance')}
                     </Text>
                   </View>
                 ) : stats.pendingChip && stats.pendingChip.value > 0 ? (
                   <View style={[styles.pendingChip, tabbed && styles.heroChipStart]}>
                     <Ionicons name="time-outline" size={12} color={colors.warning} />
                     <Text style={styles.pendingChipText}>
-                      {stats.pendingChip.label}:{' '}
+                      {tr(stats.pendingChip.label)}:{' '}
                       {balanceHidden
                         ? '••••'
                         : formatPrice(stats.pendingChip.value, data?.wallet.currency)}
@@ -340,7 +340,7 @@ export default function WalletScreen() {
                     ]}
                   >
                     <Ionicons name="shield-outline" size={12} color={colors.warning} />
-                    <Text style={styles.statusChipText}>Wallet {stats.status.toLowerCase()}</Text>
+                    <Text style={styles.statusChipText}>{tr(`Wallet ${stats.status.toLowerCase()}`)}</Text>
                   </View>
                 ) : null}
 
@@ -350,7 +350,7 @@ export default function WalletScreen() {
                     onPress={() => router.push('/withdraw' as Href)}
                   >
                     <Ionicons name="cash-outline" size={15} color="#ffffff" />
-                    <Text style={styles.heroWithdrawText}>Withdraw funds</Text>
+                    <Text style={styles.heroWithdrawText}>{tr('Withdraw funds')}</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -360,7 +360,7 @@ export default function WalletScreen() {
           {/* Quick Links Menu (Top placement for instant access without scrolling) */}
           {showOverview && !tabbed ? (
           <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Quick links</Text>
+            <Text style={styles.sectionTitle}>{tr('Quick links')}</Text>
             <View style={styles.menuCard}>
               {links.map((l, i) => (
                 <Pressable
@@ -375,7 +375,7 @@ export default function WalletScreen() {
                   <View style={styles.menuIcon}>
                     <Ionicons name={l.icon} size={18} color={colors.primary} />
                   </View>
-                  <Text style={styles.menuLabel}>{l.label}</Text>
+                  <Text style={styles.menuLabel}>{tr(l.label)}</Text>
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </Pressable>
               ))}
@@ -401,7 +401,7 @@ export default function WalletScreen() {
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
           {showOverview && tabbed && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : 'Earnings breakdown'}</Text>
+              <Text style={styles.sectionTitle}>{tr(isClient ? 'Spending breakdown' : 'Earnings breakdown')}</Text>
               <View style={styles.rowsCard}>
                 {visibleCards.map((card, i) => {
                   const p = PALETTE[card.color] ?? PALETTE.neutral;
@@ -418,7 +418,7 @@ export default function WalletScreen() {
                         <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={15} color={p.bar} />
                       </View>
                       <Text style={styles.rowLabel} numberOfLines={1}>
-                        {card.label}
+                        {tr(card.label)}
                       </Text>
                       <Text style={styles.rowValue} numberOfLines={1}>
                         {balanceHidden ? '••••' : formatPrice(card.value, data?.wallet.currency)}
@@ -435,7 +435,7 @@ export default function WalletScreen() {
             <>
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>Recent activity</Text>
+                  <Text style={styles.sectionTitle}>{tr('Recent activity')}</Text>
                   <Pressable
                     onPress={() => setWalletTab('activity')}
                     hitSlop={8}
@@ -443,18 +443,18 @@ export default function WalletScreen() {
                     accessibilityLabel="View all activity"
                     style={styles.viewAll}
                   >
-                    <Text style={styles.seeAllText}>View all</Text>
+                    <Text style={styles.seeAllText}>{tr('View all')}</Text>
                   </Pressable>
                 </View>
                 {data?.movementsFailed ? (
                   <View style={styles.rowsCard}>
                     <Text style={styles.recentNote} accessibilityRole="alert">
-                      Could not load your history. Pull down to try again.
+                      {tr('Could not load your history. Pull down to try again.')}
                     </Text>
                   </View>
                 ) : recentItems.length === 0 ? (
                   <View style={styles.rowsCard}>
-                    <Text style={styles.recentNote}>No movements yet.</Text>
+                    <Text style={styles.recentNote}>{tr('No movements yet.')}</Text>
                   </View>
                 ) : (
                   <View style={styles.rowsCard}>
@@ -477,10 +477,10 @@ export default function WalletScreen() {
                           </View>
                           <View style={styles.rowBody}>
                             <Text style={styles.rowLabel} numberOfLines={1}>
-                              {item.title}
+                              {tr(item.title)}
                             </Text>
                             <Text style={styles.rowMeta} numberOfLines={1}>
-                              {item.tag} · {formatRelativeTime(item.timestamp)}
+                              {tr(item.tag)} · {formatRelativeTime(item.timestamp)}
                             </Text>
                           </View>
                           <Text style={[styles.rowValue, isIn && { color: colors.success }]} numberOfLines={1}>
@@ -504,7 +504,7 @@ export default function WalletScreen() {
                   >
                     <IconTile icon={l.icon} tone="primary" size={30} />
                     <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
-                      {l.label === 'Payroll report' ? 'Earnings report' : l.label}
+                      {tr(l.label === 'Payroll report' ? 'Earnings report' : l.label)}
                     </Text>
                     <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
                   </Pressable>
@@ -516,11 +516,13 @@ export default function WalletScreen() {
           {showOverview && !tabbed && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
               <Text style={styles.sectionTitle}>
-                {dashboardRole === 'photographer'
-                  ? 'Earnings breakdown'
-                  : dashboardRole === 'client'
-                    ? 'Spending breakdown'
-                    : 'Balance breakdown'}
+                {tr(
+                  dashboardRole === 'photographer'
+                    ? 'Earnings breakdown'
+                    : dashboardRole === 'client'
+                      ? 'Spending breakdown'
+                      : 'Balance breakdown'
+                )}
               </Text>
               <View style={styles.potGrid}>
                 {visibleCards.map((card) => {
@@ -536,7 +538,7 @@ export default function WalletScreen() {
                           />
                         </View>
                         <Text style={styles.potLabel} numberOfLines={1}>
-                          {card.label}
+                          {tr(card.label)}
                         </Text>
                       </View>
                       <Text style={styles.potAmount}>
@@ -559,13 +561,13 @@ export default function WalletScreen() {
                 <View style={styles.activityIconWrap}>
                   <Ionicons name="swap-horizontal-outline" size={15} color={colors.primary} />
                 </View>
-                <Text style={styles.sectionTitle}>Activity</Text>
+                <Text style={styles.sectionTitle}>{tr('Activity')}</Text>
               </View>
               <Pressable
                 onPress={() => router.push('/transactions' as Href)}
                 hitSlop={8}
               >
-                <Text style={styles.seeAllText}>See all</Text>
+                <Text style={styles.seeAllText}>{tr('See all')}</Text>
               </Pressable>
             </View>
 
@@ -585,7 +587,7 @@ export default function WalletScreen() {
                         isSelected && styles.directionPillTextActive,
                       ]}
                     >
-                      {d.label}
+                      {tr(d.label)}
                     </Text>
                   </Pressable>
                 );
@@ -607,7 +609,7 @@ export default function WalletScreen() {
                     style={[styles.filterPill, isSelected && styles.filterPillActive]}
                   >
                     <Text style={[styles.filterPillText, isSelected && styles.filterPillTextActive]}>
-                      {tag}
+                      {tr(tag)}
                     </Text>
                   </Pressable>
                 );
@@ -617,7 +619,7 @@ export default function WalletScreen() {
             {/* Search Input for Activity */}
             <View style={styles.activitySearchWrap}>
               <Input
-                placeholder="Search activity by title or description..."
+                placeholder={tr('Search activity by title or description...')}
                 value={activitySearch}
                 onChangeText={setActivitySearch}
                 leftElement={
@@ -635,14 +637,14 @@ export default function WalletScreen() {
             {filteredActivityItems.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="receipt-outline" size={32} color={colors.textMuted} />
-                <Text style={styles.emptyCardTitle}>{data?.movementsFailed ? 'Could not load your history' : 'No movements found'}</Text>
+                <Text style={styles.emptyCardTitle}>{tr(data?.movementsFailed ? 'Could not load your history' : 'No movements found')}</Text>
                 <Text style={styles.emptyCardDesc}>
                   {data?.movementsFailed
-                    ? 'Pull down to try again. Your balance above is still current.'
+                    ? tr('Pull down to try again. Your balance above is still current.')
                     : activitySearch
                     ? `No transactions match "${activitySearch}".`
                     : activeFilter === 'All'
-                      ? 'Payouts, tips, bonuses, and payments will appear here.'
+                      ? tr('Payouts, tips, bonuses, and payments will appear here.')
                       : `No ${activeFilter.toLowerCase()} transactions recorded yet.`}
                 </Text>
               </View>
@@ -684,11 +686,11 @@ export default function WalletScreen() {
                         <View style={styles.activityBody}>
                           <View style={styles.activityTitleRow}>
                             <Text style={styles.activityTitle} numberOfLines={1}>
-                              {item.title}
+                              {tr(item.title)}
                             </Text>
                             <View style={[styles.tagBadge, { backgroundColor: palette.bg }]}>
                               <Text style={[styles.tagBadgeText, { color: palette.text }]}>
-                                {item.tag}
+                                {tr(item.tag)}
                               </Text>
                             </View>
                           </View>
@@ -814,7 +816,7 @@ export default function WalletScreen() {
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>Transaction details</Text>
+              <Text style={styles.modalHeaderTitle}>{tr('Transaction details')}</Text>
               <Pressable
                 style={styles.modalCloseBtn}
                 onPress={() => setSelectedItem(null)}
@@ -837,13 +839,13 @@ export default function WalletScreen() {
                     {selectedItem.direction === 'in' ? '+' : '−'}
                     {formatPrice(selectedItem.amount, selectedItem.originalCurrency || data?.wallet.currency)}
                   </Text>
-                  <Text style={styles.modalHeroTitle}>{selectedItem.title}</Text>
+                  <Text style={styles.modalHeroTitle}>{tr(selectedItem.title)}</Text>
                 </View>
 
                 {/* Details Breakdown */}
                 <View style={styles.modalDetailsList}>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Category</Text>
+                    <Text style={styles.detailLabel}>{tr('Category')}</Text>
                     <View
                       style={[
                         styles.tagBadge,
@@ -862,20 +864,20 @@ export default function WalletScreen() {
                           },
                         ]}
                       >
-                        {selectedItem.tag}
+                        {tr(selectedItem.tag)}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Direction</Text>
+                    <Text style={styles.detailLabel}>{tr('Direction')}</Text>
                     <Text style={styles.detailValue}>
-                      {selectedItem.direction === 'in' ? 'Credit (Incoming)' : 'Debit (Outgoing)'}
+                      {tr(selectedItem.direction === 'in' ? 'Credit (Incoming)' : 'Debit (Outgoing)')}
                     </Text>
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Date & Time</Text>
+                    <Text style={styles.detailLabel}>{tr('Date & Time')}</Text>
                     <Text style={styles.detailValue}>
                       {new Date(selectedItem.timestamp).toLocaleString(undefined, {
                         dateStyle: 'medium',

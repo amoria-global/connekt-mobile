@@ -83,6 +83,7 @@ import {
   remaining,
 } from '@/features/client/homeModel';
 import { useCurrency } from '@/store/currency';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { formatDate } from '@/utils/format';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 
@@ -93,9 +94,10 @@ const EMPTY: never[] = [];
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-function longDate(now = new Date()): string {
+function longDate(lang?: string, now = new Date()): string {
   try {
-    return now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+    const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : lang === 'rw' ? 'rw-RW' : lang === 'sw' ? 'sw-TZ' : undefined;
+    return now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
   } catch {
     return '';
   }
@@ -135,6 +137,7 @@ function activityKind(a: RecentActivity): { icon: IconName; tone: 'primary' | 'a
 export function ClientHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { language, tr } = useSharedT();
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
@@ -227,7 +230,7 @@ export function ClientHome() {
   const today = dayKey(new Date());
   const nextEvent = useMemo(() => pickNextEvent(eventList, today), [eventList, today]);
   const dues = useMemo(() => payable(pending.data ?? EMPTY), [pending.data]);
-  const walletStats = useMemo(() => (wallet.data ? selectWalletStats(wallet.data, 'client') : null), [wallet.data]);
+  const walletStats = useMemo(() => (wallet.data ? selectWalletStats(wallet.data, 'client') : null), [wallet.data, language]);
   const dueTotal = useMemo(
     () => (pending.data ? { amount: dues.reduce((s, p) => s + remaining(p), 0), count: dues.length } : undefined),
     [pending.data, dues],
@@ -273,9 +276,9 @@ export function ClientHome() {
         <View style={styles.header}>
           <View style={styles.flex}>
             <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-              Welcome back, {name}
+              {tr('Welcome back')}, {name}
             </Text>
-            <Text style={styles.subtitle}>{longDate() || 'Your events, photos and bookings'}</Text>
+            <Text style={styles.subtitle}>{longDate(language) || tr('Your events, photos and bookings')}</Text>
           </View>
           <Pressable
             onPress={() => setHidden((h) => !h)}
@@ -295,7 +298,7 @@ export function ClientHome() {
         >
           <Ionicons name="search" size={18} color={colors.textMuted} />
           <Text style={styles.searchText} numberOfLines={2}>
-            Search photographers, events, live streams
+            {tr('Search photographers, events, live streams')}
           </Text>
         </Pressable>
 
@@ -395,9 +398,9 @@ export function ClientHome() {
                       <IconTile icon="images-outline" tone="success" />
                       <View style={styles.flex}>
                         <Text style={styles.cardTitle} numberOfLines={1}>
-                          Photos ready
+                          {tr('Photos ready')}
                         </Text>
-                        <Text style={styles.cardMeta}>{photosReady} in your albums</Text>
+                        <Text style={styles.cardMeta}>{photosReady} {tr('in your albums')}</Text>
                       </View>
                     </View>
                     <ActionButton label="Review photos" variant="primary" compact onPress={() => open('/gallery')} />
@@ -595,6 +598,7 @@ function NextEventCard({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const live = isLiveNow(event);
   const day = eventDay(event);
   const countdown = day ? countdownLabel(daysUntil(day, today)) : undefined;
@@ -607,28 +611,28 @@ function NextEventCard({
       <View style={styles.nextRow}>
         <Thumb uri={event.coverImage} size={96} />
         <View style={styles.nextText}>
-          {live ? <LivePill label="Live now" size="xs" sparkle /> : <StatusBadge {...status} />}
+          {live ? <LivePill label={tr('Live now')} size="xs" sparkle /> : <StatusBadge {...status} />}
           <Text style={styles.cardTitle} numberOfLines={2}>
-            {event.title || 'Your booking'}
+            {event.title || tr('Your booking')}
           </Text>
-          <Meta icon="calendar-outline" text={whenText(event)} />
+          <Meta icon="calendar-outline" text={tr(whenText(event))} />
           {event.location ? <Meta icon="location-outline" text={event.location} /> : null}
           {countdown && !live ? (
             <View style={styles.countdown} accessibilityLabel={countdown}>
               <Ionicons name="time-outline" size={12} color={colors.link} />
-              <Text style={styles.countdownText}>{countdown}</Text>
+              <Text style={styles.countdownText}>{tr(countdown)}</Text>
             </View>
           ) : null}
         </View>
       </View>
-      {event.photographerName ? <Meta icon="camera-outline" text={`Photographer: ${event.photographerName}`} /> : null}
+      {event.photographerName ? <Meta icon="camera-outline" text={`${tr('Photographer')}: ${event.photographerName}`} /> : null}
       {due ? (
         <View style={styles.dueRow} accessibilityLabel={`${moneyText(remaining(due), DUE_CURRENCY, hidden)} due`}>
           <Ionicons name={due.status === 'failed' ? 'alert-circle' : 'time'} size={14} color={due.status === 'failed' ? colors.error : colors.warning} />
           <Text style={styles.dueText}>
             {moneyText(remaining(due), DUE_CURRENCY, hidden)}
-            {dueDate ? ` · Due ${dueDate}` : ' due'}
-            {due.status === 'failed' ? ' · Payment failed' : ''}
+            {dueDate ? ` · ${tr('Due')} ${tr(dueDate)}` : ` ${tr('Due').toLowerCase()}`}
+            {due.status === 'failed' ? ` · ${tr('Payment failed')}` : ''}
           </Text>
         </View>
       ) : null}
@@ -662,6 +666,7 @@ function Meta({ icon, text }: { icon: IconName; text: string }) {
 
 function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPay: () => void; hidden: boolean }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const failed = payment.status === 'failed';
   const dueDate = dueText(payment);
   return (
@@ -673,8 +678,8 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
             {payment.eventName}
           </Text>
           <Text style={styles.cardMeta} numberOfLines={2}>
-            {failed ? 'Payment failed' : payment.status === 'partially_paid' ? 'Balance due' : 'Payment due'}
-            {dueDate ? ` · ${dueDate}` : ''}
+            {failed ? tr('Payment failed') : payment.status === 'partially_paid' ? tr('Balance due') : tr('Payment due')}
+            {dueDate ? ` · ${tr(dueDate)}` : ''}
           </Text>
         </View>
       </View>
