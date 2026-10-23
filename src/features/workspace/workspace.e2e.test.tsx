@@ -4,25 +4,32 @@ import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { Text, TextInput } from 'react-native';
 
 /**
- * The REAL mobile client code against a REAL running backend. It does nothing unless the backend's WorkspaceClientsIT
- * starts a server and sets WS_E2E_URL: that test seeds the accounts, runs this file once per phase (alternating with
- * the web client, so an invitation sent from one client is answered from the other), then checks the database.
+ * The REAL mobile client code against the REAL backend pipeline (real security chain, really signed tokens, real
+ * controllers: see the backend's WorkspaceClientsIT). It does nothing unless that test starts the server and sets
+ * WS_E2E_URL: it seeds the accounts, runs this file once per phase (alternating with the web client, so an invitation
+ * sent from one client is answered from the other), then checks the database.
  *
  * Real here: the Workspace access panel, the invitation API module, the API client (token, workspace header, fallback
  * on a refused workspace), the workspace store and the app's own mapping of what the server sends. Faked here: only
- * the transport (node http), secure storage (in memory), and the confirmation dialog (answered "yes").
+ * the transport (node http), secure storage (in memory) and the confirmation dialog (answered "yes"). Not a device run.
  */
 import '@/test/autoUnmount';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+// Real endpoints on a cold JVM: the first requests can take several seconds.
+jest.setTimeout(90000);
 
 const BASE = process.env.WS_E2E_URL;
 const PHASE = process.env.WS_E2E_PHASE ?? '';
 const ME = process.env.WS_E2E_ME_ID ?? '';
+const ME_TOKEN = process.env.WS_E2E_ME_TOKEN ?? '';
+const STRANGER_TOKEN = process.env.WS_E2E_STRANGER_TOKEN ?? '';
+const OWNER_BOOKING_ID = process.env.WS_E2E_OWNER_BOOKING_ID ?? '';
+const OWNER_BOOKING_TITLE = process.env.WS_E2E_OWNER_BOOKING_TITLE ?? '';
+const MEMBER_BOOKING_TITLE = process.env.WS_E2E_MEMBER_BOOKING_TITLE ?? '';
 const OWNER = process.env.WS_E2E_OWNER_ID ?? '';
 const MEMBER_EMAIL = process.env.WS_E2E_MEMBER_EMAIL ?? '';
 const MEMBER_NAME = process.env.WS_E2E_MEMBER_NAME ?? '';
-const STRANGER_ID = process.env.WS_E2E_STRANGER_ID ?? '';
 
 const mockStore = new Map<string, string>();
 jest.mock('@/services/storage', () => ({
@@ -103,12 +110,24 @@ async function mountPanel() {
   return r;
 }
 
-const get = (path: string) => api.get<{ action: number; message?: string; ranAs?: string; actor?: string; balance?: number; bookingOwner?: string; data?: { totalSpent?: number; transactions?: unknown }[] }>(path);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const get = (path: string) => api.get<any>(path);
+
+/** The member's own booking id, read from their personal workspace (no workspace header). */
+async function ownBookingId(): Promise<string> {
+  const selected = mockStore.get('workspace.active');
+  mockStore.delete('workspace.active');
+  try {
+    return (await get('/photographer/bookings')).data[0].id as string;
+  } finally {
+    if (selected) mockStore.set('workspace.active', selected);
+  }
+}
 
 beforeEach(() => {
   (globalThis as { fetch: unknown }).fetch = nodeFetch;
   mockStore.clear();
-  mockStore.set('auth.token', 'test:' + ME);
+  mockStore.set('auth.token', ME_TOKEN);
   mockAlert.mockReset();
   useWorkspace.setState({ hydrated: true, activeId: null, memberships: [], loading: false });
 });
@@ -138,9 +157,9 @@ describe('mobile client against the real backend', () => {
     expect(pending.owner.id).toBe(OWNER);
 
     // Someone else's account cannot answer it.
-    mockStore.set('auth.token', 'test:' + STRANGER_ID);
+    mockStore.set('auth.token', STRANGER_TOKEN);
     await expect(answerInvitation(pending.id, true)).rejects.toMatchObject({ message: 'Invitation not found' });
-    mockStore.set('auth.token', 'test:' + ME);
+    mockStore.set('auth.token', ME_TOKEN);
 
     const r = await mountPanel();
     expect(text(r.root)).toContain('Invitations for you');
@@ -157,20 +176,29 @@ describe('mobile client against the real backend', () => {
     expect(useWorkspace.getState().activeId).toBe(OWNER);
     expect(mockStore.get('workspace.active')).toBe(OWNER);
 
-    const clients = await get('/photographer/clients');
-    expect(clients.ranAs).toBe(OWNER);
-    expect(clients.actor).toBe(ME);
-    expect(clients.data?.[0].totalSpent).toBe(1250);
-    expect(clients.data?.[0]).not.toHaveProperty('transactions');
-    expect((await get('/photographer/balance')).balance).toBe(999);
-    expect((await api.post<{ bookingOwner: string }>('/photographer/bookings/b1/accept')).bookingOwner).toBe(OWNER);
+    // Work calls run in the OWNER's workspace: the owner's booking is listed with its amount, the member's own is not.
+    const listed = JSON.stringify((await get('/photographer/bookings')).data);
+    expect(listed).toContain(OWNER_BOOKING_TITLE);
+    expect(listed).not.toContain(MEMBER_BOOKING_TITLE);
+    expect(listed).toContain('300');
+    // The balance, the wallet summary, analytics and opportunities are available.
+    expect((await get('/photographer/balance')).data).toHaveProperty('withdrawableBalance');
+    expect((await get('/wallet/me')).data).toHaveProperty('totalWithdrawn');
+    expect((await get('/photographer/analytics')).action).toBe(1);
+    expect((await get('/photographer/opportunities')).action).toBe(1);
+    // The real booking rules apply: the member's own booking cannot be accepted from here, the owner's can.
+    const ownId = await ownBookingId();
+    await expect(api.post(`/photographer/bookings/${ownId}/accept`)).rejects.toMatchObject({ status: 403 });
+    const accepted = await api.post<any>(`/photographer/bookings/${OWNER_BOOKING_ID}/accept`); // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(accepted.data.status).toBe('ACCEPTED');
 
-    for (const call of [() => get('/photographer/transactions'), () => get('/wallet/me/movements'), () => api.post('/photographer/withdraw')]) {
-      await expect(call()).rejects.toMatchObject({ status: 403 });
+    // Withdrawals and transactions are refused by the real backend, and that does not drop the workspace selection.
+    for (const call of [() => get('/photographer/transactions'), () => get('/wallet/me/movements'), () => api.post('/photographer/withdraw', { amount: 10 })]) {
+      await expect(call()).rejects.toMatchObject({ status: 403, message: 'This is not available in a shared workspace' });
     }
     expect(mockStore.get('workspace.active')).toBe(OWNER);
 
-    expect((await get('/customer/profile')).ranAs).toBe(ME);
+    // A call about the person themself does not carry the workspace: under the real policy it would be refused if it did.
     expect(await listSentInvitations()).toEqual([]);
   });
 
@@ -191,11 +219,15 @@ describe('mobile client against the real backend', () => {
     mockStore.set('workspace.active', OWNER);
     useWorkspace.setState({ activeId: OWNER });
     await useWorkspace.getState().hydrate();
-    await expect(get('/photographer/clients')).rejects.toMatchObject({ status: 403, message: 'Workspace access is not available' });
+    await expect(get('/photographer/bookings')).rejects.toMatchObject({ status: 403, message: 'Workspace access is not available' });
     expect(mockStore.has('workspace.active')).toBe(false);
     expect(useWorkspace.getState().activeId).toBeNull();
 
-    expect((await get('/photographer/clients')).ranAs).toBe(ME);
+    // Their own account and workspace carry on: their own booking, not the owner's.
+    const own = JSON.stringify((await get('/photographer/bookings')).data);
+    expect(own).toContain(MEMBER_BOOKING_TITLE);
+    expect(own).not.toContain(OWNER_BOOKING_TITLE);
+    expect((await get('/wallet/me')).action).toBe(1);
     expect(await listMyWorkspaces()).toEqual([]);
     expect((await listReceivedInvitations()).map((i) => i.status)).toEqual(['REVOKED']);
   });
