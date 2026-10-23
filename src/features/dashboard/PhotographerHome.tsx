@@ -49,6 +49,7 @@ import { listPhotographerEvents } from '@/features/events/api';
 import { listPhotographerReviews } from '@/features/reviews/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
 import { getWallet } from '@/features/wallet/api';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
@@ -135,7 +136,9 @@ export function PhotographerHome() {
   const analytics = useAsync(useCallback(() => getPhotographerAnalytics(), []));
   const events = useAsync(useCallback(() => listPhotographerEvents(), []));
   const clients = useAsync(useCallback(() => getPhotographerClients(8), []));
-  const transactions = useAsync(useCallback(() => getPhotographerRecentTransactions(4), []));
+  // In a workspace the photographer was invited to, the transaction history stays with the owner: it is never asked for.
+  const isShared = useWorkspace(selectIsShared);
+  const transactions = useAsync(useCallback(() => (isShared ? Promise.resolve([]) : getPhotographerRecentTransactions(4)), [isShared]));
   const reviews = useAsync(
     useCallback(
       () => (photographerId ? listPhotographerReviews(photographerId) : Promise.resolve([])),
@@ -307,7 +310,7 @@ export function PhotographerHome() {
               loading={wallet.loading && !wallet.data}
               value={moneyText(available, walletCurrency, hidden)}
               caption={wallet.error ? 'Last known balance. Pull to refresh.' : undefined}
-              onPress={() => open('/(app)/(tabs)/wallet')}
+              onPress={isShared ? undefined : () => open('/(app)/(tabs)/wallet')}
               accessibilityHint="Opens your wallet"
             />
             <MetricCard
@@ -317,7 +320,7 @@ export function PhotographerHome() {
               loading={wallet.loading && !wallet.data}
               value={moneyText(pending, walletCurrency, hidden)}
               caption="Not in your available balance"
-              onPress={() => open('/(app)/(tabs)/wallet')}
+              onPress={isShared ? undefined : () => open('/(app)/(tabs)/wallet')}
               accessibilityHint="Opens your wallet"
             />
           </View>
@@ -340,14 +343,16 @@ export function PhotographerHome() {
               style={styles.flex}
             />
           ) : null}
-          <ActionButton
-            label="Collaborate"
-            caption="Other photographers"
-            icon="people-outline"
-            variant="teal"
-            onPress={() => open('/collaborate')}
-            style={styles.flex}
-          />
+          {isShared ? null : (
+            <ActionButton
+              label="Collaborate"
+              caption="Other photographers"
+              icon="people-outline"
+              variant="teal"
+              onPress={() => open('/collaborate')}
+              style={styles.flex}
+            />
+          )}
         </View>
 
         {/* 3b. Priority today */}
@@ -485,7 +490,9 @@ export function PhotographerHome() {
         {/* 6b. Goals, persisted through /photographer/plans */}
         <GoalsSection rating={rating} hidden={hidden} />
 
-        {/* 7a. Recent earnings */}
+        {/* 7a. Recent earnings (the transaction history; not shown in a shared workspace) */}
+        {isShared ? null : (
+          <>
         <SectionHeader
           title="Recent earnings"
           actionLabel="View wallet"
@@ -517,6 +524,9 @@ export function PhotographerHome() {
               />
             ))}
           </Card>
+        )}
+
+          </>
         )}
 
         {/* 7b. Recent clients */}
