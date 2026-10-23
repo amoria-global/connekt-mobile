@@ -18,6 +18,11 @@ function normalizeRole(raw?: string): CustomerType | undefined {
   return undefined;
 }
 
+/** Whether a raw customerType is a photographer, by the same rules as useRole. */
+export function isPhotographerType(raw?: string): boolean {
+  return normalizeRole(raw) === 'Photographer';
+}
+
 export function useRole(): {
   role: Role | undefined;
   isClient: boolean;

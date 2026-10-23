@@ -19,6 +19,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { WorkspaceAccessPanel } from '@/features/workspace/WorkspaceAccessPanel';
 import { CrossLink, ModeChooser, type CollaborateMode } from '@/features/collab/ModeChooser';
+import { inviteIdFromText } from '@/features/workspace/invite';
 import { listJoinedAlbums, listOwnedAlbums } from '@/features/collab/api';
 import { AlbumCover, PersonRow, Stat } from '@/features/collab/components';
 import { tokenFromInput, type JoinedAlbum, type OwnedAlbum } from '@/features/collab/model';
@@ -133,8 +134,11 @@ export default function CollaborateHub() {
   const router = useRouter();
   const { language } = useLanguage();
   const s = COLLAB_I18N[language] ?? COLLAB_I18N.en;
-  const params = useLocalSearchParams<{ tab?: string }>();
-  const [mode, setMode] = useState<CollaborateMode>(params.tab === 'mine' || params.tab === 'joined' ? 'albums' : 'workspace');
+  const params = useLocalSearchParams<{ tab?: string; invite?: string }>();
+  // A workspace invitation link (?invite=<id>) always opens the workspace side, with that invitation first.
+  const inviteParam = inviteIdFromText(params.invite);
+  const [inviteId, setInviteId] = useState<string | null>(inviteParam);
+  const [mode, setMode] = useState<CollaborateMode>(inviteParam ? 'workspace' : params.tab === 'mine' || params.tab === 'joined' ? 'albums' : 'workspace');
   const [tab, setTab] = useState<Tab>(params.tab === 'joined' ? 'joined' : 'mine');
   const [owned, setOwned] = useState<OwnedAlbum[] | null>(null);
   const [joined, setJoined] = useState<JoinedAlbum[] | null>(null);
@@ -258,7 +262,10 @@ export default function CollaborateHub() {
 
         {mode === 'workspace' ? (
           <>
-            <WorkspaceAccessPanel />
+            <WorkspaceAccessPanel inviteId={inviteId} onInviteHandled={() => {
+              setInviteId(null);
+              router.setParams({ invite: undefined });
+            }} />
             <CrossLink text="Only need help with one album?" action="Use Album collaboration" onPress={() => setMode('albums')} />
           </>
         ) : tab === 'mine' ? (

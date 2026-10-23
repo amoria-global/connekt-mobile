@@ -6,6 +6,7 @@
  */
 import { api } from '@/api/client';
 import type { ApiEnvelope, ApiError } from '@/types';
+import { mapPreview, type InvitePreview } from './invite';
 import {
   mapInvitation, mapMembership, mapPerson,
   type WorkspaceInvitation, type WorkspaceMembership, type WorkspacePerson,
@@ -23,9 +24,29 @@ function data(res: ApiEnvelope<Raw> | undefined, fallback: string): Raw {
 
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
+/** Finds a photographer by exact email. An address with no account answers `registered: false` and can be invited by email. */
 export async function lookupPhotographer(email: string): Promise<WorkspacePerson> {
-  const d = data(await api.get<ApiEnvelope<Raw>>(`${BASE}/lookup?email=${id(email.trim())}`), 'Could not look that up.');
+  const d = data(await api.get<ApiEnvelope<Raw>>(`${BASE}/lookup?allowUnregistered=true&email=${id(email.trim())}`), 'Could not look that up.');
   return mapPerson(d.photographer);
+}
+
+/** Invites an address that has no account yet: they are emailed a link and join once they sign up with that address. */
+export async function sendInvitationByEmail(email: string, note?: string): Promise<WorkspaceInvitation> {
+  const d = data(await api.post<ApiEnvelope<Raw>>(`${BASE}/invitations`, { email: email.trim(), note: note?.trim() || null }), 'Could not send the invitation.');
+  return mapInvitation(d.invitation);
+}
+
+/**
+ * What an invitation link says before anyone is signed in: who invited, to which address, and whether that address has
+ * an account. Null when it cannot be read, so the screen carries on as plain sign-in or sign-up.
+ */
+export async function getInvitePreview(invitationId: string): Promise<InvitePreview | null> {
+  try {
+    const res = await api.get<ApiEnvelope<Raw>>(`/public/workspace-invitations/${id(invitationId)}`);
+    return res?.action === 1 ? mapPreview(res.data) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function listSentInvitations(): Promise<WorkspaceInvitation[]> {

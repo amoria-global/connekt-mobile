@@ -30,6 +30,7 @@ const MEMBER_BOOKING_TITLE = process.env.WS_E2E_MEMBER_BOOKING_TITLE ?? '';
 const OWNER = process.env.WS_E2E_OWNER_ID ?? '';
 const MEMBER_EMAIL = process.env.WS_E2E_MEMBER_EMAIL ?? '';
 const MEMBER_NAME = process.env.WS_E2E_MEMBER_NAME ?? '';
+const NEWCOMER_EMAIL = process.env.WS_E2E_NEWCOMER_EMAIL ?? '';
 
 const mockStore = new Map<string, string>();
 jest.mock('@/services/storage', () => ({
@@ -54,7 +55,10 @@ jest.mock('@/components/ui/dialog', () => ({ Alert: { alert: (...a: unknown[]) =
 
 import { api } from '@/api/client';
 import { WorkspaceAccessPanel } from './WorkspaceAccessPanel';
-import { answerInvitation, listMyWorkspaces, listReceivedInvitations, listSentInvitations, revokeMembership, sendInvitation } from './api';
+import {
+  answerInvitation, getInvitePreview, listMyWorkspaces, listReceivedInvitations, listSentInvitations, resendInvitation, revokeMembership,
+  sendInvitation, sendInvitationByEmail,
+} from './api';
 import { useWorkspace } from '@/store/workspace';
 
 /** A fetch over node http: the same wire the phone would use, without a phone. */
@@ -103,9 +107,9 @@ async function waitForText(r: TestRenderer.ReactTestRenderer, expected: string, 
   while (!text(r.root).includes(expected) && Date.now() < until) await act(async () => { await new Promise((res) => setTimeout(res, 100)); });
   expect(text(r.root)).toContain(expected);
 }
-async function mountPanel() {
+async function mountPanel(props: { inviteId?: string | null; onInviteHandled?: () => void } = {}) {
   let r!: TestRenderer.ReactTestRenderer;
-  await act(async () => { r = TestRenderer.create(<WorkspaceAccessPanel />); });
+  await act(async () => { r = TestRenderer.create(<WorkspaceAccessPanel {...props} />); });
   for (let i = 0; i < 20 && r.root.findAll((n) => n.props?.accessibilityLabel === 'Loading invitations').length > 0; i++) await settle();
   return r;
 }
@@ -200,6 +204,63 @@ describe('mobile client against the real backend', () => {
 
     // A call about the person themself does not carry the workspace: under the real policy it would be refused if it did.
     expect(await listSentInvitations()).toEqual([]);
+  });
+
+  only('email-invite')('the owner invites an address with no account by email, through the Workspace access panel', async () => {
+    const r = await mountPanel();
+    await typeInto(r, 'Their email', NEWCOMER_EMAIL);
+    await tap(r, 'Find photographer');
+    await waitForText(r, 'No account uses this address yet');
+    await tap(r, 'Email invitation');
+    await waitForText(r, 'Invitation emailed to ' + NEWCOMER_EMAIL);
+
+    const mine = (await listSentInvitations()).find((i) => i.invitee.email === NEWCOMER_EMAIL)!;
+    expect(mine.status).toBe('PENDING');
+    expect(mine.delivery).toBe('email');
+    expect(mine.invitee.registered).toBe(false);
+    expect(mine.invitee.id).toBe('');
+    // The screen reads it as waiting for an account, with emailing it again as the move.
+    const again = await mountPanel();
+    await waitForText(again, 'No account yet');
+    await waitForText(again, 'Emailed. Waiting for them to create an account and answer.');
+    // The server, not just the screen, refuses a second invitation to the same address and an immediate second email.
+    await expect(sendInvitationByEmail(NEWCOMER_EMAIL)).rejects.toMatchObject({ message: expect.stringMatching(/already waiting/) });
+    await expect(resendInvitation(mine.id)).rejects.toMatchObject({ message: expect.stringMatching(/just emailed/) });
+  });
+
+  only('email-accept')('the person signs up with that address, opens the invitation from its link, accepts, and works in the workspace', async () => {
+    // The invitation is theirs because the address is theirs: it appears for the new account, and only for it.
+    const pending = (await listReceivedInvitations()).find((i) => i.status === 'PENDING')!;
+    expect(pending.owner.id).toBe(OWNER);
+    // What the link's screen shows before sign-in: no token needed, and it knows the address now has an account.
+    mockStore.delete('auth.token');
+    const preview = await getInvitePreview(pending.id);
+    expect(preview).toMatchObject({ found: true, open: true, email: NEWCOMER_EMAIL, account: 'photographer' });
+    // Someone else's account that was forwarded the link cannot answer it.
+    mockStore.set('auth.token', STRANGER_TOKEN);
+    await expect(answerInvitation(pending.id, true)).rejects.toMatchObject({ message: 'Invitation not found' });
+    expect((await listReceivedInvitations()).map((i) => i.id)).not.toContain(pending.id);
+    mockStore.set('auth.token', ME_TOKEN);
+
+    // Open it the way the link does: the invitation first, accepted and opened in one step.
+    const handled = jest.fn();
+    const r = await mountPanel({ inviteId: pending.id, onInviteHandled: handled });
+    await waitForText(r, 'YOUR INVITATION');
+    await tap(r, 'Accept and open workspace');
+    for (let i = 0; i < 40 && useWorkspace.getState().activeId !== OWNER; i++) await settle();
+    expect(handled).toHaveBeenCalledTimes(1);
+    expect(useWorkspace.getState().activeId).toBe(OWNER);
+    expect(mockStore.get('workspace.active')).toBe(OWNER);
+
+    // Now a member like any other: the owner's booking, accepted for real; money stays with the owner.
+    const listed = JSON.stringify((await get('/photographer/bookings')).data);
+    expect(listed).toContain(OWNER_BOOKING_TITLE);
+    expect(listed).not.toContain(MEMBER_BOOKING_TITLE);
+    const accepted = await api.post<any>(`/photographer/bookings/${OWNER_BOOKING_ID}/accept`); // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(accepted.data.status).toBe('ACCEPTED');
+    await expect(get('/photographer/transactions')).rejects.toMatchObject({ status: 403 });
+    // The link's screen no longer offers a finished invitation.
+    expect(await getInvitePreview(pending.id)).toMatchObject({ found: true, open: false });
   });
 
   only('revoke')('the owner removes access, after confirming', async () => {
