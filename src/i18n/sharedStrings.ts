@@ -1,4 +1,6 @@
 import { useLanguage } from '@/contexts/LanguageContext';
+import { translateSharedRw } from './kinyarwanda';
+import { translateSharedSw } from './swahili';
 
 export const SHARED_STRINGS: Record<string, { fr: string; es: string }> = {
   // Common UI & Actions
@@ -351,13 +353,1308 @@ export const SHARED_STRINGS: Record<string, { fr: string; es: string }> = {
   'By submitting, you confirm these documents are genuine and belong to you.': { fr: 'En soumettant, vous confirmez que ces documents sont authentiques et vous appartiennent.', es: 'Al enviar, confirmas que estos documentos son auténticos y te pertenecen.' },
   'Submit for review': { fr: 'Soumettre pour examen', es: 'Enviar para revisión' },
   'Pending Admin Review': { fr: 'En attente de révision administrateur', es: 'Pendiente de revisión administrativa' },
+
+  // Post-Login Greetings & Headers
+  'Welcome back': { fr: 'Bon retour', es: 'Bienvenido de nuevo' },
+  'Good morning': { fr: 'Bonjour', es: 'Buenos días' },
+  'Good afternoon': { fr: 'Bon après-midi', es: 'Buenas tardes' },
+  'Good evening': { fr: 'Bonsoir', es: 'Buenas noches' },
+  'Your events, photos and bookings': { fr: 'Vos événements, photos et réservations', es: 'Tus eventos, fotos y reservas' },
+  'Search photographers, events, live streams': { fr: 'Rechercher photographes, événements, directs', es: 'Buscar fotógrafos, eventos, directos' },
+  'Notifications': { fr: 'Notifications', es: 'Notificaciones' },
+  'Command Center': { fr: 'Centre de contrôle', es: 'Centro de mando' },
+  'Coordinator Hub': { fr: 'Espace Coordinateur', es: 'Centro de Coordinador' },
+  'Manage events, assign photographers & coordinate logistics': {
+    fr: 'Gérez les événements, assignez des photographes et coordonnez la logistique',
+    es: 'Gestiona eventos, asigna fotógrafos y coordina la logística',
+  },
+
+  // Tabs, Segments & Chips
+  'Today': { fr: "Aujourd'hui", es: 'Hoy' },
+  'Tomorrow': { fr: 'Demain', es: 'Mañana' },
+  'Yesterday': { fr: 'Hier', es: 'Ayer' },
+  'Agenda': { fr: 'Agenda', es: 'Agenda' },
+  'Overview': { fr: 'Aperçu', es: 'Resumen' },
+  'Goals': { fr: 'Objectifs', es: 'Metas' },
+  'Analytics': { fr: 'Analytique', es: 'Analítica' },
+  'Activity': { fr: 'Activité', es: 'Actividad' },
+  'Week': { fr: 'Semaine', es: 'Semana' },
+  'Month': { fr: 'Mois', es: 'Mes' },
+  'Year': { fr: 'Année', es: 'Año' },
+  'All': { fr: 'Tout', es: 'Todo' },
+  'All time': { fr: 'Tout le temps', es: 'Todo el tiempo' },
+  'This year': { fr: 'Cette année', es: 'Este año' },
+  'This month': { fr: 'Ce mois-ci', es: 'Este mes' },
+  '30 days': { fr: '30 jours', es: '30 días' },
+  'Upcoming': { fr: 'À venir', es: 'Próximos' },
+  'Requests': { fr: 'Demandes', es: 'Solicitudes' },
+  'Past': { fr: 'Passés', es: 'Pasados' },
+  'Paid': { fr: 'Payé', es: 'Pagado' },
+  'In': { fr: 'Entrées', es: 'Entradas' },
+  'Out': { fr: 'Sorties', es: 'Salidas' },
+  'Pending': { fr: 'En attente', es: 'Pendiente' },
+  'Confirmed': { fr: 'Confirmé', es: 'Confirmado' },
+  'Completed': { fr: 'Terminé', es: 'Completado' },
+  'Cancelled': { fr: 'Annulé', es: 'Cancelado' },
+  'Declined': { fr: 'Refusé', es: 'Rechazado' },
+  'Expired': { fr: 'Expiré', es: 'Expirado' },
+  'In progress': { fr: 'En cours', es: 'En curso' },
+  'Live now': { fr: 'En direct', es: 'En vivo ahora' },
+  'Active': { fr: 'Actif', es: 'Activo' },
+  'Sent': { fr: 'Envoyé', es: 'Enviado' },
+  'Failed': { fr: 'Échoué', es: 'Fallido' },
+  'Processing': { fr: 'En traitement', es: 'Procesando' },
+  'Approved': { fr: 'Approuvé', es: 'Aprobado' },
+  'Rejected': { fr: 'Rejeté', es: 'Rechazado' },
+
+  // ClientHome & PhotographerHome Sections & Cards
+  'Next up': { fr: 'À suivre', es: 'Próximo' },
+  'Your next event': { fr: 'Votre prochain événement', es: 'Tu próximo evento' },
+  'All events': { fr: 'Tous les événements', es: 'Todos los eventos' },
+  'No upcoming events': { fr: 'Aucun événement à venir', es: 'Sin eventos próximos' },
+  'Book a photographer or post your event and get matched.': {
+    fr: 'Réservez un photographe ou publiez votre événement pour être jumelé.',
+    es: 'Reserva un fotógrafo o publica tu evento para conectar.',
+  },
+  'Your booking': { fr: 'Votre réservation', es: 'Tu reserva' },
+  'Due': { fr: 'Dû', es: 'Pendiente' },
+  'Payment due': { fr: 'Paiement dû', es: 'Pago pendiente' },
+  'Balance due': { fr: 'Solde dû', es: 'Saldo pendiente' },
+  'Payment failed': { fr: 'Échec du paiement', es: 'Pago fallido' },
+  'Awaiting your confirmation': { fr: 'En attente de votre confirmation', es: 'Esperando tu confirmación' },
+  'Requested': { fr: 'Demandé', es: 'Solicitado' },
+  'Event details': { fr: "Détails de l'événement", es: 'Detalles del evento' },
+  'View all': { fr: 'Tout voir', es: 'Ver todo' },
+  'See all': { fr: 'Voir tout', es: 'Ver todo' },
+  'Manage': { fr: 'Gérer', es: 'Gestionar' },
+  'New': { fr: 'Nouveau', es: 'Nuevo' },
+  'Open': { fr: 'Ouvrir', es: 'Abrir' },
+  'Review': { fr: 'Examiner', es: 'Revisar' },
+  'Quick actions': { fr: 'Actions rapides', es: 'Acciones rápidas' },
+  'Find a photographer': { fr: 'Trouver un photographe', es: 'Buscar un fotógrafo' },
+  'Browse portfolios and book': { fr: 'Parcourir les portfolios et réserver', es: 'Explorar portafolios y reservar' },
+  'Post my event': { fr: 'Publier mon événement', es: 'Publicar mi evento' },
+  'Get matched to pros nearby': { fr: 'Soyez jumelé à des pros proches', es: 'Conecta con profesionales cercanos' },
+  'Find my photos': { fr: 'Trouver mes photos', es: 'Encontrar mis fotos' },
+  'Face scan across events': { fr: 'Scan facial sur les événements', es: 'Escaneo facial en eventos' },
+  'Photobooks': { fr: 'Livres photo', es: 'Libros de fotos' },
+  'Print your event albums': { fr: 'Imprimez vos albums', es: 'Imprime tus álbumes' },
+  'Your photos & albums': { fr: 'Vos photos et albums', es: 'Tus fotos y álbumes' },
+  'Open gallery': { fr: 'Ouvrir la galerie', es: 'Abrir galería' },
+  'Photos ready': { fr: 'Photos prêtes', es: 'Fotos listas' },
+  'in your albums': { fr: 'dans vos albums', es: 'en tus álbumes' },
+  'Recent bookings': { fr: 'Réservations récentes', es: 'Reservas recientes' },
+  'Payments & wallet': { fr: 'Paiements et portefeuille', es: 'Pagos y billetera' },
+  'Open wallet': { fr: 'Ouvrir le portefeuille', es: 'Abrir billetera' },
+  'Recent activity': { fr: 'Activité récente', es: 'Actividad reciente' },
+  "Couldn't load your home": { fr: "Impossible de charger l'accueil", es: 'No se pudo cargar tu inicio' },
+  "Couldn't load your workspace": { fr: "Impossible de charger l'espace de travail", es: 'No se pudo cargar tu espacio de trabajo' },
+
+  // PhotographerHome & homeParts
+  'Available balance': { fr: 'Solde disponible', es: 'Saldo disponible' },
+  'Withdraw': { fr: 'Retirer', es: 'Retirar' },
+  'Withdraw funds': { fr: 'Retirer des fonds', es: 'Retirar fondos' },
+  'Wallet': { fr: 'Portefeuille', es: 'Billetera' },
+  'Pending requests': { fr: 'Demandes en attente', es: 'Solicitudes pendientes' },
+  'Upcoming shoots': { fr: 'Séances à venir', es: 'Próximas sesiones' },
+  'Needs your response': { fr: 'Réponse attendue', es: 'Requiere tu respuesta' },
+  'None waiting': { fr: 'Aucune en attente', es: 'Ninguna en espera' },
+  'Confirmed & in progress': { fr: 'Confirmées et en cours', es: 'Confirmadas y en curso' },
+  'Photo shoot': { fr: 'Séance photo', es: 'Sesión de fotos' },
+  'No shoots today': { fr: "Aucune séance aujourd'hui", es: 'Sin sesiones hoy' },
+  'When a shoot is booked for today, it will appear here.': {
+    fr: "Lorsqu'une séance est réservée pour aujourd'hui, elle apparaîtra ici.",
+    es: 'Cuando se reserve una sesión para hoy, aparecerá aquí.',
+  },
+  'Open agenda': { fr: "Ouvrir l'agenda", es: 'Abrir agenda' },
+  'Your day is clear': { fr: 'Votre journée est libre', es: 'Tu día está libre' },
+  'No shoots or pending requests right now.': {
+    fr: 'Aucune séance ni demande en attente pour le moment.',
+    es: 'No hay sesiones ni solicitudes pendientes en este momento.',
+  },
+  'Deliveries': { fr: 'Livraisons', es: 'Entregas' },
+  'Upload album': { fr: 'Importer un album', es: 'Subir álbum' },
+  'Deliver photos to a client': { fr: 'Livrer des photos à un client', es: 'Entregar fotos a un cliente' },
+  'Packages & pricing': { fr: 'Forfaits et tarifs', es: 'Paquetes y precios' },
+  'Edit your offers': { fr: 'Modifier vos offres', es: 'Editar tus ofertas' },
+  'Portfolio': { fr: 'Portfolio', es: 'Portafolio' },
+  'Manage your public work': { fr: 'Gérer vos réalisations publiques', es: 'Gestionar tu trabajo público' },
+  'Go live': { fr: 'Passer en direct', es: 'Transmitir en vivo' },
+  'Broadcast an event': { fr: 'Diffuser un événement', es: 'Transmitir un evento' },
+  'Business overview': { fr: "Aperçu de l'activité", es: 'Resumen del negocio' },
+  'Lifetime earnings': { fr: 'Revenus cumulés', es: 'Ganancias históricas' },
+  'Total earned on Connekyt': { fr: 'Total gagné sur Connekyt', es: 'Total ganado en Connekyt' },
+  'Reviews': { fr: 'Avis', es: 'Reseñas' },
+  'out of 5': { fr: 'sur 5', es: 'de 5' },
+  'No reviews yet': { fr: 'Aucun avis pour le moment', es: 'Aún no hay reseñas' },
+  'Average rating': { fr: 'Note moyenne', es: 'Calificación promedio' },
+  'Total shoots': { fr: 'Total des séances', es: 'Sesiones totales' },
+  'Acceptance': { fr: 'Acceptation', es: 'Aceptación' },
+  'Recent clients': { fr: 'Clients récents', es: 'Clientes recientes' },
+  'shoot': { fr: 'séance', es: 'sesión' },
+  'Date to be confirmed': { fr: 'Date à confirmer', es: 'Fecha por confirmar' },
+  'Location to be confirmed': { fr: 'Lieu à confirmer', es: 'Ubicación por confirmar' },
+  'Awaiting response': { fr: 'En attente de réponse', es: 'Esperando respuesta' },
+
+  // ClientOverview & ClientCharts
+  'Your events at a glance': { fr: 'Vos événements en un coup d’œil', es: 'Tus eventos de un vistazo' },
+  'Loading your events…': { fr: 'Chargement de vos événements…', es: 'Cargando tus eventos…' },
+  'Total events': { fr: 'Total événements', es: 'Eventos totales' },
+  'Nothing owed': { fr: 'Rien à payer', es: 'Nada pendiente' },
+  'Open payments': { fr: 'Ouvrir les paiements', es: 'Abrir pagos' },
+  'events': { fr: 'événements', es: 'eventos' },
+  'No events yet': { fr: 'Aucun événement pour le moment', es: 'Aún no hay eventos' },
+  'Monthly spending': { fr: 'Dépenses mensuelles', es: 'Gasto mensual' },
+  'Last 6 months': { fr: '6 derniers mois', es: 'Últimos 6 meses' },
+
+  // ClientEventsDashboard
+  'Events': { fr: 'Événements', es: 'Eventos' },
+  'Your bookings, sessions and live events.': {
+    fr: 'Vos réservations, séances et événements en direct.',
+    es: 'Tus reservas, sesiones y eventos en vivo.',
+  },
+  'Search events': { fr: 'Rechercher des événements', es: 'Buscar eventos' },
+  'Sort events': { fr: 'Trier les événements', es: 'Ordenar eventos' },
+  'Soonest first': { fr: 'Plus proches d’abord', es: 'Más próximos primero' },
+  'Upcoming events ordered by date': { fr: 'Événements à venir triés par date', es: 'Eventos próximos ordenados por fecha' },
+  'Latest first': { fr: 'Plus récents d’abord', es: 'Más recientes primero' },
+  'Most recent dates at the top': { fr: 'Dates les plus récentes en haut', es: 'Fechas más recientes arriba' },
+  'Highest price': { fr: 'Prix le plus élevé', es: 'Mayor precio' },
+  'Largest bookings first': { fr: 'Réservations les plus importantes d’abord', es: 'Reservas más grandes primero' },
+  'No photographer yet': { fr: 'Aucun photographe pour le moment', es: 'Aún sin fotógrafo' },
+  'No matching events': { fr: 'Aucun événement correspondant', es: 'No hay eventos coincidentes' },
+  'Try another filter or clear your search.': {
+    fr: 'Essayez un autre filtre ou effacez votre recherche.',
+    es: 'Prueba con otro filtro o borra tu búsqueda.',
+  },
+  'Clear filters': { fr: 'Effacer les filtres', es: 'Borrar filtros' },
+  'Book a photographer': { fr: 'Réserver un photographe', es: 'Reservar un fotógrafo' },
+
+  // GoalsSection & ScheduleView
+  'Your goals': { fr: 'Vos objectifs', es: 'Tus metas' },
+  'Track your targets for bookings, earnings and ratings.': {
+    fr: 'Suivez vos objectifs de réservations, revenus et notes.',
+    es: 'Sigue tus metas de reservas, ganancias y calificaciones.',
+  },
+  'Add goal': { fr: 'Ajouter un objectif', es: 'Añadir meta' },
+  'New goal': { fr: 'Nouvel objectif', es: 'Nueva meta' },
+  'Edit goal': { fr: 'Modifier l’objectif', es: 'Editar meta' },
+  'No goals set yet': { fr: 'Aucun objectif défini', es: 'Aún no hay metas definidas' },
+  'Set a monthly or yearly target to track your progress.': {
+    fr: 'Définissez un objectif mensuel ou annuel pour suivre votre progression.',
+    es: 'Define una meta mensual o anual para seguir tu progreso.',
+  },
+  'Create your first goal': { fr: 'Créer votre premier objectif', es: 'Crea tu primera meta' },
+  'Earnings target': { fr: 'Objectif de revenus', es: 'Meta de ganancias' },
+  'Bookings target': { fr: 'Objectif de réservations', es: 'Meta de reservas' },
+  'Rating target': { fr: 'Objectif de note', es: 'Meta de calificación' },
+  'Period': { fr: 'Période', es: 'Período' },
+  'Delete goal': { fr: 'Supprimer l’objectif', es: 'Eliminar meta' },
+  'Save goal': { fr: 'Enregistrer l’objectif', es: 'Guardar meta' },
+  'Earnings progress needs per-period figures, not available yet.': {
+    fr: 'La progression des revenus nécessite des données par période, bientôt disponibles.',
+    es: 'El progreso de ganancias requiere cifras por período, aún no disponibles.',
+  },
+  'All day': { fr: 'Toute la journée', es: 'Todo el día' },
+  'Today · ': { fr: "Aujourd'hui · ", es: 'Hoy · ' },
+  'No shoots on this day': { fr: 'Aucune séance ce jour-là', es: 'Sin sesiones en este día' },
+
+  // Wallet, Analytics, Payments & Withdraw
+  'Spending breakdown': { fr: 'Répartition des dépenses', es: 'Desglose de gastos' },
+  'Earnings breakdown': { fr: 'Répartition des revenus', es: 'Desglose de ganancias' },
+  'Balance breakdown': { fr: 'Répartition du solde', es: 'Desglose del saldo' },
+  'Quick links': { fr: 'Liens rapides', es: 'Enlaces rápidos' },
+  'Show': { fr: 'Afficher', es: 'Mostrar' },
+  'Hide': { fr: 'Masquer', es: 'Ocultar' },
+  'Not in available balance': { fr: 'Hors solde disponible', es: 'No incluido en saldo disponible' },
+  'No movements yet.': { fr: 'Aucun mouvement pour le moment.', es: 'Aún no hay movimientos.' },
+  'No movements found': { fr: 'Aucun mouvement trouvé', es: 'No se encontraron movimientos' },
+  'Transaction details': { fr: 'Détails de la transaction', es: 'Detalles de la transacción' },
+  'Category': { fr: 'Catégorie', es: 'Categoría' },
+  'Direction': { fr: 'Sens', es: 'Dirección' },
+  'Date & Time': { fr: 'Date et heure', es: 'Fecha y hora' },
+  'Money in': { fr: 'Entrées', es: 'Ingresos' },
+  'Money out': { fr: 'Sorties', es: 'Egresos' },
+  'Net flow': { fr: 'Flux net', es: 'Flujo neto' },
+  'Total spent': { fr: 'Total dépensé', es: 'Total gastado' },
+  'In escrow': { fr: 'Sous séquestre', es: 'En custodia' },
+  'Held until delivery': { fr: 'Bloqué jusqu’à livraison', es: 'Retenido hasta la entrega' },
+  'Refunds & credits': { fr: 'Remboursements et crédits', es: 'Reembolsos y créditos' },
+  'Returned to you': { fr: 'Remboursé', es: 'Devuelto a ti' },
+  'Payments': { fr: 'Paiements', es: 'Pagos' },
+  'Payments due': { fr: 'Paiements dus', es: 'Pagos pendientes' },
+  'Everything is paid': { fr: 'Tout est payé', es: 'Todo está pagado' },
+  'You have no pending or overdue booking balances.': {
+    fr: 'Vous n’avez aucun solde de réservation en attente ou en retard.',
+    es: 'No tienes saldos de reserva pendientes ni vencidos.',
+  },
+  'Pay balance': { fr: 'Payer le solde', es: 'Pagar saldo' },
+  'Overdue': { fr: 'En retard', es: 'Vencido' },
+  'Ready to withdraw': { fr: 'Prêt à retirer', es: 'Listo para retirar' },
+  'Minimum withdrawal': { fr: 'Retrait minimum', es: 'Retiro mínimo' },
+  'Payout accounts': { fr: 'Comptes de versement', es: 'Cuentas de cobro' },
+  'Withdrawal history': { fr: 'Historique des retraits', es: 'Historial de retiros' },
+  'Request withdrawal': { fr: 'Demander un retrait', es: 'Solicitar retiro' },
+  'No withdrawals yet': { fr: 'Aucun retrait pour le moment', es: 'Aún no hay retiros' },
+  'Amount to withdraw': { fr: 'Montant à retirer', es: 'Monto a retirar' },
+  'Destination account': { fr: 'Compte destinataire', es: 'Cuenta de destino' },
+  'Add account': { fr: 'Ajouter un compte', es: 'Añadir cuenta' },
+
+  // Profile Stats & Highlights
+  'Jobs': { fr: 'Missions', es: 'Trabajos' },
+  'Rating': { fr: 'Note', es: 'Calificación' },
+  'Identity': { fr: 'Identité', es: 'Identidad' },
+  'Gallery': { fr: 'Galerie', es: 'Galería' },
+  'TV Screens': { fr: 'Écrans TV', es: 'Pantallas TV' },
+  'Collaborate': { fr: 'Collaborer', es: 'Colaborar' },
+  'Security': { fr: 'Sécurité', es: 'Seguridad' },
+
+  // PersistentBottomBar & Shortcuts
+  'No shortcuts found': { fr: 'Aucun raccourci trouvé', es: 'No se encontraron accesos directos' },
+  'Clear search': { fr: 'Effacer la recherche', es: 'Borrar búsqueda' },
+
+  // Album & Photobooks
+  'Unlocked': { fr: 'Déverrouillé', es: 'Desbloqueado' },
+  'Locked': { fr: 'Verrouillé', es: 'Bloqueado' },
+  'Free': { fr: 'Gratuit', es: 'Gratis' },
+  'Paid album': { fr: 'Album payant', es: 'Álbum de pago' },
+  'Download all': { fr: 'Tout télécharger', es: 'Descargar todo' },
+  'Unlock album': { fr: "Déverrouiller l'album", es: 'Desbloquear álbum' },
+  'Draft': { fr: 'Brouillon', es: 'Borrador' },
+  'Ordered': { fr: 'Commandé', es: 'Pedido' },
+  'Printing': { fr: 'Impression', es: 'Imprimiendo' },
+  'Shipped': { fr: 'Expédié', es: 'Enviado' },
+  'Delivered': { fr: 'Livré', es: 'Entregado' },
+  'pages': { fr: 'pages', es: 'páginas' },
+
+  // Additional ClientHome & PhotographerHome & CoordinatorHome Strings
+  'Hello': { fr: 'Bonjour', es: 'Hola' },
+  'Book photographer': { fr: 'Réserver un photographe', es: 'Reservar fotógrafo' },
+  'Direct booking': { fr: 'Réservation directe', es: 'Reserva directa' },
+  'Verified pros': { fr: 'Pros vérifiés', es: 'Profesionales verificados' },
+  'Publish offer': { fr: 'Publier une offre', es: 'Publicar oferta' },
+  'Set your budget, match with talent': { fr: 'Fixez votre budget, trouvez des talents', es: 'Define tu presupuesto, conecta con talento' },
+  'My albums': { fr: 'Mes albums', es: 'Mis álbumes' },
+  'Explore events': { fr: 'Explorer les événements', es: 'Explorar eventos' },
+  'Watch and join': { fr: 'Regarder et rejoindre', es: 'Ver y unirse' },
+  'Upcoming event': { fr: 'Événement à venir', es: 'Próximo evento' },
+  'Book a photographer and your next shoot appears here.': {
+    fr: 'Réservez un photographe et votre prochaine séance apparaîtra ici.',
+    es: 'Reserva un fotógrafo y tu próxima sesión aparecerá aquí.',
+  },
+  'Action required': { fr: 'Action requise', es: 'Acción requerida' },
+  'Review photos': { fr: 'Voir les photos', es: 'Revisar fotos' },
+  'Your bookings': { fr: 'Vos réservations', es: 'Tus reservas' },
+  'Booking': { fr: 'Réservation', es: 'Reserva' },
+  'Review payments': { fr: 'Vérifier les paiements', es: 'Revisar pagos' },
+  'Watch live': { fr: 'Regarder en direct', es: 'Ver en vivo' },
+  'View booking': { fr: 'Voir la réservation', es: 'Ver reserva' },
+  'Your overview': { fr: 'Votre aperçu', es: 'Tu resumen' },
+  'Lifetime figures. Pick a period on Analytics.': {
+    fr: 'Chiffres cumulés. Choisissez une période dans Analytique.',
+    es: 'Cifras históricas. Elige un período en Analítica.',
+  },
+  'View analytics': { fr: 'Voir l’analytique', es: 'Ver analítica' },
+  'Featured photographers': { fr: 'Photographes en vedette', es: 'Fotógrafos destacados' },
+  'No photographers to show yet': { fr: 'Aucun photographe à afficher', es: 'Aún no hay fotógrafos para mostrar' },
+  'Check back soon, or search for someone you know.': {
+    fr: 'Revenez bientôt ou recherchez quelqu’un que vous connaissez.',
+    es: 'Vuelve pronto o busca a alguien que conozcas.',
+  },
+  'Nothing yet': { fr: 'Rien pour le moment', es: 'Nada por ahora' },
+  'Bookings, payments and photo deliveries show up here.': {
+    fr: 'Les réservations, paiements et livraisons de photos apparaissent ici.',
+    es: 'Las reservas, pagos y entregas de fotos aparecen aquí.',
+  },
+  'Lifetime, from your wallet': { fr: 'Cumulé, depuis votre portefeuille', es: 'Histórico, desde tu billetera' },
+  'Photos delivered': { fr: 'Photos livrées', es: 'Fotos entregadas' },
+  'Saved photographers': { fr: 'Photographes enregistrés', es: 'Fotógrafos guardados' },
+  'No events yet. Book a photographer and your events appear here.': {
+    fr: 'Aucun événement. Réservez un photographe et vos événements apparaîtront ici.',
+    es: 'Aún no hay eventos. Reserva un fotógrafo y tus eventos aparecerán aquí.',
+  },
+  'Available to withdraw': { fr: 'Disponible au retrait', es: 'Disponible para retirar' },
+  'Last known balance. Pull to refresh.': { fr: 'Dernier solde connu. Tirez pour actualiser.', es: 'Último saldo conocido. Desliza para actualizar.' },
+  'Pending release': { fr: 'En attente de déblocage', es: 'Liberación pendiente' },
+  'Not in your available balance': { fr: 'Hors solde disponible', es: 'No incluido en tu saldo disponible' },
+  'Create event': { fr: 'Créer un événement', es: 'Crear evento' },
+  'Create Event': { fr: 'Créer un événement', es: 'Crear evento' },
+  'Share profile': { fr: 'Partager le profil', es: 'Compartir perfil' },
+  'Opportunities': { fr: 'Opportunités', es: 'Oportunidades' },
+  'Booking requests': { fr: 'Demandes de réservation', es: 'Solicitudes de reserva' },
+  'Other photographers': { fr: 'Autres photographes', es: 'Otros fotógrafos' },
+  'Priority today': { fr: 'Priorité du jour', es: 'Prioridad de hoy' },
+  'View shoot': { fr: 'Voir la séance', es: 'Ver sesión' },
+  'Needs your reply': { fr: 'Réponse requise', es: 'Requiere tu respuesta' },
+  'Booking request': { fr: 'Demande de réservation', es: 'Solicitud de reserva' },
+  'Review request': { fr: 'Examiner la demande', es: 'Revisar solicitud' },
+  'Next shoots': { fr: 'Prochaines séances', es: 'Próximas sesiones' },
+  'No upcoming shoots': { fr: 'Aucune séance à venir', es: 'Sin próximas sesiones' },
+  'Create an event or share your profile to get booked.': {
+    fr: 'Créez un événement ou partagez votre profil pour recevoir des réservations.',
+    es: 'Crea un evento o comparte tu perfil para recibir reservas.',
+  },
+  'Since you joined': { fr: 'Depuis votre inscription', es: 'Desde que te uniste' },
+  'Clients served': { fr: 'Clients servis', es: 'Clientes atendidos' },
+  'Recent earnings': { fr: 'Revenus récents', es: 'Ganancias recientes' },
+  'View wallet': { fr: 'Voir le portefeuille', es: 'Ver billetera' },
+  'No earnings yet': { fr: 'Aucun revenu pour le moment', es: 'Aún sin ganancias' },
+  'Payments from bookings and deliveries will appear here.': {
+    fr: 'Les paiements des réservations et livraisons apparaîtront ici.',
+    es: 'Los pagos de reservas y entregas aparecerán aquí.',
+  },
+  'Shoot payment': { fr: 'Paiement de séance', es: 'Pago de sesión' },
+  'Awaiting your reply': { fr: 'En attente de votre réponse', es: 'Esperando tu respuesta' },
+  'Scheduled': { fr: 'Planifié', es: 'Programado' },
+
+  // GoalsSection & ScheduleView extras
+  'Targets you set for yourself': { fr: 'Objectifs que vous vous fixez', es: 'Metas que te propones' },
+  'No goals yet': { fr: 'Aucun objectif pour le moment', es: 'Aún no hay metas' },
+  'Set an earnings target for a week, a month or your own dates.': {
+    fr: 'Fixez un objectif de revenus pour une semaine, un mois ou vos propres dates.',
+    es: 'Establece una meta de ganancias para una semana, un mes o tus propias fechas.',
+  },
+  'Set a goal': { fr: 'Définir un objectif', es: 'Establecer una meta' },
+  'Goal name': { fr: 'Nom de l’objectif', es: 'Nombre de la meta' },
+  'Start date': { fr: 'Date de début', es: 'Fecha de inicio' },
+  'End date': { fr: 'Date de fin', es: 'Fecha de fin' },
+  'Earnings target (USD)': { fr: 'Objectif de revenus (USD)', es: 'Meta de ganancias (USD)' },
+  'Pending target (USD, optional)': { fr: 'Objectif en attente (USD, facultatif)', es: 'Meta pendiente (USD, opcional)' },
+  'Clients target (optional)': { fr: 'Objectif de clients (facultatif)', es: 'Meta de clientes (opcional)' },
+  'Bonuses target (USD, optional)': { fr: 'Objectif de bonus (USD, facultatif)', es: 'Meta de bonos (USD, opcional)' },
+  'Rating target (0 to 5, optional)': { fr: 'Objectif de note (0 à 5, facultatif)', es: 'Meta de calificación (0 a 5, opcional)' },
+  'Saving...': { fr: 'Enregistrement...', es: 'Guardando...' },
+  'Custom': { fr: 'Personnalisé', es: 'Personalizado' },
+  'List': { fr: 'Liste', es: 'Lista' },
+  'Photographers': { fr: 'Photographes', es: 'Fotógrafos' },
+  'Newest created first': { fr: 'Plus récents d’abord', es: 'Más recientes primero' },
+  'Recently booked or created events first': { fr: 'Événements réservés ou créés récemment en premier', es: 'Eventos reservados o creados recientemente primero' },
+  'Oldest created first': { fr: 'Plus anciens d’abord', es: 'Más antiguos primero' },
+  'Earliest booked or created events first': { fr: 'Premiers événements réservés ou créés en premier', es: 'Primeros eventos reservados o creados primero' },
+  'Event date': { fr: 'Date de l’événement', es: 'Fecha del evento' },
+  'Scheduled date in chronological order': { fr: 'Date prévue par ordre chronologique', es: 'Fecha programada en orden cronológico' },
+  'Title (A to Z)': { fr: 'Titre (A à Z)', es: 'Título (A a Z)' },
+  'Alphabetical order by event name': { fr: 'Ordre alphabétique par nom d’événement', es: 'Orden alfabético por nombre del evento' },
+  'No date yet': { fr: 'Pas encore de date', es: 'Aún sin fecha' },
+  'No events yet.': { fr: 'Aucun événement pour le moment.', es: 'Aún no hay eventos.' },
+  'Show more': { fr: 'Afficher plus', es: 'Mostrar más' },
+  'Try a different filter or search term.': { fr: 'Essayez un autre filtre ou terme de recherche.', es: 'Prueba con otro filtro o término de búsqueda.' },
+  'Book a photographer directly or post your event and let photographers answer.': {
+    fr: 'Réservez directement un photographe ou publiez votre événement pour recevoir des propositions.',
+    es: 'Reserva directamente a un fotógrafo o publica tu evento para recibir respuestas.',
+  },
+  'Choose photographer': { fr: 'Choisir le photographe', es: 'Elegir fotógrafo' },
+  'Matching ended': { fr: 'Jumelage terminé', es: 'Emparejamiento finalizado' },
+  'See answers': { fr: 'Voir les réponses', es: 'Ver respuestas' },
+  'QR': { fr: 'QR', es: 'QR' },
+  'Nothing scheduled': { fr: 'Rien de prévu', es: 'Nada programado' },
+  'No events on this day.': { fr: 'Aucun événement ce jour-là.', es: 'No hay eventos en este día.' },
+  'Your bookings will appear here, in date order.': {
+    fr: 'Vos réservations apparaîtront ici, par ordre chronologique.',
+    es: 'Tus reservas aparecerán aquí, en orden de fecha.',
+  },
+  'Events you get booked for will appear here, in date order.': {
+    fr: 'Les événements pour lesquels vous êtes réservé apparaîtront ici, par date.',
+    es: 'Los eventos para los que te reserven aparecerán aquí, por fecha.',
+  },
+  'May overlap another shoot': { fr: 'Peut chevaucher une autre séance', es: 'Puede superponerse con otra sesión' },
+
+  // WalletAnalytics & ClientWalletAnalytics & Wallet & Payments & Withdraw
+  'Current balance, not a period figure.': { fr: 'Solde actuel, non lié à une période.', es: 'Saldo actual, no de un período.' },
+  'Withdrawn to date': { fr: 'Retiré à ce jour', es: 'Retirado hasta la fecha' },
+  'Lifetime': { fr: 'Cumulé', es: 'Histórico' },
+  'Where your balance comes from': { fr: 'Origine de votre solde', es: 'De dónde proviene tu saldo' },
+  'Share of your current available balance': { fr: 'Répartition de votre solde disponible actuel', es: 'Proporción de tu saldo disponible actual' },
+  'Nothing in your available balance yet.': { fr: 'Rien dans votre solde disponible pour le moment.', es: 'Aún no hay nada en tu saldo disponible.' },
+  'Combined': { fr: 'Combiné', es: 'Combinado' },
+  'Pick a period': { fr: 'Choisissez une période', es: 'Elige un período' },
+  'Open earnings report': { fr: 'Ouvrir le rapport de revenus', es: 'Abrir informe de ganancias' },
+  'Custom date range': { fr: 'Plage de dates personnalisée', es: 'Rango de fechas personalizado' },
+  'Shoots': { fr: 'Séances', es: 'Sesiones' },
+  'Clients': { fr: 'Clients', es: 'Clientes' },
+  'Payment trend': { fr: 'Tendance des paiements', es: 'Tendencia de pagos' },
+  'Relative size of payments received in each interval': {
+    fr: 'Volume relatif des paiements reçus par intervalle',
+    es: 'Tamaño relativo de los pagos recibidos en cada intervalo',
+  },
+  'No payments received in this period.': { fr: 'Aucun paiement reçu sur cette période.', es: 'No se recibieron pagos en este período.' },
+  'The curve shows relative size, with the highest interval marked in pink. Payments arrive in different currencies, so no amount is labelled.': {
+    fr: 'La courbe indique le volume relatif, avec le pic en rose. Les paiements arrivent dans différentes devises.',
+    es: 'La curva muestra el tamaño relativo, con el pico en rosa. Los pagos llegan en diferentes monedas.',
+  },
+  'Lifetime, not a period figure.': { fr: 'Cumulé, non lié à une période.', es: 'Histórico, no de un período.' },
+  'Not yet settled': { fr: 'Pas encore réglé', es: 'Aún no liquidado' },
+  'Where your money goes': { fr: 'Où va votre argent', es: 'A dónde va tu dinero' },
+  'Share of your lifetime spend': { fr: 'Répartition de vos dépenses cumulées', es: 'Proporción de tu gasto histórico' },
+  'by kind': { fr: 'par type', es: 'por tipo' },
+  'Nothing spent yet.': { fr: 'Aucune dépense pour le moment.', es: 'Aún no se ha gastado nada.' },
+  'Spending trend': { fr: 'Tendance des dépenses', es: 'Tendencia de gastos' },
+  'Relative size of payments in each interval': {
+    fr: 'Volume relatif des paiements par intervalle',
+    es: 'Tamaño relativo de los pagos en cada intervalo',
+  },
+  'Events in this period': { fr: 'Événements sur cette période', es: 'Eventos en este período' },
+  'Number of events in each interval': { fr: 'Nombre d’événements par intervalle', es: 'Número de eventos en cada intervalo' },
+  'No payments in this period.': { fr: 'Aucun paiement sur cette période.', es: 'Sin pagos en este período.' },
+  'The curve shows relative size, with the highest interval marked in pink. Payments are made in different currencies, so no amount is labelled.': {
+    fr: 'La courbe indique le volume relatif, avec le pic en rose. Les paiements sont effectués dans différentes devises.',
+    es: 'La curva muestra el tamaño relativo, con el pico en rosa. Los pagos se realizan en diferentes monedas.',
+  },
+  'No events in this period.': { fr: 'Aucun événement sur cette période.', es: 'Sin eventos en este período.' },
+  'Transactions': { fr: 'Transactions', es: 'Transacciones' },
+  'Payment accounts': { fr: 'Comptes de paiement', es: 'Cuentas de pago' },
+  'Payroll report': { fr: 'Rapport de revenus', es: 'Informe de ganancias' },
+  'Earnings report': { fr: 'Rapport de revenus', es: 'Informe de ganancias' },
+  'Could not refresh your wallet': { fr: 'Impossible d’actualiser votre portefeuille', es: 'No se pudo actualizar tu billetera' },
+  'The balance below is the last one we received. Pull down to try again.': {
+    fr: 'Le solde ci-dessous est le dernier reçu. Tirez vers le bas pour réessayer.',
+    es: 'El saldo a continuación es el último recibido. Desliza hacia abajo para reintentar.',
+  },
+  'Could not load your history. Pull down to try again.': {
+    fr: 'Impossible de charger votre historique. Tirez vers le bas pour réessayer.',
+    es: 'No se pudo cargar tu historial. Desliza hacia abajo para reintentar.',
+  },
+  'Could not load your history': { fr: 'Impossible de charger votre historique', es: 'No se pudo cargar tu historial' },
+  'Pull down to try again. Your balance above is still current.': {
+    fr: 'Tirez vers le bas pour réessayer. Votre solde ci-dessus reste à jour.',
+    es: 'Desliza hacia abajo para reintentar. Tu saldo superior sigue actualizado.',
+  },
+  'Payouts, tips, bonuses, and payments will appear here.': {
+    fr: 'Les versements, pourboires, bonus et paiements apparaîtront ici.',
+    es: 'Los pagos, propinas, bonos y cobros aparecerán aquí.',
+  },
+  'Prev': { fr: 'Préc.', es: 'Ant.' },
+  'Next': { fr: 'Suiv.', es: 'Sig.' },
+  'Loading older...': { fr: 'Chargement...', es: 'Cargando anteriores...' },
+  'Load older transactions': { fr: 'Charger les transactions plus anciennes', es: 'Cargar transacciones anteriores' },
+  'Credit (Incoming)': { fr: 'Crédit (Entrant)', es: 'Crédito (Entrante)' },
+  'Debit (Outgoing)': { fr: 'Débit (Sortant)', es: 'Débito (Saliente)' },
+  'Nothing to pay': { fr: 'Rien à payer', es: 'Nada que pagar' },
+  'Bookings with a balance appear here.': { fr: 'Les réservations avec un solde apparaissent ici.', es: 'Las reservas con saldo aparecen aquí.' },
+  'No withdrawable balance was reported. Reopen this screen to check again.': {
+    fr: 'Aucun solde retirable signalé. Rouvrez cet écran pour vérifier à nouveau.',
+    es: 'No se informó saldo retirable. Vuelve a abrir esta pantalla para comprobarlo.',
+  },
+  'FINANCE': { fr: 'FINANCES', es: 'FINANZAS' },
+  'Manage event payments, streaming revenue, and gifts.': {
+    fr: 'Gérez les paiements d’événements, revenus de streaming et cadeaux.',
+    es: 'Gestiona pagos de eventos, ingresos por transmisión y regalos.',
+  },
+  'Your event payments and purchases.': { fr: 'Vos paiements d’événements et achats.', es: 'Tus pagos de eventos y compras.' },
+  'Streams': { fr: 'Directs', es: 'Directos' },
+  'Gifts': { fr: 'Cadeaux', es: 'Regalos' },
+  'TOTAL PAYMENTS': { fr: 'TOTAL DES PAIEMENTS', es: 'PAGOS TOTALES' },
+  'TOTAL SPENDING': { fr: 'DÉPENSES TOTALES', es: 'GASTO TOTAL' },
+  'Several currencies': { fr: 'Plusieurs devises', es: 'Varias monedas' },
+  'Complete payments to avoid booking cancellations.': {
+    fr: 'Complétez vos paiements pour éviter l’annulation des réservations.',
+    es: 'Completa los pagos para evitar cancelaciones de reservas.',
+  },
+  'Live Stream Revenue': { fr: 'Revenus des directs', es: 'Ingresos por transmisiones en vivo' },
+  'Ticketed stream entry fees': { fr: 'Frais d’entrée aux directs avec billet', es: 'Entradas de transmisiones con boleto' },
+  'Total Stream Revenue': { fr: 'Revenu total des directs', es: 'Ingresos totales de transmisión' },
+  'Viewer Gift Earnings': { fr: 'Revenus des cadeaux spectateurs', es: 'Ganancias por regalos de espectadores' },
+  '65% withdrawable share': { fr: 'Part retirable de 65 %', es: '65% de participación retirable' },
+  'Total Gift Revenue': { fr: 'Revenu total des cadeaux', es: 'Ingresos totales por regalos' },
+  'payments': { fr: 'paiements', es: 'pagos' },
+  'No payments yet.': { fr: 'Aucun paiement pour le moment.', es: 'Aún no hay pagos.' },
+  'No payments yet': { fr: 'Aucun paiement pour le moment', es: 'Aún no hay pagos' },
+  'Nothing here': { fr: 'Rien ici', es: 'Nada por aquí' },
+  'Your event payments and purchases will appear here.': {
+    fr: 'Vos paiements d’événements et achats apparaîtront ici.',
+    es: 'Tus pagos de eventos y compras aparecerán aquí.',
+  },
+  'No payments match this filter.': { fr: 'Aucun paiement ne correspond à ce filtre.', es: 'Ningún pago coincide con este filtro.' },
+  'Stream payments': { fr: 'Paiements des directs', es: 'Pagos de transmisiones' },
+  'Gifts received': { fr: 'Cadeaux reçus', es: 'Regalos recibidos' },
+  'Pay Now': { fr: 'Payer', es: 'Pagar ahora' },
+  'Not completed': { fr: 'Non terminé', es: 'No completado' },
+  'No stream revenue yet': { fr: 'Aucun revenu de direct pour le moment', es: 'Aún sin ingresos por transmisión' },
+  'Ticket fees from ConnektLive viewers will appear here.': {
+    fr: 'Les frais de billets des spectateurs ConnektLive apparaîtront ici.',
+    es: 'Las entradas de los espectadores de ConnektLive aparecerán aquí.',
+  },
+  'No gifts received yet': { fr: 'Aucun cadeau reçu pour le moment', es: 'Aún no se han recibido regalos' },
+  'Gifts sent by live-stream viewers will appear here.': {
+    fr: 'Les cadeaux envoyés par les spectateurs apparaîtront ici.',
+    es: 'Los regalos enviados por los espectadores aparecerán aquí.',
+  },
+
+  // Withdraw screen
+  'Send your earnings to your mobile money or bank account.': {
+    fr: 'Envoyez vos revenus vers votre compte Mobile Money ou bancaire.',
+    es: 'Envía tus ganancias a tu cuenta de dinero móvil o bancaria.',
+  },
+  'Withdraw from': { fr: 'Retirer depuis', es: 'Retirar desde' },
+  'Amount': { fr: 'Montant', es: 'Monto' },
+  'Send to': { fr: 'Envoyer vers', es: 'Enviar a' },
+  'No payment account saved yet.': { fr: 'Aucun compte de paiement enregistré.', es: 'Aún no hay cuenta de pago guardada.' },
+  'Manage payment accounts': { fr: 'Gérer les comptes de paiement', es: 'Gestionar cuentas de pago' },
+  '+ Add a payment account': { fr: '+ Ajouter un compte de paiement', es: '+ Añadir una cuenta de pago' },
+  'Give a little back?': { fr: 'Faire un petit geste ?', es: '¿Retribuir un poco?' },
+  'Add a small donation to help fund community projects and initiatives.': {
+    fr: 'Ajoutez un petit don pour soutenir des projets et initiatives communautaires.',
+    es: 'Añade una pequeña donación para apoyar proyectos e iniciativas comunitarias.',
+  },
+  'No thanks': { fr: 'Non merci', es: 'No, gracias' },
+  'Donation amount': { fr: 'Montant du don', es: 'Monto de la donación' },
+  'Starting…': { fr: 'Démarrage…', es: 'Iniciando…' },
+  'You will confirm with a code or a selfie next. Withdrawals are reviewed before they are paid out.': {
+    fr: 'Vous confirmerez ensuite avec un code ou un selfie. Les retraits sont vérifiés avant versement.',
+    es: 'Confirmarás con un código o selfie a continuación. Los retiros se revisan antes de pagarse.',
+  },
+  'Recent Activity': { fr: 'Activité récente', es: 'Actividad reciente' },
+  'Withdrawals': { fr: 'Retraits', es: 'Retiros' },
+  'Credits': { fr: 'Crédits', es: 'Créditos' },
+  'Search activity...': { fr: 'Rechercher une activité...', es: 'Buscar actividad...' },
+  'Summary': { fr: 'Récapitulatif', es: 'Resumen' },
+  'Withdrawal': { fr: 'Retrait', es: 'Retiro' },
+  'Donation': { fr: 'Don', es: 'Donación' },
+  'You receive': { fr: 'Vous recevez', es: 'Recibes' },
+  'Selfie captured': { fr: 'Selfie capturé', es: 'Selfie capturada' },
+  'Retake': { fr: 'Reprendre', es: 'Repetir' },
+  'Good light, face centred, nothing covering it.': {
+    fr: 'Bon éclairage, visage centré et dégagé.',
+    es: 'Buena luz, rostro centrado y descubierto.',
+  },
+  'Take selfie': { fr: 'Prendre un selfie', es: 'Tomar selfie' },
+  'Verification code': { fr: 'Code de vérification', es: 'Código de verificación' },
+  'Resend code': { fr: 'Renvoyer le code', es: 'Reenviar código' },
+  'Confirming…': { fr: 'Confirmation…', es: 'Confirmando…' },
+  'Confirm withdrawal': { fr: 'Confirmer le retrait', es: 'Confirmar retiro' },
+
+  // CoordinatorHome & PerformanceWaveCard
+  "Let's plan something extraordinary today!": {
+    fr: "Planifions quelque chose d'extraordinaire aujourd'hui !",
+    es: '¡Planifiquemos algo extraordinario hoy!',
+  },
+  'Hope your events and streams are running smoothly!': {
+    fr: 'Nous espérons que vos événements et directs se déroulent bien !',
+    es: '¡Esperamos que tus eventos y directos marchen muy bien!',
+  },
+  "Time to review today's production performance!": {
+    fr: "Il est temps de vérifier les performances de production d'aujourd'hui !",
+    es: '¡Es hora de revisar el rendimiento de producción de hoy!',
+  },
+  'Late night planning? Your production workspace awaits.': {
+    fr: 'Planification tardive ? Votre espace de production vous attend.',
+    es: '¿Planificando de noche? Tu espacio de producción te espera.',
+  },
+  'Search events, productions, venues...': {
+    fr: 'Rechercher événements, productions, lieux...',
+    es: 'Buscar eventos, producciones, lugares...',
+  },
+  'Wedding': { fr: 'Mariage', es: 'Boda' },
+  'Corporate': { fr: 'Entreprise', es: 'Corporativo' },
+  'Birthday': { fr: 'Anniversaire', es: 'Cumpleaños' },
+  'Concert': { fr: 'Concert', es: 'Concierto' },
+  'Conference': { fr: 'Conférence', es: 'Conferencia' },
+  'Sports': { fr: 'Sport', es: 'Deportes' },
+  'Graduation': { fr: 'Remise de diplômes', es: 'Graduación' },
+  'Fashion': { fr: 'Mode', es: 'Moda' },
+  'Entertainment': { fr: 'Divertissement', es: 'Entretenimiento' },
+  'REVENUE': { fr: 'REVENUS', es: 'INGRESOS' },
+  'EVENTS': { fr: 'ÉVÉNEMENTS', es: 'EVENTOS' },
+  'PHOTOGRAPHERS': { fr: 'PHOTOGRAPHES', es: 'FOTÓGRAFOS' },
+  'Action Required: Pending Payments': { fr: 'Action requise : Paiements en attente', es: 'Acción requerida: Pagos pendientes' },
+  'Pending Invoices': { fr: 'Factures en attente', es: 'Facturas pendientes' },
+  'PERFORMANCE & METRICS': { fr: 'PERFORMANCES ET INDICATEURS', es: 'RENDIMIENTO Y MÉTRICAS' },
+  'Wave trajectory & production performance analytics': {
+    fr: 'Trajectoire et analyse des performances de production',
+    es: 'Trayectoria y analítica de rendimiento de producción',
+  },
+  'UPCOMING PRODUCTIONS': { fr: 'PRODUCTIONS À VENIR', es: 'PRÓXIMAS PRODUCCIONES' },
+  'Assigned events and active sessions': { fr: 'Événements assignés et séances actives', es: 'Eventos asignados y sesiones activas' },
+  'Launch a new event to start coordinating photographers and streams.': {
+    fr: 'Lancez un nouvel événement pour coordonner photographes et directs.',
+    es: 'Lanza un nuevo evento para coordinar fotógrafos y transmisiones.',
+  },
+  'LIVE NOW': { fr: 'EN DIRECT', es: 'EN VIVO' },
+  'PUBLISHED': { fr: 'PUBLIÉ', es: 'PUBLICADO' },
+  'UPCOMING': { fr: 'À VENIR', es: 'PRÓXIMO' },
+  'TOTAL REVENUE': { fr: 'REVENU TOTAL', es: 'INGRESOS TOTALES' },
+  'EVENTS MANAGED': { fr: 'ÉVÉNEMENTS GÉRÉS', es: 'EVENTOS GESTIONADOS' },
+  'TOTAL CLIENTS': { fr: 'TOTAL CLIENTS', es: 'CLIENTES TOTALES' },
+  'PENDING INVOICES': { fr: 'FACTURES EN ATTENTE', es: 'FACTURAS PENDIENTES' },
+  'Revenue': { fr: 'Revenus', es: 'Ingresos' },
+  'This week': { fr: 'Cette semaine', es: 'Esta semana' },
+
+  // AlbumCards, PhotobookCard, AlbumDetail & PhotographerProfile
+  'LATEST DELIVERY': { fr: 'DERNIÈRE LIVRAISON', es: 'ÚLTIMA ENTREGA' },
+  'EVENT': { fr: 'ÉVÉNEMENT', es: 'EVENTO' },
+  'PAID': { fr: 'PAYÉ', es: 'PAGADO' },
+  'FREE': { fr: 'GRATUIT', es: 'GRATIS' },
+  'ALBUM': { fr: 'ALBUM', es: 'ÁLBUM' },
+  'CONTENT': { fr: 'CONTENU', es: 'CONTENIDO' },
+  'LOCKED': { fr: 'VERROUILLÉ', es: 'BLOQUEADO' },
+  'Published': { fr: 'Publié', es: 'Publicado' },
+  'To edit': { fr: 'À modifier', es: 'Para editar' },
+  'Editing': { fr: 'Modification', es: 'Editando' },
+  'Resubmitted': { fr: 'Resoumis', es: 'Reenviado' },
+  'Pending review': { fr: 'En attente de révision', es: 'Pendiente de revisión' },
+  'Approved · Live': { fr: 'Approuvé · En ligne', es: 'Aprobado · En línea' },
+  'Needs changes': { fr: 'Modifications requises', es: 'Requiere cambios' },
+  'Add Photos': { fr: 'Ajouter des photos', es: 'Añadir fotos' },
+  'This album is locked': { fr: 'Cet album est verrouillé', es: 'Este álbum está bloqueado' },
+  'Unlock this album to view and download all high-resolution photos.': {
+    fr: 'Déverrouillez cet album pour voir et télécharger toutes les photos en haute résolution.',
+    es: 'Desbloquea este álbum para ver y descargar todas las fotos en alta resolución.',
+  },
+  'PHOTOS': { fr: 'PHOTOS', es: 'FOTOS' },
+  'AVAILABLE': { fr: 'DISPONIBLE', es: 'DISPONIBLE' },
+  'BOOKED': { fr: 'RÉSERVÉ', es: 'RESERVADO' },
+  'About': { fr: 'À propos', es: 'Acerca de' },
+  'AVAILABILITY': { fr: 'DISPONIBILITÉ', es: 'DISPONIBILIDAD' },
+  'Available (Tap to book)': { fr: 'Disponible (Appuyez pour réserver)', es: 'Disponible (Toca para reservar)' },
+  'Partly booked': { fr: 'Partiellement réservé', es: 'Parcialmente reservado' },
+  'Fully booked': { fr: 'Complet', es: 'Totalmente reservado' },
+  'No portfolio images available yet.': { fr: 'Aucune image de portfolio disponible.', es: 'Aún no hay imágenes de portafolio disponibles.' },
+  'No reviews yet.': { fr: 'Aucun avis pour le moment.', es: 'Aún no hay reseñas.' },
+  'ABOUT': { fr: 'À PROPOS', es: 'ACERCA DE' },
+  'This photographer has not added a bio yet.': {
+    fr: 'Ce photographe n’a pas encore ajouté de biographie.',
+    es: 'Este fotógrafo aún no ha añadido una biografía.',
+  },
+  'Book now': { fr: 'Réserver', es: 'Reservar ahora' },
+  'Report photographer': { fr: 'Signaler le photographe', es: 'Reportar fotógrafo' },
+  'Rebook photographer': { fr: 'Réserver à nouveau', es: 'Volver a reservar fotógrafo' },
+
+  // ── Full App Audit Additions (All remaining screens & components) ──────
+  'Search activity by title or description...': {
+    fr: 'Rechercher une activité par titre ou description…',
+    es: 'Buscar actividad por título o descripción…',
+  },
+  'Draft: Submit for review to publish this album to the public catalog.': {
+    fr: 'Brouillon : Soumettez pour examen afin de publier cet album dans le catalogue public.',
+    es: 'Borrador: Envía a revisión para publicar este álbum en el catálogo público.',
+  },
+  'Under review: Our team will publish it to the catalog once approved.': {
+    fr: 'En cours d’examen : Notre équipe le publiera dans le catalogue une fois approuvé.',
+    es: 'En revisión: Nuestro equipo lo publicará en el catálogo una vez aprobado.',
+  },
+  'Live on the public stock library.': {
+    fr: 'En ligne dans la bibliothèque publique.',
+    es: 'En vivo en la biblioteca pública.',
+  },
+  'faces indexed · Find My Photos active': {
+    fr: 'visages indexés · Trouver mes photos actif',
+    es: 'rostros indexados · Encontrar mis fotos activo',
+  },
+  'Unlock on web': { fr: 'Débloquer sur le web', es: 'Desbloquear en la web' },
+  'Photos are in cold storage. Contact support to restore this album.': {
+    fr: 'Les photos sont archivées. Contactez le support pour restaurer cet album.',
+    es: 'Las fotos están en almacenamiento frío. Contacta al soporte para restaurar este álbum.',
+  },
+  'in pending payments': { fr: 'en paiements en attente', es: 'en pagos pendientes' },
+  'CONNEKTLIVE GIFTS': { fr: 'CADEAUX CONNEKTLIVE', es: 'REGALOS CONNEKTLIVE' },
+  'review': { fr: 'avis', es: 'reseña' },
+  'Fee': { fr: 'Frais', es: 'Tarifa' },
+  'Please enter a valid phone number.': {
+    fr: 'Veuillez saisir un numéro de téléphone valide.',
+    es: 'Ingresa un número de teléfono válido.',
+  },
+  'Please give your message a subject.': {
+    fr: 'Veuillez donner un objet à votre message.',
+    es: 'Por favor ponle un asunto a tu mensaje.',
+  },
+  'Please tell us how we can help.': {
+    fr: 'Veuillez nous expliquer comment nous pouvons vous aider.',
+    es: 'Por favor cuéntanos cómo podemos ayudarte.',
+  },
+  'Could not send your message. Please try again.': {
+    fr: 'Impossible d’envoyer votre message. Veuillez réessayer.',
+    es: 'No se pudo enviar tu mensaje. Inténtalo de nuevo.',
+  },
+  'Date': { fr: 'Date', es: 'Fecha' },
+  'Package': { fr: 'Forfait', es: 'Paquete' },
+  'Time to be confirmed': { fr: 'Heure à confirmer', es: 'Hora por confirmar' },
+  "Accepting confirms you're available. The client is notified and asked to pay the deposit.": {
+    fr: 'Accepter confirme votre disponibilité. Le client est informé et invité à payer l’acompte.',
+    es: 'Aceptar confirma tu disponibilidad. Se notifica al cliente para pagar el depósito.',
+  },
+  'Your event is live': { fr: 'Votre événement est en ligne', es: 'Tu evento está activo' },
+  'Event QR code': { fr: 'Code QR de l’événement', es: 'Código QR del evento' },
+  'Anyone who scans this opens the event page. On a phone they are asked to open the Connekyt app.': {
+    fr: 'Toute personne qui scanne ce code ouvre la page de l’événement. Sur téléphone, l’application Connekyt est proposée.',
+    es: 'Quien escanee esto abrirá la página del evento. En el teléfono se le pedirá abrir la app Connekyt.',
+  },
+  "Your answers confirm the job was done and release the photographer's final payment. It takes about a minute.": {
+    fr: 'Vos réponses confirment que le travail a été effectué et débloquent le paiement final du photographe. Cela prend environ une minute.',
+    es: 'Tus respuestas confirman que el trabajo se realizó y liberan el pago final del fotógrafo. Toma aproximadamente un minuto.',
+  },
+  'Save to Camera Roll': { fr: 'Enregistrer dans la galerie', es: 'Guardar en el carrete' },
+  'Company / Studio': { fr: 'Entreprise / Studio', es: 'Empresa / Estudio' },
+  'Freelancer / Individual': { fr: 'Freelance / Indépendant', es: 'Freelance / Individual' },
+  'Check your connection and try again.': {
+    fr: 'Vérifiez votre connexion et réessayez.',
+    es: 'Comprueba tu conexión e inténtalo de nuevo.',
+  },
+  "We'll let you know once your identity is confirmed, usually within a few hours.": {
+    fr: 'Nous vous informerons dès que votre identité sera confirmée, généralement sous quelques heures.',
+    es: 'Te avisaremos cuando se confirme tu identidad, normalmente en unas horas.',
+  },
+  'Thanks for telling us': { fr: 'Merci de nous l’avoir signalé', es: 'Gracias por avisarnos' },
+  'Sign in to report': { fr: 'Connectez-vous pour signaler', es: 'Inicia sesión para reportar' },
+  'You need a Connekyt account to report this. Signing in lets our team follow up with you.': {
+    fr: 'Vous avez besoin d’un compte Connekyt pour effectuer un signalement. La connexion permet à notre équipe de assurer le suivi.',
+    es: 'Necesitas una cuenta de Connekyt para reportar esto. Iniciar sesión permite a nuestro equipo dar seguimiento.',
+  },
+  'Sign in': { fr: 'Se connecter', es: 'Iniciar sesión' },
+  'Could not submit report': { fr: 'Impossible d’envoyer le signalement', es: 'No se pudo enviar el reporte' },
+  'Pick a reason so our team can review it. We look at every report within 24 hours.': {
+    fr: 'Choisissez un motif pour que notre équipe puisse l’examiner. Chaque signalement est traité sous 24 heures.',
+    es: 'Elige un motivo para que nuestro equipo lo revise. Revisamos cada reporte en 24 horas.',
+  },
+  'not set': { fr: 'non défini', es: 'no establecido' },
+  'Tap to change.': { fr: 'Appuyez pour modifier.', es: 'Toca para cambiar.' },
+  'Choose your country': { fr: 'Choisissez votre pays', es: 'Elige tu país' },
+  'Today ·': { fr: 'Aujourd’hui ·', es: 'Hoy ·' },
+  'Booked': { fr: 'Réservé', es: 'Reservado' },
+  'Available': { fr: 'Disponible', es: 'Disponible' },
+  'Downloading the latest version of Connekyt. This only takes a moment.': {
+    fr: 'Téléchargement de la dernière version de Connekyt. Cela ne prend qu’un instant.',
+    es: 'Descargando la última versión de Connekyt. Esto solo toma un momento.',
+  },
+  'A new version of Connekyt is ready': {
+    fr: 'Une nouvelle version de Connekyt est prête',
+    es: 'Una nueva versión de Connekyt está lista',
+  },
+  'Update now to keep using the app.': {
+    fr: 'Mettez à jour maintenant pour continuer à utiliser l’application.',
+    es: 'Actualiza ahora para seguir usando la aplicación.',
+  },
+  'Preparing update…': { fr: 'Préparation de la mise à jour…', es: 'Preparando actualización…' },
+  'Update now': { fr: 'Mettre à jour', es: 'Actualizar ahora' },
+  'Update did not finish': { fr: 'La mise à jour n’a pas abouti', es: 'La actualización no terminó' },
+  'Update required': { fr: 'Mise à jour requise', es: 'Actualización requerida' },
+
+  // UI Component Props & Labels
+  'Performance': { fr: 'Performance', es: 'Rendimiento' },
+  'Recent payments': { fr: 'Paiements récents', es: 'Pagos recientes' },
+  'Wallet sections': { fr: 'Sections du portefeuille', es: 'Secciones de la billetera' },
+  'Archive unlock': { fr: 'Déblocage d’archive', es: 'Desbloqueo de archivo' },
+  'e.g. Wedding Ceremony, Main Session': { fr: 'ex. Cérémonie de mariage, Séance principale', es: 'ej. Ceremonia de boda, Sesión principal' },
+  'e.g. Wedding, Concert': { fr: 'ex. Mariage, Concert', es: 'ej. Boda, Concierto' },
+  'Describe what is in this album…': { fr: 'Décrivez le contenu de cet album…', es: 'Describe qué hay en este álbum…' },
+  'PAID Album': { fr: 'Album PAYANT', es: 'Álbum DE PAGO' },
+  'FREE Album': { fr: 'Album GRATUIT', es: 'Álbum GRATIS' },
+  'e.g. Kigali Fashion Shoot': { fr: 'ex. Séance mode à Kigali', es: 'ej. Sesión de moda en Kigali' },
+  'e.g. Portrait, Studio': { fr: 'ex. Portrait, Studio', es: 'ej. Retrato, Estudio' },
+  'e.g. Kigali, Rwanda': { fr: 'ex. Kigali, Rwanda', es: 'ej. Kigali, Ruanda' },
+  'Describe this photo collection…': { fr: 'Décrivez cette collection de photos…', es: 'Describe esta colección de fotos…' },
+  'Enter price per photo': { fr: 'Saisir le prix par photo', es: 'Ingresa el precio por foto' },
+  'Blank = all free': { fr: 'Vide = tout gratuit', es: 'Vacío = todo gratis' },
+  'Blank = no extras': { fr: 'Vide = aucun supplément', es: 'Vacío = sin extras' },
+  'Search events by title or client…': { fr: 'Rechercher des événements par titre ou client…', es: 'Buscar eventos por título o cliente…' },
+  'Booking sections': { fr: 'Sections de réservation', es: 'Secciones de reserva' },
+  'No bookings yet': { fr: 'Aucune réservation', es: 'Aún no hay reservas' },
+  'bookings': { fr: 'réservations', es: 'reservas' },
+  'Bookings by status': { fr: 'Réservations par statut', es: 'Reservas por estado' },
+  'No bookings yet.': { fr: 'Aucune réservation pour le moment.', es: 'Aún no hay reservas.' },
+  'Reject': { fr: 'Refuser', es: 'Rechazar' },
+  'Find Available Matches': { fr: 'Trouver des photographes disponibles', es: 'Buscar fotógrafos disponibles' },
+  'e.g. Already booked that weekend.': { fr: 'ex. Déjà réservé ce week-end.', es: 'ej. Ya tengo reserva ese fin de semana.' },
+  'Send rejection': { fr: 'Envoyer le refus', es: 'Enviar rechazo' },
+  'Booking Progress': { fr: 'Progression de la réservation', es: 'Progreso de la reserva' },
+  'Booking progress': { fr: 'Progression de la réservation', es: 'Progreso de la reserva' },
+  'Payment sections': { fr: 'Sections de paiement', es: 'Secciones de pago' },
+  'Payments by status': { fr: 'Paiements par statut', es: 'Pagos por estado' },
+  'Earnings': { fr: 'Revenus', es: 'Ganancias' },
+  'Released booking payments will be listed here.': {
+    fr: 'Les paiements de réservation débloqués apparaîtront ici.',
+    es: 'Los pagos de reserva liberados aparecerán aquí.',
+  },
+  'Describe what happened (optional)': { fr: 'Décrivez ce qui s’est passé (facultatif)', es: 'Describe lo sucedido (opcional)' },
+  'Event title': { fr: 'Titre de l’événement', es: 'Título del evento' },
+  'e.g. Eric & Diana Reception': { fr: 'ex. Réception Eric & Diana', es: 'ej. Recepción de Eric y Diana' },
+  'Event date (YYYY-MM-DD)': { fr: 'Date de l’événement (AAAA-MM-JJ)', es: 'Fecha del evento (AAAA-MM-DD)' },
+  'Start time (HH:mm)': { fr: 'Heure de début (HH:mm)', es: 'Hora de inicio (HH:mm)' },
+  'End time (HH:mm)': { fr: 'Heure de fin (HH:mm)', es: 'Hora de fin (HH:mm)' },
+  'Location': { fr: 'Lieu', es: 'Ubicación' },
+  'Venue + city': { fr: 'Lieu + ville', es: 'Lugar + ciudad' },
+  'Notes (optional)': { fr: 'Notes (facultatif)', es: 'Notas (opcional)' },
+  'View transactions': { fr: 'Voir les transactions', es: 'Ver transacciones' },
+  'Verify identity': { fr: 'Vérifier l’identité', es: 'Verificar identidad' },
+  '8+ chars, a letter, a number and a symbol': {
+    fr: '8+ caractères, une lettre, un chiffre et un symbole',
+    es: '8+ caracteres, una letra, un número y un símbolo',
+  },
+  'Type it again': { fr: 'Saisissez-le à nouveau', es: 'Escríbelo de nuevo' },
+  'Paste the link from your email, or the SMS code': {
+    fr: 'Collez le lien reçu par e-mail ou le code SMS',
+    es: 'Pega el enlace de tu correo o el código SMS',
+  },
+  'At least 8 characters': { fr: 'Au moins 8 caractères', es: 'Al menos 8 caracteres' },
+  'Contains a letter': { fr: 'Contient une lettre', es: 'Contiene una letra' },
+  'Contains a number': { fr: 'Contient un chiffre', es: 'Contiene un número' },
+  'Contains a special character (@!#$%^&*=+)': {
+    fr: 'Contient un caractère spécial (@!#$%^&*=+)',
+    es: 'Contiene un carácter especial (@!#$%^&*=+)',
+  },
+  '12+ characters or mixed case (required)': {
+    fr: '12+ caractères ou majuscules/minuscules (requis)',
+    es: '12+ caracteres o mayúsculas y minúsculas (obligatorio)',
+  },
+  'Name': { fr: 'Nom', es: 'Nombre' },
+  'Search events, venues, categories…': { fr: 'Rechercher des événements, lieux, catégories…', es: 'Buscar eventos, lugares, categorías…' },
+  'Locations': { fr: 'Lieux', es: 'Ubicaciones' },
+  'Date Range': { fr: 'Période', es: 'Rango de fechas' },
+  'Watch Live': { fr: 'Regarder en direct', es: 'Ver en vivo' },
+  'Continue with Apple': { fr: 'Continuer avec Apple', es: 'Continuar con Apple' },
+  'Continue with Google': { fr: 'Continuer avec Google', es: 'Continuar con Google' },
+  'e.g. Kigali Convention Center': { fr: 'ex. Kigali Convention Center', es: 'ej. Kigali Convention Center' },
+  'Min': { fr: 'Min', es: 'Mín' },
+  'Max': { fr: 'Max', es: 'Máx' },
+  'e.g. Sarah & Michael Wedding': { fr: 'ex. Mariage Sarah & Michael', es: 'ej. Boda de Sarah y Michael' },
+  'Posting your event': { fr: 'Publication de votre événement', es: 'Publicando tu evento' },
+  'Booking requests from clients will appear here for you to accept or decline.': {
+    fr: 'Les demandes de réservation des clients apparaîtront ici pour que vous puissiez les accepter ou les refuser.',
+    es: 'Las solicitudes de reserva de los clientes aparecerán aquí para aceptarlas o rechazarlas.',
+  },
+  'Your events by stage': { fr: 'Vos événements par étape', es: 'Tus eventos por etapa' },
+  'Lifetime spend by kind': { fr: 'Dépenses totales par catégorie', es: 'Gasto histórico por tipo' },
+  'Reporting period': { fr: 'Période du rapport', es: 'Período del informe' },
+  'Progress': { fr: 'Progression', es: 'Progreso' },
+  'Things that need your attention': { fr: 'Éléments nécessitant votre attention', es: 'Cosas que requieren tu atención' },
+  'Your latest bookings': { fr: 'Vos dernières réservations', es: 'Tus últimas reservas' },
+  'Booking requests waiting for your reply': { fr: 'Demandes de réservation en attente de réponse', es: 'Solicitudes de reserva esperando tu respuesta' },
+  'Your events by status': { fr: 'Vos événements par statut', es: 'Tus eventos por estado' },
+  'Events layout': { fr: 'Affichage des événements', es: 'Diseño de eventos' },
+  "Couldn't load events": { fr: 'Impossible de charger les événements', es: 'No se pudieron cargar los eventos' },
+  'e.g. Schedule conflict, location too far, etc.': {
+    fr: 'ex. Conflit d’horaire, lieu trop éloigné, etc.',
+    es: 'ej. Conflicto de horario, lugar muy lejos, etc.',
+  },
+  'Goal period': { fr: 'Période de l’objectif', es: 'Período de la meta' },
+  'Calendar view': { fr: 'Vue du calendrier', es: 'Vista del calendario' },
+
+  // Live Stream Studio & Viewer strings
+  'Microphone': { fr: 'Microphone', es: 'Micrófono' },
+  'Toggle Microphone': { fr: 'Activer/désactiver le micro', es: 'Alternar micrófono' },
+  'Camera': { fr: 'Caméra', es: 'Cámara' },
+  'Toggle Camera': { fr: 'Activer/désactiver la caméra', es: 'Alternar cámara' },
+  'Flip Camera': { fr: 'Retourner la caméra', es: 'Cambiar cámara' },
+  'Share live stream': { fr: 'Partager le direct', es: 'Compartir transmisión en vivo' },
+  'Stream settings': { fr: 'Paramètres du direct', es: 'Ajustes de transmisión' },
+  'Leave live studio': { fr: 'Quitter le studio en direct', es: 'Salir del estudio en vivo' },
+  'OBS / encoder setup': { fr: 'Configuration OBS / encodeur', es: 'Configuración OBS / codificador' },
+  'Peak viewers': { fr: 'Pic de spectateurs', es: 'Pico de espectadores' },
+  'Duration': { fr: 'Durée', es: 'Duración' },
+  'Comments': { fr: 'Commentaires', es: 'Comentarios' },
+  'Start a new broadcast?': { fr: 'Démarrer une nouvelle diffusion ?', es: '¿Iniciar una nueva transmisión?' },
+  'Access code': { fr: 'Code d’accès', es: 'Código de acceso' },
+  'Camera unavailable': { fr: 'Caméra indisponible', es: 'Cámara no disponible' },
+  'Preparing your camera…': { fr: 'Préparation de votre caméra…', es: 'Preparando tu cámara…' },
+  'Waiting for OBS signal': { fr: 'En attente du signal OBS', es: 'Esperando señal de OBS' },
+  'Camera off': { fr: 'Caméra désactivée', es: 'Cámara apagada' },
+  'Unable to start LIVE': { fr: 'Impossible de démarrer le DIRECT', es: 'No se puede iniciar el VIVO' },
+  'Preparing your studio…': { fr: 'Préparation de votre studio…', es: 'Preparando tu estudio…' },
+  'Setting up your video channel': { fr: 'Configuration du canal vidéo', es: 'Configurando tu canal de video' },
+  'Stream info': { fr: 'Infos du direct', es: 'Info de transmisión' },
+  'Viewers': { fr: 'Spectateurs', es: 'Espectadores' },
+  'Peak': { fr: 'Pic', es: 'Pico' },
+  'On air': { fr: 'En direct', es: 'Al aire' },
+  'Connection': { fr: 'Connexion', es: 'Conexión' },
+  'Health': { fr: 'État', es: 'Salud' },
+  'Upload': { fr: 'Envoi', es: 'Subida' },
+  'Share live link': { fr: 'Partager le lien du direct', es: 'Compartir enlace en vivo' },
+  'Viewer access code': { fr: 'Code d’accès spectateur', es: 'Código de acceso de espectador' },
+  'Live title': { fr: 'Titre du direct', es: 'Título en vivo' },
+  'Stream info & stats': { fr: 'Infos et statistiques du direct', es: 'Info y estadísticas en vivo' },
+  'Video source': { fr: 'Source vidéo', es: 'Fuente de video' },
+  'Flip camera': { fr: 'Retourner la caméra', es: 'Voltear cámara' },
+  'Video': { fr: 'Vidéo', es: 'Video' },
+  'Audio': { fr: 'Audio', es: 'Audio' },
+  'Interaction': { fr: 'Interaction', es: 'Interacción' },
+  'Clean view': { fr: 'Vue épurée', es: 'Vista limpia' },
+  'Broadcast': { fr: 'Diffusion', es: 'Transmisión' },
+  'Resume stream': { fr: 'Reprendre le direct', es: 'Reanudar transmisión' },
+  'Pause stream': { fr: 'Mettre le direct en pause', es: 'Pausar transmisión' },
+  'Something went wrong': { fr: 'Une erreur est survenue', es: 'Algo salió mal' },
+  'Connection interrupted': { fr: 'Connexion interrompue', es: 'Conexión interrumpida' },
+  'Reconnect': { fr: 'Reconnecter', es: 'Reconectar' },
+  'Connection unavailable': { fr: 'Connexion indisponible', es: 'Conexión no disponible' },
+  'Broadcast from': { fr: 'Diffuser depuis', es: 'Transmitir desde' },
+  'This phone': { fr: 'Ce téléphone', es: 'Este teléfono' },
+  'External / OBS': { fr: 'Externe / OBS', es: 'Externo / OBS' },
+  'Options': { fr: 'Options', es: 'Opciones' },
+  'Refresh stream': { fr: 'Actualiser le direct', es: 'Actualizar transmisión' },
+  'Share stream': { fr: 'Partager le direct', es: 'Compartir transmisión' },
+  'More options': { fr: 'Plus d’options', es: 'Más opciones' },
+  'Share via…': { fr: 'Partager via…', es: 'Compartir vía…' },
+
+  // Remaining raw <Text> strings across screens
+  'Could not load your messages': { fr: 'Impossible de charger vos messages', es: 'No se pudieron cargar tus mensajes' },
+  'From': { fr: 'De', es: 'Desde' },
+  'To': { fr: 'À', es: 'Hasta' },
+  'Nothing here yet.': { fr: 'Rien ici pour le moment.', es: 'Nada por aquí todavía.' },
+  'YOUR DASHBOARD': { fr: 'VOTRE TABLEAU DE BORD', es: 'TU PANEL' },
+  'Check': { fr: 'Vérifier', es: 'Comprobar' },
+  'Totals are all time. The period above changes the trends and charts.': {
+    fr: 'Les totaux portent sur toute la période. La période ci-dessus modifie les tendances et graphiques.',
+    es: 'Los totales son históricos. El período superior cambia las tendencias y gráficos.',
+  },
+  'Find another photographer?': { fr: 'Trouver un autre photographe ?', es: '¿Buscar otro fotógrafo?' },
+  'Broadcast this event to other available local photographers with one tap.': {
+    fr: 'Diffusez cet événement aux autres photographes locaux disponibles en un geste.',
+    es: 'Difunde este evento a otros fotógrafos locales disponibles con un toque.',
+  },
+  'Opportunities come from clients who used Post My Event: you were matched because you are free for the whole event and fit what they asked for. Say yes and the client sees you; they choose one photographer. Direct requests are sent to you by name.': {
+    fr: 'Les opportunités proviennent des clients ayant utilisé Publier mon événement : vous avez été sélectionné car vous êtes disponible et correspondez aux critères. Dites oui pour apparaître auprès du client. Les demandes directes vous sont envoyées nominativement.',
+    es: 'Las oportunidades provienen de clientes que usaron Publicar mi evento: coincidiste porque estás libre todo el evento y cumples lo solicitado. Di que sí para que el cliente te vea. Las solicitudes directas se te envían por nombre.',
+  },
+  'Reject booking': { fr: 'Refuser la réservation', es: 'Rechazar reserva' },
+  'WHEN': { fr: 'QUAND', es: 'CUÁNDO' },
+  'Could not load notifications': { fr: 'Impossible de charger les notifications', es: 'No se pudieron cargar las notificaciones' },
+  'What you have earned from bookings, and what is still waiting to be released.': {
+    fr: 'Ce que vous avez gagné grâce aux réservations, et ce qui est encore en attente de déblocage.',
+    es: 'Lo que has ganado por reservas y lo que aún espera ser liberado.',
+  },
+  'Unavailable': { fr: 'Indisponible', es: 'No disponible' },
+  'Remove from my list': { fr: 'Retirer de ma liste', es: 'Quitar de mi lista' },
+  'Go Back': { fr: 'Retour', es: 'Volver' },
+  'Pick a reason and add details so our team can take action.': {
+    fr: 'Choisissez un motif et ajoutez des détails afin que notre équipe puisse agir.',
+    es: 'Elige un motivo y agrega detalles para que nuestro equipo tome medidas.',
+  },
+  'Donate': { fr: 'Faire un don', es: 'Donar' },
+  'Check Your Phone': { fr: 'Vérifiez votre téléphone', es: 'Revisa tu teléfono' },
+  'Waiting for confirmation…': { fr: 'En attente de confirmation…', es: 'Esperando confirmación…' },
+  'Select Payment Country': { fr: 'Sélectionner le pays de paiement', es: 'Seleccionar país de pago' },
+  'Get notified': { fr: 'Être notifié', es: 'Recibir notificación' },
+  'Buy access instead': { fr: 'Acheter un accès à la place', es: 'Comprar acceso en su lugar' },
+  'View Details': { fr: 'Voir les détails', es: 'Ver detalles' },
+  'Find My Photos': { fr: 'Trouver mes photos', es: 'Encontrar mis fotos' },
+  'Live stream': { fr: 'Diffusion en direct', es: 'Transmisión en vivo' },
+  'Explore Events': { fr: 'Explorer les événements', es: 'Explorar eventos' },
+  'SOON': { fr: 'BIENTÔT', es: 'PRONTO' },
+  'SUGGESTIONS': { fr: 'SUGGESTIONS', es: 'SUGERENCIAS' },
+  'Previous': { fr: 'Précédent', es: 'Anterior' },
+  'Choose an order for exploring events': {
+    fr: 'Choisissez un ordre pour explorer les événements',
+    es: 'Elige un orden para explorar eventos',
+  },
+  "Try searching for photographer names, shoot styles like 'wedding', or city locations.": {
+    fr: 'Essayez de rechercher des noms de photographes, des styles comme « mariage » ou des villes.',
+    es: 'Prueba buscando nombres de fotógrafos, estilos como "boda" o ciudades.',
+  },
+  'Capture life, Own the moment': { fr: 'Capturez la vie, vivez l’instant', es: 'Captura la vida, haz tuyo el momento' },
+  'Events chart unavailable': { fr: 'Graphique des événements indisponible', es: 'Gráfico de eventos no disponible' },
+  'We could not load this period. Pull down to refresh.': {
+    fr: 'Impossible de charger cette période. Tirez vers le bas pour actualiser.',
+    es: 'No pudimos cargar este período. Desliza hacia abajo para actualizar.',
+  },
+  'No events in this period': { fr: 'Aucun événement sur cette période', es: 'Sin eventos en este período' },
+  'Events you cover will appear here.': { fr: 'Les événements que vous couvrez apparaîtront ici.', es: 'Los eventos que cubras aparecerán aquí.' },
+  'Based on verified event client reviews and on-time delivery': {
+    fr: 'Basé sur les avis clients vérifiés et la livraison à temps',
+    es: 'Basado en reseñas verificadas de clientes y entregas a tiempo',
+  },
+  'Post': { fr: 'Publier', es: 'Publicar' },
+  'Remove': { fr: 'Supprimer', es: 'Eliminar' },
+  'Your username or a link, e.g. @yourstudio or instagram.com/yourstudio': {
+    fr: 'Votre nom d’utilisateur ou un lien, ex. @votrestudio ou instagram.com/votrestudio',
+    es: 'Tu usuario o enlace, ej. @tuestudio o instagram.com/tuestudio',
+  },
+  'KYC Verified': { fr: 'KYC vérifié', es: 'KYC verificado' },
+  'Camera permission has been blocked in your device settings. Please enable camera access in Settings to take your selfie in the oval, or choose a photo from your library.': {
+    fr: 'L’accès à la caméra est bloqué dans les réglages de votre appareil. Activez la caméra dans les Réglages pour prendre votre selfie ou choisissez une photo.',
+    es: 'El permiso de cámara está bloqueado en los ajustes de tu dispositivo. Activa el acceso en Ajustes para tomar tu selfie o elige una foto de tu galería.',
+  },
+  'Connekyt requires front camera access to take your selfie inside the oval guide, or you can choose a photo from your library.': {
+    fr: 'Connekyt nécessite l’accès à la caméra frontale pour prendre votre selfie dans le cadre ovale, ou choisissez une photo de votre galerie.',
+    es: 'Connekyt requiere acceso a la cámara frontal para tomar tu selfie dentro del óvalo, o puedes elegir una foto de tu galería.',
+  },
+  'Make sure your face is centered, well-lit, and in clear focus.': {
+    fr: 'Assurez-vous que votre visage est centré, bien éclairé et net.',
+    es: 'Asegúrate de que tu rostro esté centrado, bien iluminado y enfocado.',
+  },
+  'Center your face inside the oval guide and tap Take Photo': {
+    fr: 'Centrez votre visage dans le guide ovale et appuyez sur Prendre une photo',
+    es: 'Centra tu rostro dentro de la guía ovalada y toca Tomar foto',
+  },
+  'We check the number with your network and save it under the name registered to it.': {
+    fr: 'Nous vérifions le numéro auprès de votre opérateur et l’enregistrons sous le nom associé.',
+    es: 'Verificamos el número con tu operador y lo guardamos bajo el nombre registrado.',
+  },
+  'Payment received. Thank you.': { fr: 'Paiement reçu. Merci.', es: 'Pago recibido. Gracias.' },
+  'Check again': { fr: 'Vérifier à nouveau', es: 'Comprobar de nuevo' },
+  'View profile': { fr: 'Voir le profil', es: 'Ver perfil' },
+  'Tap photos to select · Tap ⤢ to preview full-screen · Long-press to report': {
+    fr: 'Appuyez pour sélectionner · ⤢ pour plein écran · Appui long pour signaler',
+    es: 'Toca fotos para seleccionar · ⤢ para pantalla completa · Mantén presionado para reportar',
+  },
+  'CONNEKYT PREVIEW': { fr: 'APERÇU CONNEKYT', es: 'VISTA PREVIA CONNEKYT' },
+  'Online purchases are currently unavailable in your region.': {
+    fr: 'Les achats en ligne sont actuellement indisponibles dans votre région.',
+    es: 'Las compras en línea no están disponibles actualmente en tu región.',
+  },
+  'Receipt and permanent unlock code will be sent to this email.': {
+    fr: 'Le reçu et le code de déblocage permanent seront envoyés à cet e-mail.',
+    es: 'El recibo y el código de desbloqueo permanente se enviarán a este correo.',
+  },
+  'You will be directed to a 3D-Secure window to complete your card payment.': {
+    fr: 'Vous serez redirigé vers une fenêtre 3D-Secure pour finaliser votre paiement par carte.',
+    es: 'Serás redirigido a una ventana 3D-Secure para completar el pago con tarjeta.',
+  },
+  'Payments are securely processed via XentriPay / PawaPay. Instant download upon completion.': {
+    fr: 'Les paiements sont traités en toute sécurité via XentriPay / PawaPay. Téléchargement instantané après validation.',
+    es: 'Los pagos se procesan de forma segura vía XentriPay / PawaPay. Descarga instantánea al completar.',
+  },
+  'Please do not close this window while we verify your transaction.': {
+    fr: 'Veuillez ne pas fermer cette fenêtre pendant la vérification de votre transaction.',
+    es: 'Por favor no cierres esta ventana mientras verificamos tu transacción.',
+  },
+  'View in': { fr: 'Afficher en', es: 'Ver en' },
+  'Send': { fr: 'Envoyer', es: 'Enviar' },
+  'Say something…': { fr: 'Dites quelque chose…', es: 'Di algo…' },
+  'No comments yet': { fr: 'Aucun commentaire pour le moment', es: 'Aún no hay comentarios' },
+  'Viewer comments will stream in here.': {
+    fr: 'Les commentaires des spectateurs s’afficheront ici en direct.',
+    es: 'Los comentarios de los espectadores aparecerán aquí.',
+  },
+  'WHIP SERVER URL': { fr: 'URL DU SERVEUR WHIP', es: 'URL DEL SERVIDOR WHIP' },
+  'RECOMMENDED OUTPUT': { fr: 'SORTIE RECOMMANDÉE', es: 'SALIDA RECOMENDADA' },
+  'LIVE ended': { fr: 'DIRECT terminé', es: 'VIVO finalizado' },
+  'Video is off, viewers see a blank screen': {
+    fr: 'La vidéo est coupée, les spectateurs voient un écran noir',
+    es: 'El video está apagado, los espectadores ven una pantalla en negro',
+  },
+  'HOST': { fr: 'HÔTE', es: 'ANFITRIÓN' },
+  'N/A': { fr: 'N/D', es: 'N/D' },
+
+  // BookingModeSelector & Post My Event Wizard
+  'Could not load the event options.': {
+    fr: 'Impossible de charger les options de l’événement.',
+    es: 'No se pudieron cargar las opciones del evento.',
+  },
+  'Choose the type of event.': { fr: 'Choisissez le type d’événement.', es: 'Elige el tipo de evento.' },
+  'Give your event a name.': { fr: 'Donnez un nom à votre événement.', es: 'Ponle un nombre a tu evento.' },
+  'Choose the event date.': { fr: 'Choisissez la date de l’événement.', es: 'Elige la fecha del evento.' },
+  'That date has passed. Choose a future date.': {
+    fr: 'Cette date est passée. Choisissez une date future.',
+    es: 'Esa fecha ya pasó. Elige una fecha futura.',
+  },
+  'That start time has passed. Choose a later time.': {
+    fr: 'Cette heure de début est passée. Choisissez une heure ultérieure.',
+    es: 'Esa hora de inicio ya pasó. Elige una hora posterior.',
+  },
+  'Add the venue or address so photographers know where to go.': {
+    fr: 'Ajoutez le lieu ou l’adresse pour que les photographes sachent où se rendre.',
+    es: 'Agrega el lugar o la dirección para que los fotographes sepan adónde ir.',
+  },
+  'Could not post your event. Please try again.': {
+    fr: 'Impossible de publier votre événement. Veuillez réessayer.',
+    es: 'No se pudo publicar tu evento. Inténtalo de nuevo.',
+  },
+  "Couldn't count photographers right now": {
+    fr: 'Impossible de compter les photographes pour le moment',
+    es: 'No se pudieron contar los fotógrafos en este momento',
+  },
+  'photographer fits right now': {
+    fr: 'photographe correspond actuellement',
+    es: 'fotógrafo coincide ahora mismo',
+  },
+  'photographers fit right now': {
+    fr: 'photographes correspondent actuellement',
+    es: 'fotógrafos coinciden ahora mismo',
+  },
+  'You can still continue; we check again when you post.': {
+    fr: 'Vous pouvez tout de même continuer ; nous vérifierons à nouveau lors de la publication.',
+    es: 'Aún puedes continuar; volveremos a comprobar cuando publiques.',
+  },
+  'of any type': { fr: 'de tout type', es: 'de cualquier tipo' },
+  'are studios': { fr: 'sont des studios', es: 'son estudios' },
+  'are freelancers': { fr: 'sont des freelances', es: 'son independientes' },
+  'any budget': { fr: 'tout budget', es: 'cualquier presupuesto' },
+  'fit your budget': { fr: 'correspondent à votre budget', es: 'se ajustan a tu presupuesto' },
+  'anywhere in Rwanda': { fr: 'partout au Rwanda', es: 'en cualquier lugar de Ruanda' },
+  'Try widening your request:': { fr: 'Essayez d’élargir votre demande :', es: 'Intenta ampliar tu solicitud:' },
+  'Include nearby cities': { fr: 'Inclure les villes voisines', es: 'Incluir ciudades cercanas' },
+  'Anywhere in Rwanda': { fr: 'Partout au Rwanda', es: 'En cualquier lugar de Ruanda' },
+  'Any type': { fr: 'Tout type', es: 'Cualquier tipo' },
+  'Any specialty': { fr: 'Toute spécialité', es: 'Cualquier especialidad' },
+  'Flexible budget': { fr: 'Budget flexible', es: 'Presupuesto flexible' },
+  'Browse Photographers': { fr: 'Parcourir les photographes', es: 'Explorar fotógrafos' },
+  'Direct': { fr: 'Direct', es: 'Directo' },
+  'Look through portfolios, compare packages, and reach out directly to the photographer you want.': {
+    fr: 'Parcourez les portfolios, comparez les forfaits et contactez directement le photographe de votre choix.',
+    es: 'Explora portafolios, compara paquetes y contacta directamente al fotógrafo que prefieras.',
+  },
+  'See photos, reviews, and package prices': {
+    fr: 'Voir les photos, avis et tarifs des forfaits',
+    es: 'Ver fotos, reseñas y precios de paquetes',
+  },
+  'Message and book directly with the creator': {
+    fr: 'Échangez et réservez directement auprès du créateur',
+    es: 'Envía mensajes y reserva directamente con el creador',
+  },
+  'Post Your Event': { fr: 'Publier votre événement', es: 'Publica tu evento' },
+  'Faster': { fr: 'Plus rapide', es: 'Más rápido' },
+  'Share your event date, location, and budget. Photographers who are free will reply, and you choose who you like.': {
+    fr: 'Partagez la date, le lieu et le budget de votre événement. Les photographes disponibles répondront et vous choisirez celui qui vous convient.',
+    es: 'Comparte la fecha, lugar y presupuesto de tu evento. Los fotógrafos disponibles responderán y tú eliges.',
+  },
+  'Photographers who are actually free respond to you': {
+    fr: 'Des photographes réellement disponibles vous répondent',
+    es: 'Fotógrafos realmente disponibles te responden',
+  },
+  'Saves time — no need to message people one by one': {
+    fr: 'Gain de temps — inutile d’écrire à chacun individuellement',
+    es: 'Ahorra tiempo — sin escribir uno por uno',
+  },
+  'Post My Event is paused right now. Use Find a Photographer to book directly.': {
+    fr: 'Publier mon événement est temporairement indisponible. Utilisez Trouver un photographe pour réserver directement.',
+    es: 'Publicar mi evento está en pausa. Usa Buscar un fotógrafo para reservar directamente.',
+  },
+  'e.g. Birthday Celebration': { fr: 'ex. Fête d’anniversaire', es: 'ej. Celebración de cumpleaños' },
+  'This Saturday': { fr: 'Ce samedi', es: 'Este sábado' },
+  'Next Saturday': { fr: 'Samedi prochain', es: 'El próximo sábado' },
+  'Pick a date': { fr: 'Choisir une date', es: 'Elegir una fecha' },
+  'Starts': { fr: 'Début', es: 'Inicia' },
+  '(+1 day)': { fr: '(+1 jour)', es: '(+1 día)' },
+  'Ends': { fr: 'Fin', es: 'Termina' },
+  '· ends next day': { fr: '· se termine le lendemain', es: '· termina al día siguiente' },
+  'City': { fr: 'Ville', es: 'Ciudad' },
+  'e.g. Kigali Convention Centre': { fr: 'ex. Kigali Convention Centre', es: 'ej. Kigali Convention Centre' },
+  'WHERE': { fr: 'OÙ', es: 'DÓNDE' },
+  'LOOKING FOR': { fr: 'RECHERCHE', es: 'BUSCANDO' },
+  'BUDGET': { fr: 'BUDGET', es: 'PRESUPUESTO' },
+  'Flexible': { fr: 'Flexible', es: 'Flexible' },
+  'COLLECT ANSWERS FOR': { fr: 'RECEVOIR DES RÉPONSES PENDANT', es: 'RECIBIR RESPUESTAS DURANTE' },
+  'What happens next': { fr: 'Que se passe-t-il ensuite', es: 'Qué sucede después' },
+  'Only photographers who said yes appear for you, grouped as top, good and possible matches, three of each.': {
+    fr: 'Seuls les photographes ayant accepté apparaissent, classés par pertinence.',
+    es: 'Solo aparecen los fotógrafos que aceptaron, agrupados por mejores coincidencias.',
+  },
+  'You choose one and pay 50%, 70% or 100% upfront. Connekyt holds it until delivery.': {
+    fr: 'Vous en choisissez un et payez 50 %, 70 % ou 100 % d’acompte. Connekyt conserve le paiement jusqu’à la livraison.',
+    es: 'Eliges uno y pagas el 50%, 70% o 100% por adelantado. Connekyt lo retiene hasta la entrega.',
+  },
+  'Your event stays private. It only appears publicly once a photographer is booked.': {
+    fr: 'Votre événement reste privé. Il n’apparaît publiquement qu’une fois un photographe réservé.',
+    es: 'Tu evento permanece privado. Solo aparece públicamente cuando se reserva un fotógrafo.',
+  },
+  'Saved, but nobody fits right now': {
+    fr: 'Enregistré, mais aucun photographe ne correspond pour l’instant',
+    es: 'Guardado, pero nadie coincide en este momento',
+  },
+  'Your event is saved privately. Post it again with a wider area or budget, or use Find a Photographer to book one yourself.': {
+    fr: 'Votre événement est enregistré en privé. Republiez-le avec une zone ou un budget élargi, ou réservez directement un photographe.',
+    es: 'Tu evento se guardó en privado. Publícalo de nuevo ampliando zona o presupuesto, o busca un fotógrafo directamente.',
+  },
+  "We'll notify you each time a photographer says yes.": {
+    fr: 'Nous vous notifierons chaque fois qu’un photographe accepte.',
+    es: 'Te notificaremos cada vez que un fotógrafo acepte.',
+  },
+  'How would you like to book?': { fr: 'Comment souhaitez-vous réserver ?', es: '¿Cómo te gustaría reservar?' },
+  'Tell us about your event': { fr: 'Parlez-nous de votre événement', es: 'Cuéntanos sobre tu evento' },
+  'Who should we look for?': { fr: 'Qui devons-nous rechercher ?', es: '¿A quién debemos buscar?' },
+  'Review and post': { fr: 'Vérifier et publier', es: 'Revisar y publicar' },
+  'Your event is posted': { fr: 'Votre événement est publié', es: 'Tu evento está publicado' },
+  'Pick someone yourself, or let available photographers come to you.': {
+    fr: 'Choisissez vous-même, ou laissez les photographes disponibles venir à vous.',
+    es: 'Elige tú mismo o deja que los fotógrafos disponibles vengan a ti.',
+  },
+  'Follow the answers': { fr: 'Suivre les réponses', es: 'Seguir las respuestas' },
+  'Widen your request first': { fr: 'Élargissez d’abord votre demande', es: 'Amplía primero tu solicitud' },
+  'Post and alert photographers': { fr: 'Publier et alerter les photographes', es: 'Publicar y alertar a fotógrafos' },
+  'Start time': { fr: 'Heure de début', es: 'Hora de inicio' },
+  'End time': { fr: 'Heure de fin', es: 'Hora de fin' },
+  '(next day)': { fr: '(lendemain)', es: '(día siguiente)' },
+  ' (next day)': { fr: ' (lendemain)', es: ' (día siguiente)' },
 };
 
-export function translateShared(text: string | undefined, language: 'en' | 'fr' | 'es'): string {
+export function translateShared(text: string | undefined, language: 'en' | 'fr' | 'es' | 'rw' | 'sw'): string {
   if (!text) return '';
   if (language === 'en') return text;
+  if (language === 'rw') return translateSharedRw(text);
+  if (language === 'sw') return translateSharedSw(text);
   const entry = SHARED_STRINGS[text] ?? SHARED_STRINGS[text.trim()];
   if (entry) return entry[language];
+
+  // Dynamic pattern fallbacks for countdowns, counts, and recurring periods
+  const trimmed = text.trim();
+  const inDays = /^In (\d+) days$/i.exec(trimmed);
+  if (inDays) {
+    return language === 'fr' ? `Dans ${inDays[1]} jours` : `En ${inDays[1]} días`;
+  }
+  const startsInH = /^Starts in (\d+)h$/i.exec(trimmed);
+  if (startsInH) {
+    return language === 'fr' ? `Commence dans ${startsInH[1]}h` : `Comienza en ${startsInH[1]}h`;
+  }
+  const overdueBy = /^Overdue by (\d+)d$/i.exec(trimmed);
+  if (overdueBy) {
+    return language === 'fr' ? `En retard de ${overdueBy[1]}j` : `Vencido hace ${overdueBy[1]}d`;
+  }
+  const dueIn = /^Due in (\d+)d$/i.exec(trimmed);
+  if (dueIn) {
+    return language === 'fr' ? `Dû dans ${dueIn[1]}j` : `Vence en ${dueIn[1]}d`;
+  }
+  const everyUnit = /^Every (day|week|month|year)$/i.exec(trimmed);
+  if (everyUnit) {
+    const unit = everyUnit[1].toLowerCase();
+    const frMap: Record<string, string> = { day: 'Chaque jour', week: 'Chaque semaine', month: 'Chaque mois', year: 'Chaque année' };
+    const esMap: Record<string, string> = { day: 'Cada día', week: 'Cada semana', month: 'Cada mes', year: 'Cada año' };
+    return (language === 'fr' ? frMap[unit] : esMap[unit]) ?? text;
+  }
+  const everyNUnits = /^Every (\d+) (day|week|month|year)s$/i.exec(trimmed);
+  if (everyNUnits) {
+    const n = everyNUnits[1];
+    const unit = everyNUnits[2].toLowerCase();
+    const frUnits: Record<string, string> = { day: 'jours', week: 'semaines', month: 'mois', year: 'ans' };
+    const esUnits: Record<string, string> = { day: 'días', week: 'semanas', month: 'meses', year: 'años' };
+    return language === 'fr' ? `Tous les ${n} ${frUnits[unit]}` : `Cada ${n} ${esUnits[unit]}`;
+  }
+  const photosCount = /^(\d+) photos?$/i.exec(trimmed);
+  if (photosCount) {
+    const n = Number(photosCount[1]);
+    return language === 'fr' ? `${n} photo${n === 1 ? '' : 's'}` : `${n} foto${n === 1 ? '' : 's'}`;
+  }
+  const byAuthor = /^By (.+)$/.exec(trimmed);
+  if (byAuthor) {
+    return language === 'fr' ? `Par ${byAuthor[1]}` : `Por ${byAuthor[1]}`;
+  }
+  const paymentsWaiting = /^(\d+) payments? waiting$/i.exec(trimmed);
+  if (paymentsWaiting) {
+    const n = Number(paymentsWaiting[1]);
+    return language === 'fr'
+      ? `${n} paiement${n === 1 ? '' : 's'} en attente`
+      : `${n} pago${n === 1 ? '' : 's'} en espera`;
+  }
+  const bookingsWaitingPayment = /^(\d+) bookings? waiting for payment$/i.exec(trimmed);
+  if (bookingsWaitingPayment) {
+    const n = Number(bookingsWaitingPayment[1]);
+    return language === 'fr'
+      ? `${n} réservation${n === 1 ? '' : 's'} en attente de paiement`
+      : `${n} reserva${n === 1 ? '' : 's'} esperando pago`;
+  }
+  const requestsWaiting = /^(\d+) booking requests? waiting$/i.exec(trimmed);
+  if (requestsWaiting) {
+    const n = Number(requestsWaiting[1]);
+    return language === 'fr'
+      ? `${n} demande${n === 1 ? '' : 's'} de réservation en attente`
+      : `${n} solicitud${n === 1 ? '' : 'es'} de reserva en espera`;
+  }
+  const noChangeVs = /^No change vs (yesterday|last week|last month)$/i.exec(trimmed);
+  if (noChangeVs) {
+    const p = noChangeVs[1].toLowerCase();
+    const frP: Record<string, string> = { yesterday: 'hier', 'last week': 'la semaine dernière', 'last month': 'le mois dernier' };
+    const esP: Record<string, string> = { yesterday: 'ayer', 'last week': 'la semana pasada', 'last month': 'el mes pasado' };
+    return language === 'fr' ? `Aucun changement vs ${frP[p]}` : `Sin cambios vs ${esP[p]}`;
+  }
+  const trendVs = /^(Up|Down) (.+) vs (yesterday|last week|last month)$/i.exec(trimmed);
+  if (trendVs) {
+    const dir = trendVs[1].toLowerCase();
+    const pct = trendVs[2];
+    const p = trendVs[3].toLowerCase();
+    const frP: Record<string, string> = { yesterday: 'hier', 'last week': 'la semaine dernière', 'last month': 'le mois dernier' };
+    const esP: Record<string, string> = { yesterday: 'ayer', 'last week': 'la semana pasada', 'last month': 'el mes pasado' };
+    if (language === 'fr') {
+      return `${dir === 'down' ? 'En baisse de' : 'En hausse de'} ${pct} vs ${frP[p]}`;
+    }
+    return `${dir === 'down' ? 'Bajó' : 'Subió'} ${pct} vs ${esP[p]}`;
+  }
   return text;
 }
 

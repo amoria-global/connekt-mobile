@@ -80,13 +80,18 @@ const JOIN_INV_I18N = {
   },
 } as const;
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const JOIN_INV_RW = buildKinyarwandaDict(JOIN_INV_I18N.en);
+const JOIN_INV_SW = buildSwahiliDict(JOIN_INV_I18N.en);
+
 export default function JoinInviteScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useStyles();
   const { language } = useLanguage();
-  const s = JOIN_INV_I18N[language] ?? JOIN_INV_I18N.en;
+  const s = language === 'rw' ? JOIN_INV_RW : language === 'sw' ? JOIN_INV_SW : (JOIN_INV_I18N as any)[language] ?? JOIN_INV_I18N.en;
   // Everything below belongs to one token. State is keyed by it, so a new link can never show the previous album,
   // error or "joining" spinner, without resetting state inside an effect.
   const [loaded, setLoaded] = useState<{ token: string; preview: InvitePreview | null; error: string | null } | null>(null);

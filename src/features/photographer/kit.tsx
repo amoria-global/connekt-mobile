@@ -321,13 +321,14 @@ export function IconTile({
 /** A status as a small icon and a word in its own colour (never colour alone, and lighter than a pill in a dense row). */
 export function StatusText({ label, tone, icon }: { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral'; icon?: IconName }) {
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const fg = { success: colors.success, warning: colors.warning, error: colors.error, info: colors.link, neutral: colors.textMuted }[tone];
   const glyph = icon ?? ({ success: 'checkmark-circle', warning: 'time', error: 'alert-circle', info: 'information-circle', neutral: 'ellipse-outline' }[tone] as IconName);
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       <Ionicons name={glyph} size={12} color={fg} />
       <Text style={{ color: fg, fontSize: 12, fontWeight: '700' }} numberOfLines={1} maxFontSizeMultiplier={1.2}>
-        {label}
+        {tr(label)}
       </Text>
     </View>
   );
@@ -345,6 +346,8 @@ export function Chip({
   count?: number;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
+  const displayLabel = tr(label);
   return (
     <Pressable
       onPress={onPress}
@@ -354,7 +357,7 @@ export function Chip({
       style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
     >
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-        {label}
+        {displayLabel}
         {count != null ? ` ${count}` : ''}
       </Text>
     </Pressable>
@@ -374,6 +377,7 @@ export function SegmentedTabs<K extends string>({
   label: string;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   return (
     <View style={styles.segment} accessibilityRole="tablist" accessibilityLabel={label}>
       {tabs.map((t) => {
@@ -395,7 +399,7 @@ export function SegmentedTabs<K extends string>({
               minimumFontScale={0.75}
               maxFontSizeMultiplier={1.4}
             >
-              {t.label}
+              {tr(t.label)}
             </Text>
           </Pressable>
         );
@@ -416,6 +420,7 @@ export function StatusBadge({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const map = {
     success: [colors.successBg, colors.success, 'checkmark-circle'],
     warning: [colors.warningBg, colors.warning, 'time'],
@@ -428,7 +433,7 @@ export function StatusBadge({
     <View style={[styles.badgePill, { backgroundColor: bg }]}>
       <Ionicons name={icon ?? (defaultIcon as IconName)} size={12} color={fg} />
       <Text style={[styles.badgePillText, { color: fg }]} numberOfLines={2}>
-        {label}
+        {tr(label)}
       </Text>
     </View>
   );

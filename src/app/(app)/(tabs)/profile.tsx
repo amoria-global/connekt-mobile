@@ -43,6 +43,7 @@ import { useAppUpdates } from '@/features/updates';
 import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
 import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { useCurrency } from '@/store/currency';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
@@ -67,6 +68,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const { language, t } = useLanguage();
+  const { tr } = useSharedT();
   const currency = useCurrency((s) => s.currency);
   const currencies = useCurrency((s) => s.currencies);
   const currentCurrency = currencies.find((c) => c.code === currency);
@@ -319,7 +321,7 @@ export default function ProfileScreen() {
             {stats.map((s) => (
               <View key={s.label} style={styles.statCol}>
                 <Text style={styles.statNumber}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
+                <Text style={styles.statLabel}>{tr(s.label)}</Text>
               </View>
             ))}
           </View>
@@ -336,7 +338,7 @@ export default function ProfileScreen() {
 
           <Text style={styles.usernameHandle}>@{username}</Text>
 
-          {role ? <Text style={styles.categoryText}>{role}</Text> : null}
+          {role ? <Text style={styles.categoryText}>{tr(role)}</Text> : null}
 
           {user?.about ? (
             <Text style={styles.bioText} numberOfLines={3}>
@@ -436,7 +438,7 @@ export default function ProfileScreen() {
                 <Ionicons name={h.icon} size={22} color={colors.text} />
               </View>
               <Text style={styles.highlightLabel} numberOfLines={1}>
-                {h.label}
+                {tr(h.label)}
               </Text>
             </Pressable>
           ))}
@@ -550,7 +552,7 @@ export default function ProfileScreen() {
               <MenuRow
                 icon="globe-outline"
                 label={t('languagePreference')}
-                hint={currentLanguageInfo.nativeLabel}
+                hint={`${currentLanguageInfo.flagEmoji} ${currentLanguageInfo.nativeLabel}`}
                 onPress={() => setLanguageSheetOpen(true)}
               />
               <MenuRow

@@ -10,6 +10,7 @@ import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import type { Photographer } from './api';
 import { startingPriceText } from './pricing';
@@ -27,6 +28,7 @@ function PhotographerRowImpl({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const portrait = p.avatar || p.coverImage || p.images?.[0];
   const rating = typeof p.rating === 'number' && p.rating > 0 ? p.rating : null;
   const reviews = p.reviewCount ?? 0;
@@ -59,7 +61,7 @@ function PhotographerRowImpl({
             {p.isVerified ? <Ionicons name="checkmark-circle" size={16} color={colors.link} accessibilityLabel="Verified" /> : null}
           </View>
           <Text style={styles.meta} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-            {[p.category, p.location].filter(Boolean).join(' · ') || 'Photographer'}
+            {[p.category ? tr(p.category) : null, p.location].filter(Boolean).join(' · ') || tr('Photographer')}
           </Text>
           <View style={styles.factsRow}>
             {rating ? (
@@ -73,7 +75,7 @@ function PhotographerRowImpl({
             ) : null}
             <View style={[styles.status, { backgroundColor: booked ? colors.warningBg : colors.successBg }]}>
               <View style={[styles.dot, { backgroundColor: booked ? colors.warning : colors.success }]} />
-              <Text style={[styles.statusText, { color: booked ? colors.warning : colors.success }]}>{booked ? 'Booked' : 'Available'}</Text>
+              <Text style={[styles.statusText, { color: booked ? colors.warning : colors.success }]}>{booked ? tr('Booked') : tr('Available')}</Text>
             </View>
           </View>
           {tags.length > 0 ? (
@@ -81,7 +83,7 @@ function PhotographerRowImpl({
               {tags.map((t) => (
                 <View key={t} style={styles.tag}>
                   <Text style={styles.tagText} numberOfLines={1}>
-                    {t}
+                    {tr(t)}
                   </Text>
                 </View>
               ))}
@@ -94,10 +96,10 @@ function PhotographerRowImpl({
           ) : null}
           <View style={styles.bottom}>
             <Text style={styles.price} maxFontSizeMultiplier={1.25}>
-              {price}
+              {tr(price)}
             </Text>
             <View style={styles.cta}>
-              <Text style={styles.ctaText}>View profile</Text>
+              <Text style={styles.ctaText}>{tr('View profile')}</Text>
               <Ionicons name="arrow-forward" size={13} color={colors.textOnPrimary} />
             </View>
           </View>

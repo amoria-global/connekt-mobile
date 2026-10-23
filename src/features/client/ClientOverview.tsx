@@ -11,6 +11,7 @@
  */
 import { Text, View } from 'react-native';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import type { CustomerAnalytics } from '@/features/analytics/api';
 import { Card, IconTile, MetricCard } from '@/features/photographer/kit';
 import { moneyText, type Known } from '@/features/photographer/money';
@@ -57,6 +58,7 @@ export function ClientOverview({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const tiles: { key: string; label: string; value: string; icon: IconName }[] = [
     { key: 'bookings', label: 'Bookings', icon: 'calendar-outline', value: analytics ? String(analytics.totalBookings) : 'N/A' },
     { key: 'photos', label: 'Photos delivered', icon: 'images-outline', value: analytics ? String(analytics.totalPhotos) : 'N/A' },
@@ -88,7 +90,7 @@ export function ClientOverview({
       <View style={styles.ringGap}>
         {loading && !analytics ? (
           <Card>
-            <Text style={styles.muted}>Loading your events…</Text>
+            <Text style={styles.muted}>{tr('Loading your events…')}</Text>
           </Card>
         ) : analytics ? (
           <StatusBreakdownCard
@@ -107,7 +109,7 @@ export function ClientOverview({
               {loading && !analytics ? ' ' : t.value}
             </Text>
             <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.2}>
-              {t.label}
+              {tr(t.label)}
             </Text>
           </View>
         ))}

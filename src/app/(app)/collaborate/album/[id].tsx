@@ -191,10 +191,20 @@ const OA_I18N = {
     notePlaceholder: "Nota para el fotógrafo (opcional)",
   },
 } as const;
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
 import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
 
 type Tab = 'review' | 'people' | 'history';
 const GAP = 8;
+const OA_RW = buildKinyarwandaDict(OA_I18N.en);
+const OA_SW = buildSwahiliDict(OA_I18N.en);
+
+function getOaTr(language: string) {
+  if (language === 'rw') return OA_RW;
+  if (language === 'sw') return OA_SW;
+  return (OA_I18N as any)[language] ?? OA_I18N.en;
+}
 
 export default function OwnerAlbumScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -202,7 +212,7 @@ export default function OwnerAlbumScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const { language } = useLanguage();
-  const tr = OA_I18N[language] ?? OA_I18N.en;
+  const tr = getOaTr(language);
   const { width } = useWindowDimensions();
   const [data, setData] = useState<OwnedAlbumDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -476,7 +486,7 @@ function ReviewTile({ s, size, selecting, selected, onPress, onLongPress }: {
 }) {
   const styles = useStyles();
   const { language } = useLanguage();
-  const tr = OA_I18N[language] ?? OA_I18N.en;
+  const tr = getOaTr(language);
   return (
     <Pressable
       onPress={onPress}
@@ -503,7 +513,7 @@ function RejectSheet({ count, note, onNote, busy, onCancel, onConfirm }: {
   const { colors } = useTheme();
   const styles = useStyles();
   const { language } = useLanguage();
-  const tr = OA_I18N[language] ?? OA_I18N.en;
+  const tr = getOaTr(language);
   return (
     <View style={styles.sheetBackdrop}>
       <View style={styles.sheet}>

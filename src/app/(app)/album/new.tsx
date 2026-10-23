@@ -109,10 +109,14 @@ const ALB_MAP: Record<string, { fr: string; es: string }> = {
   'Unlock this album to view and download all high-resolution photos.': { fr: 'Déverrouillez cet album pour voir et télécharger toutes les photos haute résolution.', es: 'Desbloquea este álbum para ver y descargar todas las fotos en alta resolución.' },
   'Upload Photos': { fr: 'Téléverser des photos', es: 'Subir fotos' }
 };
+import { translateSharedRw } from '@/i18n/kinyarwanda';
+import { translateSharedSw } from '@/i18n/swahili';
 const trAlb = (s: string) => {
   const lang = useLanguage.getState().language;
   if (lang === 'en') return s;
-  return ALB_MAP[s]?.[lang] ?? s;
+  if (lang === 'rw') return translateSharedRw(s);
+  if (lang === 'sw') return translateSharedSw(s);
+  return (ALB_MAP[s] as Record<string, string> | undefined)?.[lang] ?? s;
 };
 
 type Mode = 'event' | 'personal';

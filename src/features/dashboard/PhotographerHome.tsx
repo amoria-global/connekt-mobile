@@ -51,6 +51,7 @@ import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrency } from '@/store/currency';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { formatDate } from '@/utils/format';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import {
@@ -90,9 +91,10 @@ function greeting(now = new Date()): string {
   return 'Hello';
 }
 
-function longDate(now = new Date()): string {
+function longDate(lang?: string, now = new Date()): string {
   try {
-    return now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+    const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : lang === 'rw' ? 'rw-RW' : lang === 'sw' ? 'sw-TZ' : undefined;
+    return now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
   } catch {
     return '';
   }
@@ -123,6 +125,7 @@ function whenText(e: EventItem): string {
 export function PhotographerHome() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { language, tr } = useSharedT();
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
@@ -215,7 +218,7 @@ export function PhotographerHome() {
   // ── Money ────────────────────────────────────────────────────────────────
   const walletStats = useMemo(
     () => (wallet.data ? selectWalletStats(wallet.data, 'photographer') : null),
-    [wallet.data],
+    [wallet.data, language],
   );
   const walletCurrency = wallet.data?.currency;
   const available = walletStats?.hero.value;
@@ -287,9 +290,9 @@ export function PhotographerHome() {
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-              {greeting()}, {name}
+              {tr(greeting())}, {name}
             </Text>
-            <Text style={styles.date}>{longDate()}</Text>
+            <Text style={styles.date}>{longDate(language)}</Text>
           </View>
           <Pressable
             onPress={() => setHidden((v) => !v)}
@@ -364,16 +367,16 @@ export function PhotographerHome() {
               right={
                 todayShoots.length > 1 ? (
                   <Text style={styles.countChip} accessibilityLabel={`${todayShoots.length} shoots today`}>
-                    {todayShoots.length} today
+                    {todayShoots.length} {tr('Today').toLowerCase()}
                   </Text>
                 ) : undefined
               }
             />
             <PriorityCard
               title={todayShoots[0].title || 'Photo shoot'}
-              subtitle={todayShoots[0].clientName ? `Client: ${todayShoots[0].clientName}` : undefined}
+              subtitle={todayShoots[0].clientName ? `${tr('Client')}: ${todayShoots[0].clientName}` : undefined}
               cover={todayShoots[0].coverImage}
-              when={todayShoots[0].startTime ? `Today, ${clock12(todayShoots[0].startTime)}` : 'Today'}
+              when={todayShoots[0].startTime ? `${tr('Today')}, ${clock12(todayShoots[0].startTime)}` : tr('Today')}
               status={SHOOT_STATUS[bucketOf(todayShoots[0])]}
               actionLabel="View shoot"
               onAction={() => open(`/event/${todayShoots[0].id}`)}
@@ -553,7 +556,7 @@ export function PhotographerHome() {
                       {c.name}
                     </Text>
                     <Text style={styles.cardMeta} numberOfLines={1}>
-                      {c.totalEvents ? `${c.totalEvents} shoot${c.totalEvents > 1 ? 's' : ''}` : 'Client'}
+                      {c.totalEvents ? `${c.totalEvents} ${tr(c.totalEvents > 1 ? 'shoots' : 'shoot')}` : tr('Client')}
                     </Text>
                   </View>
                 </Pressable>

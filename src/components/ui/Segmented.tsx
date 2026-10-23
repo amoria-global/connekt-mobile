@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRole } from '@/features/auth/role';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 
 type Option<T extends string> = { label: string; value: T };
@@ -14,6 +15,7 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const flat = useRole().isPhotographer;
   return (
     <View style={[styles.wrap, flat && styles.wrapFlat]}>
@@ -27,7 +29,7 @@ export function Segmented<T extends string>({
             accessibilityState={{ selected: active }}
             style={[styles.seg, flat && styles.segFlat, active && (flat ? styles.segOn : styles.segActive)]}
           >
-            <Text style={[styles.segText, active && (flat ? styles.segTextOn : styles.segTextActive)]}>{o.label}</Text>
+            <Text style={[styles.segText, active && (flat ? styles.segTextOn : styles.segTextActive)]}>{tr(o.label)}</Text>
           </Pressable>
         );
       })}

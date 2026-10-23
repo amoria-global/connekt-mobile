@@ -15,6 +15,7 @@ import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { makeStyles, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { useAsync } from '@/hooks/useAsync';
 import {
   getCustomerPerformance,
@@ -42,7 +43,8 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
   const router = useRouter();
   const styles = useStyles();
   const { colors, isDark } = useTheme();
-  const stats = useMemo(() => (wallet ? selectWalletStats(wallet, 'client') : null), [wallet]);
+  const { language, tr } = useSharedT();
+  const stats = useMemo(() => (wallet ? selectWalletStats(wallet, 'client') : null), [wallet, language]);
   const currency = wallet?.currency;
 
   const hues = [colors.primary, colors.accent, isDark ? '#2DD4E4' : '#0E7490', colors.warning, colors.success];
@@ -61,8 +63,8 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
         <View style={styles.top}>
           <IconTile icon="wallet-outline" tone="primary" size={34} />
           <View style={styles.topText}>
-            <Text style={styles.cardLabel}>Total spent</Text>
-            <Text style={styles.muted}>Lifetime, not a period figure.</Text>
+            <Text style={styles.cardLabel}>{tr('Total spent')}</Text>
+            <Text style={styles.muted}>{tr('Lifetime, not a period figure.')}</Text>
           </View>
         </View>
         <Text style={styles.big} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
@@ -158,13 +160,14 @@ function PeriodActivity({ period }: { period: PeriodKey }) {
 export function SpendingTrendChart({ points }: { points: readonly PerformancePoint[] }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const max = Math.max(0, ...points.map((p) => p.value1));
   if (points.length === 0 || max === 0) {
     return (
       <Card>
         <View style={styles.emptyChart}>
           <Ionicons name="bar-chart-outline" size={24} color={colors.textMuted} />
-          <Text style={styles.muted}>No payments in this period.</Text>
+          <Text style={styles.muted}>{tr('No payments in this period.')}</Text>
         </View>
       </Card>
     );
@@ -183,7 +186,7 @@ export function SpendingTrendChart({ points }: { points: readonly PerformancePoi
         </View>
       </View>
       <Text style={styles.chartNote}>
-        The curve shows relative size, with the highest interval marked in pink. Payments are made in different currencies, so no amount is labelled.
+        {tr('The curve shows relative size, with the highest interval marked in pink. Payments are made in different currencies, so no amount is labelled.')}
       </Text>
     </Card>
   );
@@ -192,13 +195,14 @@ export function SpendingTrendChart({ points }: { points: readonly PerformancePoi
 export function EventsHistogram({ points }: { points: readonly PerformancePoint[] }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const total = points.reduce((s, p) => s + (p.value2 || 0), 0);
   if (points.length === 0 || total === 0) {
     return (
       <Card>
         <View style={styles.emptyChart}>
           <Ionicons name="calendar-outline" size={24} color={colors.textMuted} />
-          <Text style={styles.muted}>No events in this period.</Text>
+          <Text style={styles.muted}>{tr('No events in this period.')}</Text>
         </View>
       </Card>
     );

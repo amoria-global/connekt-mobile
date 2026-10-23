@@ -55,21 +55,33 @@ export function getKycBannerConfig(
           ? 'KYC requiert votre attention'
           : lang === 'es'
             ? 'KYC requiere atención'
-            : 'KYC Needs Attention',
+            : lang === 'rw'
+              ? 'KYC ikeneye ubugororangingo'
+              : 'KYC Needs Attention',
       badge:
         lang === 'fr'
           ? 'Action requise'
           : lang === 'es'
             ? 'Acción requerida'
-            : 'Action Required',
+            : lang === 'rw'
+              ? ' hari icyo usabwa'
+              : 'Action Required',
       detail:
         lang === 'fr'
           ? "Votre soumission n'a pas été acceptée. Appuyez pour vérifier et soumettre à nouveau."
           : lang === 'es'
             ? 'Tu envío no fue aceptado. Toca para revisar y volver a enviar.'
-            : 'Your submission was not accepted. Tap to review & resubmit.',
+            : lang === 'rw'
+              ? 'Ibyo wohereje ntibyemewe. Kanda hano ubisuzume kandi wongere ubyohereze.'
+              : 'Your submission was not accepted. Tap to review & resubmit.',
       buttonText:
-        lang === 'fr' ? 'Soumettre à nouveau' : lang === 'es' ? 'Reenviar' : 'Resubmit',
+        lang === 'fr'
+          ? 'Soumettre à nouveau'
+          : lang === 'es'
+            ? 'Reenviar'
+            : lang === 'rw'
+              ? 'Ongera wohereze'
+              : 'Resubmit',
       accent: palette.error,
       badgeBg: 'rgba(239, 68, 68, 0.12)',
       badgeColor: palette.error,
@@ -86,16 +98,33 @@ export function getKycBannerConfig(
           ? 'KYC en cours de vérification'
           : lang === 'es'
             ? 'KYC en revisión'
-            : 'KYC Under Review',
-      badge: lang === 'fr' ? 'En révision' : lang === 'es' ? 'En revisión' : 'In Review',
+            : lang === 'rw'
+              ? 'KYC irimo gusuzumwa'
+              : 'KYC Under Review',
+      badge:
+        lang === 'fr'
+          ? 'En révision'
+          : lang === 'es'
+            ? 'En revisión'
+            : lang === 'rw'
+              ? 'Irimo gusuzumwa'
+              : 'In Review',
       detail:
         lang === 'fr'
           ? 'Nous vérifions vos informations. Cela prend généralement quelques heures.'
           : lang === 'es'
             ? 'Estamos revisando tus datos. Esto suele tardar unas horas.'
-            : "We're reviewing your details. This typically takes a few hours.",
+            : lang === 'rw'
+              ? 'Turimo gusuzuma amakuru yawe. Ibi bisanzwe bifata amasaha make.'
+              : "We're reviewing your details. This typically takes a few hours.",
       buttonText:
-        lang === 'fr' ? 'Voir le statut' : lang === 'es' ? 'Ver estado' : 'Check status',
+        lang === 'fr'
+          ? 'Voir le statut'
+          : lang === 'es'
+            ? 'Ver estado'
+            : lang === 'rw'
+              ? 'Reba aho bigeze'
+              : 'Check status',
       accent: '#3B82F6',
       badgeBg: 'rgba(59, 130, 246, 0.12)',
       badgeColor: '#2563EB',
@@ -109,25 +138,44 @@ export function getKycBannerConfig(
   return {
     visible: true,
     title:
-      lang === 'fr' ? 'Compléter le KYC' : lang === 'es' ? 'Completar KYC' : 'Complete KYC',
+      lang === 'fr'
+        ? 'Compléter le KYC'
+        : lang === 'es'
+          ? 'Completar KYC'
+          : lang === 'rw'
+            ? 'Uzuza KYC'
+            : 'Complete KYC',
     badge: isOptional
       ? lang === 'fr'
         ? 'Optionnel'
         : lang === 'es'
           ? 'Opcional'
-          : 'Optional'
+          : lang === 'rw'
+            ? 'Si itegeko'
+            : 'Optional'
       : lang === 'fr'
         ? 'Recommandé'
         : lang === 'es'
           ? 'Recomendado'
-          : 'Recommended',
+          : lang === 'rw'
+            ? 'Birasabwa'
+            : 'Recommended',
     detail:
       lang === 'fr'
         ? 'Vérifiez votre identité pour débloquer toutes les fonctionnalités et le badge vérifié.'
         : lang === 'es'
           ? 'Verifica tu identidad para desbloquear todas las funciones y el estado verificado.'
-          : 'Verify your identity to unlock full features & trusted status.',
-    buttonText: lang === 'fr' ? 'Vérifier' : lang === 'es' ? 'Verificar' : 'Verify',
+          : lang === 'rw'
+            ? 'Emeza umwirondoro wawe kugira ngo ufungure ibice byose n’ikimenyetso cy’icyizere.'
+            : 'Verify your identity to unlock full features & trusted status.',
+    buttonText:
+      lang === 'fr'
+        ? 'Vérifier'
+        : lang === 'es'
+          ? 'Verificar'
+          : lang === 'rw'
+            ? 'Emeza'
+            : 'Verify',
     accent: palette.primary,
     badgeBg: palette.tint,
     badgeColor: palette.primary,

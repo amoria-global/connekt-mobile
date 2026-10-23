@@ -48,6 +48,7 @@ import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { paymentBucket } from '@/features/payments/statusBucket';
 import { summarizePayments } from '@/features/payments/summary';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 type Filter = 'all' | 'paid' | 'pending' | 'failed';
 type Section = 'events' | 'streaming' | 'gifts';
@@ -85,6 +86,7 @@ function PaymentsContent() {
   useCurrency((s) => s.currency);
   const { colors, gradients } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const router = useRouter();
   const { role, isCoordinator } = useRole();
 
@@ -203,11 +205,13 @@ function PaymentsContent() {
   const header = (
     <View>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>FINANCE</Text>
+        <Text style={styles.eyebrow}>{tr('FINANCE')}</Text>
         <Text style={styles.subtitle}>
-          {isCoordinator
-            ? 'Manage event payments, streaming revenue, and gifts.'
-            : 'Your event payments and purchases.'}
+          {tr(
+            isCoordinator
+              ? 'Manage event payments, streaming revenue, and gifts.'
+              : 'Your event payments and purchases.'
+          )}
         </Text>
 
         {/* Role-aware Section Switcher for Coordinators */}
@@ -229,25 +233,25 @@ function PaymentsContent() {
           <>
             {summary && summary.totals.length > 0 ? (
               <LinearGradient colors={gradients.heroBlue} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.totalCard}>
-                <Text style={styles.totalLabel}>{isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING'}</Text>
+                <Text style={styles.totalLabel}>{tr(isCoordinator ? 'TOTAL PAYMENTS' : 'TOTAL SPENDING')}</Text>
                 {single ? (
                   <>
                     <Text style={styles.totalValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{formatPrice(single.total, single.currency)}</Text>
                     <View style={styles.totalSplit}>
                       <View style={styles.totalSplitCell}>
-                        <Text style={styles.totalSplitLabel}>Paid</Text>
+                        <Text style={styles.totalSplitLabel}>{tr('Paid')}</Text>
                         <Text style={styles.totalSplitValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(single.paid, single.currency)}</Text>
                       </View>
                       <View style={styles.totalDivider} />
                       <View style={styles.totalSplitCell}>
-                        <Text style={styles.totalSplitLabel}>Pending</Text>
+                        <Text style={styles.totalSplitLabel}>{tr('Pending')}</Text>
                         <Text style={styles.totalSplitValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(single.pending, single.currency)}</Text>
                       </View>
                     </View>
                   </>
                 ) : (
                   <>
-                    <Text style={styles.totalMixed}>Several currencies</Text>
+                    <Text style={styles.totalMixed}>{tr('Several currencies')}</Text>
                     {summary.totals.map((t) => (
                       <View key={t.currency} style={styles.totalCurrencyRow} accessible accessibilityLabel={`${t.currency}: ${formatMoney(t.total, t.currency)} total, ${formatMoney(t.paid, t.currency)} paid, ${formatMoney(t.pending, t.currency)} pending`}>
                         <Text style={styles.totalSplitLabel}>{t.currency}</Text>
@@ -261,7 +265,7 @@ function PaymentsContent() {
                     {summary.uncounted} payment{summary.uncounted === 1 ? '' : 's'} without an amount or currency not included.
                   </Text>
                 ) : null}
-                {partial ? <Text style={styles.totalNote}>Based on your latest {payments.length} payments.</Text> : null}
+                {partial ? <Text style={styles.totalNote}>{tr(`Based on your latest ${payments.length} payments.`)}</Text> : null}
               </LinearGradient>
             ) : null}
 
@@ -269,8 +273,8 @@ function PaymentsContent() {
               <View style={styles.pendingAlert} accessible accessibilityLabel={`${pendingText} in pending payments. Complete payments to avoid booking cancellations.`}>
                 <Ionicons name="alert-circle" size={20} color={colors.warning} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.pendingAlertTitle}>{pendingText} in pending payments</Text>
-                  <Text style={styles.pendingAlertSub}>Complete payments to avoid booking cancellations.</Text>
+                  <Text style={styles.pendingAlertTitle}>{pendingText} {tr('in pending payments')}</Text>
+                  <Text style={styles.pendingAlertSub}>{tr('Complete payments to avoid booking cancellations.')}</Text>
                 </View>
               </View>
             ) : null}
@@ -286,14 +290,14 @@ function PaymentsContent() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.streamEyebrow}>CONNEKTLIVE</Text>
-                <Text style={styles.streamCardTitle}>Live Stream Revenue</Text>
-                <Text style={styles.streamCardSub}>Ticketed stream entry fees</Text>
+                <Text style={styles.streamCardTitle}>{tr('Live Stream Revenue')}</Text>
+                <Text style={styles.streamCardSub}>{tr('Ticketed stream entry fees')}</Text>
               </View>
             </View>
             <View style={styles.streamDivider} />
             <View style={styles.streamCardBottom}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.streamBottomLabel}>Total Stream Revenue</Text>
+                <Text style={styles.streamBottomLabel}>{tr('Total Stream Revenue')}</Text>
                 <Text style={styles.streamBottomValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(totalStreamingRevenue, 'RWF')}</Text>
               </View>
               <ActionButton compact variant="primary" icon="cash-outline" label="Withdraw" onPress={() => router.push('/withdraw' as Href)} />
@@ -309,15 +313,15 @@ function PaymentsContent() {
                 <Ionicons name="heart" size={20} color="#fff" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.streamEyebrow}>CONNEKTLIVE GIFTS</Text>
-                <Text style={styles.streamCardTitle}>Viewer Gift Earnings</Text>
-                <Text style={styles.streamCardSub}>65% withdrawable share</Text>
+                <Text style={styles.streamEyebrow}>{tr('CONNEKTLIVE GIFTS')}</Text>
+                <Text style={styles.streamCardTitle}>{tr('Viewer Gift Earnings')}</Text>
+                <Text style={styles.streamCardSub}>{tr('65% withdrawable share')}</Text>
               </View>
             </View>
             <View style={styles.streamDivider} />
             <View style={styles.streamCardBottom}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.streamBottomLabel}>Total Gift Revenue</Text>
+                <Text style={styles.streamBottomLabel}>{tr('Total Gift Revenue')}</Text>
                 <Text style={styles.giftBottomValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(totalGiftRevenue, 'RWF')}</Text>
               </View>
               <ActionButton compact variant="primary" icon="cash-outline" label="Withdraw" onPress={() => router.push('/withdraw' as Href)} />
@@ -411,7 +415,7 @@ function PaymentsContent() {
                           }}
                         >
                           <Ionicons name={isFailed ? 'refresh-outline' : 'card-outline'} size={12} color="#fff" />
-                          <Text style={styles.payNowBtnText}>{isFailed ? 'Retry' : 'Pay Now'}</Text>
+                          <Text style={styles.payNowBtnText}>{tr(isFailed ? 'Retry' : 'Pay Now')}</Text>
                         </Pressable>
                       ) : (
                         <StatusBadge label={tone.label} tone={tone.tone} />

@@ -10,6 +10,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import { Skeleton } from '@/features/photographer/kit';
+import { useSharedT } from '@/i18n/sharedStrings';
 import type { GalleryItem } from './api';
 import { albumSubtitle, photoCountText } from './albumFacts';
 
@@ -42,13 +43,14 @@ function Cover({ uri, icon, size }: { uri?: string; icon: number; size?: 'fill' 
 
 function CountChip({ count }: { count?: number }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const text = photoCountText(count);
   if (!text) return null;
   return (
     <View style={styles.chip}>
       <Ionicons name="images" size={11} color="#fff" />
       <Text style={styles.chipText} maxFontSizeMultiplier={1.2}>
-        {text}
+        {tr(text)}
       </Text>
     </View>
   );
@@ -66,6 +68,7 @@ function LockBadge() {
 /** The one gradient hero of the screen: the newest unlocked album with a cover. Client and coordinator only. */
 function AlbumHeroImpl({ album, showPhotographer, onOpen }: { album: GalleryItem; showPhotographer: boolean; onOpen: () => void }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const sub = albumSubtitle(album, showPhotographer);
   return (
     <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open latest album, ${a11yLabel(album, sub)}`} style={({ pressed }) => [styles.hero, pressed && styles.pressed]}>
@@ -73,7 +76,7 @@ function AlbumHeroImpl({ album, showPhotographer, onOpen }: { album: GalleryItem
       <LinearGradient colors={SCRIM} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={styles.heroTop}>
         <View style={styles.eyebrowPill}>
-          <Text style={styles.eyebrowText}>LATEST DELIVERY</Text>
+          <Text style={styles.eyebrowText}>{tr('LATEST DELIVERY')}</Text>
         </View>
       </View>
       <View style={styles.heroBottom}>
@@ -96,6 +99,7 @@ export const AlbumHero = memo(AlbumHeroImpl);
 
 function AlbumGridCardImpl({ album, showPhotographer, onOpen }: { album: GalleryItem; showPhotographer: boolean; onOpen: (id: string) => void }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const sub = albumSubtitle(album, showPhotographer);
   return (
     <Pressable
@@ -109,7 +113,7 @@ function AlbumGridCardImpl({ album, showPhotographer, onOpen }: { album: Gallery
         <LinearGradient colors={SCRIM} style={styles.cardScrim} pointerEvents="none" />
         <View style={styles.cardTop}>
           <View style={styles.kind}>
-            <Text style={styles.kindText}>{badgeFor(album.kind)}</Text>
+            <Text style={styles.kindText}>{tr(badgeFor(album.kind))}</Text>
           </View>
           {album.locked ? <LockBadge /> : null}
         </View>
@@ -135,7 +139,9 @@ export const AlbumGridCard = memo(AlbumGridCardImpl);
 function AlbumListRowImpl({ album, showPhotographer, onOpen }: { album: GalleryItem; showPhotographer: boolean; onOpen: (id: string) => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const sub = albumSubtitle(album, showPhotographer);
+  const countText = photoCountText(album.photoCount);
   return (
     <Pressable
       onPress={() => onOpen(album.id)}
@@ -154,9 +160,9 @@ function AlbumListRowImpl({ album, showPhotographer, onOpen }: { album: GalleryI
       <View style={styles.rowBody}>
         <View style={styles.rowTags}>
           <View style={styles.kindSoft}>
-            <Text style={styles.kindSoftText}>{badgeFor(album.kind)}</Text>
+            <Text style={styles.kindSoftText}>{tr(badgeFor(album.kind))}</Text>
           </View>
-          {photoCountText(album.photoCount) ? <Text style={styles.rowCount}>{photoCountText(album.photoCount)}</Text> : null}
+          {countText ? <Text style={styles.rowCount}>{tr(countText)}</Text> : null}
         </View>
         <Text style={styles.rowTitle} numberOfLines={1} maxFontSizeMultiplier={1.25}>
           {album.name}

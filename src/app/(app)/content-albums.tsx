@@ -121,13 +121,18 @@ const CA_I18N = {
   },
 } as const;
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const CA_RW = buildKinyarwandaDict(CA_I18N.en);
+const CA_SW = buildSwahiliDict(CA_I18N.en);
+
 export default function ContentAlbumsScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
-  const s = CA_I18N[language] ?? CA_I18N.en;
+  const s = language === 'rw' ? CA_RW : language === 'sw' ? CA_SW : (CA_I18N as any)[language] ?? CA_I18N.en;
 
   const STATUS_META: Record<ContentApprovalStatus, { label: string; bg: string; fg: string }> = {
     DRAFT: { label: s.statusDraft, bg: '#E5E7EB', fg: '#374151' },

@@ -33,6 +33,7 @@ import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/th
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 
 function IconButton({ icon, onPress, style }: { icon: keyof typeof Feather.glyphMap; onPress?: () => void; style?: any }) {
@@ -59,6 +60,7 @@ export default function PhotographerProfileScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isCoordinator } = useRole();
@@ -406,7 +408,7 @@ export default function PhotographerProfileScreen() {
             <Text style={styles.name}>{data?.name}</Text>
             
             <View style={styles.roleRow}>
-              <Text style={styles.role}>{data?.category || 'Photographer'}</Text>
+              <Text style={styles.role}>{tr(data?.category || 'Photographer')}</Text>
               {data?.location ? (
                 <>
                   <Text style={styles.dot}>•</Text>
@@ -421,17 +423,17 @@ export default function PhotographerProfileScreen() {
                 <>
                   <Ionicons name="star" size={12} color="#FBBF24" />
                   <Text style={styles.statText}>
-                    <Text style={styles.statValue}>{facts.rating}</Text> ({facts.reviews} {facts.reviews === 1 ? 'review' : 'reviews'})
+                    <Text style={styles.statValue}>{facts.rating}</Text> ({facts.reviews} {tr(facts.reviews === 1 ? 'review' : 'reviews')})
                   </Text>
                 </>
               ) : (
-                <Text style={styles.statText}>No reviews yet</Text>
+                <Text style={styles.statText}>{tr('No reviews yet')}</Text>
               )}
               {facts.shoots ? (
                 <>
                   <Ionicons name="camera" size={12} color="#D1D5DB" style={{ marginLeft: 8 }} />
                   <Text style={styles.statText}>
-                    <Text style={styles.statValue}>{facts.shoots}</Text> {facts.shoots === 1 ? 'shoot' : 'shoots'}
+                    <Text style={styles.statValue}>{facts.shoots}</Text> {tr(facts.shoots === 1 ? 'shoot' : 'shoots')}
                   </Text>
                 </>
               ) : null}
@@ -439,7 +441,7 @@ export default function PhotographerProfileScreen() {
 
             <View style={[styles.availableBadge, facts.booked && styles.bookedBadge]}>
               <View style={[styles.availableDot, facts.booked && styles.bookedDot]} />
-              <Text style={[styles.availableText, facts.booked && styles.bookedText]}>{facts.booked ? 'BOOKED' : 'AVAILABLE'}</Text>
+              <Text style={[styles.availableText, facts.booked && styles.bookedText]}>{tr(facts.booked ? 'BOOKED' : 'AVAILABLE')}</Text>
             </View>
           </View>
         </View>
@@ -462,7 +464,7 @@ export default function PhotographerProfileScreen() {
                     color={isActive ? 'white' : colors.textMuted} 
                   />
                   <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-                    {tab.id}
+                    {tr(tab.id)}
                   </Text>
                 </Pressable>
               );
@@ -476,7 +478,7 @@ export default function PhotographerProfileScreen() {
                 {/* Availability Calendar Card */}
                 <View style={styles.card}>
                   <View style={styles.calendarHeaderRow}>
-                    <Text style={styles.cardHeaderEyebrow}>AVAILABILITY</Text>
+                    <Text style={styles.cardHeaderEyebrow}>{tr('AVAILABILITY')}</Text>
                     
                     <View style={styles.monthNav}>
                       <Pressable 
@@ -585,15 +587,15 @@ export default function PhotographerProfileScreen() {
                   <View style={styles.legendRow}>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                      <Text style={styles.legendText}>Available (Tap to book)</Text>
+                      <Text style={styles.legendText}>{tr('Available (Tap to book)')}</Text>
                     </View>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-                      <Text style={styles.legendText}>Partly booked</Text>
+                      <Text style={styles.legendText}>{tr('Partly booked')}</Text>
                     </View>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                      <Text style={styles.legendText}>Fully booked</Text>
+                      <Text style={styles.legendText}>{tr('Fully booked')}</Text>
                     </View>
                   </View>
                 </View>
@@ -610,7 +612,7 @@ export default function PhotographerProfileScreen() {
               ) : (
                 <View style={styles.emptyState}>
                   <Ionicons name="images-outline" size={48} color={colors.textMuted} />
-                  <Text style={styles.emptyText}>No portfolio images available yet.</Text>
+                  <Text style={styles.emptyText}>{tr('No portfolio images available yet.')}</Text>
                 </View>
               )
             )}
@@ -621,7 +623,7 @@ export default function PhotographerProfileScreen() {
                   reviews.data.map((r) => (
                     <View key={r.id} style={styles.reviewCard}>
                       <View style={styles.reviewTop}>
-                        <Text style={styles.reviewer}>{r.reviewerName ?? 'Client'}</Text>
+                        <Text style={styles.reviewer}>{r.reviewerName ?? tr('Client')}</Text>
                         <Stars value={r.rating} />
                       </View>
                       {r.comment ? <Text style={styles.reviewComment}>{r.comment}</Text> : null}
@@ -630,7 +632,7 @@ export default function PhotographerProfileScreen() {
                 ) : (
                   <View style={styles.emptyState}>
                     <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
-                    <Text style={styles.emptyText}>No reviews yet.</Text>
+                    <Text style={styles.emptyText}>{tr('No reviews yet.')}</Text>
                   </View>
                 )}
               </View>
@@ -639,13 +641,13 @@ export default function PhotographerProfileScreen() {
             {activeTab === 'About' && (
               data?.bio ? (
                 <View style={styles.card}>
-                  <Text style={styles.cardHeaderEyebrow}>ABOUT</Text>
+                  <Text style={styles.cardHeaderEyebrow}>{tr('ABOUT')}</Text>
                   <Text style={styles.aboutText}>{data.bio}</Text>
                 </View>
               ) : (
                 <View style={styles.emptyState}>
                   <Ionicons name="person-outline" size={48} color={colors.textMuted} />
-                  <Text style={styles.emptyText}>This photographer has not added a bio yet.</Text>
+                  <Text style={styles.emptyText}>{tr('This photographer has not added a bio yet.')}</Text>
                 </View>
               )
             )}
@@ -662,7 +664,7 @@ export default function PhotographerProfileScreen() {
           accessibilityLabel={`Book ${data?.name ?? 'this photographer'}`}
         >
           <Ionicons name="calendar" size={18} color="#FFFFFF" />
-          <Text style={styles.stickyBookText}>Book now</Text>
+          <Text style={styles.stickyBookText}>{tr('Book now')}</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.stickyMessage, pressed && { opacity: 0.88 }]}
@@ -671,7 +673,7 @@ export default function PhotographerProfileScreen() {
           accessibilityLabel={`Message ${data?.name ?? 'this photographer'}`}
         >
           <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.link} />
-          <Text style={styles.stickyMessageText}>Message</Text>
+          <Text style={styles.stickyMessageText}>{tr('Message')}</Text>
         </Pressable>
       </View>
 

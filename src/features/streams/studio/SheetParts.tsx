@@ -1,16 +1,18 @@
 import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fonts } from '@/theme';
 import { S } from './theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
 export function SheetSection({ title, children }: { title: string; children: ReactNode }) {
+  const { tr } = useSharedT();
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle} accessibilityRole="header">
-        {title}
+        {tr(title)}
       </Text>
       <View style={styles.sectionBody}>{children}</View>
     </View>
@@ -32,6 +34,7 @@ type RowProps = {
 };
 
 function SheetRowBase({ icon, label, value, onPress, toggle, destructive, disabled, last, hint }: RowProps) {
+  const { tr } = useSharedT();
   const body = (
     <View style={[styles.row, !last && styles.rowDivider, disabled && styles.rowDisabled]}>
       <View style={[styles.rowIcon, destructive && styles.rowIconDanger]}>
@@ -39,17 +42,17 @@ function SheetRowBase({ icon, label, value, onPress, toggle, destructive, disabl
       </View>
       <View style={styles.rowText}>
         <Text style={[styles.rowLabel, destructive && styles.rowLabelDanger]} numberOfLines={1}>
-          {label}
+          {tr(label)}
         </Text>
         {hint ? (
           <Text style={styles.rowHint} numberOfLines={2}>
-            {hint}
+            {tr(hint)}
           </Text>
         ) : null}
       </View>
       {value ? (
         <Text style={styles.rowValue} numberOfLines={1}>
-          {value}
+          {tr(value)}
         </Text>
       ) : null}
       {toggle ? (

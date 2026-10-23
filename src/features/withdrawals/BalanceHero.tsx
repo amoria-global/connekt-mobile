@@ -8,6 +8,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { formatDisplay, floorTo, usdToDisplay, type DisplayCurrency, type WithdrawSource } from './model';
 import { fonts, fontSize, fontWeight, makeStyles, radii, spacing } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 export function BalanceHero({
   source,
@@ -20,19 +21,20 @@ export function BalanceHero({
   usd: DisplayCurrency;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   if (!source) {
     return (
       <View style={styles.hero} accessible accessibilityLabel="Available balance, not reported">
-        <Text style={styles.label}>Available balance</Text>
+        <Text style={styles.label}>{tr('Available balance')}</Text>
         <Text style={styles.amount}>N/A</Text>
-        <Text style={styles.sub}>No withdrawable balance was reported. Reopen this screen to check again.</Text>
+        <Text style={styles.sub}>{tr('No withdrawable balance was reported. Reopen this screen to check again.')}</Text>
       </View>
     );
   }
   const shown = floorTo(usdToDisplay(source.availableBalance, currency), currency.decimals);
   return (
     <View style={styles.hero}>
-      <Text style={styles.label}>{source.label}</Text>
+      <Text style={styles.label}>{tr(source.label)}</Text>
       <Text style={styles.amount}>{formatDisplay(shown, currency)}</Text>
       {currency.code !== 'USD' ? <Text style={styles.sub}>{formatDisplay(source.availableBalance, usd)}</Text> : null}
     </View>

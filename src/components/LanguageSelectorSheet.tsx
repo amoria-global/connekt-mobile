@@ -1,4 +1,5 @@
 import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Modal,
@@ -21,6 +22,8 @@ interface LanguageSelectorSheetProps {
   visible: boolean;
   onClose: () => void;
 }
+
+const flagUri = (flag: string) => `https://flagcdn.com/w40/${flag}.png`;
 
 export function LanguageSelectorSheet({
   visible,
@@ -115,10 +118,10 @@ export function LanguageSelectorSheet({
                         isSelected && styles.globeIconWrapSelected,
                       ]}
                     >
-                      <Ionicons
-                        name="globe-outline"
-                        size={18}
-                        color={isSelected ? colors.accent : colors.primary}
+                      <Image
+                        source={{ uri: flagUri(item.flag) }}
+                        style={styles.flagImg}
+                        contentFit="cover"
                       />
                     </View>
                     <View style={styles.itemTextWrap}>
@@ -264,6 +267,11 @@ const useStyles = makeStyles((c, e) => ({
   globeIconWrapSelected: {
     backgroundColor: 'rgba(242, 12, 143, 0.12)',
     borderColor: 'rgba(242, 12, 143, 0.35)',
+  },
+  flagImg: {
+    width: 22,
+    height: 16,
+    borderRadius: 3,
   },
   itemTextWrap: {
     gap: 1,

@@ -46,7 +46,7 @@ export const useLanguage = create<LanguageState>((set) => ({
   initLanguage: async () => {
     try {
       const saved = await storage.get(StorageKeys.language);
-      if (saved && (saved === 'en' || saved === 'fr' || saved === 'es')) {
+      if (saved && (saved === 'en' || saved === 'fr' || saved === 'es' || saved === 'rw' || saved === 'sw')) {
         const validLang = saved as LanguageCode;
         set({
           language: validLang,
