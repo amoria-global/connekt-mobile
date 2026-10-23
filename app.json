@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-23-collaborator-progress",
+            "date": "2026-10-23",
+            "title": "Follow your collaborators' progress",
+            "items": [
+              {
+                "icon": "stats-chart-outline",
+                "title": "See how each photographer is getting on",
+                "body": "Open one of your shared albums and tap Progress. Each photographer who joined has a card showing how many of their photos were added, how many are waiting for you, how many were not accepted, how much of the album they account for and when they last sent something."
+              },
+              {
+                "icon": "images-outline",
+                "title": "Jump straight to their photos",
+                "body": "From a photographer's card, review their waiting photos or see everything they sent with one tap. The list is narrowed to that person until you choose Show everyone, and photographers who left still count in the totals."
+              }
+            ]
+          },
+          {
             "id": "2026-10-23-workspace-access",
             "date": "2026-10-23",
             "title": "Work together in one workspace",
@@ -192,23 +209,6 @@
                 "icon": "color-palette-outline",
                 "title": "The update screen has a fresh gradient look",
                 "body": "The screen that appears when a new version is ready now has a dark background with a soft blue and teal glow and a blue to mint Update now button. What it says and how it works are unchanged."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-22-wallet-ring-fix",
-            "date": "2026-10-22",
-            "title": "A clearer balance ring in the wallet Analytics tab",
-            "items": [
-              {
-                "icon": "pie-chart-outline",
-                "title": "The ring no longer overlaps its figures",
-                "body": "In the wallet Analytics tab the total now fits inside the ring, and every amount in the list shows your currency with two decimals instead of a long raw number."
-              },
-              {
-                "icon": "wallet-outline",
-                "title": "Clients now see the balance ring too",
-                "body": "The client wallet Analytics tab now shows the same ring as the photographer and event coordinator wallets, built from your balance, refunds, tips, gifts, donations and what is still processing."
               }
             ]
           }
