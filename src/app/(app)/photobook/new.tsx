@@ -164,6 +164,8 @@ const LOCALE_MAP: Record<LanguageCode, string> = {
   en: 'en-US',
   fr: 'fr-FR',
   es: 'es-ES',
+  rw: 'rw-RW',
+  sw: 'sw-TZ',
 };
 
 function shortDate(iso?: string, lang: LanguageCode = 'en') {
@@ -177,13 +179,18 @@ function shortDate(iso?: string, lang: LanguageCode = 'en') {
   });
 }
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const PB_NEW_RW = buildKinyarwandaDict(I18N.en);
+const PB_NEW_SW = buildSwahiliDict(I18N.en);
+
 export default function NewPhotobookScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
-  const tr = I18N[language] || I18N.en;
+  const tr = language === 'rw' ? PB_NEW_RW : language === 'sw' ? PB_NEW_SW : (I18N as any)[language] || I18N.en;
 
   const layouts: { value: string; label: string; description: string; icon: keyof typeof Ionicons.glyphMap }[] =
     useMemo(

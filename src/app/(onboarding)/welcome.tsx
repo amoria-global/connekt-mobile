@@ -36,10 +36,14 @@ type Slide = {
    * to 1 (right edge): only a narrow slice of a landscape photo fits.
    */
   focus?: number;
+  /** Vertical crop focus, 0 (top) to 1 (bottom). Defaults to 0.5 (center). */
+  verticalFocus?: number;
   /** Render the photo as a centered circle on the gradient (not full-bleed). */
   circle?: boolean;
-  /** Looping muted video to show inside the circle (overrides the photo). */
+  /** Looping muted video to show inside the slide. */
   video?: number;
+  /** Whether the video should cover the whole screen as a full-bleed live backdrop. */
+  videoCover?: boolean;
   gradient: readonly [string, string];
   title: string;
   body: string;
@@ -58,7 +62,7 @@ export default function WelcomeScreen() {
   const slides: Slide[] = useMemo(
     () => [
       {
-        key: 'book',
+        key: 'photographer',
         subject: require('../../../assets/images/photographer.png'),
         gradient: ['#1E63D0', '#062B63'],
         title: t('onboardingTitle1'),
@@ -66,30 +70,29 @@ export default function WelcomeScreen() {
         cta: t('next'),
       },
       {
-        key: 'live',
-        // A family watching a live concert stream at home, in the same purple
-        // duotone as the cut-outs (a grey-mapped crop of live.png).
-        scene: require('../../../assets/images/onboarding-live.jpg'),
-        gradient: ['#5B1A8A', '#062B63'],
+        key: 'coordinator',
+        scene: require('../../../assets/images/onboarding-coordinator.jpg'),
+        focus: 0.5,
+        verticalFocus: 0.45,
+        gradient: ['#1E3A8A', '#062B63'],
         title: t('onboardingTitle2'),
         body: t('onboardingBody2'),
         cta: t('next'),
       },
       {
-        key: 'find',
-        video: require('../../../assets/images/screen3.mp4'),
-        // Starts on the video's own black, so the frame has no visible edge.
-        gradient: ['#000000', '#03122B'],
+        key: 'client',
+        video: require('../../../assets/images/onboarding-live-blue.mp4'),
+        videoCover: true,
+        gradient: ['#1E63D0', '#062B63'],
         title: t('onboardingTitle3'),
         body: t('onboardingBody3'),
         cta: t('next'),
       },
       {
-        key: 'grow',
-        // The sunset photographer the login opens on, so "Get started" lands
-        // somewhere that already looks familiar.
-        scene: require('../../../assets/images/event-team.jpg'),
-        gradient: ['#2563EB', '#062B63'],
+        key: 'guest',
+        video: require('../../../assets/images/screen3.mp4'),
+        // Starts on the video's own black, so the frame has no visible edge.
+        gradient: ['#000000', '#03122B'],
         title: t('onboardingTitle4'),
         body: t('onboardingBody4'),
         cta: t('getStarted'),
@@ -178,10 +181,16 @@ export default function WelcomeScreen() {
                 style={StyleSheet.absoluteFill}
               />
                 {item.video != null ? (
-                  // The whole frame, centred in the space above the copy.
-                  <View style={[StyleSheet.absoluteFill, { top: insets.top + 56, bottom: footerHeight }]}>
-                    <VideoFill source={item.video} contentFit="contain" />
-                  </View>
+                  item.videoCover ? (
+                    <View style={StyleSheet.absoluteFill}>
+                      <VideoFill source={item.video} contentFit="cover" />
+                    </View>
+                  ) : (
+                    // The whole frame, centred in the space above the copy.
+                    <View style={[StyleSheet.absoluteFill, { top: insets.top + 56, bottom: footerHeight }]}>
+                      <VideoFill source={item.video} contentFit="contain" />
+                    </View>
+                  )
                 ) : (
                   <Animated.View style={[StyleSheet.absoluteFill, { opacity: enter, transform: [{ scale: imgScale }] }]}>
                     <Image
@@ -189,7 +198,12 @@ export default function WelcomeScreen() {
                       style={styles.fill}
                       contentFit="cover"
                       contentPosition={
-                        item.focus != null ? { left: `${Math.round(item.focus * 100)}%`, top: '50%' } : 'center'
+                        item.focus != null || item.verticalFocus != null
+                          ? {
+                              left: `${Math.round((item.focus ?? 0.5) * 100)}%`,
+                              top: `${Math.round((item.verticalFocus ?? 0.5) * 100)}%`,
+                            }
+                          : 'center'
                       }
                       transition={450}
                     />
@@ -235,7 +249,13 @@ export default function WelcomeScreen() {
           accessibilityLabel={`${slide.title.replace('\n', ' ')}. ${slide.body}`}
           style={[styles.copy, { opacity: copyIn, transform: [{ translateY: copyY }] }]}
         >
-          <Text style={styles.title} accessibilityRole="header">
+          <Text
+            style={styles.title}
+            accessibilityRole="header"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.65}
+          >
             {slide.title}
           </Text>
           <Text style={styles.body}>{slide.body}</Text>
@@ -339,27 +359,27 @@ const useStyles = makeStyles((c, e) => ({
     right: 0,
     bottom: 0,
     paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   // A fixed floor for the copy, so the button does not jump between slides.
-  copy: { gap: spacing.sm, minHeight: 150, justifyContent: 'flex-end' },
+  copy: { gap: spacing.sm, minHeight: 160, justifyContent: 'flex-end' },
   title: {
     fontFamily: fonts.bold,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 27,
+    lineHeight: 33,
     fontWeight: fontWeight.extrabold,
     color: ON_MEDIA,
-    letterSpacing: -0.6,
-    textShadowColor: 'rgba(0,0,0,0.35)',
+    letterSpacing: -0.4,
+    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 12,
+    textShadowRadius: 10,
   },
   body: {
     fontSize: fontSize.md,
-    lineHeight: 24,
-    color: 'rgba(255,255,255,0.88)',
-    maxWidth: 360,
-    textShadowColor: 'rgba(0,0,0,0.25)',
+    lineHeight: 22,
+    color: 'rgba(255,255,255,0.95)',
+    maxWidth: '100%',
+    textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
   },

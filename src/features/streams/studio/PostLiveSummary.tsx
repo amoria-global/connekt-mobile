@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fonts } from '@/theme';
 import { ConfirmDialog } from './ConfirmDialog';
 import { S } from './theme';
@@ -16,10 +17,11 @@ type Props = {
 };
 
 function Stat({ label, value }: { label: string; value: string }) {
+  const { tr } = useSharedT();
   return (
     <View style={styles.stat} accessible accessibilityLabel={`${label}: ${value}`}>
       <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statLabel}>{tr(label)}</Text>
     </View>
   );
 }
@@ -31,6 +33,7 @@ function Stat({ label, value }: { label: string; value: string }) {
  */
 export function PostLiveSummary({ eventTitle, summary, resetting, onDone, onStartNew }: Props) {
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
   const [confirmNew, setConfirmNew] = useState(false);
   return (
     <View style={styles.root}>
@@ -45,9 +48,9 @@ export function PostLiveSummary({ eventTitle, summary, resetting, onDone, onStar
           <Ionicons name="checkmark" size={34} color="#fff" />
         </View>
         <Text style={styles.title} accessibilityRole="header">
-          LIVE ended
+          {tr('LIVE ended')}
         </Text>
-        <Text style={styles.sub}>Your broadcast has ended.</Text>
+        <Text style={styles.sub}>{tr('Your broadcast has ended.')}</Text>
         <Text style={styles.event} numberOfLines={2}>
           {eventTitle}
         </Text>
@@ -73,7 +76,7 @@ export function PostLiveSummary({ eventTitle, summary, resetting, onDone, onStar
           accessibilityRole="button"
           accessibilityLabel="Done"
         >
-          <Text style={styles.doneText}>Done</Text>
+          <Text style={styles.doneText}>{tr('Done')}</Text>
         </Pressable>
         <Pressable
           onPress={() => setConfirmNew(true)}
@@ -85,7 +88,7 @@ export function PostLiveSummary({ eventTitle, summary, resetting, onDone, onStar
           {resetting ? (
             <ActivityIndicator color={S.textDim} />
           ) : (
-            <Text style={styles.secondaryText}>Start a new broadcast</Text>
+            <Text style={styles.secondaryText}>{tr('Start a new broadcast')}</Text>
           )}
         </Pressable>
       </View>

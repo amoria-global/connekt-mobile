@@ -14,6 +14,7 @@ import { Alert } from '@/components/ui/dialog';
 import { Sheet } from '@/components/ui/Sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { ActionButton, Card, EmptyNote, ErrorNotice, HCarousel, SectionHeader, SegmentedTabs, SkeletonCard, TOUCH } from './kit';
@@ -85,6 +86,7 @@ export function GoalsSection({ rating, hidden }: { rating: number | null; hidden
 function GoalCard({ plan, rating, hidden, onEdit }: { plan: Plan; rating: number | null; hidden?: boolean; onEdit: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const ratingPct = plan.targetRatings > 0 && rating != null ? Math.min(100, Math.round((rating / plan.targetRatings) * 100)) : null;
   return (
     <Pressable
@@ -100,15 +102,15 @@ function GoalCard({ plan, rating, hidden, onEdit }: { plan: Plan; rating: number
           </Text>
           <Ionicons name="create-outline" size={18} color={colors.textMuted} />
         </View>
-        <Text style={styles.muted}>{periodLabel(plan)}</Text>
+        <Text style={styles.muted}>{tr(periodLabel(plan))}</Text>
         <Text style={styles.goalValue}>{moneyText(plan.targetEarnings, 'USD', hidden)}</Text>
-        <Text style={styles.muted}>Earnings target</Text>
-        {plan.targetClients > 0 ? <Text style={styles.line}>{plan.targetClients} clients</Text> : null}
+        <Text style={styles.muted}>{tr('Earnings target')}</Text>
+        {plan.targetClients > 0 ? <Text style={styles.line}>{plan.targetClients} {tr('Clients').toLowerCase()}</Text> : null}
         {plan.targetRatings > 0 ? (
           <View>
             <Text style={styles.line}>
-              Rating target {plan.targetRatings.toFixed(1)}
-              {rating != null ? `, now ${rating.toFixed(1)}` : ', no reviews yet'}
+              {tr('Rating target')} {plan.targetRatings.toFixed(1)}
+              {rating != null ? `, now ${rating.toFixed(1)}` : `, ${tr('No reviews yet').toLowerCase()}`}
             </Text>
             {ratingPct != null ? (
               <View style={styles.track} accessible accessibilityLabel={`Rating is ${ratingPct} percent of the target`}>
@@ -117,7 +119,7 @@ function GoalCard({ plan, rating, hidden, onEdit }: { plan: Plan; rating: number
             ) : null}
           </View>
         ) : null}
-        <Text style={styles.note}>Earnings progress needs per-period figures, not available yet.</Text>
+        <Text style={styles.note}>{tr('Earnings progress needs per-period figures, not available yet.')}</Text>
       </Card>
     </Pressable>
   );
@@ -126,6 +128,7 @@ function GoalCard({ plan, rating, hidden, onEdit }: { plan: Plan; rating: number
 function GoalForm({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () => void; onSaved: () => Promise<void> }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const [draft, setDraft] = useState<PlanDraft>(plan ? draftOf(plan) : emptyDraft());
   const [errors, setErrors] = useState<DraftErrors>({});
   const [busy, setBusy] = useState(false);
@@ -176,7 +179,7 @@ function GoalForm({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () =
     keyboard: 'default' | 'decimal-pad' | 'number-pad' = 'decimal-pad',
   ) => (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>{tr(label)}</Text>
       <TextInput
         value={draft[key]}
         onChangeText={(t) => set(key, t as never)}
@@ -197,7 +200,7 @@ function GoalForm({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () =
 
   return (
     <Sheet
-      title={plan ? 'Edit goal' : 'New goal'}
+      title={tr(plan ? 'Edit goal' : 'New goal')}
       onClose={onClose}
       busy={busy}
       footer={
@@ -209,7 +212,7 @@ function GoalForm({ plan, onClose, onSaved }: { plan: Plan | null; onClose: () =
       }
     >
       {field('name', 'Goal name', 'e.g. October earnings', 'default')}
-      <Text style={styles.label}>Period</Text>
+      <Text style={styles.label}>{tr('Period')}</Text>
       {/* SegmentedTabs carries its own side margin; cancel the sheet's padding so it lines up with the fields. */}
       <View style={{ marginHorizontal: -spacing.lg }}>
         <SegmentedTabs tabs={PLAN_PERIODS} value={draft.timePeriod} onChange={(v) => set('timePeriod', v)} label="Goal period" />

@@ -65,6 +65,7 @@ import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
+import { useSharedT } from '@/i18n/sharedStrings';
 
 const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> = {
   DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
@@ -80,6 +81,7 @@ export default function AlbumDetailScreen() {
   useCurrency((s) => s.currency);
   const { colors, isDark } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -476,7 +478,7 @@ export default function AlbumDetailScreen() {
 
                 <View style={styles.metaChip}>
                   <Ionicons name="images-outline" size={13} color={colors.primary} />
-                  <Text style={styles.metaChipText}>{photoCountText(data?.photoCount ?? images.length)}</Text>
+                  <Text style={styles.metaChipText}>{tr(photoCountText(data?.photoCount ?? images.length) || '')}</Text>
                 </View>
 
                 {albumDateText(data?.date ?? data?.receivedDate) ? (
@@ -507,7 +509,7 @@ export default function AlbumDetailScreen() {
                 {data?.locked ? (
                   <View style={[styles.metaChip, styles.metaChipLocked]}>
                     <Ionicons name="lock-closed" size={12} color={colors.warning} />
-                    <Text style={[styles.metaChipText, { color: colors.warning }]}>Locked</Text>
+                    <Text style={[styles.metaChipText, { color: colors.warning }]}>{tr('Locked')}</Text>
                   </View>
                 ) : null}
               </View>
@@ -531,7 +533,7 @@ export default function AlbumDetailScreen() {
                   <Text style={styles.photographerName} numberOfLines={2}>
                     {data.photographer}
                   </Text>
-                  <Text style={styles.photographerRole}>Photographer</Text>
+                  <Text style={styles.photographerRole}>{tr('Photographer')}</Text>
                 </View>
                 <View style={styles.verifiedBadge}>
                   <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
@@ -545,11 +547,11 @@ export default function AlbumDetailScreen() {
                 <Ionicons name="information-circle" size={18} color={colors.primary} />
                 <Text style={styles.approvalCardText}>
                   {approval === 'DRAFT'
-                    ? 'Draft: Submit for review to publish this album to the public catalog.'
+                    ? tr('Draft: Submit for review to publish this album to the public catalog.')
                     : approval === 'PENDING_APPROVAL'
-                    ? 'Under review: Our team will publish it to the catalog once approved.'
+                    ? tr('Under review: Our team will publish it to the catalog once approved.')
                     : approval === 'APPROVED'
-                    ? 'Live on the public stock library.'
+                    ? tr('Live on the public stock library.')
                     : `Needs changes: ${data?.approvalComment || 'Please update and resubmit.'}`}
                 </Text>
               </View>
@@ -568,7 +570,7 @@ export default function AlbumDetailScreen() {
                   ) : (
                     <>
                       <Ionicons name="cloud-upload" size={17} color="#fff" />
-                      <Text style={styles.primaryActionText}>Add Photos</Text>
+                      <Text style={styles.primaryActionText}>{tr('Add Photos')}</Text>
                     </>
                   )}
                 </Pressable>
@@ -579,7 +581,7 @@ export default function AlbumDetailScreen() {
                   hitSlop={4}
                 >
                   <Ionicons name="share-social-outline" size={16} color={colors.text} />
-                  <Text style={styles.secondaryActionText}>Share</Text>
+                  <Text style={styles.secondaryActionText}>{tr('Share')}</Text>
                 </Pressable>
 
                 <Pressable
@@ -606,7 +608,7 @@ export default function AlbumDetailScreen() {
                   <Text style={styles.compactFaceBold}>
                     {faceStatus.collection?.faceCount ?? 0}
                   </Text>{' '}
-                  faces indexed · Find My Photos active
+                  {tr('faces indexed · Find My Photos active')}
                 </Text>
                 <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
               </Pressable>
@@ -618,24 +620,24 @@ export default function AlbumDetailScreen() {
                 <View style={styles.lockedIconBox}>
                   <Ionicons name="lock-closed" size={26} color={colors.primary} />
                 </View>
-                <Text style={styles.lockedTitle}>This album is locked</Text>
+                <Text style={styles.lockedTitle}>{tr('This album is locked')}</Text>
                 {digitalPurchasesEnabled ? (
                   <>
                     <Text style={styles.lockedMsg}>
-                      Unlock this album to view and download all high-resolution photos.
+                      {tr('Unlock this album to view and download all high-resolution photos.')}
                     </Text>
                     <Button
                       title={
                         data?.archiveFee
                           ? `Unlock for ${formatPrice(data.archiveFee, data.archiveCurrency)}`
-                          : 'Unlock on web'
+                          : tr('Unlock on web')
                       }
                       onPress={onUnlock}
                                           />
                   </>
                 ) : (
                   <Text style={styles.lockedMsg}>
-                    Photos are in cold storage. Contact support to restore this album.
+                    {tr('Photos are in cold storage. Contact support to restore this album.')}
                   </Text>
                 )}
               </View>
@@ -645,7 +647,7 @@ export default function AlbumDetailScreen() {
             {!locked && images.length > 0 ? (
               <View style={styles.photosSectionHead}>
                 <View style={styles.photosCountGroup}>
-                  <Text style={styles.photosSectionTitle}>PHOTOS</Text>
+                  <Text style={styles.photosSectionTitle}>{tr('PHOTOS')}</Text>
                   <View style={styles.photosCountBadge}>
                     <Text style={styles.photosCountBadgeText}>{images.length}</Text>
                   </View>

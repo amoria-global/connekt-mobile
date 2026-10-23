@@ -43,6 +43,7 @@ import {
   validateNsn,
 } from '@/lib/phoneKit';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme , type Palette as ThemePalette } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { glassTile } from './GlassCard';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
@@ -180,6 +181,7 @@ export function PhoneInput({
 }: PhoneInputProps) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const ui = dark ? DARK : glass ? makeGlass(colors) : makeLight(colors);
 
   const [country, setCountry] = useState<PhoneCountry | null>(
@@ -285,7 +287,7 @@ export function PhoneInput({
 
   return (
     <View style={styles.wrap}>
-      {label ? <Text style={[styles.label, { color: ui.label }]}>{label}</Text> : null}
+      {label ? <Text style={[styles.label, { color: ui.label }]}>{tr(label)}</Text> : null}
       <View style={[styles.row, { backgroundColor: ui.rowBg, borderColor }]}>
         <Pressable
           onPress={() => {
@@ -322,7 +324,7 @@ export function PhoneInput({
           autoComplete="tel"
           textContentType="telephoneNumber"
           accessibilityLabel={label ?? 'Phone number'}
-          placeholder={activePlaceholder}
+          placeholder={placeholder ? tr(placeholder) : activePlaceholder}
           placeholderTextColor={ui.muted}
         />
         {showErr ? (
@@ -331,7 +333,7 @@ export function PhoneInput({
       </View>
       {error ? (
         <Text style={[styles.hint, { color: ui.err }]} numberOfLines={2}>
-          {error}
+          {tr(error)}
         </Text>
       ) : null}
 
@@ -347,7 +349,7 @@ export function PhoneInput({
           >
             <View style={[styles.sheetHandle, { backgroundColor: ui.divider }]} />
             <View style={styles.sheetHeader}>
-              <Text style={[styles.sheetTitle, { color: ui.text }]}>Choose country</Text>
+              <Text style={[styles.sheetTitle, { color: ui.text }]}>{tr('Choose country')}</Text>
               <Pressable
                 onPress={() => setPickerOpen(false)}
                 hitSlop={12}
@@ -365,7 +367,7 @@ export function PhoneInput({
                 style={[styles.searchInput, { color: ui.text }]}
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search country or code"
+                placeholder={tr('Search country or code')}
                 placeholderTextColor={ui.muted}
                 autoCapitalize="none"
                 autoCorrect={false}

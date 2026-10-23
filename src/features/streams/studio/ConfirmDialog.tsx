@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fonts } from '@/theme';
 import { S } from './theme';
 
@@ -27,6 +28,7 @@ export function ConfirmDialog({
   busy,
   destructive = true,
 }: Props) {
+  const { tr } = useSharedT();
   if (!visible) return null;
   return (
     <View style={styles.root} accessibilityViewIsModal>
@@ -38,16 +40,16 @@ export function ConfirmDialog({
       />
       <View style={styles.card}>
         <Text style={styles.title} accessibilityRole="header">
-          {title}
+          {tr(title)}
         </Text>
-        <Text style={styles.message}>{message}</Text>
+        <Text style={styles.message}>{tr(message)}</Text>
         <Pressable
           onPress={onCancel}
           style={({ pressed }) => [styles.btn, styles.btnSafe, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel={cancelLabel}
         >
-          <Text style={styles.btnSafeText}>{cancelLabel}</Text>
+          <Text style={styles.btnSafeText}>{tr(cancelLabel)}</Text>
         </Pressable>
         <Pressable
           onPress={onConfirm}
@@ -61,7 +63,7 @@ export function ConfirmDialog({
           accessibilityLabel={confirmLabel}
           accessibilityState={{ busy, disabled: busy }}
         >
-          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnDangerText}>{confirmLabel}</Text>}
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnDangerText}>{tr(confirmLabel)}</Text>}
         </Pressable>
       </View>
     </View>

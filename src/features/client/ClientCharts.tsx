@@ -6,6 +6,7 @@
  */
 import { Text, View } from 'react-native';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { Card } from '@/features/photographer/kit';
 import { SegmentRing } from '@/features/photographer/charts';
 import { percentOf } from '@/features/photographer/money';
@@ -31,12 +32,13 @@ export function StatusBreakdownCard({
   summary: string;
 }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const live = segments.filter((s) => Number.isFinite(s.value) && s.value > 0);
   const total = live.reduce((sum, s) => sum + s.value, 0);
   if (total === 0) {
     return (
       <Card>
-        <Text style={styles.muted}>{emptyText}</Text>
+        <Text style={styles.muted}>{tr(emptyText)}</Text>
       </Card>
     );
   }
@@ -54,7 +56,7 @@ export function StatusBreakdownCard({
               {total}
             </Text>
             <Text style={styles.centreCaption} numberOfLines={1} maxFontSizeMultiplier={1.6}>
-              {centerLabel}
+              {tr(centerLabel)}
             </Text>
           </View>
         </SegmentRing>
@@ -65,7 +67,7 @@ export function StatusBreakdownCard({
               <View key={s.key} style={styles.row} accessible accessibilityLabel={`${s.label}, ${s.value}${pct != null ? `, ${pct} percent` : ''}`}>
                 <View style={[styles.swatch, { backgroundColor: s.color }]} />
                 <Text style={styles.label} numberOfLines={2}>
-                  {s.label}
+                  {tr(s.label)}
                 </Text>
                 <Text style={styles.value} numberOfLines={1}>
                   {s.value}

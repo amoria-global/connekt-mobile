@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fonts } from '@/theme';
 import { S, TOUCH } from './theme';
 
@@ -39,6 +40,7 @@ function RoundButtonBase({
   disabled,
   selected,
 }: Props) {
+  const { tr } = useSharedT();
   return (
     <Pressable
       onPress={onPress}
@@ -70,7 +72,7 @@ function RoundButtonBase({
       </View>
       {caption ? (
         <Text style={styles.caption} numberOfLines={1}>
-          {caption}
+          {tr(caption)}
         </Text>
       ) : null}
     </Pressable>
