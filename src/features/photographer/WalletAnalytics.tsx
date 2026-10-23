@@ -104,7 +104,7 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
         hues={hues}
         currency={currency}
         summary="Available balance by source"
-        emptyText=tr('Nothing in your available balance yet.')
+        emptyText={tr('Nothing in your available balance yet.')}
       />
 
       <SectionHeader title="Activity" subtitle="Pick a period" />

@@ -61,6 +61,7 @@ export type ShootFacts = {
  */
 export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts; actions: ReactNode; flush?: boolean }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const card = (
     <Card style={flush || shoot.live ? styles.flush : undefined}>
       <View style={styles.shootRow}>

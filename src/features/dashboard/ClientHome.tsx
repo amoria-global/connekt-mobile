@@ -700,7 +700,7 @@ function NextEventCard({
       <View style={styles.nextRow}>
         <Thumb uri={event.coverImage} size={96} />
         <View style={styles.nextText}>
-            {live ? <LivePill label=tr('Live now') size="sm" sparkle /> : <StatusBadge {...status} />}
+            {live ? <LivePill label={tr('Live now')} size="sm" sparkle /> : <StatusBadge {...status} />}
           <Text style={styles.cardTitle} numberOfLines={2}>
             {event.title || tr('Your booking')}
           </Text>

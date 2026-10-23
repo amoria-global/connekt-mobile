@@ -66,9 +66,6 @@ import { useLanguage } from '@/store/language';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import { DashboardGreeting } from './DashboardGreeting';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
-import { useSharedT } from '@/i18n/sharedStrings';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
-import { PerformanceWaveCard, type MetricKey } from '@/features/dashboard/PerformanceWaveCard';
 
 const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not hand memo hooks a new array every render. */
@@ -145,7 +142,7 @@ export function CoordinatorHome() {
   const currency = wallet.data?.currency;
   const anyLive = useMemo(() => eventList.some(isLiveNow), [eventList]);
 
-    const q = searchQuery.trim().toLowerCase();
+  const q = searchQuery.trim().toLowerCase();
   const matches = useMemo(() => {
     if (!q) return [];
     return eventList.filter((e) =>
@@ -197,41 +194,41 @@ export function CoordinatorHome() {
               <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
             </Pressable>
           }
-            />
+        />
 
         <View style={styles.search}>
           <Ionicons name="search" size={18} color={colors.textMuted} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
             placeholder="Search your events, venues, people"
-              placeholderTextColor={colors.textMuted}
-              style={styles.searchInput}
-              returnKeyType="search"
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+            returnKeyType="search"
             accessibilityLabel="Search your events"
             maxFontSizeMultiplier={1.6}
-              autoCapitalize="none"
-              autoCorrect={false}
+            autoCapitalize="none"
+            autoCorrect={false}
             onSubmitEditing={() => {
               Keyboard.dismiss();
               if (q) router.push({ pathname: '/events', params: { q: searchQuery.trim() } } as never);
             }}
-            />
+          />
           {searchQuery.length > 0 ? (
-              <Pressable
-                onPress={() => {
-                  setSearchQuery('');
-                  Keyboard.dismiss();
-                }}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
+            <Pressable
+              onPress={() => {
+                setSearchQuery('');
+                Keyboard.dismiss();
+              }}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
               style={styles.clear}
-              >
+            >
               <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-              </Pressable>
+            </Pressable>
           ) : null}
-          </View>
+        </View>
 
         {q ? (
           <>
@@ -290,108 +287,25 @@ export function CoordinatorHome() {
 
             {/* Event types: a quick way into the Events tab, filtered */}
             {categories.data && categories.data.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
               accessibilityLabel="Event types"
               contentContainerStyle={styles.chips}
               style={styles.chipsWrap}
-          >
+            >
               {['All', ...categories.data].map((c) => (
                 <Chip
                   key={c}
                   label={c}
                   selected={false}
                   onPress={() => router.push({ pathname: '/events', params: c === 'All' ? {} : { category: c } } as never)}
-                  />
->>>>>>> origin/main
-                ))}
-            </ScrollView>
-        ) : null}
-
-<<<<<<< HEAD
-        {/* ── 4. Coordinator 3-Metric Mini-Stats Snapshot Card ────────────────── */}
-        {!isSearchActive && (
-          <View style={styles.snapshotCard}>
-            <View style={styles.snapshotBody}>
-              <Pressable
-                style={styles.snapshotItem}
-                onPress={() => router.push('/wallet' as never)}
-                accessibilityRole="button"
-                accessibilityLabel="View revenue in wallet"
-              >
-                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
-                  {tr('REVENUE')}
-                </Text>
-                <Text style={[styles.snapshotValue, { color: colors.link }]}>
-                  {formatPrice(a?.totalRevenue || 0, currency)}
-                </Text>
-              </Pressable>
-              <View style={styles.snapshotDivider} />
-              <Pressable
-                style={styles.snapshotItem}
-                onPress={() => router.push('/events' as never)}
-                accessibilityRole="button"
-                accessibilityLabel="View events"
-              >
-                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
-                  {tr('EVENTS')}
-                </Text>
-                <Text style={[styles.snapshotValue, { color: '#F20C8F' }]}>
-                  {String(a?.totalEvents || 0)}
-                </Text>
-              </Pressable>
-              <View style={styles.snapshotDivider} />
-              <Pressable
-                style={styles.snapshotItem}
-                onPress={() => router.push('/photographers' as never)}
-                accessibilityRole="button"
-                accessibilityLabel="View photographers"
-              >
-                <Text style={styles.snapshotLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.2}>
-                  {tr('PHOTOGRAPHERS')}
-                </Text>
-                <Text style={[styles.snapshotValue, { color: '#10B981' }]}>
-                  {String(a?.totalPhotographers || 0)}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* ── Pending Payments Alert (if any) ─────────────────────────────── */}
-        {pendingList.length > 0 ? (
-          <View style={styles.pendingCard}>
-            <View style={styles.pendingHeader}>
-              <View style={styles.pendingIconWrap}>
-                <Ionicons
-                  name={hasFailedPayments ? 'alert-circle' : 'time'}
-                  size={18}
-                  color={hasFailedPayments ? colors.error : '#F59E0B'}
                 />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.pendingTitle}>
-                  {tr(hasFailedPayments ? 'Action Required: Pending Payments' : 'Pending Invoices')}
-                </Text>
-                <Text style={styles.pendingSub}>
-                  {pendingList.length} payment{pendingList.length === 1 ? '' : 's'} totaling{' '}
-                  <Text style={{ fontWeight: fontWeight.bold, color: colors.text }}>
-                    {formatPrice(totalPendingAmount, currency)}
-                  </Text>
-                </Text>
-              </View>
-              <Pressable
-                style={styles.pendingViewBtn}
-                onPress={() => {
-                  if (pendingList[0]) {
-                    setPayNowPayment(pendingList[0]);
-                    setPayNowOpen(true);
-                  } else {
-                    router.push('/payments' as Href);
-                  }
-=======
+              ))}
+            </ScrollView>
+            ) : null}
+
             {/* 3. Overview */}
             <SectionHeader title="Overview" subtitle="Lifetime figures for your account" actionLabel="Analytics" onAction={() => open('/analytics')} />
             {aFailed || walletFailed ? (
@@ -442,7 +356,7 @@ export function CoordinatorHome() {
                   renderItem={(p) => <PaymentCard hidden={hidden} payment={p} onPay={() => setPayNowPayment(p)} />}
                 />
               </>
-        ) : null}
+            ) : null}
 
             {/* 5. Upcoming productions */}
             <SectionHeader
@@ -508,20 +422,19 @@ export function CoordinatorHome() {
               />
             ) : null}
             <View style={styles.wave}>
-        <PerformanceWaveCard
-          analytics={a}
-          trends={trends}
-          period={period}
-          onPeriodChange={setPeriod}
-          currency={currency}
-          selectedMetric={selectedWaveMetric}
-          onSelectMetric={setSelectedWaveMetric}
-          performanceData={perfState.data}
+              <PerformanceWaveCard
+                analytics={a}
+                trends={trends}
+                period={period}
+                onPeriodChange={setPeriod}
+                currency={currency}
+                selectedMetric={selectedWaveMetric}
+                onSelectMetric={setSelectedWaveMetric}
+                performanceData={perfState.data}
                 hidden={hidden}
                 emptyText={trendFailed ? 'Trend data could not be loaded' : undefined}
-        />
->>>>>>> origin/main
-          </View>
+              />
+            </View>
           </>
         )}
 
@@ -545,29 +458,6 @@ export function CoordinatorHome() {
 
 function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPay: () => void; hidden: boolean }) {
   const styles = useStyles();
-<<<<<<< HEAD
-  const { tr } = useSharedT();
-
-  const isLive = (event.status ?? '').toUpperCase() === 'ONGOING' || event.hasLiveStream;
-  const statusColor = isLive ? '#EF4444' : event.published ? '#10B981' : '#F59E0B';
-  const statusLabel = isLive ? 'LIVE NOW' : event.published ? 'PUBLISHED' : 'UPCOMING';
-
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.eventRowCard, pressed && styles.cardPressed]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`Event: ${event.title}`}
-    >
-      <View style={styles.eventRowLeft}>
-        <View style={styles.eventStatusPill}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={[styles.eventStatusText, { color: statusColor }]}>{tr(statusLabel)}</Text>
-        </View>
-
-        <Text style={styles.eventRowTitle} numberOfLines={1}>
-          {event.title}
-=======
   const failed = payment.status === 'failed';
   const dueDate = dueText(payment);
   const amount = moneyText(remaining(payment), DUE_CURRENCY, hidden);
@@ -578,16 +468,16 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
         <View style={styles.flex}>
           <Text style={styles.cardTitle} numberOfLines={3}>
             {payment.eventName}
-        </Text>
+          </Text>
           <Text style={styles.cardMeta} numberOfLines={2}>
             {failed ? 'Payment failed' : payment.status === 'partially_paid' ? 'Balance due' : 'Payment due'}
             {dueDate ? ` · ${dueDate}` : ''}
-              </Text>
-            </View>
+          </Text>
+        </View>
       </View>
       <Text style={styles.amount} accessibilityLabel={`${amount} to pay`}>
         {amount}
-              </Text>
+      </Text>
       <ActionButton label={failed ? 'Try again' : 'Pay now'} variant="primary" compact onPress={onPay} />
     </Card>
   );

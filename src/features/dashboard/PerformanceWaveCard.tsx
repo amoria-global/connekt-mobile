@@ -196,6 +196,7 @@ export function PerformanceWaveCard({
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const [internalMetric, setInternalMetric] = useState<string>(Object.keys(metrics)[0] ?? 'totalRevenue');
   const [activeIndex, setActiveIndex] = useState<number>(3); // Matches 14/10 index in reference image
 
