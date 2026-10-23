@@ -55,6 +55,30 @@ const MODE_META_I18N = {
       line: 'Describes el evento; los fotógrafos disponibles que encajan dicen que sí; tú eliges uno.',
     },
   },
+  rw: {
+    DIRECT: {
+      label: 'Shaka Gafotozi',
+      short: 'Gufata umwanya utaziguye',
+      line: 'Shakisha abafotozi, hitamo umwe, umwoherereze ubusabe.',
+    },
+    HYBRID: {
+      label: 'Tangaza igikorwa cyanjye',
+      short: 'Guhuza na Gafotozi',
+      line: 'Sobanura igikorwa cyawe; abafotozi babonetse barabyemera; ukihitiramo umwe.',
+    },
+  },
+  sw: {
+    DIRECT: {
+      label: 'Tafuta mpiga picha',
+      short: 'Uhifadhi wa moja kwa moja',
+      line: 'Vinjari wapiga picha, chagua mmoja na umtumie ombi.',
+    },
+    HYBRID: {
+      label: 'Chapisha tukio langu',
+      short: 'Uhifadhi wa kulinganisha',
+      line: 'Eleza tukio lako; wapiga picha wanaopatikana wanakubali; wewe unachagua mmoja.',
+    },
+  },
 } as const;
 
 export type BookingModeKey = keyof typeof MODE_META;
@@ -69,7 +93,7 @@ export const TIER_META: Record<RecommendationTier, { label: string; hint: string
   LOW: { label: 'Possible match', hint: 'Available, with fewer requirements matched', color: '#9A3412', bg: 'rgba(234,88,12,0.10)', icon: 'checkmark' },
 };
 
-const TIER_META_I18N: Record<'fr' | 'es', Record<RecommendationTier, { label: string; hint: string }>> = {
+const TIER_META_I18N: Record<'fr' | 'es' | 'rw' | 'sw', Record<RecommendationTier, { label: string; hint: string }>> = {
   fr: {
     HIGH: { label: 'Meilleure correspondance', hint: 'Le plus proche de ce que vous avez demandé' },
     MEDIUM: { label: 'Bonne correspondance', hint: 'Correspond à la plupart de vos critères' },
@@ -79,6 +103,16 @@ const TIER_META_I18N: Record<'fr' | 'es', Record<RecommendationTier, { label: st
     HIGH: { label: 'Mejor coincidencia', hint: 'El más cercano a lo que pediste' },
     MEDIUM: { label: 'Buena coincidencia', hint: 'Cumple la mayoría de tus requisitos' },
     LOW: { label: 'Coincidencia posible', hint: 'Disponible, con menos requisitos cumplidos' },
+  },
+  rw: {
+    HIGH: { label: ' Guhuza neza cyane', hint: ' bihuye cyane n’ibyo wasabye' },
+    MEDIUM: { label: 'Guhuza neza', hint: 'Bihuye n’ibyinshi mu byo wasabye' },
+    LOW: { label: 'Bishobora guhuza', hint: 'Araboneka, afite bicye mu byo wasabye' },
+  },
+  sw: {
+    HIGH: { label: 'Kufaa zaidi', hint: 'Inakaribiana zaidi na ulichoomba' },
+    MEDIUM: { label: 'Inafaa vizuri', hint: 'Inakidhi vigezo vingi vyako' },
+    LOW: { label: 'Inaweza kufaa', hint: 'Inapatikana, ikiwa na vigezo vichache' },
   },
 };
 
@@ -93,7 +127,7 @@ const FRIENDLY_STATUS: Record<string, string> = {
   BOOKED: 'Booked',
 };
 
-const FRIENDLY_STATUS_I18N: Record<'fr' | 'es', Record<string, string>> = {
+const FRIENDLY_STATUS_I18N: Record<'fr' | 'es' | 'rw' | 'sw', Record<string, string>> = {
   fr: {
     MATCHING: 'Recherche en cours',
     PUBLISHED_PENDING_ASSIGNMENT: 'Recherche de photographes',
@@ -113,6 +147,26 @@ const FRIENDLY_STATUS_I18N: Record<'fr' | 'es', Record<string, string>> = {
     MATCHING_FAILED: 'Sin coincidencias aún',
     UNASSIGNED: 'Necesita un fotógrafo',
     BOOKED: 'Reservado',
+  },
+  rw: {
+    MATCHING: 'Birimo guhuzwa',
+    PUBLISHED_PENDING_ASSIGNMENT: 'Gushaka abafotozi',
+    CANDIDATES_AVAILABLE: 'Abafotozi babyemeye',
+    MATCHES_AWAITING_SELECTION: 'Hitamo gafotozi wawe',
+    HYBRID_TIMEOUT: 'Guhuza byarangiye',
+    MATCHING_FAILED: 'Nta mufotozi uraboneka',
+    UNASSIGNED: 'Hakenewe gafotozi',
+    BOOKED: 'Yafashwe',
+  },
+  sw: {
+    MATCHING: 'Inatafuta mlingano',
+    PUBLISHED_PENDING_ASSIGNMENT: 'Inatafuta wapiga picha',
+    CANDIDATES_AVAILABLE: 'Wapiga picha wamekubali',
+    MATCHES_AWAITING_SELECTION: 'Chagua mpiga picha wako',
+    HYBRID_TIMEOUT: 'Utafutaji umekamilika',
+    MATCHING_FAILED: 'Hakuna aliyepatikana bado',
+    UNASSIGNED: 'Inahitaji mpiga picha',
+    BOOKED: 'Imewekwa nafasi',
   },
 };
 
@@ -159,10 +213,12 @@ export function budgetLabel(min?: number | null, max?: number | null): string | 
   if (max != null) {
     if (lang === 'fr') return `Jusqu'à ${f(max)} RWF`;
     if (lang === 'es') return `Hasta ${f(max)} RWF`;
+    if (lang === 'rw') return `Kugeza kuri ${f(max)} RWF`;
     return `Up to ${f(max)} RWF`;
   }
   if (lang === 'fr') return `À partir de ${f(min as number)} RWF`;
   if (lang === 'es') return `Desde ${f(min as number)} RWF`;
+  if (lang === 'rw') return `Kuva kuri ${f(min as number)} RWF`;
   return `From ${f(min as number)} RWF`;
 }
 
@@ -188,7 +244,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export function countdownString(c: ReturnType<typeof useCountdown>, doneText?: string): string {
   if (!c) return '';
   const lang = useLanguage.getState().language;
-  const fallbackDone = lang === 'fr' ? 'Maintenant' : lang === 'es' ? 'Ahora' : 'Now';
+  const fallbackDone = lang === 'fr' ? 'Maintenant' : lang === 'es' ? 'Ahora' : lang === 'rw' ? 'Ubu' : lang === 'sw' ? 'Sasa' : 'Now';
   if (c.done) return doneText ?? fallbackDone;
   const dUnit = lang === 'fr' ? 'j' : 'd';
   if (c.days > 0) return `${pad(c.days)}${dUnit} ${pad(c.hours)}h ${pad(c.minutes)}m ${pad(c.seconds)}s`;
@@ -297,21 +353,27 @@ export function EventStartClock({ startAt, label }: { startAt?: string | null; l
       ? "L'événement a commencé"
       : language === 'es'
         ? 'El evento ha comenzado'
-        : 'The event has started';
+        : language === 'rw'
+          ? 'Igikorwa cyatangiye'
+          : 'The event has started';
   if (c.done) return <Text style={{ fontWeight: fontWeight.bold, color: colors.primary }}>{startedText}</Text>;
   const defaultLabel =
     language === 'fr'
       ? "L'ÉVÉNEMENT COMMENCE DANS"
       : language === 'es'
         ? 'EL EVENTO COMIENZA EN'
-        : 'EVENT STARTS IN';
+        : language === 'rw'
+          ? 'IGIKORWA GITANGIRA MU'
+          : 'EVENT STARTS IN';
   const resolvedLabel = label ?? defaultLabel;
   const parts: [number, string][] =
     language === 'fr'
       ? [[c.days, 'jours'], [c.hours, 'h'], [c.minutes, 'min'], [c.seconds, 'sec']]
       : language === 'es'
         ? [[c.days, 'días'], [c.hours, 'hrs'], [c.minutes, 'min'], [c.seconds, 'seg']]
-        : [[c.days, 'days'], [c.hours, 'hrs'], [c.minutes, 'min'], [c.seconds, 'sec']];
+        : language === 'rw'
+          ? [[c.days, 'iminsi'], [c.hours, 'mas'], [c.minutes, 'min'], [c.seconds, 'seg']]
+          : [[c.days, 'days'], [c.hours, 'hrs'], [c.minutes, 'min'], [c.seconds, 'sec']];
   return (
     <View accessibilityLabel={`${resolvedLabel.toLowerCase()} ${countdownString(c)}`}>
       <Text style={styles.clockTitle}>{resolvedLabel}</Text>

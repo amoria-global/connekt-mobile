@@ -2,6 +2,7 @@ import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'r
 import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { CameraErrorKind } from '@/features/streams/CameraPublisher';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fonts } from '@/theme';
 import { S } from './theme';
 
@@ -20,17 +21,19 @@ function Center({
   children?: ReactNode;
   spinner?: boolean;
 }) {
+  const { tr } = useSharedT();
   return (
     <View style={styles.center} accessibilityLiveRegion="polite">
       {spinner ? <ActivityIndicator color="#fff" /> : icon ? <Ionicons name={icon} size={40} color={S.text} /> : null}
-      <Text style={styles.title}>{title}</Text>
-      {body ? <Text style={styles.body}>{body}</Text> : null}
+      <Text style={styles.title}>{tr(title)}</Text>
+      {body ? <Text style={styles.body}>{tr(body)}</Text> : null}
       {children}
     </View>
   );
 }
 
 function PrimaryBtn({ label, onPress, icon }: { label: string; onPress: () => void; icon?: IconName }) {
+  const { tr } = useSharedT();
   return (
     <Pressable
       onPress={onPress}
@@ -39,7 +42,7 @@ function PrimaryBtn({ label, onPress, icon }: { label: string; onPress: () => vo
       accessibilityLabel={label}
     >
       {icon ? <Ionicons name={icon} size={18} color="#111" /> : null}
-      <Text style={styles.btnText}>{label}</Text>
+      <Text style={styles.btnText}>{tr(label)}</Text>
     </Pressable>
   );
 }
@@ -52,6 +55,7 @@ export function CameraErrorOverlay({
   kind: CameraErrorKind;
   onRetry: () => void;
 }) {
+  const { tr } = useSharedT();
   const permission = kind === 'permission';
   return (
     <View style={styles.fillDark}>
@@ -76,7 +80,7 @@ export function CameraErrorOverlay({
             accessibilityLabel="Open app settings"
             style={styles.link}
           >
-            <Text style={styles.linkText}>Open Settings</Text>
+            <Text style={styles.linkText}>{tr('Open Settings')}</Text>
           </Pressable>
         ) : null}
       </Center>
@@ -125,6 +129,7 @@ export function StartFailure({
   onRetry: () => void;
   onBack: () => void;
 }) {
+  const { tr } = useSharedT();
   return (
     <View style={[styles.fillDark, styles.solid]}>
       <Center
@@ -134,7 +139,7 @@ export function StartFailure({
       >
         <PrimaryBtn label="Retry" icon="refresh" onPress={onRetry} />
         <Pressable onPress={onBack} style={styles.link} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={styles.linkText}>Go back</Text>
+          <Text style={styles.linkText}>{tr('Go back')}</Text>
         </Pressable>
       </Center>
     </View>
@@ -165,16 +170,17 @@ export function ErrorBanner({
   onDismiss: () => void;
   top: number;
 }) {
+  const { tr } = useSharedT();
   return (
     <View style={[styles.banner, { top }]} accessibilityLiveRegion="assertive">
       <Ionicons name="alert-circle" size={22} color="#FCA5A5" />
       <View style={{ flex: 1 }}>
-        <Text style={styles.bannerTitle}>{title}</Text>
-        {message ? <Text style={styles.bannerMsg}>{message}</Text> : null}
+        <Text style={styles.bannerTitle}>{tr(title)}</Text>
+        {message ? <Text style={styles.bannerMsg}>{tr(message)}</Text> : null}
       </View>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction} style={styles.bannerBtn} accessibilityRole="button" accessibilityLabel={actionLabel}>
-          <Text style={styles.bannerBtnText}>{actionLabel}</Text>
+          <Text style={styles.bannerBtnText}>{tr(actionLabel)}</Text>
         </Pressable>
       ) : null}
       <Pressable onPress={onDismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dismiss message">
@@ -186,12 +192,13 @@ export function ErrorBanner({
 
 /** Centre prompt while paused. */
 export function PausedOverlay({ onResume, busy }: { onResume: () => void; busy: boolean }) {
+  const { tr } = useSharedT();
   return (
     <View style={styles.paused} pointerEvents="box-none">
       <View style={styles.pausedCard}>
         <Ionicons name="pause-circle" size={34} color={S.warn} />
-        <Text style={styles.title}>Stream paused</Text>
-        <Text style={styles.body}>Viewers are waiting. Resume when you are ready.</Text>
+        <Text style={styles.title}>{tr('Stream paused')}</Text>
+        <Text style={styles.body}>{tr('Viewers are waiting. Resume when you are ready.')}</Text>
         <Pressable
           onPress={onResume}
           disabled={busy}
@@ -200,7 +207,7 @@ export function PausedOverlay({ onResume, busy }: { onResume: () => void; busy: 
           accessibilityLabel="Resume stream"
         >
           {busy ? <ActivityIndicator color="#111" /> : <Ionicons name="play" size={18} color="#111" />}
-          <Text style={styles.btnText}>Resume</Text>
+          <Text style={styles.btnText}>{tr('Resume')}</Text>
         </Pressable>
       </View>
     </View>

@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
 
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fontSize, fontWeight, makeStyles, radii, spacing } from '@/theme';
 import type { PerformancePoint } from './api';
 import { eventsChartSummary, eventsChartView, PAYMENTS_NOT_CHARTED_NOTE } from './eventsChartView';
@@ -12,19 +13,20 @@ const PLOT_HEIGHT = 140;
  */
 export function EventsChart({ points }: { points: PerformancePoint[] | null }) {
   const styles = useStyles();
+  const { tr } = useSharedT();
   const view = eventsChartView(points);
 
   return (
     <View>
       {view.state === 'unavailable' ? (
         <View style={styles.stateBox} accessibilityRole="text">
-          <Text style={styles.stateTitle}>Events chart unavailable</Text>
-          <Text style={styles.stateBody}>We could not load this period. Pull down to refresh.</Text>
+          <Text style={styles.stateTitle}>{tr('Events chart unavailable')}</Text>
+          <Text style={styles.stateBody}>{tr('We could not load this period. Pull down to refresh.')}</Text>
         </View>
       ) : view.state === 'empty' ? (
         <View style={styles.stateBox} accessibilityRole="text">
-          <Text style={styles.stateTitle}>No events in this period</Text>
-          <Text style={styles.stateBody}>Events you cover will appear here.</Text>
+          <Text style={styles.stateTitle}>{tr('No events in this period')}</Text>
+          <Text style={styles.stateBody}>{tr('Events you cover will appear here.')}</Text>
         </View>
       ) : (
         <View accessible accessibilityRole="image" accessibilityLabel={eventsChartSummary(view)}>
@@ -64,7 +66,7 @@ export function EventsChart({ points }: { points: PerformancePoint[] | null }) {
           </View>
         </View>
       )}
-      <Text style={styles.note}>{PAYMENTS_NOT_CHARTED_NOTE}</Text>
+      <Text style={styles.note}>{tr(PAYMENTS_NOT_CHARTED_NOTE)}</Text>
     </View>
   );
 }

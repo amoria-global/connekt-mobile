@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { PAYMENT_COUNTRY_LIST } from '@/features/payments/countries';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
 type Props = {
@@ -25,6 +26,7 @@ type Props = {
 export function CountrySelectModal({ visible, selected, onClose, onSelect }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const isIos = Platform.OS === 'ios';
@@ -57,7 +59,7 @@ export function CountrySelectModal({ visible, selected, onClose, onSelect }: Pro
       {/* A page sheet already clears the status bar; full screen needs the inset. */}
       <View style={[styles.modal, { paddingTop: isIos ? 0 : insets.top }]}>
         <View style={styles.head}>
-          <Text style={styles.title} accessibilityRole="header">Select country</Text>
+          <Text style={styles.title} accessibilityRole="header">{tr('Select country')}</Text>
           <Pressable
             onPress={close}
             style={styles.closeBtn}
@@ -73,7 +75,7 @@ export function CountrySelectModal({ visible, selected, onClose, onSelect }: Pro
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search country or dial code"
+            placeholder={tr('Search country or dial code')}
             placeholderTextColor={colors.textMuted}
             style={styles.searchInput}
             autoCapitalize="none"
@@ -85,7 +87,7 @@ export function CountrySelectModal({ visible, selected, onClose, onSelect }: Pro
           keyExtractor={(c) => c.iso2}
           keyboardShouldPersistTaps="handled"
           style={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>No matching country.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{tr('No matching country.')}</Text>}
           renderItem={({ item }) => {
             const on = item.iso2 === active;
             return (
@@ -111,7 +113,7 @@ export function CountrySelectModal({ visible, selected, onClose, onSelect }: Pro
             accessibilityRole="button"
             accessibilityLabel="Close country list"
           >
-            <Text style={styles.footerText}>Close</Text>
+            <Text style={styles.footerText}>{tr('Close')}</Text>
           </Pressable>
         </View>
       </View>

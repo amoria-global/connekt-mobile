@@ -42,6 +42,7 @@ import { getOpportunityCounts } from '@/features/hybrid/api';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
 import { WorkspaceSwitcherSheet } from '@/features/workspace/WorkspaceSwitcherSheet';
 import { selectIsShared, useWorkspace } from '@/store/workspace';
@@ -497,6 +498,7 @@ export function MoreSheet({
   const logout = useAuth((s) => s.logout);
   const { role, isPhotographer, isCoordinator } = useRole();
   const { language, t } = useLanguage();
+  const { tr } = useSharedT();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [languageSheetOpen, setLanguageSheetOpen] = useState(false);
@@ -816,9 +818,9 @@ export function MoreSheet({
           ) : (
             <View style={styles.emptySearchWrap}>
               <Ionicons name="search" size={38} color={colors.textMuted} />
-              <Text style={styles.emptySearchTitle}>No shortcuts found</Text>
+              <Text style={styles.emptySearchTitle}>{tr('No shortcuts found')}</Text>
               <Text style={styles.emptySearchSub}>
-                No shortcuts matched &ldquo;{searchQuery}&rdquo;
+                {tr(`No shortcuts matched "${searchQuery}"`)}
               </Text>
               <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
                 <Text style={styles.clearSearchButtonText}>Clear search</Text>

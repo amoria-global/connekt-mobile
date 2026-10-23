@@ -30,7 +30,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { Button } from '@/components/ui/Button';
 import { BlurTargetView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -42,6 +41,8 @@ import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import {
   browsePhotosUrl,
 } from '@/features/payments/webCheckout';
+import { PhotoLanguagePill } from '@/features/auth/AuthGlassLayout';
+import { LanguageButton } from '@/components/topbar/LanguageButton';
 import { PhotoCheckoutSheet } from './PhotoCheckoutSheet';
 import { savePhotoToGallery, saveBatchPhotosToGallery } from '@/utils/gallerySaver';
 import {
@@ -2155,17 +2156,11 @@ export function FindMyPhotos() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {showConnect ? (
-        // Entry: a full page over the face-scan video, its actions on glass cards.
+        // Entry: a full page over the sleek modern backdrop, its actions on glass cards.
         <>
           <StatusBar style="light" />
           <BlurTargetView ref={connectBg} style={StyleSheet.absoluteFill} pointerEvents="none">
-            <ScanVideo />
-            {/* Calms the video so white type and glass both stay readable. */}
-            <LinearGradient
-              colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.6)']}
-              locations={[0, 0.35, 1]}
-              style={StyleSheet.absoluteFill}
-            />
+            <ScanBackdrop />
           </BlurTargetView>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
@@ -2195,6 +2190,7 @@ export function FindMyPhotos() {
               <GlassLayer fill="rgba(0,0,0,0.22)" />
               <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
             </Pressable>
+            <PhotoLanguagePill />
           </View>
         </>
       ) : (
@@ -2238,7 +2234,7 @@ export function FindMyPhotos() {
             <Text style={styles.topBarPillText}>{t('fmp_title')}</Text>
           </View>
 
-          <View style={styles.topBarSpacer} />
+          <LanguageButton compact />
         </View>
       </View>
 
@@ -2603,25 +2599,42 @@ export function FindMyPhotos() {
   );
 }
 
-/** Looping, muted face-scan video behind the entry screen; never pauses the user's music. */
-const SCAN_VIDEO = require('../../../assets/images/screen3.mp4');
-
-function ScanVideo() {
-  const player = useVideoPlayer(SCAN_VIDEO, (p) => {
-    p.loop = true;
-    p.muted = true;
-    p.audioMixingMode = 'mixWithOthers';
-    p.play();
-  });
+/** Ambient modern gradient backdrop behind the entry screen; sleek, crisp, and high-performance. */
+function ScanBackdrop() {
   return (
-    <VideoView
-      player={player}
-      // Explicit size as well as absoluteFill: react-native-web otherwise lays
-      // the video out at its intrinsic size.
-      style={{ ...StyleSheet.absoluteFill, width: '100%', height: '100%' }}
-      contentFit="cover"
-      nativeControls={false}
-    />
+    <View style={StyleSheet.absoluteFill}>
+      <LinearGradient
+        colors={['#040B18', '#0A1832', '#071224']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Subtle radial glow accents for depth */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: -80,
+          right: -60,
+          width: 320,
+          height: 320,
+          borderRadius: 160,
+          backgroundColor: 'rgba(2, 132, 199, 0.14)',
+        }}
+      />
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 220,
+          left: -80,
+          width: 280,
+          height: 280,
+          borderRadius: 140,
+          backgroundColor: 'rgba(242, 12, 143, 0.09)',
+        }}
+      />
+    </View>
   );
 }
 
@@ -2698,7 +2711,17 @@ const useStyles = makeStyles((c, e) => ({
 
   // ── Entry screen: video band + glass sheet ────────────────────────────
   connectScroll: { paddingHorizontal: spacing.xl, gap: spacing.md },
-  connectTopBar: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: spacing.xl },
+  connectTopBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.xl,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 20,
+  },
   connectBack: {
     width: 44,
     height: 44,

@@ -7,6 +7,8 @@ function currentLocale(): string {
   const lang = useLanguage.getState().language;
   if (lang === 'fr') return 'fr-FR';
   if (lang === 'es') return 'es-ES';
+  if (lang === 'rw') return 'rw-RW';
+  if (lang === 'sw') return 'sw-TZ';
   return 'en-US';
 }
 
@@ -36,19 +38,19 @@ export function formatRelativeTime(dateStr?: string): string {
   const lang = useLanguage.getState().language;
 
   if (diffMins < 1) {
-    return lang === 'fr' ? "À l'instant" : lang === 'es' ? 'Justo ahora' : 'Just now';
+    return lang === 'fr' ? "À l'instant" : lang === 'es' ? 'Justo ahora' : lang === 'rw' ? 'Aka kanya' : lang === 'sw' ? 'Sasa hivi' : 'Just now';
   }
   if (diffMins < 60) {
-    return lang === 'fr' ? `Il y a ${diffMins} min` : lang === 'es' ? `Hace ${diffMins}m` : `${diffMins}m ago`;
+    return lang === 'fr' ? `Il y a ${diffMins} min` : lang === 'es' ? `Hace ${diffMins}m` : lang === 'rw' ? `Hashize iminota ${diffMins}` : lang === 'sw' ? `Dakika ${diffMins} zilizopita` : `${diffMins}m ago`;
   }
   if (diffHours < 24) {
-    return lang === 'fr' ? `Il y a ${diffHours}h` : lang === 'es' ? `Hace ${diffHours}h` : `${diffHours}h ago`;
+    return lang === 'fr' ? `Il y a ${diffHours}h` : lang === 'es' ? `Hace ${diffHours}h` : lang === 'rw' ? `Hashize amasaha ${diffHours}` : lang === 'sw' ? `Masaa ${diffHours} yaliyopita` : `${diffHours}h ago`;
   }
   if (diffDays === 1) {
-    return lang === 'fr' ? 'Hier' : lang === 'es' ? 'Ayer' : 'Yesterday';
+    return lang === 'fr' ? 'Hier' : lang === 'es' ? 'Ayer' : lang === 'rw' ? 'Ejo hashize' : lang === 'sw' ? 'Jana' : 'Yesterday';
   }
   if (diffDays < 7) {
-    return lang === 'fr' ? `Il y a ${diffDays}j` : lang === 'es' ? `Hace ${diffDays}d` : `${diffDays}d ago`;
+    return lang === 'fr' ? `Il y a ${diffDays}j` : lang === 'es' ? `Hace ${diffDays}d` : lang === 'rw' ? `Hashize iminsi ${diffDays}` : lang === 'sw' ? `Siku ${diffDays} zilizopita` : `${diffDays}d ago`;
   }
   return date.toLocaleDateString(currentLocale(), { month: 'short', day: 'numeric', year: 'numeric' });
 }

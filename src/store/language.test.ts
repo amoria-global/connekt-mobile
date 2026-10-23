@@ -39,6 +39,22 @@ describe('language store', () => {
     expect(useLanguage.getState().t('signInBtn')).toBe('Iniciar sesión');
   });
 
+  it('switches to Kinyarwanda and returns Kinyarwanda translations', async () => {
+    await useLanguage.getState().setLanguage('rw');
+    expect(useLanguage.getState().language).toBe('rw');
+    expect(storage.set).toHaveBeenCalledWith(StorageKeys.language, 'rw');
+    expect(useLanguage.getState().t('welcomeBack')).toBe('Murakaza neza nanone');
+    expect(useLanguage.getState().t('signInBtn')).toBe('Injira');
+  });
+
+  it('switches to Swahili and returns Swahili translations', async () => {
+    await useLanguage.getState().setLanguage('sw');
+    expect(useLanguage.getState().language).toBe('sw');
+    expect(storage.set).toHaveBeenCalledWith(StorageKeys.language, 'sw');
+    expect(useLanguage.getState().t('welcomeBack')).toBe('Karibu tena');
+    expect(useLanguage.getState().t('signInBtn')).toBe('Ingia');
+  });
+
   it('hydrates language from storage on initLanguage', async () => {
     (storage.get as jest.Mock).mockResolvedValueOnce('es');
     await useLanguage.getState().initLanguage();
