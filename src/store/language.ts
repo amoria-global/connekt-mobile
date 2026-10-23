@@ -55,6 +55,12 @@ export const useLanguage = create<LanguageState>((set) => ({
         });
         return;
       }
+      if (saved === 'rw' || saved === 'sw') {
+        // Paused languages fallback to default English
+        set({ language: 'en', isHydrated: true, t: createTranslate('en') });
+        await storage.set(StorageKeys.language, 'en');
+        return;
+      }
     } catch {
       // fallback to default
     }

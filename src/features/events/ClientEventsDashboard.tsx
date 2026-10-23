@@ -29,6 +29,7 @@ import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
 import { ModeBadge, friendlyEventStatus, isOpenHybrid, modeOf } from '@/features/hybrid/hybridUi';
 import { env } from '@/config/env';
 import { useAsync } from '@/hooks/useAsync';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import {
   ActionButton,
@@ -90,6 +91,7 @@ export function ClientEventsDashboard({
   const styles = useStyles();
   const clearance = useTabBarClearance();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { data, loading, error, refresh, refreshQuietly } = useAsync(coordinator ? listCoordinatorEvents : listEvents);
@@ -172,10 +174,10 @@ export function ClientEventsDashboard({
       <View style={[styles.titleRow, styles.pad]}>
         <View style={styles.flex}>
           <Text style={styles.title} accessibilityRole="header">
-            Events
+            {tr('Events')}
           </Text>
           <Text style={styles.subtitle}>
-            {coordinator ? 'Events you coordinate: bookings, photographers and live sessions.' : 'Your bookings, sessions and live events.'}
+            {coordinator ? 'Events you coordinate: bookings, photographers and live sessions.' : tr('Your bookings, sessions and live events.')}
           </Text>
         </View>
         <ActionButton label="New" icon="add" variant="primary" compact onPress={newEvent} />
@@ -186,7 +188,7 @@ export function ClientEventsDashboard({
         {coordinator ? (
           <ActionButton label="Geo pricing" icon="globe-outline" compact onPress={() => open('/event/geo-pricing')} style={styles.flex} />
         ) : (
-          <ActionButton label="Explore events" icon="compass-outline" compact onPress={() => setExploreOpen(true)} style={styles.flex} />
+        <ActionButton label="Explore events" icon="compass-outline" compact onPress={() => setExploreOpen(true)} style={styles.flex} />
         )}
       </View>
 
@@ -215,7 +217,7 @@ export function ClientEventsDashboard({
               setSearch(t);
               resetPaging();
             }}
-            placeholder="Search events"
+            placeholder={tr('Search events')}
             placeholderTextColor={colors.textMuted}
             style={styles.searchInput}
             autoCapitalize="none"
@@ -241,21 +243,21 @@ export function ClientEventsDashboard({
 
       {events && events.length > 0 ? (
         <View style={styles.chartBlock}>
-          <StatusBreakdownCard segments={summary} centerLabel="events" summary="Your events by status" emptyText="No events yet." />
+        <StatusBreakdownCard segments={summary} centerLabel="events" summary="Your events by status" emptyText="No events yet." />
         </View>
       ) : null}
       <View style={styles.tabsBlock}>
-        <SegmentedTabs
-          label="Events layout"
-          value={layout}
-          onChange={setLayout}
-          tabs={[
-            { key: 'list', label: 'List' },
-            { key: 'month', label: 'Month' },
-            { key: 'week', label: 'Week' },
-            { key: 'agenda', label: 'Agenda' },
-          ]}
-        />
+      <SegmentedTabs
+        label="Events layout"
+        value={layout}
+        onChange={setLayout}
+        tabs={[
+          { key: 'list', label: 'List' },
+          { key: 'month', label: 'Month' },
+          { key: 'week', label: 'Week' },
+          { key: 'agenda', label: 'Agenda' },
+        ]}
+      />
       </View>
 
       {error && events ? (
@@ -362,7 +364,7 @@ export function ClientEventsDashboard({
           >
             <View style={styles.handle} />
             <Text style={styles.sheetTitle} accessibilityRole="header">
-              Sort events
+              {tr('Sort events')}
             </Text>
             {SORTS.map((s) => {
               const on = sort === s.key;
@@ -381,8 +383,8 @@ export function ClientEventsDashboard({
                 >
                   <Ionicons name={s.icon} size={20} color={on ? colors.primary : colors.textMuted} />
                   <View style={styles.flex}>
-                    <Text style={styles.sortLabel}>{s.label}</Text>
-                    <Text style={styles.sortDesc}>{s.description}</Text>
+                    <Text style={styles.sortLabel}>{tr(s.label)}</Text>
+                    <Text style={styles.sortDesc}>{tr(s.description)}</Text>
                   </View>
                   {on ? <Ionicons name="checkmark-circle" size={22} color={colors.primary} /> : null}
                 </Pressable>
@@ -481,24 +483,24 @@ function EventRow({
               <Text style={styles.coverDateText} numberOfLines={2}>
                 {whenText(event)}
               </Text>
-            </View>
+        </View>
             {live ? <LivePill label="Live now" size="xs" sparkle /> : <StatusBadge {...eventStatus(event)} />}
           </View>
 
           <View style={styles.coverBottom}>
             <View style={styles.coverTextCol}>
-              {modeOf(event.bookingMode) === 'HYBRID' ? (
+      {modeOf(event.bookingMode) === 'HYBRID' ? (
                 <View style={styles.modeBadgeWrap}>
-                  <ModeBadge mode="HYBRID" />
-                </View>
-              ) : null}
+          <ModeBadge mode="HYBRID" />
+        </View>
+      ) : null}
               <Text style={styles.cardTitle} numberOfLines={2}>
                 {event.title}
               </Text>
-            </View>
+      </View>
             <View style={styles.coverChevronCircle}>
               <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
-            </View>
+      </View>
           </View>
         </Pressable>
 
@@ -567,9 +569,9 @@ function MetaTile({
       <View style={styles.metaTileTextCol}>
         <Text style={styles.metaTileLabel}>{label}</Text>
         <Text style={styles.metaTileValue} numberOfLines={4}>
-          {text}
-        </Text>
-      </View>
+        {text}
+      </Text>
+    </View>
     </View>
   );
 }

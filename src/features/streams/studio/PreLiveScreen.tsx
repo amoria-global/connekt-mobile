@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraFacing } from '@/features/streams/CameraPublisher';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { fonts } from '@/theme';
 import { RoundButton } from './RoundButton';
 import { S, TOUCH } from './theme';
@@ -44,6 +45,7 @@ function Chip({
   off?: boolean;
   a11y: string;
 }) {
+  const { tr } = useSharedT();
   return (
     <Pressable
       onPress={onPress}
@@ -52,7 +54,7 @@ function Chip({
       accessibilityLabel={a11y}
     >
       <Ionicons name={icon} size={17} color={off ? '#FECACA' : S.text} />
-      <Text style={[styles.chipText, off && styles.chipTextOff]}>{label}</Text>
+      <Text style={[styles.chipText, off && styles.chipTextOff]}>{tr(label)}</Text>
     </Pressable>
   );
 }
@@ -83,6 +85,7 @@ function PreLiveScreenBase({
   onGoLive,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { tr } = useSharedT();
   const phone = mode === 'browser';
   // Same rule as the web studio: with the phone camera as the source, GO LIVE is
   // only offered once the feed is publishing (the web calls this the encoder
@@ -119,7 +122,7 @@ function PreLiveScreenBase({
         <RoundButton icon="chevron-back" label="Back" onPress={onBack} size={44} />
         <View style={styles.ready} accessible accessibilityLabel={readiness}>
           <View style={[styles.readyDot, { backgroundColor: ready && (cameraRunning || !phone) ? S.ok : S.warn }]} />
-          <Text style={styles.readyText}>{readiness}</Text>
+          <Text style={styles.readyText}>{tr(readiness)}</Text>
         </View>
         {phone ? (
           <RoundButton
@@ -144,7 +147,7 @@ function PreLiveScreenBase({
         ]}
         pointerEvents="box-none"
       >
-        <Text style={styles.titleLabel}>LIVE TITLE</Text>
+        <Text style={styles.titleLabel}>{tr('LIVE TITLE')}</Text>
         <Text style={styles.title} numberOfLines={2}>
           {eventTitle}
         </Text>
@@ -206,12 +209,12 @@ function PreLiveScreenBase({
           {busy ? (
             <>
               <ActivityIndicator color="#fff" />
-              <Text style={styles.goText}>Preparing your LIVE…</Text>
+              <Text style={styles.goText}>{tr('Preparing your LIVE…')}</Text>
             </>
           ) : (
             <>
               <Ionicons name="radio" size={22} color="#fff" />
-              <Text style={styles.goText}>GO LIVE</Text>
+              <Text style={styles.goText}>{tr('GO LIVE')}</Text>
             </>
           )}
         </Pressable>
