@@ -87,7 +87,7 @@ const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not give memo hooks a new array every render. */
 const EMPTY: never[] = [];
 
-function longDate(now = new Date()): string {
+function longDate(lang?: string, now = new Date()): string {
   try {
     const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : lang === 'rw' ? 'rw-RW' : lang === 'sw' ? 'sw-TZ' : undefined;
     return now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
