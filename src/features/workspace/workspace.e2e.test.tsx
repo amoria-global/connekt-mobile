@@ -5,7 +5,7 @@ import { Text, TextInput } from 'react-native';
 
 /**
  * The REAL mobile client code against the REAL backend pipeline (real security chain, really signed tokens, real
- * controllers: see the backend's WorkspaceClientsIT). It does nothing unless that test starts the server and sets
+ * controllers: see the backend's WorkspaceClientsCheck). It does nothing unless that test starts the server and sets
  * WS_E2E_URL: it seeds the accounts, runs this file once per phase (alternating with the web client, so an invitation
  * sent from one client is answered from the other), then checks the database.
  *
