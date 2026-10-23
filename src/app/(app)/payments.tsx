@@ -87,6 +87,7 @@ function PaymentsContent() {
   useCurrency((s) => s.currency);
   const { colors, gradients } = useTheme();
   const styles = useStyles();
+  const { tr } = useSharedT();
   const clearance = useStackClearance();
   const router = useRouter();
   const { role, isCoordinator } = useRole();

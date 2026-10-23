@@ -52,6 +52,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { useLanguage } from '@/store/language';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
@@ -70,6 +71,7 @@ type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 export default function WalletScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
+  const { language } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const clearance = useTabBarClearance();
