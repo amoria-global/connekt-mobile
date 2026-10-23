@@ -105,6 +105,7 @@ export default function ProfileScreen() {
     isDownloading: isDownloadingUpdate,
     currentVersion,
     checkForUpdates,
+    previewUpdateScreen,
   } = useAppUpdates();
 
   const handleCheckUpdate = async () => {
@@ -113,7 +114,10 @@ export default function ProfileScreen() {
       Alert.alert(
         'Connekyt Updates',
         result.message || `You are using the latest version of Connekyt (v${currentVersion}).`,
-        [{ text: 'OK' }]
+        [
+          { text: 'Review Update Screen', onPress: () => previewUpdateScreen(true) },
+          { text: 'OK', style: 'cancel' },
+        ],
       );
     }
   };
@@ -642,6 +646,7 @@ export default function ProfileScreen() {
               <Pressable
                 style={styles.menuItemRow}
                 onPress={handleCheckUpdate}
+                onLongPress={() => previewUpdateScreen(true)}
                 disabled={isCheckingUpdate || isDownloadingUpdate}
               >
                 <View style={styles.menuItemLeft}>
