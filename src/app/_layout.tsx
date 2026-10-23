@@ -12,6 +12,8 @@ import {
 } from '@expo-google-fonts/pragati-narrow';
 import { useAuth } from '@/store/auth';
 import { takePendingScanEvent } from '@/features/events/scanIntent';
+import { isPhotographerType } from '@/features/auth/role';
+import { takePendingInviteHref } from '@/features/workspace/pendingInvite';
 import { useCurrency } from '@/store/currency';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdatePromptModal } from '@/features/updates';
@@ -140,14 +142,25 @@ function useProtectedRoute() {
 
     // A scanned event QR outranks the default landing screen: once terms and
     // sign-in are out of the way, deliver the viewer to the event they scanned.
-    const goOr = (fallback: string) => {
-      takePendingScanEvent()
-        .catch(() => null)
-        .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}?src=qr` : fallback) as Href));
+    const goOr = (fallback: string, signedIn = false) => {
+      // A workspace invitation the person signed up or in for outranks everything else: it is why they are here. Only
+      // taken once signed in, so it is not spent on the way to the sign-in screen.
+      const invite = signedIn
+        ? takePendingInviteHref(isPhotographerType(useAuth.getState().user?.customerType)).catch(() => null)
+        : Promise.resolve<string | null>(null);
+      invite.then((href) => {
+        if (href) {
+          router.replace(href as Href);
+          return;
+        }
+        takePendingScanEvent()
+          .catch(() => null)
+          .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}?src=qr` : fallback) as Href));
+      });
     };
 
     if (status === 'authenticated') {
-      if (inAuthGroup || inOnboarding) goOr('/');
+      if (inAuthGroup || inOnboarding) goOr('/', true);
       return;
     }
 

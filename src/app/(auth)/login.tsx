@@ -44,6 +44,9 @@ import {
 } from "react-native";
 import { z } from "zod";
 import { GlassOnMedia, glassTile } from '@/components/ui/GlassCard';
+import { InviteNotice } from '@/features/workspace/InviteNotice';
+import { InvitePaste } from '@/features/workspace/InvitePaste';
+import { useInvitePlan } from '@/features/workspace/useInvitePlan';
 import { useVideoPlayer, VideoView } from "expo-video";
 
 const FIND_PHOTOS_VIDEO = require('../../../assets/images/screen3.mp4');
@@ -81,7 +84,11 @@ export default function LoginScreen() {
     email?: string;
     firstName?: string;
     lastName?: string;
+    invite?: string;
   }>();
+  // A workspace invitation this screen was opened for (link, paste or an earlier screen). A person with no account is
+  // sent on to sign up as a photographer with the invited address; one with an account gets it filled in here.
+  const invite = useInvitePlan(params.invite);
   const [serverError, setServerError] = useState<string | null>(null);
   const { t } = useLanguage();
   const [roleSheetVisible, setRoleSheetVisible] = useState(false);
@@ -144,6 +151,7 @@ export default function LoginScreen() {
         ...(prefilledProfile?.lastName
           ? { lastName: prefilledProfile.lastName }
           : {}),
+        ...(role === "Photographer" && invite.id ? { invite: invite.id } : {}),
       },
     });
   };
@@ -152,11 +160,24 @@ export default function LoginScreen() {
     control,
     handleSubmit,
     getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
+
+  const invitePlan = invite.plan;
+  useEffect(() => {
+    if (!invitePlan || !invite.id) return;
+    if (invitePlan.requireSignup) {
+      // No account uses the invited address: there is nothing to sign in to, so go to sign up.
+      router.replace({ pathname: "/signup", params: { role: "Photographer", invite: invite.id } });
+      return;
+    }
+    if (invitePlan.view === "login" && invitePlan.email) setValue("email", invitePlan.email);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invitePlan?.key]);
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
@@ -297,6 +318,8 @@ export default function LoginScreen() {
           </View>
         ) : null}
 
+        {invitePlan ? <InviteNotice plan={invitePlan} /> : null}
+
         <View style={styles.fields}>
           <Controller
             control={control}
@@ -398,6 +421,8 @@ export default function LoginScreen() {
             }}
           />
         </View>
+
+        <InvitePaste onAdopt={invite.adopt} />
 
       </AuthGlassLayout>
 
