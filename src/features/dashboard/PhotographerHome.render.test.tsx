@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
 import { photographerAnalytics } from '@/test/analyticsPayloads';
+import { useWorkspace } from '@/store/workspace';
 
 /**
  * RENDERED screen (react-test-renderer under jest-expo, not a device): the real
@@ -129,6 +130,7 @@ beforeEach(() => {
   mockGet.mockReset();
   mockPush.mockReset();
   useCurrency.setState({ currency: 'USD', currencies: DEFAULT_CURRENCIES });
+  useWorkspace.setState({ hydrated: true, activeId: null, memberships: [], loading: false });
 });
 
 describe('photographer home as rendered', () => {
@@ -197,6 +199,33 @@ describe('photographer home as rendered', () => {
     const text = flat(r.root);
     expect(text).toContain('No reviews yet');
     expect(text).not.toContain('5.0 / 5');
+  });
+});
+
+describe('photographer home inside someone else\x27s workspace', () => {
+  it('shows balance and analytics but never asks for, or shows, the transaction history', async () => {
+    useWorkspace.setState({ activeId: '3f2a9c1e-5b7d-4c8e-9a10-0b1c2d3e4f50' });
+    serve({ transactions: ok([{ id: 't1', amount: 120, status: 'COMPLETED', eventName: 'Secret wedding', createdAt: '2026-10-01T10:00:00' }]) });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/photographer/transactions'))).toBe(false);
+    expect(text).not.toContain('Recent earnings');
+    expect(text).not.toContain('Secret wedding');
+    // The balance and the analytics are still there: a collaborator may see them.
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/wallet/me'))).toBe(true);
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/photographer/analytics'))).toBe(true);
+    // The wallet card does not open the wallet screen, which is not part of a shared workspace.
+    const card = r.root.findAll((n) => n.props?.accessibilityHint === 'Opens your wallet');
+    expect(card.every((n) => n.props.onPress === undefined)).toBe(true);
+    // No shortcut to album collaboration either.
+    expect(text).not.toContain('Other photographers');
+  });
+
+  it('in the photographer own workspace the history is asked for and shown', async () => {
+    serve({ transactions: ok([{ id: 't1', amount: 120, status: 'COMPLETED', eventName: 'Kigali Launch', createdAt: '2026-10-01T10:00:00' }]) });
+    const r = await mount();
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/photographer/transactions'))).toBe(true);
+    expect(flat(r.root)).toContain('Recent earnings');
   });
 });
 

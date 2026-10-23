@@ -193,6 +193,31 @@ describe('mobile album collaboration against the backend contract', () => {
 });
 
 /**
+ * Photographer workspace invitations. The client builds every path on a BASE constant, so substitute it before
+ * extracting. Both the owner side (lookup, invite, resend, cancel, revoke) and the invited side (list, answer, leave,
+ * switch) must hit routes the backend has.
+ */
+describe('mobile workspace invitations against the backend contract', () => {
+  const calls = callsIn('src/features/workspace/api.ts', (src) => src.replace(/\$\{BASE\}/g, '/photographer/workspaces'));
+
+  it('finds both sides of the workflow', () => {
+    const paths = calls.map((c) => `${c.method} ${c.path}`);
+    expect(paths).toContain('GET /api/remote/photographer/workspaces/lookup');
+    expect(paths).toContain('POST /api/remote/photographer/workspaces/invitations');
+    expect(paths).toContain('POST /api/remote/photographer/workspaces/invitations/X/resend');
+    expect(paths).toContain('DELETE /api/remote/photographer/workspaces/invitations/X');
+    expect(paths).toContain('POST /api/remote/photographer/workspaces/invitations/X/revoke');
+    expect(paths).toContain('POST /api/remote/photographer/workspaces/received/X/accept');
+    expect(paths).toContain('POST /api/remote/photographer/workspaces/received/X/leave');
+    expect(paths).toContain('GET /api/remote/photographer/workspaces/mine');
+  });
+
+  it('every workspace path exists on the backend', () => {
+    expect(calls.filter((c) => !matches(c)).map((c) => `${c.method} ${c.path}`)).toEqual([]);
+  });
+});
+
+/**
  * Dedicated role endpoints: Photographer Payments, Coordinator Clients,
  * and single-item detail routes.
  */

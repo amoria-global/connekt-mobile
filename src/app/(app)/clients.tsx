@@ -18,6 +18,7 @@ import { useRole } from '@/features/auth/role';
 import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 
 export default function ClientsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
@@ -27,6 +28,8 @@ export default function ClientsScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   const { isCoordinator } = useRole();
+  // Chat is not part of a shared workspace (messages would go out as the owner), so the message button is not offered.
+  const isShared = useWorkspace(selectIsShared);
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => listClients(isCoordinator), [isCoordinator]),
   );
@@ -102,7 +105,7 @@ export default function ClientsScreen() {
                             {formatPrice(item.totalSpent, item.currency)}
                           </Text>
                         ) : null}
-                        <Pressable
+                        {isShared ? null : <Pressable
                           hitSlop={8}
                           style={styles.chatAction}
                           onPress={(e) => {
@@ -113,7 +116,7 @@ export default function ClientsScreen() {
                           accessibilityLabel={t('b2_clientsMessageA11y').replace('{name}', item.name)}
                         >
                           <Ionicons name="chatbubble-ellipses-outline" size={19} color={colors.primary} />
-                        </Pressable>
+                        </Pressable>}
                       </View>
                     }
                   />

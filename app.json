@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-23-workspace-access",
+            "date": "2026-10-23",
+            "title": "Work together in one workspace",
+            "items": [
+              {
+                "icon": "people-outline",
+                "title": "Invite another photographer into your workspace",
+                "body": "In Collaborate, open Workspace access, find a photographer by their email and send an invitation. Once they accept, they can handle your bookings, clients, events and opportunities with you, and you can remove their access at any time."
+              },
+              {
+                "icon": "swap-horizontal-outline",
+                "title": "Switch between your workspace and one you were invited to",
+                "body": "If another photographer invites you, accept it in Collaborate, then pick their workspace from the chip at the top. You see their balance and analytics, but withdrawals and the transaction history stay with the owner, and your own account stays separate."
+              }
+            ]
+          },
+          {
             "id": "2026-10-22-coordinator-calendar",
             "date": "2026-10-22",
             "title": "A Calendar for event coordinators",
@@ -192,23 +209,6 @@
                 "icon": "wallet-outline",
                 "title": "Clients now see the balance ring too",
                 "body": "The client wallet Analytics tab now shows the same ring as the photographer and event coordinator wallets, built from your balance, refunds, tips, gifts, donations and what is still processing."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-22-coordinator-wallet-analytics",
-            "date": "2026-10-22",
-            "title": "Analytics in the event coordinator wallet",
-            "items": [
-              {
-                "icon": "stats-chart-outline",
-                "title": "A new Analytics tab in your wallet",
-                "body": "The event coordinator wallet now has the same Analytics tab as the photographer wallet, with your available balance, what is still processing, and a chart of where your balance comes from."
-              },
-              {
-                "icon": "trending-up-outline",
-                "title": "Events and revenue by period",
-                "body": "Pick Today, Week or Month to see how many events and photographers you worked with, a revenue trend, and the number of events in each interval, all compared with the previous period."
               }
             ]
           }
