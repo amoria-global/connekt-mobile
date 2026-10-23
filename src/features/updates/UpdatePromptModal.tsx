@@ -13,7 +13,7 @@
  * change with a title and a plain description. An update published without notes says so rather than implying detail.
  */
 import React, { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, radii, fonts } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { countItems, type Release } from './releaseNotes';
-import { updateNow, useAppUpdates, useUpdateChecks } from './useAppUpdates';
+import { previewUpdateScreen, updateNow, useAppUpdates, useUpdateChecks } from './useAppUpdates';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 const DEFAULT_ICON: IconName = 'sparkles-outline';
@@ -72,7 +72,7 @@ export function releaseDate(d?: string): string | undefined {
 }
 
 export function UpdatePromptModal() {
-  const { blocking, updateReady, isDownloading, isChecking, downloadProgress, errorMessage, currentVersion, releases } =
+  const { blocking, updateReady, isDownloading, isChecking, downloadProgress, errorMessage, currentVersion, releases, isPreview } =
     useAppUpdates();
   const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
@@ -88,6 +88,17 @@ export function UpdatePromptModal() {
   const changes = countItems(releases);
 
   const handleUpdate = async () => {
+    if (isPreview) {
+      Alert.alert(
+        'Update Preview',
+        'In production, tapping "Update now" downloads the latest bundle and restarts into the updated app.',
+        [
+          { text: 'Exit Preview', onPress: () => previewUpdateScreen(false) },
+          { text: 'Stay in Preview', style: 'cancel' },
+        ],
+      );
+      return;
+    }
     if (busy) return;
     setWorking(true);
     try {
@@ -107,6 +118,22 @@ export function UpdatePromptModal() {
     >
       <View style={[styles.root, { paddingTop: Math.max(insets.top, spacing.lg) }]}>
         <Glows />
+        {isPreview ? (
+          <View style={styles.previewBar}>
+            <View style={styles.previewTag}>
+              <Text style={styles.previewTagText}>PREVIEW MODE</Text>
+            </View>
+            <Pressable
+              onPress={() => previewUpdateScreen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Exit preview"
+              style={styles.exitPreviewBtn}
+            >
+              <Ionicons name="close-circle" size={16} color="#FFFFFF" />
+              <Text style={styles.exitPreviewText}>Exit</Text>
+            </Pressable>
+          </View>
+        ) : null}
         <Text style={styles.brand} accessibilityRole="header">
           CONNE<Text style={styles.brandAccent}>KYT</Text>
         </Text>
@@ -268,4 +295,45 @@ const styles = StyleSheet.create({
   footnote: { fontSize: 12, fontFamily: fonts.regular, color: MUTED, textAlign: 'center', lineHeight: 17 },
   btnDisabled: { opacity: 0.7 },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  previewBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xs,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  previewTag: {
+    backgroundColor: 'rgba(43, 217, 240, 0.2)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+  },
+  previewTagText: {
+    color: CYAN,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    fontFamily: fonts.bold,
+  },
+  exitPreviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  exitPreviewText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: fonts.bold,
+  },
 });

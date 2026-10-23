@@ -21,7 +21,7 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { create } from 'zustand';
-import { releasesToShow, type Release } from './releaseNotes';
+import { installedReleases, releasesToShow, type Release } from './releaseNotes';
 
 // Types only — no runtime top-level native import to stay safe across platforms & test runners.
 type UpdatesModule = typeof import('expo-updates');
@@ -73,6 +73,7 @@ export interface AppUpdatesState {
   updateId: string | null;
   channel: string | null;
   isEmbeddedLaunch: boolean;
+  isPreview?: boolean;
   /** What the downloaded update changes, newest first. Empty when the update carries no notes. */
   releases: Release[];
   setStatus: (status: UpdateStatus) => void;
@@ -103,6 +104,7 @@ export const useUpdatesStore = create<AppUpdatesState>((set) => ({
   updateId: null,
   channel: null,
   isEmbeddedLaunch: true,
+  isPreview: false,
   releases: [],
 
   setStatus: (status) => set({ status }),
@@ -191,9 +193,9 @@ function initNativeListener() {
  * not block anyone.
  */
 export function isUpdateBlocking(
-  s: Pick<AppUpdatesState, 'updateReady' | 'isDownloading' | 'isUpdateAvailable' | 'isChecking' | 'errorMessage'>,
+  s: Pick<AppUpdatesState, 'updateReady' | 'isDownloading' | 'isUpdateAvailable' | 'isChecking' | 'errorMessage'> & { isPreview?: boolean },
 ) {
-  return s.updateReady || s.isDownloading || (s.isUpdateAvailable && (!!s.errorMessage || s.isChecking));
+  return !!s.isPreview || s.updateReady || s.isDownloading || (s.isUpdateAvailable && (!!s.errorMessage || s.isChecking));
 }
 
 let checking = false;
@@ -312,6 +314,39 @@ export async function updateNow(): Promise<void> {
   await applyUpdate();
 }
 
+/**
+ * Preview the update screen in-app without needing a native EAS build.
+ */
+export function previewUpdateScreen(enabled = true) {
+  const store = useUpdatesStore.getState();
+  if (!enabled) {
+    store.setStatus('idle');
+    store.setUpdateReady(false);
+    store.setUpdateAvailable(false);
+    useUpdatesStore.setState({ isPreview: false });
+    return;
+  }
+  const notes = installedReleases();
+  useUpdatesStore.setState({
+    isPreview: true,
+    updateReady: true,
+    isUpdateAvailable: true,
+    status: 'ready',
+    releases: notes.length > 0 ? notes : [
+      {
+        id: '2026-10-24-preview',
+        date: '2026-10-24',
+        title: "What's new in Connekyt",
+        items: [
+          { title: 'Full Swahili & Kinyarwanda Support', body: 'Experience Connekyt in your preferred language across all mobile features.', icon: 'globe-outline' },
+          { title: 'Follow Collaborators’ Progress', body: 'Track each collaborator’s progress on shared albums in real time.', icon: 'people-outline' },
+          { title: 'Night-Studio Hub & Trends', body: 'Crisp high-contrast dashboard surfaces and organic wave performance trends.', icon: 'trending-up-outline' },
+        ],
+      },
+    ],
+  });
+}
+
 export function useAppUpdates() {
   const store = useUpdatesStore();
 
@@ -319,7 +354,7 @@ export function useAppUpdates() {
     initNativeListener();
   }, []);
 
-  return { ...store, checkForUpdates, applyUpdate, updateNow, blocking: isUpdateBlocking(store) };
+  return { ...store, checkForUpdates, applyUpdate, updateNow, previewUpdateScreen, blocking: isUpdateBlocking(store) };
 }
 
 /**
