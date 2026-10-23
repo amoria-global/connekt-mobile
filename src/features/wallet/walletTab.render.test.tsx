@@ -4,6 +4,7 @@ import { ScrollView, Text } from 'react-native';
 
 import WalletScreen from '@/app/(app)/(tabs)/wallet';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
+import { useWorkspace } from '@/store/workspace';
 
 /**
  * RENDERED screen (react-test-renderer under jest-expo, NOT a device or
@@ -355,5 +356,43 @@ describe('client wallet sections', () => {
     serve('wallet-me-client.json', 'wallet-movements-client.json');
     const r = await mount();
     expect(flat(r.root)).toContain('Nothing to pay');
+  });
+});
+
+describe('photographer wallet inside someone else\x27s workspace', () => {
+  beforeEach(() => {
+    useWorkspace.setState({ hydrated: true, activeId: '3f2a9c1e-5b7d-4c8e-9a10-0b1c2d3e4f50', memberships: [], loading: false });
+  });
+  afterEach(() => {
+    useWorkspace.setState({ activeId: null });
+  });
+
+  it('shows the balance overview and analytics, but no withdraw button, no activity tab and no ledger request', async () => {
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const r = await mount();
+    await reveal(r);
+    const text = flat(r.root);
+    expect(text).toContain('$95.50');
+    expect(text).not.toContain('Withdraw funds');
+    expect(text).toContain('Withdrawals and the transaction history stay with the workspace owner');
+    const tabs = r.root.findAll((n) => n.props?.accessibilityRole === 'tab').flatMap((n) => n.findAllByType(Text).map((t) => t.props.children));
+    expect(tabs).toEqual(expect.arrayContaining(['Overview', 'Analytics']));
+    expect(tabs).not.toContain('Activity');
+    // The transaction history is never asked for, and its shortcuts are not offered.
+    expect(mockGetOk.mock.calls.some((c) => String(c[0]).startsWith('/wallet/me/movements'))).toBe(false);
+    expect(text).not.toContain('Transactions');
+    expect(text).not.toContain('Payment accounts');
+    expect(text).not.toContain('Recent activity');
+  });
+});
+
+describe('photographer wallet in the own workspace after a shared one', () => {
+  it('has the withdraw button, the activity tab and the ledger request', async () => {
+    useWorkspace.setState({ activeId: null });
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const r = await mount();
+    await reveal(r);
+    expect(flat(r.root)).toContain('Withdraw funds');
+    expect(mockGetOk.mock.calls.some((c) => String(c[0]).startsWith('/wallet/me/movements'))).toBe(true);
   });
 });

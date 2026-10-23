@@ -9,11 +9,14 @@ import { InAppNotificationWatcher } from '@/features/notifications/InAppNotifica
 import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCallNotifier';
 import { showIncomingRequest } from '@/features/bookings/incomingRequests';
 import { useRole } from '@/features/auth/role';
+import { isBlockedInSharedWorkspace } from '@/features/workspace/model';
+import { WorkspaceChip } from '@/features/workspace/WorkspaceChip';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { useLanguage } from '@/store/language';
 import { setAudioModeAsync } from '@/utils/safeAudio';
 import { DialogHost } from '@/components/ui/dialog';
 import { useTheme } from '@/theme';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, View } from 'react-native';
@@ -23,6 +26,23 @@ export default function AppLayout() {
   const { t } = useLanguage();
   const router = useRouter();
   const { isPhotographer } = useRole();
+  const pathname = usePathname();
+  // Which workspace the photographer is working in. Everything below is keyed by it, so a switch remounts the whole
+  // signed-in app and nothing from one workspace can show up in the other.
+  const hydrated = useWorkspace((s) => s.hydrated);
+  const activeId = useWorkspace((s) => s.activeId);
+  const isShared = useWorkspace(selectIsShared);
+  const hydrate = useWorkspace((s) => s.hydrate);
+  const refreshWorkspaces = useWorkspace((s) => s.refresh);
+
+  useEffect(() => { void hydrate(); }, [hydrate]);
+  useEffect(() => {
+    if (hydrated && isPhotographer) void refreshWorkspaces();
+  }, [hydrated, isPhotographer, refreshWorkspaces]);
+  // Money, account and notification screens are not part of a shared workspace: a deep link or a stale route goes home.
+  useEffect(() => {
+    if (isShared && isBlockedInSharedWorkspace(pathname)) router.replace('/');
+  }, [isShared, pathname, router]);
 
   // Signed-in: register for push notifications and route taps. The (app)
   // group only mounts once authenticated, so this runs at the right time.
@@ -101,10 +121,14 @@ export default function AppLayout() {
     return unsubscribe;
   }, [router]);
 
+  // Until the stored selection is read, paint nothing: the wrong workspace must never flash.
+  if (!hydrated) return <View style={{ flex: 1, backgroundColor: c.background }} />;
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }} key={activeId ?? 'own'}>
       <Stack
         screenOptions={{
+          headerRight: () => <WorkspaceChip />,
           // Elevated surface headers — same chrome combo as TopBar /
           // PersistentBottomBar so light and dark stay consistent.
           // Dark uses the card step and the link blue, exactly as TopBar does, so a pushed screen's header does not jump
