@@ -137,7 +137,7 @@ const only = (phase: string) => (BASE && PHASE === phase ? it : it.skip);
 describe('mobile client against the real backend', () => {
   only('invite')('the owner invites a photographer through the Workspace access panel', async () => {
     const r = await mountPanel();
-    expect(text(r.root)).toContain('Let another photographer work in your workspace');
+    expect(text(r.root)).toContain('What they can and cannot do');
     await typeInto(r, 'Their email', MEMBER_EMAIL);
     await tap(r, 'Find photographer');
     await waitForText(r, MEMBER_NAME);
