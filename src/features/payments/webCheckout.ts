@@ -18,14 +18,18 @@
 import * as WebBrowser from 'expo-web-browser';
 import { api } from '@/api/client';
 import { env } from '@/config/env';
+import { useLanguage } from '@/store/language';
 
 type ApiEnvelope<T> = { action?: number; message?: string; data?: T };
 
 export type HandoffType = 'BOOKING_DECLARATION' | 'ARCHIVE';
 
-/** Opens a connekyt.com path in the in-app browser. */
+/** Opens a connekyt.com path in the in-app browser, forwarding the active app language. */
 export async function openWebCheckout(path: string): Promise<void> {
-  const url = path.startsWith('http') ? path : `${env.webBaseUrl}${path}`;
+  const base = path.startsWith('http') ? path : `${env.webBaseUrl}${path}`;
+  const lang = useLanguage.getState().language;
+  const sep = base.includes('?') ? '&' : '?';
+  const url = /[?&](?:lang|locale)=/.test(base) ? base : `${base}${sep}lang=${encodeURIComponent(lang)}`;
   await WebBrowser.openBrowserAsync(url);
 }
 

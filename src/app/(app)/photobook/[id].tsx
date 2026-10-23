@@ -184,6 +184,15 @@ const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
 
 const PhotoGap = () => <View style={{ height: 3 }} />;
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const PB_DETAIL_RW = buildKinyarwandaDict(I18N.en, {
+  counterOf: (idx: number, total: number) => `${idx} kuri ${total}`,
+});
+const PB_DETAIL_SW = buildSwahiliDict(I18N.en, {
+  counterOf: (idx: number, total: number) => `${idx} kati ya ${total}`,
+});
+
 export default function PhotobookDetailScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
@@ -198,7 +207,7 @@ export default function PhotobookDetailScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { language } = useLanguage();
-  const tr = I18N[language] || I18N.en;
+  const tr = language === 'rw' ? PB_DETAIL_RW : language === 'sw' ? PB_DETAIL_SW : (I18N as any)[language] || I18N.en;
 
   const statusMetaMap: Record<string, { label: string; bg: string; fg: string }> = useMemo(
     () => ({

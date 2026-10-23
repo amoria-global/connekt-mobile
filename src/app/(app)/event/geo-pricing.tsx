@@ -192,13 +192,18 @@ const I18N = {
   },
 } as const;
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const GEO_RW = buildKinyarwandaDict(I18N.en);
+const GEO_SW = buildSwahiliDict(I18N.en);
+
 export default function GeoPricingScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
   const { language } = useLanguage();
-  const tx = I18N[language] ?? I18N.en;
+  const tx = language === 'rw' ? GEO_RW : language === 'sw' ? GEO_SW : (I18N as any)[language] ?? I18N.en;
   const { eventId, packageId } = useLocalSearchParams<{ eventId?: string; packageId?: string }>();
   const { isCoordinator } = useRole();
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(eventId);

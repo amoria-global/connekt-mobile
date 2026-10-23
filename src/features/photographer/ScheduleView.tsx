@@ -10,6 +10,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import type { EventItem } from '@/features/events/types';
 import { formatDate } from '@/utils/format';
 import { eventStatus } from '@/features/events/clientEventsModel';
@@ -103,6 +104,7 @@ export function ScheduleView({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const today = dayKey(new Date());
   const [ownMode, setOwnMode] = useState<Mode>('week');
   const controlled = controlledMode !== undefined;
@@ -273,7 +275,7 @@ export function ScheduleView({
               {agendaGroups.slice(0, agendaDays).map(([day, list]) => (
                 <View key={day} style={styles.group}>
                   <Text style={styles.dayHeading} accessibilityRole="header">
-                    {day === today ? 'Today · ' : ''}
+                    {day === today ? tr('Today · ') : ''}
                     {formatDate(day)}
                   </Text>
                   {list.map((e) => (
@@ -354,53 +356,54 @@ function AgendaRow({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const isClient = variant === 'client';
   const live = isClient && isLiveNow(event);
   const bucket = bucketOf(event);
   const status = isClient ? eventStatus(event) : STATUS[bucket];
-  const time = event.startTime ? clock12(event.startTime) : 'All day';
+  const time = event.startTime ? clock12(event.startTime) : tr('All day');
   const range = event.startTime && event.endTime ? `${clock12(event.startTime)} to ${clock12(event.endTime)}` : time;
   const meta = [isClient ? event.photographerName : event.clientName, event.location].filter(Boolean).join(' · ');
   return (
     <LiveTwinkle active={live} radius={radii.lg}>
-      <View style={styles.row}>
-        <Pressable
-          onPress={() => onOpen(event)}
-          accessibilityRole="button"
+    <View style={styles.row}>
+      <Pressable
+        onPress={() => onOpen(event)}
+        accessibilityRole="button"
           accessibilityLabel={`${event.title}, ${range}, ${live ? 'Live now' : status.label}${conflict ? ', possible schedule conflict' : ''}`}
-          style={styles.rowMain}
-        >
-          <Text style={styles.time}>{time}</Text>
-          {event.coverImage ? (
-            <Image source={{ uri: event.coverImage }} style={styles.thumb} contentFit="cover" accessibilityIgnoresInvertColors />
-          ) : null}
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle} numberOfLines={2}>
-              {event.title || (isClient ? 'Event' : 'Photo shoot')}
-            </Text>
-            {meta ? (
+        style={styles.rowMain}
+      >
+        <Text style={styles.time}>{time}</Text>
+        {event.coverImage ? (
+          <Image source={{ uri: event.coverImage }} style={styles.thumb} contentFit="cover" accessibilityIgnoresInvertColors />
+        ) : null}
+        <View style={styles.rowText}>
+          <Text style={styles.rowTitle} numberOfLines={2}>
+            {event.title || tr(isClient ? 'Event' : 'Photo shoot')}
+          </Text>
+          {meta ? (
               <Text style={styles.rowMeta} numberOfLines={2}>
-                {meta}
-              </Text>
-            ) : null}
-            <View style={styles.badges}>
+              {meta}
+            </Text>
+          ) : null}
+          <View style={styles.badges}>
               {live ? <LivePill label="Live now" size="xs" sparkle /> : <StatusBadge label={status.label} tone={status.tone} />}
-              {conflict ? <StatusBadge label="May overlap another shoot" tone="warning" icon="warning" /> : null}
-            </View>
+            {conflict ? <StatusBadge label="May overlap another shoot" tone="warning" icon="warning" /> : null}
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-        </Pressable>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      </Pressable>
         {live ? (
           <View style={styles.rowActions}>
             <LiveButton label="Watch live" size="sm" icon="play" onPress={() => onOpen(event)} style={styles.grow} />
           </View>
         ) : bucket === 'pending' && !isClient ? (
-          <View style={styles.rowActions}>
-            <ActionButton label="Accept" variant="primary" busy={busy} onPress={() => onAccept(event)} style={styles.grow} />
-            <ActionButton label="Decline" busy={busy} onPress={() => onDecline(event)} style={styles.grow} />
-          </View>
-        ) : null}
-      </View>
+        <View style={styles.rowActions}>
+          <ActionButton label="Accept" variant="primary" busy={busy} onPress={() => onAccept(event)} style={styles.grow} />
+          <ActionButton label="Decline" busy={busy} onPress={() => onDecline(event)} style={styles.grow} />
+        </View>
+      ) : null}
+    </View>
     </LiveTwinkle>
   );
 }

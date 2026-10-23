@@ -156,13 +156,18 @@ const NCA_I18N = {
   },
 } as const;
 
+import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
+import { buildSwahiliDict } from '@/i18n/swahili';
+const NCA_RW = buildKinyarwandaDict(NCA_I18N.en);
+const NCA_SW = buildSwahiliDict(NCA_I18N.en);
+
 export default function NewContentAlbumScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
-  const s = NCA_I18N[language] ?? NCA_I18N.en;
+  const s = language === 'rw' ? NCA_RW : language === 'sw' ? NCA_SW : (NCA_I18N as any)[language] ?? NCA_I18N.en;
 
   const schema = z.object({
     title: z.string().min(1, s.errTitle),

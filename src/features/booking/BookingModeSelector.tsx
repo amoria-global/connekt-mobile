@@ -39,11 +39,13 @@ import { createEvent } from '@/features/events/api';
 import { useRole } from '@/features/auth/role';
 import { useAuth, isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
+import { translateSharedRw } from '@/i18n/kinyarwanda';
+import { translateSharedSw } from '@/i18n/swahili';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
 
-const BMS_I18N: Record<'fr' | 'es', Record<string, string>> = {
+const BMS_I18N: Record<'fr' | 'es' | 'rw', Record<string, string>> = {
   fr: {
     'Could not load the event options.': "Impossible de charger les options de l'événement.",
     'Choose the type of event.': "Choisissez le type d'événement.",
@@ -230,6 +232,99 @@ const BMS_I18N: Record<'fr' | 'es', Record<string, string>> = {
     'End time': 'Hora de finalización',
     ' (next day)': ' (día siguiente)',
   },
+  rw: {
+    'Could not load the event options.': 'Ntibishobotse gufungura amahitamo y’igikorwa.',
+    'Choose the type of event.': 'Hitamo ubwoko bw’igikorwa.',
+    'Give your event a name.': 'Ha igikorwa cyawe izina.',
+    'Choose the event date.': 'Hitamo itariki y’igikorwa.',
+    'That date has passed. Choose a future date.': 'Iyo tariki yararenze. Hitamo itariki iri imbere.',
+    'That start time has passed. Choose a later time.': 'Iyo saha yo gutangira yararenze. Hitamo isaha iri imbere.',
+    'Add the venue or address so photographers know where to go.': 'Ongeraho aho bibera cyangwa aderesi kugira ngo abafotozi bamenye aho bajya.',
+    'Could not post your event. Please try again.': 'Ntibishobotse gutangaza igikorwa cyawe. Ongera ugerageze.',
+    "Couldn't count photographers right now": 'Ntibishobotse kubara abafotozi aka kanya',
+    'photographer fits right now': 'gafotozi ahuye n’ibisabwa ubu',
+    'photographers fit right now': 'abafotozi bahuye n’ibisabwa ubu',
+    'You can still continue; we check again when you post.': 'Ushobora gukomeza; tuzongera tugenzure nutangaza igikorwa.',
+    'of any type': 'b’ubwoko bwose',
+    'are studios': 'ni za sitidiyo',
+    'are freelancers': 'ni abigenga',
+    'any budget': 'ingengo y’imari yose',
+    'fit your budget': 'bahuye n’ingengo y’imari yawe',
+    'anywhere in Rwanda': 'ahari ho hose mu Rwanda',
+    'Try widening your request:': 'Gerageza kwagura ibyo usaba:',
+    'Include nearby cities': 'Ongeramo imijyi ya hafi',
+    'Anywhere in Rwanda': 'Ahari ho hose mu Rwanda',
+    'Any type': 'Ubwoko bwose',
+    'Any specialty': 'Umwihariko wose',
+    'Flexible budget': 'Ingengo y’imari ihinduka',
+    'Browse Photographers': 'Shakisha abafotozi',
+    Direct: 'Ako kanya',
+    'Look through portfolios, compare packages, and reach out directly to the photographer you want.': 'Reba ibikorwa byabo, gereranya amapaki, maze uvugishe gafotozi ushaka ako kanya.',
+    'See photos, reviews, and package prices': 'Reba amafoto, ibitekerezo, n’ibiciro by’amapaki',
+    'Message and book directly with the creator': 'Andikira kandi ufate umwanya ako kanya ku muhanzi',
+    'Post Your Event': 'Tangaza igikorwa cyawe',
+    Faster: 'Byihuse',
+    'Share your event date, location, and budget. Photographers who are free will reply, and you choose who you like.': 'Sangiza itariki, aho bibera, n’ingengo y’imari. Abafotozi baboneka bazagusubiza, uhitemo uwo ukunze.',
+    'Photographers who are actually free respond to you': 'Abafotozi baboneka koko nibo bagusubiza',
+    'Saves time — no need to message people one by one': 'Birokora igihe — ntukeneye kwandikira buri wese ukwe',
+    'Post My Event is paused right now. Use Find a Photographer to book directly.': 'Gutangaza igikorwa bihagaze gato. Koresha Shaka Gafotozi ufate umwanya ako kanya.',
+    'What kind of event is it?': 'Ni bwoko ki bw’igikorwa?',
+    'Event name': 'Izina ry’igikorwa',
+    'What guests and photographers will see.': 'Icyo abatumirwa n’abafotozi bazabona.',
+    'e.g. Birthday Celebration': 'urugero: Ibirori by’isabukuru',
+    'When is it?': 'Bizaba ryari?',
+    Tomorrow: 'Ejo hazaza',
+    'This Saturday': 'Ku wa Gatandatu utaha',
+    'Next Saturday': 'Ku wa Gatandatu ukurikira',
+    'Pick a date': 'Hitamo itariki',
+    Starts: 'Bitangira',
+    Ends: 'Birangira',
+    ' (+1 day)': ' (+umunsi 1)',
+    ' · ends next day': ' · birangira bucyeye',
+    City: 'Umujyi',
+    Country: 'Igihugu',
+    'Venue or address': 'Aho bibera cyangwa aderesi',
+    'A venue name, street or landmark.': 'Izina ry’ahantu, umuhanda cyangwa ikimenyetso.',
+    'e.g. Kigali Convention Centre': 'urugero: Kigali Convention Centre',
+    'Notes for photographers': 'Ibisobanuro ku bafotozi',
+    'Optional: shots you want, indoor or outdoor, dress code.': 'Si itegeko: amafoto wifuza, imbere cyangwa hanze, imyambarire.',
+    'Photographer type': 'Ubwoko bwa gafotozi',
+    Budget: 'Ingengo y’imari',
+    'Photographers whose packages fit this range are alerted.': 'Abafotozi bafite amapaki ajyanye n’iyi ngengo y’imari baramenyeshwa.',
+    'Photographer specialty': 'Umwihariko wa gafotozi',
+    'Choose one only if it must be a specialist.': 'Hitamo kimwe gusa niba ukeneye inzobere yihariye.',
+    'Where can the photographer come from?': 'Gafotozi ashobora kuva he?',
+    'Collect answers for': 'Kusanya ibisubizo mu gihe cya',
+    'After this, you choose from whoever said yes.': 'Nyuma y’ibi, uhitamo mu bavuze ko baboneka.',
+    EVENT: 'IGIKORWA',
+    WHEN: 'IGIHE',
+    WHERE: 'AHO BIBERA',
+    'LOOKING FOR': 'IBISHAKISHWA',
+    BUDGET: 'INGENGO Y’IMARI',
+    Flexible: 'Ihinduka',
+    'COLLECT ANSWERS FOR': 'KUSANYA IBISUBIZO MU GIHE CYA',
+    'What happens next': 'Igikurikiraho ni iki',
+    'Only photographers who said yes appear for you, grouped as top, good and possible matches, three of each.': 'Abafotozi bavuze ko baboneka bonyine nibo bagaragara, bagabanyije mu byiciro by’abahuye kurusha abandi.',
+    'You choose one and pay 50%, 70% or 100% upfront. Connekyt holds it until delivery.': 'Uhitamo umwe ukishyura 50%, 70% cyangwa 100% mbere. Connekyt iyabika kugeza amafoto atanzwe.',
+    'Your event stays private. It only appears publicly once a photographer is booked.': 'Igikorwa cyawe kiguma ari ibanga. Kigaragara ku mugaragaro gusa iyo gafotozi amaze kwemezwa.',
+    'Saved, but nobody fits right now': 'Byabitswe, ariko nta we uhuye n’ibisabwa aka kanya',
+    'Your event is saved privately. Post it again with a wider area or budget, or use Find a Photographer to book one yourself.': 'Igikorwa cyawe cyabitswe mu ibanga. Ongera ugitangaze waguye agace cyangwa ingengo y’imari, cyangwa ukoreshe Shaka Gafotozi.',
+    "We'll notify you each time a photographer says yes.": 'Tuzakumenyesha buri uko gafotozi avuze ko aboneka.',
+    'How would you like to book?': 'Urifuza gufata umwanya ute?',
+    'Tell us about your event': 'Tubwire ibyerekeye igikorwa cyawe',
+    'Who should we look for?': 'Dushakishe nde?',
+    'Review and post': 'Suzuma maze utangaze',
+    'Your event is posted': 'Igikorwa cyawe cyatangajwe',
+    'Pick someone yourself, or let available photographers come to you.': 'Hitamo uwo ushaka ubwawe, cyangwa ureke abafotozi baboneka bakugane.',
+    'Follow the answers': 'Kurikirana ibisubizo',
+    Done: 'Byarangiye',
+    Continue: 'Komeza',
+    'Widen your request first': 'Banza wagure ibyo usaba',
+    'Post and alert photographers': 'Tangaza kandi umenyeshe abafotozi',
+    'Start time': 'Isaha yo gutangira',
+    'End time': 'Isaha yo kurangira',
+    ' (next day)': ' (bucyeye)',
+  },
 };
 
 export type BookingStep = 'select' | 1 | 2 | 3;
@@ -298,7 +393,17 @@ export function BookingModeSelector({
 }: BookingModeSelectorProps) {
   const { colors, isDark } = useTheme();
   const { language } = useLanguage();
-  const tr = useCallback((s: string) => (language === 'en' ? s : BMS_I18N[language]?.[s] ?? s), [language]);
+  const tr = useCallback(
+    (s: string) =>
+      language === 'en'
+        ? s
+        : language === 'rw'
+        ? translateSharedRw(s)
+        : language === 'sw'
+        ? translateSharedSw(s)
+        : (BMS_I18N as Record<string, Record<string, string>>)[language]?.[s] ?? s,
+    [language],
+  );
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -553,17 +658,19 @@ export function BookingModeSelector({
                 ? `Disponibles pour toute la durée (${durationText(minutes) || 'événement'}). Vérifié à nouveau à la publication.`
                 : language === 'es'
                   ? `Libres durante todo el ${durationText(minutes) || 'evento'}. Se verifica de nuevo al publicar.`
-                  : `Free for the whole ${durationText(minutes) || 'event'}. Checked again when you post.`}
+                  : language === 'rw'
+                    ? `Baboneka igihe cyose (${durationText(minutes) || 'igikorwa'}). Byongera kugenzurwa nutangaza.`
+                    : `Free for the whole ${durationText(minutes) || 'event'}. Checked again when you post.`}
           </Text>
         </View>
       </View>
       {preview?.breakdown && !previewLoading ? (
         <View style={{ marginTop: spacing.sm, gap: 4 }}>
           {([
-            [preview.breakdown.availableForFullEvent, language === 'fr' ? `disponibles pour toute la durée (${durationText(minutes) || 'événement'})` : language === 'es' ? `libres todo el ${durationText(minutes) || 'evento'}` : `free for the full ${durationText(minutes) || 'event'}`],
+            [preview.breakdown.availableForFullEvent, language === 'fr' ? `disponibles pour toute la durée (${durationText(minutes) || 'événement'})` : language === 'es' ? `libres todo el ${durationText(minutes) || 'evento'}` : language === 'rw' ? `baboneka igihe cyose (${durationText(minutes) || 'igikorwa'})` : `free for the full ${durationText(minutes) || 'event'}`],
             [preview.breakdown.typeMatched, photographerType === 'ANY' ? tr('of any type') : photographerType === 'STUDIO' ? tr('are studios') : tr('are freelancers')],
             [preview.breakdown.withinBudget, preset?.min == null && preset?.max == null ? tr('any budget') : tr('fit your budget')],
-            [preview.breakdown.inCoverage, coverage === 'ANY' ? tr('anywhere in Rwanda') : language === 'fr' ? `autour de ${city}` : language === 'es' ? `alrededor de ${city}` : `around ${city}`],
+            [preview.breakdown.inCoverage, coverage === 'ANY' ? tr('anywhere in Rwanda') : language === 'fr' ? `autour de ${city}` : language === 'es' ? `alrededor de ${city}` : language === 'rw' ? `hafi ya ${city}` : `around ${city}`],
             ...(specialty !== 'ANY' ? [[preview.breakdown.specialtyMatched, `${specialty} specialists`]] : []),
           ] as [number | undefined, string][]).map(([n, l]) => (
             <Text key={l} style={styles.breakdown}>
@@ -789,7 +896,7 @@ export function BookingModeSelector({
         <View>
           <Label text="Collect answers for" hint="After this, you choose from whoever said yes." />
           <View style={styles.wrap}>
-            {options.matchWindowHours.map((h) => <Chip key={h} selected={windowHours === h} label={language === 'fr' ? `${h} heures` : language === 'es' ? `${h} horas` : `${h} hours`} onPress={() => setWindowHours(h)} />)}
+            {options.matchWindowHours.map((h) => <Chip key={h} selected={windowHours === h} label={language === 'fr' ? `${h} heures` : language === 'es' ? `${h} horas` : language === 'rw' ? `amasaha ${h}` : `${h} hours`} onPress={() => setWindowHours(h)} />)}
           </View>
         </View>
       </View>
@@ -803,7 +910,7 @@ export function BookingModeSelector({
       ['location-outline', tr('WHERE'), `${venue}, ${city}, ${options.country}`],
       ['person-outline', tr('LOOKING FOR'), `${typeLabel}${specialty !== 'ANY' ? ` · ${specialty} specialist` : ''} · ${coverageLabel}`],
       ['cash-outline', tr('BUDGET'), budgetLabel(preset?.min, preset?.max) || tr('Flexible')],
-      ['time-outline', tr('COLLECT ANSWERS FOR'), language === 'fr' ? `${windowHours} heures` : language === 'es' ? `${windowHours} horas` : `${windowHours} hours`],
+      ['time-outline', tr('COLLECT ANSWERS FOR'), language === 'fr' ? `${windowHours} heures` : language === 'es' ? `${windowHours} horas` : language === 'rw' ? `amasaha ${windowHours}` : `${windowHours} hours`],
     ];
     body = (
       <View style={{ gap: spacing.lg }}>
@@ -822,8 +929,8 @@ export function BookingModeSelector({
         <View style={{ gap: spacing.sm }}>
           <Text style={styles.label}>{tr('What happens next')}</Text>
           {([
-            ['radio-outline', language === 'fr' ? `Les photographes les mieux adaptés (jusqu'à ${options.firstBatchSize}) sont alertés immédiatement.` : language === 'es' ? `Los fotógrafos que mejor encajan (hasta ${options.firstBatchSize}) reciben una alerta de inmediato.` : `The best-matched photographers (up to ${options.firstBatchSize}) are alerted right away.`],
-            ['thumbs-up-outline', language === 'fr' ? `Chacun dispose de ${durationText(options.inviteWindowMinutes)} pour dire oui ; tout refus est remplacé par le suivant.` : language === 'es' ? `Cada uno tiene ${durationText(options.inviteWindowMinutes)} para decir que sí; quien pase es reemplazado por el siguiente.` : `Each has ${durationText(options.inviteWindowMinutes)} to say yes; anyone who passes is replaced by the next best match.`],
+            ['radio-outline', language === 'fr' ? `Les photographes les mieux adaptés (jusqu'à ${options.firstBatchSize}) sont alertés immédiatement.` : language === 'es' ? `Los fotógrafos que mejor encajan (hasta ${options.firstBatchSize}) reciben una alerta de inmediato.` : language === 'rw' ? `Abafotozi bahuye neza n'ibyo usaba (kugeza kuri ${options.firstBatchSize}) bamenyeshwa ako kanya.` : `The best-matched photographers (up to ${options.firstBatchSize}) are alerted right away.`],
+            ['thumbs-up-outline', language === 'fr' ? `Chacun dispose de ${durationText(options.inviteWindowMinutes)} pour dire oui ; tout refus est remplacé par le suivant.` : language === 'es' ? `Cada uno tiene ${durationText(options.inviteWindowMinutes)} para decir que sí; quien pase es reemplazado por el siguiente.` : language === 'rw' ? `Buri wese afite ${durationText(options.inviteWindowMinutes)} yo kwemeza; utabyemeye asimburwa n'ukurikiraho.` : `Each has ${durationText(options.inviteWindowMinutes)} to say yes; anyone who passes is replaced by the next best match.`],
             ['people-outline', tr('Only photographers who said yes appear for you, grouped as top, good and possible matches, three of each.')],
             ['shield-checkmark-outline', tr('You choose one and pay 50%, 70% or 100% upfront. Connekyt holds it until delivery.')],
           ] as [keyof typeof Ionicons.glyphMap, string][]).map(([icon, t]) => (
@@ -850,7 +957,9 @@ export function BookingModeSelector({
               ? `${result.invited} photographe${result.invited === 1 ? ' a été alerté' : 's ont été alertés'}`
               : language === 'es'
                 ? `Se alertó a ${result.invited} fotógrafo${result.invited === 1 ? '' : 's'}`
-                : `${result.invited} photographer${result.invited === 1 ? ' was' : 's were'} alerted`}
+                : language === 'rw'
+                  ? `${result.invited === 1 ? 'Gafotozi 1 yamenyeshejwe' : `Abafotozi ${result.invited} bamenyeshejwe`}`
+                  : `${result.invited} photographer${result.invited === 1 ? ' was' : 's were'} alerted`}
         </Text>
         <Text style={[styles.hint, { textAlign: 'center' }]}>
           {failed
@@ -877,7 +986,7 @@ export function BookingModeSelector({
           <View style={{ flex: 1, gap: 2 }}>
             {typeof step === 'number' && (
               <Text style={[styles.eyebrow, { color: accent }]}>
-                {language === 'fr' ? `ÉTAPE ${step} SUR 3` : language === 'es' ? `PASO ${step} DE 3` : `STEP ${step} OF 3`}
+                {language === 'fr' ? `ÉTAPE ${step} SUR 3` : language === 'es' ? `PASO ${step} DE 3` : language === 'rw' ? `INTAMBWE YA ${step} KURI 3` : `STEP ${step} OF 3`}
               </Text>
             )}
             <Text style={styles.headerTitle} accessibilityRole="header">{headerTitle}</Text>

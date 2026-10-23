@@ -39,6 +39,7 @@ import { fonts, fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { HIDDEN_AMOUNT } from '@/features/photographer/money';
+import { useSharedT } from '@/i18n/sharedStrings';
 import type {
   AnalyticsPeriod,
   CoordinatorAnalytics,
@@ -81,13 +82,13 @@ interface DataPoint {
 }
 
 export type WaveMetricMeta = {
-  title: string;
-  shortTitle: string;
-  unit: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  accentGlow: string;
-  isMoney: boolean;
+    title: string;
+    shortTitle: string;
+    unit: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+    accentGlow: string;
+    isMoney: boolean;
   /** Which column of the performance feed draws this metric. Absent means the feed has no series for it. */
   series?: 'value1' | 'value2';
   /** Keys this metric may arrive under in the trends feed, most specific first. */
@@ -195,6 +196,7 @@ export function PerformanceWaveCard({
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const [internalMetric, setInternalMetric] = useState<string>(Object.keys(metrics)[0] ?? 'totalRevenue');
   const [activeIndex, setActiveIndex] = useState<number>(3); // Matches 14/10 index in reference image
 
@@ -433,7 +435,7 @@ export function PerformanceWaveCard({
                     isSelected && styles.periodTabTextSelected,
                   ]}
                 >
-                  {p.label}
+                  {tr(p.label)}
                 </Text>
               </Pressable>
             );
@@ -471,7 +473,7 @@ export function PerformanceWaveCard({
                   isSelected && { color: m.color, fontWeight: fontWeight.bold },
                 ]}
               >
-                {m.shortTitle}
+                {tr(m.shortTitle)}
               </Text>
             </Pressable>
           );

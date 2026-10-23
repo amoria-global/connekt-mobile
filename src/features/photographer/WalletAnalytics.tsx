@@ -17,6 +17,7 @@ import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { makeStyles, spacing, useTheme } from '@/theme';
+import { useSharedT } from '@/i18n/sharedStrings';
 import { useAsync } from '@/hooks/useAsync';
 import {
   getPhotographerPerformance,
@@ -52,15 +53,16 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
   const [period, setPeriod] = useState<PeriodKey>('month');
   const router = useRouter();
   const styles = useStyles();
-  const stats = useMemo(() => (wallet ? selectWalletStats(wallet, 'photographer') : null), [wallet]);
+  const { language, tr } = useSharedT();
+  const stats = useMemo(() => (wallet ? selectWalletStats(wallet, 'photographer') : null), [wallet, language]);
   const currency = wallet?.currency;
 
   const sources = useMemo(() => {
     if (!stats) return [];
-    const cards = stats.cards.filter((c) => !c.hidden && c.label !== 'Total withdrawn' && c.label !== 'In escrow' && c.value > 0);
+    const cards = stats.cards.filter((c) => !c.hidden && c.label !== tr('Withdrawn to date') && c.label !== 'Total withdrawn' && c.label !== tr('In escrow') && c.label !== 'In escrow' && c.value > 0);
     const total = cards.reduce((sum, c) => sum + c.value, 0);
     return cards.map((c) => ({ label: c.label, value: c.value, pct: percentOf(c.value, total) }));
-  }, [stats]);
+  }, [stats, tr]);
 
   const { colors, isDark } = useTheme();
   // One hue per source, in a fixed order, so a source keeps its colour while the list changes length.
@@ -72,8 +74,8 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
         <View style={styles.availTop}>
           <IconTile icon="wallet-outline" tone="primary" size={34} />
           <View style={styles.availText}>
-            <Text style={styles.cardLabel}>Available to withdraw</Text>
-            <Text style={styles.muted}>Current balance, not a period figure.</Text>
+            <Text style={styles.cardLabel}>{tr('Available to withdraw')}</Text>
+            <Text style={styles.muted}>{tr('Current balance, not a period figure.')}</Text>
           </View>
         </View>
         <Text style={styles.big} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
@@ -102,7 +104,7 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
         hues={hues}
         currency={currency}
         summary="Available balance by source"
-        emptyText="Nothing in your available balance yet."
+        emptyText={tr('Nothing in your available balance yet.')}
       />
 
       <SectionHeader title="Activity" subtitle="Pick a period" />
@@ -173,13 +175,14 @@ function PeriodActivity({ period }: { period: PeriodKey }) {
 export function PaymentTrendChart({ points }: { points: readonly PerformancePoint[] }) {
   const styles = useStyles();
   const { colors } = useTheme();
+  const { tr } = useSharedT();
   const max = Math.max(0, ...points.map((p) => p.value1));
   if (points.length === 0 || max === 0) {
     return (
       <Card>
         <View style={styles.emptyChart}>
           <Ionicons name="bar-chart-outline" size={24} color={colors.textMuted} />
-          <Text style={styles.muted}>No payments received in this period.</Text>
+          <Text style={styles.muted}>{tr('No payments received in this period.')}</Text>
         </View>
       </Card>
     );
@@ -202,7 +205,7 @@ export function PaymentTrendChart({ points }: { points: readonly PerformancePoin
         </View>
       </View>
       <Text style={styles.chartNote}>
-        The curve shows relative size, with the highest interval marked in pink. Payments arrive in different currencies, so no amount is labelled.
+        {tr('The curve shows relative size, with the highest interval marked in pink. Payments arrive in different currencies, so no amount is labelled.')}
       </Text>
     </Card>
   );

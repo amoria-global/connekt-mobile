@@ -3,22 +3,34 @@ import { batch2En, batch2Fr, batch2Es } from './batch2';
 import { batch3En, batch3Fr, batch3Es } from './batch3';
 import { batch4En, batch4Fr, batch4Es } from './batch4';
 import { batch5En, batch5Fr, batch5Es } from './batch5';
+import { buildKinyarwandaDict, CORE_RW } from './kinyarwanda';
+import { buildSwahiliDict, CORE_SW } from './swahili';
 
-export type LanguageCode = 'en' | 'fr' | 'es';
+export type LanguageCode = 'en' | 'fr' | 'es' | 'rw' | 'sw';
 
 export type LanguageInfo = {
   code: LanguageCode;
   label: string;
   nativeLabel: string;
+  flag: string;
+  flagEmoji: string;
 };
 
 export const SUPPORTED_LANGUAGES: readonly LanguageInfo[] = [
-  { code: 'en', label: 'English', nativeLabel: 'English' },
-  { code: 'fr', label: 'French', nativeLabel: 'Français' },
-  { code: 'es', label: 'Spanish', nativeLabel: 'Español' },
+  { code: 'en', label: 'English', nativeLabel: 'English', flag: 'gb', flagEmoji: '🇬🇧' },
+  { code: 'fr', label: 'French', nativeLabel: 'Français', flag: 'fr', flagEmoji: '🇫🇷' },
+  { code: 'es', label: 'Spanish', nativeLabel: 'Español', flag: 'es', flagEmoji: '🇪🇸' },
 ];
 
-export const translations = {
+/**
+ * Temporarily paused languages (preserved for future activation)
+ */
+export const PAUSED_LANGUAGES: readonly LanguageInfo[] = [
+  { code: 'rw', label: 'Kinyarwanda', nativeLabel: 'Ikinyarwanda', flag: 'rw', flagEmoji: '🇷🇼' },
+  { code: 'sw', label: 'Swahili', nativeLabel: 'Kiswahili', flag: 'tz', flagEmoji: '🇹🇿' },
+];
+
+const baseTranslations = {
   en: {
     // Auth & Login
     welcomeBack: 'Welcome back',
@@ -208,14 +220,14 @@ export const translations = {
     skip: 'Skip',
     next: 'Next',
     getStarted: 'Get started',
-    onboardingTitle1: 'Find your perfect\nphotographer',
-    onboardingBody1: 'Browse photographers and videographers for any style, budget, or occasion. See their work and book the right one for you.',
-    onboardingTitle2: 'Go live,\ntogether',
-    onboardingBody2: 'Stream your events live so guests anywhere can join the celebration with reactions, wishes, and gifts.',
-    onboardingTitle3: 'Find your\nphotos',
-    onboardingBody3: "Snap a selfie and we'll find every photo you're in across all events. Got an invite code? Jump straight to that event's gallery.",
-    onboardingTitle4: 'Turn your passion\ninto income',
-    onboardingBody4: 'Behind the camera? Join Connekyt to show off your work, get booked, and get paid securely.',
+    onboardingTitle1: 'Your Talent Deserves the Spotlight',
+    onboardingBody1: 'Find Your Next Big Opportunity. Showcase your skills, bid on exciting events, connect with clients, and turn unforgettable moments into new opportunities.',
+    onboardingTitle2: 'Your Vision. Their Unforgettable Moment.',
+    onboardingBody2: 'Make Every Detail Count. Discover event opportunities, present your proposals, and bring every celebration to life with seamless coordination.',
+    onboardingTitle3: 'Closer to Every Moment',
+    onboardingBody3: 'The Celebration Comes to You. Join live celebrations from anywhere, share the joy with loved ones, and never miss the moments that matter most.',
+    onboardingTitle4: 'Every Moment, All in One Place',
+    onboardingBody4: 'Find your event photos effortlessly with smart photo matching, connect with professional photographers, and relive the best moments from every event you attend.',
 
     // Registration & Signup
     createYourAccount: 'Create your first account',
@@ -663,7 +675,7 @@ export const translations = {
     exploreSheetSubtitle: 'What would you like to do?',
     exploreFastMatch: 'FAST MATCH',
     explorePostYourEvent: 'Post your event',
-    exploreFreePhotographersReply: 'Free photographers reply to you',
+    exploreFreePhotographersReply: 'Professional photographers reply to you',
     exploreLiveAndPublic: 'LIVE & PUBLIC',
     exploreWatchAndExplore: 'Watch and explore',
     exploreLiveStreamsAndPublic: 'Live streams and public events',
@@ -881,14 +893,14 @@ export const translations = {
     skip: 'Passer',
     next: 'Suivant',
     getStarted: 'Commencer',
-    onboardingTitle1: 'Trouvez votre\nphotographe idéal',
-    onboardingBody1: 'Parcourez des photographes et vidéastes pour tous les styles, budgets ou occasions. Découvrez leur travail et réservez le professionnel qui vous correspond.',
-    onboardingTitle2: 'En direct,\nensemble',
-    onboardingBody2: 'Diffusez vos événements en direct pour que vos proches puissent participer à la fête avec des réactions et des cadeaux.',
-    onboardingTitle3: 'Retrouvez vos\nphotos',
-    onboardingBody3: 'Prenez un selfie et nous retrouverons chaque photo où vous apparaissez dans tous les événements. Entrez un code pour accéder directement à la galerie.',
-    onboardingTitle4: 'Transformez votre passion\nen revenus',
-    onboardingBody4: 'Derrière l’objectif ? Rejoignez Connekyt pour mettre en valeur votre travail, recevoir des réservations et être rémunéré en toute sécurité.',
+    onboardingTitle1: 'Votre talent mérite la lumière',
+    onboardingBody1: 'Trouvez votre prochaine grande opportunité. Mettez en valeur vos compétences, postulez à des événements, échangez avec des clients et transformez chaque instant en opportunité.',
+    onboardingTitle2: 'Votre vision. Un moment inoubliable.',
+    onboardingBody2: 'Chaque détail compte. Découvrez des événements, proposez vos offres et donnez vie à chaque célébration grâce à une coordination fluide.',
+    onboardingTitle3: 'Au plus près de chaque instant',
+    onboardingBody3: 'La fête vient à vous. Rejoignez les célébrations en direct d’où que vous soyez, partagez la joie avec vos proches et ne manquez aucun moment précieux.',
+    onboardingTitle4: 'Chaque instant, réuni en un seul lieu',
+    onboardingBody4: 'Retrouvez vos photos sans effort grâce à la reconnaissance intelligente, connectez-vous aux photographes et revivez les meilleurs moments.',
 
     // Registration & Signup
     createYourAccount: 'Créez votre premier compte',
@@ -1336,7 +1348,7 @@ export const translations = {
     exploreSheetSubtitle: 'Que souhaitez-vous faire ?',
     exploreFastMatch: 'MATCH RAPIDE',
     explorePostYourEvent: 'Publier votre événement',
-    exploreFreePhotographersReply: 'Les photographes disponibles vous répondent',
+    exploreFreePhotographersReply: 'Des photographes professionnels vous répondent',
     exploreLiveAndPublic: 'EN DIRECT ET PUBLIC',
     exploreWatchAndExplore: 'Regarder et explorer',
     exploreLiveStreamsAndPublic: 'Diffusions en direct et événements publics',
@@ -1554,14 +1566,14 @@ export const translations = {
     skip: 'Saltar',
     next: 'Siguiente',
     getStarted: 'Comenzar',
-    onboardingTitle1: 'Encuentra tu\nfotógrafo ideal',
-    onboardingBody1: 'Explora fotógrafos y camarógrafos para cualquier estilo, presupuesto u ocasión. Revisa su trabajo y reserva al profesional adecuado.',
-    onboardingTitle2: 'Transmite en vivo,\njuntos',
-    onboardingBody2: 'Transmite tus eventos en vivo para que los invitados de cualquier lugar participen con reacciones, felicitaciones y regalos.',
-    onboardingTitle3: 'Encuentra tus\nfotos',
-    onboardingBody3: 'Toma una selfie y encontraremos cada foto en la que aparezcas en todos los eventos. Ingresa con un código directo a la galería.',
-    onboardingTitle4: 'Convierte tu pasión\nen ingresos',
-    onboardingBody4: '¿Detrás de la cámara? Únete a Connekyt para exhibir tu trabajo, recibir reservas y cobrar con total seguridad.',
+    onboardingTitle1: 'Tu talento merece brillar',
+    onboardingBody1: 'Encuentra tu próxima gran oportunidad. Muestra tus habilidades, postúlate a eventos destacados, conecta con clientes y crea nuevas oportunidades.',
+    onboardingTitle2: 'Tu visión. Su momento inolvidable.',
+    onboardingBody2: 'Haz que cada detalle cuente. Descubre eventos, presenta tus propuestas y da vida a cada celebración con una coordinación perfecta.',
+    onboardingTitle3: 'Más cerca de cada instante',
+    onboardingBody3: 'La celebración llega a ti. Únete a transmisiones en vivo desde cualquier lugar, comparte la alegría con tus seres queridos y nunca te pierdas un momento.',
+    onboardingTitle4: 'Cada momento, todo en un solo lugar',
+    onboardingBody4: 'Encuentra tus fotos fácilmente con reconocimiento inteligente, conecta con fotógrafos profesionales y revive los mejores momentos de tus eventos.',
 
     // Registration & Signup
     createYourAccount: 'Crea tu primera cuenta',
@@ -2009,7 +2021,7 @@ export const translations = {
     exploreSheetSubtitle: '¿Qué te gustaría hacer?',
     exploreFastMatch: 'EMPAREJAMIENTO RÁPIDO',
     explorePostYourEvent: 'Publica tu evento',
-    exploreFreePhotographersReply: 'Los fotógrafos disponibles te responden',
+    exploreFreePhotographersReply: 'Fotógrafos profesionales te responden',
     exploreLiveAndPublic: 'EN VIVO Y PÚBLICO',
     exploreWatchAndExplore: 'Ver y explorar',
     exploreLiveStreamsAndPublic: 'Transmisiones en vivo y eventos públicos',
@@ -2040,7 +2052,13 @@ export const translations = {
   },
 } as const;
 
-export type TranslationKey = keyof typeof translations.en;
+export const translations = {
+  ...baseTranslations,
+  rw: buildKinyarwandaDict(baseTranslations.en, CORE_RW),
+  sw: buildSwahiliDict(baseTranslations.en, CORE_SW),
+} as const;
+
+export type TranslationKey = keyof typeof baseTranslations.en;
 
 export function translate(
   lang: LanguageCode,
