@@ -8,29 +8,29 @@
  */
 import { useCallback, useRef } from 'react';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
+import { ScrollView, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
+import { HeroActionCard, ListRow } from '@/features/client/studio';
+import { Card, EmptyNote, ErrorNotice, SectionHeader, SkeletonCard } from '@/features/photographer/kit';
 import { getDonationTiers, listDonations, type Donation } from '@/features/donations/api';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
-
-const FALLBACK_TIERS = [1000, 5000, 10000, 25000];
+import { useStackClearance } from '@/hooks/useScrollClearance';
 
 export default function DonationsScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { colors } = useTheme();
   const { t } = useLanguage();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const history = useAsync(useCallback(() => listDonations(), []));
   const tiersAsync = useAsync(useCallback(() => getDonationTiers(), []));
-  const tiers = tiersAsync.data?.length ? tiersAsync.data.map((tier) => tier.amount) : FALLBACK_TIERS;
+  // The backend's suggested amounts, each in the currency it names. With none (or a failed read) the section is left out.
+  const tiers = tiersAsync.data ?? [];
 
   const router = useRouter();
   // The donate screen completes the payment in the app; refresh the history
@@ -50,95 +50,75 @@ export default function DonationsScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader duplicatesHeader title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.section}>{t('b2_donationsSuggestedAmounts')}</Text>
-        <View style={styles.tierRow}>
-          {tiers.map((tier) => (
-            <View key={tier} style={styles.tier}>
-              <Text style={styles.tierText}>{formatPrice(tier, 'RWF')}</Text>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}>
+        <UserHeaderBand flush eyebrow="GIVING" title={t('b2_donationsTitle')} subtitle={t('b2_donationsSubtitle')} duplicatesHeader />
+
+        <HeroActionCard title={t('b2_donationsButton')} subtitle={t('b2_donationsSubtitle')} icon="heart" onPress={onDonate} />
+
+        {tiers.length > 0 ? (
+          <>
+            <SectionHeader flush title={t('b2_donationsSuggestedAmounts')} />
+            <View style={styles.tierRow}>
+              {tiers.map((tier) => (
+                <View key={`${tier.currency ?? ''}-${tier.amount}`} style={styles.tier}>
+                  <Text style={styles.tierText} maxFontSizeMultiplier={1.6}>
+                    {tier.currency ? formatPrice(tier.amount, tier.currency) : tier.amount.toLocaleString('en-US')}
+                  </Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
+          </>
+        ) : null}
 
-        <Button
-          title={t('b2_donationsButton')}
-          onPress={onDonate}
-        />
-
-        <Text style={styles.historyTitle}>{t('b2_donationsHistoryTitle')}</Text>
+        <SectionHeader flush title={t('b2_donationsHistoryTitle')} />
         {history.loading && !history.data ? (
-          <ActivityIndicator color={colors.primary} />
+          <View style={styles.group}>
+            <SkeletonCard height={64} />
+            <SkeletonCard height={64} />
+          </View>
+        ) : history.error && !history.data ? (
+          <ErrorNotice flush message={history.error} onRetry={history.refresh} />
         ) : history.data?.length ? (
-          history.data.map((d) => <DonationRow key={d.id} donation={d} fallbackLabel={t('b2_donationsFallbackRow')} />)
+          <Card style={styles.card}>
+            {history.data.map((d, index) => (
+              <ListRow
+                key={d.id}
+                icon="heart-outline"
+                tone="accent"
+                divider={index < history.data!.length - 1}
+                title={d.message || t('b2_donationsFallbackRow')}
+                meta={d.createdAt ? formatDate(d.createdAt) : undefined}
+                trailing={<Text style={styles.rowAmount}>{formatPrice(d.amount, d.currency)}</Text>}
+              />
+            ))}
+          </Card>
         ) : (
-          <Text style={styles.muted}>{t('b2_donationsEmpty')}</Text>
+          <View style={styles.flushNote}>
+            <EmptyNote compact icon="heart-outline" title={t('b2_donationsEmpty')} />
+          </View>
         )}
       </ScrollView>
     </Screen>
   );
 }
 
-function DonationRow({ donation, fallbackLabel }: { donation: Donation; fallbackLabel: string }) {
-  const styles = useStyles();
-  return (
-    <View style={styles.row}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowMsg} numberOfLines={1}>
-          {donation.message || fallbackLabel}
-        </Text>
-        {donation.createdAt ? <Text style={styles.rowDate}>{formatDate(donation.createdAt)}</Text> : null}
-      </View>
-      <Text style={styles.rowAmount}>{formatPrice(donation.amount, donation.currency)}</Text>
-    </View>
-  );
-}
-
 const useStyles = makeStyles((c) => ({
-  scroll: { padding: spacing.xl, gap: spacing.md, paddingBottom: 120 },
-  section: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.textSoft },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
+  group: { gap: spacing.sm },
+  flushNote: { marginHorizontal: -spacing.lg },
+  card: { marginHorizontal: 0, padding: 0 },
   tierRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tier: {
     flexGrow: 1,
-    paddingVertical: spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: c.borderSoft,
     alignItems: 'center',
     backgroundColor: c.surface,
   },
   tierText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
-
-  webHint: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: c.infoBg,
-    borderRadius: radii.md,
-  },
-  webHintText: {
-    flex: 1,
-    color: c.info,
-    fontSize: 12,
-    fontWeight: fontWeight.semibold,
-    lineHeight: 18,
-  },
-
-  historyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text, marginTop: spacing.md },
-  muted: { color: c.textMuted, fontSize: fontSize.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: c.surface,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    padding: spacing.lg,
-  },
-  rowMsg: { fontSize: fontSize.md, color: c.text, fontWeight: fontWeight.semibold },
-  rowDate: { fontSize: 12, color: c.textMuted },
-  rowAmount: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
+  rowAmount: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
 }));

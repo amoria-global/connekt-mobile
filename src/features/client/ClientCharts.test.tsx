@@ -212,7 +212,10 @@ describe('ClientWalletAnalytics', () => {
     expect(text).toContain('Total spent');
     expect(text).toContain('$320.00');
     expect(text).toContain('$25.00');
-    expect(text).toContain('Where your money goes');
+    expect(text).toContain('Where your wallet stands');
+    expect(text).not.toContain('Nothing in your wallet');
+    // The ring is drawn for a client who has spent money but holds no balance.
+    expect(r.root.findAll((n) => n.props?.accessibilityLabel?.startsWith?.('Wallet figures by source: Total spent')).length).toBeGreaterThan(0);
     expect(text).toContain('Up 15.0% vs last month');
     expect(text).toContain('Spending trend');
     expect(text).toContain('Events in this period');

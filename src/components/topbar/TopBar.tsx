@@ -11,9 +11,11 @@ import { useAuth } from '@/store/auth';
 import { spacing, radii, makeStyles, useTheme } from '@/theme';
 import { GLASS_BAR } from '@/components/ui/GlassCard';
 import { BrandPill } from './BrandPill';
+import { CurrencyButton } from './CurrencyButton';
 import { LanguageButton } from './LanguageButton';
 import { NotificationButton } from './NotificationButton';
 import { ProfileButton } from './ProfileButton';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 
 const BAR_HEIGHT = 60;
 /** The photographer chrome is a tighter bar (the prototype's header is a single quiet row). */
@@ -35,7 +37,7 @@ export type TopBarProps = {
 
 /**
  * Shared, translucent (frosted-glass) top bar for all roles:
- * profile/back (left) · brand pill (center) · language · notifications (right).
+ * profile/back (left) · brand pill (left-extended) · currency · language · notifications (right).
  * Renders as an absolute overlay so content scrolls under the blur.
  * Place it as the last child of a screen and pad the scroll content by
  * useTopBarHeight().
@@ -50,6 +52,7 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
   const insets = useSafeAreaInsets();
   const user = useAuth((s) => s.user);
   const { role, isPhotographer } = useRole();
+  const isShared = useWorkspace(selectIsShared);
   const compact = isPhotographer;
   const barHeight = compact ? COMPACT_BAR_HEIGHT : BAR_HEIGHT;
 
@@ -84,9 +87,10 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </Pressable>
         ) : (
-          <ProfileButton user={user} compact={compact} onPress={() => router.push('/profile')} />
+          <ProfileButton user={user} compact={compact} onPress={() => router.push(isShared ? '/more' : '/profile')} />
         )}
         <BrandPill style={styles.brand} flat={compact} />
+        <CurrencyButton compact={compact} />
         <LanguageButton compact={compact} />
         <NotificationButton compact={compact} hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
       </View>
@@ -113,21 +117,20 @@ const useStyles = makeStyles((c, e) => ({
     height: BAR_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.sm + 4,
   },
   btn: {
-    width: 46,
-    height: 46,
+    width: 42,
+    height: 42,
     borderRadius: radii.full,
     backgroundColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
     ...e(2),
   },
-  rowCompact: { gap: spacing.sm },
-  btnCompact: { width: 40, height: 40, shadowOpacity: 0, elevation: 0, borderWidth: 1.5, borderColor: c.border },
+  rowCompact: { gap: spacing.xs + 2 },
+  btnCompact: { width: 38, height: 38, shadowOpacity: 0, elevation: 0, borderWidth: 1.5, borderColor: c.border },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
-  // Tighter padding so the pill still fits beside the currency chip on narrow phones.
-  brand: { paddingHorizontal: spacing.md },
+  brand: { paddingHorizontal: spacing.sm + 2 },
 }));

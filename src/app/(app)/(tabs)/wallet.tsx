@@ -21,6 +21,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,8 +56,14 @@ import { canUsePaymentsScreen } from '@/features/payments/access';
 import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
 import { ClientWalletAnalytics } from '@/features/client/ClientWalletAnalytics';
+import { CoordinatorWalletAnalytics } from '@/features/wallet/CoordinatorWalletAnalytics';
 import { ClientPaymentsDue } from '@/features/wallet/ClientPaymentsDue';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { WithdrawMethodPrompt } from '@/features/paymentAccounts/WithdrawMethodPrompt';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 type Link = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
@@ -65,14 +72,20 @@ export default function WalletScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
-  const { language, tr } = useSharedT();
+  const clearance = useTabBarClearance();
+  const { tr } = useSharedT();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
+  // At large text two tiles per row leave "Transactions" too little width and it breaks mid-word: one per row.
+  const { fontScale } = useWindowDimensions();
 
   const { isPhotographer, isCoordinator, isClient, role } = useRole();
   const user = useAuth((s) => s.user);
-  const canWithdraw = isPhotographer || isCoordinator;
+  // In a workspace the photographer was invited to, the balance and summaries are visible; withdrawing and the activity
+  // list (the transaction history) stay with the owner, so they are neither offered nor requested.
+  const isShared = useWorkspace(selectIsShared);
+  const canWithdraw = (isPhotographer || isCoordinator) && !isShared;
 
   const [activeFilter, setActiveFilter] = useState('All');
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
@@ -92,11 +105,13 @@ export default function WalletScreen() {
   const fetchData = useCallback(async () => {
     const [wallet, history] = await Promise.all([
       getWallet(),
-      // A failed history read is reported, not shown as an empty history.
-      listWalletMovementsPage(0, 50).then((m) => ({ m, failed: false }), () => ({ m: null as MovementPage | null, failed: true })),
+      // A failed history read is reported, not shown as an empty history. A collaborator never asks for it.
+      isShared
+        ? Promise.resolve({ m: null as MovementPage | null, failed: false })
+        : listWalletMovementsPage(0, 50).then((m) => ({ m, failed: false }), () => ({ m: null as MovementPage | null, failed: true })),
     ]);
     return { wallet, history: history.m, movementsFailed: history.failed };
-  }, []);
+  }, [isShared]);
 
   const { data, loading, error, refresh } = useAsync(fetchData);
 
@@ -154,7 +169,7 @@ export default function WalletScreen() {
     return filteredActivityItems.slice(start, start + PAGE_SIZE);
   }, [filteredActivityItems, safePage]);
 
-  const links: Link[] = [
+  const links: Link[] = isShared ? [] : [
     { label: 'Transactions', icon: 'swap-horizontal-outline', href: '/transactions' as Href },
     // Photographers receive payments, they do not make them: no Payments screen for them.
     ...(canUsePaymentsScreen(role)
@@ -170,8 +185,9 @@ export default function WalletScreen() {
   // The pending row appears only when the wallet reports a pending figure (a reported 0 still shows); no figure is never drawn as $0.00.
   const pendingLabel = stats?.pendingChip?.label ?? 'Pending release';
   const pendingValue = stats?.pendingChip?.value ?? 0;
-  // Photographers and clients get the sectioned wallet; coordinators keep the single long screen.
-  const tabbed = isPhotographer || !!isClient;
+  // Photographers, clients and coordinators get the sectioned wallet, each with an Analytics tab drawn from their own
+  // figures (earnings, spending, or the coordinator's balance and event revenue).
+  const tabbed = isPhotographer || !!isClient || isCoordinator;
   const showOverview = !tabbed || walletTab === 'overview';
   const showAnalytics = tabbed && walletTab === 'analytics';
   const showActivity = !tabbed || walletTab === 'activity';
@@ -192,7 +208,7 @@ export default function WalletScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md }]}
+          contentContainerStyle={[styles.scroll, { paddingTop: topBarHeight + spacing.md, paddingBottom: clearance }]}
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -238,8 +254,8 @@ export default function WalletScreen() {
                 onChange={setWalletTab}
                 tabs={[
                   { key: 'overview', label: 'Overview' },
-                  { key: 'analytics', label: 'Analytics' },
-                  { key: 'activity', label: 'Activity' },
+                  { key: 'analytics' as const, label: 'Analytics' },
+                  ...(isShared ? [] : [{ key: 'activity' as const, label: 'Activity' }]),
                 ]}
               />
             </View>
@@ -293,8 +309,8 @@ export default function WalletScreen() {
                       accessibilityLabel="Withdraw funds"
                     >
                       <Ionicons name="cash-outline" size={15} color="#ffffff" />
-                      <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.25}>
-                        {tr('Withdraw funds')}
+                      <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.6}>
+                        Withdraw funds
                       </Text>
                     </Pressable>
                   ) : null}
@@ -309,14 +325,14 @@ export default function WalletScreen() {
                     }, not included in your available balance`}
                   >
                     <Ionicons name="time-outline" size={15} color={colors.warning} />
-                    <Text style={styles.pendingStripLabel} maxFontSizeMultiplier={1.2}>
+                    <Text style={styles.pendingStripLabel} maxFontSizeMultiplier={1.6}>
                       {tr(pendingLabel)}
                     </Text>
-                    <Text style={styles.pendingStripAmount} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                    <Text style={styles.pendingStripAmount} numberOfLines={1} maxFontSizeMultiplier={1.6}>
                       {balanceHidden ? '••••' : formatPrice(pendingValue, data?.wallet.currency)}
                     </Text>
-                    <Text style={styles.pendingStripNote} numberOfLines={2} maxFontSizeMultiplier={1.15}>
-                      {tr('Not in available balance')}
+                    <Text style={styles.pendingStripNote} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+                      Not in available balance
                     </Text>
                   </View>
                 ) : stats.pendingChip && stats.pendingChip.value > 0 ? (
@@ -386,7 +402,13 @@ export default function WalletScreen() {
           {showAnalytics ? (
             // The analytics blocks carry their own side margins, so cancel the scroll's padding.
             <View style={styles.walletBleed}>
-              {isPhotographer ? <WalletAnalytics wallet={data?.wallet ?? null} /> : <ClientWalletAnalytics wallet={data?.wallet ?? null} />}
+              {isPhotographer ? (
+                <WalletAnalytics wallet={data?.wallet ?? null} />
+              ) : isCoordinator ? (
+                <CoordinatorWalletAnalytics wallet={data?.wallet ?? null} />
+              ) : (
+                <ClientWalletAnalytics wallet={data?.wallet ?? null} />
+              )}
             </View>
           ) : null}
 
@@ -401,7 +423,7 @@ export default function WalletScreen() {
           {/* MoneyStatCards Grid (Sub-balance breakdown) */}
           {showOverview && tabbed && visibleCards.length > 0 && (
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>{tr(isClient ? 'Spending breakdown' : 'Earnings breakdown')}</Text>
+              <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : isCoordinator ? 'Balance breakdown' : 'Earnings breakdown'}</Text>
               <View style={styles.rowsCard}>
                 {visibleCards.map((card, i) => {
                   const p = PALETTE[card.color] ?? PALETTE.neutral;
@@ -417,8 +439,8 @@ export default function WalletScreen() {
                       <View style={[styles.rowTile, { backgroundColor: p.tint }]}>
                         <Ionicons name={p.icon as keyof typeof Ionicons.glyphMap} size={15} color={p.bar} />
                       </View>
-                      <Text style={styles.rowLabel} numberOfLines={1}>
-                        {tr(card.label)}
+                      <Text style={styles.rowLabel} numberOfLines={3}>
+                        {card.label}
                       </Text>
                       <Text style={styles.rowValue} numberOfLines={1}>
                         {balanceHidden ? '••••' : formatPrice(card.value, data?.wallet.currency)}
@@ -430,8 +452,13 @@ export default function WalletScreen() {
             </View>
           )}
 
+          {/* A collaborator does not see the activity list: it is the owner's transaction history. */}
+          {showOverview && tabbed && isShared ? (
+            <Text style={styles.recentNote} accessibilityRole="text">Withdrawals and the transaction history stay with the workspace owner.</Text>
+          ) : null}
+
           {/* The latest movements, then the places money is managed. */}
-          {showOverview && tabbed ? (
+          {showOverview && tabbed && !isShared ? (
             <>
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
@@ -476,11 +503,11 @@ export default function WalletScreen() {
                             <Ionicons name={isIn ? 'arrow-down' : 'arrow-up'} size={15} color={palette.text} />
                           </View>
                           <View style={styles.rowBody}>
-                            <Text style={styles.rowLabel} numberOfLines={1}>
-                              {tr(item.title)}
+                            <Text style={styles.rowLabel} numberOfLines={3}>
+                              {item.title}
                             </Text>
-                            <Text style={styles.rowMeta} numberOfLines={1}>
-                              {tr(item.tag)} · {formatRelativeTime(item.timestamp)}
+                            <Text style={styles.rowMeta} numberOfLines={3}>
+                              {item.tag} · {formatRelativeTime(item.timestamp)}
                             </Text>
                           </View>
                           <Text style={[styles.rowValue, isIn && { color: colors.success }]} numberOfLines={1}>
@@ -500,11 +527,11 @@ export default function WalletScreen() {
                     onPress={() => router.push(l.href)}
                     accessibilityRole="button"
                     accessibilityLabel={l.label === 'Payroll report' ? 'Export earnings report' : l.label}
-                    style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85 }]}
+                    style={({ pressed }) => [styles.tile, fontScale > 1.3 && { flexBasis: '100%' }, pressed && { opacity: 0.85 }]}
                   >
                     <IconTile icon={l.icon} tone="primary" size={30} />
-                    <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
-                      {tr(l.label === 'Payroll report' ? 'Earnings report' : l.label)}
+                    <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+                      {l.label === 'Payroll report' ? 'Earnings report' : l.label}
                     </Text>
                     <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
                   </Pressable>
@@ -537,8 +564,8 @@ export default function WalletScreen() {
                             color={p.bar}
                           />
                         </View>
-                        <Text style={styles.potLabel} numberOfLines={1}>
-                          {tr(card.label)}
+                        <Text style={styles.potLabel} numberOfLines={3}>
+                          {card.label}
                         </Text>
                       </View>
                       <Text style={styles.potAmount}>
@@ -685,8 +712,8 @@ export default function WalletScreen() {
                         {/* Title & Metadata */}
                         <View style={styles.activityBody}>
                           <View style={styles.activityTitleRow}>
-                            <Text style={styles.activityTitle} numberOfLines={1}>
-                              {tr(item.title)}
+                            <Text style={styles.activityTitle} numberOfLines={2}>
+                              {item.title}
                             </Text>
                             <View style={[styles.tagBadge, { backgroundColor: palette.bg }]}>
                               <Text style={[styles.tagBadgeText, { color: palette.text }]}>
@@ -698,7 +725,7 @@ export default function WalletScreen() {
                           <View style={styles.activityMetaRow}>
                             {item.subtitle ? (
                               <>
-                                <Text style={styles.activitySubtitle} numberOfLines={1}>
+                                <Text style={styles.activitySubtitle} numberOfLines={2}>
                                   {item.subtitle}
                                 </Text>
                                 <Text style={styles.activityBullet}>•</Text>
@@ -805,9 +832,8 @@ export default function WalletScreen() {
         animationType="slide"
         onRequestClose={() => setSelectedItem(null)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedItem(null)} />
-        <View style={styles.modalSheetOverlay} pointerEvents="box-none">
-          <View
+        <GlassScrim onPress={() => setSelectedItem(null)} style={styles.modalSheetOverlay}>
+        <GlassSheetHost
             style={[
               styles.modalSheet,
               { paddingBottom: Math.max(insets.bottom + 16, 28) },
@@ -930,11 +956,13 @@ export default function WalletScreen() {
                 </Pressable>
               </View>
             )}
-          </View>
-        </View>
+          </GlassSheetHost>
+          </GlassScrim>
       </Modal>
 
       <TopBar />
+      {/* Photographers and coordinators with no withdrawal method are asked to add one every time they open the wallet. */}
+      {canWithdraw ? <WithdrawMethodPrompt role={role} /> : null}
     </Screen>
   );
 }
@@ -956,7 +984,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
   },
   retryBtnText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.lg },
+  scroll: { paddingHorizontal: spacing.lg, gap: spacing.lg },
 
   heroTopRow: {
     width: '100%',
@@ -1407,9 +1435,6 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     gap: spacing.md,
@@ -1440,7 +1465,7 @@ const useStyles = makeStyles((c) => ({
   modalHeroAmount: { fontFamily: fonts.bold, fontSize: 32, letterSpacing: -0.5 },
   modalHeroTitle: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
   modalDetailsList: {
-    backgroundColor: c.background,
+    ...glassTile(c),
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: c.borderSoft,

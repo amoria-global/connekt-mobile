@@ -45,6 +45,7 @@ import {
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme , type Palette as ThemePalette } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { glassTile } from './GlassCard';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 /** Emitted on every change. `digits` is the backend wire format. */
 export interface PhoneValue {
@@ -342,10 +343,9 @@ export function PhoneInput({
         animationType="slide"
         onRequestClose={() => setPickerOpen(false)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setPickerOpen(false)}>
-          <Pressable
+        <GlassScrim style={styles.backdrop} onPress={() => setPickerOpen(false)}>
+          <GlassSheetHost
             style={[styles.sheet, { backgroundColor: ui.sheetBg }]}
-            onPress={(e) => e.stopPropagation()}
           >
             <View style={[styles.sheetHandle, { backgroundColor: ui.divider }]} />
             <View style={styles.sheetHeader}>
@@ -412,8 +412,8 @@ export function PhoneInput({
                 </Text>
               }
             />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </View>
   );
@@ -453,10 +453,8 @@ const useStyles = makeStyles((c) => ({
   stateIcon: { marginRight: spacing.md },
   hint: { fontSize: fontSize.xs, minHeight: 16, lineHeight: 16 },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,

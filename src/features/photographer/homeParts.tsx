@@ -9,6 +9,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { LivePill, LiveTwinkle } from '@/components/ui/live';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { ActionButton, Card, IconTile, StatusBadge, StatusText } from './kit';
 import { ProgressRing } from './charts';
@@ -46,6 +47,7 @@ export type ShootFacts = {
   title: string;
   cover?: string;
   status: { label: string; tone: Tone };
+  live?: boolean;
   when: string;
   location?: string;
   client?: string;
@@ -59,13 +61,12 @@ export type ShootFacts = {
  */
 export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts; actions: ReactNode; flush?: boolean }) {
   const styles = useStyles();
-  const { tr } = useSharedT();
-  return (
-    <Card style={flush ? styles.flush : undefined}>
+  const card = (
+    <Card style={flush || shoot.live ? styles.flush : undefined}>
       <View style={styles.shootRow}>
         <Thumb uri={shoot.cover} />
         <View style={styles.shootText}>
-          <StatusBadge {...shoot.status} />
+          {shoot.live ? <LivePill label="Live now" size="xs" sparkle /> : <StatusBadge {...shoot.status} />}
           <Text style={styles.shootTitle} numberOfLines={2}>
             {tr(shoot.title)}
           </Text>
@@ -77,6 +78,12 @@ export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts;
       </View>
       <View style={styles.actions}>{actions}</View>
     </Card>
+  );
+  if (!shoot.live) return card;
+  return (
+    <LiveTwinkle active radius={radii.lg} style={!flush ? styles.twinkleWrap : undefined}>
+      {card}
+    </LiveTwinkle>
   );
 }
 
@@ -109,7 +116,7 @@ export function PriorityCard({
             {tr(title)}
           </Text>
           {subtitle ? (
-            <Text style={styles.meta} numberOfLines={1}>
+            <Text style={styles.meta} numberOfLines={3}>
               {tr(subtitle)}
             </Text>
           ) : null}
@@ -153,8 +160,8 @@ export function BusinessOverview({
         <Card style={[styles.flush, styles.earnCard]}>
           <View style={styles.earnHead}>
             <IconTile icon="cash-outline" tone="success" size={30} />
-            <Text style={styles.earnLabel} maxFontSizeMultiplier={1.25}>
-              {tr('Lifetime earnings')}
+            <Text style={styles.earnLabel} maxFontSizeMultiplier={1.6}>
+              Lifetime earnings
             </Text>
           </View>
           <Text style={styles.earnValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityLabel={`Lifetime earnings, ${earnings}`}>
@@ -163,8 +170,8 @@ export function BusinessOverview({
           <Text style={styles.meta}>{tr(earningsCaption)}</Text>
         </Card>
         <Card style={[styles.flush, styles.ratingCard]}>
-          <Text style={styles.earnLabel} maxFontSizeMultiplier={1.25}>
-            {tr('Reviews')}
+          <Text style={styles.earnLabel} maxFontSizeMultiplier={1.6}>
+            Reviews
           </Text>
           <ProgressRing
             size={92}
@@ -175,13 +182,13 @@ export function BusinessOverview({
           >
             {ratingText ? (
               <View style={styles.ringCentre}>
-                <Text style={styles.ringValue} maxFontSizeMultiplier={1.2}>
+                <Text style={styles.ringValue} maxFontSizeMultiplier={1.6}>
                   {ratingText}
                 </Text>
                 <Text style={styles.ringOutOf}>{tr('out of 5')}</Text>
               </View>
             ) : (
-              <Text style={styles.ringNone} maxFontSizeMultiplier={1.2}>
+              <Text style={styles.ringNone} maxFontSizeMultiplier={1.6}>
                 {loadingReviews ? 'N/A' : tr('No reviews yet')}
               </Text>
             )}
@@ -201,8 +208,8 @@ export function BusinessOverview({
             <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {loading ? ' ' : t.value}
             </Text>
-            <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.2}>
-              {tr(t.label)}
+            <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+              {t.label}
             </Text>
           </View>
         ))}
@@ -245,7 +252,7 @@ export function EarningRow({
         <Text style={styles.rowTitle} numberOfLines={2}>
           {title}
         </Text>
-        <Text style={styles.meta} numberOfLines={1}>
+        <Text style={styles.meta} numberOfLines={3}>
           {when}
         </Text>
       </View>
@@ -261,6 +268,7 @@ export function EarningRow({
 
 const useStyles = makeStyles((c) => ({
   flush: { marginHorizontal: 0 },
+  twinkleWrap: { marginHorizontal: spacing.lg },
   fill: { flex: 1 },
   thumbFallback: { borderRadius: radii.md, backgroundColor: c.tint, alignItems: 'center', justifyContent: 'center' },
   shootRow: { flexDirection: 'row', gap: spacing.md },

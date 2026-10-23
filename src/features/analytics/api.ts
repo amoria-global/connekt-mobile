@@ -104,55 +104,33 @@ export type CoordinatorAnalytics = {
   unreadContactMessages: number;
 };
 
-function defaultCustomerAnalytics(): CustomerAnalytics {
-  return {
-    totalEvents: 0,
-    upcomingEvents: 0,
-    completedEvents: 0,
-    cancelledEvents: 0,
-    totalBookings: 0,
-    totalSpent: 0,
-    pendingAmount: 0,
-    gifts: 0,
-    totalPhotos: 0,
-    totalVideos: 0,
-    bookmarkedPhotographers: 0,
-    unreadNotifications: 0,
-  };
-}
-
-function defaultCoordinatorAnalytics(): CoordinatorAnalytics {
-  return {
-    totalCustomers: 0,
-    totalPhotographers: 0,
-    totalEvents: 0,
-    totalRevenue: 0,
-    totalPaid: 0,
-    totalPending: 0,
-    pendingProfileReviews: 0,
-    activeStreams: 0,
-    totalNotifications: 0,
-    unreadContactMessages: 0,
-  };
+/**
+ * A figure the backend must send. A missing one is an error, not a zero: the screens used to fill gaps with 0, which
+ * reads as "you have earned nothing" when the truth is "this was not reported". The backend's analytics DTOs
+ * (CustomerAnalyticsDTO, CoordinatorAnalyticsDTO, PhotographerAnalyticsDTO) carry every one of these fields.
+ */
+function need(d: Raw, key: string): number {
+  const v = num(d[key]);
+  if (v === undefined) throw { status: 200, message: 'Analytics are unavailable right now. Please try again.' };
+  return v;
 }
 
 export async function getCustomerAnalytics(): Promise<CustomerAnalytics> {
   const res = await api.getOk<ApiEnvelope<Raw>>('/customer/analytics');
   const d = (res?.data ?? {}) as Raw;
-  const def = defaultCustomerAnalytics();
   return {
-    totalEvents: num(d.totalEvents) ?? def.totalEvents,
-    upcomingEvents: num(d.upcomingEvents) ?? def.upcomingEvents,
-    completedEvents: num(d.completedEvents) ?? def.completedEvents,
-    cancelledEvents: num(d.cancelledEvents) ?? def.cancelledEvents,
-    totalBookings: num(d.totalBookings) ?? def.totalBookings,
-    totalSpent: num(d.totalSpent) ?? def.totalSpent,
-    pendingAmount: num(d.pendingAmount) ?? def.pendingAmount,
-    gifts: num(d.gifts) ?? def.gifts,
-    totalPhotos: num(d.totalPhotos) ?? def.totalPhotos,
-    totalVideos: num(d.totalVideos) ?? def.totalVideos,
-    bookmarkedPhotographers: num(d.bookmarkedPhotographers) ?? def.bookmarkedPhotographers,
-    unreadNotifications: num(d.unreadNotifications) ?? def.unreadNotifications,
+    totalEvents: need(d, 'totalEvents'),
+    upcomingEvents: need(d, 'upcomingEvents'),
+    completedEvents: need(d, 'completedEvents'),
+    cancelledEvents: need(d, 'cancelledEvents'),
+    totalBookings: need(d, 'totalBookings'),
+    totalSpent: need(d, 'totalSpent'),
+    pendingAmount: need(d, 'pendingAmount'),
+    gifts: need(d, 'gifts'),
+    totalPhotos: need(d, 'totalPhotos'),
+    totalVideos: need(d, 'totalVideos'),
+    bookmarkedPhotographers: need(d, 'bookmarkedPhotographers'),
+    unreadNotifications: need(d, 'unreadNotifications'),
   };
 }
 
@@ -171,40 +149,22 @@ export type PhotographerAnalytics = {
   unreadNotifications: number;
 };
 
-function defaultPhotographerAnalytics(): PhotographerAnalytics {
-  return {
-    totalEvents: 0,
-    upcomingEvents: 0,
-    completedEvents: 0,
-    totalClients: 0,
-    totalBookings: 0,
-    totalEarnings: 0,
-    totalTips: 0,
-    pendingPayments: 0,
-    bonuses: 0,
-    averageRating: 0,
-    totalPhotosUploaded: 0,
-    unreadNotifications: 0,
-  };
-}
-
 export async function getPhotographerAnalytics(): Promise<PhotographerAnalytics> {
   const res = await api.getOk<ApiEnvelope<Raw>>('/photographer/analytics');
   const d = (res?.data ?? {}) as Raw;
-  const def = defaultPhotographerAnalytics();
   return {
-    totalEvents: num(d.totalEvents) ?? def.totalEvents,
-    upcomingEvents: num(d.upcomingEvents) ?? def.upcomingEvents,
-    completedEvents: num(d.completedEvents) ?? def.completedEvents,
-    totalClients: num(d.totalClients) ?? def.totalClients,
-    totalBookings: num(d.totalBookings) ?? def.totalBookings,
-    totalEarnings: num(d.totalEarnings) ?? def.totalEarnings,
-    totalTips: num(d.totalTips) ?? def.totalTips,
-    pendingPayments: num(d.pendingPayments) ?? def.pendingPayments,
-    bonuses: num(d.bonuses) ?? def.bonuses,
-    averageRating: num(d.averageRating) ?? def.averageRating,
-    totalPhotosUploaded: num(d.totalPhotosUploaded) ?? def.totalPhotosUploaded,
-    unreadNotifications: num(d.unreadNotifications) ?? def.unreadNotifications,
+    totalEvents: need(d, 'totalEvents'),
+    upcomingEvents: need(d, 'upcomingEvents'),
+    completedEvents: need(d, 'completedEvents'),
+    totalClients: need(d, 'totalClients'),
+    totalBookings: need(d, 'totalBookings'),
+    totalEarnings: need(d, 'totalEarnings'),
+    totalTips: need(d, 'totalTips'),
+    pendingPayments: need(d, 'pendingPayments'),
+    bonuses: need(d, 'bonuses'),
+    averageRating: need(d, 'averageRating'),
+    totalPhotosUploaded: need(d, 'totalPhotosUploaded'),
+    unreadNotifications: need(d, 'unreadNotifications'),
   };
 }
 
@@ -222,18 +182,17 @@ export async function getPhotographerTrends(
 export async function getCoordinatorAnalytics(): Promise<CoordinatorAnalytics> {
   const res = await api.getOk<ApiEnvelope<Raw>>('/coordinator/analytics');
   const d = (res?.data ?? {}) as Raw;
-  const def = defaultCoordinatorAnalytics();
   return {
-    totalCustomers: num(d.totalCustomers) ?? def.totalCustomers,
-    totalPhotographers: num(d.totalPhotographers) ?? def.totalPhotographers,
-    totalEvents: num(d.totalEvents) ?? def.totalEvents,
-    totalRevenue: num(d.totalRevenue) ?? def.totalRevenue,
-    totalPaid: num(d.totalPaid) ?? def.totalPaid,
-    totalPending: num(d.totalPending) ?? def.totalPending,
-    pendingProfileReviews: num(d.pendingProfileReviews) ?? def.pendingProfileReviews,
-    activeStreams: num(d.activeStreams) ?? def.activeStreams,
-    totalNotifications: num(d.totalNotifications) ?? def.totalNotifications,
-    unreadContactMessages: num(d.unreadContactMessages) ?? def.unreadContactMessages,
+    totalCustomers: need(d, 'totalCustomers'),
+    totalPhotographers: need(d, 'totalPhotographers'),
+    totalEvents: need(d, 'totalEvents'),
+    totalRevenue: need(d, 'totalRevenue'),
+    totalPaid: need(d, 'totalPaid'),
+    totalPending: need(d, 'totalPending'),
+    pendingProfileReviews: need(d, 'pendingProfileReviews'),
+    activeStreams: need(d, 'activeStreams'),
+    totalNotifications: need(d, 'totalNotifications'),
+    unreadContactMessages: need(d, 'unreadContactMessages'),
   };
 }
 
@@ -490,8 +449,9 @@ export type CoordinatorPhotographer = {
   name: string;
   email?: string;
   avatar?: string;
-  totalEvents: number;
-  status: string;
+  /** Absent when the API did not say: never a zero or an "Active" the account was not given. */
+  totalEvents?: number;
+  status?: string;
 };
 
 export async function getCoordinatorPerformance(
@@ -529,8 +489,8 @@ export async function getCoordinatorPhotographers(size = 5): Promise<Coordinator
     name: str(r.name) ?? str(r.firstName) ?? 'Photographer',
     email: str(r.email),
     avatar: str(r.avatar) ?? str(r.profilePicture),
-    totalEvents: num(r.totalEvents) ?? 0,
-    status: str(r.status) ?? 'Active',
+    totalEvents: num(r.totalEvents),
+    status: str(r.status),
   })).filter((p) => p.id);
 }
 

@@ -31,6 +31,9 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { SkeletonCard } from '@/features/photographer/kit';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 type FilterType = 'ALL' | 'CREATORS' | 'UNREAD';
 type SortType = 'recent' | 'unread' | 'name' | 'oldest';
@@ -363,8 +366,10 @@ export default function InboxScreen() {
         }
         ListEmptyComponent={
           loading ? (
-            <View style={styles.emptyContainer}>
-              <ActivityIndicator size="small" color={colors.primary} />
+            <View style={{ gap: spacing.sm, padding: spacing.lg }} accessibilityLabel="Loading">
+              <SkeletonCard height={72} />
+              <SkeletonCard height={72} />
+              <SkeletonCard height={72} />
             </View>
           ) : error && !data ? (
             // A failed read is not an empty inbox.
@@ -424,11 +429,11 @@ export default function InboxScreen() {
         animationType="slide"
         onRequestClose={() => setShowNewMessageModal(false)}
       >
-        <Pressable
+        <GlassScrim
           style={styles.modalBackdrop}
           onPress={() => setShowNewMessageModal(false)}
         >
-          <Pressable style={styles.newMsgSheet} onPress={(e) => e.stopPropagation()}>
+          <GlassSheetHost style={styles.newMsgSheet}>
             <View style={styles.modalHandle} />
 
             {/* Instagram New Message Header */}
@@ -573,8 +578,8 @@ export default function InboxScreen() {
                 />
               )}
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* ── Sort Options Modal Sheet ────────────────────────────────── */}
@@ -584,11 +589,11 @@ export default function InboxScreen() {
         animationType="fade"
         onRequestClose={() => setSortModalVisible(false)}
       >
-        <Pressable
+        <GlassScrim
           style={styles.modalBackdrop}
           onPress={() => setSortModalVisible(false)}
         >
-          <Pressable style={styles.sortModalSheet} onPress={(e) => e.stopPropagation()}>
+          <GlassSheetHost style={styles.sortModalSheet}>
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
@@ -650,8 +655,8 @@ export default function InboxScreen() {
                 );
               })}
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Floating Translucent TopBar */}
@@ -828,31 +833,20 @@ const useStyles = makeStyles((c, e) => ({
   // Modals & Sheets
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
   },
   newMsgSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     paddingTop: spacing.sm,
     paddingBottom: Platform.OS === 'ios' ? spacing.xxxl : spacing.lg,
     paddingHorizontal: spacing.lg,
     height: '85%',
-    borderTopWidth: 1,
-    borderTopColor: c.borderSoft,
     gap: spacing.sm,
   },
   sortModalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     paddingTop: spacing.sm,
     paddingBottom: Platform.OS === 'ios' ? spacing.xxxl : spacing.xl,
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: c.borderSoft,
   },
   modalHandle: {
     width: 36,
@@ -891,7 +885,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
 
   // "To:" Search Row
@@ -920,7 +914,7 @@ const useStyles = makeStyles((c, e) => ({
   // Scope Tabs inside New Message modal
   scopeTabRow: {
     flexDirection: 'row',
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderRadius: radii.lg,
     padding: 3,
     gap: 4,
@@ -934,7 +928,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.md,
   },
   scopeTabActive: {
-    backgroundColor: c.surface,
+    ...glassTile(c),
     ...e(1),
   },
   scopeTabText: {
@@ -1001,14 +995,14 @@ const useStyles = makeStyles((c, e) => ({
     gap: 12,
   },
   contactRowPressed: {
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderRadius: radii.md,
   },
   contactAvatar: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   contactAvatarFallback: {
     width: 46,

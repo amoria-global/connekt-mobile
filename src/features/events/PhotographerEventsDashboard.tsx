@@ -37,7 +37,7 @@ import { Alert } from '@/components/ui/dialog';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { GlassOnMedia } from '@/components/ui/GlassCard';
+import { GlassOnMedia, glassTile } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
@@ -57,6 +57,8 @@ import { Sheet } from '@/components/ui/Sheet';
 import { EventQrSheet } from './EventQrSheet';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useLanguage } from '@/store/language';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const PAGE_SIZE = 8;
 
@@ -162,6 +164,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   const { language, t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
 
@@ -515,9 +518,9 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         keyExtractor={(e) => e.id}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGap}
         ListHeaderComponent={headerWithSchedule}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
         renderItem={({ item }) => (
           <PhotographerEventCard
@@ -778,7 +781,7 @@ function PhotographerEventCard({
         {event.location ? (
           <View style={styles.locRow}>
             <Ionicons name="location" size={12} color="rgba(255,255,255,0.85)" />
-            <Text style={styles.locText} numberOfLines={1}>
+            <Text style={styles.locText} numberOfLines={2}>
               {event.location}
             </Text>
           </View>
@@ -796,7 +799,7 @@ function PhotographerEventCard({
                 </Text>
               </View>
             )}
-            <Text style={styles.clientName} numberOfLines={1}>
+            <Text style={styles.clientName} numberOfLines={2}>
               {event.clientName || 'Client'}
             </Text>
           </View>
@@ -901,10 +904,9 @@ function AcceptBookingSheet({
 
   return (
     <Modal visible={!!event} transparent animationType="slide" onRequestClose={onCancel}>
-      <Pressable style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
-        <Pressable
+      <GlassScrim style={styles.sheetBackdrop} onPress={() => !busy && onCancel()}>
+        <GlassSheetHost
           style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) }]}
-          onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.sheetHandle} />
           <View style={styles.sheetIcon}>
@@ -956,8 +958,8 @@ function AcceptBookingSheet({
               )}
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
+        </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
@@ -1009,7 +1011,7 @@ function SheetMeta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
   return (
     <View style={styles.sheetMeta}>
       <Ionicons name={icon} size={13} color={colors.accent} />
-      <Text style={styles.sheetMetaText} numberOfLines={1}>
+      <Text style={styles.sheetMetaText} numberOfLines={2}>
         {text}
       </Text>
     </View>
@@ -1018,7 +1020,7 @@ function SheetMeta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
 
 const useStyles = makeStyles((c) => ({
   container: { flex: 1 },
-  listContent: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
+  listContent: { paddingHorizontal: spacing.lg },
   columnWrapper: { gap: spacing.md },
 
 
@@ -1229,7 +1231,7 @@ const useStyles = makeStyles((c) => ({
   pkgText: { fontFamily: fonts.bold, fontSize: 10.5, color: '#fff' },
 
   // Accept sheet
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,26,0.6)', justifyContent: 'flex-end' },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end' },
   sheetHandle: {
     width: 38,
     height: 4,
@@ -1239,9 +1241,6 @@ const useStyles = makeStyles((c) => ({
     marginBottom: spacing.sm,
   },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     alignItems: 'center',
     gap: 6,
@@ -1259,7 +1258,7 @@ const useStyles = makeStyles((c) => ({
   sheetTitle: { fontFamily: fonts.bold, fontSize: 22, color: c.text },
   sheetCard: {
     alignSelf: 'stretch',
-    backgroundColor: c.background,
+    ...glassTile(c),
     borderRadius: radii.lg,
     padding: spacing.lg,
     marginTop: spacing.sm,
@@ -1299,7 +1298,7 @@ const useStyles = makeStyles((c) => ({
     height: 50,
     borderRadius: radii.md,
   },
-  sheetCancel: { backgroundColor: c.surfaceMuted },
+  sheetCancel: { ...glassTile(c) },
   sheetCancelText: { fontFamily: fonts.bold, fontSize: 15, color: c.textSoft },
   sheetConfirm: { backgroundColor: '#10B981' },
   sheetConfirmText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
@@ -1452,3 +1451,8 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.borderSoft,
   },
 }));
+
+/** Module level, so the list keeps one separator type and does not remount every gap on each render. */
+function ListGap() {
+  return <View style={{ height: spacing.md }} />;
+}

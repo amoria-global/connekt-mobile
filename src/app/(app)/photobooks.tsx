@@ -291,7 +291,7 @@ export default function PhotobooksScreen() {
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          { paddingBottom: insets.bottom + spacing.xl },
         ]}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />

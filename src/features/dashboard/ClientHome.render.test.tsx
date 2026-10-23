@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import { ClientHome } from '@/features/dashboard/ClientHome';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
 import { dayKey, shiftDays } from '@/features/photographer/schedule';
+import { customerAnalytics } from '@/test/analyticsPayloads';
 
 /**
  * RENDERED screen (react-test-renderer under jest-expo, not a device): the real
@@ -39,8 +40,16 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('@/components/topbar/TopBar', () => ({ TopBar: () => null, useTopBarHeight: () => 0 }));
 jest.mock('@/components/ui/Screen', () => ({ Screen: ({ children }: { children: React.ReactNode }) => children }));
 jest.mock('@/components/ui/live', () => {
-  const { Text } = require('react-native');
-  return { LivePill: ({ label }: { label: string }) => <Text>{label}</Text> };
+  const { Text, Pressable, View } = require('react-native');
+  return {
+    LivePill: ({ label = 'LIVE' }: { label?: string }) => <Text>{label}</Text>,
+    LiveButton: ({ label, onPress }: { label: string; onPress?: () => void }) => (
+      <Pressable onPress={onPress} accessibilityLabel={label}>
+        <Text>{label}</Text>
+      </Pressable>
+    ),
+    LiveTwinkle: ({ children }: { children: React.ReactNode }) => <View>{children}</View>,
+  };
 });
 jest.mock('@/features/kyc/KycBanner', () => ({ KycBanner: () => null }));
 jest.mock('@/components/FindPhotosBottomSheet', () => ({ FindPhotosBottomSheet: () => null }));
@@ -88,23 +97,29 @@ const flat = (node: ReactTestInstance): string =>
     .map((t) => (Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children ?? '')))
     .join(' | ');
 
-type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'pending' | 'activities' | 'photographers' | 'bookmarks', unknown>>;
+type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'pending' | 'activities' | 'photographers' | 'bookmarks' | 'trends' | 'performance', unknown>>;
 
 function serve(routes: Routes) {
   const defaults: Routes = {
     wallet: walletFixture,
-    analytics: ok({ totalPhotos: 0, totalEvents: 0, upcomingEvents: 0, completedEvents: 0, cancelledEvents: 0, totalBookings: 0, bookmarkedPhotographers: 0 }),
+    analytics: ok(customerAnalytics()),
     events: ok([]),
     pending: ok([]),
     activities: ok([]),
     photographers: ok([]),
     bookmarks: ok([]),
+    trends: ok({}),
+    performance: ok([]),
   };
   const r = { ...defaults, ...routes };
   mockGet.mockImplementation(async (path: string) => {
     const v = path.startsWith('/wallet/me')
       ? r.wallet
-      : path.startsWith('/customer/analytics/recent-activities')
+      : path.startsWith('/customer/analytics/trends')
+        ? r.trends
+        : path.startsWith('/customer/analytics/performance')
+          ? r.performance
+          : path.startsWith('/customer/analytics/recent-activities')
         ? r.activities
         : path.startsWith('/customer/analytics')
           ? r.analytics
@@ -143,6 +158,14 @@ const press = async (r: TestRenderer.ReactTestRenderer, label: string) => {
 
 const inDays = (n: number) => shiftDays(dayKey(new Date()), n);
 
+const pressText = async (r: TestRenderer.ReactTestRenderer, text: string) => {
+  const node = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.findAllByType(Text).some((t) => t.props.children === text))[0];
+  if (!node) throw new Error(`nothing to press with text "${text}"`);
+  await act(async () => {
+    node.props.onPress();
+  });
+};
+
 beforeEach(() => {
   mockGet.mockReset();
   mockPost.mockReset();
@@ -160,7 +183,9 @@ describe('client home as rendered', () => {
     });
     const r = await mount();
     const masked = flat(r.root);
-    expect(masked).toContain('Welcome back, Aline');
+    const heading = r.root.findAll((x) => x.props.accessibilityRole === 'header' && /, Aline$/.test(String(x.props.accessibilityLabel ?? '')));
+    expect(heading.length).toBeGreaterThan(0);
+    expect(masked).toContain('Your dashboard');
     expect(masked).toContain('Yubire Wedding');
     expect(masked).toContain('8 days to go');
     expect(masked).toContain('Photographer confirmed');
@@ -269,7 +294,7 @@ describe('client home as rendered', () => {
   });
 
   it('delivered photos are surfaced and open the albums', async () => {
-    serve({ analytics: ok({ totalPhotos: 42 }) });
+    serve({ analytics: ok(customerAnalytics({ totalPhotos: 42 })) });
     const r = await mount();
     expect(flat(r.root)).toContain('42 in your albums');
     const btn = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.findAllByType(Text).some((t) => t.props.children === 'Review photos'))[0];
@@ -316,5 +341,51 @@ describe('client home as rendered', () => {
     const text = flat(r.root);
     expect(text).toContain('Could not load activity');
     expect(text).not.toContain('Nothing yet');
+  });
+});
+
+describe('get help on the home', () => {
+  it('offers the existing Help Center and the Contact us form', async () => {
+    serve({});
+    const r = await mount();
+    expect(flat(r.root)).toContain('Need help?');
+    await pressText(r, 'Get help');
+    expect(mockPush).toHaveBeenLastCalledWith('/help-center');
+    await pressText(r, 'Contact support');
+    expect(mockPush).toHaveBeenLastCalledWith('/contact_us');
+  });
+});
+
+describe('client trend chart', () => {
+  const week = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => ({ day, value1: i === 5 ? 40 : 0, value2: i === 5 ? 2 : 0 }));
+
+  it('shows the performance card with the client metrics, spend first', async () => {
+    serve({ performance: ok(week), trends: ok({ totalSpent: { value: 40, changePercent: 12, trend: 'up' }, events: { value: 2, changePercent: 0, trend: 'up' } }) });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Performance');
+    expect(text).toContain('TOTAL SPENT');
+    expect(text).toContain('Spent');
+    expect(text).toContain('Events');
+    expect(text).not.toContain('Photographers, ');
+    // the client chart has no coordinator-only metrics
+    expect(text).not.toMatch(/Clients \|/);
+  });
+
+  it('masks the spend figure until amounts are shown', async () => {
+    serve({ performance: ok(week), trends: ok({ totalSpent: { value: 40, changePercent: 0, trend: 'up' } }) });
+    const r = await mount();
+    const masked = flat(r.root);
+    expect(masked).not.toContain('$40.00');
+    await press(r, 'Show amounts');
+    expect(flat(r.root)).toContain('$40.00');
+  });
+
+  it('a refused trends read is an error with a retry, and the chart says it could not load', async () => {
+    serve({ trends: refused('Could not load trends') });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Could not load trends');
+    expect(text).toContain('Trend data could not be loaded');
   });
 });

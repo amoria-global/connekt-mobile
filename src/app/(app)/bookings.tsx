@@ -58,6 +58,8 @@ import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { env } from '@/config/env';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 type Tab = 'direct' | 'opportunities';
 
@@ -65,6 +67,7 @@ export default function BookingsScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { tr } = useSharedT();
   const router = useRouter();
   const { tab, candidate } = useLocalSearchParams<{ tab?: string; candidate?: string }>();
@@ -284,7 +287,7 @@ export default function BookingsScreen() {
           </View>
         ) : (
           <ScrollView
-            contentContainerStyle={styles.list}
+            contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
             refreshControl={
               <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
             }
@@ -420,7 +423,7 @@ export default function BookingsScreen() {
       ) : (
         /* TAB 2: OPEN OPPORTUNITIES (HYBRID) */
         <ScrollView
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           refreshControl={
             <RefreshControl
               refreshing={loadingOpp}
@@ -482,14 +485,11 @@ export default function BookingsScreen() {
           setReason('');
         }}
       >
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => {
+        <GlassScrim onPress={() => {
             setRejecting(null);
             setReason('');
-          }}
-        />
-        <View style={styles.sheet}>
+          }} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <GlassSheetHost style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.sheetTitle}>Reject booking</Text>
           <Text style={styles.sheetSub}>
@@ -510,7 +510,8 @@ export default function BookingsScreen() {
             loading={busyId === rejecting?.id}
             disabled={!reason.trim() || busyId === rejecting?.id}
           />
-        </View>
+        </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Full-Screen Incoming Opportunity Alert (Uber / Ringing Call Style) */}
@@ -537,7 +538,7 @@ function Row({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: strin
   return (
     <View style={styles.row}>
       <Ionicons name={icon} size={14} color={colors.textMuted} />
-      <Text style={styles.rowText} numberOfLines={1}>
+      <Text style={styles.rowText} numberOfLines={2}>
         {text}
       </Text>
     </View>
@@ -550,7 +551,7 @@ const useStyles = makeStyles((c) => ({
   stateWrap: { flex: 1, padding: spacing.lg, justifyContent: 'center' },
   actionBtn: { flex: 1 },
   statusLine: { alignSelf: 'flex-start', marginBottom: 2 },
-  list: { paddingBottom: 120, gap: spacing.md },
+  list: { gap: spacing.md },
   card: {
     marginHorizontal: spacing.lg,
     backgroundColor: c.card,
@@ -603,9 +604,6 @@ const useStyles = makeStyles((c) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,

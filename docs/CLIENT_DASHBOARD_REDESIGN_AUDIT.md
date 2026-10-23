@@ -382,3 +382,78 @@ All sub-12px body, meta, badge, pill, and caption font sizes (`7.5`–`11.5` and
 - **Jest (`npx jest`)**: All touched and regression suites pass (`ClientHome.render.test.tsx`, `PhotographerHome.render.test.tsx`, `ClientCharts.test.tsx`, `walletTab.render.test.tsx`, `WalletAnalytics.test.tsx`, `ClientEventsDashboard.render.test.tsx`, `ScheduleView.test.tsx`, `paymentsScreen.render.test.tsx`).
 - **Device / Emulator**: Not run in this pass (`adb devices` had no physical phone attached and host free physical RAM was ~970 MB, below the ~2 GB required to boot the Android emulator and Metro). Visual verification of this fourth pass is via `react-test-renderer` Jest tests only.
 
+
+## 5. Gap-closing device pass and batch 2 audit (2026-10-20, emulator)
+
+Device: Pixel 5 emulator (API 34, software rendering). No physical phone. No iOS.
+
+| Screen | Light | Dark | 1.6x | Result |
+|---|---|---|---|---|
+| Photobooks list | seen | seen | seen | clean, chips and cards intact |
+| Photobook detail (no cover) | not re-seen | not seen | seen | FOUND: hero caption overlapped the chips and title. Fixed (caption removed, icon higher), re-seen |
+| Inbox | seen | seen | seen | clean |
+| Notifications | seen | seen | seen | clean |
+| Profile | seen | not seen | seen | FOUND: "Member since Recent" invented a date. Line now omitted when there is no join date (code only, not re-seen) |
+| Photographer profile | seen | seen | seen | clean |
+| Edit profile, Preferences, Two-factor, Blocked accounts, Delete account, Donate, Transactions, Content albums | seen | seen (listed screens other than Edit profile and Delete account captured; two captures landed on the wrong screen) | seen (Edit profile did not navigate) | Coherent with the rest of the app, no overlap or clipping at 1.6x. Not restyled. |
+
+Batch 2 findings, not changed: Content albums shows a second "New Content Album" button next to the empty-state one, and its search placeholder truncates at 1.6x; Transactions shows backend description text (for example "MS1_PHOTOBOOK_HOLD ...") verbatim; Blocked accounts has a large empty gap above the empty state.
+
+Not verified: booking wizard, conversation, Photobook detail with photos in dark, any screen on a physical phone or iOS, scroll smoothness.
+
+## 6. Batch 3: settings and account screens (2026-10-20, emulator)
+
+Branch `feat/client-dashboard-batch3`. Frontend only; no merge, push to main or OTA from this branch. Device: Pixel 5 emulator, fixture backend with synthetic data; no physical phone, no iOS.
+
+| Screen | What changed | Light | Dark | 1.6x |
+|---|---|---|---|---|
+| Transactions | Backend codes shown in words (`movementLabel.ts`, 3 tests), shared Chip filters (wrap at 1.6x), ListRow cards with icon tiles | seen | seen | seen |
+| Blocked accounts | ListRow group with avatar and Unblock action, skeleton, error retry, compact empty state (gap removed) | seen (empty state) | seen (empty state) | seen (empty state) |
+| Two-factor | Status card with ON/OFF badge, grouped sections, separated DANGER ZONE for disable | seen (off state) | seen (off state) | seen (off state) |
+| Delete account | Consequences as ListRows, separated DANGER ZONE with typed DELETE confirmation | seen | seen | seen (text no longer truncated) |
+| Donate | Hero donate action, suggested amounts, history as ListRows, skeleton, error, empty | seen | seen | seen |
+| Preferences | App and Alert types sections, icon tiles, toggles with accessibility labels | seen | seen | seen |
+| Edit profile | Profile header card, grouped field sections, sticky solid Save bar | seen | seen | seen |
+| Content albums | Shared chips, single New Content Album action, shorter search placeholder, skeleton, error, empty | seen | seen | seen |
+| Booking wizard (step 1) | not changed | seen | seen | seen |
+| Conversation | not changed | seen | seen | seen |
+
+Shared changes (defaults unchanged for existing screens): `SectionHeader`, `UserHeaderBand` and `ErrorNotice` gained an opt-in `flush`; `ListRow` gained `titleLines`.
+
+Not seen: Blocked accounts with real blocked users, its error state, and the loading skeletons on every screen (the fixture answers instantly); Two-factor in the enabled and QR setup states; Edit profile as a coordinator; Donate history with rows; Transactions pagination; photobook detail with photos in dark (the fixture book has no photos). Existing lint errors remain in `blocked-accounts.tsx`, `preferences.tsx` and `transactions.tsx` (set-state-in-effect, memoization), which predate this branch.
+
+## 7. Batch 3 follow-up: loading, error and data states (2026-10-20, emulator)
+
+Device: Pixel 5 emulator, fixture backend with a configurable delay and a fail-everything mode (outside the repo). A loading state only appears on the first visit to a screen after a cold start, so each mode was checked from a force-stopped app. No physical phone, no iOS.
+
+### Transaction labels
+`movementLabel.ts` (5 tests): `MS1_PHOTOBOOK_HOLD` reads "Photobook hold", every leading milestone tag (MS1_, V2_) is stripped, underscores become spaces, a title with nothing readable left shows "Transaction". Text without codes is untouched.
+
+### Loading skeletons (fixture delay 6s) and error with retry (fail-everything mode)
+
+| Screen | Loading, light | Loading, dark | Error + retry, light | Error + retry, dark | Fixed in this pass |
+|---|---|---|---|---|---|
+| Home | skeleton under Upcoming event | seen | seen (error row with Try again) | seen | none needed |
+| Photographers | skeleton cards | seen | seen (Retry) | seen | was a spinner, now skeletons |
+| Gallery | skeleton grid | seen | seen | seen | none needed |
+| Payments | skeleton rows | seen | seen | seen | chip counts showed 0 while loading or failed, now hidden |
+| Inbox | skeleton rows | seen | seen | seen | was a spinner, now skeletons |
+| Notifications | skeleton rows | seen | seen | seen | was a spinner, now skeletons |
+| Transactions | skeleton rows | seen | seen | seen | showed "No transactions yet" while loading, now skeletons |
+
+Retry was exercised once end to end: failing Payments, turning the failure off and tapping Try again loaded the data. The other Try again controls were seen but not tapped.
+
+### Data states (light, dark and 1.6x each, all seen)
+
+| State | Result |
+|---|---|
+| Blocked accounts, three users, one with a long name | ListRows with Unblock; long name wraps to three lines at 1.6x |
+| Two-factor off, QR setup, enabled | Status badge flips ON, danger zone with Disable appears; the QR is a fixture image, real scanning not tested |
+| Donate history rows | three rows with per-currency amounts |
+| Transactions, 120 rows | 1/7 client pages ("Showing 1-8 of 50"), Load older transactions present; codes shown in words |
+| Photobook with 30 photos | three-column grid under the hero; the earlier "0 curated photos" was a fixture route clash, not an app bug |
+
+Not seen: Unblock, Enable and Disable were not submitted for real (the fixture accepts them), the Load older button was not tapped, pagination Next was not tapped, and the dark and 1.6x views of the QR step were seen only as far as the screenshot shows.
+
+### Screenshot gallery
+`docs/client-redesign-screens/`: 27 screens, light and dark, with an index in its README.

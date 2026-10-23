@@ -12,7 +12,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { useRole } from '@/features/auth/role';
 import { IconTile } from '@/features/photographer/kit';
 import { ProgressTrack } from '@/features/client/studio';
-import { bookingTrack } from '@/features/events/bookingTrack';
+import { bookingTrack, progressView } from '@/features/events/bookingTrack';
 import {
   acceptEventBooking,
   confirmCompletion,
@@ -41,6 +41,8 @@ import { useCurrency } from '@/store/currency';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
@@ -51,6 +53,7 @@ export default function EventDetailScreen() {
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { ownsEvents, isPhotographer, isCoordinator } = useRole();
@@ -506,7 +509,7 @@ export default function EventDetailScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -608,13 +611,14 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Booking progress */}
-        {(isPhotog || ownsEvents) && !ev?.status?.toUpperCase().includes('CANCEL') ? (
+        {/* Owners get the labelled track below; the plain stepper is the photographer's, and the owner's fallback when there is no track. */}
+        {progressView(ev, isPhotog, ownsEvents) === 'stepper' ? (
           <InfoCard icon="git-commit-outline" title={tr('b3_evdet_booking_progress')}>
             <ProgressStepper currentIndex={bookingStepIndex(ev)} />
           </InfoCard>
         ) : null}
-        {!isPhotog && ownsEvents && bookingTrack(ev) ? (
-          <InfoCard icon="git-commit-outline" title="Booking Progress">
+        {progressView(ev, isPhotog, ownsEvents) === 'track' ? (
+          <InfoCard icon="git-commit-outline" title={tr('b3_evdet_booking_progress')}>
             <ProgressTrack steps={bookingTrack(ev)!} label="Booking progress" />
           </InfoCard>
         ) : null}
@@ -783,8 +787,8 @@ export default function EventDetailScreen() {
 
       {/* Rate photographer sheet */}
       <Modal visible={reviewOpen} transparent animationType="slide" onRequestClose={() => setReviewOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setReviewOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.backdrop} onPress={() => setReviewOpen(false)}>
+          <GlassSheetHost style={styles.sheet}>
             <Text style={styles.sheetTitle}>Rate {data?.photographerName}</Text>
             <View style={styles.starRow}>
               <StarInput value={rating} onChange={setRating} />
@@ -797,14 +801,14 @@ export default function EventDetailScreen() {
               style={styles.commentInput}
             />
             <Button title={tr('b3_evdet_submit_review')} onPress={onSubmitReview} loading={busy === 'review'} />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Confirm completion sheet */}
       <Modal visible={completionOpen} transparent animationType="slide" onRequestClose={() => setCompletionOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setCompletionOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.backdrop} onPress={() => setCompletionOpen(false)}>
+          <GlassSheetHost style={styles.sheet}>
             <Text style={styles.sheetTitle}>{tr('b3_evdet_confirm_completion')}</Text>
             <Text style={styles.sheetHint}>
               Confirm the event went ahead, or request changes if something needs fixing. Confirming
@@ -826,8 +830,8 @@ export default function EventDetailScreen() {
             >
               <Text style={styles.requestChangesText}>{tr('b3_evdet_request_changes')}</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       <EventQrSheet
@@ -965,7 +969,7 @@ function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphM
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue} numberOfLines={2}>
+        <Text style={styles.detailValue} numberOfLines={5}>
           {value}
         </Text>
       </View>
@@ -1119,7 +1123,6 @@ const useStyles = makeStyles((c) => ({
   scroll: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: 120,
     gap: spacing.lg,
   },
 
@@ -1272,11 +1275,8 @@ const useStyles = makeStyles((c) => ({
   stepLabelDone: { fontFamily: fonts.bold, color: c.text },
 
   // Modals
-  backdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     padding: spacing.xl,
     gap: spacing.md,
   },

@@ -62,8 +62,8 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
         <View style={styles.spine} pointerEvents="none" />
         <View style={styles.top}>
           <View style={[styles.status, { backgroundColor: tone.bg }]}>
-            <Text style={[styles.statusText, { color: tone.fg }]} maxFontSizeMultiplier={1.2}>
-              {tr(tone.label)}
+            <Text style={[styles.statusText, { color: tone.fg }]} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+              {tone.label}
             </Text>
           </View>
         </View>
@@ -71,7 +71,7 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
           <View style={styles.bottom}>
             <View style={styles.count}>
               <Ionicons name="images" size={11} color="#fff" />
-              <Text style={styles.countText} maxFontSizeMultiplier={1.2}>
+              <Text style={styles.countText} maxFontSizeMultiplier={1.6}>
                 {tr(count)}
               </Text>
             </View>
@@ -79,11 +79,11 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
         ) : null}
       </View>
       <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+        <Text style={styles.title} numberOfLines={3} maxFontSizeMultiplier={1.6}>
           {book.name}
         </Text>
         {by ? (
-          <Text style={styles.meta} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+          <Text style={styles.meta} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {tr(by)}
           </Text>
         ) : null}
@@ -124,10 +124,10 @@ const useStyles = makeStyles((c, e) => ({
   scrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '40%' },
   spine: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, backgroundColor: 'rgba(5,12,24,0.38)', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.18)' },
   top: { flexDirection: 'row', paddingLeft: 6 },
-  status: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: radii.full },
+  status: { flexShrink: 1, alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: radii.full },
   statusText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   bottom: { flexDirection: 'row', paddingLeft: 6 },
-  count: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(5,12,24,0.62)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
+  count: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(5,12,24,0.62)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
   countText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   body: { padding: spacing.sm, gap: 3 },
   title: { color: c.text, fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },

@@ -1,215 +1,110 @@
+/**
+ * One stream in the list: its photograph, where it is in its life (live, upcoming, replay), the facts a person scans
+ * for (who, when, how many watched) and one clear target. Night-studio kit, flat card, no glass over media.
+ * Status is a word and an icon, never colour alone, and every line wraps instead of being cut.
+ */
+import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
-import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
-import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { Pressable, Text, View } from 'react-native';
 import { LivePill, LiveTwinkle } from '@/components/ui/live';
+import { Card, StatusBadge } from '@/features/photographer/kit';
+import { Thumb } from '@/features/photographer/homeParts';
+import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import type { Stream } from './api';
-import { GlassOnMedia } from '@/components/ui/GlassCard';
+import { viewersLabel, whenLabel } from './streamsModel';
 
-export function StreamCard({ stream }: { stream: Stream }) {
+type IconName = keyof typeof Ionicons.glyphMap;
+
+export function StreamCard({
+  stream,
+  onPress,
+  footer,
+  messages,
+  videos,
+  unviewed,
+}: {
+  stream: Stream;
+  onPress: () => void;
+  footer?: ReactNode;
+  /** Totals resolved with the chat history (the feed's own totals can be 0 when the history has rows). */
+  messages?: number;
+  videos?: number;
+  /** Video messages not opened yet, the web's "N new" badge. */
+  unviewed?: number;
+}) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { t } = useLanguage();
-  const initial = (stream.photographerName || stream.title || 'C').charAt(0).toUpperCase();
+  const when = whenLabel(stream);
+  const audience = viewersLabel(stream.viewerCount, stream.phase);
+  const facts: { key: string; icon: IconName; text: string }[] = [
+    ...(stream.photographerName ? [{ key: 'who', icon: 'camera-outline' as const, text: stream.photographerName }] : []),
+    ...(when ? [{ key: 'when', icon: 'calendar-outline' as const, text: when }] : []),
+    ...(audience ? [{ key: 'aud', icon: 'eye-outline' as const, text: audience }] : []),
+    ...(stream.duration ? [{ key: 'dur', icon: 'time-outline' as const, text: stream.duration }] : []),
+    ...(messages ? [{ key: 'msg', icon: 'chatbubble-outline' as const, text: `${messages.toLocaleString('en-US')} ${messages === 1 ? 'message' : 'messages'}` }] : []),
+    ...(videos ? [{ key: 'vid', icon: 'videocam-outline' as const, text: `${videos.toLocaleString('en-US')} ${videos === 1 ? 'video message' : 'video messages'}` }] : []),
+  ];
+  const live = stream.phase === 'live';
+  const a11y = [stream.title, live ? 'Live now' : stream.phase === 'ended' ? 'Replay' : 'Upcoming', ...(unviewed ? [`${unviewed} new videos`] : []), ...facts.map((f) => f.text)].join(', ');
 
   return (
-    <LiveTwinkle active={!!stream.isLive} radius={radii.xl}>
-    <View style={styles.card}>
-      <View style={styles.thumbWrap}>
-        <Image
-          source={stream.thumbnail ? { uri: stream.thumbnail } : EVENT_COVER_PLACEHOLDER}
-          style={styles.thumb}
-          contentFit="cover"
-          transition={200}
-        />
-        <View style={styles.thumbScrim} />
-
-        {/* Top Badges */}
-        <View style={styles.thumbTopRow}>
-          {stream.isLive ? (
-            <LivePill size="sm" sparkle label={t('streamLiveBadge')} />
-          ) : (
-            <GlassOnMedia style={styles.offAirBadge} edge>
-              <Text style={styles.offAirText}>{t('streamStandbyBadge')}</Text>
-            </GlassOnMedia>
-          )}
-
-          {stream.viewerCount != null && stream.isLive ? (
-            <GlassOnMedia style={styles.viewerBadge} edge>
-              <Ionicons name="eye" size={11} color="#fff" />
-              <Text style={styles.viewerBadgeText}>{stream.viewerCount}</Text>
-            </GlassOnMedia>
-          ) : null}
-        </View>
-
-        {/* Bottom thumbnail tag */}
-        <View style={styles.thumbBottomRow}>
-          <GlassOnMedia style={styles.tuneInPill} edge>
-            <Ionicons name="play" size={10} color="#fff" />
-            <Text style={styles.tuneInText}>{t('streamWatchStream')}</Text>
-          </GlassOnMedia>
-        </View>
-      </View>
-
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>
-          {stream.title}
-        </Text>
-
-        <View style={styles.creatorRow}>
-          <View style={styles.creatorAvatar}>
-            <Text style={styles.creatorAvatarText}>{initial}</Text>
+    <LiveTwinkle active={live} radius={radii.lg}>
+      <Card style={styles.card}>
+        <Pressable
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={a11y}
+          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+        >
+          <Thumb uri={stream.thumbnail} size={88} />
+          <View style={styles.text}>
+            {live ? (
+              <LivePill label="Live now" size="sm" sparkle />
+            ) : stream.phase === 'ended' ? (
+              <StatusBadge label="Replay" tone="neutral" icon="play-circle-outline" />
+            ) : (
+              <StatusBadge label="Upcoming" tone="info" icon="time-outline" />
+            )}
+            {unviewed ? <StatusBadge label={`${unviewed} new`} tone="error" icon="ellipse" /> : null}
+            <Text style={styles.title} numberOfLines={4} maxFontSizeMultiplier={1.6}>
+              {stream.title}
+            </Text>
+            {stream.eventType ? (
+              <Text style={styles.type} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+                {stream.eventType}
+              </Text>
+            ) : null}
+            {facts.map((f) => (
+              <View key={f.key} style={styles.fact}>
+                {f.key === 'who' && stream.photographerImage ? (
+                  <Image source={{ uri: stream.photographerImage }} style={styles.avatar} contentFit="cover" accessibilityIgnoresInvertColors />
+                ) : (
+                  <Ionicons name={f.icon} size={13} color={colors.textMuted} />
+                )}
+                <Text style={styles.factText} maxFontSizeMultiplier={1.6}>
+                  {f.text}
+                </Text>
+              </View>
+            ))}
           </View>
-          <Text style={styles.creatorName} numberOfLines={1}>
-            {stream.photographerName || t('streamBroadcasterFallback')}
-          </Text>
-          <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
-        </View>
-      </View>
-    </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} accessibilityElementsHidden importantForAccessibility="no" />
+        </Pressable>
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </Card>
     </LiveTwinkle>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  card: {
-    backgroundColor: c.surface,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  thumbWrap: {
-    position: 'relative',
-    aspectRatio: 16 / 9,
-    backgroundColor: '#071224',
-  },
-  thumb: {
-    width: '100%',
-    height: '100%',
-  },
-  thumbScrim: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(5, 12, 28, 0.35)',
-  },
-  thumbTopRow: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    right: spacing.sm,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#E11D48',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#fff',
-  },
-  liveText: {
-    color: '#fff',
-    fontFamily: fonts.bold,
-    fontSize: 10,
-    letterSpacing: 0.6,
-  },
-  offAirBadge: {
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: radii.sm,
-  },
-  offAirText: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontFamily: fonts.bold,
-    fontSize: 9.5,
-    letterSpacing: 0.5,
-  },
-  viewerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-  },
-  viewerBadgeText: {
-    color: '#fff',
-    fontFamily: fonts.bold,
-    fontSize: 10.5,
-  },
-  thumbBottomRow: {
-    position: 'absolute',
-    bottom: spacing.sm,
-    right: spacing.sm,
-  },
-  tuneInPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: c.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: radii.full,
-  },
-  tuneInText: {
-    fontFamily: fonts.bold,
-    fontSize: 10.5,
-    color: '#fff',
-  },
-  body: {
-    padding: spacing.md,
-    gap: 4,
-  },
-  title: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: c.text,
-    letterSpacing: -0.2,
-  },
-  creatorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  creatorAvatar: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: c.infoBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  creatorAvatarText: {
-    fontFamily: fonts.bold,
-    fontSize: 9.5,
-    color: c.primary,
-  },
-  creatorName: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: c.textMuted,
-    flexShrink: 1,
-  },
+  card: { marginHorizontal: 0, padding: 0 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, padding: spacing.md, minHeight: 56 },
+  pressed: { opacity: 0.85 },
+  text: { flex: 1, minWidth: 0, gap: 4, alignItems: 'flex-start' },
+  title: { color: c.text, fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  type: { color: c.textMuted, fontSize: 12 },
+  avatar: { width: 18, height: 18, borderRadius: 9 },
+  fact: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 1 },
+  factText: { flex: 1, minWidth: 0, color: c.textMuted, fontSize: 13, lineHeight: 18 },
+  footer: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
 }));

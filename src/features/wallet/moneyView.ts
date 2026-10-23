@@ -297,7 +297,8 @@ export function toRole(customerType: string | undefined | null): DashboardRole {
   if (!customerType) return 'client';
   const lower = customerType.toLowerCase().replace(/_/g, '-');
   if (lower === 'photographer' || lower === 'videographer') return 'photographer';
-  if (lower === 'event-coordinator') return 'event-coordinator';
+  // The app's own role name is 'Coordinator'; the backend's is 'EVENT_COORDINATOR'. Both are the same role.
+  if (lower === 'event-coordinator' || lower === 'coordinator') return 'event-coordinator';
   if (lower === 'admin') return 'admin';
   if (lower === 'user') return 'user';
   return 'client';

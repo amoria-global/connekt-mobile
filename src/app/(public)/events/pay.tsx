@@ -67,6 +67,8 @@ import { formatPrice } from '@/utils/format';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 // The stream-ticket endpoint takes MTN or AIRTEL for mobile money, as before.
@@ -106,6 +108,7 @@ export default function EventPaymentScreen() {
 function EventPaymentInner() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { id, device: tvDevice } = useLocalSearchParams<{ id: string; device?: string }>();
   // Pay-on-TV: a phone pays for a TV. Access is bound to the TV's device id
   // (from its QR), never this phone's, and this phone must not remember the
@@ -354,10 +357,10 @@ function EventPaymentInner() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]} keyboardShouldPersistTaps="handled">
         {/* Header Summary */}
         <View style={styles.summary}>
-          <Text style={styles.summaryEvent} numberOfLines={1}>
+          <Text style={styles.summaryEvent} numberOfLines={2}>
             {data.title}
           </Text>
           <Text style={styles.summarySub}>
@@ -378,10 +381,10 @@ function EventPaymentInner() {
               <View style={styles.signedInCard}>
                 <Ionicons name="person-circle" size={24} color={colors.primary} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.signedInName} numberOfLines={1}>
+                  <Text style={styles.signedInName} numberOfLines={2}>
                     {name || 'Signed in'}
                   </Text>
-                  {email ? <Text style={styles.signedInEmail} numberOfLines={1}>{email}</Text> : null}
+                  {email ? <Text style={styles.signedInEmail} numberOfLines={2}>{email}</Text> : null}
                 </View>
               </View>
             ) : (
@@ -586,8 +589,8 @@ function EventPaymentInner() {
         animationType="fade"
         onRequestClose={() => setCountryModalOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
-          <View style={styles.modalSheet}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{tr('b4_selectPaymentCountry')}</Text>
             <ScrollView style={{ maxHeight: 360 }}>
               {PAYMENT_COUNTRIES.map((c) => (
@@ -610,8 +613,8 @@ function EventPaymentInner() {
                 </Pressable>
               ))}
             </ScrollView>
-          </View>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -633,7 +636,6 @@ const useStyles = makeStyles((c) => ({
   scroll: {
     padding: spacing.lg,
     gap: spacing.lg,
-    paddingBottom: 100,
   },
   summary: {
     padding: spacing.lg,
@@ -942,13 +944,9 @@ const useStyles = makeStyles((c) => ({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.background,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.lg,
     gap: spacing.md,
   },

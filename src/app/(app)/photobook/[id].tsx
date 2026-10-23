@@ -63,7 +63,6 @@ const I18N = {
     loadingBook: 'Loading photobook…',
     errorLoadBook: "Couldn't load photobook",
     retry: 'Retry',
-    curatedPhotobook: 'Curated Photobook',
     backA11y: 'Back',
     shareBookA11y: 'Share photobook',
     kindBadge: 'PHOTOBOOK',
@@ -104,7 +103,6 @@ const I18N = {
     loadingBook: 'Chargement du livre photo…',
     errorLoadBook: 'Impossible de charger le livre photo',
     retry: 'Réessayer',
-    curatedPhotobook: 'Livre photo sélectionné',
     backA11y: 'Retour',
     shareBookA11y: 'Partager le livre photo',
     kindBadge: 'LIVRE PHOTO',
@@ -147,7 +145,6 @@ const I18N = {
     loadingBook: 'Cargando fotolibro…',
     errorLoadBook: 'No se pudo cargar el fotolibro',
     retry: 'Reintentar',
-    curatedPhotobook: 'Fotolibro seleccionado',
     backA11y: 'Atrás',
     shareBookA11y: 'Compartir fotolibro',
     kindBadge: 'FOTOLIBRO',
@@ -380,7 +377,6 @@ export default function PhotobookDetailScreen() {
                   <View style={styles.heroFallbackIconBox}>
                     <Ionicons name="book" size={38} color="rgba(255,255,255,0.4)" />
                   </View>
-                  <Text style={styles.heroFallbackText}>{tr.curatedPhotobook}</Text>
                 </View>
               )}
 
@@ -620,25 +616,19 @@ const useStyles = makeStyles((c) => ({
   heroFallback: {
     backgroundColor: '#0B162C',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    // Icon sits high so the status chips and title never collide with it at large text sizes.
+    justifyContent: 'flex-start',
+    paddingTop: 92,
   },
   heroFallbackIconBox: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
-  },
-  heroFallbackText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
   },
   heroScrim: {
     position: 'absolute',

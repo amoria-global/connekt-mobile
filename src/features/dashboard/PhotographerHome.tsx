@@ -2,7 +2,7 @@
  * PhotographerHome: the photographer's working dashboard.
  *
  * Reading order follows what a photographer opens the app for:
- *   1. Orientation: greeting, date, privacy toggle.
+ *   1. Orientation: DashboardGreeting hero (rotating greeting, date, privacy toggle).
  *   2. Money now: available to withdraw and pending release (from the wallet).
  *   3. Actions: create event, share profile, opportunities, collaborate.
  *   4. Needs your reply: booking requests and open opportunities.
@@ -28,12 +28,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
+import { DashboardGreeting } from './DashboardGreeting';
 import { photographerProfileUrl } from '@/features/photographer/profileLink';
 import { useForegroundPolling } from '@/hooks/useForegroundPolling';
 import { GoalsSection } from '@/features/photographer/GoalsSection';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
+import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { MatchingProfilePrompt } from '@/features/hybrid/MatchingProfile';
 import { IncomingOpportunityAlertModal } from '@/features/hybrid/IncomingOpportunityAlertModal';
 import { listOpportunities, approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
@@ -47,6 +49,7 @@ import { listPhotographerEvents } from '@/features/events/api';
 import { listPhotographerReviews } from '@/features/reviews/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
 import { getWallet } from '@/features/wallet/api';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
@@ -75,6 +78,7 @@ import {
   upcomingEvents as pickUpcoming,
 } from '@/features/photographer/schedule';
 import type { EventItem } from '@/features/events/types';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 /** Analytics totals and the transaction feed are USD ledger values. */
 const LEDGER_CURRENCY = 'USD';
@@ -83,15 +87,7 @@ const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not give memo hooks a new array every render. */
 const EMPTY: never[] = [];
 
-function greeting(now = new Date()): string {
-  const h = now.getHours();
-  if (h >= 5 && h < 12) return 'Good morning';
-  if (h >= 12 && h < 17) return 'Good afternoon';
-  if (h >= 17 && h < 22) return 'Good evening';
-  return 'Hello';
-}
-
-function longDate(lang?: string, now = new Date()): string {
+function longDate(now = new Date()): string {
   try {
     const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : lang === 'rw' ? 'rw-RW' : lang === 'sw' ? 'sw-TZ' : undefined;
     return now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -127,6 +123,7 @@ export function PhotographerHome() {
   useCurrency((s) => s.currency);
   const { language, tr } = useSharedT();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const { colors } = useTheme();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -142,7 +139,9 @@ export function PhotographerHome() {
   const analytics = useAsync(useCallback(() => getPhotographerAnalytics(), []));
   const events = useAsync(useCallback(() => listPhotographerEvents(), []));
   const clients = useAsync(useCallback(() => getPhotographerClients(8), []));
-  const transactions = useAsync(useCallback(() => getPhotographerRecentTransactions(4), []));
+  // In a workspace the photographer was invited to, the transaction history stays with the owner: it is never asked for.
+  const isShared = useWorkspace(selectIsShared);
+  const transactions = useAsync(useCallback(() => (isShared ? Promise.resolve([]) : getPhotographerRecentTransactions(4)), [isShared]));
   const reviews = useAsync(
     useCallback(
       () => (photographerId ? listPhotographerReviews(photographerId) : Promise.resolve([])),
@@ -273,7 +272,7 @@ export function PhotographerHome() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: 140 }}
+        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -287,13 +286,10 @@ export function PhotographerHome() {
         <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />
 
         {/* 1. Orientation */}
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-              {tr(greeting())}, {name}
-            </Text>
-            <Text style={styles.date}>{longDate(language)}</Text>
-          </View>
+        <DashboardGreeting
+          name={name}
+          subtitle={longDate()}
+          trailing={
           <Pressable
             onPress={() => setHidden((v) => !v)}
             accessibilityRole="button"
@@ -303,7 +299,8 @@ export function PhotographerHome() {
           >
             <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={19} color={colors.textSoft} />
           </Pressable>
-        </View>
+          }
+        />
 
         {/* 2. Money now */}
         {wallet.error && !wallet.data ? (
@@ -316,7 +313,7 @@ export function PhotographerHome() {
               loading={wallet.loading && !wallet.data}
               value={moneyText(available, walletCurrency, hidden)}
               caption={wallet.error ? 'Last known balance. Pull to refresh.' : undefined}
-              onPress={() => open('/(app)/(tabs)/wallet')}
+              onPress={isShared ? undefined : () => open('/(app)/(tabs)/wallet')}
               accessibilityHint="Opens your wallet"
             />
             <MetricCard
@@ -326,7 +323,7 @@ export function PhotographerHome() {
               loading={wallet.loading && !wallet.data}
               value={moneyText(pending, walletCurrency, hidden)}
               caption="Not in your available balance"
-              onPress={() => open('/(app)/(tabs)/wallet')}
+              onPress={isShared ? undefined : () => open('/(app)/(tabs)/wallet')}
               accessibilityHint="Opens your wallet"
             />
           </View>
@@ -349,6 +346,7 @@ export function PhotographerHome() {
               style={styles.flex}
             />
           ) : null}
+          {isShared ? null : (
           <ActionButton
             label="Collaborate"
             caption="Other photographers"
@@ -357,6 +355,7 @@ export function PhotographerHome() {
             onPress={() => open('/collaborate')}
             style={styles.flex}
           />
+          )}
         </View>
 
         {/* 3b. Priority today */}
@@ -494,7 +493,9 @@ export function PhotographerHome() {
         {/* 6b. Goals, persisted through /photographer/plans */}
         <GoalsSection rating={rating} hidden={hidden} />
 
-        {/* 7a. Recent earnings */}
+        {/* 7a. Recent earnings (the transaction history; not shown in a shared workspace) */}
+        {isShared ? null : (
+          <>
         <SectionHeader
           title="Recent earnings"
           actionLabel="View wallet"
@@ -528,6 +529,9 @@ export function PhotographerHome() {
           </Card>
         )}
 
+          </>
+        )}
+
         {/* 7b. Recent clients */}
         {(clients.data ?? []).length > 0 ? (
           <>
@@ -552,11 +556,11 @@ export function PhotographerHome() {
                     </View>
                   )}
                   <View style={styles.txText}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>
+                    <Text style={styles.cardTitle} numberOfLines={3}>
                       {c.name}
                     </Text>
-                    <Text style={styles.cardMeta} numberOfLines={1}>
-                      {c.totalEvents ? `${c.totalEvents} ${tr(c.totalEvents > 1 ? 'shoots' : 'shoot')}` : tr('Client')}
+                    <Text style={styles.cardMeta} numberOfLines={3}>
+                      {c.totalEvents ? `${c.totalEvents} shoot${c.totalEvents > 1 ? 's' : ''}` : tr('Client')}
                     </Text>
                   </View>
                 </Pressable>
@@ -564,6 +568,8 @@ export function PhotographerHome() {
             />
           </>
         ) : null}
+
+        <GetHelpCard />
       </ScrollView>
 
       <TopBar />
@@ -582,16 +588,6 @@ export function PhotographerHome() {
 }
 
 const useStyles = makeStyles((c, elevation) => ({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  headerText: { flex: 1, minWidth: 0 },
-  title: { color: c.text, fontSize: 23, fontWeight: '800', lineHeight: 28 },
-  date: { color: c.textMuted, fontSize: 13, marginTop: 2 },
   eye: {
     width: 44,
     height: 44,

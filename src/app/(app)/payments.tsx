@@ -48,6 +48,7 @@ import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { paymentBucket } from '@/features/payments/statusBucket';
 import { summarizePayments } from '@/features/payments/summary';
+import { useStackClearance } from '@/hooks/useScrollClearance';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 type Filter = 'all' | 'paid' | 'pending' | 'failed';
@@ -86,7 +87,7 @@ function PaymentsContent() {
   useCurrency((s) => s.currency);
   const { colors, gradients } = useTheme();
   const styles = useStyles();
-  const { tr } = useSharedT();
+  const clearance = useStackClearance();
   const router = useRouter();
   const { role, isCoordinator } = useRole();
 
@@ -178,6 +179,8 @@ function PaymentsContent() {
       : section === 'streaming'
         ? streamingLoading
         : giftsLoading;
+
+  const currentError = section === 'events' ? paymentsError : section === 'streaming' ? streamingError : giftsError;
 
   // What is owed comes from the pending feed (its USD balance and its real paid amount), never from the history
   // record: that carries the amount in its own currency and no paid amount, and the sheet labels it as USD.
@@ -350,7 +353,7 @@ function PaymentsContent() {
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
             {(['all', 'paid', 'pending', 'failed'] as const).map((f) => (
-              <Chip key={f} label={f === 'all' ? 'All' : STATUS_TONE[f].label} selected={filter === f} count={counts[f]} onPress={() => setFilter(f)} />
+              <Chip key={f} label={f === 'all' ? 'All' : STATUS_TONE[f].label} selected={filter === f} count={currentLoading || currentError ? undefined : counts[f]} onPress={() => setFilter(f)} />
             ))}
           </ScrollView>
         </>
@@ -380,7 +383,7 @@ function PaymentsContent() {
           data={filteredPayments}
           keyExtractor={(p) => p.id}
           ListHeaderComponent={header}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           ItemSeparatorComponent={RowGap}
           refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
@@ -447,7 +450,7 @@ function PaymentsContent() {
           data={streamingPayments}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={header}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           ItemSeparatorComponent={RowGap}
           refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
@@ -487,7 +490,7 @@ function PaymentsContent() {
           data={giftPayments}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={header}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: clearance }]}
           ItemSeparatorComponent={RowGap}
           refreshControl={<RefreshControl refreshing={currentLoading} onRefresh={onRefresh} tintColor={colors.primary} />}
           renderItem={({ item }) => {
@@ -539,7 +542,7 @@ function PaymentsContent() {
 }
 
 const useStyles = makeStyles((c) => ({
-  list: { paddingBottom: 120 },
+  list: {},
   rowCard: { marginHorizontal: spacing.lg, backgroundColor: c.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: c.borderSoft, overflow: 'hidden' },
   skeletons: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   emptyWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },

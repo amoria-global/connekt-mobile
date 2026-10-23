@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, G, Path } from 'react-native-svg';
+import { axisLabel, chartSeries } from '@/features/analytics/chartSeries';
 import {
   type AnalyticsPeriod,
   type CoordinatorAnalytics,
@@ -66,16 +67,6 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
-const DEFAULT_DAYS = [
-  { day: 'Sun', value1: 0, value2: 0 },
-  { day: 'Mon', value1: 0, value2: 0 },
-  { day: 'Tue', value1: 0, value2: 0 },
-  { day: 'Wed', value1: 0, value2: 0 },
-  { day: 'Thu', value1: 0, value2: 0 },
-  { day: 'Fri', value1: 0, value2: 0 },
-  { day: 'Sat', value1: 0, value2: 0 },
-];
-
 const PERIOD_TABS: { value: AnalyticsPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'This week' },
@@ -122,10 +113,12 @@ export default function AnalyticsScreen() {
   const [photogTransactions, setPhotogTransactions] = useState<RecentTransaction[]>([]);
   // null: not loaded or failed. Never drawn as zeros.
   const [photogPerf, setPhotogPerf] = useState<PerformancePoint[] | null>(null);
-  // Why the headline figures are missing, so a failed load is not shown as zeros.
-  const [photogError, setPhotogError] = useState<string | null>(null);
+  // Why the headline figures are missing (any role), so a failed load is not shown as zeros.
+  const [loadError, setLoadError] = useState<string | null>(null);
   // Only the newest load may write state: switching period quickly must not let a slow old answer win.
   const loadTicket = useRef(0);
+  // The performance read failed (any role): the charts say so instead of drawing "zero activity".
+  const [perfFailed, setPerfFailed] = useState(false);
 
   // ── Shared ────────────────────────────────────────────────────────────────
   const [trends, setTrends] = useState<TrendsMap>({});
@@ -156,12 +149,18 @@ export default function AnalyticsScreen() {
           getCustomerPerformance(period, from, to),
         ]);
         if (ticket !== loadTicket.current) return;
+        setLoadError(
+          a.status === 'rejected'
+            ? ((a.reason as { message?: string } | undefined)?.message ?? 'Could not load your analytics.')
+            : null,
+        );
         if (a.status === 'fulfilled') setClientData(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (pending.status === 'fulfilled') setClientPendingPayments(pending.value);
         if (activities.status === 'fulfilled') setClientActivities(activities.value);
         if (photographers.status === 'fulfilled') setClientPhotographers(photographers.value);
         if (payments.status === 'fulfilled') setClientPayments(payments.value);
+        setPerfFailed(perf.status === 'rejected');
         if (perf.status === 'fulfilled') setClientPerf(perf.value);
       } else if (isCoordinator) {
         const [a, t, pending, photographers, activities, perf] = await Promise.allSettled([
@@ -173,11 +172,17 @@ export default function AnalyticsScreen() {
           getCoordinatorPerformance(period, from, to),
         ]);
         if (ticket !== loadTicket.current) return;
+        setLoadError(
+          a.status === 'rejected'
+            ? ((a.reason as { message?: string } | undefined)?.message ?? 'Could not load your analytics.')
+            : null,
+        );
         if (a.status === 'fulfilled') setCoordData(a.value);
         if (t.status === 'fulfilled') setTrends(t.value);
         if (pending.status === 'fulfilled') setCoordPendingPayments(pending.value);
         if (photographers.status === 'fulfilled') setCoordPhotographers(photographers.value);
         if (activities.status === 'fulfilled') setCoordActivities(activities.value);
+        setPerfFailed(perf.status === 'rejected');
         if (perf.status === 'fulfilled') setCoordPerf(perf.value);
       } else if (isPhotographer) {
         const [a, t, clients, transactions, perf] = await Promise.allSettled([
@@ -188,7 +193,7 @@ export default function AnalyticsScreen() {
           getPhotographerPerformance(period, from, to),
         ]);
         if (ticket !== loadTicket.current) return;
-        setPhotogError(
+        setLoadError(
           a.status === 'rejected'
             ? ((a.reason as { message?: string } | undefined)?.message ?? 'Could not load your analytics.')
             : null,
@@ -197,6 +202,7 @@ export default function AnalyticsScreen() {
         if (t.status === 'fulfilled') setTrends(t.value);
         if (clients.status === 'fulfilled') setPhotogClients(clients.value);
         if (transactions.status === 'fulfilled') setPhotogTransactions(transactions.value);
+        setPerfFailed(perf.status === 'rejected');
         setPhotogPerf(perf.status === 'fulfilled' ? perf.value : null);
       }
     } finally {
@@ -215,7 +221,8 @@ export default function AnalyticsScreen() {
     load(true);
   }, [load]);
 
-  const photogUnavailable = isPhotographer && !!photogError && !photogData;
+  const roleData = isClient ? clientData : isCoordinator ? coordData : photogData;
+  const photogUnavailable = !!loadError && !roleData;
 
   // Current timeframe label (matches salo-run periodLabel)
   const periodLabel = useMemo(() => {
@@ -226,7 +233,9 @@ export default function AnalyticsScreen() {
   }, [period, customFrom, customTo]);
 
   // Active performance data for chart
-  const activePerf = isClient
+  const activePerf = perfFailed
+    ? []
+    : isClient
     ? clientPerf
     : isCoordinator
       ? coordPerf
@@ -257,7 +266,7 @@ type StatCardItem = {
       return [
         {
           title: 'Total Spent',
-          value: formatPrice(clientData?.totalSpent || 0, currency),
+          value: formatPrice(clientData?.totalSpent, currency),
           percentage: trends.totalSpent?.percentage,
           trend: trends.totalSpent?.direction ?? 'up',
           iconName: 'wallet-outline' as const,
@@ -267,7 +276,7 @@ type StatCardItem = {
         },
         {
           title: 'Pending',
-          value: formatPrice(clientData?.pendingAmount || 0, currency),
+          value: formatPrice(clientData?.pendingAmount, currency),
           percentage: trends.pending?.percentage,
           trend: trends.pending?.direction ?? 'up',
           iconName: 'time-outline' as const,
@@ -282,7 +291,7 @@ type StatCardItem = {
         },
         {
           title: 'Bookings',
-          value: String(clientData?.totalBookings || 0),
+          value: clientData ? String(clientData.totalBookings ?? 0) : 'N/A',
           percentage: trends.events?.percentage,
           trend: trends.events?.direction ?? 'up',
           iconName: 'people-outline' as const,
@@ -293,7 +302,7 @@ type StatCardItem = {
         },
         {
           title: 'Gifts',
-          value: formatPrice(clientData?.gifts || 0, currency),
+          value: formatPrice(clientData?.gifts, currency),
           percentage: trends.gifts?.percentage,
           trend: trends.gifts?.direction ?? 'up',
           iconName: 'gift-outline' as const,
@@ -307,7 +316,7 @@ type StatCardItem = {
         },
         {
           title: 'Favorites',
-          value: String(clientData?.bookmarkedPhotographers || 0),
+          value: clientData ? String(clientData.bookmarkedPhotographers ?? 0) : 'N/A',
           percentage: trends.photographers?.percentage,
           trend: trends.photographers?.direction ?? 'up',
           iconName: 'star-outline' as const,
@@ -321,7 +330,7 @@ type StatCardItem = {
       return [
         {
           title: 'Total Revenue',
-          value: formatPrice(coordData?.totalRevenue || 0, currency),
+          value: formatPrice(coordData?.totalRevenue, currency),
           percentage: trends.totalRevenue?.percentage,
           trend: trends.totalRevenue?.direction ?? 'up',
           iconName: 'cash-outline' as const,
@@ -331,7 +340,7 @@ type StatCardItem = {
         },
         {
           title: 'Pending',
-          value: formatPrice(coordData?.totalPending || 0, currency),
+          value: formatPrice(coordData?.totalPending, currency),
           percentage: trends.totalPending?.percentage,
           trend: trends.totalPending?.direction ?? 'up',
           iconName: 'time-outline' as const,
@@ -346,7 +355,7 @@ type StatCardItem = {
         },
         {
           title: 'Events',
-          value: String(coordData?.totalEvents || 0),
+          value: coordData ? String(coordData.totalEvents ?? 0) : 'N/A',
           percentage: trends.totalEvents?.percentage,
           trend: trends.totalEvents?.direction ?? 'up',
           iconName: 'calendar-outline' as const,
@@ -357,7 +366,7 @@ type StatCardItem = {
         },
         {
           title: 'Total Paid',
-          value: formatPrice(coordData?.totalPaid || 0, currency),
+          value: formatPrice(coordData?.totalPaid, currency),
           percentage: trends.totalPaid?.percentage,
           trend: trends.totalPaid?.direction ?? 'up',
           iconName: 'card-outline' as const,
@@ -371,7 +380,7 @@ type StatCardItem = {
         },
         {
           title: 'Photographers',
-          value: String(coordData?.totalPhotographers || 0),
+          value: coordData ? String(coordData.totalPhotographers ?? 0) : 'N/A',
           percentage: trends.totalPhotographers?.percentage,
           trend: trends.totalPhotographers?.direction ?? 'up',
           iconName: 'camera-outline' as const,
@@ -651,8 +660,8 @@ type StatCardItem = {
           />
         }
       >
-        {isPhotographer && photogError ? (
-          <ErrorNotice message={photogError} onRetry={() => load()} />
+        {loadError ? (
+          <ErrorNotice message={loadError} onRetry={() => load()} />
         ) : null}
 
         {/* ── Segmented Timeframe Filter Tabs (salo-run .ck-tabs) ─────────── */}
@@ -840,7 +849,7 @@ type StatCardItem = {
                     </View>
                     <View style={styles.pendingCardDetails}>
                       <View style={styles.pendingCardNameRow}>
-                        <Text style={styles.pendingCardName} numberOfLines={1}>
+                        <Text style={styles.pendingCardName} numberOfLines={2}>
                           {payment.photographerName}
                         </Text>
                         {isFailed && (
@@ -854,7 +863,7 @@ type StatCardItem = {
                           </View>
                         )}
                       </View>
-                      <Text style={styles.pendingCardEvent} numberOfLines={1}>
+                      <Text style={styles.pendingCardEvent} numberOfLines={2}>
                         {payment.eventName}
                       </Text>
                     </View>
@@ -897,7 +906,7 @@ type StatCardItem = {
         <>
         {/* Shape 1: Curved Wave Spline Area Chart */}
         <View style={styles.sectionCard}>
-          <TrendCurveChart data={activePerf} height={160} />
+          <TrendCurveChart data={activePerf} height={160} unavailable={perfFailed} />
         </View>
 
         {/* Shape 2: Concentric Circular Donut Ring Chart */}
@@ -913,14 +922,19 @@ type StatCardItem = {
 
         {/* Shape 3: Vertical Dual-Column Bar Chart */}
         {isClient ? (
-          <>
-            <SpendingTrendChart points={activePerf} />
-            <EventsHistogram points={activePerf} />
-          </>
+          perfFailed ? (
+            // A refused read is not "No payments in this period": say so, with a retry.
+            <ErrorNotice compact message="Payment and event charts are unavailable." onRetry={() => load()} />
+          ) : (
+            <>
+              <SpendingTrendChart points={activePerf} />
+              <EventsHistogram points={activePerf} />
+            </>
+          )
         ) : (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionCardTitle}>{tr('b2_analyticsPerformance')}</Text>
-            {isPhotographer ? <EventsChart points={photogPerf} /> : <SaloPerformanceChart data={activePerf} height={180} />}
+            {isPhotographer ? <EventsChart points={photogPerf} /> : <SaloPerformanceChart data={activePerf} height={180} unavailable={perfFailed} />}
           </View>
         )}
 
@@ -1081,7 +1095,7 @@ type StatCardItem = {
                     <PhotographerItemRow
                       key={p.id}
                       name={p.name}
-                      event={`${p.totalEvents} event${p.totalEvents === 1 ? '' : 's'}`}
+                      event={p.totalEvents == null ? '' : `${p.totalEvents} event${p.totalEvents === 1 ? '' : 's'}`}
                       avatar={p.avatar}
                       status={p.status}
                       onPress={() => router.push('/photographers' as never)}
@@ -1290,7 +1304,7 @@ function SaloStatCard({
     >
       {/* Top row: Title + Brand Tint Squircle Icon (or Micro-Donut) */}
       <View style={cardStyles.headerRow}>
-        <Text style={[cardStyles.title, { color: colors.textMuted }]} numberOfLines={1}>
+        <Text style={[cardStyles.title, { color: colors.textMuted }]} numberOfLines={2}>
           {title}
         </Text>
         {chartType === 'donut' && donutData ? (
@@ -1351,7 +1365,7 @@ function SaloStatCard({
                 {percentage}
               </Text>
             </View>
-            <Text style={[cardStyles.timeframeText, { color: colors.textMuted }]} numberOfLines={1}>
+            <Text style={[cardStyles.timeframeText, { color: colors.textMuted }]} numberOfLines={3}>
               vs {timeframe}
             </Text>
           </View>
@@ -1412,8 +1426,10 @@ const cardStyles = StyleSheet.create({
   },
   footerRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 4,
     minHeight: 22,
   },
   trendRow: {
@@ -1451,23 +1467,17 @@ const cardStyles = StyleSheet.create({
 function TrendCurveChart({
   data,
   height = 155,
+  unavailable = false,
 }: {
   data: PerformancePoint[];
   height?: number;
+  /** The performance read failed: say so instead of "zero activity". */
+  unavailable?: boolean;
 }) {
   const { colors } = useTheme();
   const [layoutWidth, setLayoutWidth] = useState(320);
 
-  const chartData = useMemo(() => {
-    if (data.length === 7) return data;
-    if (data.length > 0) {
-      return DEFAULT_DAYS.map((def) => {
-        const found = data.find((d) => d.day.toLowerCase().startsWith(def.day.toLowerCase()));
-        return found || def;
-      });
-    }
-    return DEFAULT_DAYS;
-  }, [data]);
+  const chartData = useMemo(() => chartSeries(data), [data]);
 
   const points = useMemo(() => {
     const rawValues = chartData.map((d) => (d.value1 || 0) + (d.value2 || 0));
@@ -1528,7 +1538,7 @@ function TrendCurveChart({
       }}
     >
       <View style={trendStyles.headerRow}>
-        <View>
+        <View style={{ flexShrink: 1 }}>
           <Text style={[trendStyles.headline, { color: colors.text }]}>{tr('b2_analyticsTrendTitle')}</Text>
           <Text style={[trendStyles.subheadline, { color: colors.textMuted }]}>
             {tr('b2_analyticsTrendSubtitle')}
@@ -1547,7 +1557,7 @@ function TrendCurveChart({
           >
             <Ionicons name="time-outline" size={12} color={colors.textMuted} />
             <Text style={[trendStyles.peakPillText, { color: colors.textMuted }]}>
-              {tr('b2_analyticsNoActivityYet')}
+              {unavailable ? 'Unavailable' : tr('b2_analyticsNoActivityYet')}
             </Text>
           </View>
         ) : points.peak ? (
@@ -1661,7 +1671,7 @@ function TrendCurveChart({
             >
               <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
-                {tr('b2_analyticsZeroActivityPeriod')}
+                {unavailable ? 'Chart data is unavailable' : tr('b2_analyticsZeroActivityPeriod')}
               </Text>
             </View>
           </View>
@@ -1678,7 +1688,7 @@ function TrendCurveChart({
               { color: !points.isAllZero && pt.day === points.peak?.day ? colors.accent : colors.textMuted },
             ]}
           >
-            {pt.day.slice(0, 3)}
+            {axisLabel(pt.day)}
           </Text>
         ))}
       </View>
@@ -1693,8 +1703,10 @@ const trendStyles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 8,
   },
   headline: {
@@ -1841,7 +1853,7 @@ function DonutBreakdownChart({
             <View key={idx} style={donutStyles.legendItem}>
               <View style={[donutStyles.legendDot, { backgroundColor: ring.color }]} />
               <View style={donutStyles.legendInfo}>
-                <Text style={[donutStyles.legendLabel, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[donutStyles.legendLabel, { color: colors.text }]} numberOfLines={2}>
                   {ring.label}
                 </Text>
                 <Text style={[donutStyles.legendSub, { color: colors.textMuted }]}>
@@ -2063,28 +2075,21 @@ const ratioStyles = StyleSheet.create({
 function SaloPerformanceChart({
   data,
   height = 180,
+  unavailable = false,
 }: {
   data: PerformancePoint[];
   height?: number;
+  unavailable?: boolean;
 }) {
   const { colors } = useTheme();
   const bar1Color = colors.primary;
   const bar2Color = colors.accent;
 
-  const chartData = useMemo(() => {
-    if (data.length === 7) return data;
-    if (data.length > 0) {
-      // Map existing points to day names
-      return DEFAULT_DAYS.map((def) => {
-        const found = data.find((d) => d.day.toLowerCase().startsWith(def.day.toLowerCase()));
-        return found || def;
-      });
-    }
-    return DEFAULT_DAYS;
-  }, [data]);
+  const chartData = useMemo(() => chartSeries(data), [data]);
 
   const allValues = chartData.flatMap((d) => [d.value1, d.value2]);
   const maxValue = Math.max(...allValues, 0);
+  // With no activity there is no scale to print: only the baseline 0, not an invented 0..100 axis.
   const roundedMax = maxValue > 0 ? Math.ceil(maxValue / 50) * 50 : 100;
   const scale = (height - 30) / roundedMax;
   const yAxisLabels = [roundedMax, roundedMax * 0.75, roundedMax * 0.5, roundedMax * 0.25, 0];
@@ -2096,7 +2101,7 @@ function SaloPerformanceChart({
         <View style={[perfStyles.yAxis, { height: height - 20 }]}>
           {yAxisLabels.map((lbl, idx) => (
             <Text key={idx} style={[perfStyles.yAxisLabel, { color: colors.textMuted }]}>
-              {Math.round(lbl)}
+              {maxValue > 0 || lbl === 0 ? Math.round(lbl) : ''}
             </Text>
           ))}
         </View>
@@ -2176,7 +2181,7 @@ function SaloPerformanceChart({
               >
                 <Ionicons name="bar-chart-outline" size={13} color={colors.textMuted} />
                 <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
-                  {tr('b2_analyticsZeroPerformancePeriod')}
+                  {unavailable ? 'Chart data is unavailable' : tr('b2_analyticsZeroPerformancePeriod')}
                 </Text>
               </View>
             </View>
@@ -2190,7 +2195,7 @@ function SaloPerformanceChart({
         <View style={perfStyles.xAxisLabels}>
           {chartData.map((item, idx) => (
             <Text key={idx} style={[perfStyles.xDayLabel, { color: colors.textMuted }]}>
-              {item.day.slice(0, 3)}
+              {axisLabel(item.day)}
             </Text>
           ))}
         </View>
@@ -2352,10 +2357,10 @@ function PhotographerItemRow({
         )}
       </View>
       <View style={rowStyles.infoCol}>
-        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={1}>
+        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={2}>
           {name}
         </Text>
-        <Text style={[rowStyles.sub, { color: colors.textMuted }]} numberOfLines={1}>
+        <Text style={[rowStyles.sub, { color: colors.textMuted }]} numberOfLines={2}>
           {event}
         </Text>
       </View>
@@ -2429,7 +2434,7 @@ function PaymentItemRow({
         )}
       </View>
       <View style={rowStyles.infoCol}>
-        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={1}>
+        <Text style={[rowStyles.name, { color: colors.text }]} numberOfLines={2}>
           {cleanName}
         </Text>
         <Text
@@ -2568,13 +2573,20 @@ const useStyles = makeStyles((c, e) => ({
   // Segmented Timeframe Filter Tabs (salo-run .ck-tabs)
   filterTabsContainer: {
     flexDirection: 'row',
+    // At large text four tabs no longer fit one row; they wrap instead of overlapping.
+    flexWrap: 'wrap',
     backgroundColor: c.surfaceMuted,
     borderRadius: 10,
     padding: 3,
     gap: 3,
   },
   filterTab: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 0,
+    minWidth: 76,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 6,
     paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
@@ -2584,6 +2596,7 @@ const useStyles = makeStyles((c, e) => ({
     ...e(1),
   },
   filterTabText: {
+    textAlign: 'center',
     fontSize: 12,
     fontWeight: '600',
     color: c.textMuted,

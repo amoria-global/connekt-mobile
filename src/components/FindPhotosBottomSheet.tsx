@@ -1,11 +1,13 @@
-import { View, Text, Pressable, StyleSheet, Modal, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BlurView } from 'expo-blur';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/store/auth';
 import { makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 interface Props {
   visible: boolean;
@@ -15,7 +17,7 @@ interface Props {
 }
 
 export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Props) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -31,19 +33,9 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <BlurView
-        intensity={Platform.OS === 'ios' ? 25 : 40}
-        tint={isDark ? 'dark' : 'regular'}
-        style={StyleSheet.absoluteFill}
-      />
-      <Pressable 
-        style={[StyleSheet.absoluteFill, styles.backdrop]} 
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel={tr('Close')}
-      />
+      <GlassScrim onPress={onClose} style={StyleSheet.absoluteFill} accessibilityLabel={tr('Close')} />
       <View style={styles.sheetWrapper} pointerEvents="box-none">
-        <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+        <GlassSheetHost style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetHeaderTitle}>{tr('What would you like to do?')}</Text>
           
@@ -85,7 +77,7 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
               </Pressable>
             </>
           )}
-        </View>
+        </GlassSheetHost>
       </View>
     </Modal>
   );
@@ -93,19 +85,12 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
 
 const useStyles = makeStyles((c, e) => ({
   backdrop: {
-    backgroundColor: c.scrim,
   },
   sheetWrapper: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   bottomSheet: {
-    backgroundColor: c.elevated,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: c.border,
     paddingTop: 16,
     ...e(4),
   },
@@ -133,7 +118,7 @@ const useStyles = makeStyles((c, e) => ({
     marginHorizontal: 12,
   },
   sheetOptionPressed: {
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   sheetIconWrap: {
     width: 48,

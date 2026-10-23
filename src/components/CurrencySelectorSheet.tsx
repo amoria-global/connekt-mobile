@@ -1,20 +1,14 @@
 import { useState } from 'react';
-import { BlurView } from 'expo-blur';
+
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CurrencyCode, useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 const flagUri = (flag: string) => `https://flagcdn.com/w40/${flag}.png`;
 
@@ -28,7 +22,7 @@ export function CurrencySelectorSheet({
   onClose,
 }: CurrencySelectorSheetProps) {
   const styles = useStyles();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
 
@@ -51,21 +45,10 @@ export function CurrencySelectorSheet({
     >
       <View style={styles.modalRoot}>
         {/* Backdrop */}
-        <Pressable
-          style={styles.backdrop}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Close currency selector"
-        >
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 30 : 50}
-            tint={isDark ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFill}
-          />
-        </Pressable>
+        <GlassScrim onPress={onClose} style={StyleSheet.absoluteFill} accessibilityLabel="Close currency selector" />
 
         {/* Sheet Content */}
-        <View
+        <GlassSheetHost
           style={[
             styles.sheet,
             { paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.md },
@@ -145,7 +128,7 @@ export function CurrencySelectorSheet({
               );
             })}
           </ScrollView>
-        </View>
+        </GlassSheetHost>
       </View>
     </Modal>
   );
@@ -158,15 +141,8 @@ const useStyles = makeStyles((c, e) => ({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   sheet: {
-    backgroundColor: c.elevated,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    borderBottomWidth: 0,
     paddingTop: 12,
     paddingHorizontal: spacing.xl,
     maxHeight: '75%',
@@ -207,7 +183,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 32,
     height: 32,
     borderRadius: radii.full,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     alignItems: 'center',
@@ -228,7 +204,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radii.lg,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1.5,
     borderColor: c.borderSoft,
   },

@@ -4,6 +4,8 @@ import { Text } from 'react-native';
 
 import { PhotographerHome } from '@/features/dashboard/PhotographerHome';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
+import { photographerAnalytics } from '@/test/analyticsPayloads';
+import { useWorkspace } from '@/store/workspace';
 
 /**
  * RENDERED screen (react-test-renderer under jest-expo, not a device): the real
@@ -68,7 +70,7 @@ type Routes = Partial<Record<'wallet' | 'analytics' | 'events' | 'clients' | 'tr
 function serve(routes: Routes) {
   const defaults: Routes = {
     wallet: walletFixture,
-    analytics: ok({ totalEarnings: 850, completedEvents: 15, totalClients: 7, totalBookings: 20, totalPhotosUploaded: 300, averageRating: 0 }),
+    analytics: ok(photographerAnalytics({ totalEarnings: 850, completedEvents: 15, totalClients: 7, totalBookings: 20, totalPhotosUploaded: 300, averageRating: 0 })),
     events: ok([]),
     clients: ok([]),
     transactions: ok([]),
@@ -116,10 +118,19 @@ const press = async (r: TestRenderer.ReactTestRenderer, label: string) => {
   });
 };
 
+const pressText = async (r: TestRenderer.ReactTestRenderer, text: string) => {
+  const node = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.findAllByType(Text).some((t) => t.props.children === text))[0];
+  if (!node) throw new Error(`nothing to press with text "${text}"`);
+  await act(async () => {
+    node.props.onPress();
+  });
+};
+
 beforeEach(() => {
   mockGet.mockReset();
   mockPush.mockReset();
   useCurrency.setState({ currency: 'USD', currencies: DEFAULT_CURRENCIES });
+  useWorkspace.setState({ hydrated: true, activeId: null, memberships: [], loading: false });
 });
 
 describe('photographer home as rendered', () => {
@@ -191,6 +202,33 @@ describe('photographer home as rendered', () => {
   });
 });
 
+describe('photographer home inside someone else\x27s workspace', () => {
+  it('shows balance and analytics but never asks for, or shows, the transaction history', async () => {
+    useWorkspace.setState({ activeId: '3f2a9c1e-5b7d-4c8e-9a10-0b1c2d3e4f50' });
+    serve({ transactions: ok([{ id: 't1', amount: 120, status: 'COMPLETED', eventName: 'Secret wedding', createdAt: '2026-10-01T10:00:00' }]) });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/photographer/transactions'))).toBe(false);
+    expect(text).not.toContain('Recent earnings');
+    expect(text).not.toContain('Secret wedding');
+    // The balance and the analytics are still there: a collaborator may see them.
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/wallet/me'))).toBe(true);
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/photographer/analytics'))).toBe(true);
+    // The wallet card does not open the wallet screen, which is not part of a shared workspace.
+    const card = r.root.findAll((n) => n.props?.accessibilityHint === 'Opens your wallet');
+    expect(card.every((n) => n.props.onPress === undefined)).toBe(true);
+    // No shortcut to album collaboration either.
+    expect(text).not.toContain('Other photographers');
+  });
+
+  it('in the photographer own workspace the history is asked for and shown', async () => {
+    serve({ transactions: ok([{ id: 't1', amount: 120, status: 'COMPLETED', eventName: 'Kigali Launch', createdAt: '2026-10-01T10:00:00' }]) });
+    const r = await mount();
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/photographer/transactions'))).toBe(true);
+    expect(flat(r.root)).toContain('Recent earnings');
+  });
+});
+
 describe('photographer home goals and sharing', () => {
   it('restores saved goals from the server on Home', async () => {
     serve({
@@ -219,5 +257,17 @@ describe('photographer home goals and sharing', () => {
     });
     expect((spy.mock.calls[0][0] as { message: string }).message).toContain('/photographers/joseph-k');
     spy.mockRestore();
+  });
+});
+
+describe('get help on the home', () => {
+  it('offers the existing Help Center and the Contact us form', async () => {
+    serve({});
+    const r = await mount();
+    expect(flat(r.root)).toContain('Need help?');
+    await pressText(r, 'Get help');
+    expect(mockPush).toHaveBeenLastCalledWith('/help-center');
+    await pressText(r, 'Contact support');
+    expect(mockPush).toHaveBeenLastCalledWith('/contact_us');
   });
 });

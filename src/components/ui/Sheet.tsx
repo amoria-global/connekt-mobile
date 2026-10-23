@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 /**
  * Bottom sheet for forms and option lists, drawn from the app's tokens.
@@ -39,8 +40,8 @@ export function Sheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
       <KeyboardAvoidingView behavior="padding" style={styles.fill}>
-        <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close" accessibilityRole="button" />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]} accessibilityViewIsModal>
+        <GlassScrim onPress={close} style={StyleSheet.absoluteFill} />
+        <GlassSheetHost style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
           <View style={styles.handle} />
           <View style={styles.head}>
             <View style={styles.headText}>
@@ -64,7 +65,7 @@ export function Sheet({
             {children}
           </ScrollView>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
-        </View>
+        </GlassSheetHost>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -72,16 +73,7 @@ export function Sheet({
 
 const useStyles = makeStyles((c) => ({
   fill: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const), backgroundColor: c.scrim },
-  sheet: {
-    maxHeight: '92%',
-    backgroundColor: c.elevated,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: c.border,
-  },
+  sheet: { maxHeight: '92%' },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, marginTop: spacing.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingLeft: spacing.lg, paddingRight: spacing.sm, paddingTop: spacing.xs },
   headText: { flex: 1, minWidth: 0, gap: 2 },

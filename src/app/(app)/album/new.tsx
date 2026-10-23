@@ -50,6 +50,8 @@ import type { EventItem } from '@/features/events/types';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
 
 import { useLanguage } from '@/hooks/useLanguage';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 const ALB_MAP: Record<string, { fr: string; es: string }> = {
   'Cancel': { fr: 'Annuler', es: 'Cancelar' },
   'Change': { fr: 'Modifier', es: 'Cambiar' },
@@ -368,7 +370,7 @@ export default function NewAlbumScreen() {
                   <Ionicons name="calendar" size={18} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.selectedEventTitle} numberOfLines={1}>
+                  <Text style={styles.selectedEventTitle} numberOfLines={2}>
                     {selectedEvent.title}
                   </Text>
                   <Text style={styles.selectedEventMeta}>
@@ -423,7 +425,7 @@ export default function NewAlbumScreen() {
               <View style={styles.rowItem}>
                 <FieldLabel text="CLIENT" />
                 <View style={[styles.input, styles.readonly]}>
-                  <Text style={styles.readonlyText} numberOfLines={1}>
+                  <Text style={styles.readonlyText} numberOfLines={2}>
                     {selectedEvent?.clientName || 'Select an event'}
                   </Text>
                 </View>
@@ -710,8 +712,8 @@ export default function NewAlbumScreen() {
         animationType="slide"
         onRequestClose={() => setEventPickerOpen(false)}
       >
-        <Pressable style={styles.pickerBackdrop} onPress={() => setEventPickerOpen(false)}>
-          <Pressable style={styles.picker} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.pickerBackdrop} onPress={() => setEventPickerOpen(false)}>
+          <GlassSheetHost style={styles.picker}>
             <View style={styles.pickerHandle} />
             <View style={styles.pickerHeader}>
               <Text style={styles.pickerTitle}>{trAlb('Select Event')}</Text>
@@ -761,7 +763,7 @@ export default function NewAlbumScreen() {
                       }}
                     >
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={styles.pickerRowTitle} numberOfLines={1}>
+                        <Text style={styles.pickerRowTitle} numberOfLines={2}>
                           {ev.title}
                         </Text>
                         <Text style={styles.pickerRowMeta}>
@@ -784,8 +786,8 @@ export default function NewAlbumScreen() {
                 })}
               </ScrollView>
             )}
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -1134,11 +1136,8 @@ const useStyles = makeStyles((c) => ({
   btnDisabled: { opacity: 0.6 },
 
   // Event Picker Modal
-  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,26,0.6)', justifyContent: 'flex-end' },
+  pickerBackdrop: { flex: 1, justifyContent: 'flex-end' },
   picker: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.lg,
     gap: spacing.sm,
   },
@@ -1164,7 +1163,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 12,
     height: 42,
     borderRadius: radii.md,
-    backgroundColor: c.background,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
   },

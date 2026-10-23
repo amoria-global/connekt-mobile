@@ -105,7 +105,7 @@ export function ContactForm({
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.channelLabel}>{tr(c.label)}</Text>
-                <Text style={styles.channelValue} numberOfLines={1}>
+                <Text style={styles.channelValue} numberOfLines={4}>
                   {c.value}
                 </Text>
               </View>

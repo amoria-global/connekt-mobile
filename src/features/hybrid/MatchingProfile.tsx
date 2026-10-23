@@ -18,6 +18,7 @@ import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/th
 import { getHybridOptions, getHybridProfile, saveHybridProfile } from './api';
 import type { HybridProfile } from './types';
 import { MODE_META } from './hybridUi';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 export const INSTAGRAM_WHY = [
   'Clients who use Post My Event are matched with photographers automatically. A public Instagram profile helps Connekyt recommend you.',
@@ -108,9 +109,9 @@ export function MatchingProfileForm({ onSaved, showWhy = true }: { onSaved?: (p:
       </Pressable>
 
       <Modal visible={cityOpen} transparent animationType="fade" onRequestClose={() => setCityOpen(false)}>
-        <Pressable style={styles.scrim} onPress={() => setCityOpen(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]} onPress={() => {}}>
-            <Text style={styles.label}>{tr('Your city')}</Text>
+        <GlassScrim style={styles.scrim} onPress={() => setCityOpen(false)}>
+          <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
+            <Text style={styles.label}>{tr(tr('Your city'))}</Text>
             <FlatList data={cities} keyExtractor={(c) => c} style={{ maxHeight: 380 }} renderItem={({ item }) => (
               <Pressable onPress={() => { setCity(item); setCityOpen(false); }} style={[styles.row, item === city && { backgroundColor: colors.tint }]}
                 accessibilityRole="radio" accessibilityState={{ checked: item === city }}>
@@ -118,8 +119,8 @@ export function MatchingProfileForm({ onSaved, showWhy = true }: { onSaved?: (p:
                 {item === city ? <Ionicons name="checkmark" size={18} color={colors.primary} /> : null}
               </Pressable>
             )} />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </View>
   );
@@ -171,8 +172,8 @@ export function MatchingProfilePrompt() {
 
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={later}>
-      <Pressable style={styles.scrim} onPress={later}>
-        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg, gap: spacing.md }]} onPress={() => {}}>
+      <GlassScrim style={styles.scrim} onPress={later}>
+        <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg, gap: spacing.md }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
             <View style={[styles.icon, { backgroundColor: MODE_META.HYBRID.color }]}><Ionicons name="logo-instagram" size={22} color="#fff" /></View>
             <View style={{ flex: 1 }}>
@@ -184,8 +185,8 @@ export function MatchingProfilePrompt() {
           <Pressable onPress={later} style={{ alignSelf: 'center', padding: spacing.sm }} accessibilityRole="button">
             <Text style={styles.later}>{tr('Remind me later')}</Text>
           </Pressable>
-        </Pressable>
-      </Pressable>
+        </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
@@ -204,7 +205,7 @@ const useStyles = makeStyles((c) => ({
   save: { minHeight: 48, borderRadius: radii.md, backgroundColor: MODE_META.HYBRID.color, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#fff', fontWeight: fontWeight.extrabold, fontSize: fontSize.md },
   later: { color: c.textMuted, fontWeight: fontWeight.bold },
-  scrim: { flex: 1, backgroundColor: c.scrim, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: radii['2xl'], borderTopRightRadius: radii['2xl'], padding: spacing.lg, gap: spacing.sm },
+  scrim: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { padding: spacing.lg, gap: spacing.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: spacing.md, borderRadius: radii.md },
 }));

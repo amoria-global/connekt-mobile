@@ -41,6 +41,8 @@ import { usePaymentEligibility } from '@/features/payments/usePaymentEligibility
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { addPaymentAccount, listBanks, validateMobileAccount, type Bank } from './api';
 import { MOBILE_PROVIDER, resolveMobileName, type AccountKind, type PaymentAccount } from './model';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 type Props = {
   visible: boolean;
@@ -194,9 +196,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
-        <Pressable style={{ flex: 1 }} onPress={close} accessibilityLabel="Close" />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}><GlassScrim onPress={close} style={{ flex: 1, justifyContent: 'flex-end' }}><GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
           <View style={styles.grabber} />
           <View style={styles.headRow}>
             <View style={{ flex: 1, gap: 2 }}>
@@ -261,7 +261,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                 accessibilityLabel={`Country ${eligibility.country ? paymentCountryName(eligibility.country) : 'not set'}. Tap to change.`}
               >
                 <Text style={styles.countryFlag}>{flagEmoji(eligibility.country)}</Text>
-                <Text style={styles.countryName} numberOfLines={1}>
+                <Text style={styles.countryName} numberOfLines={2}>
                   {checkingCountry ? 'Checking your country...' : eligibility.country ? paymentCountryName(eligibility.country) : 'Choose your country'}
                 </Text>
                 <Text style={styles.countryChange}>Change</Text>
@@ -401,8 +401,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
               />
             </ScrollView>
           )}
-        </View>
-      </KeyboardAvoidingView>
+        </GlassSheetHost></GlassScrim></KeyboardAvoidingView>
       <CountrySelectModal
         visible={countryOpen}
         selected={eligibility.country}
@@ -418,11 +417,8 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
 }
 
 const useStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, backgroundColor: c.scrim, justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.elevated,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
     maxHeight: '92%',
@@ -444,7 +440,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   body: { gap: spacing.lg, paddingBottom: spacing.sm },
   countryPill: {
@@ -469,13 +465,12 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.md,
     borderRadius: radii.lg,
     borderWidth: 1.5,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   kindActive: { borderColor: c.primary, backgroundColor: c.tint },
   kindIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   kindLogo: { width: 44, height: 44, borderRadius: 12, marginBottom: 4 },
-  networkPanel: { flexDirection: 'row', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.lg, backgroundColor: c.surfaceMuted },
+  networkPanel: { flexDirection: 'row', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.lg, ...glassTile(c) },
   network: {
     flex: 1,
     flexDirection: 'row',
@@ -484,8 +479,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.sm,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   networkActive: { borderColor: c.primary, backgroundColor: c.tint },
   networkLogo: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#FFFFFF' },
@@ -502,8 +496,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   selectText: { flex: 1, fontSize: fontSize.md, color: c.text },
   note: {
@@ -533,8 +526,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: spacing.md,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   searchInput: { flex: 1, minHeight: 44, fontSize: fontSize.md, color: c.text },
   bankRow: {

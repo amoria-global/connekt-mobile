@@ -46,6 +46,7 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { spacing, radii, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/store/language';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 const WATERMARK_COLS = [0, 1, 2, 3, 4];
@@ -315,7 +316,7 @@ export default function BrowsePhotosScreen() {
           </Pressable>
         ) : null}
         <View style={styles.cardFooter}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.photographerName}</Text>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.photographerName}</Text>
           {digitalPurchasesEnabled ? (
             <Text style={styles.cardPrice}>{sym(item.buyerCurrency)}{item.buyerPrice}</Text>
           ) : null}
@@ -482,13 +483,13 @@ export default function BrowsePhotosScreen() {
 
       {/* Purchase success → downloads */}
       <Modal visible={!!purchased} transparent animationType="slide" onRequestClose={() => setPurchased(null)}>
-        <View style={styles.successContainer}>
-          <View style={[styles.successCard, { marginTop: insets.top + 20, marginBottom: insets.bottom + 20 }]}>
+        <GlassScrim onPress={() => setPurchased(null)} style={styles.successContainer}>
+          <GlassSheetHost variant="dialog" style={[styles.successCard, { marginTop: insets.top + 20, marginBottom: insets.bottom + 20 }]}>
             <View style={styles.successHead}>
               <Ionicons name="checkmark-circle" size={28} color="#10B981" />
               <Text style={styles.successTitle}>{t('b4_purchaseComplete')}</Text>
-              <Pressable onPress={() => setPurchased(null)} hitSlop={8}>
-                <Ionicons name="close" size={24} color="#fff" />
+              <Pressable onPress={() => setPurchased(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close">
+                <Ionicons name="close" size={24} color={colors.text} />
               </Pressable>
             </View>
             {unlockCode ? (
@@ -526,8 +527,8 @@ export default function BrowsePhotosScreen() {
                 </Pressable>
               )}
             />
-          </View>
-        </View>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Report a photo (flag button in the lightbox). */}
@@ -619,12 +620,12 @@ const useStyles = makeStyles((c, e) => ({
   lbBtnPrimary: { backgroundColor: c.primary },
   lbBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
-  sheetHint: { color: 'rgba(255,255,255,0.65)', fontSize: 13, lineHeight: 19 },
+  sheetHint: { color: c.textMuted, fontSize: 13, lineHeight: 19 },
 
-  successContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  successCard: { backgroundColor: '#0B2A57', borderRadius: 20, padding: spacing.xl, maxHeight: '80%' },
+  successContainer: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.lg },
+  successCard: { padding: spacing.xl, maxHeight: '80%' },
   successHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  successTitle: { flex: 1, color: '#fff', fontSize: 18, fontWeight: '800' },
+  successTitle: { flex: 1, color: c.text, fontSize: 18, fontWeight: '800' },
   unlockCode: { color: '#FBBF24', fontSize: 14, fontWeight: '700', marginBottom: 8 },
   successThumb: { flex: 1, maxWidth: '32%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.1)' },
   successThumbOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },

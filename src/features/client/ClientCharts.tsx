@@ -52,10 +52,10 @@ export function StatusBreakdownCard({
           segments={live.map((s) => ({ value: s.value, color: s.color }))}
         >
           <View style={styles.centre}>
-            <Text style={styles.centreValue} maxFontSizeMultiplier={1.2}>
+            <Text style={styles.centreValue} maxFontSizeMultiplier={1.6}>
               {total}
             </Text>
-            <Text style={styles.centreCaption} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            <Text style={styles.centreCaption} numberOfLines={1} maxFontSizeMultiplier={1.6}>
               {tr(centerLabel)}
             </Text>
           </View>
@@ -110,7 +110,7 @@ export function CountBars({
           const h = v > 0 && max > 0 ? Math.max(4, Math.round((v / max) * plot)) : 0;
           return (
             <View key={`${labels[i] ?? i}-${i}`} style={styles.col}>
-              <Text style={styles.count} maxFontSizeMultiplier={1.2}>
+              <Text style={styles.count} maxFontSizeMultiplier={1.6}>
                 {v > 0 ? String(v) : ''}
               </Text>
               <View style={[styles.bar, { height: h, backgroundColor: i === top ? colors.accent : colors.primary }]} />
@@ -121,7 +121,7 @@ export function CountBars({
       <View style={styles.baseline} />
       <View style={styles.axis}>
         {labels.map((l, i) => (
-          <Text key={`${l}-${i}`} style={[styles.axisLabel, i === top && styles.axisLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          <Text key={`${l}-${i}`} style={[styles.axisLabel, i === top && styles.axisLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.6}>
             {l}
           </Text>
         ))}

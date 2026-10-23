@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { StatusPill } from '@/components/ui/StatusPill';
+import { ListRow } from '@/features/client/studio';
+import { ActionButton, Card, EmptyNote, ErrorNotice, MetricCard, SectionHeader, SkeletonCard } from '@/features/photographer/kit';
 import { getClient, listFavoriteClientIds, toggleFavoriteClient } from '@/features/clients/api';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
@@ -14,20 +15,19 @@ import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useRole } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
 export default function ClientDetailScreen() {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
-  const { colors } = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useLanguage();
   const { isCoordinator } = useRole();
-  const { data, loading, error } = useAsync(
+  const { data, loading, error, refresh } = useAsync(
     useCallback(() => getClient(id, isCoordinator), [id, isCoordinator]),
   );
 
@@ -111,9 +111,11 @@ export default function ClientDetailScreen() {
 
   if (loading && !data) {
     return (
-      <Screen>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+      <Screen padded={false}>
+        <View style={styles.scroll} accessibilityLabel="Loading client">
+          <SkeletonCard height={200} />
+          <SkeletonCard height={90} />
+          <SkeletonCard height={72} />
         </View>
       </Screen>
     );
@@ -121,21 +123,21 @@ export default function ClientDetailScreen() {
 
   if (error && !data) {
     return (
-      <Screen>
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-          <Text style={styles.muted}>{error}</Text>
+      <Screen padded={false}>
+        <View style={styles.scroll}>
+          <ErrorNotice flush message={error} onRetry={refresh} />
         </View>
       </Screen>
     );
   }
 
   const initials = (data?.name?.[0] ?? '?').toUpperCase();
+  const bookingCount = data?.bookings ?? data?.events.length;
 
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.headerCard}>
+        <Card style={styles.headerCard}>
           {data?.avatar ? (
             <Image source={{ uri: data.avatar }} style={styles.avatar} contentFit="cover" />
           ) : (
@@ -143,81 +145,81 @@ export default function ClientDetailScreen() {
               <Text style={styles.initials}>{initials}</Text>
             </View>
           )}
-          <Text style={styles.name}>{data?.name}</Text>
+          <Text style={styles.name} accessibilityRole="header">
+            {data?.name}
+          </Text>
           {data?.email ? <Text style={styles.meta}>{data.email}</Text> : null}
           {data?.phone ? <Text style={styles.meta}>{data.phone}</Text> : null}
           {data?.location ? <Text style={styles.meta}>{data.location}</Text> : null}
 
           <View style={styles.headerActions}>
-            <Pressable
-              style={styles.messageBtn}
+            <ActionButton
+              variant="primary"
+              compact
+              icon="chatbubble-ellipses-outline"
+              label={t('b2_clientMessageBtn')}
               onPress={() =>
-                router.push(
-                  `/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Client')}` as Href
-                )
+                router.push(`/conversation/${id}?name=${encodeURIComponent(data?.name ?? 'Client')}` as Href)
               }
-              accessibilityRole="button"
-              accessibilityLabel={t('b2_clientsMessageA11y').replace('{name}', data?.name ?? t('b2_clientThisUser'))}
-            >
-              <Ionicons name="chatbubble-ellipses-outline" size={17} color="#FFFFFF" />
-              <Text style={styles.messageBtnText}>{t('b2_clientMessageBtn')}</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.favBtn, favorite && styles.favBtnActive]}
-              onPress={onToggleFavorite}
+              style={styles.headerAction}
+            />
+            <ActionButton
+              variant="secondary"
+              compact
+              icon={favorite ? 'star' : 'star-outline'}
+              label={favorite ? t('b2_clientFavorite') : t('b2_clientAddToFavorites')}
               disabled={favBusy}
-            >
-              <Ionicons
-                name={favorite ? 'star' : 'star-outline'}
-                size={18}
-                color={favorite ? '#B45309' : colors.primary}
-              />
-              <Text style={[styles.favText, favorite && styles.favTextActive]}>
-                {favorite ? t('b2_clientFavorite') : t('b2_clientAddToFavorites')}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.moreBtn}
+              onPress={onToggleFavorite}
+              style={styles.headerAction}
+            />
+            <ActionButton
+              variant="secondary"
+              compact
+              icon="ellipsis-horizontal"
+              label="More"
               onPress={onMoreActions}
-              accessibilityRole="button"
-              accessibilityLabel={t('b2_clientMoreA11y')}
-            >
-              <Ionicons name="ellipsis-horizontal" size={18} color={colors.primary} />
-            </Pressable>
+              style={styles.headerAction}
+            />
           </View>
 
           {blocked ? <Text style={styles.blockedNote}>{t('b2_clientBlockedNote')}</Text> : null}
-        </View>
+        </Card>
 
         <View style={styles.stats}>
-          <Stat label={t('b2_clientBookings')} value={String(data?.bookings ?? data?.events.length ?? 0)} />
+          <MetricCard
+            style={styles.stat}
+            icon="calendar-outline"
+            tone="accent"
+            label={t('b2_clientBookings')}
+            value={bookingCount == null ? 'N/A' : String(bookingCount)}
+          />
           {data?.totalSpent != null ? (
-            <Stat label={t('b2_clientTotalSpent')} value={formatPrice(data.totalSpent, data.currency)} />
+            <MetricCard
+              style={styles.stat}
+              icon="wallet-outline"
+              label={t('b2_clientTotalSpent')}
+              value={formatPrice(data.totalSpent, data.currency)}
+            />
           ) : null}
         </View>
 
-        <Text style={styles.sectionTitle}>{t('b2_clientEvents')}</Text>
+        <SectionHeader flush title={t('b2_clientEvents')} />
         {data?.events.length ? (
-          data.events.map((e) => (
-            <Pressable
-              key={e.id}
-              style={({ pressed }) => [styles.eventRow, pressed && styles.pressed]}
-              onPress={() => router.push(`/event/${e.id}` as Href)}
-            >
-              <View style={styles.eventBody}>
-                <Text style={styles.eventTitle} numberOfLines={1}>
-                  {e.title}
-                </Text>
-                {e.date ? <Text style={styles.eventDate}>{formatDate(e.date)}</Text> : null}
-              </View>
-              {e.status ? <StatusPill status={e.status} /> : null}
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
-          ))
+          <Card style={styles.list}>
+            {data.events.map((e, i, arr) => (
+              <ListRow
+                key={e.id}
+                icon="calendar-outline"
+                title={e.title}
+                meta={e.date ? formatDate(e.date) : undefined}
+                trailing={e.status ? <StatusPill status={e.status} /> : undefined}
+                onPress={() => router.push(`/event/${e.id}` as Href)}
+                divider={i < arr.length - 1}
+              />
+            ))}
+          </Card>
         ) : (
-          <Text style={styles.muted}>{t('b2_clientEmptyEvents')}</Text>
+          <EmptyNote compact icon="calendar-outline" title={t('b2_clientEmptyEvents')} />
         )}
       </ScrollView>
 
@@ -232,101 +234,18 @@ export default function ClientDetailScreen() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  const styles = useStyles();
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const useStyles = makeStyles((c) => ({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  muted: { color: c.textMuted, fontSize: fontSize.sm },
-  scroll: { padding: spacing.xl, gap: spacing.xl },
-  headerCard: { alignItems: 'center', gap: spacing.xs },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
+  headerCard: { alignItems: 'center', gap: spacing.xs, marginHorizontal: 0 },
   avatar: { width: 88, height: 88, borderRadius: radii.full, backgroundColor: c.surfaceMuted },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
   initials: { color: c.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
-  name: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text, marginTop: spacing.sm },
-  meta: { fontSize: fontSize.sm, color: c.textMuted },
-  headerActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.sm },
-  moreBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-    width: 44,
-    height: 44,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
-  },
-  blockedNote: {
-    fontSize: fontSize.xs,
-    color: c.textMuted,
-    marginTop: spacing.xs,
-  },
-  messageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
-    borderRadius: radii.full,
-    backgroundColor: c.primary,
-  },
-  messageBtnText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
-  },
-  favBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
-  },
-  favBtnActive: { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' },
-  favText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.primary },
-  favTextActive: { color: '#B45309' },
+  name: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text, marginTop: spacing.sm, textAlign: 'center' },
+  meta: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center' },
+  headerActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.md },
+  headerAction: { flexGrow: 1 },
+  blockedNote: { fontSize: fontSize.xs, color: c.textMuted, marginTop: spacing.xs },
   stats: { flexDirection: 'row', gap: spacing.md },
-  statCard: {
-    flex: 1,
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    padding: spacing.lg,
-    alignItems: 'center',
-    gap: 2,
-  },
-  statValue: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.primary },
-  statLabel: { fontSize: fontSize.xs, color: c.textMuted, fontWeight: fontWeight.semibold },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
-  eventRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    padding: spacing.lg,
-  },
-  pressed: { opacity: 0.7 },
-  eventBody: { flex: 1, gap: 2 },
-  eventTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
-  eventDate: { fontSize: fontSize.xs, color: c.textMuted },
+  stat: { flex: 1, marginHorizontal: 0 },
+  list: { marginHorizontal: 0, padding: 0, overflow: 'hidden' },
 }));

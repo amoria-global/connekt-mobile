@@ -29,24 +29,27 @@ export function SectionHeader({
   actionLabel,
   onAction,
   right,
+  flush,
 }: {
   title: string;
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
   right?: ReactNode;
+  /** Drops the side padding when the parent already provides the gutter. */
+  flush?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { tr } = useSharedT();
   return (
-    <View style={styles.sectionHeader}>
+    <View style={[styles.sectionHeader, flush && { paddingHorizontal: 0 }]}>
       <View style={styles.sectionHeaderText}>
-        <Text style={styles.sectionTitle} accessibilityRole="header" numberOfLines={1}>
+        <Text style={styles.sectionTitle} accessibilityRole="header" numberOfLines={3}>
           {tr(title)}
         </Text>
         {subtitle ? (
-          <Text style={styles.sectionSubtitle} numberOfLines={2}>
+          <Text style={styles.sectionSubtitle} numberOfLines={4}>
             {tr(subtitle)}
           </Text>
         ) : null}
@@ -98,7 +101,7 @@ export function HCarousel<T>({
       data={data as T[]}
       keyExtractor={keyOf}
       renderItem={({ item }) => <View style={{ width: cardW }}>{renderItem(item)}</View>}
-      ItemSeparatorComponent={() => <View style={{ width: gap }} />}
+      ItemSeparatorComponent={Gap}
       showsHorizontalScrollIndicator={false}
       snapToInterval={cardW + gap}
       decelerationRate="fast"
@@ -152,7 +155,7 @@ export function MetricCard({
             <Ionicons name={icon} size={16} color={toneColor} />
           </View>
         ) : null}
-        <Text style={styles.metricLabel} maxFontSizeMultiplier={1.25}>
+        <Text style={styles.metricLabel} maxFontSizeMultiplier={1.6}>
           {tr(label)}
         </Text>
         {onPress ? <Ionicons name="chevron-forward" size={14} color={colors.textMuted} /> : null}
@@ -265,15 +268,15 @@ export function ActionButton({
       ) : null}
       {caption ? (
         <View style={[styles.actionTextCol, stacked && { alignItems: 'center' }]}>
-          <Text style={[styles.actionText, styles.actionTextLeft, stacked && { textAlign: 'center' }, { color: fg }]} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+          <Text style={[styles.actionText, styles.actionTextLeft, stacked && { textAlign: 'center' }, { color: fg }]} numberOfLines={1} maxFontSizeMultiplier={1.6}>
             {tr(label)}
           </Text>
-          <Text style={[styles.actionCaption, stacked && { textAlign: 'center' }, variant === 'primary' && { color: colors.textOnPrimary, opacity: 0.85 }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          <Text style={[styles.actionCaption, stacked && { textAlign: 'center' }, variant === 'primary' && { color: colors.textOnPrimary, opacity: 0.85 }]} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {tr(caption)}
           </Text>
         </View>
       ) : (
-        <Text style={[styles.actionText, { color: fg }]} numberOfLines={2} maxFontSizeMultiplier={1.25}>
+        <Text style={[styles.actionText, { color: fg }]} numberOfLines={2} maxFontSizeMultiplier={1.6}>
           {tr(label)}
         </Text>
       )}
@@ -327,7 +330,7 @@ export function StatusText({ label, tone, icon }: { label: string; tone: 'succes
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       <Ionicons name={glyph} size={12} color={fg} />
-      <Text style={{ color: fg, fontSize: 12, fontWeight: '700' }} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+      <Text style={{ color: fg, fontSize: 12, fontWeight: '700' }} numberOfLines={1} maxFontSizeMultiplier={1.6}>
         {tr(label)}
       </Text>
     </View>
@@ -397,7 +400,7 @@ export function SegmentedTabs<K extends string>({
               // rather than turning "Agenda" into "Agen...".
               adjustsFontSizeToFit
               minimumFontScale={0.75}
-              maxFontSizeMultiplier={1.4}
+              maxFontSizeMultiplier={1.6}
             >
               {tr(t.label)}
             </Text>
@@ -466,16 +469,19 @@ export function ErrorNotice({
   message,
   onRetry,
   compact,
+  flush,
 }: {
   message: string;
   onRetry?: () => void;
   compact?: boolean;
+  /** Drops the side margin when the parent already provides the gutter. */
+  flush?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { tr } = useSharedT();
   return (
-    <View style={[styles.notice, { backgroundColor: colors.errorBg }]} accessibilityRole="alert">
+    <View style={[styles.notice, { backgroundColor: colors.errorBg }, flush && { marginHorizontal: 0 }]} accessibilityRole="alert">
       <Ionicons name="cloud-offline-outline" size={compact ? 18 : 22} color={colors.error} />
       <Text style={[styles.noticeText, { color: colors.error }]}>{tr(message)}</Text>
       {onRetry ? (
@@ -683,3 +689,8 @@ export const useStyles = makeStyles((c, elevation) => ({
   emptyTitle: { color: c.text, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   emptyBody: { color: c.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'center' },
 }));
+
+/** Module level so the carousel keeps one separator type and does not remount each gap on every render. */
+function Gap() {
+  return <View style={{ width: spacing.md }} />;
+}

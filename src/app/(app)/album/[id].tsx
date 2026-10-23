@@ -16,6 +16,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
+import { FallbackImage } from '@/features/gallery/FallbackImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,6 +63,8 @@ import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> = {
@@ -403,8 +406,9 @@ export default function AlbumDetailScreen() {
             {/* Cover Showcase Card (if a cover image exists) */}
             {coverUrl ? (
               <View style={styles.coverCard}>
-                <Image
-                  source={{ uri: coverUrl }}
+                <FallbackImage
+                  uri={coverUrl}
+                  fallbackUri={data?.coverPhoto ? data.coverFull : images[0]?.fullUrl}
                   style={StyleSheet.absoluteFill}
                   contentFit="cover"
                   transition={250}
@@ -487,7 +491,7 @@ export default function AlbumDetailScreen() {
                 {data?.eventLocation ? (
                   <View style={styles.metaChip}>
                     <Ionicons name="location-outline" size={12} color={colors.textMuted} />
-                    <Text style={styles.metaChipText} numberOfLines={1}>
+                    <Text style={styles.metaChipText} numberOfLines={2}>
                       {data.eventLocation}
                     </Text>
                   </View>
@@ -526,7 +530,7 @@ export default function AlbumDetailScreen() {
                   )}
                 </View>
                 <View style={styles.photographerInfo}>
-                  <Text style={styles.photographerName} numberOfLines={1}>
+                  <Text style={styles.photographerName} numberOfLines={2}>
                     {data.photographer}
                   </Text>
                   <Text style={styles.photographerRole}>{tr('Photographer')}</Text>
@@ -736,13 +740,12 @@ export default function AlbumDetailScreen() {
         animationType="fade"
         onRequestClose={() => setMoreSheetOpen(false)}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setMoreSheetOpen(false)}>
-          <Pressable
+        <GlassScrim style={styles.sheetBackdrop} onPress={() => setMoreSheetOpen(false)}>
+          <GlassSheetHost
             style={[
               styles.actionSheet,
               { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) },
             ]}
-            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.sheetHandle} />
 
@@ -856,8 +859,8 @@ export default function AlbumDetailScreen() {
                 </Pressable>
               ) : null}
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Report Sheet */}
@@ -1402,7 +1405,6 @@ const useStyles = makeStyles((c) => ({
   // Action Sheet (···)
   sheetBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(4,10,26,0.6)',
     justifyContent: 'flex-end',
   },
   sheetHandle: {
@@ -1414,9 +1416,6 @@ const useStyles = makeStyles((c) => ({
     marginBottom: spacing.xs,
   },
   actionSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.md,
   },
@@ -1432,7 +1431,7 @@ const useStyles = makeStyles((c) => ({
     width: 32,
     height: 32,
     borderRadius: radii.full,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1443,7 +1442,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.md,
     borderRadius: radii.lg,
     gap: spacing.md,
-    backgroundColor: c.background,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
   },
@@ -1455,7 +1454,7 @@ const useStyles = makeStyles((c) => ({
     width: 36,
     height: 36,
     borderRadius: radii.md,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },

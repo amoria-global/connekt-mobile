@@ -11,10 +11,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { Screen } from '@/components/ui/Screen';
+import { ActionButton, Card, ErrorNotice, SectionHeader } from '@/features/photographer/kit';
 import { onlyDigits, parsePhone, type ParsedPhone } from '@/lib/phoneKit';
 import {
   fetchProfile,
@@ -216,98 +216,121 @@ export default function EditProfileScreen() {
     <Screen padded={false}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.coverWrap} onPress={onPickCover} disabled={coverUploading}>
-            {cover ? (
-              <Image source={{ uri: cover }} style={styles.cover} contentFit="cover" />
-            ) : (
-              <View style={[styles.cover, styles.coverFallback]}>
-                <Ionicons name="image-outline" size={26} color={colors.textMuted} />
-                <Text style={styles.coverHint}>{t('b1_editProfileAddCover')}</Text>
-              </View>
-            )}
-            <View style={styles.coverBadge}>
-              {coverUploading ? (
-                <ActivityIndicator size="small" color={colors.textOnPrimary} />
+          <Card style={styles.headerCard}>
+            <Pressable style={styles.coverWrap} onPress={onPickCover} disabled={coverUploading}>
+              {cover ? (
+                <Image source={{ uri: cover }} style={styles.cover} contentFit="cover" />
               ) : (
-                <Ionicons name="camera" size={14} color={colors.textOnPrimary} />
+                <View style={[styles.cover, styles.coverFallback]}>
+                  <Ionicons name="image-outline" size={26} color={colors.textMuted} />
+                  <Text style={styles.coverHint}>{t('b1_editProfileAddCover')}</Text>
+                </View>
               )}
-            </View>
-          </Pressable>
+              <View style={styles.coverBadge}>
+                {coverUploading ? (
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                ) : (
+                  <Ionicons name="camera" size={14} color={colors.textOnPrimary} />
+                )}
+              </View>
+            </Pressable>
 
-          <Pressable style={styles.avatarWrap} onPress={onPickAvatar} disabled={uploading}>
-            {avatar ? (
-              <Image source={{ uri: avatar }} style={styles.avatar} contentFit="cover" />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.initials}>{initials}</Text>
-              </View>
-            )}
-            <View style={styles.editBadge}>
-              {uploading ? (
-                <ActivityIndicator size="small" color={colors.textOnPrimary} />
+            <Pressable style={styles.avatarWrap} onPress={onPickAvatar} disabled={uploading}>
+              {avatar ? (
+                <Image source={{ uri: avatar }} style={styles.avatar} contentFit="cover" />
               ) : (
-                <Ionicons name="camera" size={16} color={colors.textOnPrimary} />
+                <View style={[styles.avatar, styles.avatarFallback]}>
+                  <Text style={styles.initials}>{initials}</Text>
+                </View>
               )}
+              <View style={styles.editBadge}>
+                {uploading ? (
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                ) : (
+                  <Ionicons name="camera" size={16} color={colors.textOnPrimary} />
+                )}
+              </View>
+            </Pressable>
+
+            <View style={styles.identity}>
+              <Text style={styles.identityName} numberOfLines={2}>
+                {`${firstName} ${lastName}`.trim() || user?.email || ''}
+              </Text>
+              {user?.email ? (
+                <Text style={styles.identityMeta} numberOfLines={2}>
+                  {user.email}
+                </Text>
+              ) : null}
             </View>
-          </Pressable>
+          </Card>
 
           <View style={styles.form}>
-            <Input label={t('b1_editProfileFirstName')} value={firstName} onChangeText={setFirstName} />
-            <Input label={t('b1_editProfileLastName')} value={lastName} onChangeText={setLastName} />
-            <PhoneInput
-              key={`${phoneSeed.country?.iso2 ?? 'RW'}-${phoneSeed.nsn}`}
-              label={t('b1_editProfilePhone')}
-              defaultIso2={phoneSeed.country?.iso2 ?? 'RW'}
-              initialNsn={phoneSeed.nsn}
-              onChange={setPhoneValue}
-            />
+            <SectionHeader flush title="Personal details" />
+            <Card style={styles.fields}>
+              <Input label={t('b1_editProfileFirstName')} value={firstName} onChangeText={setFirstName} />
+              <Input label={t('b1_editProfileLastName')} value={lastName} onChangeText={setLastName} />
+              <PhoneInput
+                key={`${phoneSeed.country?.iso2 ?? 'RW'}-${phoneSeed.nsn}`}
+                label={t('b1_editProfilePhone')}
+                defaultIso2={phoneSeed.country?.iso2 ?? 'RW'}
+                initialNsn={phoneSeed.nsn}
+                onChange={setPhoneValue}
+              />
+            </Card>
 
             {isCoordinator ? (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{t('b1_editProfileOrgTitle')}</Text>
-                  <Text style={styles.sectionSubtitle}>{t('b1_editProfileOrgSubtitle')}</Text>
-                </View>
-                <Input
-                  label={t('b1_editProfileOrgNameLabel')}
-                  value={organizationName}
-                  onChangeText={setOrganizationName}
-                  placeholder={t('b1_editProfileOrgNamePlaceholder')}
-                />
-                <Input
-                  label={t('b1_editProfileBizTypeLabel')}
-                  value={businessType}
-                  onChangeText={setBusinessType}
-                  placeholder={t('b1_editProfileBizTypePlaceholder')}
-                />
-                <Input
-                  label={t('b1_editProfileBizAddrLabel')}
-                  value={businessAddress}
-                  onChangeText={setBusinessAddress}
-                  placeholder={t('b1_editProfileBizAddrPlaceholder')}
-                />
-                <Input
-                  label={t('b1_editProfileWebsiteLabel')}
-                  value={website}
-                  onChangeText={setWebsite}
-                  placeholder={t('b1_editProfileWebsitePlaceholder')}
-                  autoCapitalize="none"
-                />
-                <Input
-                  label={t('b1_editProfileTaxIdLabel')}
-                  value={taxId}
-                  onChangeText={setTaxId}
-                  placeholder={t('b1_editProfileTaxIdPlaceholder')}
-                  autoCapitalize="none"
-                />
+                <SectionHeader flush title={t('b1_editProfileOrgTitle')} subtitle={t('b1_editProfileOrgSubtitle')} />
+                <Card style={styles.fields}>
+                  <Input
+                    label={t('b1_editProfileOrgNameLabel')}
+                    value={organizationName}
+                    onChangeText={setOrganizationName}
+                    placeholder={t('b1_editProfileOrgNamePlaceholder')}
+                  />
+                  <Input
+                    label={t('b1_editProfileBizTypeLabel')}
+                    value={businessType}
+                    onChangeText={setBusinessType}
+                    placeholder={t('b1_editProfileBizTypePlaceholder')}
+                  />
+                  <Input
+                    label={t('b1_editProfileBizAddrLabel')}
+                    value={businessAddress}
+                    onChangeText={setBusinessAddress}
+                    placeholder={t('b1_editProfileBizAddrPlaceholder')}
+                  />
+                  <Input
+                    label={t('b1_editProfileWebsiteLabel')}
+                    value={website}
+                    onChangeText={setWebsite}
+                    placeholder={t('b1_editProfileWebsitePlaceholder')}
+                    autoCapitalize="none"
+                  />
+                  <Input
+                    label={t('b1_editProfileTaxIdLabel')}
+                    value={taxId}
+                    onChangeText={setTaxId}
+                    placeholder={t('b1_editProfileTaxIdPlaceholder')}
+                    autoCapitalize="none"
+                  />
+                </Card>
               </>
             ) : null}
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <Button title={t('b1_editProfileSaveBtn')} onPress={onSave} loading={saving} />
+            {error ? <ErrorNotice flush message={error} compact /> : null}
           </View>
         </ScrollView>
+        <View style={styles.stickyBar}>
+          <ActionButton
+            variant="primary"
+            icon="checkmark"
+            label={t('b1_editProfileSaveBtn')}
+            onPress={onSave}
+            busy={saving}
+            disabled={saving}
+          />
+        </View>
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -315,10 +338,16 @@ export default function EditProfileScreen() {
 
 const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
-  scroll: { padding: spacing.xl, gap: spacing.xl, alignItems: 'stretch' },
+  scroll: { padding: spacing.lg, gap: spacing.lg, alignItems: 'stretch', paddingBottom: spacing.xl },
+  headerCard: { marginHorizontal: 0, padding: 0, overflow: 'hidden', paddingBottom: spacing.lg },
+  identity: { alignItems: 'center', gap: 2, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  identityName: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
+  identityMeta: { fontSize: fontSize.sm, color: c.textMuted },
+  fields: { marginHorizontal: 0, gap: spacing.lg, padding: spacing.lg },
+  stickyBar: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: c.borderSoft, backgroundColor: c.background },
   coverWrap: { alignSelf: 'stretch' },
-  cover: { width: '100%', height: 130, borderRadius: radii.lg, backgroundColor: c.surfaceMuted },
-  coverFallback: { alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderWidth: 1, borderColor: c.borderSoft },
+  cover: { width: '100%', height: 130, backgroundColor: c.surfaceMuted },
+  coverFallback: { alignItems: 'center', justifyContent: 'flex-start', paddingTop: spacing.md, gap: spacing.xs, borderWidth: 1, borderColor: c.borderSoft },
   coverHint: { fontSize: fontSize.sm, color: c.textMuted, fontWeight: fontWeight.semibold },
   coverBadge: {
     position: 'absolute',
@@ -349,8 +378,4 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.background,
   },
   form: { gap: spacing.lg },
-  sectionHeader: { marginTop: spacing.md, gap: 2 },
-  sectionTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
-  sectionSubtitle: { fontSize: 12, color: c.textMuted },
-  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 }));
