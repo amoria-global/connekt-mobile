@@ -20,6 +20,12 @@ export const SUPPORTED_LANGUAGES: readonly LanguageInfo[] = [
   { code: 'en', label: 'English', nativeLabel: 'English', flag: 'gb', flagEmoji: '🇬🇧' },
   { code: 'fr', label: 'French', nativeLabel: 'Français', flag: 'fr', flagEmoji: '🇫🇷' },
   { code: 'es', label: 'Spanish', nativeLabel: 'Español', flag: 'es', flagEmoji: '🇪🇸' },
+];
+
+/**
+ * Temporarily paused languages (preserved for future activation)
+ */
+export const PAUSED_LANGUAGES: readonly LanguageInfo[] = [
   { code: 'rw', label: 'Kinyarwanda', nativeLabel: 'Ikinyarwanda', flag: 'rw', flagEmoji: '🇷🇼' },
   { code: 'sw', label: 'Swahili', nativeLabel: 'Kiswahili', flag: 'tz', flagEmoji: '🇹🇿' },
 ];
