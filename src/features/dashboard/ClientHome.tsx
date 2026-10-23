@@ -25,7 +25,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
-import { LivePill } from '@/components/ui/live';
+import { LiveButton, LivePill, LiveTwinkle } from '@/components/ui/live';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { FindPhotosBottomSheet } from '@/components/FindPhotosBottomSheet';
 import { GlobalSearchModal } from '@/components/GlobalSearchModal';
@@ -39,7 +39,10 @@ import { useAsync } from '@/hooks/useAsync';
 import {
   getCustomerAnalytics,
   getCustomerPendingPayments,
+  getCustomerPerformance,
   getCustomerRecentActivities,
+  getCustomerTrends,
+  type AnalyticsPeriod,
   type PendingPayment,
   type RecentActivity,
 } from '@/features/analytics/api';
@@ -66,6 +69,8 @@ import {
 import { Thumb, ShootCard } from '@/features/photographer/homeParts';
 import { moneyText } from '@/features/photographer/money';
 import { HeroActionCard } from '@/features/client/studio';
+import { GetHelpCard } from '@/features/support/GetHelpCard';
+import { PerformanceWaveCard, type WaveMetricMeta } from '@/features/dashboard/PerformanceWaveCard';
 import { ClientOverview } from '@/features/client/ClientOverview';
 import { getWallet } from '@/features/wallet/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
@@ -86,11 +91,45 @@ import { useCurrency } from '@/store/currency';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { formatDate } from '@/utils/format';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { DashboardGreeting } from './DashboardGreeting';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
+
+/**
+ * The client's trend chart, the same card as the coordinator Home. The performance feed carries what was paid
+ * (value1) and how many events (value2) per bucket; the trends feed carries the period figure and its change.
+ * Money is labelled in the wallet currency, as the old Home did; the trends and performance sums are not converted
+ * server side for spend, so this is the wallet's own currency and N/A until the wallet has loaded.
+ */
+const CLIENT_WAVE_METRICS: Record<string, WaveMetricMeta> = {
+  totalSpent: {
+    title: 'TOTAL SPENT',
+    shortTitle: 'Spent',
+    unit: 'USD',
+    icon: 'wallet-outline',
+    color: '#00E5FF',
+    accentGlow: '#00E5FF',
+    isMoney: true,
+    series: 'value1',
+    trendKeys: ['totalSpent'],
+  },
+  totalEvents: {
+    title: 'EVENTS BOOKED',
+    shortTitle: 'Events',
+    unit: 'Events',
+    icon: 'calendar-outline',
+    color: '#38BDF8',
+    accentGlow: '#38BDF8',
+    isMoney: false,
+    series: 'value2',
+    trendKeys: ['events'],
+  },
+};
 
 const PREVIEW_LIMIT = 6;
 const ACTIVITY_LIMIT = 4;
 /** Stable fallback so `data ?? EMPTY` does not give memo hooks a new array every render. */
 const EMPTY: never[] = [];
+const NO_TRENDS = {};
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -139,6 +178,7 @@ export function ClientHome() {
   useCurrency((s) => s.currency);
   const { language, tr } = useSharedT();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const { colors } = useTheme();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
@@ -169,6 +209,10 @@ export function ClientHome() {
   const photographers = useAsync(useCallback(() => listPhotographers(), []));
   const pending = useAsync(useCallback(() => getCustomerPendingPayments(), []));
   const wallet = useAsync(useCallback(() => getWallet(), []));
+  const [period, setPeriod] = useState<AnalyticsPeriod>('week');
+  const [waveMetric, setWaveMetric] = useState('totalSpent');
+  const trendsState = useAsync(useCallback(() => getCustomerTrends(period), [period]));
+  const perfState = useAsync(useCallback(() => getCustomerPerformance(period), [period]));
 
   // ── Bookmarks ────────────────────────────────────────────────────────────
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
@@ -218,12 +262,14 @@ export function ClientHome() {
         photographers.refresh(),
         pending.refresh(),
         wallet.refresh(),
+        trendsState.refresh(),
+        perfState.refresh(),
       ]);
       refreshBookmarks();
     } finally {
       setPulling(false);
     }
-  }, [analytics, events, activities, photographers, pending, wallet, refreshBookmarks]);
+  }, [analytics, events, activities, photographers, pending, wallet, trendsState, perfState, refreshBookmarks]);
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const eventList = events.data ?? EMPTY;
@@ -252,13 +298,14 @@ export function ClientHome() {
     }
   };
 
+  const trendFailed = (!!perfState.error && !perfState.data) || (!!trendsState.error && !trendsState.data);
   const actionAttention = dues.length > 0 || photosReady > 0;
   const actionError = pending.error && !pending.data;
 
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: 140 }}
+        contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -273,13 +320,10 @@ export function ClientHome() {
         <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />
 
         {/* 1. Orientation */}
-        <View style={styles.header}>
-          <View style={styles.flex}>
-            <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
-              {tr('Welcome back')}, {name}
-            </Text>
-            <Text style={styles.subtitle}>{longDate(language) || tr('Your events, photos and bookings')}</Text>
-          </View>
+        <DashboardGreeting
+          name={name}
+          subtitle={longDate() || tr('Your events, photos and bookings')}
+          trailing={
           <Pressable
             onPress={() => setHidden((h) => !h)}
             accessibilityRole="button"
@@ -288,7 +332,8 @@ export function ClientHome() {
           >
             <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textMuted} />
           </Pressable>
-        </View>
+          }
+        />
 
         <Pressable
           onPress={() => setSearchOpen(true)}
@@ -397,8 +442,8 @@ export function ClientHome() {
                     <View style={styles.attentionTop}>
                       <IconTile icon="images-outline" tone="success" />
                       <View style={styles.flex}>
-                        <Text style={styles.cardTitle} numberOfLines={1}>
-                          {tr('Photos ready')}
+                        <Text style={styles.cardTitle} numberOfLines={3}>
+                          Photos ready
                         </Text>
                         <Text style={styles.cardMeta}>{photosReady} {tr('in your albums')}</Text>
                       </View>
@@ -422,12 +467,14 @@ export function ClientHome() {
               renderItem={(e) => {
                 const m = matchDue(e, dues, eventList);
                 const due = m.kind === 'one' ? m.payment : undefined;
+                const live = isLiveNow(e);
                 return (
                   <ShootCard
                     shoot={{
                       title: e.title || 'Booking',
                       cover: e.coverImage,
                       status: clientStatus(e),
+                      live,
                       when: whenText(e),
                       location: e.location,
                       photographer: e.photographerName,
@@ -439,12 +486,22 @@ export function ClientHome() {
                         ) : m.kind === 'ambiguous' ? (
                           <ActionButton label="Review payments" compact onPress={() => open('/payments')} style={styles.flex} />
                         ) : null}
+                        {live ? (
+                          <LiveButton
+                            label="Watch live"
+                            size="sm"
+                            icon="play"
+                            onPress={() => openEvent(e)}
+                            style={styles.flex}
+                          />
+                        ) : (
                         <ActionButton
-                          label={isLiveNow(e) ? 'Watch live' : 'View booking'}
+                            label="View booking"
                           compact
                           onPress={() => openEvent(e)}
                           style={styles.flex}
                         />
+                        )}
                       </>
                     }
                   />
@@ -476,6 +533,34 @@ export function ClientHome() {
             onOpenPayments={() => open('/payments')}
           />
         )}
+
+        {/* 5c. Performance */}
+        <SectionHeader title="Performance" subtitle="Trends for the period you pick" />
+        {trendFailed ? (
+          <ErrorNotice
+            message={(perfState.error || trendsState.error) as string}
+            onRetry={() => {
+              void trendsState.refresh();
+              void perfState.refresh();
+            }}
+            compact
+          />
+        ) : null}
+        <View style={styles.wave}>
+          <PerformanceWaveCard
+            analytics={{ totalSpent: walletStats?.hero.value, totalEvents: analytics.data?.totalEvents }}
+            metrics={CLIENT_WAVE_METRICS}
+            trends={trendsState.data ?? NO_TRENDS}
+            period={period}
+            onPeriodChange={setPeriod}
+            currency={wallet.data?.currency}
+            selectedMetric={waveMetric}
+            onSelectMetric={setWaveMetric}
+            performanceData={perfState.data}
+            hidden={hidden}
+            emptyText={trendFailed ? 'Trend data could not be loaded' : undefined}
+          />
+        </View>
 
         {/* 6. Featured photographers */}
         <SectionHeader title="Featured photographers" actionLabel="See all" onAction={() => open('/photographers')} />
@@ -529,11 +614,11 @@ export function ClientHome() {
                 >
                   <IconTile icon={k.icon} tone={k.tone} />
                   <View style={styles.flex}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>
+                    <Text style={styles.cardTitle} numberOfLines={3}>
                       {a.title}
                     </Text>
                     {a.message ? (
-                      <Text style={styles.cardMeta} numberOfLines={2}>
+                      <Text style={styles.cardMeta} numberOfLines={4}>
                         {a.message}
                       </Text>
                     ) : null}
@@ -544,6 +629,9 @@ export function ClientHome() {
             })}
           </Card>
         )}
+
+        {/* 8. Support */}
+        <GetHelpCard />
       </ScrollView>
 
       <TopBar />
@@ -607,11 +695,12 @@ function NextEventCard({
   const due = match.kind === 'one' ? match.payment : undefined;
   const dueDate = due ? dueText(due) : undefined;
   return (
-    <Card>
+    <LiveTwinkle active={live} radius={radii.lg} style={live ? styles.cardTwinkle : undefined}>
+      <Card style={live ? styles.flushCard : undefined}>
       <View style={styles.nextRow}>
         <Thumb uri={event.coverImage} size={96} />
         <View style={styles.nextText}>
-          {live ? <LivePill label={tr('Live now')} size="xs" sparkle /> : <StatusBadge {...status} />}
+            {live ? <LivePill label=tr('Live now') size="sm" sparkle /> : <StatusBadge {...status} />}
           <Text style={styles.cardTitle} numberOfLines={2}>
             {event.title || tr('Your booking')}
           </Text>
@@ -639,15 +728,26 @@ function NextEventCard({
       <View style={styles.actions}>
         {due ? <ActionButton label="Pay now" variant="primary" compact onPress={() => onPay(due)} style={styles.flex} /> : null}
         {match.kind === 'ambiguous' ? <ActionButton label="Review payments" variant="primary" compact onPress={onReview} style={styles.flex} /> : null}
+          {live ? (
+            <LiveButton
+              label="Watch live"
+              size="md"
+              icon="play"
+              onPress={onOpen}
+              style={styles.flex}
+            />
+          ) : (
         <ActionButton
-          label={live ? 'Watch live' : 'View booking'}
+              label="View booking"
           variant={due || match.kind === 'ambiguous' ? 'secondary' : 'primary'}
           compact
           onPress={onOpen}
           style={styles.flex}
         />
+          )}
       </View>
     </Card>
+    </LiveTwinkle>
   );
 }
 
@@ -674,7 +774,7 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
       <View style={styles.attentionTop}>
         <IconTile icon={failed ? 'alert-circle-outline' : 'time-outline'} tone={failed ? 'error' : 'warning'} />
         <View style={styles.flex}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
+          <Text style={styles.cardTitle} numberOfLines={3}>
             {payment.eventName}
           </Text>
           <Text style={styles.cardMeta} numberOfLines={2}>
@@ -692,10 +792,7 @@ function PaymentCard({ payment, onPay, hidden }: { payment: PendingPayment; onPa
 }
 
 const useStyles = makeStyles((c) => ({
-  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  title: { color: c.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
-  subtitle: { color: c.textMuted, fontSize: 13, marginTop: 2 },
+  eye: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -711,11 +808,14 @@ const useStyles = makeStyles((c) => ({
   },
   searchText: { flex: 1, color: c.textMuted, fontSize: 14 },
   pressed: { opacity: 0.85 },
+  wave: { paddingHorizontal: spacing.lg },
   stack: { gap: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   flex: { flex: 1, minWidth: 0 },
   cardTitle: { color: c.text, fontSize: 16, fontWeight: '700' },
   cardMeta: { color: c.textMuted, fontSize: 13, lineHeight: 18, flexShrink: 1 },
+  cardTwinkle: { marginHorizontal: spacing.lg },
+  flushCard: { marginHorizontal: 0 },
   nextRow: { flexDirection: 'row', gap: spacing.md },
   nextText: { flex: 1, minWidth: 0, gap: 4, alignItems: 'flex-start' },
   metaLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 2 },

@@ -29,7 +29,7 @@ import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { useRole } from '@/features/auth/role';
-import { clientStats } from '@/features/profile/clientStats';
+import { clientStats, coordinatorStats, photographerStats } from '@/features/profile/clientStats';
 import { KycBadge } from '@/features/kyc/KycBadge';
 import { getKyc } from '@/features/kyc/api';
 import {
@@ -46,6 +46,7 @@ import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { useCurrency } from '@/store/currency';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 type ProfileTab = 'details' | 'settings' | 'account';
 
@@ -56,7 +57,7 @@ function roleLabel(type?: string) {
 }
 
 function formatJoinedDate(iso?: string): string {
-  if (!iso) return 'Recent';
+  if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -65,6 +66,7 @@ function formatJoinedDate(iso?: string): string {
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
   const { language, t } = useLanguage();
@@ -206,22 +208,10 @@ export default function ProfileScreen() {
 
   const stats = useMemo(() => {
     if (isPhotographer) {
-      return [
-        { label: 'Jobs', value: user?.completedEvents ?? 0 },
-        { label: 'Reviews', value: user?.reviewsCount ?? 0 },
-        { label: 'Rating', value: user?.rating != null ? user.rating.toFixed(1) : '5.0' },
-        {
-          label: 'Acceptance',
-          value: typeof user?.acceptanceRate === 'number' ? `${user.acceptanceRate}%` : '—',
-        },
-      ];
+      return photographerStats(user);
     }
     if (isCoordinator) {
-      return [
-        { label: 'Events', value: user?.completedEvents ?? 0 },
-        { label: 'Rating', value: user?.rating != null ? user.rating.toFixed(1) : '5.0' },
-        { label: 'Status', value: 'Active' },
-      ];
+      return coordinatorStats(user);
     }
     // Clients: a missing count is a dash, never a zero, and there is no invented "Active".
     return clientStats(user);
@@ -244,7 +234,7 @@ export default function ProfileScreen() {
   return (
     <Screen padded={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Background Profile Cover Photo ──────────────────────────── */}
@@ -349,15 +339,17 @@ export default function ProfileScreen() {
           {user?.address ? (
             <View style={styles.locationLink}>
               <Ionicons name="location-outline" size={13} color={colors.textMuted} />
-              <Text style={styles.locationText} numberOfLines={1}>
+              <Text style={styles.locationText} numberOfLines={3}>
                 {user.address}
               </Text>
             </View>
           ) : null}
 
+          {user?.joinedFrom ? (
           <Text style={styles.joinedText}>
-            {t('memberSince', { date: formatJoinedDate(user?.joinedFrom) })}
+              {t('memberSince', { date: formatJoinedDate(user.joinedFrom) })}
           </Text>
+          ) : null}
         </View>
 
         {/* ── Action Buttons Row (Instagram style) ────────────────────── */}
@@ -437,8 +429,8 @@ export default function ProfileScreen() {
               <View style={styles.highlightCircle}>
                 <Ionicons name={h.icon} size={22} color={colors.text} />
               </View>
-              <Text style={styles.highlightLabel} numberOfLines={1}>
-                {tr(h.label)}
+              <Text style={styles.highlightLabel} numberOfLines={2}>
+                {h.label}
               </Text>
             </Pressable>
           ))}
@@ -509,7 +501,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>{t('email')}</Text>
-                <Text style={styles.detailValue} numberOfLines={1}>
+                <Text style={styles.detailValue} numberOfLines={4}>
                   {user?.email || '—'}
                 </Text>
               </View>
@@ -763,7 +755,7 @@ function MenuRow({
 const COVER_HEIGHT = 140;
 
 const useStyles = makeStyles((c) => ({
-  scroll: { paddingBottom: 110 },
+  scroll: {},
   pressed: { opacity: 0.75 },
 
   // Background Profile Cover Photo

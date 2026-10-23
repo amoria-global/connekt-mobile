@@ -7,6 +7,7 @@
  *  - History: photos already approved or rejected.
  */
 import { useCallback, useMemo, useState } from 'react';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -29,6 +30,8 @@ import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { cancelInvite, createInvite, getOwnedAlbum, removeCollaborator, reviewSubmissions } from '@/features/collab/api';
 import { AlbumCover, PersonRow, StatusChip } from '@/features/collab/components';
+import { ContributorList, ProgressSummaryCard, type ProgressLabels } from '@/features/collab/ContributorProgress';
+import { contributorProgress, fromContributor, type Contributor } from '@/features/collab/progress';
 import { daysLeft, timeAgo, type Collaborator, type OwnedAlbumDetail, type Submission } from '@/features/collab/model';
 import { useLanguage } from '@/hooks/useLanguage';
 import { isApiError } from '@/store/auth';
@@ -53,7 +56,7 @@ const OA_I18N = {
     photosCollabMeta: "{photos} photos · {collabs} collaborator(s)",
     invitePhotographer: "Invite a photographer",
     tabReview: "Review ({count})",
-    tabPeople: "People ({count})",
+    tabPeople: "Progress ({count})",
     tabHistory: "History",
     nothingToReview: "Nothing to review",
     nothingToReviewNoCollab: "Invite a photographer. Photos they submit will wait here for your decision.",
@@ -85,6 +88,40 @@ const OA_I18N = {
     rejectSheetTitle: "Reject {count} photo(s)?",
     rejectSheetSub: "They stay out of the album. The photographer is told, with your note if you add one.",
     notePlaceholder: "Note for the photographer (optional)",
+    progressTitle: "Collaboration progress",
+    progressNoCollab: "Invite a photographer to start collecting photos for this album.",
+    progressNobody: "{n} photographer(s) joined. Nobody has submitted a photo yet.",
+    progressSummary: "{contributing} of {collabs} collaborator(s) submitted photos.",
+    progressSummaryWaiting: "{waiting} waiting for you.",
+    progressSummaryCaughtUp: "You are all caught up.",
+    statSubmitted: "Submitted",
+    statAdded: "Added to album",
+    statWaiting: "Waiting for you",
+    statNotAccepted: "Not accepted",
+    legendAdded: "{n} added",
+    legendWaiting: "{n} waiting",
+    legendNotAccepted: "{n} not accepted",
+    barSummary: "{added} added, {waiting} waiting, {rejected} not accepted",
+    barNone: "No photos submitted yet",
+    stateWaiting: "{n} to review",
+    stateUpToDate: "Up to date",
+    stateNotStarted: "No photos yet",
+    joinedAgo: "Joined {ago}",
+    noLongerCollaborator: "No longer a collaborator",
+    lastPhoto: "last photo {ago}",
+    nothingSubmitted: "nothing submitted yet",
+    notStartedNote: "Accepted your invitation but has not sent a photo yet.",
+    shareOfAlbum: "Accounts for {pct}% of this album",
+    acceptedRate: "{pct}% of reviewed photos were added",
+    reviewTheirs: "Review their photos ({n})",
+    allTheirs: "All their photos ({n})",
+    pastCollaborators: "Past collaborators ({n})",
+    pastNote: "Their photos stay in the album and are counted above.",
+    showingOnly: "Showing only photos from {name}",
+    showEveryone: "Show everyone",
+    nothingFrom: "Nothing from {name} to review",
+    allDecided: "Everything they sent has been decided.",
+    noCollabFollow: "Invite a photographer. Once they accept, you can follow their progress here.",
   },
   fr: {
     errLoad: "Impossible de charger cet album.",
@@ -105,7 +142,7 @@ const OA_I18N = {
     photosCollabMeta: "{photos} photos · {collabs} collaborateur(s)",
     invitePhotographer: "Inviter un photographe",
     tabReview: "Examiner ({count})",
-    tabPeople: "Personnes ({count})",
+    tabPeople: "Progression ({count})",
     tabHistory: "Historique",
     nothingToReview: "Rien à examiner",
     nothingToReviewNoCollab: "Invitez un photographe. Les photos soumises attendront votre décision ici.",
@@ -137,6 +174,40 @@ const OA_I18N = {
     rejectSheetTitle: "Refuser {count} photo(s) ?",
     rejectSheetSub: "Elles restent hors de l’album. Le photographe en est informé avec votre note.",
     notePlaceholder: "Note pour le photographe (optionnel)",
+    progressTitle: "Progression de la collaboration",
+    progressNoCollab: "Invitez un photographe pour commencer à recevoir des photos pour cet album.",
+    progressNobody: "{n} photographe(s) ont rejoint l’album. Personne n’a encore soumis de photo.",
+    progressSummary: "{contributing} collaborateur(s) sur {collabs} ont soumis des photos.",
+    progressSummaryWaiting: "{waiting} en attente de votre examen.",
+    progressSummaryCaughtUp: "Vous êtes à jour.",
+    statSubmitted: "Soumises",
+    statAdded: "Ajoutées à l’album",
+    statWaiting: "En attente de vous",
+    statNotAccepted: "Refusées",
+    legendAdded: "{n} ajoutée(s)",
+    legendWaiting: "{n} en attente",
+    legendNotAccepted: "{n} refusée(s)",
+    barSummary: "{added} ajoutée(s), {waiting} en attente, {rejected} refusée(s)",
+    barNone: "Aucune photo soumise pour l’instant",
+    stateWaiting: "{n} à examiner",
+    stateUpToDate: "À jour",
+    stateNotStarted: "Aucune photo",
+    joinedAgo: "A rejoint {ago}",
+    noLongerCollaborator: "N’est plus collaborateur",
+    lastPhoto: "dernière photo {ago}",
+    nothingSubmitted: "rien de soumis pour l’instant",
+    notStartedNote: "A accepté votre invitation mais n’a pas encore envoyé de photo.",
+    shareOfAlbum: "Représente {pct} % de cet album",
+    acceptedRate: "{pct} % des photos examinées ont été ajoutées",
+    reviewTheirs: "Examiner ses photos ({n})",
+    allTheirs: "Toutes ses photos ({n})",
+    pastCollaborators: "Anciens collaborateurs ({n})",
+    pastNote: "Leurs photos restent dans l’album et sont comptées ci-dessus.",
+    showingOnly: "Photos de {name} uniquement",
+    showEveryone: "Afficher tout le monde",
+    nothingFrom: "Rien à examiner de la part de {name}",
+    allDecided: "Tout ce qu’il a envoyé a été traité.",
+    noCollabFollow: "Invitez un photographe. Une fois qu’il aura accepté, vous suivrez sa progression ici.",
   },
   es: {
     errLoad: "No se pudo cargar este álbum.",
@@ -157,7 +228,7 @@ const OA_I18N = {
     photosCollabMeta: "{photos} fotos · {collabs} colaborador(es)",
     invitePhotographer: "Invitar a un fotógrafo",
     tabReview: "Revisar ({count})",
-    tabPeople: "Personas ({count})",
+    tabPeople: "Progreso ({count})",
     tabHistory: "Historial",
     nothingToReview: "Nada por revisar",
     nothingToReviewNoCollab: "Invita a un fotógrafo. Las fotos que envíe esperarán aquí tu decisión.",
@@ -189,6 +260,40 @@ const OA_I18N = {
     rejectSheetTitle: "¿Rechazar {count} foto(s)?",
     rejectSheetSub: "Quedarán fuera del álbum. Se notificará al fotógrafo con tu nota si añades una.",
     notePlaceholder: "Nota para el fotógrafo (opcional)",
+    progressTitle: "Progreso de la colaboración",
+    progressNoCollab: "Invita a un fotógrafo para empezar a recibir fotos para este álbum.",
+    progressNobody: "{n} fotógrafo(s) se unieron. Nadie ha enviado una foto todavía.",
+    progressSummary: "{contributing} de {collabs} colaborador(es) enviaron fotos.",
+    progressSummaryWaiting: "{waiting} esperan tu revisión.",
+    progressSummaryCaughtUp: "Estás al día.",
+    statSubmitted: "Enviadas",
+    statAdded: "Añadidas al álbum",
+    statWaiting: "Esperan tu revisión",
+    statNotAccepted: "No aceptadas",
+    legendAdded: "{n} añadida(s)",
+    legendWaiting: "{n} en espera",
+    legendNotAccepted: "{n} no aceptada(s)",
+    barSummary: "{added} añadida(s), {waiting} en espera, {rejected} no aceptada(s)",
+    barNone: "Aún no se han enviado fotos",
+    stateWaiting: "{n} por revisar",
+    stateUpToDate: "Al día",
+    stateNotStarted: "Sin fotos",
+    joinedAgo: "Se unió {ago}",
+    noLongerCollaborator: "Ya no es colaborador",
+    lastPhoto: "última foto {ago}",
+    nothingSubmitted: "aún no ha enviado nada",
+    notStartedNote: "Aceptó tu invitación pero todavía no ha enviado ninguna foto.",
+    shareOfAlbum: "Aporta el {pct} % de este álbum",
+    acceptedRate: "El {pct} % de las fotos revisadas se añadió",
+    reviewTheirs: "Revisar sus fotos ({n})",
+    allTheirs: "Todas sus fotos ({n})",
+    pastCollaborators: "Antiguos colaboradores ({n})",
+    pastNote: "Sus fotos siguen en el álbum y se cuentan arriba.",
+    showingOnly: "Solo fotos de {name}",
+    showEveryone: "Mostrar a todos",
+    nothingFrom: "Nada de {name} por revisar",
+    allDecided: "Todo lo que envió ya se decidió.",
+    noCollabFollow: "Invita a un fotógrafo. Cuando acepte, podrás seguir su progreso aquí.",
   },
 } as const;
 import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
@@ -219,6 +324,8 @@ export default function OwnerAlbumScreen() {
   const [tab, setTab] = useState<Tab>('review');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<Submission | null>(null);
+  // Narrows Review and History to one collaborator, when the owner comes from their progress card.
+  const [contributorId, setContributorId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<string[] | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -238,14 +345,32 @@ export default function OwnerAlbumScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const pending = useMemo(() => (data?.submissions ?? []).filter((s) => s.status === 'PENDING')
+  const pendingAll = useMemo(() => (data?.submissions ?? []).filter((s) => s.status === 'PENDING')
     .sort((a, b) => (a.submittedAt ?? '').localeCompare(b.submittedAt ?? '')), [data]);
-  const decided = useMemo(() => (data?.submissions ?? []).filter((s) => s.status !== 'PENDING'), [data]);
-  const submittedBy = useMemo(() => {
-    const m = new Map<string, number>();
-    (data?.submissions ?? []).forEach((s) => m.set(s.collaborator.id, (m.get(s.collaborator.id) ?? 0) + 1));
-    return m;
-  }, [data]);
+  const decidedAll = useMemo(() => (data?.submissions ?? []).filter((s) => s.status !== 'PENDING'), [data]);
+  // The tab counts stay whole; the lists below them can be narrowed to one person.
+  const pending = useMemo(() => fromContributor(pendingAll, contributorId), [pendingAll, contributorId]);
+  const decided = useMemo(() => fromContributor(decidedAll, contributorId), [decidedAll, contributorId]);
+  const progress = useMemo(
+    () => contributorProgress(data?.collaborators ?? [], data?.submissions ?? [], data?.album.imageCount ?? 0),
+    [data],
+  );
+  const filterName = contributorId
+    ? [...progress.contributors, ...progress.former].find((c) => c.id === contributorId)?.name ?? ''
+    : null;
+  const goTo = (target: Tab, id: string) => { setContributorId(id); setTab(target); setSelected(new Set()); };
+  const labels: ProgressLabels = useMemo(() => ({
+    title: tr.progressTitle, noCollaborators: tr.progressNoCollab, nobodyYet: tr.progressNobody,
+    summary: tr.progressSummary, summaryWaiting: tr.progressSummaryWaiting, summaryCaughtUp: tr.progressSummaryCaughtUp,
+    statSubmitted: tr.statSubmitted, statAdded: tr.statAdded, statWaiting: tr.statWaiting, statNotAccepted: tr.statNotAccepted,
+    legendAdded: tr.legendAdded, legendWaiting: tr.legendWaiting, legendNotAccepted: tr.legendNotAccepted,
+    barSummary: tr.barSummary, barNone: tr.barNone,
+    stateWaiting: tr.stateWaiting, stateUpToDate: tr.stateUpToDate, stateNotStarted: tr.stateNotStarted,
+    joinedAgo: tr.joinedAgo, noLongerCollaborator: tr.noLongerCollaborator, lastPhoto: tr.lastPhoto, nothingSubmitted: tr.nothingSubmitted,
+    notStartedNote: tr.notStartedNote, shareOfAlbum: tr.shareOfAlbum, acceptedRate: tr.acceptedRate,
+    reviewTheirs: tr.reviewTheirs, allTheirs: tr.allTheirs, remove: tr.remove,
+    pastCollaborators: tr.pastCollaborators, pastNote: tr.pastNote,
+  }), [tr]);
 
   const columns = width >= 700 ? 4 : 3;
   const tile = Math.floor((Math.min(width, 900) - spacing.xl * 2 - GAP * (columns - 1)) / columns);
@@ -348,15 +473,27 @@ export default function OwnerAlbumScreen() {
           value={tab}
           onChange={(t) => { setTab(t); setSelected(new Set()); }}
           options={[
-            { value: 'review', label: tr.tabReview.replace('{count}', String(pending.length)) },
+            { value: 'review', label: tr.tabReview.replace('{count}', String(pendingAll.length)) },
             { value: 'people', label: tr.tabPeople.replace('{count}', String(collaborators.length)) },
             { value: 'history', label: tr.tabHistory },
           ]}
         />
 
+        {filterName !== null && (tab === 'review' || tab === 'history') ? (
+          <View style={styles.filterChip} testID="contributor-filter">
+            <Ionicons name="funnel-outline" size={16} color={colors.primary} />
+            <Text style={[styles.muted, styles.flex]}>{tr.showingOnly.replace('{name}', filterName)}</Text>
+            <Pressable hitSlop={8} accessibilityRole="button" onPress={() => { setContributorId(null); setSelected(new Set()); }}>
+              <Text style={styles.link}>{tr.showEveryone}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {tab === 'review' && (pending.length === 0 ? (
-          <EmptyState icon="file-tray-outline" title={tr.nothingToReview}
-            message={collaborators.length === 0 ? tr.nothingToReviewNoCollab : tr.nothingToReviewCaughtUp} />
+          <EmptyState icon="file-tray-outline"
+            title={contributorId ? tr.nothingFrom.replace('{name}', filterName ?? '') : tr.nothingToReview}
+            message={contributorId ? tr.allDecided : collaborators.length === 0 ? tr.nothingToReviewNoCollab : tr.nothingToReviewCaughtUp}
+            action={contributorId ? { label: tr.showEveryone, onPress: () => setContributorId(null) } : undefined} />
         ) : (
           <>
             <View style={styles.reviewBar}>
@@ -377,20 +514,16 @@ export default function OwnerAlbumScreen() {
 
         {tab === 'people' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{tr.collaboratorsTitle}</Text>
-            {collaborators.length === 0 ? (
-              <Text style={styles.muted}>{tr.noCollaboratorsYet}</Text>
-            ) : collaborators.map((c) => (
-              <View key={c.membershipId} style={styles.row}>
-                <View style={styles.flex}>
-                  <PersonRow person={c} caption={tr.joinedCaption.replace('{ago}', timeAgo(c.joinedAt)).replace('{count}', String(submittedBy.get(c.id) ?? 0))} />
-                </View>
-                <Pressable onPress={() => askRemove(c)} hitSlop={8} accessibilityRole="button"
-                  accessibilityLabel={`Remove ${c.name}`}>
-                  <Text style={styles.danger}>{tr.remove}</Text>
-                </Pressable>
-              </View>
-            ))}
+            {collaborators.length === 0 && progress.former.length === 0 ? (
+              <EmptyState icon="people-outline" title={tr.collaboratorsTitle} message={tr.noCollabFollow} />
+            ) : (
+              <>
+                <ProgressSummaryCard totals={progress.totals} labels={labels} />
+                <ContributorList progress={progress} labels={labels}
+                  onReview={(id) => goTo('review', id)} onSeePhotos={(id) => goTo('history', id)}
+                  onRemove={(c: Contributor) => { const m = collaborators.find((x) => x.id === c.id); if (m) askRemove(m); }} />
+              </>
+            )}
 
             <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>{tr.openInviteLinks}</Text>
             {invites.length === 0 ? (
@@ -399,7 +532,7 @@ export default function OwnerAlbumScreen() {
               <View key={inv.id} style={styles.row}>
                 <Ionicons name="link-outline" size={20} color={colors.primary} />
                 <View style={styles.flex}>
-                  <Text style={styles.rowTitle} numberOfLines={1}>{inv.note || tr.inviteLinkFallback}</Text>
+                  <Text style={styles.rowTitle} numberOfLines={2}>{inv.note || tr.inviteLinkFallback}</Text>
                   <Text style={styles.muted}>
                     {tr.joinedCountMeta.replace('{count}', String(inv.joinedCount)).replace('{left}', daysLeft(inv.expiresAt))}
                   </Text>
@@ -515,8 +648,8 @@ function RejectSheet({ count, note, onNote, busy, onCancel, onConfirm }: {
   const { language } = useLanguage();
   const tr = getOaTr(language);
   return (
-    <View style={styles.sheetBackdrop}>
-      <View style={styles.sheet}>
+    <GlassScrim style={styles.sheetBackdrop}>
+      <GlassSheetHost style={styles.sheet}>
         <Text style={styles.sheetTitle}>{tr.rejectSheetTitle.replace('{count}', String(count))}</Text>
         <Text style={styles.muted}>{tr.rejectSheetSub}</Text>
         <TextInput
@@ -533,12 +666,13 @@ function RejectSheet({ count, note, onNote, busy, onCancel, onConfirm }: {
           <Button title={tr.cancel} variant="ghost" style={styles.flex} onPress={onCancel} />
           <Button title={tr.reject} variant="danger" style={styles.flex} loading={busy} onPress={onConfirm} />
         </View>
-      </View>
-    </View>
+      </GlassSheetHost>
+    </GlassScrim>
   );
 }
 
 const useStyles = makeStyles((c, e) => ({
+  filterChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: c.surfaceMuted, borderRadius: radii.md, padding: spacing.md },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.xl, gap: spacing.lg, paddingBottom: spacing['3xl'] },
   flex: { flex: 1 },
@@ -576,8 +710,8 @@ const useStyles = makeStyles((c, e) => ({
   previewImage: { width: '100%', height: '62%' },
   previewPanel: { backgroundColor: c.elevated, margin: spacing.lg, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.md },
   previewActions: { flexDirection: 'row', gap: spacing.md },
-  sheetBackdrop: { ...StyleFill, backgroundColor: c.scrim, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.elevated, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.xl, gap: spacing.md },
+  sheetBackdrop: { ...StyleFill, justifyContent: 'flex-end' },
+  sheet: { padding: spacing.xl, gap: spacing.md },
   sheetTitle: { color: c.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   noteInput: {
     minHeight: 88, borderWidth: 1, borderColor: c.border, borderRadius: radii.md, padding: spacing.md,

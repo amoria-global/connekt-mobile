@@ -137,7 +137,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
             )}
           </View>
 
-          <Text style={styles.client} numberOfLines={1}>
+          <Text style={styles.client} numberOfLines={2}>
             {client}
           </Text>
           <Text style={styles.title} numberOfLines={2}>

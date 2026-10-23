@@ -26,6 +26,7 @@ import {
   View,
   useWindowDimensions,
   Modal,
+  PixelRatio,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -68,6 +69,7 @@ import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } fr
 import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/store/language';
 import { tp } from '@/i18n/plural';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const WATERMARK_ROWS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
@@ -208,7 +210,7 @@ function PhotoCell({
       {/* Caption if present */}
       {eventTitle ? (
         <View style={styles.caption} pointerEvents="none">
-          <Text style={styles.captionText} numberOfLines={1}>{eventTitle}</Text>
+          <Text style={styles.captionText} numberOfLines={2}>{eventTitle}</Text>
         </View>
       ) : null}
 
@@ -1217,7 +1219,8 @@ export function FindMyPhotos() {
 
       /* Pick options */
       ) : (
-        <View style={styles.webPickOptions}>
+        // Three tiles side by side are about 90dp wide each; at large text their words break mid-word, so they stack.
+        <View style={[styles.webPickOptions, PixelRatio.getFontScale() > 1.3 && styles.webPickOptionsStacked]}>
           <Pressable
             style={({ pressed }) => [
               styles.webPickCard,
@@ -2283,13 +2286,12 @@ export function FindMyPhotos() {
         animationType="fade"
         onRequestClose={() => setNoMatchesOpen(false)}
       >
-        <Pressable
+        <GlassScrim
           style={styles.modalOverlay}
           onPress={() => setNoMatchesOpen(false)}
         >
-          <Pressable
+          <GlassSheetHost variant="dialog"
             style={[styles.modalContent, styles.customModalCard]}
-            onPress={(e) => e.stopPropagation()}
           >
             <Pressable
               onPress={() => setNoMatchesOpen(false)}
@@ -2322,14 +2324,14 @@ export function FindMyPhotos() {
             >
               <Text style={styles.customModalBtnText}>{t('fmp_tryAgain')}</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* ── Unlock Modal ── */}
       <Modal visible={unlockOpen} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { marginTop: 'auto', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderRadius: 0 }]}>
+        <GlassScrim style={styles.modalOverlay}>
+          <GlassSheetHost style={[styles.modalContent, { marginTop: 'auto' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('fmp_unlockTitle')}</Text>
               <Pressable onPress={() => setUnlockOpen(false)}>
@@ -2360,8 +2362,8 @@ export function FindMyPhotos() {
               onPress={() => setUnlockOpen(false)}
               style={{ marginTop: spacing.xs }}
             />
-          </View>
-        </View>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Report a photo (long-press a tile to open). */}
@@ -2842,6 +2844,7 @@ const useStyles = makeStyles((c, e) => ({
 
   // Pick options
   webPickOptions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+  webPickOptionsStacked: { flexDirection: 'column' },
   // Tiles on the glass sheet: frosted, not solid cards.
   webPickCard: {
     flex: 1,
@@ -3226,18 +3229,13 @@ const useStyles = makeStyles((c, e) => ({
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
   },
   modalContent: {
-    backgroundColor: c.elevated,
-    borderRadius: 24,
     padding: spacing.xl,
     width: '100%',
-    borderWidth: 1,
-    borderColor: c.border,
     ...e(3),
   },
   modalHeader: {
@@ -3254,8 +3252,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     color: c.text,
     fontSize: 15,
     marginBottom: spacing.sm,
@@ -3271,8 +3268,7 @@ const useStyles = makeStyles((c, e) => ({
     maxWidth: 320,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.elevated,
+    ...glassTile(c),
     position: 'relative',
     ...e(3),
   },
@@ -3283,7 +3279,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },

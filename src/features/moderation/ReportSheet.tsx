@@ -7,14 +7,16 @@
  * serves both the authenticated endpoint and the anonymous-viewer one.
  */
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { REPORT_REASONS, REPORT_TARGET_LABEL, type ReportTarget } from './api';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 type Props = {
   visible: boolean;
@@ -84,8 +86,8 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+      <GlassScrim style={styles.backdrop} onPress={onClose}>
+        <GlassSheetHost style={styles.sheet}>
           <Text style={styles.title}>{tr(`Report ${label}`)}</Text>
           <Text style={styles.hint}>
             {subject ? `${subject} — ` : ''}{tr('Pick a reason so our team can review it. We look at every report within 24 hours.')}
@@ -123,18 +125,15 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
             loading={submitting}
           />
           <Button title="Cancel" variant="ghost" onPress={onClose} disabled={submitting} />
-        </Pressable>
-      </Pressable>
+        </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },
@@ -150,7 +149,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
   },

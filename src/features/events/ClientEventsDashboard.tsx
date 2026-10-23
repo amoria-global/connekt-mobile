@@ -8,15 +8,21 @@
  *
  * Every action the old coordinator-shared list had is kept: open, edit, share, QR for a
  * published event, the hybrid "Choose" and "Post" steps, create (direct or hybrid), find
- * a photographer, explore events. Coordinators keep OwnerEventsDashboard unchanged.
+ * a photographer, explore events.
+ *
+ * `coordinator` runs the same screen over the coordinator's own feed: Photographers and Geo pricing replace
+ * Explore events, each card also names the client, and the primary action manages the event (where the
+ * stream is controlled) instead of opening the client's viewing room. Nothing is added to or removed from
+ * what a coordinator could already do.
  *
  * A failed read is an error with a retry, never "No events yet". A failed refresh keeps
  * the last list on screen and says so.
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { FlatList, Modal, Pressable, RefreshControl, ScrollView, Share, Text, TextInput, View } from 'react-native';
+import { FlatList, Modal, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookingModeSelector, type ExistingHybridEvent } from '@/features/booking/BookingModeSelector';
 import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
@@ -27,7 +33,6 @@ import { useSharedT } from '@/i18n/sharedStrings';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import {
   ActionButton,
-  Card,
   Chip,
   EmptyNote,
   ErrorNotice,
@@ -35,12 +40,14 @@ import {
   SkeletonCard,
   StatusBadge,
 } from '@/features/photographer/kit';
-import { Thumb } from '@/features/photographer/homeParts';
 import { ScheduleView, type ScheduleMode } from '@/features/photographer/ScheduleView';
 import { StatusBreakdownCard, type BreakdownSegment } from '@/features/client/ClientCharts';
+import { isLiveNow } from '@/features/client/homeModel';
+import { LiveButton, LivePill, LiveTwinkle } from '@/components/ui/live';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
 import { formatDate } from '@/utils/format';
-import { listEvents } from './api';
+import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
+import { listCoordinatorEvents, listEvents } from './api';
 import { EventQrSheet } from './EventQrSheet';
 import type { EventItem } from './types';
 import {
@@ -53,6 +60,8 @@ import {
   type EventFilter,
   type EventSort,
 } from './clientEventsModel';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 const PAGE_SIZE = 8;
@@ -70,13 +79,22 @@ function whenText(e: EventItem): string {
   return parts.join(' · ') || 'No date yet';
 }
 
-export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { topInset?: number; initialSearch?: string }) {
+export function ClientEventsDashboard({
+  topInset = 0,
+  initialSearch = '',
+  coordinator = false,
+}: {
+  topInset?: number;
+  initialSearch?: string;
+  coordinator?: boolean;
+}) {
   const styles = useStyles();
+  const clearance = useTabBarClearance();
   const { colors } = useTheme();
   const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data, loading, error, refresh, refreshQuietly } = useAsync(listEvents);
+  const { data, loading, error, refresh, refreshQuietly } = useAsync(coordinator ? listCoordinatorEvents : listEvents);
   const [pulling, setPulling] = useState(false);
 
   // Quiet on return from an edit so the change shows without a spinner flash. Not on the first
@@ -120,12 +138,21 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
   const isList = layout === 'list';
   const toneColor = { success: colors.success, warning: colors.warning, error: colors.error, info: colors.primary, neutral: colors.textMuted };
   const summary = useMemo<BreakdownSegment[]>(() => {
+    const pickColor = (label: string, tone: keyof typeof toneColor): string => {
+      if (label === 'Ongoing') return colors.accent;
+      if (label === 'Published') return colors.success;
+      if (label === 'Not published') return colors.warning;
+      if (label === 'Completed') return '#3B82F6';
+      if (label === 'Paused') return '#8B5CF6';
+      if (label === 'Cancelled') return colors.error;
+      return toneColor[tone];
+    };
     const by = new Map<string, BreakdownSegment>();
     for (const e of events ?? []) {
       const s = eventStatus(e);
       const cur = by.get(s.label);
       if (cur) cur.value += 1;
-      else by.set(s.label, { key: s.label, label: s.label, value: 1, color: toneColor[s.tone] });
+      else by.set(s.label, { key: s.label, label: s.label, value: 1, color: pickColor(s.label, s.tone) });
     }
     return [...by.values()];
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,14 +176,20 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
           <Text style={styles.title} accessibilityRole="header">
             {tr('Events')}
           </Text>
-          <Text style={styles.subtitle}>{tr('Your bookings, sessions and live events.')}</Text>
+          <Text style={styles.subtitle}>
+            {coordinator ? 'Events you coordinate: bookings, photographers and live sessions.' : tr('Your bookings, sessions and live events.')}
+          </Text>
         </View>
         <ActionButton label="New" icon="add" variant="primary" compact onPress={newEvent} />
       </View>
 
       <View style={[styles.row, styles.pad]}>
         <ActionButton label="Photographers" icon="search-outline" compact onPress={() => open('/photographers')} style={styles.flex} />
+        {coordinator ? (
+          <ActionButton label="Geo pricing" icon="globe-outline" compact onPress={() => open('/event/geo-pricing')} style={styles.flex} />
+        ) : (
         <ActionButton label="Explore events" icon="compass-outline" compact onPress={() => setExploreOpen(true)} style={styles.flex} />
+        )}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityLabel="Filter events">
@@ -209,8 +242,11 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
       </View>
 
       {events && events.length > 0 ? (
+        <View style={styles.chartBlock}>
         <StatusBreakdownCard segments={summary} centerLabel="events" summary="Your events by status" emptyText="No events yet." />
+        </View>
       ) : null}
+      <View style={styles.tabsBlock}>
       <SegmentedTabs
         label="Events layout"
         value={layout}
@@ -222,8 +258,13 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
           { key: 'agenda', label: 'Agenda' },
         ]}
       />
+      </View>
 
-      {error && events ? <ErrorNotice compact message={`Could not refresh. Showing the last list. ${error}`} onRetry={refresh} /> : null}
+      {error && events ? (
+        <View style={styles.noticeBlock}>
+          <ErrorNotice compact message={`Could not refresh. Showing the last list. ${error}`} onRetry={refresh} />
+        </View>
+      ) : null}
     </View>
   );
 
@@ -233,14 +274,16 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
         data={isList ? rows : []}
         keyExtractor={(e) => String(e.id)}
         ListHeaderComponent={header}
-        contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
+        ItemSeparatorComponent={ListGap}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPull} tintColor={colors.primary} progressViewOffset={topInset} />}
         renderItem={({ item }) => (
           <EventRow
             event={item}
             onOpen={() => open(`/event/${item.id}`)}
+            coordinator={coordinator}
+            onWatchLive={() => open(coordinator ? `/event/${item.id}` : `/(public)/events/live-stream?id=${item.id}`)}
             onEdit={() => open(`/event/new?editId=${item.id}`)}
             onShare={() => share(item)}
             onQr={() => setQrTarget(item)}
@@ -260,7 +303,7 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
               events={sorted}
               allEvents={events ?? []}
               busyId={null}
-              onOpen={(e) => open(`/event/${e.id}`)}
+              onOpen={(e) => open(isLiveNow(e) && !coordinator ? `/(public)/events/live-stream?id=${e.id}` : `/event/${e.id}`)}
               onAccept={() => {}}
               onDecline={() => {}}
               onCreate={newEvent}
@@ -300,7 +343,11 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
             <EmptyNote
               icon="calendar-outline"
               title="No events yet"
-              body="Book a photographer directly or post your event and let photographers answer."
+              body={
+                coordinator
+                  ? 'Create an event to start coordinating photographers and streams.'
+                  : 'Book a photographer directly or post your event and let photographers answer.'
+              }
               actionLabel="Create event"
               onAction={newEvent}
             />
@@ -311,11 +358,9 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
       <EventQrSheet visible={!!qrTarget} onClose={() => setQrTarget(null)} eventId={qrTarget?.id ?? ''} title={qrTarget?.title ?? ''} published={!!qrTarget?.published} />
 
       <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setSortOpen(false)} accessibilityLabel="Close sort options">
-          <Pressable
+        <GlassScrim style={styles.backdrop} onPress={() => setSortOpen(false)} accessibilityLabel="Close sort options">
+          <GlassSheetHost
             style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) }]}
-            onPress={(e) => e.stopPropagation()}
-            accessibilityViewIsModal
           >
             <View style={styles.handle} />
             <Text style={styles.sheetTitle} accessibilityRole="header">
@@ -345,8 +390,8 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
                 </Pressable>
               );
             })}
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       <ExploreChoiceSheet
@@ -378,7 +423,9 @@ export function ClientEventsDashboard({ topInset = 0, initialSearch = '' }: { to
 
 function EventRow({
   event,
+  coordinator,
   onOpen,
+  onWatchLive,
   onEdit,
   onShare,
   onQr,
@@ -386,7 +433,9 @@ function EventRow({
   onPost,
 }: {
   event: EventItem;
+  coordinator: boolean;
   onOpen: () => void;
+  onWatchLive: () => void;
   onEdit: () => void;
   onShare: () => void;
   onQr: () => void;
@@ -395,7 +444,7 @@ function EventRow({
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const { tr } = useSharedT();
+  const live = isLiveNow(event);
   const status = (event.status ?? '').toUpperCase();
   const openHybrid = isOpenHybrid(event.bookingMode, status, !!event.photographerName);
   const canPost =
@@ -407,61 +456,155 @@ function EventRow({
     : ['HYBRID_TIMEOUT', 'MATCHING_FAILED'].includes(status)
       ? 'Matching ended'
       : 'See answers';
+  const photographerText = event.photographerName || (openHybrid ? friendlyEventStatus(status) : 'No photographer yet');
+  const hasPhotographer = !!event.photographerName;
+
   return (
-    <Card>
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open ${event.title}`} style={styles.rowTop}>
-        <Thumb uri={event.coverImage} size={88} />
-        <View style={styles.rowText}>
-          <StatusBadge {...eventStatus(event)} />
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {event.title}
-          </Text>
-          <Meta icon="calendar-outline" text={tr(whenText(event))} />
-          {event.location ? <Meta icon="location-outline" text={event.location} /> : null}
-          <Meta
-            icon="camera-outline"
-            text={event.photographerName || (openHybrid ? tr(friendlyEventStatus(status)) : tr('No photographer yet'))}
+    <LiveTwinkle active={live} radius={radii.xl} style={styles.cardTwinkle}>
+      <View style={[styles.eventCard, live && styles.eventCardLive]}>
+        <Pressable
+          onPress={onOpen}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${event.title}`}
+          style={({ pressed }) => [styles.coverBanner, pressed && styles.pressed]}
+        >
+          <Image
+            source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={200}
           />
+          <View style={styles.coverScrimTop} />
+          <View style={styles.coverScrimBottom} />
+
+          <View style={styles.coverTopRow}>
+            <View style={styles.coverDatePill}>
+              <Ionicons name="calendar" size={12} color="#FFFFFF" />
+              <Text style={styles.coverDateText} numberOfLines={2}>
+                {whenText(event)}
+              </Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-      </Pressable>
+            {live ? <LivePill label="Live now" size="xs" sparkle /> : <StatusBadge {...eventStatus(event)} />}
+          </View>
+
+          <View style={styles.coverBottom}>
+            <View style={styles.coverTextCol}>
       {modeOf(event.bookingMode) === 'HYBRID' ? (
-        <View style={styles.mode}>
+                <View style={styles.modeBadgeWrap}>
           <ModeBadge mode="HYBRID" />
         </View>
       ) : null}
-      <View style={styles.actions}>
-        {openHybrid ? <ActionButton label={hybridLabel} icon="people-outline" variant="accent" compact onPress={onCandidates} style={styles.flex} /> : null}
-        {canPost ? <ActionButton label="Post my event" icon="radio-outline" variant="accent" compact onPress={onPost} style={styles.flex} /> : null}
-        <ActionButton label="View booking" variant="primary" compact onPress={onOpen} style={styles.flex} />
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {event.title}
+              </Text>
       </View>
-      <View style={styles.actions}>
-        <ActionButton label="Edit" icon="create-outline" variant="tertiary" compact onPress={onEdit} style={styles.flex} />
-        {event.published ? <ActionButton label="QR" icon="qr-code-outline" variant="tertiary" compact onPress={onQr} style={styles.flex} /> : null}
-        <ActionButton label="Share" icon="share-social-outline" variant="tertiary" compact onPress={onShare} style={styles.flex} />
+            <View style={styles.coverChevronCircle}>
+              <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
       </View>
-    </Card>
+          </View>
+        </Pressable>
+
+        <View style={styles.cardBody}>
+          <View style={styles.metaGrid}>
+            {event.location ? (
+              <MetaTile icon="location" label="Location" text={event.location} accent={colors.accent} />
+            ) : null}
+            {coordinator && event.clientName ? <MetaTile icon="person" label="Client" text={event.clientName} accent={colors.primary} /> : null}
+            <MetaTile
+              icon="camera"
+              label="Photographer"
+              text={photographerText}
+              accent={hasPhotographer ? colors.success : colors.primary}
+            />
+          </View>
+
+          <View style={styles.primaryActions}>
+            {openHybrid ? (
+              <ActionButton label={hybridLabel} icon="people-outline" variant="accent" compact onPress={onCandidates} style={styles.flex} />
+            ) : null}
+            {canPost ? (
+              <ActionButton label="Post my event" icon="radio-outline" variant="accent" compact onPress={onPost} style={styles.flex} />
+            ) : null}
+            {live ? (
+              <LiveButton
+                label={coordinator ? 'Control live' : 'Watch live'}
+                size="sm"
+                icon="play"
+                onPress={onWatchLive}
+                style={styles.flex}
+              />
+            ) : (
+              <ActionButton label={coordinator ? 'Manage event' : 'View booking'} icon="arrow-forward-outline" variant="primary" compact onPress={onOpen} style={styles.flex} />
+            )}
+          </View>
+
+          <View style={styles.quickBar}>
+            <QuickActionButton label="Edit" icon="create-outline" onPress={onEdit} />
+            {event.published ? <QuickActionButton label="QR" icon="qr-code-outline" onPress={onQr} /> : null}
+            <QuickActionButton label="Share" icon="share-social-outline" onPress={onShare} />
+          </View>
+        </View>
+      </View>
+    </LiveTwinkle>
   );
 }
 
-function Meta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+function MetaTile({
+  icon,
+  label,
+  text,
+  accent,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  text: string;
+  accent: string;
+}) {
   const styles = useStyles();
-  const { colors } = useTheme();
   return (
-    <View style={styles.metaLine}>
-      <Ionicons name={icon} size={13} color={colors.textMuted} />
-      <Text style={styles.meta} numberOfLines={2}>
+    <View style={styles.metaTile}>
+      <View style={[styles.metaIconCircle, { backgroundColor: `${accent}18` }]}>
+        <Ionicons name={icon} size={14} color={accent} />
+      </View>
+      <View style={styles.metaTileTextCol}>
+        <Text style={styles.metaTileLabel}>{label}</Text>
+        <Text style={styles.metaTileValue} numberOfLines={4}>
         {text}
       </Text>
+    </View>
     </View>
   );
 }
 
-const useStyles = makeStyles((c) => ({
+function QuickActionButton({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.quickBtn, pressed && styles.pressed]}
+    >
+      <Ionicons name={icon} size={15} color={colors.textSoft} />
+      <Text style={styles.quickBtnText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const useStyles = makeStyles((c, e) => ({
   container: { flex: 1 },
   flex: { flex: 1, minWidth: 0 },
   // The kit cards, notices and empty states carry their own side margins; only the plain header rows need padding.
-  listContent: { paddingBottom: 140 },
+  listContent: {},
   pad: { paddingHorizontal: spacing.lg },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   title: { color: c.text, fontSize: 24, fontWeight: '800', lineHeight: 30 },
@@ -493,21 +636,181 @@ const useStyles = makeStyles((c) => ({
   },
   sortBtnOn: { borderColor: c.primary, backgroundColor: c.tint },
   pressed: { opacity: 0.85 },
+  chartBlock: { marginBottom: spacing.md },
+  tabsBlock: { marginBottom: spacing.md },
+  noticeBlock: { marginBottom: spacing.md },
   skeletons: { gap: spacing.md },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  rowText: { flex: 1, minWidth: 0, gap: 3, alignItems: 'flex-start' },
-  cardTitle: { color: c.text, fontSize: 16, fontWeight: '700' },
-  metaLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  meta: { color: c.textMuted, fontSize: 13, lineHeight: 18, flexShrink: 1 },
-  mode: { marginTop: spacing.sm, alignSelf: 'flex-start' },
-  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  cardTwinkle: { marginHorizontal: spacing.lg },
+  eventCard: {
+    borderRadius: radii.xl,
+    overflow: 'hidden',
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    ...e(3),
+  },
+  eventCardLive: {
+    borderWidth: 0,
+  },
+  coverBanner: {
+    height: 164,
+    backgroundColor: '#0B162C',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+  },
+  coverScrimTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(6, 12, 26, 0.34)',
+  },
+  coverScrimBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 96,
+    backgroundColor: 'rgba(6, 12, 26, 0.52)',
+  },
+  coverTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  coverDatePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(10, 18, 36, 0.72)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    flexShrink: 1,
+  },
+  coverDateText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  coverBottom: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  coverTextCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  modeBadgeWrap: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderRadius: radii.full,
+  },
+  cardTitle: {
+    color: '#FFFFFF',
+    fontSize: 19,
+    fontWeight: '800',
+    lineHeight: 24,
+    letterSpacing: -0.2,
+  },
+  coverChevronCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: {
+    padding: spacing.md,
+    gap: spacing.sm + 2,
+  },
+  metaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  metaTile: {
+    flex: 1,
+    minWidth: 136,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 8,
+    borderRadius: radii.md,
+    backgroundColor: c.elevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.borderSoft,
+  },
+  metaIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metaTileTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  metaTileLabel: {
+    color: c.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  metaTileValue: {
+    color: c.text,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  primaryActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  quickBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+    paddingTop: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.borderSoft,
+  },
+  quickBtn: {
+    flex: 1,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: radii.md,
+    backgroundColor: c.elevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.borderSoft,
+    paddingHorizontal: spacing.sm,
+  },
+  quickBtnText: {
+    color: c.textSoft,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   footer: { alignItems: 'center', gap: spacing.sm, paddingTop: spacing.lg },
   count: { color: c.textMuted, fontSize: 13 },
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', },
   sheet: {
-    backgroundColor: c.card,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
@@ -518,3 +821,8 @@ const useStyles = makeStyles((c) => ({
   sortLabel: { color: c.text, fontSize: 15, fontWeight: '700' },
   sortDesc: { color: c.textMuted, fontSize: 12 },
 }));
+
+/** Module level, so the list keeps one separator type and does not remount every gap on each render. */
+function ListGap() {
+  return <View style={{ height: spacing.md }} />;
+}

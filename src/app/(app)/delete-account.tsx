@@ -5,15 +5,16 @@
  * login, then we sign the user out (the root guard routes back to auth).
  */
 import { useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
+import { ScrollView, Text, View } from 'react-native';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
+import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
+import { ListRow } from '@/features/client/studio';
+import { ActionButton, Card, SectionHeader } from '@/features/photographer/kit';
 import { deleteAccount } from '@/features/profile/api';
 import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage, type TranslationKey } from '@/store/language';
-import { colors, spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, fontSize, fonts, makeStyles } from '@/theme';
 
 const CONFIRM_WORD = 'DELETE';
 
@@ -25,7 +26,6 @@ const CONSEQUENCE_KEYS: TranslationKey[] = [
 ];
 
 export default function DeleteAccountScreen() {
-  const { colors } = useTheme();
   const styles = useStyles();
   const { t } = useLanguage();
   const logout = useAuth((s) => s.logout);
@@ -50,78 +50,56 @@ export default function DeleteAccountScreen() {
   };
 
   return (
-    <Screen>
+    <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.iconWrap}>
-          <Ionicons name="warning-outline" size={30} color={colors.error} />
-        </View>
+        <UserHeaderBand flush eyebrow="ACCOUNT" title={t('b1_deleteTitle')} subtitle={t('b1_deleteSubtitle')} duplicatesHeader />
 
-        <Text style={styles.title}>{t('b1_deleteTitle')}</Text>
-        <Text style={styles.subtitle}>
-          {t('b1_deleteSubtitle')}
-        </Text>
-
-        <View style={styles.card}>
-          {CONSEQUENCE_KEYS.map((key) => (
-            <View key={key} style={styles.bulletRow}>
-              <Ionicons name="close-circle" size={16} color={colors.error} style={{ marginTop: 2 }} />
-              <Text style={styles.bulletText}>{t(key)}</Text>
-            </View>
+        <SectionHeader flush title="What happens" />
+        <Card style={styles.card}>
+          {CONSEQUENCE_KEYS.map((key, index) => (
+            <ListRow key={key} icon="close-circle" tone="error" titleLines={8} title={t(key)} divider={index < CONSEQUENCE_KEYS.length - 1} />
           ))}
+        </Card>
+        <Text style={styles.note}>{t('b1_deleteNote')}</Text>
+
+        <View style={styles.danger}>
+          <Text style={styles.dangerEyebrow}>DANGER ZONE</Text>
+          <Text style={styles.confirmLabel}>
+            {t('b1_deleteTypePrefix')} <Text style={styles.confirmWord}>{CONFIRM_WORD}</Text> {t('b1_deleteTypeSuffix')}
+          </Text>
+          <Input
+            value={confirm}
+            onChangeText={setConfirm}
+            placeholder={CONFIRM_WORD}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            error={error ?? undefined}
+          />
+          <ActionButton
+            variant="destructive"
+            icon="trash-outline"
+            label={t('b1_deleteBtn')}
+            onPress={onDelete}
+            busy={submitting}
+            disabled={!canDelete || submitting}
+          />
         </View>
-
-        <Text style={styles.note}>
-          {t('b1_deleteNote')}
-        </Text>
-
-        <Text style={styles.confirmLabel}>
-          {t('b1_deleteTypePrefix')} <Text style={styles.confirmWord}>{CONFIRM_WORD}</Text> {t('b1_deleteTypeSuffix')}
-        </Text>
-        <Input
-          value={confirm}
-          onChangeText={setConfirm}
-          placeholder={CONFIRM_WORD}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          error={error ?? undefined}
-        />
-
-        <Button
-          title={t('b1_deleteBtn')}
-          onPress={onDelete}
-          loading={submitting}
-          disabled={!canDelete}
-          variant="danger"
-        />
       </ScrollView>
     </Screen>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  scroll: { gap: spacing.md, paddingVertical: spacing.lg },
-  iconWrap: {
-    alignSelf: 'center',
-    width: 60,
-    height: 60,
-    borderRadius: radii.full,
-    backgroundColor: c.errorBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: c.text, textAlign: 'center' },
-  subtitle: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
-  card: {
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  bulletRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
-  bulletText: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.text, lineHeight: 20 },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
+  card: { marginHorizontal: 0, padding: 0 },
   note: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted, lineHeight: 18 },
-  confirmLabel: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, marginTop: spacing.sm },
+  danger: {
+    gap: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+    paddingTop: spacing.lg,
+  },
+  dangerEyebrow: { fontFamily: fonts.bold, fontSize: fontSize.xs, color: c.error, letterSpacing: 1 },
+  confirmLabel: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted },
   confirmWord: { fontFamily: fonts.bold, color: c.error },
 }));

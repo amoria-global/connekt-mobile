@@ -42,6 +42,7 @@ import {
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 type Stage = 'form' | 'starting' | 'awaiting' | 'success' | 'failed' | 'unknown';
 type Tile = { id: string; name: string; provider: string; isCard: boolean };
@@ -181,13 +182,10 @@ export function CheckoutSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <Pressable style={styles.backdrop} onPress={stage === 'awaiting' ? undefined : close} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.sheetContainer}
-        pointerEvents="box-none"
-      >
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.lg) }]}>
+      ><GlassScrim onPress={stage === 'awaiting' ? undefined : close} style={{ flex: 1, justifyContent: 'flex-end' }}><GlassSheetHost style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.lg) }]}>
           <View style={styles.handle} />
           <View style={styles.headRow}>
             <Text style={styles.title}>{heading}</Text>
@@ -198,7 +196,7 @@ export function CheckoutSheet({
 
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
             <View style={styles.summary}>
-              <Text style={styles.summaryEvent} numberOfLines={1}>{title}</Text>
+              <Text style={styles.summaryEvent} numberOfLines={2}>{title}</Text>
               {subtitle ? <Text style={styles.summarySub}>{subtitle}</Text> : null}
               {amountLabel ? <Text style={styles.summaryAmount}>{amountLabel}</Text> : null}
             </View>
@@ -283,19 +281,15 @@ export function CheckoutSheet({
               <Button title="Done" variant="outline" onPress={close} />
             ) : null}
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+        </GlassSheetHost></GlassScrim></KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,18,23,0.55)' },
+  backdrop: { ...StyleSheet.absoluteFill, },
   sheetContainer: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     maxHeight: '92%',

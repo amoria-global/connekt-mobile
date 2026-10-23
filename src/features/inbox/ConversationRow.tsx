@@ -69,14 +69,14 @@ export function ConversationRow({
 
       {/* Main Conversation Text Body */}
       <View style={styles.body}>
-        <Text style={[styles.name, hasUnread && styles.nameUnread]} numberOfLines={1}>
+        <Text style={[styles.name, hasUnread && styles.nameUnread]} numberOfLines={2}>
           {conversation.name}
         </Text>
 
         <View style={styles.subtitleRow}>
           <Text
             style={[styles.preview, hasUnread && styles.previewUnread]}
-            numberOfLines={1}
+            numberOfLines={3}
           >
             {conversation.lastMessage || 'No messages yet'}
           </Text>

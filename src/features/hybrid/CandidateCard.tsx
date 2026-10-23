@@ -31,7 +31,7 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
             : <Text style={styles.initial}>{c.name.charAt(0)}</Text>}
         </View>
         <View style={{ flex: 1, gap: 4 }}>
-          <Text style={styles.name} numberOfLines={1}>{c.name}</Text>
+          <Text style={styles.name} numberOfLines={2}>{c.name}</Text>
           <TierBadge tier={c.recommendationTier} />
         </View>
       </View>
@@ -74,7 +74,7 @@ function Meta({ icon, text, iconColor, muted }: { icon: React.ComponentProps<typ
   return (
     <View style={styles.metaRow}>
       <Ionicons name={icon} size={13} color={iconColor || colors.primary} />
-      <Text style={[styles.metaText, muted && { color: colors.textMuted }]} numberOfLines={1}>{text}</Text>
+      <Text style={[styles.metaText, muted && { color: colors.textMuted }]} numberOfLines={2}>{text}</Text>
     </View>
   );
 }

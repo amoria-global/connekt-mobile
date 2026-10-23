@@ -4,7 +4,8 @@
  * What is, and is not, shown, because money labels must be true:
  *   - Total spent and Processing come from the wallet, in the wallet's own currency. They are
  *     lifetime / current figures, and are labelled so.
- *   - "Where your money goes" is the split of lifetime spend by kind (selectWalletStats).
+ *   - "Where your wallet stands" splits the figures the wallet reports (total spent, balance, refunds, tips, gifts,
+ *     donations, processing). The wallet gives lifetime spend as one number, so it is not split by kind.
  *   - The period section (Today / Week / Month) shows event and photographer counts with their
  *     change against the previous period, a spending trend and an events-per-interval histogram.
  *     The backend sums payments across currencies, so the spending curve is relative only and
@@ -29,7 +30,8 @@ import { ActionButton, Card, ErrorNotice, IconTile, MetricCard, SectionHeader, S
 import { TrendChart } from '@/features/photographer/charts';
 import { moneyText } from '@/features/photographer/money';
 import { trendCaption } from '@/features/photographer/WalletAnalytics';
-import { CountBars, StatusBreakdownCard } from './ClientCharts';
+import { CountBars } from './ClientCharts';
+import { MoneyBreakdownCard } from '@/features/wallet/MoneyBreakdownCard';
 
 type PeriodKey = Exclude<AnalyticsPeriod, 'custom'>;
 const PERIODS: readonly { key: PeriodKey; label: string }[] = [
@@ -48,13 +50,16 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
   const currency = wallet?.currency;
 
   const hues = [colors.primary, colors.accent, isDark ? '#2DD4E4' : '#0E7490', colors.warning, colors.success];
+  // Total spent and Processing are wallet figures like the rest, so a client who has spent money but holds no balance
+  // still gets a ring (it used to show only an empty-state line for them).
   const segments = useMemo(
     () =>
-      (stats?.cards ?? [])
-        .filter((c) => !c.hidden && c.value > 0)
-        .map((c, i) => ({ key: c.label, label: c.label, value: c.value, color: hues[i % hues.length] })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stats, isDark],
+      [
+        ...(stats ? [{ label: stats.hero.label, value: stats.hero.value }] : []),
+        ...(stats?.cards ?? []).filter((c) => !c.hidden).map((c) => ({ label: c.label, value: c.value })),
+        ...(stats?.pendingChip ? [{ label: stats.pendingChip.label, value: stats.pendingChip.value }] : []),
+      ].filter((x) => x.value > 0),
+    [stats],
   );
 
   return (
@@ -81,12 +86,14 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
         />
       </View>
 
-      <SectionHeader title="Where your money goes" subtitle="Share of your lifetime spend" />
-      <StatusBreakdownCard
+      <SectionHeader title="Where your wallet stands" subtitle="Share of the figures your wallet reports" />
+      <MoneyBreakdownCard
         segments={segments}
-        centerLabel="by kind"
-        summary="Lifetime spend by kind"
-        emptyText="Nothing spent yet."
+        hues={hues}
+        currency={currency}
+        centerLabel="Combined"
+        summary="Wallet figures by source"
+        emptyText="Nothing in your wallet yet."
       />
 
       <SectionHeader title="Activity" subtitle="Pick a period" />
@@ -179,7 +186,7 @@ export function SpendingTrendChart({ points }: { points: readonly PerformancePoi
         <TrendChart values={points.map((p) => p.value1)} peakIndex={points.indexOf(top)} />
         <View style={styles.labels}>
           {points.map((p, i) => (
-            <Text key={`${p.day}-${i}`} style={[styles.barLabel, p === top && styles.barLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            <Text key={`${p.day}-${i}`} style={[styles.barLabel, p === top && styles.barLabelTop]} numberOfLines={1} maxFontSizeMultiplier={1.6}>
               {p.day}
             </Text>
           ))}

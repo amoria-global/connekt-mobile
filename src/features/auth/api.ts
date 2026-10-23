@@ -526,6 +526,8 @@ async function persistSession(session: AuthSession): Promise<void> {
     await storage.remove(StorageKeys.refreshToken);
   }
   await storage.set(StorageKeys.session, JSON.stringify(session));
+  // A new session starts in its own workspace, never in the previous account's choice.
+  await storage.remove(StorageKeys.activeWorkspace).catch(() => {});
 }
 
 export async function loadSession(): Promise<AuthSession | null> {
@@ -544,4 +546,5 @@ export async function clearSession(): Promise<void> {
   await storage.remove(StorageKeys.authToken);
   await storage.remove(StorageKeys.refreshToken);
   await storage.remove(StorageKeys.session);
+  await storage.remove(StorageKeys.activeWorkspace).catch(() => {});
 }

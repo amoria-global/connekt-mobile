@@ -135,6 +135,85 @@
     },
     "extra": {
       "router": {},
+      "releaseNotes": {
+        "releases": [
+          {
+            "id": "2026-10-23-collaborator-progress",
+            "date": "2026-10-23",
+            "title": "Follow your collaborators' progress",
+            "items": [
+              {
+                "icon": "stats-chart-outline",
+                "title": "See how each photographer is getting on",
+                "body": "Open one of your shared albums and tap Progress. Each photographer who joined has a card showing how many of their photos were added, how many are waiting for you, how many were not accepted, how much of the album they account for and when they last sent something."
+              },
+              {
+                "icon": "images-outline",
+                "title": "Jump straight to their photos",
+                "body": "From a photographer's card, review their waiting photos or see everything they sent with one tap. The list is narrowed to that person until you choose Show everyone, and photographers who left still count in the totals."
+              }
+            ]
+          },
+          {
+            "id": "2026-10-23-workspace-access",
+            "date": "2026-10-23",
+            "title": "Work together in one workspace",
+            "items": [
+              {
+                "icon": "people-outline",
+                "title": "Invite another photographer into your workspace",
+                "body": "In Collaborate, open Workspace access, find a photographer by their email and send an invitation. Once they accept, they can handle your bookings, clients, events and opportunities with you, and you can remove their access at any time."
+              },
+              {
+                "icon": "swap-horizontal-outline",
+                "title": "Switch between your workspace and one you were invited to",
+                "body": "If another photographer invites you, accept it in Collaborate, then pick their workspace from the chip at the top. You see their balance and analytics, but withdrawals and the transaction history stay with the owner, and your own account stays separate."
+              }
+            ]
+          },
+          {
+            "id": "2026-10-22-coordinator-calendar",
+            "date": "2026-10-22",
+            "title": "A Calendar for event coordinators",
+            "items": [
+              {
+                "icon": "calendar-outline",
+                "title": "See your events and payments by day",
+                "body": "Event coordinators now have a Calendar screen with Month, Week and Agenda views. Your events appear on their date with the time and place, live events are marked, and payments you still owe show on their due date."
+              },
+              {
+                "icon": "filter-outline",
+                "title": "Filter and jump straight to the work",
+                "body": "Filter the calendar to events, live events or payments, tap Today to come back, and open an event or the payments screen straight from its card. Find Calendar on your Home screen and in the More menu."
+              }
+            ]
+          },
+          {
+            "id": "2026-10-22-client-wallet-ring",
+            "date": "2026-10-22",
+            "title": "The client wallet ring now always shows",
+            "items": [
+              {
+                "icon": "pie-chart-outline",
+                "title": "Your wallet ring includes what you have spent",
+                "body": "The Analytics tab of the client wallet now shows its ring as soon as you have spent money, alongside your balance, refunds, tips, gifts, donations and what is still processing."
+              }
+            ]
+          },
+          {
+            "id": "2026-10-22-update-screen-look",
+            "date": "2026-10-22",
+            "title": "A new look for the update screen",
+            "items": [
+              {
+                "icon": "color-palette-outline",
+                "title": "The update screen has a fresh gradient look",
+                "body": "The screen that appears when a new version is ready now has a dark background with a soft blue and teal glow and a blue to mint Update now button. What it says and how it works are unchanged."
+              }
+            ]
+          }
+        ]
+      },
       "eas": {
         "projectId": "d81fbfa6-f576-4450-97c6-c443332179be"
       }

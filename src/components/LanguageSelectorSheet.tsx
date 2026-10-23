@@ -258,7 +258,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 36,
     height: 36,
     borderRadius: radii.full,
-    backgroundColor: c.background,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     alignItems: 'center',

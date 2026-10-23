@@ -38,6 +38,7 @@ import Svg, {
 import { fonts, fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { HIDDEN_AMOUNT } from '@/features/photographer/money';
 import { useSharedT } from '@/i18n/sharedStrings';
 import type {
   AnalyticsPeriod,
@@ -54,14 +55,22 @@ export type MetricKey =
   | 'totalPending';
 
 export interface PerformanceWaveCardProps {
-  analytics: CoordinatorAnalytics | null;
+  /** Lifetime figures keyed like `metrics`; null while unknown. Coordinator and client Home both pass theirs. */
+  analytics: Partial<Record<string, number>> | null;
+  /** The metric switcher. Defaults to the coordinator's; the client Home passes its own. */
+  metrics?: Record<string, WaveMetricMeta>;
   trends: TrendsMap;
   period: AnalyticsPeriod;
   onPeriodChange: (period: AnalyticsPeriod) => void;
+  /** The currency money is labelled in. Without it money is N/A: it is never guessed. */
   currency?: string;
-  selectedMetric?: MetricKey;
-  onSelectMetric?: (key: MetricKey) => void;
+  selectedMetric?: string;
+  onSelectMetric?: (key: string) => void;
   performanceData?: PerformancePoint[] | null;
+  /** Mask money figures, like the rest of the Home. Counts are not money and stay visible. */
+  hidden?: boolean;
+  /** What to say when there is no series. Pass a failure sentence when the read failed, so a failure is not read as "no activity". */
+  emptyText?: string;
 }
 
 interface DataPoint {
@@ -72,9 +81,7 @@ interface DataPoint {
   displayValue: string;
 }
 
-export const METRICS_META: Record<
-  MetricKey,
-  {
+export type WaveMetricMeta = {
     title: string;
     shortTitle: string;
     unit: string;
@@ -82,8 +89,13 @@ export const METRICS_META: Record<
     color: string;
     accentGlow: string;
     isMoney: boolean;
-  }
-> = {
+  /** Which column of the performance feed draws this metric. Absent means the feed has no series for it. */
+  series?: 'value1' | 'value2';
+  /** Keys this metric may arrive under in the trends feed, most specific first. */
+  trendKeys?: string[];
+};
+
+export const METRICS_META: Record<MetricKey, WaveMetricMeta> = {
   totalRevenue: {
     title: 'TOTAL REVENUE',
     shortTitle: 'Revenue',
@@ -92,6 +104,8 @@ export const METRICS_META: Record<
     color: '#00E5FF',
     accentGlow: '#00E5FF',
     isMoney: true,
+    series: 'value1',
+    trendKeys: ['totalRevenue', 'revenue'],
   },
   totalEvents: {
     title: 'EVENTS MANAGED',
@@ -101,6 +115,8 @@ export const METRICS_META: Record<
     color: '#38BDF8',
     accentGlow: '#38BDF8',
     isMoney: false,
+    series: 'value2',
+    trendKeys: ['totalEvents', 'events'],
   },
   totalCustomers: {
     title: 'TOTAL CLIENTS',
@@ -110,6 +126,7 @@ export const METRICS_META: Record<
     color: '#10B981',
     accentGlow: '#10B981',
     isMoney: false,
+    trendKeys: ['totalCustomers', 'clients', 'customers'],
   },
   totalPhotographers: {
     title: 'PHOTOGRAPHERS',
@@ -119,6 +136,7 @@ export const METRICS_META: Record<
     color: '#A855F7',
     accentGlow: '#A855F7',
     isMoney: false,
+    trendKeys: ['totalPhotographers', 'photographers'],
   },
   totalPending: {
     title: 'PENDING INVOICES',
@@ -128,6 +146,7 @@ export const METRICS_META: Record<
     color: '#F59E0B',
     accentGlow: '#F59E0B',
     isMoney: true,
+    trendKeys: ['totalPending', 'pending'],
   },
 };
 
@@ -163,25 +182,27 @@ export function catmullRomToBezier(points: { x: number; y: number }[]): string {
 
 export function PerformanceWaveCard({
   analytics,
+  metrics = METRICS_META,
   trends,
   period,
   onPeriodChange,
-  currency = 'USD',
+  currency,
   selectedMetric: externalSelectedMetric,
   onSelectMetric,
   performanceData,
+  hidden = false,
+  emptyText = 'No trend data for this period',
 }: PerformanceWaveCardProps) {
   // Re-render when the display currency changes (formatPrice reads the store).
   useCurrency((s) => s.currency);
   const { colors } = useTheme();
-  const { tr } = useSharedT();
-  const [internalMetric, setInternalMetric] = useState<MetricKey>('totalRevenue');
+  const [internalMetric, setInternalMetric] = useState<string>(Object.keys(metrics)[0] ?? 'totalRevenue');
   const [activeIndex, setActiveIndex] = useState<number>(3); // Matches 14/10 index in reference image
 
   const activeMetric = externalSelectedMetric ?? internalMetric;
-  const meta = METRICS_META[activeMetric];
+  const meta = metrics[activeMetric] ?? metrics[Object.keys(metrics)[0]];
 
-  const handleSelectMetric = (m: MetricKey) => {
+  const handleSelectMetric = (m: string) => {
     setInternalMetric(m);
     onSelectMetric?.(m);
   };
@@ -193,35 +214,19 @@ export function PerformanceWaveCard({
   const CHART_BOTTOM = 135;
   const CHART_HEIGHT = CHART_BOTTOM - CHART_TOP;
 
-  // X Coordinates for the 6 points (evenly distributed from x=24 to x=316)
-  const X_COORDS = useMemo(() => [24, 82, 140, 198, 256, 316], []);
+  // One point per bucket the feed returned (today 6, week 7, month 4), evenly spread from x=24 to x=316. With no
+  // feed there are six placeholder positions on a flat baseline. Buckets were once squeezed into six, which dropped
+  // Friday from a week and invented a leading zero and a repeated last value for a month.
+  const bucketCount = performanceData && performanceData.length >= 2 ? Math.min(performanceData.length, 8) : 6;
+  const X_COORDS = useMemo(
+    () => Array.from({ length: bucketCount }, (_, i) => 24 + (i * (316 - 24)) / (bucketCount - 1)),
+    [bucketCount],
+  );
 
   // Compute 6 temporal date labels based on period or real performance data
   const dateLabels = useMemo(() => {
-    if (performanceData && performanceData.length > 0) {
-      if (performanceData.length === 6) {
-        return performanceData.map((p) => p.day);
-      }
-      if (performanceData.length === 7) {
-        return [
-          performanceData[0]?.day ?? '',
-          performanceData[1]?.day ?? '',
-          performanceData[2]?.day ?? '',
-          performanceData[3]?.day ?? '',
-          performanceData[4]?.day ?? '',
-          performanceData[6]?.day ?? '',
-        ];
-      }
-      if (performanceData.length === 4) {
-        return [
-          performanceData[0]?.day ?? 'W1',
-          performanceData[1]?.day ?? 'W2',
-          performanceData[2]?.day ?? 'W3',
-          performanceData[3]?.day ?? 'W4',
-          'Current',
-          'End',
-        ];
-      }
+    if (performanceData && performanceData.length >= 2) {
+      return performanceData.slice(0, 8).map((p) => p.day);
     }
 
     const now = new Date();
@@ -250,54 +255,37 @@ export function PerformanceWaveCard({
   // Extract trend data for active metric (with fallback key aliases)
   const trendData = useMemo(() => {
     if (!trends) return undefined;
-    if (trends[activeMetric]) return trends[activeMetric];
-    if (activeMetric === 'totalEvents') return trends.events;
-    if (activeMetric === 'totalPending') return trends.pending;
-    if (activeMetric === 'totalPhotographers') return trends.photographers;
-    if (activeMetric === 'totalCustomers') return trends.clients || trends.customers;
-    if (activeMetric === 'totalRevenue') return trends.revenue;
+    for (const k of [activeMetric, ...(meta.trendKeys ?? [])]) if (trends[k]) return trends[k];
     return undefined;
-  }, [trends, activeMetric]);
+  }, [trends, activeMetric, meta]);
 
   const trendDir = trendData?.direction ?? 'up';
   const trendPct = trendData?.percentage;
 
   // Extract raw metric value: use the period-specific trend value if returned from API,
   // falling back to analytics snapshot if not set.
-  const totalValue = useMemo(() => {
+  const totalValue = useMemo<number | null>(() => {
     if (trendData?.value != null) {
       return trendData.value;
     }
-    if (!analytics) return 0;
-    return analytics[activeMetric] ?? 0;
+    // Not loaded or failed: unknown, never a zero.
+    if (!analytics) return null;
+    return analytics[activeMetric] ?? null;
   }, [trendData?.value, analytics, activeMetric]);
 
   // Generate the 6 data points with heights matching the organic wave shape or real performance data
   const points: DataPoint[] = useMemo(() => {
-    const hasPerfData =
-      performanceData &&
-      performanceData.length > 0 &&
-      (activeMetric === 'totalRevenue' || activeMetric === 'totalEvents');
+    const hasPerfData = performanceData && performanceData.length > 0 && !!meta.series;
 
     let perfValues: number[] | null = null;
     if (hasPerfData && performanceData) {
-      const rawVals = performanceData.map((p) =>
-        activeMetric === 'totalRevenue' ? p.value1 : p.value2,
-      );
-      if (rawVals.some((v) => v > 0)) {
-        if (rawVals.length === 6) {
-          perfValues = rawVals;
-        } else if (rawVals.length === 7) {
-          perfValues = [rawVals[0], rawVals[1], rawVals[2], rawVals[3], rawVals[4], rawVals[6]];
-        } else if (rawVals.length === 4) {
-          perfValues = [0, rawVals[0], rawVals[1], rawVals[2], rawVals[3], rawVals[3]];
-        }
-      }
+      const rawVals = performanceData.map((p) => (meta.series === 'value1' ? p.value1 : p.value2));
+      if (rawVals.length >= 2 && rawVals.some((v) => v > 0)) perfValues = rawVals.slice(0, 8);
     }
 
     // No real series means a flat baseline with no values. This used to draw
     // an invented curve and label its points as money (a share of the total).
-    const relativeRatios = [0, 0, 0, 0, 0, 0];
+    const relativeRatios = X_COORDS.map(() => 0);
 
     const maxPerf = perfValues ? Math.max(...perfValues, 1) : 0;
 
@@ -317,7 +305,7 @@ export function PerformanceWaveCard({
       if (!perfValues) {
         displayValue = '';
       } else if (meta.isMoney) {
-        displayValue = formatPrice(pointVal, currency);
+        displayValue = hidden ? HIDDEN_AMOUNT : currency ? formatPrice(pointVal, currency) : '';
       } else {
         displayValue = String(pointVal);
       }
@@ -341,6 +329,8 @@ export function PerformanceWaveCard({
     dateLabels,
     performanceData,
     activeMetric,
+    hidden,
+    meta.series,
   ]);
 
   // Trend line curve path (white line in reference)
@@ -368,14 +358,22 @@ export function PerformanceWaveCard({
     return `${waveBezier} L 335 ${CHART_BOTTOM + 10} L 10 ${CHART_BOTTOM + 10} Z`;
   }, [CHART_TOP, CHART_HEIGHT, CHART_BOTTOM]);
 
-  const activePoint = points[activeIndex] ?? points[3];
+  const activeIdx = Math.min(activeIndex, points.length - 1);
+  const activePoint = points[activeIdx];
   const startPoint = points[0];
   const endPoint = points[points.length - 1];
 
   // Formatted active metric headline
-  const formattedHeadline = meta.isMoney
-    ? formatPrice(totalValue, currency)
-    : `${totalValue} ${tr(meta.unit)}`;
+  const formattedHeadline =
+    totalValue == null || (meta.isMoney && !currency)
+      ? 'N/A'
+      : meta.isMoney
+        ? hidden
+          ? HIDDEN_AMOUNT
+          : formatPrice(totalValue, currency)
+        : `${totalValue} ${meta.unit}`;
+  // Only a real series gets a wave, anchor values and an apex label; otherwise the chart is a flat baseline and says so.
+  const hasSeries = points.some((p) => p.displayValue !== '');
 
   return (
     <View style={styles.cardContainer} testID="performance-wave-card">
@@ -384,8 +382,8 @@ export function PerformanceWaveCard({
         <View style={styles.headerLeft}>
           <View style={styles.eyebrowRow}>
             <View style={[styles.glowingDot, { backgroundColor: meta.color }]} />
-            <Text style={styles.eyebrowText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} maxFontSizeMultiplier={1.15}>
-              {tr(meta.title)}
+            <Text style={styles.eyebrowText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} maxFontSizeMultiplier={1.6}>
+              {meta.title}
             </Text>
           </View>
           <View style={styles.headlineRow}>
@@ -446,8 +444,8 @@ export function PerformanceWaveCard({
 
       {/* ── 2. Metric Category Pill Switcher ────────────────────────────── */}
       <View style={styles.metricChipsRow}>
-        {(Object.keys(METRICS_META) as MetricKey[]).map((mKey) => {
-          const m = METRICS_META[mKey];
+        {Object.keys(metrics).map((mKey) => {
+          const m = metrics[mKey];
           const isSelected = activeMetric === mKey;
           return (
             <Pressable
@@ -505,7 +503,7 @@ export function PerformanceWaveCard({
           </Defs>
 
           {/* Layer 1: Background Translucent Rolling Cyan Wave */}
-          <Path d={backgroundWavePath} fill="url(#waveGlowGradient)" />
+          {hasSeries ? <Path d={backgroundWavePath} fill="url(#waveGlowGradient)" /> : null}
 
           {/* Layer 2: Foreground Crisp White Trend Line Curve */}
           <Path
@@ -538,7 +536,7 @@ export function PerformanceWaveCard({
                 fontWeight="700"
                 textAnchor="middle"
               >
-                0
+                {startPoint.displayValue}
               </SvgText>
               {/* Start circle dot */}
               <Circle cx={startPoint.x} cy={startPoint.y} r="5" fill="#FFFFFF" />
@@ -567,7 +565,7 @@ export function PerformanceWaveCard({
                 fontWeight="700"
                 textAnchor="middle"
               >
-                0
+                {endPoint.displayValue}
               </SvgText>
               {/* End circle dot */}
               <Circle cx={endPoint.x} cy={endPoint.y} r="5" fill="#FFFFFF" />
@@ -575,7 +573,7 @@ export function PerformanceWaveCard({
           ) : null}
 
           {/* Layer 5: Active Beacon Point (Highlight needle & glowing cyan pin) */}
-          {activePoint ? (
+          {activePoint && hasSeries ? (
             <>
               {/* Vertical needle line extending up from active point to apex */}
               <Line
@@ -597,9 +595,7 @@ export function PerformanceWaveCard({
                 fontWeight="800"
                 textAnchor="middle"
               >
-                {activePoint.displayValue !== '0'
-                  ? activePoint.displayValue
-                  : activePoint.value || (meta.isMoney ? '$60' : '60')}
+                {activePoint.displayValue}
               </SvgText>
 
               {/* Outer glow beacon aura */}
@@ -625,7 +621,7 @@ export function PerformanceWaveCard({
 
           {/* Layer 6: Intermediate Node Dots on the Curve */}
           {points.map((pt, idx) => {
-            if (idx === 0 || idx === points.length - 1 || idx === activeIndex) {
+            if (idx === 0 || idx === points.length - 1 || idx === activeIdx) {
               return null;
             }
             return (
@@ -656,12 +652,17 @@ export function PerformanceWaveCard({
             );
           })}
         </Svg>
+        {hasSeries ? null : (
+          <Text style={styles.noSeries} accessibilityLiveRegion="polite">
+            {emptyText}
+          </Text>
+        )}
       </View>
 
       {/* ── 4. X-Axis Timeline Dates (11/10  12/10  13/10  14/10 ...) ───── */}
       <View style={styles.datesRow}>
         {points.map((pt, idx) => {
-          const isActive = idx === activeIndex;
+          const isActive = idx === activeIdx;
           return (
             <Pressable
               key={`date-${idx}`}
@@ -699,7 +700,7 @@ export function PerformanceWaveCard({
 
           {/* Circular node ticks under each date column */}
           {points.map((pt, idx) => {
-            const isActive = idx === activeIndex;
+            const isActive = idx === activeIdx;
             return (
               <Circle
                 key={`tick-${idx}`}
@@ -848,6 +849,13 @@ const styles = StyleSheet.create({
   },
   svg: {
     overflow: 'visible',
+  },
+  noSeries: {
+    position: 'absolute',
+    top: 60,
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
   },
   datesRow: {
     flexDirection: 'row',

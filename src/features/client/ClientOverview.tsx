@@ -108,8 +108,8 @@ export function ClientOverview({
             <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {loading && !analytics ? ' ' : t.value}
             </Text>
-            <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.2}>
-              {tr(t.label)}
+            <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+              {t.label}
             </Text>
           </View>
         ))}

@@ -47,6 +47,11 @@ merge `main` into `production`. Do **not** reset or force-push `production` onto
 build's commit: it carries commits `main` does not, including this pipeline itself, and a
 reset discards them silently. The full procedure is in `docs/RELEASING.md`.
 
+**Release notes are part of every release.** The update prompt shows users what is new before they tap
+"Update now", and reads it from `expo.extra.releaseNotes` in `app.json`. Before publishing anything user visible, add a
+release at the top of that list with one plain-language item per feature or fix (rules in `docs/RELEASING.md`, validated
+by `src/features/updates/releaseNotes.test.ts`). Never publish without it.
+
 Verify a publish two ways, never by trusting the CLI output alone:
 
 - Fetch the manifest a phone would fetch, with headers `expo-runtime-version`,
@@ -59,6 +64,15 @@ The Expo project is `@amoria-global-tech-ltd/connekt-mobile`. `.env` is tracked 
 repo and its `EXPO_PUBLIC_*` values are inlined at publish time, so check it before
 publishing; an exported shell variable wins over it, which makes a stale `.env` easy to
 miss.
+
+## Modals use the glass kit
+
+Every `<Modal>` draws the sign-in sheet's frosted glass look from `src/components/ui/GlassModal.tsx`: wrap the
+panel in `GlassScrim` (blurred dim, closes on outside tap) and `GlassSheetHost` (the glass panel; `variant="dialog"`
+for a centred one), or use the shared `Sheet` / `Alert` dialog, which are built on them. Keep colour, border and radius
+out of the host's style, and use `glassTile(c)` / `glassField(c)` for rows and inputs on the glass, never a solid card
+colour. `src/test/glassModals.rule.test.ts` fails on a modal that skips this; the only exemptions are full-screen
+media viewers, incoming-call screens and native page sheets, each listed there with its reason.
 
 ## Google and Apple sign-in
 

@@ -119,7 +119,7 @@ function Fact({ icon, text, strong }: { icon: React.ComponentProps<typeof Ionico
   return (
     <View style={styles.fact}>
       <Ionicons name={icon} size={14} color={colors.primary} />
-      <Text style={[styles.factText, strong && { fontWeight: fontWeight.bold, color: colors.text }]} numberOfLines={1}>{text}</Text>
+      <Text style={[styles.factText, strong && { fontWeight: fontWeight.bold, color: colors.text }]} numberOfLines={2}>{text}</Text>
     </View>
   );
 }

@@ -2,7 +2,7 @@
  * Photographer's clients — GET /photographer/clients.
  * Field names mapped defensively (nested client objects vary).
  */
-import { api } from '@/api/client';
+import { api, requireOk } from '@/api/client';
 import type { ApiEnvelope, ID } from '@/types';
 
 export type ClientItem = {
@@ -38,8 +38,10 @@ function mapClient(r: Raw): ClientItem {
 
 export async function listClients(isCoordinator = false): Promise<ClientItem[]> {
   const endpoint = isCoordinator ? '/coordinator/clients' : '/photographer/clients';
+  // A refused or failed read is not "no clients". It is rethrown unless a fallback below finds clients.
+  let failure: unknown;
   try {
-    const res = await api.get<ApiEnvelope<unknown>>(endpoint);
+    const res = requireOk(await api.get<ApiEnvelope<unknown>>(endpoint));
     const d = res?.data;
     const arr = Array.isArray(d)
       ? (d as Raw[])
@@ -49,13 +51,15 @@ export async function listClients(isCoordinator = false): Promise<ClientItem[]> 
     if (arr.length > 0 || !isCoordinator) {
       return arr.map(mapClient).filter((c) => c.id);
     }
-  } catch {
-    // If not supported yet, fall through to legacy derivation
+  } catch (e) {
+    // If not supported yet, a coordinator falls through to legacy derivation; anyone else sees the failure.
+    if (!isCoordinator) throw e;
+    failure = e;
   }
 
   if (isCoordinator) {
     try {
-      const res = await api.get<ApiEnvelope<unknown>>('/coordinator/bookings');
+      const res = requireOk(await api.get<ApiEnvelope<unknown>>('/coordinator/bookings'));
       const d = res?.data;
       const arr = Array.isArray(d)
         ? (d as Raw[])
@@ -69,7 +73,7 @@ export async function listClients(isCoordinator = false): Promise<ClientItem[]> 
       // Fall through to events derivation
     }
     try {
-      const res = await api.get<ApiEnvelope<unknown>>('/coordinator/events?page=0&size=100');
+      const res = requireOk(await api.get<ApiEnvelope<unknown>>('/coordinator/events?page=0&size=100'));
       const d = res?.data;
       const arr = Array.isArray(d)
         ? (d as Raw[])
@@ -94,12 +98,14 @@ export async function listClients(isCoordinator = false): Promise<ClientItem[]> 
           }
         }
       }
+      // This read worked, so an empty answer is a real one.
       return Array.from(clientMap.values());
-    } catch {
-      return [];
+    } catch (e) {
+      failure ??= e;
     }
   }
 
+  if (failure) throw failure;
   return [];
 }
 
@@ -136,7 +142,7 @@ export async function getClient(id: string, isCoordinator = false): Promise<Clie
     : `/photographer/clients/${encodeURIComponent(id)}`;
 
   try {
-    const res = await api.get<ApiEnvelope<Raw>>(endpoint);
+    const res = requireOk(await api.get<ApiEnvelope<Raw>>(endpoint));
     const d = (res?.data ?? {}) as Raw;
     const rawEvents = Array.isArray(d.events) ? (d.events as Raw[]) : [];
     return {
@@ -156,7 +162,7 @@ export async function getClient(id: string, isCoordinator = false): Promise<Clie
     if (!isCoordinator) throw err;
     // Fallback below if coordinator endpoint fails on legacy instance
     try {
-      const res = await api.get<ApiEnvelope<unknown>>(`/coordinator/events?page=0&size=100`);
+      const res = requireOk(await api.get<ApiEnvelope<unknown>>(`/coordinator/events?page=0&size=100`));
       const d = res?.data;
       const arr = Array.isArray(d)
         ? (d as Raw[])

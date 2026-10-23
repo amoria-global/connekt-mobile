@@ -34,6 +34,8 @@ import { isApiError } from '@/store/auth';
 import { useLanguage, type LanguageCode } from '@/store/language';
 import type { EventItem } from '@/features/events/types';
 import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 const I18N = {
   en: {
@@ -345,7 +347,7 @@ export default function NewPhotobookScreen() {
                   <Ionicons name="calendar" size={18} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.selectedEventTitle} numberOfLines={1}>
+                  <Text style={styles.selectedEventTitle} numberOfLines={2}>
                     {selectedEvent.title}
                   </Text>
                   <Text style={styles.selectedEventMeta}>
@@ -480,8 +482,8 @@ export default function NewPhotobookScreen() {
         animationType="slide"
         onRequestClose={() => setEventPickerOpen(false)}
       >
-        <Pressable style={styles.pickerBackdrop} onPress={() => setEventPickerOpen(false)}>
-          <Pressable style={styles.picker} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.pickerBackdrop} onPress={() => setEventPickerOpen(false)}>
+          <GlassSheetHost style={styles.picker}>
             <View style={styles.pickerHandle} />
             <View style={styles.pickerHeader}>
               <Text style={styles.pickerTitle}>{tr.linkEventModalTitle}</Text>
@@ -547,7 +549,7 @@ export default function NewPhotobookScreen() {
                       }}
                     >
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={styles.pickerRowTitle} numberOfLines={1}>
+                        <Text style={styles.pickerRowTitle} numberOfLines={2}>
                           {ev.title}
                         </Text>
                         <Text style={styles.pickerRowMeta}>
@@ -570,8 +572,8 @@ export default function NewPhotobookScreen() {
                 })}
               </ScrollView>
             )}
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -781,11 +783,8 @@ const useStyles = makeStyles((c) => ({
   btnDisabled: { opacity: 0.6 },
 
   // Modal
-  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(4,10,26,0.6)', justifyContent: 'flex-end' },
+  pickerBackdrop: { flex: 1, justifyContent: 'flex-end' },
   picker: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.lg,
     gap: spacing.sm,
   },
@@ -811,7 +810,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 12,
     height: 42,
     borderRadius: radii.md,
-    backgroundColor: c.background,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
   },

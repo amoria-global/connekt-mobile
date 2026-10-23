@@ -16,7 +16,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BlurView } from 'expo-blur';
-import { GLASS_BAR } from '@/components/ui/GlassCard';
+import { GLASS_BAR, glassTile } from '@/components/ui/GlassCard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments, type Href } from 'expo-router';
@@ -44,8 +44,10 @@ import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
-import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
+import { WorkspaceSwitcherSheet } from '@/features/workspace/WorkspaceSwitcherSheet';
+import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const BAR_CONTENT_HEIGHT = 56;
 const BUBBLE_SIZE = 60;
@@ -251,6 +253,7 @@ export function PersistentBottomBar() {
 
   const { role, isPhotographer } = useRole();
   const flat = isPhotographer;
+  const isShared = useWorkspace(selectIsShared);
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
   const unreadCount = useMemo(
     () => notifications?.filter((n) => !n.read).length ?? 0,
@@ -274,13 +277,13 @@ export function PersistentBottomBar() {
 
   const { language, t } = useLanguage();
   const tabs = useMemo<Tab[]>(
-    () => [
+    () => ([
       { key: 'home', label: t('tabHome'), href: '/(tabs)' as Href, icon: 'home-outline', iconFocused: 'home', match: ['index', '(tabs)'] },
       { key: 'events', label: t('tabEvents'), href: '/(tabs)/events' as Href, icon: 'calendar-outline', iconFocused: 'calendar', match: ['events', 'event', 'bookings'] },
       { key: 'wallet', label: t('tabWallet'), href: '/(tabs)/wallet' as Href, icon: 'wallet-outline', iconFocused: 'wallet', match: ['wallet', 'transactions', 'withdraw', 'payroll'] },
       { key: 'inbox', label: t('tabInbox'), href: '/(tabs)/inbox' as Href, icon: 'chatbubbles-outline', iconFocused: 'chatbubbles', match: ['inbox', 'conversation', 'notifications'] },
       { key: 'more', label: t('tabMore'), href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal', isMore: true, match: [] },
-    ],
+    ] as Tab[]),
     [language, t],
   );
 
@@ -493,13 +496,15 @@ export function MoreSheet({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const logout = useAuth((s) => s.logout);
-  const { role, isPhotographer } = useRole();
+  const { role, isPhotographer, isCoordinator } = useRole();
   const { language, t } = useLanguage();
   const { tr } = useSharedT();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [languageSheetOpen, setLanguageSheetOpen] = useState(false);
-  const [currencySheetOpen, setCurrencySheetOpen] = useState(false);
+  const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
+  const isShared = useWorkspace(selectIsShared);
+  const hasWorkspaces = useWorkspace((s) => s.memberships.length > 0);
 
   // Live unread notification count
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
@@ -563,6 +568,16 @@ export function MoreSheet({
       icon: 'videocam-outline',
       href: '/streams' as Href,
     });
+
+    // Calendar: events the coordinator runs and the payments they owe, by day.
+    if (isCoordinator) {
+      list.push({
+        id: 'calendar',
+        label: 'Calendar',
+        icon: 'calendar-outline',
+        href: '/calendar' as Href,
+      });
+    }
 
     // Post My Event opportunities: their own entry, as on the web sidebar.
     if (isPhotographer) {
@@ -673,24 +688,27 @@ export function MoreSheet({
       },
     });
 
-    // 13. Display Currency (cash icon, opens currency selector)
-    list.push({
-      id: 'currency',
-      label: t('currencyPreference'),
-      icon: 'cash-outline',
-      onPress: () => {
-        onClose();
-        setTimeout(() => setCurrencySheetOpen(true), 150);
-      },
-    });
-
-    // 14. Preferences / Settings (All roles in salo-run bottom nav)
+    // 13. Preferences / Settings (All roles in salo-run bottom nav)
     list.push({
       id: 'preferences',
       label: t('menuSettings'),
       icon: 'settings-outline',
       href: '/preferences' as Href,
     });
+
+    // Switch between the photographer's own workspace and the ones they were invited to. Offered only when there is
+    // something to choose.
+    if (isPhotographer && (hasWorkspaces || isShared)) {
+      list.push({
+        id: 'workspace',
+        label: 'Workspace',
+        icon: 'swap-horizontal-outline',
+        onPress: () => {
+          onClose();
+          setTimeout(() => setWorkspaceSheetOpen(true), 150);
+        },
+      });
+    }
 
     // 14. Sign Out / Logout (All roles in salo-run bottom nav)
     list.push({
@@ -701,8 +719,13 @@ export function MoreSheet({
       destructive: true,
     });
 
+    // In a shared workspace the owner's account, the transaction history, donating and collaboration stay with the owner.
+    if (isShared && isPhotographer) {
+      const hidden = new Set(['profile', 'streams', 'calendar', 'collaborate', 'transactions', 'donations', 'preferences']);
+      return list.filter((i) => !hidden.has(i.id));
+    }
     return list;
-  }, [language, t, isPhotographer, unreadCount, opportunityCount, handleLogout, onClose]);
+  }, [language, t, isPhotographer, isCoordinator, isShared, hasWorkspaces, unreadCount, opportunityCount, handleLogout, onClose]);
 
   // Filter shortcuts by search query
   const displayedItems = useMemo(() => {
@@ -735,8 +758,8 @@ export function MoreSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View
+      <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <GlassSheetHost
         style={[
           styles.sheet,
           { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
@@ -805,17 +828,14 @@ export function MoreSheet({
             </View>
           )}
         </ScrollView>
-      </View>
+      </GlassSheetHost>
+      </GlassScrim>
 
       <LanguageSelectorSheet
         visible={languageSheetOpen}
         onClose={() => setLanguageSheetOpen(false)}
       />
-
-      <CurrencySelectorSheet
-        visible={currencySheetOpen}
-        onClose={() => setCurrencySheetOpen(false)}
-      />
+      <WorkspaceSwitcherSheet visible={workspaceSheetOpen} onClose={() => setWorkspaceSheetOpen(false)} />
     </Modal>
   );
 }
@@ -924,9 +944,6 @@ const useStyles = makeStyles((c) => ({
 
   backdrop: { flex: 1, backgroundColor: c.scrim },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     paddingTop: spacing.sm,
     maxHeight: '85%',
   },
@@ -955,7 +972,7 @@ const useStyles = makeStyles((c) => ({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -965,7 +982,7 @@ const useStyles = makeStyles((c) => ({
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderRadius: radii.full,
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.lg,

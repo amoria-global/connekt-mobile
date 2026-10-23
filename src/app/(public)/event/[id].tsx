@@ -29,7 +29,7 @@
  *     (web `.ve-wishes` → POST /public/events/{id}/wishes)
  *   • Donation link (non-cancelled events)
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,10 +61,13 @@ import {
   registerAnonymousViewer,
   retryAnonymousDeviceAccess,
   sendEventWish,
+  sendEventVideoWish,
 } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
+import { accountIdentity, isEmail, loadGuestIdentity, saveGuestIdentity } from '@/features/events/guestIdentity';
+import { pickShortVideo } from '@/features/streams/pickShortVideo';
 import { getDeviceId } from '@/utils/deviceId';
 import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
@@ -74,6 +77,8 @@ import { useCurrency } from '@/store/currency';
 import { LiveButton, LivePill } from '@/components/ui/live';
 import { clearReminder, getReminder, isValidReminderEmail, setReminder } from '@/features/events/reminder';
 import { registerForPushNotifications } from '@/features/notifications/push';
+import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -260,6 +265,52 @@ function msToCountdown(ms: number) {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * The "Starts in" card. It owns the one-second clock, so only this card re-renders each second
+ * and not the whole event screen above it.
+ */
+function EventCountdown({ start }: { start: Date | null }) {
+  const { t } = useLanguage();
+  const { colors } = useTheme();
+  const styles = useStyles();
+  const startMs = start ? start.getTime() : null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (startMs === null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [startMs]);
+  if (startMs === null || startMs - now <= 0) return null;
+  const countdown = msToCountdown(startMs - now);
+  return (
+    <View style={styles.countdownCard}>
+      <Text style={styles.countdownEyebrow}>
+        <Ionicons name="hourglass-outline" size={12} color={colors.primary} /> {t('b4_startsIn')}
+      </Text>
+      <View style={styles.countdownGrid}>
+        {countdown.days > 0 ? (
+          <View style={styles.countdownCell}>
+            <Text style={styles.countdownNum}>{pad(countdown.days)}</Text>
+            <Text style={styles.countdownUnit}>{countdown.days === 1 ? t('b4_daySingular') : t('b4_dayPlural')}</Text>
+          </View>
+        ) : null}
+        <View style={styles.countdownCell}>
+          <Text style={styles.countdownNum}>{pad(countdown.hours)}</Text>
+          <Text style={styles.countdownUnit}>{t('b4_hr')}</Text>
+        </View>
+        <View style={styles.countdownCell}>
+          <Text style={styles.countdownNum}>{pad(countdown.minutes)}</Text>
+          <Text style={styles.countdownUnit}>{t('b4_min')}</Text>
+        </View>
+        <View style={styles.countdownCell}>
+          <Text style={styles.countdownNum}>{pad(countdown.seconds)}</Text>
+          <Text style={styles.countdownUnit}>{t('b4_sec')}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function PublicEventDetailScreen() {
@@ -268,9 +319,13 @@ export default function PublicEventDetailScreen() {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const clearance = useStackClearance();
+  const { id, src } = useLocalSearchParams<{ id: string; src?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // Arriving from a scanned QR code shows the short version first: what, when, where and the one thing to do.
+  const fromQr = src === 'qr';
+  const [showDetails, setShowDetails] = useState(!fromQr);
   const { data, loading, error, refresh } = useAsync(
     useCallback(() => getPublicEventDetailed(id), [id]),
   );
@@ -311,21 +366,6 @@ export default function PublicEventDetailScreen() {
       setIsSaved(set.has(id));
     } catch { /* ignore */ }
   };
-
-  // Countdown
-  const [msUntilStart, setMsUntilStart] = useState<number | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => {
-    if (!data) return;
-    const start = parseEventStart(data.eventDate, data.startTime);
-    if (!start) return;
-    const tick = () => setMsUntilStart(start.getTime() - Date.now());
-    tick();
-    countdownRef.current = setInterval(tick, 1000);
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, [data]);
 
   // Description expand/collapse (web `.ve-readmore`)
   const [descExpanded, setDescExpanded] = useState(false);
@@ -530,33 +570,74 @@ export default function PublicEventDetailScreen() {
     }
   };
 
-  // Send a wish (web `.ve-wishes`)
+  // Send a wish (web `.ve-wishes`): a text wish or a video wish of up to one minute, for an event that has not started.
+  // A signed-in user is sent as their account (name and email are not asked again); a guest is asked once and remembered.
   const [wishName, setWishName] = useState('');
   const [wishEmail, setWishEmail] = useState('');
   const [wishMessage, setWishMessage] = useState('');
   const [wishBusy, setWishBusy] = useState(false);
+  const [wishVideoBusy, setWishVideoBusy] = useState(false);
   const [wishError, setWishError] = useState<string | null>(null);
   const [wishSuccess, setWishSuccess] = useState<string | null>(null);
+  const account = accountIdentity(currentUser);
+  useEffect(() => {
+    if (account) return;
+    loadGuestIdentity().then((g) => {
+      if (g.name) setWishName((n) => n || g.name!);
+      if (g.email) setWishEmail((e) => e || g.email!);
+    });
+  }, [account]);
+  /** Who the wish comes from, or null with the reason shown. */
+  const wishIdentity = (): { name: string; email: string } | null => {
+    const who = account ?? { name: wishName.trim(), email: wishEmail.trim() };
+    if (!who.name) {
+      setWishError('Please enter your name.');
+      return null;
+    }
+    if (!isEmail(who.email)) {
+      setWishError('Please enter a valid email.');
+      return null;
+    }
+    return who;
+  };
   const onSendWish = async () => {
-    if (!wishName.trim() || !wishEmail.includes('@') || !wishMessage.trim()) {
-      setWishError(t('b4_wishFillAll'));
+    const who = wishIdentity();
+    if (!who) return;
+    if (!wishMessage.trim()) {
+      setWishError('Please write your message.');
       return;
     }
     setWishBusy(true);
     setWishError(null);
     setWishSuccess(null);
     try {
-      await sendEventWish(id, {
-        name: wishName.trim(),
-        email: wishEmail.trim(),
-        message: wishMessage.trim(),
-      });
+      await sendEventWish(id, { ...who, message: wishMessage.trim() });
       setWishSuccess(t('b4_wishSentSuccess'));
       setWishMessage('');
+      if (!account) void saveGuestIdentity(who);
     } catch (e) {
       setWishError(isApiError(e) ? e.message : t('b4_wishSendError'));
     } finally {
       setWishBusy(false);
+    }
+  };
+  const onSendVideoWish = async () => {
+    const who = wishIdentity();
+    if (!who) return;
+    setWishError(null);
+    setWishSuccess(null);
+    try {
+      const video = await pickShortVideo();
+      if (!video) return;
+      setWishVideoBusy(true);
+      await sendEventVideoWish(id, { ...who, message: wishMessage, video });
+      setWishSuccess('Your video wish was sent to the event organizer!');
+      setWishMessage('');
+      if (!account) void saveGuestIdentity(who);
+    } catch (e) {
+      setWishError(isApiError(e) ? e.message : 'Could not send your video wish. Please try again.');
+    } finally {
+      setWishVideoBusy(false);
     }
   };
 
@@ -647,11 +728,6 @@ export default function PublicEventDetailScreen() {
       data.eventOrganizer
     : data.eventOrganizer;
 
-  const countdown =
-    status.isUpcoming && msUntilStart !== null && msUntilStart > 0
-      ? msToCountdown(msUntilStart)
-      : null;
-
   const desc = data.description ?? '';
   const descTruncated = desc.length > DESC_LIMIT && !descExpanded;
   const descText = descTruncated ? `${desc.slice(0, DESC_LIMIT)}…` : desc;
@@ -717,7 +793,7 @@ export default function PublicEventDetailScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, showStickyBar && { paddingBottom: 140 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: clearance }, showStickyBar && { paddingBottom: 140 }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -821,7 +897,7 @@ export default function PublicEventDetailScreen() {
           )}
 
           {/* Tags row */}
-          {!status.isCompleted && tags.length > 0 ? (
+          {showDetails && !status.isCompleted && tags.length > 0 ? (
             <View style={styles.tagsRow}>
               {tags.map((tag) => (
                 <View key={tag} style={styles.tag}>
@@ -832,35 +908,7 @@ export default function PublicEventDetailScreen() {
           ) : null}
 
           {/* Countdown card (web `.ve-countdown-card`) */}
-          {countdown ? (
-            <View style={styles.countdownCard}>
-              <Text style={styles.countdownEyebrow}>
-                <Ionicons name="hourglass-outline" size={12} color={colors.primary} /> {t('b4_startsIn')}
-              </Text>
-              <View style={styles.countdownGrid}>
-                {countdown.days > 0 ? (
-                  <View style={styles.countdownCell}>
-                    <Text style={styles.countdownNum}>{pad(countdown.days)}</Text>
-                    <Text style={styles.countdownUnit}>
-                      {countdown.days === 1 ? t('b4_daySingular') : t('b4_dayPlural')}
-                    </Text>
-                  </View>
-                ) : null}
-                <View style={styles.countdownCell}>
-                  <Text style={styles.countdownNum}>{pad(countdown.hours)}</Text>
-                  <Text style={styles.countdownUnit}>{t('b4_hr')}</Text>
-                </View>
-                <View style={styles.countdownCell}>
-                  <Text style={styles.countdownNum}>{pad(countdown.minutes)}</Text>
-                  <Text style={styles.countdownUnit}>{t('b4_min')}</Text>
-                </View>
-                <View style={styles.countdownCell}>
-                  <Text style={styles.countdownNum}>{pad(countdown.seconds)}</Text>
-                  <Text style={styles.countdownUnit}>{t('b4_sec')}</Text>
-                </View>
-              </View>
-            </View>
-          ) : null}
+          {status.isUpcoming ? <EventCountdown start={parseEventStart(data.eventDate, data.startTime)} /> : null}
 
           {/* Event quick-info card */}
           {!status.isCompleted ? (
@@ -888,8 +936,21 @@ export default function PublicEventDetailScreen() {
             </View>
           ) : null}
 
+          {/* Scanned from a QR code: the short version first, the rest one tap away. */}
+          {fromQr && !status.isCompleted ? (
+            <Pressable
+              style={styles.secondary}
+              onPress={() => setShowDetails((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showDetails }}
+            >
+              <Ionicons name={showDetails ? 'chevron-up' : 'chevron-down'} size={18} color={colors.primary} />
+              <Text style={styles.secondaryText}>{showDetails ? 'Show less' : 'Show full details'}</Text>
+            </Pressable>
+          ) : null}
+
           {/* About this event (web `.ve-card` about section + `.ve-readmore`) */}
-          {!status.isCompleted && desc ? (
+          {showDetails && !status.isCompleted && desc ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('b4_aboutThisEvent')}</Text>
               <Text style={styles.bodyText}>{descText}</Text>
@@ -904,7 +965,7 @@ export default function PublicEventDetailScreen() {
           ) : null}
 
           {/* Hosts & crew (web `.ve-hosts-grid`) */}
-          {!status.isCompleted && (organizer || data.photographerName || data.photographerId) ? (
+          {showDetails && !status.isCompleted && (organizer || data.photographerName || data.photographerId) ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('b4_hostsAndCrew')}</Text>
               <View style={styles.hostsGrid}>
@@ -945,7 +1006,7 @@ export default function PublicEventDetailScreen() {
           ) : null}
 
           {/* Fee card */}
-          {!status.isCompleted && !status.isCancelled ? (
+          {(showDetails || status.isPaid) && !status.isCompleted && !status.isCancelled ? (
             <View style={styles.feeCard}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.feeLabel}>{isInPersonEvent(data) ? t('b4_eventTicketIncludesStream') : t('b4_streamEntry')}</Text>
@@ -969,7 +1030,7 @@ export default function PublicEventDetailScreen() {
 
           {/* Verify access + group code redeem — web parity:
               shown for paid live/upcoming events where access isn't confirmed */}
-          {!status.isCompleted && !status.isCancelled && status.isPaid && !hasPurchasedAccess ? (
+          {showDetails && !status.isCompleted && !status.isCancelled && status.isPaid && !hasPurchasedAccess ? (
             <>
               {/* Verify access is kept in scroll for group code card context */}
               <View style={{ height: 0 }} />
@@ -1031,19 +1092,31 @@ export default function PublicEventDetailScreen() {
                   </Text>
                 </View>
               </View>
-              <Input
-                placeholder={t('b4_yourNamePlaceholder')}
-                value={wishName}
-                onChangeText={setWishName}
-                autoCapitalize="words"
-              />
-              <Input
-                placeholder={t('b4_emailPlaceholder')}
-                value={wishEmail}
-                onChangeText={setWishEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
+              {account ? (
+                <Text style={styles.wishSub}>{`Sending as ${account.name} (${account.email})`}</Text>
+              ) : (
+                <>
+                  <Input
+                    placeholder={t('b4_yourNamePlaceholder')}
+                    value={wishName}
+                    onChangeText={(v) => {
+                      setWishName(v);
+                      setWishError(null);
+                    }}
+                    autoCapitalize="words"
+                  />
+                  <Input
+                    placeholder={t('b4_emailPlaceholder')}
+                    value={wishEmail}
+                    onChangeText={(v) => {
+                      setWishEmail(v);
+                      setWishError(null);
+                    }}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </>
+              )}
               <TextInput
                 value={wishMessage}
                 onChangeText={setWishMessage}
@@ -1060,6 +1133,22 @@ export default function PublicEventDetailScreen() {
                 </View>
               ) : null}
               <Button title={wishBusy ? t('b4_sending') : t('b4_sendWishBtn')} onPress={onSendWish} loading={wishBusy} />
+              <Pressable
+                style={({ pressed }) => [styles.secondary, (pressed || wishVideoBusy) && { opacity: 0.7 }]}
+                onPress={onSendVideoWish}
+                disabled={wishVideoBusy || wishBusy}
+                accessibilityRole="button"
+                accessibilityLabel="Record a 1 minute video wish"
+                accessibilityState={{ busy: wishVideoBusy }}
+              >
+                {wishVideoBusy ? (
+                  <ActivityIndicator size="small" color={colors.accent} />
+                ) : (
+                  <Ionicons name="videocam-outline" size={18} color={colors.accent} />
+                )}
+                <Text style={styles.secondaryText}>{wishVideoBusy ? 'Sending your video…' : 'Record a 1 minute video wish'}</Text>
+              </Pressable>
+              <Text style={styles.wishSub}>The message above is added to your video as a caption. Videos can be up to 1 minute.</Text>
             </View>
           ) : null}
 
@@ -1110,10 +1199,9 @@ export default function PublicEventDetailScreen() {
       {/* Get notified: a guest gives an email; a signed-in member needs nothing here. */}
       <Modal visible={reminderAsk} transparent animationType="slide" onRequestClose={() => setReminderAsk(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <Pressable style={styles.modalBackdrop} onPress={() => !reminderBusy && setReminderAsk(false)}>
-            <Pressable
+          <GlassScrim style={styles.modalBackdrop} onPress={() => !reminderBusy && setReminderAsk(false)}>
+            <GlassSheetHost
               style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
-              onPress={(e) => e.stopPropagation()}
             >
               <Text style={styles.modalTitle}>Get notified</Text>
               <Text style={styles.modalHint}>
@@ -1147,8 +1235,8 @@ export default function PublicEventDetailScreen() {
               <Pressable onPress={() => setReminderAsk(false)} style={{ alignSelf: 'center', marginTop: 4 }}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </Pressable>
-            </Pressable>
-          </Pressable>
+            </GlassSheetHost>
+          </GlassScrim>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -1173,8 +1261,8 @@ export default function PublicEventDetailScreen() {
         animationType="slide"
         onRequestClose={() => setVerifyOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setVerifyOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setVerifyOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{t('b4_verifyYourAccessTitle')}</Text>
             <Text style={styles.modalHint}>
               {t('b4_verifyModalHint')}
@@ -1203,8 +1291,8 @@ export default function PublicEventDetailScreen() {
             <Pressable onPress={() => setVerifyOpen(false)} style={{ alignSelf: 'center', marginTop: 4 }}>
               <Text style={styles.cancelText}>{t('b4_cancel')}</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -1269,7 +1357,7 @@ const useStyles = makeStyles((c, e) => ({
     padding: spacing.xl,
   },
   errorText: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { paddingBottom: 120 },
+  scroll: {},
 
   // ── Hero ──────────────────────────────────────────────────────────────────
   heroWrap: { width: '100%', height: 280, position: 'relative' },
@@ -1740,11 +1828,8 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   // Modal
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },

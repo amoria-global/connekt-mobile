@@ -44,11 +44,11 @@ export function HeroActionCard({
           <Ionicons name={icon} size={22} color="#FFFFFF" />
         </View>
         <View style={styles.heroText}>
-          <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+          <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {tr(title)}
           </Text>
           {subtitle ? (
-            <Text style={styles.heroSub} numberOfLines={2} maxFontSizeMultiplier={1.25}>
+            <Text style={styles.heroSub} numberOfLines={2} maxFontSizeMultiplier={1.6}>
               {tr(subtitle)}
             </Text>
           ) : null}
@@ -75,6 +75,8 @@ export function ListRow({
   divider,
   accessibilityLabel,
   destructive,
+  titleLines = 2,
+  metaLines = 2,
 }: {
   title: string;
   meta?: string;
@@ -87,6 +89,10 @@ export function ListRow({
   divider?: boolean;
   accessibilityLabel?: string;
   destructive?: boolean;
+  /** Lines the title may use before it is cut; raise it for sentences that must be read in full. */
+  titleLines?: number;
+  /** Lines the meta may use before it is cut; raise it when the meta carries something to read in full (an email). */
+  metaLines?: number;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -102,11 +108,11 @@ export function ListRow({
           </View>
         ) : null)}
       <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, destructive && { color: colors.error }]} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+        <Text style={[styles.rowTitle, destructive && { color: colors.error }]} numberOfLines={titleLines} maxFontSizeMultiplier={1.6}>
           {tr(title)}
         </Text>
         {meta ? (
-          <Text style={styles.rowMeta} numberOfLines={2} maxFontSizeMultiplier={1.3}>
+          <Text style={styles.rowMeta} numberOfLines={metaLines} maxFontSizeMultiplier={1.6}>
             {tr(meta)}
           </Text>
         ) : null}
@@ -167,7 +173,7 @@ export function ProgressTrack({ steps, label = 'Progress' }: { steps: readonly T
               </View>
               <View style={[styles.trackLine, done && { backgroundColor: colors.success }, i === steps.length - 1 && styles.trackLineHidden]} />
             </View>
-            <Text style={[styles.trackLabel, on && { color: colors.text, fontWeight: '700' }]} maxFontSizeMultiplier={1.3}>
+            <Text style={[styles.trackLabel, on && { color: colors.text, fontWeight: '700' }]} maxFontSizeMultiplier={1.6}>
               {s.label}
             </Text>
           </View>

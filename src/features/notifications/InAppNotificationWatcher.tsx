@@ -142,7 +142,7 @@ export function InAppNotificationWatcher() {
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={styles.title} numberOfLines={2}>
             {banner.title}
           </Text>
           <Text style={styles.message} numberOfLines={2}>

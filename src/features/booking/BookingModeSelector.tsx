@@ -42,6 +42,8 @@ import { useLanguage } from '@/store/language';
 import { translateSharedRw } from '@/i18n/kinyarwanda';
 import { translateSharedSw } from '@/i18n/swahili';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 const BMS_I18N: Record<'fr' | 'es' | 'rw', Record<string, string>> = {
   fr: {
@@ -1050,8 +1052,8 @@ export function BookingModeSelector({
         />
 
         <Modal visible={listSheet !== null} transparent animationType="fade" onRequestClose={() => setListSheet(null)}>
-          <Pressable style={styles.scrim} onPress={() => setListSheet(null)}>
-            <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]} onPress={() => {}}>
+          <GlassScrim style={styles.scrim} onPress={() => setListSheet(null)}>
+            <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
               <Text style={[styles.label, { marginBottom: spacing.sm }]}>
                 {listSheet === 'start' ? tr('Start time') : listSheet === 'end' ? tr('End time') : tr('City')}
               </Text>
@@ -1081,8 +1083,8 @@ export function BookingModeSelector({
                   );
                 }}
               />
-            </Pressable>
-          </Pressable>
+            </GlassSheetHost>
+          </GlassScrim>
         </Modal>
       </KeyboardAvoidingView>
     </Modal>
@@ -1131,7 +1133,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -1365,7 +1367,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingTop: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.borderSoft,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   primaryBtn: {
     minHeight: 52,
@@ -1385,20 +1387,15 @@ const useStyles = makeStyles((c, e) => ({
     minHeight: 52,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: c.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   scrim: {
     flex: 1,
-    backgroundColor: c.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     padding: spacing.lg,
   },
   listRow: {

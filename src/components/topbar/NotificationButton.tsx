@@ -19,7 +19,7 @@ export function NotificationButton({ hasUnread, onPress, compact }: { hasUnread?
   );
 }
 
-const SIZE = 46;
+const SIZE = 42;
 
 const useStyles = makeStyles((c, e) => ({
   btn: {
@@ -31,13 +31,13 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
     ...e(2),
   },
-  btnCompact: { width: 40, height: 40, backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 },
-  dotCompact: { top: 7, right: 9, borderColor: c.card },
+  btnCompact: { width: 38, height: 38, backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 },
+  dotCompact: { top: 6, right: 8, borderColor: c.card },
   pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   dot: {
     position: 'absolute',
-    top: 11,
-    right: 12,
+    top: 9,
+    right: 10,
     width: 10,
     height: 10,
     borderRadius: radii.full,

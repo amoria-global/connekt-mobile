@@ -6,7 +6,7 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { FallbackImage } from './FallbackImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import { Skeleton } from '@/features/photographer/kit';
@@ -28,12 +28,12 @@ function a11yLabel(a: GalleryItem, subtitle?: string): string {
   return [a.name, photoCountText(a.photoCount), subtitle, a.locked ? 'Locked' : null].filter(Boolean).join(', ');
 }
 
-function Cover({ uri, icon, size }: { uri?: string; icon: number; size?: 'fill' }) {
+function Cover({ uri, full, icon, size }: { uri?: string; full?: string; icon: number; size?: 'fill' }) {
   const styles = useStyles();
   const { colors } = useTheme();
   void size;
   return uri ? (
-    <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} recyclingKey={uri} accessibilityIgnoresInvertColors />
+    <FallbackImage uri={uri} fallbackUri={full} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} recyclingKey={uri} accessibilityIgnoresInvertColors />
   ) : (
     <View style={[StyleSheet.absoluteFill, styles.coverEmpty]}>
       <Ionicons name="images-outline" size={icon} color={colors.textMuted} />
@@ -49,7 +49,7 @@ function CountChip({ count }: { count?: number }) {
   return (
     <View style={styles.chip}>
       <Ionicons name="images" size={11} color="#fff" />
-      <Text style={styles.chipText} maxFontSizeMultiplier={1.2}>
+      <Text style={styles.chipText} maxFontSizeMultiplier={1.6}>
         {tr(text)}
       </Text>
     </View>
@@ -72,7 +72,7 @@ function AlbumHeroImpl({ album, showPhotographer, onOpen }: { album: GalleryItem
   const sub = albumSubtitle(album, showPhotographer);
   return (
     <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open latest album, ${a11yLabel(album, sub)}`} style={({ pressed }) => [styles.hero, pressed && styles.pressed]}>
-      <Cover uri={album.coverPhoto} icon={40} />
+      <Cover uri={album.coverPhoto} full={album.coverFull} icon={40} />
       <LinearGradient colors={SCRIM} style={StyleSheet.absoluteFill} pointerEvents="none" />
       <View style={styles.heroTop}>
         <View style={styles.eyebrowPill}>
@@ -80,13 +80,13 @@ function AlbumHeroImpl({ album, showPhotographer, onOpen }: { album: GalleryItem
         </View>
       </View>
       <View style={styles.heroBottom}>
-        <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.25}>
+        <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.6}>
           {album.name}
         </Text>
         <View style={styles.heroMeta}>
           <CountChip count={album.photoCount} />
           {sub ? (
-            <Text style={styles.heroSub} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+            <Text style={styles.heroSub} numberOfLines={2} maxFontSizeMultiplier={1.6}>
               {sub}
             </Text>
           ) : null}
@@ -109,7 +109,7 @@ function AlbumGridCardImpl({ album, showPhotographer, onOpen }: { album: Gallery
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       <View style={styles.cardCover}>
-        <Cover uri={album.coverPhoto} icon={30} />
+        <Cover uri={album.coverPhoto} full={album.coverFull} icon={30} />
         <LinearGradient colors={SCRIM} style={styles.cardScrim} pointerEvents="none" />
         <View style={styles.cardTop}>
           <View style={styles.kind}>
@@ -122,11 +122,11 @@ function AlbumGridCardImpl({ album, showPhotographer, onOpen }: { album: Gallery
         </View>
       </View>
       <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+        <Text style={styles.cardTitle} numberOfLines={3} maxFontSizeMultiplier={1.6}>
           {album.name}
         </Text>
         {sub ? (
-          <Text style={styles.cardSub} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+          <Text style={styles.cardSub} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {sub}
           </Text>
         ) : null}
@@ -150,7 +150,7 @@ function AlbumListRowImpl({ album, showPhotographer, onOpen }: { album: GalleryI
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <View style={styles.rowThumb}>
-        <Cover uri={album.coverPhoto} icon={22} />
+        <Cover uri={album.coverPhoto} full={album.coverFull} icon={22} />
         {album.locked ? (
           <View style={styles.rowLock}>
             <LockBadge />
@@ -164,11 +164,11 @@ function AlbumListRowImpl({ album, showPhotographer, onOpen }: { album: GalleryI
           </View>
           {countText ? <Text style={styles.rowCount}>{tr(countText)}</Text> : null}
         </View>
-        <Text style={styles.rowTitle} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+        <Text style={styles.rowTitle} numberOfLines={3} maxFontSizeMultiplier={1.6}>
           {album.name}
         </Text>
         {sub ? (
-          <Text style={styles.cardSub} numberOfLines={1} maxFontSizeMultiplier={1.25}>
+          <Text style={styles.cardSub} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {sub}
           </Text>
         ) : null}

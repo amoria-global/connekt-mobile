@@ -60,6 +60,7 @@ import { useCurrency } from '@/store/currency';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /**
@@ -1012,7 +1013,7 @@ export default function NewEventScreen() {
                           })}
                           {filteredGeoRegions.length === 0 ? (
                             <Text style={styles.noMatchText}>
-                              No regions match "{geoSearchQuery}".
+                              No regions match &quot;{geoSearchQuery}&quot;.
                             </Text>
                           ) : null}
                         </ScrollView>
@@ -1358,8 +1359,8 @@ export default function NewEventScreen() {
 
       {/* Photographer / package picker */}
       <Modal visible={pickerOpen} transparent animationType="slide" onRequestClose={() => setPickerOpen(false)}>
-        <Pressable style={styles.pickerBackdrop} onPress={() => setPickerOpen(false)}>
-          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.pickerBackdrop} onPress={() => setPickerOpen(false)}>
+          <GlassSheetHost style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
               {pickerStep === 'package' ? (
                 <Pressable onPress={() => setPickerStep('photographer')} hitSlop={8}>
@@ -1419,8 +1420,8 @@ export default function NewEventScreen() {
                 )}
               />
             )}
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
       <HandoffCheckoutSheet
         visible={!!payEventId}
@@ -1512,8 +1513,8 @@ const useStyles = makeStyles((c) => ({
   multiline: { minHeight: 100, paddingTop: spacing.md, textAlignVertical: 'top' },
   serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
-  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(17,24,39,0.45)', justifyContent: 'flex-end' },
-  pickerSheet: { backgroundColor: c.surface, borderTopLeftRadius: radii['2xl'], borderTopRightRadius: radii['2xl'], maxHeight: '75%', paddingBottom: spacing.xl },
+  pickerBackdrop: { flex: 1, justifyContent: 'flex-end' },
+  pickerSheet: { maxHeight: '75%', paddingBottom: spacing.xl },
   pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingVertical: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderSoft },
   pickerTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
   iconSpacer: { width: 22 },

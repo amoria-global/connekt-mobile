@@ -52,4 +52,9 @@ export const StorageKeys = {
    * so a failed first POST does not lose the only copy. See features/auth/apple.ts.
    */
   appleFirstHandshake: 'auth.apple.firstHandshake',
+  /**
+   * The photographer workspace the user is working in, when it is not their own (store/workspace.ts). Cleared on
+   * every sign-in and sign-out, so one account's selection never carries into another's.
+   */
+  activeWorkspace: 'workspace.active',
 } as const;

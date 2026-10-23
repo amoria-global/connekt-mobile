@@ -5,6 +5,7 @@
  * - POST /donations?amount=&currencyId=&message=  → record a donation
  */
 import { api } from '@/api/client';
+import { currencyIdFor } from '@/features/reference/api';
 import type { ApiEnvelope, ID } from '@/types';
 
 export type DonationTier = { amount: number; currency?: string };
@@ -68,33 +69,7 @@ export type DonationCreated = {
   status?: string;
 };
 
-export const KNOWN_CURRENCY_UUIDS: Record<string, string> = {
-  RWF: '490c5ab1-a150-459e-be6b-d45131a1e13a',
-  KES: 'e82f75a7-fe33-4b90-85a1-ae13919e0921',
-  UGX: '68e02a65-2e52-4e78-b07d-2c516ec12675',
-  TZS: '1f742d3f-f838-49d2-90df-890e0c2af8fe',
-  USD: 'b807b880-6b57-4208-bf87-549a1535b2f3',
-  EUR: '5070cf4e-9a1f-4b26-9dae-97a6013ad4b0',
-  GHS: '8b1dd030-3e2e-4ea2-8052-b283111743a9',
-  NGN: 'dd9cb53f-dcd1-4a01-ae17-624925d05fe6',
-  ZMW: '8e38f423-174f-4bd1-8c2c-f2d9409433f0',
-  MWK: '6bf7bebd-a637-4024-a27e-6c61baff8d5d',
-  XOF: 'aa958d33-caf5-4a28-973b-b4923f426de5',
-  XAF: '7b3e123a-eeb3-4cad-bd0f-f8e6f6c77ae1',
-  CDF: 'dd9c32d0-f7cd-4da8-93d1-9b94190f391c',
-  ETB: 'd3825531-935a-46ad-a8d9-959dfc403b6d',
-  MZN: 'f0b5d08e-1ff0-49f8-afb3-c3c58ca09d5d',
-  SLE: '1df1d289-d74d-4fc5-8058-4569f1e33e3d',
-};
-
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function resolveCurrencyId(currencyIdOrCode?: string): string {
-  if (!currencyIdOrCode) return KNOWN_CURRENCY_UUIDS.RWF;
-  if (UUID_REGEX.test(currencyIdOrCode)) return currencyIdOrCode;
-  const upper = currencyIdOrCode.toUpperCase();
-  return KNOWN_CURRENCY_UUIDS[upper] || KNOWN_CURRENCY_UUIDS.RWF;
-}
 
 export async function donate(input: {
   amount: number;
@@ -104,12 +79,12 @@ export async function donate(input: {
   paymentMethod?: 'MOBILE_MONEY' | 'CARD';
   eventId?: string;
 }): Promise<DonationCreated> {
-  const effectiveCurrencyId = resolveCurrencyId(input.currencyId || input.currencyCode);
+  const effectiveCurrencyId = await currencyIdFor(input.currencyId || input.currencyCode);
   const code =
     input.currencyCode ||
     (input.currencyId && !UUID_REGEX.test(input.currencyId) ? input.currencyId : undefined);
   const qs = new URLSearchParams({ amount: String(input.amount) });
-  if (effectiveCurrencyId) qs.set('currencyId', effectiveCurrencyId);
+  qs.set('currencyId', effectiveCurrencyId);
   if (code) qs.set('currencyCode', code.toUpperCase());
   if (input.message?.trim()) qs.append('message', input.message.trim());
   if (input.paymentMethod) qs.append('paymentMethod', input.paymentMethod);
@@ -147,12 +122,12 @@ export type PublicDonationCreated = {
 export async function createPublicDonation(
   input: PublicDonationInput,
 ): Promise<PublicDonationCreated> {
-  const effectiveCurrencyId = resolveCurrencyId(input.currencyId || input.currencyCode);
+  const effectiveCurrencyId = await currencyIdFor(input.currencyId || input.currencyCode);
   const code =
     input.currencyCode ||
     (input.currencyId && !UUID_REGEX.test(input.currencyId) ? input.currencyId : undefined);
   const qs = new URLSearchParams({ amount: String(input.amount) });
-  if (effectiveCurrencyId) qs.set('currencyId', effectiveCurrencyId);
+  qs.set('currencyId', effectiveCurrencyId);
   if (code) qs.set('currencyCode', code.toUpperCase());
   if (input.donorName?.trim()) qs.set('donorName', input.donorName.trim());
   if (input.donorEmail?.trim()) qs.set('donorEmail', input.donorEmail.trim());

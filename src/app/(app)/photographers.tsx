@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter, Stack } from 'expo-router';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -21,21 +20,26 @@ import {
   inviteCoordinatorPhotographer,
   listBookmarkedPhotographers,
   listPhotographers,
+  listSpecialties,
   unbookmarkPhotographer,
   type Photographer,
 } from '@/features/photographers/api';
 import { useRole } from '@/features/auth/role';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { PhotographerRow } from '@/features/photographers/PhotographerRow';
+import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { SkeletonCard } from '@/features/photographer/kit';
 import { env } from '@/config/env';
 import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapView';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 const ITEMS_PER_PAGE = 8;
@@ -43,32 +47,6 @@ const ALL_CATEGORIES = 'All Categories';
 const ALL_LOCATIONS = 'All Locations';
 const ALL_PRICES = 'All Prices';
 const ALL_RATINGS = 'All Ratings';
-
-export const STANDARD_CATEGORIES = [
-  'Weddings',
-  'Portraits',
-  'Events',
-  'Studio',
-  'Fashion',
-  'Birthdays',
-  'Family',
-  'Corporate',
-  'Graduation',
-  'Videography',
-  'Drone & Aerial',
-  'Commercial',
-] as const;
-
-export const POPULAR_LOCATIONS = [
-  'Kampala',
-  'Entebbe',
-  'Jinja',
-  'Mbarara',
-  'Gulu',
-  'Kigali',
-  'Nairobi',
-  'Dar es Salaam',
-] as const;
 
 const PRICE_BUCKETS = [
   { label: 'Under $100', min: 0, max: 100 },
@@ -92,8 +70,6 @@ const SORT_OPTIONS: { key: SortKey; label: string; icon: keyof typeof Ionicons.g
 ];
 
 type SheetKey = 'category' | 'location' | 'price' | 'rating' | 'sort';
-
-const RowGap = () => <View style={{ height: spacing.md }} />;
 
 function normalizeTerm(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -188,6 +164,7 @@ export default function PhotographersScreen() {
   useLanguage();
   const { colors, isDark } = useTheme();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const responsive = useResponsive();
   const { isCoordinator } = useRole();
   const router = useRouter();
@@ -270,6 +247,8 @@ export default function PhotographersScreen() {
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
 
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPhotographers(), []));
+  // Categories are the platform's specialties plus whatever the directory itself uses; cities come from the directory only.
+  const specialties = useAsync(useCallback(() => listSpecialties(), []));
 
   const submitInvite = async () => {
     if (!inviteEmail.includes('@')) {
@@ -290,8 +269,7 @@ export default function PhotographersScreen() {
     }
   };
 
-  // One compact row per photographer on a phone, two columns on a tablet.
-  const columns = responsive.isLarge ? 2 : 1;
+  const columns = responsive.isLarge ? 3 : 2;
   const cardGap = spacing.sm;
   const horizontalPadding = spacing.md * 2;
   const cardWidth = Math.floor(
@@ -307,7 +285,7 @@ export default function PhotographersScreen() {
       });
     });
 
-    const list: string[] = [ALL_CATEGORIES, ...STANDARD_CATEGORIES];
+    const list: string[] = [ALL_CATEGORIES, ...(specialties.data ?? [])];
 
     dynamicSet.forEach((item) => {
       const itemNorm = normalizeTerm(item);
@@ -328,7 +306,7 @@ export default function PhotographersScreen() {
     });
 
     return list;
-  }, [data]);
+  }, [data, specialties.data]);
 
   const locationOptions = useMemo(() => {
     const set = new Set<string>();
@@ -336,7 +314,7 @@ export default function PhotographersScreen() {
       if (p.location && p.location.trim()) set.add(p.location.trim());
     });
 
-    const list: string[] = [ALL_LOCATIONS, ...POPULAR_LOCATIONS];
+    const list: string[] = [ALL_LOCATIONS];
 
     set.forEach((loc) => {
       const locNorm = normalizeTerm(loc);
@@ -930,9 +908,10 @@ export default function PhotographersScreen() {
             />
           </View>
         ) : loading && !data ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>{tr('b2_photogsLoading')}</Text>
+          <View style={styles.skeletonList} accessibilityLabel={tr('b2_photogsLoading')}>
+            <SkeletonCard height={110} />
+            <SkeletonCard height={110} />
+            <SkeletonCard height={110} />
           </View>
         ) : error && !data?.length ? (
           <View style={styles.centered}>
@@ -949,9 +928,8 @@ export default function PhotographersScreen() {
             ListHeaderComponent={renderHeader}
             ListFooterComponent={renderFooter}
             numColumns={columns}
-            contentContainerStyle={styles.listContent}
-            columnWrapperStyle={columns > 1 ? styles.columnWrapper : undefined}
-            ItemSeparatorComponent={columns === 1 ? RowGap : undefined}
+            contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
+            columnWrapperStyle={styles.columnWrapper}
             keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl
@@ -987,14 +965,22 @@ export default function PhotographersScreen() {
               />
             }
             renderItem={({ item }) => (
-              <View style={columns === 1 ? { marginHorizontal: spacing.md } : { width: cardWidth }}>
-                <PhotographerRow
+              <Pressable
+                style={({ pressed }) => [
+                  styles.cardWrapper,
+                  { width: cardWidth },
+                  pressed && styles.cardPressed,
+                ]}
+                onPress={() => handlePhotographerPress(item.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${item.name}'s profile`}
+              >
+                <PhotographerCard
                   photographer={item}
                   isBookmarked={bookmarkedIds.has(item.id)}
-                  onOpen={() => handlePhotographerPress(item.id)}
                   onToggleBookmark={() => handleToggleBookmark(item.id)}
                 />
-              </View>
+              </Pressable>
             )}
           />
         )}
@@ -1007,8 +993,8 @@ export default function PhotographersScreen() {
         animationType="fade"
         onRequestClose={() => setInviteOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setInviteOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setInviteOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{tr('b2_photogsInviteModalTitle')}</Text>
             <Text style={styles.modalHint}>
@@ -1043,8 +1029,8 @@ export default function PhotographersScreen() {
                 loading={inviteSubmitting}
               />
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {/* Filter Bottom Sheet Modal */}
@@ -1054,8 +1040,8 @@ export default function PhotographersScreen() {
         animationType="slide"
         onRequestClose={() => setSheet(null)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setSheet(null)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setSheet(null)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.modalTitle}>{activeSheet?.title}</Text>
@@ -1094,14 +1080,15 @@ export default function PhotographersScreen() {
                 );
               })}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </>
   );
 }
 
 const useStyles = makeStyles((c, e) => ({
+  skeletonList: { gap: spacing.md, padding: spacing.lg },
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -1122,7 +1109,6 @@ const useStyles = makeStyles((c, e) => ({
   },
   listContent: {
     flexGrow: 1,
-    paddingBottom: 110,
     backgroundColor: c.background,
   },
   columnWrapper: {
@@ -1563,13 +1549,9 @@ const useStyles = makeStyles((c, e) => ({
   // Modals & Bottom Sheets
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.elevated,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
     padding: spacing.lg,
     paddingBottom: 40,
     gap: spacing.sm,
@@ -1601,7 +1583,7 @@ const useStyles = makeStyles((c, e) => ({
     lineHeight: 17,
   },
   modalInput: {
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     borderRadius: radii.md,

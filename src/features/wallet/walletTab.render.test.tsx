@@ -4,6 +4,7 @@ import { ScrollView, Text } from 'react-native';
 
 import WalletScreen from '@/app/(app)/(tabs)/wallet';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
+import { useWorkspace } from '@/store/workspace';
 
 /**
  * RENDERED screen (react-test-renderer under jest-expo, NOT a device or
@@ -23,7 +24,7 @@ jest.mock('@/api/client', () => ({
     getOk: async (...a: unknown[]) => jest.requireActual('@/api/client').requireOk(await mockGetOk(...a)),
   },
 }));
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }) }));
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }), useFocusEffect: () => {} }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@/components/topbar/TopBar', () => ({ TopBar: () => null, useTopBarHeight: () => 0 }));
 jest.mock('@/components/ui/Screen', () => ({ Screen: ({ children }: { children: React.ReactNode }) => children }));
@@ -218,6 +219,21 @@ describe('photographer wallet tabs', () => {
     expect(text).not.toContain('Earnings breakdown');
   });
 
+  it('at large text the quick links take a full row each, so "Transactions" is not broken mid-word', async () => {
+    const { Dimensions } = jest.requireActual('react-native');
+    const spy = jest.spyOn(Dimensions, 'get').mockImplementation(() => ({ width: 393, height: 852, scale: 2.75, fontScale: 1.6 }) as never);
+    try {
+      serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+      const r = await mount();
+      await reveal(r);
+      const tile = r.root.findAll((n) => n.props?.accessibilityLabel === 'Transactions' && typeof n.props.style === 'function')[0];
+      const flat1 = ([] as unknown[]).concat(tile.props.style({ pressed: false })).flat().filter(Boolean) as { flexBasis?: unknown }[];
+      expect(flat1.some((st) => st.flexBasis === '100%')).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('analytics labels balances as balances and never invents a period earnings figure', async () => {
     serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
     const r = await mount();
@@ -237,17 +253,27 @@ describe('photographer wallet tabs', () => {
     const text = flat(r.root);
     expect(text).toContain('Total spent');
     expect(text).toContain('Lifetime, not a period figure.');
-    expect(text).toContain('Where your money goes');
+    expect(text).toContain('Where your wallet stands');
     expect(text).not.toMatch(/NaN|undefined/);
   });
 
-  it('coordinators still see every section on one screen, without tabs', async () => {
+  it('coordinators get Overview, Analytics and Activity tabs and the coordinator wallet view', async () => {
     mockRole = 'COORDINATOR';
     serve('wallet-me-client.json', 'wallet-movements-client.json');
     const r = await mount();
+    const overview = flat(r.root);
+    expect(overview).toContain('Analytics');
+    // The app's role name "Coordinator" used to fall through to the client view and read "Total spent".
+    expect(overview).toContain('Available balance');
+    expect(overview).not.toContain('Total spent');
+    await openTab(r, 'Analytics');
     const text = flat(r.root);
-    expect(text).not.toContain('Analytics');
-    expect(text).toContain('Showing');
+    expect(text).toContain('Available to withdraw');
+    expect(text).toContain('Current balance, not a period figure.');
+    expect(text).toContain('Where your balance comes from');
+    expect(text).not.toMatch(/Total spent|NaN|undefined/);
+    await openTab(r, 'Activity');
+    expect(flat(r.root)).toContain('Showing');
   });
 });
 
@@ -330,5 +356,43 @@ describe('client wallet sections', () => {
     serve('wallet-me-client.json', 'wallet-movements-client.json');
     const r = await mount();
     expect(flat(r.root)).toContain('Nothing to pay');
+  });
+});
+
+describe('photographer wallet inside someone else\x27s workspace', () => {
+  beforeEach(() => {
+    useWorkspace.setState({ hydrated: true, activeId: '3f2a9c1e-5b7d-4c8e-9a10-0b1c2d3e4f50', memberships: [], loading: false });
+  });
+  afterEach(() => {
+    useWorkspace.setState({ activeId: null });
+  });
+
+  it('shows the balance overview and analytics, but no withdraw button, no activity tab and no ledger request', async () => {
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const r = await mount();
+    await reveal(r);
+    const text = flat(r.root);
+    expect(text).toContain('$95.50');
+    expect(text).not.toContain('Withdraw funds');
+    expect(text).toContain('Withdrawals and the transaction history stay with the workspace owner');
+    const tabs = r.root.findAll((n) => n.props?.accessibilityRole === 'tab').flatMap((n) => n.findAllByType(Text).map((t) => t.props.children));
+    expect(tabs).toEqual(expect.arrayContaining(['Overview', 'Analytics']));
+    expect(tabs).not.toContain('Activity');
+    // The transaction history is never asked for, and its shortcuts are not offered.
+    expect(mockGetOk.mock.calls.some((c) => String(c[0]).startsWith('/wallet/me/movements'))).toBe(false);
+    expect(text).not.toContain('Transactions');
+    expect(text).not.toContain('Payment accounts');
+    expect(text).not.toContain('Recent activity');
+  });
+});
+
+describe('photographer wallet in the own workspace after a shared one', () => {
+  it('has the withdraw button, the activity tab and the ledger request', async () => {
+    useWorkspace.setState({ activeId: null });
+    serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
+    const r = await mount();
+    await reveal(r);
+    expect(flat(r.root)).toContain('Withdraw funds');
+    expect(mockGetOk.mock.calls.some((c) => String(c[0]).startsWith('/wallet/me/movements'))).toBe(true);
   });
 });

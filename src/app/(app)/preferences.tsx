@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   AppState,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
+import { ListRow } from '@/features/client/studio';
+import { Card, ErrorNotice, IconTile, SectionHeader, SkeletonCard } from '@/features/photographer/kit';
 import { useRole } from '@/features/auth/role';
 import {
   NOTIFICATION_TOGGLES,
@@ -27,7 +26,7 @@ import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
 import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
 import { useCurrency } from '@/store/currency';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function PreferencesScreen() {
   const { colors } = useTheme();
@@ -44,7 +43,7 @@ export default function PreferencesScreen() {
 
   const { isPhotographer, isCoordinator } = useRole();
   const base = preferencesBase({ isPhotographer, isCoordinator });
-  const { data, loading, error } = useAsync(useCallback(() => getPreferences(base), [base]));
+  const { data, loading, error, refresh } = useAsync(useCallback(() => getPreferences(base), [base]));
 
   // Local toggle state; default ON unless the backend says "false" (matches web).
   const [values, setValues] = useState<Record<string, boolean>>({});
@@ -77,78 +76,41 @@ export default function PreferencesScreen() {
 
   return (
     <Screen padded={false}>
-      <ScreenHeader
-        title={t('preferencesTitle')}
-        subtitle={t('preferencesSubtitle')}
-      />
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* App Preferences: Language & Currency */}
-        <View style={[styles.card, styles.langCard]}>
-          {/* Language Preference Row */}
-          <Pressable
-            style={styles.row}
+        <UserHeaderBand flush eyebrow="SETTINGS" title={t('preferencesTitle')} subtitle={t('preferencesSubtitle')} duplicatesHeader />
+
+        <SectionHeader flush title="App" />
+        <Card style={styles.card}>
+          <ListRow
+            icon="globe-outline"
+            title={t('languageSectionTitle')}
+            meta={t('languageSectionSubtitle')} metaLines={4}
+            trailing={<Text style={styles.valueText}>{currentLangInfo.nativeLabel}</Text>}
             onPress={() => setLangSheetVisible(true)}
-            accessibilityRole="button"
             accessibilityLabel={`${t('languageSectionTitle')}: currently ${currentLangInfo.nativeLabel}`}
-          >
-            <View style={styles.langIconWrap}>
-              <Ionicons name="globe-outline" size={20} color={colors.primary} />
-            </View>
-            <View style={styles.rowBody}>
-              <Text style={styles.rowLabel}>{t('languageSectionTitle')}</Text>
-              <Text style={styles.rowDesc}>{t('languageSectionSubtitle')}</Text>
-            </View>
-            <View style={styles.langBadge}>
-              <Image
-                source={{ uri: `https://flagcdn.com/w40/${currentLangInfo.flag}.png` }}
-                style={styles.badgeFlag}
-                contentFit="cover"
-              />
-              <Text style={styles.langBadgeText}>{currentLangInfo.nativeLabel}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
-
-          {/* Currency Preference Row */}
-          <Pressable
-            style={[styles.row, styles.rowBorder]}
+            divider
+          />
+          <ListRow
+            icon="cash-outline"
+            title={t('currencySectionTitle')}
+            meta={t('currencySectionSubtitle')} metaLines={4}
+            trailing={<Text style={styles.valueText}>{currency}</Text>}
             onPress={() => setCurrencySheetVisible(true)}
-            accessibilityRole="button"
             accessibilityLabel={`${t('currencySectionTitle')}: currently ${currency}`}
-          >
-            <View style={styles.langIconWrap}>
-              <Ionicons name="cash-outline" size={20} color={colors.primary} />
-            </View>
-            <View style={styles.rowBody}>
-              <Text style={styles.rowLabel}>{t('currencySectionTitle')}</Text>
-              <Text style={styles.rowDesc}>{t('currencySectionSubtitle')}</Text>
-            </View>
-            <View style={styles.langBadge}>
-              {currentCurrency?.flag ? (
-                <Image
-                  source={{ uri: `https://flagcdn.com/w40/${currentCurrency.flag}.png` }}
-                  style={styles.badgeFlag}
-                  contentFit="cover"
-                />
-              ) : null}
-              <Text style={styles.langBadgeText}>{currency}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
-        </View>
+          />
+        </Card>
 
+        <SectionHeader flush title="Alert types" />
         {loading && !data ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.primary} />
+          <View style={styles.group}>
+            <SkeletonCard height={72} />
+            <SkeletonCard height={72} />
           </View>
         ) : error && !data ? (
-          <View style={styles.center}>
-            <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
-            <Text style={styles.muted}>{error}</Text>
-          </View>
+          <ErrorNotice flush message={error} onRetry={refresh} />
         ) : (
           <>
-            <View style={styles.card}>
+            <Card style={styles.card}>
               {NOTIFICATION_TOGGLES.map((toggleItem, i) => {
                 let label = toggleItem.label;
                 let desc = toggleItem.description;
@@ -177,43 +139,34 @@ export default function PreferencesScreen() {
 
                 return (
                   <View key={toggleItem.key} style={[styles.row, i > 0 && styles.rowBorder]}>
+                    <IconTile icon={TOGGLE_ICONS[toggleItem.key] ?? 'notifications-outline'} tone="primary" size={36} />
                     <View style={styles.rowBody}>
-                      <Text style={styles.rowLabel}>{label}</Text>
-                      <Text style={styles.rowDesc}>{desc}</Text>
+                      <Text style={styles.rowLabel} maxFontSizeMultiplier={1.6}>{label}</Text>
+                      <Text style={styles.rowDesc} maxFontSizeMultiplier={1.6}>{desc}</Text>
                     </View>
                     <Switch
                       value={values[toggleItem.key] ?? true}
                       onValueChange={(v) => onToggle(toggleItem.key, v)}
+                      accessibilityLabel={label}
                       trackColor={{ false: colors.border, true: colors.primary }}
                       thumbColor={colors.surface}
                     />
                   </View>
                 );
               })}
-            </View>
+            </Card>
 
             {Platform.OS === 'android' && isPhotographer && bypassDnd !== null ? (
-              <Pressable
-                style={[styles.card, styles.dndCard]}
-                onPress={() => void openRingingChannelSettings()}
-                accessibilityRole="button"
-                accessibilityLabel="Open Do Not Disturb settings for booking alerts"
-              >
-                <View style={styles.row}>
-                  <Ionicons
-                    name={bypassDnd ? 'notifications' : 'notifications-off-outline'}
-                    size={22}
-                    color={bypassDnd ? colors.primary : colors.textMuted}
-                  />
-                  <View style={styles.rowBody}>
-                    <Text style={styles.rowLabel}>{t('dndTitle')}</Text>
-                    <Text style={styles.rowDesc}>
-                      {bypassDnd ? t('dndOnDesc') : t('dndOffDesc')}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                </View>
-              </Pressable>
+              <Card style={[styles.card, styles.dndCard]}>
+                <ListRow
+                  icon={bypassDnd ? 'notifications' : 'notifications-off-outline'}
+                  tone={bypassDnd ? 'success' : 'warning'}
+                  title={t('dndTitle')}
+                  meta={bypassDnd ? t('dndOnDesc') : t('dndOffDesc')}
+                  onPress={() => void openRingingChannelSettings()}
+                  accessibilityLabel="Open Do Not Disturb settings for booking alerts"
+                />
+              </Card>
             ) : null}
           </>
         )}
@@ -232,53 +185,23 @@ export default function PreferencesScreen() {
   );
 }
 
+const TOGGLE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  email_notifications: 'mail-outline',
+  push_notifications: 'phone-portrait-outline',
+  booking_notifications: 'calendar-outline',
+  payment_notifications: 'card-outline',
+  album_notifications: 'images-outline',
+  gift_notifications: 'gift-outline',
+  stream_fee_notifications: 'videocam-outline',
+};
+
 const useStyles = makeStyles((c) => ({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  muted: { color: c.textMuted, fontSize: fontSize.sm, textAlign: 'center' },
-  scroll: { padding: spacing.xl },
-  card: {
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    paddingHorizontal: spacing.lg,
-  },
-  langCard: {
-    marginBottom: spacing.lg,
-  },
-  langIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.full,
-    backgroundColor: c.background,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  langBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.full,
-    backgroundColor: c.background,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-  },
-  badgeFlag: {
-    width: 16,
-    height: 12,
-    borderRadius: 2,
-  },
-  langBadgeText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: c.primary,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.lg },
-  dndCard: { marginTop: spacing.lg },
+  group: { gap: spacing.sm },
+  scroll: { padding: spacing.lg, gap: spacing.lg },
+  card: { marginHorizontal: 0, padding: 0 },
+  valueText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.link },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, minHeight: 64 },
+  dndCard: { marginTop: spacing.sm },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   rowBody: { flex: 1, gap: 2 },
   rowLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },

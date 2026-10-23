@@ -35,7 +35,7 @@
  * The public list includes enough stream metadata to render the same feed
  * for signed-in clients and guests without an additional Cloudflare request.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,6 +74,8 @@ import { canShowDigitalPrice } from '@/features/payments/policy';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 
 
 const PAGE_SIZE = 8;
@@ -298,6 +300,23 @@ export default function ExploreEventsScreen() {
       return next;
     });
   }, []);
+
+  const openEvent = useCallback((id: string) => router.push(`/(public)/event/${id}` as never), [router]);
+  const renderEvent = useCallback(
+    ({ item }: { item: PublicEvent }) => (
+      <View style={styles.cardWrap}>
+        <PosterCard
+          event={item}
+          isLive={isEventLive(item, liveStreamIds)}
+          isEnded={isEventEnded(item)}
+          isSaved={saved.has(item.id)}
+          onToggleSave={toggleSaved}
+          onPress={openEvent}
+        />
+      </View>
+    ),
+    [liveStreamIds, saved, toggleSaved, openEvent, styles.cardWrap],
+  );
 
   // Debounce free-text search to mirror the web's form-submit cadence.
   useEffect(() => {
@@ -857,7 +876,7 @@ export default function ExploreEventsScreen() {
               }}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
-              placeholder={tr('Search events, venues, categories…')}
+              placeholder="Search events"
               placeholderTextColor={colors.textMuted}
               style={styles.searchInput}
               returnKeyType="search"
@@ -930,7 +949,7 @@ export default function ExploreEventsScreen() {
                 </View>
                 <View style={styles.suggestionTextCol}>
                   <View style={styles.suggestionTitleRow}>
-                    <Text style={styles.suggestionTitle} numberOfLines={1}>
+                    <Text style={styles.suggestionTitle} numberOfLines={2}>
                       {item.title}
                     </Text>
                     {item.badge ? (
@@ -940,8 +959,8 @@ export default function ExploreEventsScreen() {
                     ) : null}
                   </View>
                   {item.subtitle ? (
-                    <Text style={styles.suggestionSubtitle} numberOfLines={1}>
-                      {tr(item.subtitle)}
+                    <Text style={styles.suggestionSubtitle} numberOfLines={2}>
+                      {item.subtitle}
                     </Text>
                   ) : null}
                 </View>
@@ -1080,22 +1099,15 @@ export default function ExploreEventsScreen() {
         keyExtractor={(e) => e.id}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        renderItem={({ item }) => (
-          <View style={styles.cardWrap}>
-            <PosterCard
-              event={item}
-              isLive={isEventLive(item, liveStreamIds)}
-              isEnded={isEventEnded(item)}
-              isSaved={saved.has(item.id)}
-              onToggleSave={() => toggleSaved(item.id)}
-              onPress={() => router.push(`/(public)/event/${item.id}` as never)}
-            />
-          </View>
-        )}
+        renderItem={renderEvent}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={header}
         ListFooterComponent={footer}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={ListGap}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
@@ -1144,13 +1156,12 @@ export default function ExploreEventsScreen() {
         animationType="fade"
         onRequestClose={() => setSortSheetOpen(false)}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
-          <Pressable
+        <GlassScrim style={styles.sheetBackdrop} onPress={() => setSortSheetOpen(false)}>
+          <GlassSheetHost
             style={[
               styles.sortSheet,
               { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) },
             ]}
-            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.sheetHandle} />
             <View style={styles.sortSheetHeader}>
@@ -1211,8 +1222,8 @@ export default function ExploreEventsScreen() {
                 );
               })}
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </Screen>
   );
@@ -1220,7 +1231,7 @@ export default function ExploreEventsScreen() {
 
 // ────── Card (web `ev-card` 2386-2486) ─────────────────────────────────────
 
-function PosterCard({
+const PosterCard = memo(function PosterCard({
   event,
   isLive,
   isEnded,
@@ -1232,8 +1243,8 @@ function PosterCard({
   isLive: boolean;
   isEnded: boolean;
   isSaved: boolean;
-  onPress: () => void;
-  onToggleSave: () => void;
+  onPress: (id: string) => void;
+  onToggleSave: (id: string) => void;
 }) {
   const { colors } = useTheme();
   const { tr } = useSharedT();
@@ -1245,7 +1256,7 @@ function PosterCard({
 
   return (
     <LiveTwinkle active={isLive} radius={radii.lg} style={styles.cardTwinkle}>
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
+    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={() => onPress(event.id)}>
       <View style={styles.cardMedia}>
         <Image
           source={event.eventPhoto ? { uri: event.eventPhoto } : EVENT_COVER_PLACEHOLDER}
@@ -1280,7 +1291,7 @@ function PosterCard({
             style={[styles.bookmark, isSaved && styles.bookmarkSaved]}
             onPress={(e) => {
               e.stopPropagation?.();
-              onToggleSave();
+              onToggleSave(event.id);
             }}
             hitSlop={6}
           >
@@ -1297,7 +1308,7 @@ function PosterCard({
         {event.location ? (
           <View style={styles.cardRow}>
             <Ionicons name="location-outline" size={13} color={colors.textMuted} />
-            <Text style={styles.cardVenue} numberOfLines={1}>
+            <Text style={styles.cardVenue} numberOfLines={2}>
               {event.location}
             </Text>
           </View>
@@ -1314,7 +1325,7 @@ function PosterCard({
                 <Text style={styles.orgInitial}>{org.initial}</Text>
               )}
             </View>
-            <Text style={styles.orgName} numberOfLines={1}>
+            <Text style={styles.orgName} numberOfLines={2}>
               {org.label}
             </Text>
           </View>
@@ -1334,7 +1345,7 @@ function PosterCard({
               style={({ pressed }) => [styles.viewCardBtn, pressed && { opacity: 0.85 }]}
               onPress={(e) => {
                 e.stopPropagation?.();
-                onPress();
+                onPress(event.id);
               }}
               accessibilityRole="button"
               accessibilityLabel={`View details for ${event.title}`}
@@ -1366,7 +1377,7 @@ function PosterCard({
               label="Watch Live"
               size="sm"
               icon="play"
-              onPress={onPress}
+              onPress={() => onPress(event.id)}
               accessibilityLabel={`Watch ${event.title} live`}
             />
           </View>
@@ -1376,7 +1387,7 @@ function PosterCard({
               style={({ pressed }) => [styles.viewCardFullBtn, pressed && { opacity: 0.85 }]}
               onPress={(e) => {
                 e.stopPropagation?.();
-                onPress();
+                onPress(event.id);
               }}
               accessibilityRole="button"
               accessibilityLabel={`View details for ${event.title}`}
@@ -1392,7 +1403,7 @@ function PosterCard({
     </Pressable>
     </LiveTwinkle>
   );
-}
+});
 
 // ────── Filter chip dropdown (Bottom Sheet Modal) ──────────────────────────
 
@@ -1438,10 +1449,9 @@ function FilterChip({
         animationType="slide"
         onRequestClose={() => setOpen(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)}>
-          <Pressable
+        <GlassScrim style={styles.modalOverlay} onPress={() => setOpen(false)}>
+          <GlassSheetHost
             style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}
-            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
@@ -1498,8 +1508,8 @@ function FilterChip({
                 );
               }}
             />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </>
   );
@@ -1507,7 +1517,7 @@ function FilterChip({
 
 const useStyles = makeStyles((c, e) => ({
   // Containers
-  listContent: { paddingBottom: 120, flexGrow: 1 },
+  listContent: { flexGrow: 1 },
   columnWrapper: { paddingHorizontal: spacing.xl, gap: spacing.md },
   cardWrap: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
@@ -1834,13 +1844,9 @@ const useStyles = makeStyles((c, e) => ({
   // Filter Modal Sheet
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingTop: 12,
     paddingHorizontal: spacing.xl,
     maxHeight: '75%',
@@ -1876,7 +1882,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2124,7 +2130,7 @@ const useStyles = makeStyles((c, e) => ({
   paginationFooter: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xxl + 40,
+    paddingBottom: spacing.xl,
   },
   pagerBar: {
     flexDirection: 'row',
@@ -2176,13 +2182,9 @@ const useStyles = makeStyles((c, e) => ({
   // Sort sheet
   sheetBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     justifyContent: 'flex-end',
   },
   sortSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
@@ -2231,7 +2233,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 36,
     height: 36,
     borderRadius: radii.sm,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2263,3 +2265,8 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: c.borderSoft,
   },
 }));
+
+/** Module level, so the list keeps one separator type and does not remount every gap on each render. */
+function ListGap() {
+  return <View style={{ height: spacing.md }} />;
+}

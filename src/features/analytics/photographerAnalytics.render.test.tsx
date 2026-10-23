@@ -4,6 +4,7 @@ import { Text } from 'react-native';
 
 import AnalyticsScreen from '@/app/(app)/analytics';
 import { useCurrency, DEFAULT_CURRENCIES } from '@/store/currency';
+import { photographerAnalytics } from '@/test/analyticsPayloads';
 
 /**
  * Rendered photographer analytics screen over a faked transport: a refused
@@ -82,24 +83,34 @@ describe('photographer analytics screen as rendered', () => {
   });
 
   it('no reviews is "No reviews yet", never an invented 5.0', async () => {
-    serve(ok({ totalEarnings: 100, pendingPayments: 10, totalClients: 2, bonuses: 0, averageRating: 0 }));
+    serve(ok(photographerAnalytics({ totalEarnings: 100, pendingPayments: 10, totalClients: 2, bonuses: 0, averageRating: 0 })));
     const text = flat((await mount()).root);
     expect(text).toContain('No reviews yet');
     expect(text).not.toContain('5.0/5');
   });
 
   it('a real rating is shown as is', async () => {
-    serve(ok({ totalEarnings: 100, pendingPayments: 10, totalClients: 2, bonuses: 0, averageRating: 4.6 }));
+    serve(ok(photographerAnalytics({ totalEarnings: 100, pendingPayments: 10, totalClients: 2, bonuses: 0, averageRating: 4.6 })));
     expect(flat((await mount()).root)).toContain('4.6/5');
   });
 
   it('does not present lifetime totals as period figures under the period tabs', async () => {
-    serve(ok({ totalEarnings: 4820, pendingPayments: 300, totalClients: 11, bonuses: 0, averageRating: 4.6 }));
+    serve(ok(photographerAnalytics({ totalEarnings: 4820, pendingPayments: 300, totalClients: 11, bonuses: 0, averageRating: 4.6 })));
     const text = flat((await mount()).root);
     expect(text).toContain('Lifetime earnings');
     expect(text).toContain('Pending release');
     expect(text).toContain('Clients served');
     expect(text).toContain('Totals are all time.');
     expect(text).not.toContain('Total Earnings');
+  });
+
+  it('stat card titles may wrap: "Lifetime earnings" is not cut to "Lifetime ea..." at large text', async () => {
+    serve(ok(photographerAnalytics({ totalEarnings: 4820, pendingPayments: 300, totalClients: 11, bonuses: 0, averageRating: 4.6 })));
+    const r = await mount();
+    for (const title of ['Lifetime earnings', 'Pending release', 'Clients served', 'Lifetime bonuses']) {
+      const t = r.root.findAllByType(Text).find((n) => n.props.children === title);
+      expect(t).toBeDefined();
+      expect(t!.props.numberOfLines).toBeGreaterThanOrEqual(2);
+    }
   });
 });

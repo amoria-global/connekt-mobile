@@ -22,6 +22,7 @@ import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { formatPrice } from '@/utils/format';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const TIERS: RecommendationTier[] = ['HIGH', 'MEDIUM', 'LOW'];
 
@@ -208,7 +209,7 @@ export default function EventCandidatesScreen() {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.eyebrow, { color: MODE_META.HYBRID.color }]}>{t('b3_cand_eyebrow')}</Text>
-          <Text style={styles.title} numberOfLines={1} accessibilityRole="header">{data?.eventTitle || t('b3_cand_your_event')}</Text>
+          <Text style={styles.title} numberOfLines={2} accessibilityRole="header">{data?.eventTitle || t('b3_cand_your_event')}</Text>
         </View>
       </View>
 
@@ -243,8 +244,8 @@ export default function EventCandidatesScreen() {
       </ScrollView>
 
       <Modal visible={!!choosing} transparent animationType="fade" onRequestClose={() => !submitting && setChoosing(null)}>
-        <Pressable style={styles.scrim} onPress={() => !submitting && setChoosing(null)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={() => {}}>
+        <GlassScrim style={styles.scrim} onPress={() => !submitting && setChoosing(null)}>
+          <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
             <Text style={styles.sheetTitle}>{t('b3_cand_book_name', { name: choosing?.name ?? '' })}</Text>
             <Text style={styles.body}>{t('b3_cand_book_body')}</Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -263,8 +264,8 @@ export default function EventCandidatesScreen() {
                 {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('b3_cand_book_and_pay_pct', { pct: escrow })}</Text>}
               </Pressable>
             </View>
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {repostOpen && data ? (
@@ -282,7 +283,7 @@ export default function EventCandidatesScreen() {
           handoff={{ type: 'BOOKING_DECLARATION', declarationId: payHandoff.declarationId }}
           title={t('b3_cand_first_payment')}
           subtitle={payHandoff.name}
-          amountLabel={formatPrice(payHandoff.depositAmount ?? 0, payHandoff.currency)}
+          amountLabel={typeof payHandoff.depositAmount === 'number' && Number.isFinite(payHandoff.depositAmount) ? formatPrice(payHandoff.depositAmount, payHandoff.currency) : undefined}
           onSettled={() => {
             setCheckoutOpen(false);
             Alert.alert(t('b3_cand_booked_alert_title'), t('b3_cand_booked_alert_msg', { name: payHandoff.name }), [
@@ -315,8 +316,8 @@ const useStyles = makeStyles((c) => ({
   warn: { flexDirection: 'row', gap: spacing.sm, padding: spacing.md, borderRadius: radii.md, backgroundColor: c.warningBg },
   choice: { flexDirection: 'row', gap: spacing.md, padding: spacing.md, borderRadius: radii.lg, borderWidth: 2, alignItems: 'center' },
   choiceTitle: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, color: c.text },
-  scrim: { flex: 1, backgroundColor: c.scrim, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.surface, borderTopLeftRadius: radii['2xl'], borderTopRightRadius: radii['2xl'], padding: spacing.lg, gap: spacing.md },
+  scrim: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { padding: spacing.lg, gap: spacing.md },
   sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
   escrow: { flex: 1, alignItems: 'center', paddingVertical: spacing.md, borderRadius: radii.md, borderWidth: 2, borderColor: c.border },
   escrowPct: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },

@@ -30,7 +30,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { listPhotographers, type Photographer } from '@/features/photographers/api';
+import { listPhotographers, listSpecialties, type Photographer } from '@/features/photographers/api';
 import { listPublicEventsDetailed } from '@/features/events/api';
 import { isEventLive, type PublicEvent } from '@/features/events/types';
 import { storage } from '@/services/storage';
@@ -38,22 +38,24 @@ import { formatDate } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { GlassSurface, glassTile } from '@/components/ui/GlassCard';
+import { glassField } from '@/components/ui/GlassModal';
 
 const RECENT_SEARCHES_KEY = 'connekt.global_search_recents';
 
-const POPULAR_STYLES = [
-  { name: 'Live Streams', icon: 'videocam' as const, color: '#EF4444' },
-  { name: 'Weddings', icon: 'heart' as const, color: '#F20C8F' },
-  { name: 'Portraits', icon: 'person' as const, color: '#3B82F6' },
-  { name: 'Events', icon: 'calendar' as const, color: '#0EA5E9' },
-  { name: 'Birthdays', icon: 'gift' as const, color: '#F59E0B' },
-  { name: 'Studio', icon: 'camera' as const, color: '#10B981' },
-  { name: 'Fashion', icon: 'shirt-outline' as const, color: '#8B5CF6' },
-  { name: 'Graduation', icon: 'school-outline' as const, color: '#EC4899' },
-  { name: 'Family', icon: 'people-outline' as const, color: '#14B8A6' },
-  { name: 'Corporate', icon: 'briefcase-outline' as const, color: '#64748B' },
+/** Decorative only: each category gets the next of these, by position. The names come from the backend. */
+const STYLE_LOOKS: { icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
+  { icon: 'heart', color: '#F20C8F' },
+  { icon: 'person', color: '#3B82F6' },
+  { icon: 'calendar', color: '#0EA5E9' },
+  { icon: 'gift', color: '#F59E0B' },
+  { icon: 'camera', color: '#10B981' },
+  { icon: 'shirt-outline', color: '#8B5CF6' },
+  { icon: 'school-outline', color: '#EC4899' },
+  { icon: 'people-outline', color: '#14B8A6' },
+  { icon: 'briefcase-outline', color: '#64748B' },
 ];
-
+const LIVE_STYLE = { name: 'Live Streams', icon: 'videocam' as const, color: '#EF4444' };
 type SearchScope = 'all' | 'photographers' | 'events' | 'styles';
 
 interface GlobalSearchModalProps {
@@ -77,6 +79,12 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
   const [photographers, setPhotographers] = useState<Photographer[]>([]);
   const [eventResults, setEventResults] = useState<PublicEvent[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [specialtyNames, setSpecialtyNames] = useState<string[]>([]);
+
+  // A failed read is not "no results": either source failing shows its own notice and a retry.
+  const [directoryFailed, setDirectoryFailed] = useState(false);
+  const [eventsFailed, setEventsFailed] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
 
   const inputRef = useRef<TextInput>(null);
 
@@ -85,9 +93,15 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
     if (!visible) return;
 
     // Fetch photographer directory once for instant fuzzy searching
+    setDirectoryFailed(false);
     listPhotographers()
       .then((list) => setPhotographers(list))
-      .catch(() => {});
+      .catch(() => setDirectoryFailed(true));
+
+    // The categories offered under "Explore by Category" are the platform's own; if they cannot be read, only Live Streams is offered.
+    listSpecialties()
+      .then((names) => setSpecialtyNames(names))
+      .catch(() => setSpecialtyNames([]));
 
     // Load recent searches
     storage
@@ -106,7 +120,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
     if (initialQuery) {
       setQuery(initialQuery);
     }
-  }, [visible, initialQuery]);
+  }, [visible, initialQuery, retryTick]);
 
   const saveRecentSearch = useCallback(
     async (term: string) => {
@@ -132,24 +146,34 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
     const term = query.trim();
     if (!term) {
       setEventResults([]);
+      setEventsFailed(false);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    // Only the newest term may write: a slow answer for "wed" must not replace the results for "wedding".
+    let current = true;
     const timer = setTimeout(async () => {
       try {
         const res = await listPublicEventsDetailed({ search: term, size: 8 });
+        if (!current) return;
         setEventResults(res.content || []);
+        setEventsFailed(false);
       } catch {
+        if (!current) return;
         setEventResults([]);
+        setEventsFailed(true);
       } finally {
-        setLoading(false);
+        if (current) setLoading(false);
       }
     }, 280);
 
-    return () => clearTimeout(timer);
-  }, [query]);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [query, retryTick]);
 
   // Filter photographers in memory based on query
   const filteredPhotographers = useMemo(() => {
@@ -165,12 +189,17 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
       .slice(0, 8);
   }, [photographers, query]);
 
+  const popularStyles = useMemo(
+    () => [LIVE_STYLE, ...specialtyNames.map((name, i) => ({ name, ...STYLE_LOOKS[i % STYLE_LOOKS.length] }))],
+    [specialtyNames],
+  );
+
   // Filter styles/categories
   const matchingStyles = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return [];
-    return POPULAR_STYLES.filter((s) => s.name.toLowerCase().includes(term));
-  }, [query]);
+    return popularStyles.filter((s) => s.name.toLowerCase().includes(term));
+  }, [query, popularStyles]);
 
   // Check for active live streams
   const liveEvents = useMemo(() => {
@@ -211,6 +240,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
       statusBarTranslucent
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
+        <GlassSurface detached strength="thick" />
         {/* Top Search Bar */}
         <View style={styles.searchBarRow}>
           <Pressable
@@ -309,7 +339,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{tr('Explore by Category')}</Text>
                 <View style={styles.styleGrid}>
-                  {POPULAR_STYLES.map((st) => (
+                  {popularStyles.map((st) => (
                     <Pressable
                       key={st.name}
                       style={({ pressed }) => [styles.styleCard, pressed && styles.pressed]}
@@ -330,6 +360,20 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loadingText}>{tr('Searching platform...')}</Text>
             </View>
+          ) : !hasResults && (eventsFailed || directoryFailed) ? (
+            <View style={styles.emptyWrap}>
+              <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>{tr('Search is unavailable right now')}</Text>
+              <Text style={styles.emptySub}>{tr('Check your connection and try again.')}</Text>
+              <Pressable
+                onPress={() => setRetryTick((n) => n + 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Try again"
+                style={styles.retryBtn}
+              >
+                <Text style={styles.retryText} maxFontSizeMultiplier={1.6}>Try again</Text>
+              </Pressable>
+            </View>
           ) : !hasResults ? (
             <View style={styles.emptyWrap}>
               <Ionicons name="search-outline" size={44} color={colors.textMuted} />
@@ -340,6 +384,19 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
             </View>
           ) : (
             <View style={styles.resultsWrap}>
+              {eventsFailed || directoryFailed ? (
+                <Pressable
+                  onPress={() => setRetryTick((n) => n + 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try again"
+                  style={styles.failBanner}
+                >
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.failBannerText} maxFontSizeMultiplier={1.6}>
+                    {tr('Some results could not be loaded. Tap to try again.')}
+                  </Text>
+                </Pressable>
+              ) : null}
               {/* Live Broadcasts section (Top Priority) */}
               {(scope === 'all' || scope === 'events') && liveEvents.length > 0 && (
                 <View style={styles.section}>
@@ -359,10 +416,10 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                         contentFit="cover"
                       />
                       <View style={styles.liveCardInfo}>
-                        <Text style={styles.liveCardTitle} numberOfLines={1}>
+                        <Text style={styles.liveCardTitle} numberOfLines={2}>
                           {ev.title}
                         </Text>
-                        <Text style={styles.liveCardSub} numberOfLines={1}>
+                        <Text style={styles.liveCardSub} numberOfLines={2}>
                           {ev.photographerName || ev.eventOrganizer || tr('Live Stream')}
                         </Text>
                       </View>
@@ -397,12 +454,12 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                         />
                         <View style={styles.resultInfo}>
                           <View style={styles.rowInline}>
-                            <Text style={styles.resultTitle} numberOfLines={1}>
+                            <Text style={styles.resultTitle} numberOfLines={2}>
                               {p.name}
                             </Text>
                             <Ionicons name="checkmark-circle" size={14} color="#3B82F6" />
                           </View>
-                          <Text style={styles.resultSub} numberOfLines={1}>
+                          <Text style={styles.resultSub} numberOfLines={2}>
                             {[p.category, p.location].filter(Boolean).join(' · ')}
                           </Text>
                         </View>
@@ -444,10 +501,10 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                           contentFit="cover"
                         />
                         <View style={styles.resultInfo}>
-                          <Text style={styles.resultTitle} numberOfLines={1}>
+                          <Text style={styles.resultTitle} numberOfLines={2}>
                             {ev.title}
                           </Text>
-                          <Text style={styles.resultSub} numberOfLines={1}>
+                          <Text style={styles.resultSub} numberOfLines={2}>
                             {[
                               isLive ? 'LIVE NOW' : ev.eventDate ? formatDate(ev.eventDate) : null,
                               ev.location,
@@ -501,7 +558,6 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
 const useStyles = makeStyles((c, e) => ({
   container: {
     flex: 1,
-    backgroundColor: c.background,
   },
   pressed: {
     opacity: 0.85,
@@ -516,7 +572,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.borderSoft,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   backBtn: {
     width: 40,
@@ -530,9 +586,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: c.background,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
+    ...glassField(c),
     borderRadius: radii.full,
     paddingHorizontal: spacing.md,
     height: 44,
@@ -555,13 +609,13 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.borderSoft,
-    backgroundColor: c.surface,
+    ...glassTile(c),
   },
   scopeChip: {
     paddingHorizontal: 12,
     paddingVertical: 5.5,
     borderRadius: radii.full,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   scopeChipActive: {
     backgroundColor: c.primary,
@@ -613,7 +667,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     paddingHorizontal: 12,
@@ -638,7 +692,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     padding: spacing.md,
@@ -666,7 +720,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     borderRadius: radii.xl,
@@ -677,13 +731,13 @@ const useStyles = makeStyles((c, e) => ({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   eventThumb: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   resultInfo: {
     flex: 1,
@@ -713,7 +767,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.full,
@@ -752,7 +806,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.3)',
     borderRadius: radii.xl,
@@ -763,7 +817,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 46,
     height: 46,
     borderRadius: 12,
-    backgroundColor: c.surfaceMuted,
+    ...glassTile(c),
   },
   liveCardInfo: {
     flex: 1,
@@ -810,7 +864,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: c.surface,
+    ...glassTile(c),
     borderWidth: 1,
     borderColor: c.borderSoft,
     paddingHorizontal: 12,
@@ -842,6 +896,28 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: spacing.xl,
     gap: spacing.sm,
   },
+  failBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 8,
+    borderRadius: radii.md,
+    ...glassTile(c),
+  },
+  failBannerText: { flex: 1, color: c.text, fontSize: 13, lineHeight: 18 },
+  retryBtn: {
+    marginTop: 14,
+    minHeight: 44,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.primary,
+  },
+  retryText: { color: c.textOnPrimary, fontSize: 14, fontWeight: '800' },
   emptyTitle: {
     fontFamily: fonts.bold,
     fontSize: fontSize.sm,

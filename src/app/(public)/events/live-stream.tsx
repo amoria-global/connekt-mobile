@@ -62,7 +62,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { pickShortVideo } from '@/features/streams/pickShortVideo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { HlsPlayer } from '@/features/streams/HlsPlayer';
 import { StreamWatermark } from '@/features/streams/StreamWatermark';
@@ -119,15 +119,20 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { reportContent, reportPublicChatMessage } from '@/features/moderation/api';
 import { useModeration } from '@/features/moderation/useModeration';
 import { isApiError, useAuth } from '@/store/auth';
+import { accountIdentity } from '@/features/events/guestIdentity';
+import { registerAccountViewer } from '@/features/streams/accountViewer';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette } from '@/theme';
+import { EndedEventCard } from '@/features/streams/viewer/components/EndedEventCard';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
-import { GlassLayer, glassClear } from '@/components/ui/GlassCard';
+import { GlassLayer, glassClear, glassTile } from '@/components/ui/GlassCard';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
+import { useStackClearance } from '@/hooks/useScrollClearance';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /** The side-rail toggles' "on" state: a white wash over the glass. */
@@ -796,6 +801,7 @@ function LiveChatPanel({
 export default function PublicLiveStreamScreen() {
   useLanguage();
   const styles = useStyles();
+  const clearance = useStackClearance();
   const { colors } = useTheme();
   const {
     id,
@@ -847,16 +853,22 @@ export default function PublicLiveStreamScreen() {
   const [tokenError, setTokenError] = useState<string | null>(null);
 
   // ── Viewer-info modal (web "Verify your access") ─────────────────────────
+  // A signed-in account already has a name and an email: it is never asked for them again.
+  const account = accountIdentity(useAuth((a) => a.user));
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoName, setInfoName] = useState('');
   const [infoEmail, setInfoEmail] = useState('');
   const [infoPhone, setInfoPhone] = useState<PhoneValue | null>(null);
   const [infoBusy, setInfoBusy] = useState(false);
+  // A signed-in account's own details stand in until the person types something else.
+  const accountName = infoName || account?.name || '';
+  const accountEmail = infoEmail || account?.email || '';
   const [infoError, setInfoError] = useState<string | null>(null);
 
   // Prefill name/email from a previously-saved viewer profile so a
   // returning free viewer doesn't retype them.
   useEffect(() => {
+    if (account) return; // the form fields default to the account (see accountName / accountEmail below)
     storage
       .get('viewerProfile')
       .then((raw) => {
@@ -870,7 +882,7 @@ export default function PublicLiveStreamScreen() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [account]);
 
   // ── Device-conflict modal ────────────────────────────────────────────────
   const [conflictOpen, setConflictOpen] = useState(false);
@@ -1403,7 +1415,7 @@ export default function PublicLiveStreamScreen() {
   };
 
   const onSubmitViewerInfo = async () => {
-    if (!infoName.trim() || !infoEmail.includes('@')) {
+    if (!accountName.trim() || !accountEmail.includes('@')) {
       setInfoError(
         status.isPaid ? 'Enter the name and email you used at checkout.' : 'Enter your name and email to join.',
       );
@@ -1420,8 +1432,8 @@ export default function PublicLiveStreamScreen() {
     try {
       const fingerprint = await getDeviceId();
       const reg = await registerAnonymousViewer(id, {
-        name: infoName.trim(),
-        email: infoEmail.trim(),
+        name: accountName.trim(),
+        email: accountEmail.trim(),
         // Free events don't collect a phone. The backend now allows an empty
         // phone, but until it's redeployed the register endpoint still
         // @NotBlank-rejects it — so send a harmless placeholder (it's only
@@ -1444,10 +1456,10 @@ export default function PublicLiveStreamScreen() {
       await storage.set(`anonymousViewer_${id}`, reg.viewerId).catch(() => {});
       // Remember the viewer so we can prefill the form next time.
       await storage
-        .set('viewerProfile', JSON.stringify({ name: infoName.trim(), email: infoEmail.trim() }))
+        .set('viewerProfile', JSON.stringify({ name: accountName.trim(), email: accountEmail.trim() }))
         .catch(() => {});
       setViewerId(reg.viewerId);
-      setViewerName(infoName.trim());
+      setViewerName(accountName.trim());
       if (reg.hlsManifestUrl) {
         setManifestUrl(reg.hlsManifestUrl);
         setAccessGranted(true);
@@ -1475,29 +1487,46 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
+  /**
+   * The viewer id comments and video messages are sent under. A signed-in account on a FREE event is registered as a viewer
+   * silently with its own name and email, so it never sees the form (it used to, every time). Everyone else, and any
+   * PAID event (access is matched to a purchase), still gets the form, prefilled from the account when there is one.
+   */
+  const ensureViewerId = async (): Promise<string | undefined> => {
+    if (viewerId) return viewerId;
+    const registered = await registerAccountViewer(id, account, { paid: status.isPaid });
+    if (registered && account) {
+      setViewerId(registered);
+      setViewerName(account.name);
+    }
+    return registered;
+  };
+
   const onSendChat = async () => {
     const msg = chatDraft.trim();
     if (!msg) return;
-    if (!viewerId) {
+    setChatSending(true);
+    setChatError(null);
+    const vId = await ensureViewerId();
+    if (!vId) {
+      setChatSending(false);
       setChatError(status.isPaid ? 'Verify your access to chat.' : 'Add your name and email to comment.');
       setInfoModalOpen(true);
       return;
     }
-    setChatSending(true);
-    setChatError(null);
     try {
       const fingerprint = await getDeviceId();
       try {
-        await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+        await sendPublicStreamChat(id, { viewerId: vId, deviceFingerprint: fingerprint, message: msg });
       } catch (e) {
         // Backend rejects when the stored fingerprint doesn't match the one
         // registered for this viewerId (e.g. after reinstall / storage wipe).
         // Silently attempt to re-bind this device then retry once.
         const msg2 = isApiError(e) ? e.message.toLowerCase() : '';
         if (msg2.includes('fingerprint') || msg2.includes('mismatch') || msg2.includes('device')) {
-          const retry = await retryAnonymousDeviceAccess(id, viewerId, fingerprint);
+          const retry = await retryAnonymousDeviceAccess(id, vId, fingerprint);
           if (retry.ok) {
-            await sendPublicStreamChat(id, { viewerId, deviceFingerprint: fingerprint, message: msg });
+            await sendPublicStreamChat(id, { viewerId: vId, deviceFingerprint: fingerprint, message: msg });
           } else {
             throw e; // other device still active — surface the real error
           }
@@ -1529,10 +1558,11 @@ export default function PublicLiveStreamScreen() {
     }
   };
 
-  // Record (or pick) a ≤60s clip and post it as a video message — the
-  // mobile equivalent of the web's "Send 1-min video message" button.
+  // Record (or pick) a clip of at most one minute and post it as a video message, the mobile form of the web's
+  // "Send 1-min video message". A signed-in account is never asked for its name and email (see ensureViewerId).
   const onSendVideoWish = async () => {
-    if (!viewerId) {
+    const vId = await ensureViewerId();
+    if (!vId) {
       setChatError(
         status.isPaid
           ? 'Verify your access to send a video message.'
@@ -1543,51 +1573,17 @@ export default function PublicLiveStreamScreen() {
     }
     setChatError(null);
     try {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      let result: ImagePicker.ImagePickerResult;
-      if (perm.granted) {
-        result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ['videos'],
-          videoMaxDuration: 60,
-          quality: 0.7,
-        });
-        // User cancelled the camera — offer the library as a fallback so
-        // they can still send a clip they already recorded.
-        if (result.canceled) {
-          result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['videos'],
-            videoMaxDuration: 60,
-            quality: 0.7,
-          });
-        }
-      } else {
-        result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['videos'],
-          videoMaxDuration: 60,
-          quality: 0.7,
-        });
-      }
-      if (result.canceled || !result.assets?.length) return;
-      const asset = result.assets[0];
-
+      const video = await pickShortVideo();
+      if (!video) return;
       setVideoSending(true);
       const fingerprint = await getDeviceId();
-      const videoPayload = {
-        viewerId,
-        deviceFingerprint: fingerprint,
-        video: {
-          uri: asset.uri,
-          name: asset.fileName ?? `wish-${Date.now()}.mp4`,
-          mimeType: asset.mimeType ?? 'video/mp4',
-        },
-        content: chatDraft.trim() || undefined,
-      };
+      const videoPayload = { viewerId: vId, deviceFingerprint: fingerprint, video, content: chatDraft.trim() || undefined };
       try {
         await sendPublicVideoChat(id, videoPayload);
       } catch (e) {
         const msg2 = isApiError(e) ? e.message.toLowerCase() : '';
         if (msg2.includes('fingerprint') || msg2.includes('mismatch') || msg2.includes('device')) {
-          const retry = await retryAnonymousDeviceAccess(id, viewerId, fingerprint);
+          const retry = await retryAnonymousDeviceAccess(id, vId, fingerprint);
           if (retry.ok) {
             await sendPublicVideoChat(id, videoPayload);
           } else {
@@ -1666,10 +1662,9 @@ export default function PublicLiveStreamScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.modalKeyboard}
       >
-      <Pressable style={styles.modalBackdrop} onPress={closeInfoModal}>
-        <Pressable
+      <GlassScrim style={styles.modalBackdrop} onPress={closeInfoModal}>
+        <GlassSheetHost
           style={[styles.modalSheet, { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
-          onPress={(e) => e.stopPropagation()}
         >
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalContent}>
             <Text style={styles.modalTitle}>
@@ -1684,14 +1679,14 @@ export default function PublicLiveStreamScreen() {
             </Text>
             <Input
               label="Name"
-              value={infoName}
+              value={accountName}
               onChangeText={setInfoName}
               placeholder="Full name"
               autoCapitalize="words"
             />
             <Input
               label="Email"
-              value={infoEmail}
+              value={accountEmail}
               onChangeText={setInfoEmail}
               placeholder="you@example.com"
               autoCapitalize="none"
@@ -1726,8 +1721,8 @@ export default function PublicLiveStreamScreen() {
               </Pressable>
             ) : null}
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </GlassSheetHost>
+      </GlassScrim>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -1744,97 +1739,16 @@ export default function PublicLiveStreamScreen() {
     undefined;
   const hostImage = event.data?.creator?.profilePicture;
 
-  // Non-live placeholder card (ended, cancelled, photo finder, upcoming)
+  // Non-live placeholder card (photo finder, upcoming). An ended or cancelled event has its own card below.
   const offlineStageContent = (
     <>
       <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
       <View style={styles.placeholderScrim} />
       <StreamWatermark position="top-right" />
-      {status.isCancelled || status.isEnded ? (
-        <View style={styles.placeholderContentFlow}>
-          <Ionicons
-            name={status.isCancelled ? 'close-circle' : 'archive'}
-            size={42}
-            color="rgba(255,255,255,0.85)"
-          />
-          <Text style={styles.placeholderHeadline}>
-            {status.isCancelled ? 'Event cancelled' : 'Event ended'}
-          </Text>
-          {status.isEnded ? (
-            <View style={{ alignItems: 'center', marginTop: 4, gap: 12 }}>
-              <Text
-                style={{
-                  color: 'rgba(255,255,255,0.78)',
-                  fontSize: 13,
-                  textAlign: 'center',
-                  lineHeight: 19,
-                }}
-              >
-                {tr('b4_attendedInPersonFindPhotos')}
-              </Text>
-              <View style={{ flexDirection: 'column', gap: 10, alignItems: 'center', width: '100%' }}>
-                <Pressable
-                  style={({ pressed }) => [
-                    {
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      backgroundColor: 'rgba(255,255,255,0.18)',
-                      paddingHorizontal: 20,
-                      paddingVertical: 12,
-                      borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.3)',
-                      width: '100%',
-                    },
-                    pressed && { opacity: 0.85 },
-                  ]}
-                  onPress={() => (id ? router.push(`/(public)/event/${id}` as never) : router.back())}
-                  accessibilityRole="button"
-                  accessibilityLabel="View Event Details"
-                >
-                  <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
-                    View Details
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    {
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      backgroundColor: '#4F46E5',
-                      paddingHorizontal: 20,
-                      paddingVertical: 12,
-                      borderRadius: 999,
-                      width: '100%',
-                    },
-                    pressed && { opacity: 0.85 },
-                  ]}
-                  onPress={() => router.push('/find-photos' as never)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Find My Photos"
-                >
-                  <Ionicons name="search" size={16} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
-                    Find My Photos
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-        </View>
-      ) : (
-        <View style={styles.placeholderContent}>
-          <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.placeholderText}>
-            {tr('b4_streamWillAppearOnceLive')}
-          </Text>
-        </View>
-      )}
+      <View style={styles.placeholderContent}>
+        <Ionicons name="videocam-outline" size={48} color="rgba(255,255,255,0.85)" />
+        <Text style={styles.placeholderText}>{tr('b4_streamWillAppearOnceLive')}</Text>
+      </View>
     </>
   );
 
@@ -2043,8 +1957,8 @@ export default function PublicLiveStreamScreen() {
                 </View>
               )}
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.ytEventTitle} numberOfLines={1}>{eventTitle}</Text>
-                <Text style={styles.ytHostName} numberOfLines={1}>
+                <Text style={styles.ytEventTitle} numberOfLines={2}>{eventTitle}</Text>
+                <Text style={styles.ytHostName} numberOfLines={2}>
                   {hostName ?? 'Event Host'}
                 </Text>
               </View>
@@ -2126,7 +2040,7 @@ export default function PublicLiveStreamScreen() {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={[styles.scroll, status.isLive && { paddingBottom: insets.bottom + 84 }]}>
+          <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: clearance }, status.isLive && { paddingBottom: insets.bottom + 84 }]}>
             {status.isLive && isMiniPlayer ? (
               <Pressable
                 style={styles.ytBrowseNotice}
@@ -2164,7 +2078,17 @@ export default function PublicLiveStreamScreen() {
                 </View>
               </Pressable>
             ) : (
-              <View style={[styles.playerStage, (status.isEnded || status.isCancelled) ? styles.playerStageEnded : styles.playerStageRatio]}>{offlineStageContent}</View>
+              status.isEnded || status.isCancelled ? (
+                <EndedEventCard
+                  cover={eventThumbSource}
+                  cancelled={status.isCancelled}
+                  message={tr('b4_attendedInPersonFindPhotos')}
+                  onDetails={() => (id ? router.push(`/(public)/event/${id}` as never) : router.back())}
+                  onFindPhotos={() => router.push('/find-photos' as never)}
+                />
+              ) : (
+                <View style={[styles.playerStage, styles.playerStageRatio]}>{offlineStageContent}</View>
+              )
             )}
 
             {tokenError ? (
@@ -2360,8 +2284,8 @@ export default function PublicLiveStreamScreen() {
 
       {/* Device-conflict modal */}
       <Modal visible={conflictOpen} transparent animationType="slide" onRequestClose={() => setConflictOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setConflictOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+        <GlassScrim style={styles.modalBackdrop} onPress={() => setConflictOpen(false)}>
+          <GlassSheetHost style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{tr('b4_watchingOnAnotherDeviceTitle')}</Text>
             <Text style={styles.modalHint}>
               Only one device can watch on the same paid ticket at a time. It'll free up
@@ -2372,8 +2296,8 @@ export default function PublicLiveStreamScreen() {
               onPress={onRetryDeviceAccess}
               loading={conflictBusy}
             />
-          </Pressable>
-        </Pressable>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
 
       {renderInfoModal(infoModalOpen && !chatFullscreen)}
@@ -2429,6 +2353,7 @@ function GiftConfirmSheet({
   onClose: () => void;
   onConfirm: () => Promise<void>;
 }) {
+  const gcStyles = useGcStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
@@ -2446,8 +2371,8 @@ function GiftConfirmSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={gcStyles.scrim} onPress={onClose} />
-      <View style={[gcStyles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+      <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <GlassSheetHost style={[gcStyles.sheet, { paddingBottom: insets.bottom + 24 }]}>
         <View style={gcStyles.handle} />
 
         {/* Gift preview */}
@@ -2486,24 +2411,22 @@ function GiftConfirmSheet({
         <Pressable onPress={onClose} hitSlop={10} style={gcStyles.cancel}>
           <Text style={gcStyles.cancelText}>{tr('b4_cancel')}</Text>
         </Pressable>
-      </View>
+      </GlassSheetHost>
+      </GlassScrim>
     </Modal>
   );
 }
 
-const gcStyles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+const useGcStyles = makeStyles((c) => ({
+  scrim: { flex: 1, },
   sheet: {
-    backgroundColor: '#12151e',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
     paddingHorizontal: 20,
     paddingTop: 12,
     gap: 16,
   },
   handle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: c.border,
     alignSelf: 'center',
     marginBottom: 4,
   },
@@ -2511,21 +2434,21 @@ const gcStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingVertical: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    ...glassTile(c),
     borderRadius: 14,
   },
   emoji: { fontSize: 52 },
-  giftName: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  giftPrice: { color: '#ffd166', fontSize: 22, fontWeight: '800' },
+  giftName: { color: c.text, fontSize: 18, fontWeight: '700' },
+  giftPrice: { color: c === darkPalette ? '#ffd166' : '#B45309', fontSize: 22, fontWeight: '800' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: 'rgba(99,179,237,0.1)',
+    ...glassTile(c),
     borderRadius: 10,
     padding: 12,
   },
-  infoText: { flex: 1, color: '#90cdf4', fontSize: 12, lineHeight: 18 },
+  infoText: { flex: 1, color: c.textSoft, fontSize: 12, lineHeight: 18 },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2537,8 +2460,8 @@ const gcStyles = StyleSheet.create({
   },
   ctaText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   cancel: { alignItems: 'center', paddingVertical: 8 },
-  cancelText: { color: 'rgba(255,255,255,0.45)', fontSize: 13 },
-});
+  cancelText: { color: c.textMuted, fontSize: 13 },
+}));
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 
@@ -2592,7 +2515,7 @@ const useStyles = makeStyles((c, e) => ({
     height: 40,
   },
 
-  scroll: { padding: spacing.xl, gap: spacing.lg, paddingBottom: 140 },
+  scroll: { padding: spacing.xl, gap: spacing.lg },
 
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   title: { flex: 1, fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.text },
@@ -2715,7 +2638,6 @@ const useStyles = makeStyles((c, e) => ({
     position: 'relative',
   },
   playerStageRatio: { aspectRatio: 16 / 9 },
-  playerStageEnded: { minHeight: 280 },
 
   // Live full-bleed: the video fills the whole screen, everything overlays.
   liveRoot: { flex: 1, backgroundColor: '#000' },
@@ -3142,11 +3064,8 @@ const useStyles = makeStyles((c, e) => ({
 
   modalKeyboard: { flex: 1 },
   modalContent: { gap: spacing.md },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.xl,
     gap: spacing.sm,
   },

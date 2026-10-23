@@ -48,21 +48,21 @@ export function CurrencyButton({ compact, bar }: { compact?: boolean; bar?: bool
 
 const useStyles = makeStyles((c, e) => ({
   chip: {
-    height: 46,
-    minWidth: 46,
-    paddingHorizontal: spacing.sm,
+    height: 40,
+    minWidth: 40,
+    paddingHorizontal: spacing.xs + 4,
     borderRadius: radii.full,
     backgroundColor: c.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 4,
     ...e(2),
   },
   chipCompact: {
     height: 34,
     minWidth: 34,
-    marginRight: spacing.xs,
+    paddingHorizontal: spacing.xs + 2,
   },
   chipBar: {
     height: 40,
@@ -77,8 +77,8 @@ const useStyles = makeStyles((c, e) => ({
     opacity: 0.85,
   },
   flag: {
-    width: 18,
-    height: 13,
+    width: 16,
+    height: 12,
     borderRadius: 2,
   },
   code: {
