@@ -9,6 +9,7 @@ import type { AuthSession, LoginCredentials, User } from '@/features/auth/types'
 import { resetPushRegistration } from '@/features/notifications/push';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
+import { useWorkspace } from '@/store/workspace';
 
 type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -40,6 +41,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     setOnAuthExpired(() => {
       void authApi.clearSession();
       resetPushRegistration();
+      useWorkspace.getState().reset();
       set({ status: 'unauthenticated', session: null, user: null });
     });
 
@@ -59,10 +61,13 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   login: async (credentials) => {
     const session = await authApi.login(credentials);
+    // A new session starts in its own workspace, never in the previous account's choice.
+    useWorkspace.getState().reset();
     set({ status: 'authenticated', session, user: session.user });
   },
 
   applySession: (session) => {
+    useWorkspace.getState().reset();
     set({ status: 'authenticated', session, user: session.user });
   },
 
@@ -81,6 +86,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     await authApi.logout();
     // The next account on this device must register its own push token.
     resetPushRegistration();
+    useWorkspace.getState().reset();
     set({ status: 'unauthenticated', session: null, user: null });
   },
 }));
