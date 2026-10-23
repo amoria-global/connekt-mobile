@@ -124,9 +124,9 @@ export function WorkspaceAccessPanel() {
       <View style={styles.explain}>
         <Ionicons name="people-circle-outline" size={26} color={colors.primary} />
         <View style={styles.flex}>
-          <Text style={styles.explainTitle}>Let another photographer work in your workspace</Text>
+          <Text style={styles.explainTitle}>What they can and cannot do</Text>
           <Text style={styles.muted}>
-            They sign in with their own account and switch into your workspace. They can handle bookings, events, opportunities, albums and clients with you, and see your balance and analytics. They cannot withdraw, see transactions or change account settings, and they do not become you.
+            They can handle bookings, events, opportunities, albums and clients with you, and see your balance and analytics. They cannot withdraw, see transactions or change account settings, and they do not become you.
           </Text>
         </View>
       </View>

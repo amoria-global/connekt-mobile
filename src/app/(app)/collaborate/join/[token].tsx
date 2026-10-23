@@ -133,7 +133,7 @@ export default function JoinInviteScreen() {
     }
   };
 
-  const back = { label: s.goToCollab, onPress: () => router.replace('/collaborate' as Href) };
+  const back = { label: s.goToCollab, onPress: () => router.replace('/collaborate?tab=joined' as Href) };
 
   if (!preview) {
     return (

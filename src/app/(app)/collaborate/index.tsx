@@ -1,12 +1,16 @@
 /**
- * Collaborate hub, mirrors the dashboard's /user/photographer/collaborate.
- *  - My albums: albums I own, with collaborators and photos to review.
- *  - Joined: albums other photographers invited me to.
- * Joining with a pasted link lives here too, since links shared in a chat
- * app open in the browser rather than the app.
+ * Collaborate hub, mirrors the dashboard's /user/photographer/collaborate. It opens on Workspace access; a chooser at
+ * the top says how that differs from album collaboration.
+ *  - Workspace access (default): another photographer works in my whole workspace, or I answer an invitation.
+ *  - Album collaboration, with two lists:
+ *      My albums: albums I own, with collaborators and photos to review.
+ *      Joined: albums other photographers invited me to.
+ * The route says where it opens: no parameter or ?tab=workspace for the workspace, ?tab=mine or ?tab=joined for albums.
+ * Joining with a pasted link lives on the albums side, since links shared in a chat app open in the browser rather
+ * than the app.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +18,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { WorkspaceAccessPanel } from '@/features/workspace/WorkspaceAccessPanel';
+import { CrossLink, ModeChooser, type CollaborateMode } from '@/features/collab/ModeChooser';
 import { listJoinedAlbums, listOwnedAlbums } from '@/features/collab/api';
 import { AlbumCover, PersonRow, Stat } from '@/features/collab/components';
 import { tokenFromInput, type JoinedAlbum, type OwnedAlbum } from '@/features/collab/model';
@@ -21,7 +26,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { isApiError } from '@/store/auth';
 import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
 
-type Tab = 'mine' | 'joined' | 'workspace';
+type Tab = 'mine' | 'joined';
 
 const COLLAB_I18N = {
   en: {
@@ -128,7 +133,9 @@ export default function CollaborateHub() {
   const router = useRouter();
   const { language } = useLanguage();
   const s = COLLAB_I18N[language] ?? COLLAB_I18N.en;
-  const [tab, setTab] = useState<Tab>('mine');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [mode, setMode] = useState<CollaborateMode>(params.tab === 'mine' || params.tab === 'joined' ? 'albums' : 'workspace');
+  const [tab, setTab] = useState<Tab>(params.tab === 'joined' ? 'joined' : 'mine');
   const [owned, setOwned] = useState<OwnedAlbum[] | null>(null);
   const [joined, setJoined] = useState<JoinedAlbum[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -192,11 +199,13 @@ export default function CollaborateHub() {
       >
         <View style={styles.intro}>
           <Text style={styles.eyebrow}>{s.eyebrow}</Text>
-          <Text style={styles.title}>{s.title}</Text>
-          <Text style={styles.subtitle}>{s.subtitle}</Text>
+          <Text style={styles.title}>{mode === 'workspace' ? 'Work together' : s.title}</Text>
+          <Text style={styles.subtitle}>{mode === 'workspace' ? 'Choose how you want to work with another photographer.' : s.subtitle}</Text>
         </View>
 
-        {tab === 'workspace' ? null : <View style={styles.statsCard}>
+        <ModeChooser mode={mode} onChange={setMode} />
+
+        {mode === 'workspace' ? null : <View style={styles.statsCard}>
           <Stat value={toReview} label={s.toReview} accent />
           <View style={styles.statDivider} />
           <Stat value={collaborators} label={collaborators === 1 ? s.collaborator : s.collaborators} />
@@ -204,7 +213,7 @@ export default function CollaborateHub() {
           <Stat value={joined.length} label={s.joined} />
         </View>}
 
-        {tab === 'workspace' ? null : joinOpen ? (
+        {mode === 'workspace' ? null : joinOpen ? (
           <View style={styles.joinCard}>
             <Text style={styles.joinLabel}>{s.pasteInviteLabel}</Text>
             <TextInput
@@ -234,20 +243,24 @@ export default function CollaborateHub() {
           </Pressable>
         )}
 
-        <Segmented<Tab>
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'mine', label: s.myAlbumsTab.replace('{count}', String(owned.length)) },
-            { value: 'joined', label: s.joinedTab.replace('{count}', String(joined.length)) },
-            { value: 'workspace', label: 'Workspace access' },
-          ]}
-        />
+        {mode === 'albums' ? (
+          <Segmented<Tab>
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'mine', label: s.myAlbumsTab.replace('{count}', String(owned.length)) },
+              { value: 'joined', label: s.joinedTab.replace('{count}', String(joined.length)) },
+            ]}
+          />
+        ) : null}
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {mode === 'albums' && error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        {tab === 'workspace' ? (
-          <WorkspaceAccessPanel />
+        {mode === 'workspace' ? (
+          <>
+            <WorkspaceAccessPanel />
+            <CrossLink text="Only need help with one album?" action="Use Album collaboration" onPress={() => setMode('albums')} />
+          </>
         ) : tab === 'mine' ? (
           ownedSorted.length === 0 ? (
             <EmptyState icon="images-outline" title={s.noAlbumsTitle}
@@ -300,6 +313,10 @@ export default function CollaborateHub() {
             </Pressable>
           ))
         )}
+
+        {mode === 'albums' ? (
+          <CrossLink text="Want someone to work in your whole business?" action="Use Workspace access" onPress={() => setMode('workspace')} />
+        ) : null}
       </ScrollView>
     </Screen>
   );
