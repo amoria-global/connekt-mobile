@@ -21,7 +21,6 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { create } from 'zustand';
-import { installedReleases, releasesToShow, type Release } from './releaseNotes';
 
 // Types only — no runtime top-level native import to stay safe across platforms & test runners.
 type UpdatesModule = typeof import('expo-updates');
@@ -73,9 +72,7 @@ export interface AppUpdatesState {
   updateId: string | null;
   channel: string | null;
   isEmbeddedLaunch: boolean;
-  isPreview?: boolean;
-  /** What the downloaded update changes, newest first. Empty when the update carries no notes. */
-  releases: Release[];
+  devPreviewOpen?: boolean;
   setStatus: (status: UpdateStatus) => void;
   setChecking: (checking: boolean) => void;
   setDownloading: (downloading: boolean, progress?: number) => void;
@@ -83,7 +80,7 @@ export interface AppUpdatesState {
   setUpdateReady: (ready: boolean) => void;
   setLastCheckedTime: (time: Date) => void;
   setErrorMessage: (msg: string | null) => void;
-  setReleases: (releases: Release[]) => void;
+  setDevPreviewOpen: (open: boolean) => void;
 }
 
 const appVersion =
@@ -104,8 +101,7 @@ export const useUpdatesStore = create<AppUpdatesState>((set) => ({
   updateId: null,
   channel: null,
   isEmbeddedLaunch: true,
-  isPreview: false,
-  releases: [],
+  devPreviewOpen: true,
 
   setStatus: (status) => set({ status }),
   setChecking: (isChecking) => set({ isChecking, status: isChecking ? 'checking' : 'idle' }),
@@ -122,14 +118,8 @@ export const useUpdatesStore = create<AppUpdatesState>((set) => ({
   setLastCheckedTime: (lastCheckedTime) => set({ lastCheckedTime }),
   setErrorMessage: (errorMessage) =>
     set({ errorMessage, status: errorMessage ? 'error' : 'idle' }),
-  setReleases: (releases) => set({ releases }),
+  setDevPreviewOpen: (devPreviewOpen) => set({ devPreviewOpen }),
 }));
-
-/** The notes of the update the native layer has found or downloaded, read from its manifest. */
-function stagedReleases(ctx: unknown): Release[] {
-  const c = ctx as { downloadedManifest?: unknown; latestManifest?: unknown } | null | undefined;
-  return releasesToShow(c?.downloadedManifest ?? c?.latestManifest);
-}
 
 // Setup listener on native state machine once module loads on native
 let listenerAttached = false;
@@ -150,7 +140,6 @@ function initNativeListener() {
   try {
     const latest = (Updates as any).latestContext;
     if (latest?.isUpdatePending) {
-      useUpdatesStore.getState().setReleases(stagedReleases(latest));
       useUpdatesStore.getState().setUpdateAvailable(true);
       useUpdatesStore.getState().setUpdateReady(true);
     }
@@ -165,11 +154,6 @@ function initNativeListener() {
         const ctx = event?.context;
         if (!ctx) return;
         const store = useUpdatesStore.getState();
-
-        if (ctx.isUpdatePending || ctx.isUpdateAvailable) {
-          const notes = stagedReleases(ctx);
-          if (notes.length > 0) store.setReleases(notes);
-        }
 
         if (ctx.isUpdatePending) {
           store.setUpdateAvailable(true);
@@ -193,9 +177,9 @@ function initNativeListener() {
  * not block anyone.
  */
 export function isUpdateBlocking(
-  s: Pick<AppUpdatesState, 'updateReady' | 'isDownloading' | 'isUpdateAvailable' | 'isChecking' | 'errorMessage'> & { isPreview?: boolean },
+  s: Pick<AppUpdatesState, 'updateReady' | 'isDownloading' | 'isUpdateAvailable' | 'isChecking' | 'errorMessage'>,
 ) {
-  return !!s.isPreview || s.updateReady || s.isDownloading || (s.isUpdateAvailable && (!!s.errorMessage || s.isChecking));
+  return s.updateReady || s.isDownloading || (s.isUpdateAvailable && (!!s.errorMessage || s.isChecking));
 }
 
 let checking = false;
@@ -243,8 +227,6 @@ export async function checkForUpdates(isManual = false): Promise<CheckUpdateResu
     const checkResult = await Updates.checkForUpdateAsync();
 
     if (checkResult.isAvailable) {
-      // The notes ride in the new update's manifest, so they can be shown before it is installed.
-      store.setReleases(releasesToShow((checkResult as { manifest?: unknown }).manifest));
       store.setChecking(false);
       store.setUpdateAvailable(true);
       store.setDownloading(true);
@@ -259,7 +241,6 @@ export async function checkForUpdates(isManual = false): Promise<CheckUpdateResu
 
     // Already staged by the startup check?
     if ((Updates as any).latestContext?.isUpdatePending) {
-      store.setReleases(stagedReleases((Updates as any).latestContext));
       store.setChecking(false);
       store.setUpdateAvailable(true);
       store.setUpdateReady(true);
@@ -314,37 +295,8 @@ export async function updateNow(): Promise<void> {
   await applyUpdate();
 }
 
-/**
- * Preview the update screen in-app without needing a native EAS build.
- */
-export function previewUpdateScreen(enabled = true) {
-  const store = useUpdatesStore.getState();
-  if (!enabled) {
-    store.setStatus('idle');
-    store.setUpdateReady(false);
-    store.setUpdateAvailable(false);
-    useUpdatesStore.setState({ isPreview: false });
-    return;
-  }
-  const notes = installedReleases();
-  useUpdatesStore.setState({
-    isPreview: true,
-    updateReady: true,
-    isUpdateAvailable: true,
-    status: 'ready',
-    releases: notes.length > 0 ? notes : [
-      {
-        id: '2026-10-24-preview',
-        date: '2026-10-24',
-        title: "What's new in Connekyt",
-        items: [
-          { title: 'Full Swahili & Kinyarwanda Support', body: 'Experience Connekyt in your preferred language across all mobile features.', icon: 'globe-outline' },
-          { title: 'Follow Collaborators’ Progress', body: 'Track each collaborator’s progress on shared albums in real time.', icon: 'people-outline' },
-          { title: 'Night-Studio Hub & Trends', body: 'Crisp high-contrast dashboard surfaces and organic wave performance trends.', icon: 'trending-up-outline' },
-        ],
-      },
-    ],
-  });
+export function previewUpdateScreen(open = true) {
+  useUpdatesStore.getState().setDevPreviewOpen(open);
 }
 
 export function useAppUpdates() {
