@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-25-sheets-open-fully",
+            "date": "2026-10-25",
+            "title": "Forms open fully, and every sheet can be closed",
+            "items": [
+              {
+                "icon": "expand-outline",
+                "title": "New event and new album open at full height",
+                "body": "Creating an event or an album now opens the whole form straight away, so you no longer have to drag the sheet up to see it, and a close button sits at the top."
+              },
+              {
+                "icon": "close-circle-outline",
+                "title": "A close button on every pop up sheet",
+                "body": "Report, rebook, rating, completion, rejection, viewer and picker sheets now all have a clear close button, and forms move above the keyboard so their buttons stay visible."
+              }
+            ]
+          },
+          {
             "id": "2026-10-25-share-when-published",
             "date": "2026-10-25",
             "title": "Share is ready when your event is",
@@ -207,23 +224,6 @@
                 "icon": "images-outline",
                 "title": "Jump straight to their photos",
                 "body": "From a photographer's card, review their waiting photos or see everything they sent with one tap. The list is narrowed to that person until you choose Show everyone, and photographers who left still count in the totals."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-23-workspace-access",
-            "date": "2026-10-23",
-            "title": "Work together in one workspace",
-            "items": [
-              {
-                "icon": "people-outline",
-                "title": "Invite another photographer into your workspace",
-                "body": "In Collaborate, open Workspace access, find a photographer by their email and send an invitation. Once they accept, they can handle your bookings, clients, events and opportunities with you, and you can remove their access at any time."
-              },
-              {
-                "icon": "swap-horizontal-outline",
-                "title": "Switch between your workspace and one you were invited to",
-                "body": "If another photographer invites you, accept it in Collaborate, then pick their workspace from the chip at the top. You see their balance and analytics, but withdrawals and the transaction history stay with the owner, and your own account stays separate."
               }
             ]
           }

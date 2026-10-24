@@ -1,17 +1,6 @@
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter, Stack } from 'expo-router';
-import {
-  Alert,
-  FlatList,
-  Modal,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
@@ -993,6 +982,7 @@ export default function PhotographersScreen() {
         animationType="fade"
         onRequestClose={() => setInviteOpen(false)}
       >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <GlassScrim style={styles.modalBackdrop} onPress={() => setInviteOpen(false)}>
           <GlassSheetHost style={styles.modalSheet}>
             <View style={styles.modalHandle} />
@@ -1031,6 +1021,7 @@ export default function PhotographersScreen() {
             </View>
           </GlassSheetHost>
         </GlassScrim>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Filter Bottom Sheet Modal */}

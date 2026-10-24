@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
-import { RefreshControl, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
+import { RefreshControl, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,7 +33,7 @@ import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/th
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
-import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { Sheet } from '@/components/ui/Sheet';
 import { glassTile } from '@/components/ui/GlassCard';
 import { useSharedT } from '@/i18n/sharedStrings';
 
@@ -690,18 +690,13 @@ export default function PhotographerProfileScreen() {
       />
 
       {/* Report photographer sheet */}
-      <Modal
+      <Sheet
         visible={reportOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setReportOpen(false)}
+        title="Report photographer"
+        subtitle="Pick a reason and add details so our team can take action."
+        onClose={() => setReportOpen(false)}
+        busy={reportSubmitting}
       >
-        <GlassScrim style={styles.modalBackdrop} onPress={() => setReportOpen(false)}>
-          <GlassSheetHost style={styles.sheet}>
-            <Text style={styles.sheetTitle}>Report photographer</Text>
-            <Text style={styles.sheetHint}>
-              Pick a reason and add details so our team can take action.
-            </Text>
             <View style={styles.chipRow}>
               {REPORT_REASONS.map((r) => {
                 const active = r === reportReason;
@@ -724,25 +719,16 @@ export default function PhotographerProfileScreen() {
               style={styles.modalInput}
             />
             <Button title="Submit report" onPress={submitReport} loading={reportSubmitting} />
-          </GlassSheetHost>
-        </GlassScrim>
-      </Modal>
+      </Sheet>
 
       {/* Rebook sheet — only enabled if there are packages */}
-      <Modal
+      <Sheet
         visible={rebookOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setRebookOpen(false)}
+        title="Rebook photographer"
+        subtitle="Book this photographer again for a new event. Backend enforces that you’ve worked with them before."
+        onClose={() => setRebookOpen(false)}
+        busy={rebookSubmitting}
       >
-        <GlassScrim style={styles.modalBackdrop} onPress={() => setRebookOpen(false)}>
-          <GlassSheetHost style={[styles.sheet, { maxHeight: '90%' }]}>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.sheetTitle}>Rebook photographer</Text>
-              <Text style={styles.sheetHint}>
-                Book this photographer again for a new event. Backend enforces that you’ve worked
-                with them before.
-              </Text>
               <Text style={styles.formLabel}>Package</Text>
               <View style={styles.chipRow}>
                 {(data?.packages ?? []).map((p) => {
@@ -811,10 +797,7 @@ export default function PhotographerProfileScreen() {
                 onPress={submitRebook}
                 loading={rebookSubmitting}
               />
-            </ScrollView>
-          </GlassSheetHost>
-        </GlassScrim>
-      </Modal>
+      </Sheet>
     </View>
   );
 }

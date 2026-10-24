@@ -1,19 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
@@ -429,6 +416,7 @@ export default function InboxScreen() {
         animationType="slide"
         onRequestClose={() => setShowNewMessageModal(false)}
       >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <GlassScrim
           style={styles.modalBackdrop}
           onPress={() => setShowNewMessageModal(false)}
@@ -580,6 +568,7 @@ export default function InboxScreen() {
             </View>
           </GlassSheetHost>
         </GlassScrim>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Sort Options Modal Sheet ────────────────────────────────── */}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -42,7 +42,6 @@ import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 import { useStackClearance } from '@/hooks/useScrollClearance';
-import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
@@ -790,10 +789,12 @@ export default function EventDetailScreen() {
       </ScrollView>
 
       {/* Rate photographer sheet */}
-      <Modal visible={reviewOpen} transparent animationType="slide" onRequestClose={() => setReviewOpen(false)}>
-        <GlassScrim style={styles.backdrop} onPress={() => setReviewOpen(false)}>
-          <GlassSheetHost style={styles.sheet}>
-            <Text style={styles.sheetTitle}>Rate {data?.photographerName}</Text>
+      <Sheet
+        visible={reviewOpen}
+        title={`Rate ${data?.photographerName ?? ''}`.trim()}
+        onClose={() => setReviewOpen(false)}
+        busy={busy === 'review'}
+      >
             <View style={styles.starRow}>
               <StarInput value={rating} onChange={setRating} />
             </View>
@@ -805,20 +806,16 @@ export default function EventDetailScreen() {
               style={styles.commentInput}
             />
             <Button title={tr('b3_evdet_submit_review')} onPress={onSubmitReview} loading={busy === 'review'} />
-          </GlassSheetHost>
-        </GlassScrim>
-      </Modal>
+      </Sheet>
 
       {/* Confirm completion sheet */}
-      <Modal visible={completionOpen} transparent animationType="slide" onRequestClose={() => setCompletionOpen(false)}>
-        <GlassScrim style={styles.backdrop} onPress={() => setCompletionOpen(false)}>
-          <GlassSheetHost style={styles.sheet}>
-            <Text style={styles.sheetTitle}>{tr('b3_evdet_confirm_completion')}</Text>
-            <Text style={styles.sheetHint}>
-              Confirm the event went ahead, or request changes if something needs fixing. Confirming
-              asks you a few quick questions, and that is what releases the photographer&apos;s final
-              payment.
-            </Text>
+      <Sheet
+        visible={completionOpen}
+        title={tr('b3_evdet_confirm_completion')}
+        subtitle="Confirm the event went ahead, or request changes if something needs fixing. Confirming asks you a few quick questions, and that is what releases the photographer's final payment."
+        onClose={() => setCompletionOpen(false)}
+        busy={busy === 'completion'}
+      >
             <Input
               placeholder={tr('b3_evdet_add_comment_ph')}
               value={comment}
@@ -834,9 +831,7 @@ export default function EventDetailScreen() {
             >
               <Text style={styles.requestChangesText}>{tr('b3_evdet_request_changes')}</Text>
             </Pressable>
-          </GlassSheetHost>
-        </GlassScrim>
-      </Modal>
+      </Sheet>
 
       <EventQrSheet
         visible={qrOpen}
