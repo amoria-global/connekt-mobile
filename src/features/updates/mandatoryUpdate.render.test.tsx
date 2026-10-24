@@ -74,6 +74,7 @@ beforeEach(() => {
     downloadProgress: 0,
     errorMessage: null,
     releases: [],
+    isPreview: false,
   });
   (globalThis as { __installedTop?: string }).__installedTop = undefined;
 });
