@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-25-share-when-published",
+            "date": "2026-10-25",
+            "title": "Share is ready when your event is",
+            "items": [
+              {
+                "icon": "share-social-outline",
+                "title": "Share appears once an event is published",
+                "body": "The Share button on an event now shows only after you publish it, because a link to an unpublished event cannot be opened by your guests. Publish first, then share with everyone."
+              }
+            ]
+          },
+          {
             "id": "2026-10-24-invitation-emails",
             "date": "2026-10-24",
             "title": "Invited photographers now get an email too",
@@ -212,23 +224,6 @@
                 "icon": "swap-horizontal-outline",
                 "title": "Switch between your workspace and one you were invited to",
                 "body": "If another photographer invites you, accept it in Collaborate, then pick their workspace from the chip at the top. You see their balance and analytics, but withdrawals and the transaction history stay with the owner, and your own account stays separate."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-22-coordinator-calendar",
-            "date": "2026-10-22",
-            "title": "A Calendar for event coordinators",
-            "items": [
-              {
-                "icon": "calendar-outline",
-                "title": "See your events and payments by day",
-                "body": "Event coordinators now have a Calendar screen with Month, Week and Agenda views. Your events appear on their date with the time and place, live events are marked, and payments you still owe show on their due date."
-              },
-              {
-                "icon": "filter-outline",
-                "title": "Filter and jump straight to the work",
-                "body": "Filter the calendar to events, live events or payments, tap Today to come back, and open an event or the payments screen straight from its card. Find Calendar on your Home screen and in the More menu."
               }
             ]
           }
