@@ -304,6 +304,23 @@ export default function NewAlbumScreen() {
 
   return (
     <Screen padded={false} edges={[]}>
+      {/* Pinned above the scroll so the close control never scrolls out of reach. */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 14), paddingBottom: 8, paddingHorizontal: spacing.lg }]}>
+        <View style={{ flex: 1, gap: 1 }}>
+          <Text style={styles.eyebrow}>{trAlb('NEW COLLECTION')}</Text>
+          <Text style={styles.h1}>{trAlb('Create Album')}</Text>
+        </View>
+        <Pressable
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          disabled={submitting}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <Ionicons name="close" size={20} color={colors.text} />
+        </Pressable>
+      </View>
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
@@ -313,21 +330,6 @@ export default function NewAlbumScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        {/* Top App Bar with Back and Title */}
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 14) }]}>
-          <Pressable
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            hitSlop={8}
-            accessibilityLabel="Back"
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.text} />
-          </Pressable>
-          <View style={{ flex: 1, gap: 1 }}>
-            <Text style={styles.eyebrow}>{trAlb('NEW COLLECTION')}</Text>
-            <Text style={styles.h1}>{trAlb('Create Album')}</Text>
-          </View>
-        </View>
 
         {/* Seamless Segmented Mode Switcher */}
         <View style={styles.modeContainer}>

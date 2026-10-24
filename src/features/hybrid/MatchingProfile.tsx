@@ -19,6 +19,7 @@ import { getHybridOptions, getHybridProfile, saveHybridProfile } from './api';
 import type { HybridProfile } from './types';
 import { MODE_META } from './hybridUi';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 
 export const INSTAGRAM_WHY = [
   'Clients who use Post My Event are matched with photographers automatically. A public Instagram profile helps Connekyt recommend you.',
@@ -111,6 +112,7 @@ export function MatchingProfileForm({ onSaved, showWhy = true }: { onSaved?: (p:
       <Modal visible={cityOpen} transparent animationType="fade" onRequestClose={() => setCityOpen(false)}>
         <GlassScrim style={styles.scrim} onPress={() => setCityOpen(false)}>
           <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
+            <SheetCornerClose onPress={() => setCityOpen(false)} />
             <Text style={styles.label}>{tr(tr('Your city'))}</Text>
             <FlatList data={cities} keyExtractor={(c) => c} style={{ maxHeight: 380 }} renderItem={({ item }) => (
               <Pressable onPress={() => { setCity(item); setCityOpen(false); }} style={[styles.row, item === city && { backgroundColor: colors.tint }]}

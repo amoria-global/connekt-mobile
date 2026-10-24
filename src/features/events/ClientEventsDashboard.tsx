@@ -62,6 +62,7 @@ import {
 } from './clientEventsModel';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 
 const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 const PAGE_SIZE = 8;
@@ -362,6 +363,7 @@ export function ClientEventsDashboard({
           <GlassSheetHost
             style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xl) }]}
           >
+            <SheetCornerClose onPress={() => setSortOpen(false)} />
             <View style={styles.handle} />
             <Text style={styles.sheetTitle} accessibilityRole="header">
               {tr('Sort events')}

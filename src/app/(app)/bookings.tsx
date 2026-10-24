@@ -22,7 +22,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -59,7 +58,7 @@ import { useCurrency } from '@/store/currency';
 import { env } from '@/config/env';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { useStackClearance } from '@/hooks/useScrollClearance';
-import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { Sheet } from '@/components/ui/Sheet';
 
 type Tab = 'direct' | 'opportunities';
 
@@ -476,25 +475,16 @@ export default function BookingsScreen() {
       )}
 
       {/* Reject reason modal */}
-      <Modal
+      <Sheet
         visible={!!rejecting}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
+        title="Reject booking"
+        subtitle={`Let ${rejecting?.clientName ?? 'the client'} know why so they can adjust their request.`}
+        onClose={() => {
           setRejecting(null);
           setReason('');
         }}
+        busy={!!rejecting && busyId === rejecting.id}
       >
-        <GlassScrim onPress={() => {
-            setRejecting(null);
-            setReason('');
-          }} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <GlassSheetHost style={styles.sheet}>
-          <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>Reject booking</Text>
-          <Text style={styles.sheetSub}>
-            Let {rejecting?.clientName ?? 'the client'} know why so they can adjust their request.
-          </Text>
           <TextInput
             value={reason}
             onChangeText={setReason}
@@ -510,9 +500,7 @@ export default function BookingsScreen() {
             loading={busyId === rejecting?.id}
             disabled={!reason.trim() || busyId === rejecting?.id}
           />
-        </GlassSheetHost>
-        </GlassScrim>
-      </Modal>
+      </Sheet>
 
       {/* Full-Screen Incoming Opportunity Alert (Uber / Ringing Call Style) */}
       <IncomingOpportunityAlertModal
