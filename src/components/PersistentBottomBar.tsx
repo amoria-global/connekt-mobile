@@ -49,7 +49,7 @@ import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
-const BAR_CONTENT_HEIGHT = 56;
+import { BAR_CONTENT_HEIGHT } from '@/components/barMetrics';
 const BUBBLE_SIZE = 60;
 
 type Tab = {

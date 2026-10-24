@@ -20,6 +20,7 @@ import { UpdatePromptModal } from '@/features/updates';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import { useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
 import { AppPreloader } from '@/components/ui/AppPreloader';
+import { GlobalHelpButton } from '@/components/help/GlobalHelpButton';
 
 // Keep native splash screen visible while fonts and auth bootstrap resolve
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -234,6 +235,8 @@ export default function RootLayout() {
               />
             </View>
           ) : null}
+          {/* Help: on every screen, bottom right. Waits for the intro video; steps aside where it would cover a control. */}
+          <GlobalHelpButton ready={preloaderDone} />
           {/* Mandatory OTA update prompt (blocking, one action) */}
           <UpdatePromptModal />
           {/* Screens are theme-aware now, so the status bar follows suit:
