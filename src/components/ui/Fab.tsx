@@ -3,8 +3,7 @@ import { Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radii, makeStyles, useTheme } from '@/theme';
 
-const TAB_BAR_HEIGHT = 64;
-const TAB_BAR_MARGIN = 20;
+import { FAB_RIGHT, FAB_SIZE, TAB_BAR_HEIGHT, TAB_BAR_MARGIN } from '@/components/barMetrics';
 
 type Props = {
   icon?: keyof typeof Ionicons.glyphMap;
@@ -32,9 +31,9 @@ export function Fab({ icon = 'add', onPress }: Props) {
 const useStyles = makeStyles((c, e) => ({
   fab: {
     position: 'absolute',
-    right: 20,
-    width: 56,
-    height: 56,
+    right: FAB_RIGHT,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
     borderRadius: radii.full,
     backgroundColor: c.accent,
     alignItems: 'center',
