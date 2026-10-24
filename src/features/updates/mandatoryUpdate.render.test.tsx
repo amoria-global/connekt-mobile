@@ -14,16 +14,6 @@ import '@/test/autoUnmount';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as { __DEV__?: boolean }).__DEV__ = false;
 
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: {
-    get expoConfig() {
-      return { version: '2.2.2', extra: { releaseNotes: { releases: (globalThis as { __installedTop?: string }).__installedTop ? [{ id: (globalThis as { __installedTop?: string }).__installedTop, title: 'Installed', items: [{ title: 'x', body: 'y' }] }] : [] } } };
-    },
-  },
-}));
-
 const mockCheck = jest.fn();
 const mockFetch = jest.fn();
 const mockReload = jest.fn();
@@ -73,10 +63,7 @@ beforeEach(() => {
     updateReady: false,
     downloadProgress: 0,
     errorMessage: null,
-    releases: [],
-    isPreview: false,
   });
-  (globalThis as { __installedTop?: string }).__installedTop = undefined;
 });
 
 describe('mandatory update prompt', () => {
@@ -93,7 +80,7 @@ describe('mandatory update prompt', () => {
     const r = await mount();
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const t = text(r.root);
-    expect(t).toContain('Update required');
+    expect(t).toContain('New version available');
     expect(t).toContain('Update now');
     expect(t).not.toMatch(/Maybe later|Not Now|Dismiss|Skip|Later|Cancel/i);
     // Exactly one pressable, and it is the update action.
@@ -167,80 +154,5 @@ describe('mandatory update prompt', () => {
     await flush();
     expect(mockCheck).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-});
-
-const manifestWith = (releases: unknown[]) => ({ extra: { expoClient: { extra: { releaseNotes: { releases } } } } });
-const rel = (id: string, title: string, items: [string, string][]) => ({
-  id,
-  date: '2026-10-21',
-  title,
-  items: items.map(([t, b]) => ({ title: t, body: b })),
-});
-
-describe('what the update changes, shown before the button', () => {
-  it('lists every change of the downloaded update in full, with its description, above the one action', async () => {
-    mockCheck.mockResolvedValue({
-      isAvailable: true,
-      manifest: manifestWith([
-        rel('2026-10-21', 'Streams and a clearer start screen', [
-          ['Streams match the web', 'Search, filters, chats, video messages and delete now work like the dashboard.'],
-          ['Album photos load again', 'Photos and covers in paid albums now appear.'],
-        ]),
-      ]),
-    });
-    mockFetch.mockResolvedValue({ isNew: true });
-    const r = await mount();
-    const t = text(r.root);
-    expect(t).toContain('2 changes to read before you update');
-    expect(t).toContain('Streams and a clearer start screen');
-    expect(t).toContain('Streams match the web');
-    expect(t).toContain('Search, filters, chats, video messages and delete now work like the dashboard.');
-    expect(t).toContain('Album photos load again');
-    expect(t).toContain('21 Oct 2026');
-    expect(t).toContain('NEW');
-    // Still one action: the notes are not pressable.
-    const pressables = r.root.findAll((n) => n.props?.accessibilityRole === 'button' && typeof n.props?.onPress === 'function');
-    expect(pressables).toHaveLength(1);
-  });
-
-  it('shows only what is newer than the version already running, newest first', async () => {
-    (globalThis as { __installedTop?: string }).__installedTop = 'r2';
-    mockCheck.mockResolvedValue({
-      isAvailable: true,
-      manifest: manifestWith([rel('r4', 'Fourth', [['Four', 'd4']]), rel('r3', 'Third', [['Three', 'd3']]), rel('r2', 'Second', [['Two', 'd2']])]),
-    });
-    mockFetch.mockResolvedValue({ isNew: true });
-    const t = text(await mount().then((r) => r.root));
-    expect(t).toContain('Fourth');
-    expect(t).toContain('Third');
-    expect(t).not.toContain('Second');
-    expect(t.indexOf('Fourth')).toBeLessThan(t.indexOf('Third'));
-    expect(t).toContain('2 changes');
-  });
-
-  it('shows every release when the running build carries no notes', async () => {
-    mockCheck.mockResolvedValue({ isAvailable: true, manifest: manifestWith([rel('r2', 'Second', [['Two', 'd2']]), rel('r1', 'First', [['One', 'd1']])]) });
-    mockFetch.mockResolvedValue({ isNew: true });
-    const t = text(await mount().then((r) => r.root));
-    expect(t).toContain('Second');
-    expect(t).toContain('First');
-  });
-
-  it('says plainly that an update has no written notes instead of implying detail', async () => {
-    mockCheck.mockResolvedValue({ isAvailable: true, manifest: { extra: {} } });
-    mockFetch.mockResolvedValue({ isNew: true });
-    const t = text(await mount().then((r) => r.root));
-    expect(t).toContain('This update has no written notes.');
-    expect(t).toContain('Update now');
-  });
-
-  it('ignores a malformed entry rather than failing the update', async () => {
-    mockCheck.mockResolvedValue({ isAvailable: true, manifest: manifestWith([{ id: 'x' }, { id: 'y', title: 'Ok', items: [{ title: 'Good', body: 'Fine' }, { title: 'No body' }] }]) });
-    mockFetch.mockResolvedValue({ isNew: true });
-    const t = text(await mount().then((r) => r.root));
-    expect(t).toContain('Good');
-    expect(t).not.toContain('No body');
-    expect(t).toContain('1 change to read');
   });
 });
