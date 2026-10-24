@@ -89,6 +89,24 @@ describe('mandatory update prompt', () => {
     expect(pressables[0].props.accessibilityLabel).toBe('Update now');
   });
 
+  it('shows the glowing arrow-into-tray icon while updating, and no stars or sparkles', async () => {
+    mockCheck.mockResolvedValue({ isAvailable: true });
+    mockFetch.mockResolvedValue({ isNew: true });
+    const r = await mount();
+    expect(r.root.findAll((n) => n.props?.testID === 'update-glyph')).not.toHaveLength(0);
+    // The old header icons are gone.
+    const names = r.root.findAll((n) => typeof n.props?.name === 'string').map((n) => n.props.name as string);
+    expect(names.filter((x) => /sparkle|star|cloud/.test(x))).toEqual([]);
+  });
+
+  it('keeps the plain error icon, not the glowing one, when the update failed', async () => {
+    mockCheck.mockResolvedValue({ isAvailable: true });
+    mockFetch.mockRejectedValue(new Error('Network request failed.'));
+    const r = await mount();
+    expect(text(r.root)).toContain('Update did not finish');
+    expect(r.root.findAll((n) => n.props?.testID === 'update-glyph')).toHaveLength(0);
+  });
+
   it('cannot be closed with the hardware back button', async () => {
     mockCheck.mockResolvedValue({ isAvailable: true });
     mockFetch.mockResolvedValue({ isNew: true });
