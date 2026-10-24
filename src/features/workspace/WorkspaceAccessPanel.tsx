@@ -18,9 +18,10 @@ import { isApiError } from '@/store/auth';
 import { useWorkspace } from '@/store/workspace';
 import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
 import {
-  answerInvitation, cancelInvitation, leaveWorkspace, listReceivedInvitations, listSentInvitations,
-  lookupPhotographer, resendInvitation, revokeMembership, sendInvitation,
+  answerInvitation, cancelInvitation, getInvitePreview, leaveWorkspace, listReceivedInvitations, listSentInvitations,
+  lookupPhotographer, resendInvitation, revokeMembership, sendInvitation, sendInvitationByEmail,
 } from './api';
+import { inviteFocus, ownerActionLabel, ownerMeaning, type InviteFocus, type InvitePreview } from './invite';
 import {
   inviteeActions, ownerActions, shortDate, sortInvitations, statusView,
   type OwnerAction, type WorkspaceInvitation, type WorkspacePerson,
@@ -28,11 +29,14 @@ import {
 
 type Notice = { kind: 'ok' | 'error'; text: string } | null;
 
-const ACTION_LABEL: Record<OwnerAction, string> = { resend: 'Send again', cancel: 'Cancel', revoke: 'Remove access' };
-
 const message = (e: unknown, fallback: string) => (isApiError(e) && e.message ? e.message : fallback);
 
-export function WorkspaceAccessPanel() {
+/**
+ * `inviteId` is the id from an invitation link or pending sign-up: the matching invitation is put first, with a button
+ * that accepts it and opens the workspace. `onInviteHandled` is called once it has been answered or dismissed, so the
+ * screen can drop the id from its route.
+ */
+export function WorkspaceAccessPanel({ inviteId = null, onInviteHandled }: { inviteId?: string | null; onInviteHandled?: () => void } = {}) {
   const styles = useStyles();
   const { colors } = useTheme();
   const switchTo = useWorkspace((s) => s.switchTo);
@@ -45,6 +49,8 @@ export function WorkspaceAccessPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   // A ref as well as state: two quick taps in one render must still make one request.
   const working = useRef(false);
+  // The public preview, asked only when the link's invitation is not one of this account's own.
+  const [preview, setPreview] = useState<InvitePreview | null | undefined>(undefined);
 
   const load = useCallback(async () => {
     try {
@@ -58,6 +64,14 @@ export function WorkspaceAccessPanel() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const foundInReceived = !!inviteId && !!received && received.some((i) => i.id === inviteId);
+  useEffect(() => {
+    if (!inviteId || received === null || foundInReceived) return;
+    let live = true;
+    void getInvitePreview(inviteId).then((p) => { if (live) setPreview(p); });
+    return () => { live = false; };
+  }, [inviteId, received, foundInReceived]);
 
   /** One request at a time; a second tap while it runs does nothing. */
   const run = async (key: string, work: () => Promise<unknown>, success: string) => {
@@ -116,17 +130,54 @@ export function WorkspaceAccessPanel() {
     return <View style={styles.centered} accessibilityLabel="Loading invitations"><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
-  const waitingForMe = sortInvitations(received).filter((i) => i.status === 'PENDING');
-  const joined = received.filter((i) => i.status === 'ACCEPTED');
+  const focus: InviteFocus | null = inviteId && (foundInReceived || preview !== undefined)
+    ? inviteFocus(received, inviteId, preview ?? null)
+    : null;
+  const focusId = focus && (focus.kind === 'pending' || focus.kind === 'accepted' || focus.kind === 'ended') ? focus.invitation.id : null;
+  // The linked invitation has its own card above, so it is not listed a second time.
+  const listed = received.filter((i) => i.id !== focusId);
+  const waitingForMe = sortInvitations(listed).filter((i) => i.status === 'PENDING');
+  const joined = listed.filter((i) => i.status === 'ACCEPTED');
+
+  const acceptAndOpen = async (inv: WorkspaceInvitation) => {
+    if (working.current) return;
+    working.current = true;
+    setBusy(inv.id + 'accept');
+    setNotice(null);
+    try {
+      await answerInvitation(inv.id, true);
+      onInviteHandled?.();
+      // Switching remounts the app inside the owner's workspace, so nothing after this needs to run.
+      await switchTo(inv.owner.id);
+    } catch (e) {
+      setNotice({ kind: 'error', text: message(e, 'Something went wrong.') });
+      void load();
+    } finally {
+      working.current = false;
+      setBusy(null);
+    }
+  };
 
   return (
     <View style={styles.wrap}>
+      {inviteId ? (
+        focus ? (
+          <InviteFocusCard focus={focus} busy={busy}
+            onAcceptAndOpen={(inv) => { void acceptAndOpen(inv); }}
+            onDecline={(inv) => { void run(inv.id + 'decline', async () => { await answerInvitation(inv.id, false); onInviteHandled?.(); }, 'Invitation declined.'); }}
+            onOpen={(inv) => { onInviteHandled?.(); void switchTo(inv.owner.id); }}
+            onDismiss={() => onInviteHandled?.()} />
+        ) : (
+          <View style={styles.centered} accessibilityLabel="Opening your invitation"><ActivityIndicator color={colors.primary} /></View>
+        )
+      ) : null}
+
       <View style={styles.explain}>
         <Ionicons name="people-circle-outline" size={26} color={colors.primary} />
         <View style={styles.flex}>
-          <Text style={styles.explainTitle}>Let another photographer work in your workspace</Text>
+          <Text style={styles.explainTitle}>What they can and cannot do</Text>
           <Text style={styles.muted}>
-            They sign in with their own account and switch into your workspace. They can handle bookings, events, opportunities, albums and clients with you, and see your balance and analytics. They cannot withdraw, see transactions or change account settings, and they do not become you.
+            They can handle bookings, events, opportunities, albums and clients with you, and see your balance and analytics. They cannot withdraw, see transactions or change account settings, and they do not become you.
           </Text>
         </View>
       </View>
@@ -166,7 +217,7 @@ export function WorkspaceAccessPanel() {
         <Text style={styles.sectionTitle} accessibilityRole="header">Invitations you sent</Text>
         {sent.length === 0 ? (
           <EmptyState icon="send-outline" title="You have not invited anyone yet"
-            message="Find a photographer by their email above. They will see the invitation in their app." />
+            message="Find a photographer by their email above. If they have an account they see the invitation in their app. If not, we email them a link to create one." />
         ) : (
           sortInvitations(sent).map((inv) => <SentRow key={inv.id} inv={inv} busy={busy} onAction={(a) => ownerAction(a, inv)} />)
         )}
@@ -210,6 +261,15 @@ function InviteForm({ onSent }: { onSent: (text: string) => Promise<void> }) {
     setSending(true);
     setProblem(null);
     try {
+      if (found.registered === false) {
+        const address = found.email || email.trim();
+        await sendInvitationByEmail(address, note.trim() || undefined);
+        setFound(null);
+        setEmail('');
+        setNote('');
+        await onSent(`Invitation emailed to ${address}. They will need to create an account with that address first.`);
+        return;
+      }
       await sendInvitation(found.id, note.trim() || undefined);
       const name = found.name;
       setFound(null);
@@ -247,7 +307,19 @@ function InviteForm({ onSent }: { onSent: (text: string) => Promise<void> }) {
 
       {found ? (
         <View style={styles.found}>
-          <Person person={found} caption={found.customerType || 'Photographer'} />
+          {found.registered === false ? (
+            <View style={styles.personRow}>
+              <View style={[styles.avatar, styles.avatarFallback]}><Ionicons name="mail-outline" size={20} color={colors.primary} /></View>
+              <View style={styles.flex}>
+                <Text style={styles.name}>{found.email || email.trim()}</Text>
+                <Text style={styles.muted}>
+                  No account uses this address yet. We will email them a link. They create a photographer account with this exact address, then accept your invitation.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Person person={found} caption={found.customerType || 'Photographer'} />
+          )}
           <Text style={styles.label}>Add a note (optional)</Text>
           <TextInput
             value={note}
@@ -258,9 +330,61 @@ function InviteForm({ onSent }: { onSent: (text: string) => Promise<void> }) {
             style={styles.input}
             accessibilityLabel="Add a note (optional)"
           />
-          <Button title="Send invitation" onPress={send} loading={sending} disabled={sending} />
+          <Button title={found.registered === false ? 'Email invitation' : 'Send invitation'} onPress={send} loading={sending} disabled={sending} />
         </View>
       ) : null}
+    </View>
+  );
+}
+
+// ─── The invitation a link points at ─────────────────────────────
+
+function InviteFocusCard({ focus, busy, onAcceptAndOpen, onDecline, onOpen, onDismiss }: {
+  focus: InviteFocus; busy: string | null;
+  onAcceptAndOpen: (inv: WorkspaceInvitation) => void; onDecline: (inv: WorkspaceInvitation) => void;
+  onOpen: (inv: WorkspaceInvitation) => void; onDismiss: () => void;
+}) {
+  const styles = useStyles();
+  if (focus.kind === 'pending') {
+    const inv = focus.invitation;
+    return (
+      <View style={[styles.focusCard, styles.focusPending]} accessibilityLabel="Your invitation" testID="invite-focus">
+        <Text style={styles.focusEyebrow}>YOUR INVITATION</Text>
+        <Person person={inv.owner} />
+        <Text style={styles.focusTitle}>{inv.owner.name} invited you to work in their workspace</Text>
+        <Text style={styles.muted}>
+          You would handle bookings, events, albums and clients with them, and see their balance and analytics. Withdrawals and transactions stay with them, and your own account stays separate.
+        </Text>
+        <View style={styles.actions}>
+          <Button title="Accept and open workspace" loading={busy === inv.id + 'accept'} disabled={busy !== null} onPress={() => onAcceptAndOpen(inv)} style={styles.flex} />
+          <Button title="Decline" variant="ghost" loading={busy === inv.id + 'decline'} disabled={busy !== null} onPress={() => onDecline(inv)} style={styles.flex} />
+        </View>
+      </View>
+    );
+  }
+  if (focus.kind === 'accepted') {
+    const inv = focus.invitation;
+    return (
+      <View style={[styles.focusCard, styles.focusOk]} accessibilityLabel="Your invitation" testID="invite-focus">
+        <Text style={styles.focusTitle}>You already work in {inv.owner.name}&apos;s workspace</Text>
+        <View style={styles.actions}>
+          <Button title="Open workspace" onPress={() => onOpen(inv)} style={styles.flex} />
+          <Button title="Dismiss" variant="ghost" onPress={onDismiss} style={styles.flex} />
+        </View>
+      </View>
+    );
+  }
+  const text = focus.kind === 'ended'
+    ? `This invitation from ${focus.invitation.owner.name} is ${focus.label}. Ask them to send a new one if you still want to work together.`
+    : focus.kind === 'mismatch'
+      ? `This invitation was sent to ${focus.maskedEmail}, which is not the account you are signed in with. Sign out, then sign in or create an account with that address to accept it.`
+      : focus.kind === 'closed'
+        ? 'This invitation is no longer open. It may have been answered, cancelled or expired. Ask the photographer to send a new one.'
+        : 'We could not open this invitation. Check your connection, and that you are signed in with the address it was sent to.';
+  return (
+    <View accessibilityRole="alert" style={[styles.focusCard, styles.focusWarn]} accessibilityLabel="Your invitation" testID="invite-focus">
+      <Text style={styles.focusWarnText}>{text}</Text>
+      <Button title="Dismiss" variant="ghost" onPress={onDismiss} />
     </View>
   );
 }
@@ -299,13 +423,16 @@ function SentRow({ inv, busy, onAction }: { inv: WorkspaceInvitation; busy: stri
   return (
     <View style={styles.card} accessibilityLabel={`${inv.invitee.name}, ${v.label}`}>
       <Person person={inv.invitee} />
-      <View style={styles.statusLine}><StatusBadge inv={inv} /></View>
-      <Text style={styles.muted}>{v.meaning.owner} {when}</Text>
+      <View style={styles.statusLine}>
+        <StatusBadge inv={inv} />
+        {inv.invitee.registered === false ? <View style={[styles.badge, styles.badgeMuted]}><Text style={styles.badgeTextMuted}>No account yet</Text></View> : null}
+      </View>
+      <Text style={styles.muted}>{ownerMeaning(inv)} {when}</Text>
       {inv.note ? <Text style={styles.note}>&ldquo;{inv.note}&rdquo;</Text> : null}
       <View style={styles.actions}>
         {ownerActions(inv.status).map((a) => (
-          <Button key={a} title={ACTION_LABEL[a]} variant={a === 'resend' ? 'outline' : 'ghost'} loading={busy === inv.id + a}
-            disabled={busy !== null} accessibilityLabel={`${ACTION_LABEL[a]}: ${inv.invitee.name}`} onPress={() => onAction(a)} style={styles.flex} />
+          <Button key={a} title={ownerActionLabel(a, inv)} variant={a === 'resend' ? 'outline' : 'ghost'} loading={busy === inv.id + a}
+            disabled={busy !== null} accessibilityLabel={`${ownerActionLabel(a, inv)}: ${inv.invitee.name}`} onPress={() => onAction(a)} style={styles.flex} />
         ))}
       </View>
     </View>
@@ -366,7 +493,14 @@ const useStyles = makeStyles((c, e) => ({
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarLetter: { color: c.primary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   name: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-  statusLine: { flexDirection: 'row' },
+  statusLine: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  focusCard: { borderRadius: radii.lg, borderWidth: 2, padding: spacing.lg, gap: spacing.sm },
+  focusPending: { borderColor: c.primary, backgroundColor: c.tint },
+  focusOk: { borderColor: c.success, backgroundColor: c.surface },
+  focusWarn: { borderColor: c.warning, backgroundColor: c.surface },
+  focusEyebrow: { color: c.accent, fontSize: fontSize.xs, fontWeight: fontWeight.bold, letterSpacing: 1 },
+  focusTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  focusWarnText: { color: c.text, fontSize: fontSize.sm, lineHeight: 20 },
   badge: { borderRadius: radii.full, paddingHorizontal: spacing.md, paddingVertical: 4 },
   badgeSuccess: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.success },
   badgeWarning: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.warning },

@@ -6761,6 +6761,9 @@
     "params" : [ {
       "name" : "email",
       "required" : true
+    }, {
+      "name" : "allowUnregistered",
+      "required" : false
     } ]
   }, {
     "method" : "GET",
@@ -7702,6 +7705,11 @@
     "body" : {
       "type" : "Map"
     }
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/workspace-invitations/{id}",
+    "controller" : "PublicWorkspaceInvitationController#preview",
+    "pathVariables" : [ "id" ]
   }, {
     "method" : "POST",
     "path" : "/api/remote/streams/{eventId}/block",
