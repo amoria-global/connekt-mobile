@@ -12,12 +12,15 @@ import {
 } from '@expo-google-fonts/pragati-narrow';
 import { useAuth } from '@/store/auth';
 import { takePendingScanEvent } from '@/features/events/scanIntent';
+import { isPhotographerType } from '@/features/auth/role';
+import { takePendingInviteHref } from '@/features/workspace/pendingInvite';
 import { useCurrency } from '@/store/currency';
 import { useOnboarding } from '@/store/onboarding';
 import { UpdatePromptModal } from '@/features/updates';
 import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation';
 import { useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
 import { AppPreloader } from '@/components/ui/AppPreloader';
+import { GlobalHelpButton } from '@/components/help/GlobalHelpButton';
 
 // Keep native splash screen visible while fonts and auth bootstrap resolve
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -140,14 +143,25 @@ function useProtectedRoute() {
 
     // A scanned event QR outranks the default landing screen: once terms and
     // sign-in are out of the way, deliver the viewer to the event they scanned.
-    const goOr = (fallback: string) => {
-      takePendingScanEvent()
-        .catch(() => null)
-        .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}?src=qr` : fallback) as Href));
+    const goOr = (fallback: string, signedIn = false) => {
+      // A workspace invitation the person signed up or in for outranks everything else: it is why they are here. Only
+      // taken once signed in, so it is not spent on the way to the sign-in screen.
+      const invite = signedIn
+        ? takePendingInviteHref(isPhotographerType(useAuth.getState().user?.customerType)).catch(() => null)
+        : Promise.resolve<string | null>(null);
+      invite.then((href) => {
+        if (href) {
+          router.replace(href as Href);
+          return;
+        }
+        takePendingScanEvent()
+          .catch(() => null)
+          .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}?src=qr` : fallback) as Href));
+      });
     };
 
     if (status === 'authenticated') {
-      if (inAuthGroup || inOnboarding) goOr('/');
+      if (inAuthGroup || inOnboarding) goOr('/', true);
       return;
     }
 
@@ -221,6 +235,8 @@ export default function RootLayout() {
               />
             </View>
           ) : null}
+          {/* Help: on every screen, bottom right. Waits for the intro video; steps aside where it would cover a control. */}
+          <GlobalHelpButton ready={preloaderDone} />
           {/* Mandatory OTA update prompt (blocking, one action) */}
           <UpdatePromptModal />
           {/* Screens are theme-aware now, so the status bar follows suit:

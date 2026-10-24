@@ -90,7 +90,7 @@ describe('collaboration invite landing', () => {
     expect(text(r.root)).toContain(title);
     expect(pressable(r, 'Join album')).toBeUndefined();
     await act(async () => pressable(r, 'Go to Collaborate').props.onPress());
-    expect(mockReplace).toHaveBeenCalledWith('/collaborate');
+    expect(mockReplace).toHaveBeenCalledWith('/collaborate?tab=joined');
   });
 
   it('offers Open album, not Join, to someone who is already a member', async () => {
