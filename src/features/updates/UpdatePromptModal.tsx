@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/GlassCard';
 import { spacing, radii, fonts, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { UpdateGlyph } from './UpdateGlyph';
 import { updateNow, useAppUpdates, useUpdateChecks } from './useAppUpdates';
 
 const LOGO = require('../../../assets/images/logo.png');
@@ -103,33 +104,8 @@ function BrandDownloadIcon({
     );
   }
 
-  return (
-    <Svg width={64} height={64} viewBox="0 0 64 64" fill="none">
-      {/* Downward arrow in Connekyt accent pink */}
-      <Path
-        d="M32 10V40"
-        stroke={accentColor}
-        strokeWidth={5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M21 30L32 41L43 30"
-        stroke={accentColor}
-        strokeWidth={5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Rounded tray in Connekyt brand blue */}
-      <Path
-        d="M12 39V46C12 50.4183 15.5817 54 20 54H44C48.4183 54 52 50.4183 52 46V39"
-        stroke={primaryColor}
-        strokeWidth={5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
+  // The glowing arrow-into-tray: mint-to-cyan arrow, blue tray, soft glow (see UpdateGlyph).
+  return <UpdateGlyph size={88} />;
 }
 
 export function UpdatePromptModal() {
