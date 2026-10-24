@@ -600,7 +600,9 @@ export default function EventDetailScreen() {
             {canGoLive ? (
               <PrimaryBtn icon="radio" label={tr('b3_evdet_live_stream_btn')} variant="accent" onPress={onPhotographerGoLive} />
             ) : null}
-            <PrimaryBtn icon="share-social" label={tr('b3_evdet_share')} variant="outline" onPress={onShare} />
+            {ev?.published ? (
+              <PrimaryBtn icon="share-social" label={tr('b3_evdet_share')} variant="outline" onPress={onShare} />
+            ) : null}
             {ev?.published ? (
               <PrimaryBtn icon="qr-code-outline" label={tr('b3_evdet_qr_code')} variant="outline" onPress={openQr} />
             ) : null}
@@ -737,7 +739,9 @@ export default function EventDetailScreen() {
               />
               <PrimaryBtn icon="create-outline" label={tr('b3_evdet_edit')} variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
               <PrimaryBtn icon="earth-outline" label={tr('b3_evdet_geo_pricing')} variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
-              <PrimaryBtn icon="share-social-outline" label={tr('b3_evdet_share')} variant="outline" onPress={onShare} />
+              {ev?.published ? (
+                <PrimaryBtn icon="share-social-outline" label={tr('b3_evdet_share')} variant="outline" onPress={onShare} />
+              ) : null}
               {ev?.published ? (
                 <PrimaryBtn icon="qr-code-outline" label={tr('b3_evdet_qr_code')} variant="outline" onPress={openQr} />
               ) : null}

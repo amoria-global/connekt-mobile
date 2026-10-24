@@ -541,7 +541,7 @@ function EventRow({
           <View style={styles.quickBar}>
             <QuickActionButton label="Edit" icon="create-outline" onPress={onEdit} />
             {event.published ? <QuickActionButton label="QR" icon="qr-code-outline" onPress={onQr} /> : null}
-            <QuickActionButton label="Share" icon="share-social-outline" onPress={onShare} />
+            {event.published ? <QuickActionButton label="Share" icon="share-social-outline" onPress={onShare} /> : null}
           </View>
         </View>
       </View>
