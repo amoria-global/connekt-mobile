@@ -292,7 +292,7 @@ export default function JoinedAlbumScreen() {
         { text: tr.stay, style: 'cancel' },
         {
           text: tr.leave, style: 'destructive', onPress: async () => {
-            try { await leaveAlbum(id); router.replace('/collaborate' as Href); } catch (e) {
+            try { await leaveAlbum(id); router.replace('/collaborate?tab=joined' as Href); } catch (e) {
               Alert.alert(tr.errLeave, isApiError(e) ? e.message : tr.tryAgain);
             }
           },
@@ -305,7 +305,7 @@ export default function JoinedAlbumScreen() {
       <Screen padded={false}>
         {error ? (
           <EmptyState icon="lock-closed-outline" title={tr.cannotOpenTitle} message={error}
-            action={{ label: tr.backToCollab, onPress: () => router.replace('/collaborate' as Href) }} />
+            action={{ label: tr.backToCollab, onPress: () => router.replace('/collaborate?tab=joined' as Href) }} />
         ) : (
           <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
         )}

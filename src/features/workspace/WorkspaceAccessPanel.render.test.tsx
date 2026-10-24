@@ -94,7 +94,7 @@ describe('workspace access panel', () => {
   it('explains what an invited photographer can and cannot do', async () => {
     const r = await mount();
     const t = text(r.root);
-    expect(t).toContain('Let another photographer work in your workspace');
+    expect(t).toContain('What they can and cannot do');
     expect(t).toContain('cannot withdraw, see transactions or change account settings');
     expect(t).toContain('You have not invited anyone yet');
   });
