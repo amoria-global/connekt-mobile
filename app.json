@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-24-invitation-emails",
+            "date": "2026-10-24",
+            "title": "Invited photographers now get an email too",
+            "items": [
+              {
+                "icon": "mail-outline",
+                "title": "Invitations reach the inbox as well as the app",
+                "body": "When you invite a photographer who already has an account, they now get an email as well as the notification in their app, so they do not miss it. A resend emails them again, with a short pause so their inbox is not flooded."
+              },
+              {
+                "icon": "notifications-outline",
+                "title": "You are told by email when access ends",
+                "body": "If a workspace owner ends your access, you now get an email about it as well as the in-app notification, so you always know why a workspace is no longer there."
+              }
+            ]
+          },
+          {
             "id": "2026-10-24-collaborate-invites-help",
             "date": "2026-10-24",
             "title": "Clearer Collaborate, invitations by email and a Help button",
@@ -212,18 +229,6 @@
                 "icon": "filter-outline",
                 "title": "Filter and jump straight to the work",
                 "body": "Filter the calendar to events, live events or payments, tap Today to come back, and open an event or the payments screen straight from its card. Find Calendar on your Home screen and in the More menu."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-22-client-wallet-ring",
-            "date": "2026-10-22",
-            "title": "The client wallet ring now always shows",
-            "items": [
-              {
-                "icon": "pie-chart-outline",
-                "title": "Your wallet ring includes what you have spent",
-                "body": "The Analytics tab of the client wallet now shows its ring as soon as you have spent money, alongside your balance, refunds, tips, gifts, donations and what is still processing."
               }
             ]
           }
