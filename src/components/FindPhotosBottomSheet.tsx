@@ -7,6 +7,7 @@ import { useAuth } from '@/store/auth';
 import { makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 import { glassTile } from '@/components/ui/GlassCard';
 
 interface Props {
@@ -36,6 +37,7 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
       <GlassScrim onPress={onClose} style={StyleSheet.absoluteFill} accessibilityLabel={tr('Close')} />
       <View style={styles.sheetWrapper} pointerEvents="box-none">
         <GlassSheetHost style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+          <SheetCornerClose onPress={onClose} label={tr('Close')} />
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetHeaderTitle}>{tr('What would you like to do?')}</Text>
           

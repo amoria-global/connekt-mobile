@@ -24,6 +24,7 @@ import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, useTheme, makeStyles, darkPalette } from '@/theme';
 import { formatGiftUsd, formatGiftUsdBase } from './GiftOverlay';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 import { glassTile } from '@/components/ui/GlassCard';
 
 type Tier = 'POPULAR' | 'PREMIUM';
@@ -107,6 +108,7 @@ export function GiftTray({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <GlassScrim onPress={onClose} style={{ flex: 1, justifyContent: 'flex-end' }}>
       <GlassSheetHost style={[s.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
+        <SheetCornerClose onPress={onClose} />
         <View style={s.grab} />
         <View style={s.sheetHead}>
           <Text style={s.sheetTitle}>Send a gift</Text>

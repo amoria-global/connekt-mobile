@@ -15,6 +15,7 @@ import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { useLanguage } from '@/store/language';
 import { setAudioModeAsync } from '@/utils/safeAudio';
 import { DialogHost } from '@/components/ui/dialog';
+import { SheetCloseButton } from '@/components/ui/SheetCloseButton';
 import { useTheme } from '@/theme';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -121,6 +122,13 @@ export default function AppLayout() {
     return unsubscribe;
   }, [router]);
 
+  const sheetHeaderRight = () => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      {isShared ? <WorkspaceChip /> : null}
+      <SheetCloseButton />
+    </View>
+  );
+
   // Until the stored selection is read, paint nothing: the wrong workspace must never flash.
   if (!hydrated) return <View style={{ flex: 1, backgroundColor: c.background }} />;
 
@@ -128,7 +136,9 @@ export default function AppLayout() {
     <View style={{ flex: 1 }} key={activeId ?? 'own'}>
       <Stack
         screenOptions={{
-          headerRight: () => <WorkspaceChip />,
+          // Only while a shared workspace is open. The chip renders nothing otherwise, but on iOS 26 an empty header
+          // item is still drawn as a blank glass circle, so no item is registered at all.
+          headerRight: isShared ? () => <WorkspaceChip /> : undefined,
           // Elevated surface headers — same chrome combo as TopBar /
           // PersistentBottomBar so light and dark stay consistent.
           // Dark uses the card step and the link blue, exactly as TopBar does, so a pushed screen's header does not jump
@@ -147,9 +157,12 @@ export default function AppLayout() {
           options={{
             title: t('navNewEvent'),
             presentation: 'formSheet',
-            sheetAllowedDetents: [0.6, 1],
+            // The form is long and its first screen is the cover photo and title, so it opens at full height rather
+            // than at a partial detent the user has to drag up.
+            sheetAllowedDetents: [1],
             sheetGrabberVisible: true,
             sheetCornerRadius: 24,
+            headerRight: sheetHeaderRight,
           }}
         />
         <Stack.Screen name="event/[id]" options={{ title: t('navEvent') }} />
@@ -181,7 +194,7 @@ export default function AppLayout() {
             title: t('navNewAlbum'),
             headerShown: false,
             presentation: 'formSheet',
-            sheetAllowedDetents: [0.7, 1],
+            sheetAllowedDetents: [1],
             sheetGrabberVisible: true,
             sheetCornerRadius: 24,
           }}

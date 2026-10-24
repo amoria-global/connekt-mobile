@@ -43,6 +43,7 @@ import { translateSharedRw } from '@/i18n/kinyarwanda';
 import { translateSharedSw } from '@/i18n/swahili';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 import { glassTile } from '@/components/ui/GlassCard';
 
 const BMS_I18N: Record<'fr' | 'es' | 'rw', Record<string, string>> = {
@@ -1054,6 +1055,7 @@ export function BookingModeSelector({
         <Modal visible={listSheet !== null} transparent animationType="fade" onRequestClose={() => setListSheet(null)}>
           <GlassScrim style={styles.scrim} onPress={() => setListSheet(null)}>
             <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
+              <SheetCornerClose onPress={() => setListSheet(null)} />
               <Text style={[styles.label, { marginBottom: spacing.sm }]}>
                 {listSheet === 'start' ? tr('Start time') : listSheet === 'end' ? tr('End time') : tr('City')}
               </Text>

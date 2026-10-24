@@ -9,25 +9,7 @@ import {
   disableAppSwitcherProtection,
   addScreenshotListener,
 } from '@/utils/screenCapture';
-import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Easing,
-  FlatList,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-  Modal,
-  PixelRatio,
-} from 'react-native';
+import { ActivityIndicator, Alert, Animated, Easing, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, Modal, PixelRatio } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '@/components/ui/Button';
@@ -2330,6 +2312,7 @@ export function FindMyPhotos() {
 
       {/* ── Unlock Modal ── */}
       <Modal visible={unlockOpen} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <GlassScrim style={styles.modalOverlay}>
           <GlassSheetHost style={[styles.modalContent, { marginTop: 'auto' }]}>
             <View style={styles.modalHeader}>
@@ -2364,6 +2347,7 @@ export function FindMyPhotos() {
             />
           </GlassSheetHost>
         </GlassScrim>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Report a photo (long-press a tile to open). */}

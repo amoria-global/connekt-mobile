@@ -34,20 +34,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ActivityIndicator,
-  Animated,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -1261,6 +1248,7 @@ export default function PublicEventDetailScreen() {
         animationType="slide"
         onRequestClose={() => setVerifyOpen(false)}
       >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <GlassScrim style={styles.modalBackdrop} onPress={() => setVerifyOpen(false)}>
           <GlassSheetHost style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{t('b4_verifyYourAccessTitle')}</Text>
@@ -1293,6 +1281,7 @@ export default function PublicEventDetailScreen() {
             </Pressable>
           </GlassSheetHost>
         </GlassScrim>
+        </KeyboardAvoidingView>
       </Modal>
     </Screen>
   );
