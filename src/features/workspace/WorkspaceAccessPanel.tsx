@@ -217,7 +217,7 @@ export function WorkspaceAccessPanel({ inviteId = null, onInviteHandled }: { inv
         <Text style={styles.sectionTitle} accessibilityRole="header">Invitations you sent</Text>
         {sent.length === 0 ? (
           <EmptyState icon="send-outline" title="You have not invited anyone yet"
-            message="Find a photographer by their email above. If they have an account they see the invitation in their app. If not, we email them a link to create one." />
+            message="Find a photographer by their email above. If they have an account they see the invitation in their app and get it by email. If not, we email them a link to create one." />
         ) : (
           sortInvitations(sent).map((inv) => <SentRow key={inv.id} inv={inv} busy={busy} onAction={(a) => ownerAction(a, inv)} />)
         )}
@@ -275,7 +275,7 @@ function InviteForm({ onSent }: { onSent: (text: string) => Promise<void> }) {
       setFound(null);
       setEmail('');
       setNote('');
-      await onSent(`Invitation sent to ${name}. They will see it in their app.`);
+      await onSent(`Invitation sent to ${name}. They will see it in their app and by email.`);
     } catch (e) {
       setProblem(message(e, 'Could not send the invitation.'));
     } finally {
