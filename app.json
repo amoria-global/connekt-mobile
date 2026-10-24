@@ -138,6 +138,33 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-24-collaborate-invites-help",
+            "date": "2026-10-24",
+            "title": "Clearer Collaborate, invitations by email and a Help button",
+            "items": [
+              {
+                "icon": "people-outline",
+                "title": "Workspace access comes first, with a clear choice",
+                "body": "Collaborate now opens on Workspace access and shows two cards: share your whole workspace with another photographer, or share just one album. Each card says what the other person can and cannot do, so it is clear which one you want."
+              },
+              {
+                "icon": "mail-outline",
+                "title": "Invite photographers who do not have an account yet",
+                "body": "Enter any email address and we send an invitation by email if it has no account. They create a photographer account with that exact address and then accept, and they can paste the link into the sign in screen to continue."
+              },
+              {
+                "icon": "chatbubbles-outline",
+                "title": "Get help from any screen",
+                "body": "A Help button now stays in the bottom right corner of the app and opens the Help Center in one tap. It steps aside on screens where it would cover a button, like chat, live streams and the creation forms."
+              },
+              {
+                "icon": "cloud-download-outline",
+                "title": "A new look for the update screen",
+                "body": "The update screen now shows a glowing arrow dropping into a tray, so it is easy to see that a new version is ready to install."
+              }
+            ]
+          },
+          {
             "id": "2026-10-23-collaborator-progress",
             "date": "2026-10-23",
             "title": "Follow your collaborators' progress",
@@ -197,18 +224,6 @@
                 "icon": "pie-chart-outline",
                 "title": "Your wallet ring includes what you have spent",
                 "body": "The Analytics tab of the client wallet now shows its ring as soon as you have spent money, alongside your balance, refunds, tips, gifts, donations and what is still processing."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-22-update-screen-look",
-            "date": "2026-10-22",
-            "title": "A new look for the update screen",
-            "items": [
-              {
-                "icon": "color-palette-outline",
-                "title": "The update screen has a fresh gradient look",
-                "body": "The screen that appears when a new version is ready now has a dark background with a soft blue and teal glow and a blue to mint Update now button. What it says and how it works are unchanged."
               }
             ]
           }

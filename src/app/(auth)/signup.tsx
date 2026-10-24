@@ -38,6 +38,8 @@ import { CUSTOMER_TYPES, signup } from '@/features/auth/api';
 import { GoogleButton } from '@/features/auth/GoogleButton';
 import { AppleButton } from '@/features/auth/AppleButton';
 import type { CustomerType } from '@/features/auth/types';
+import { InviteNotice } from '@/features/workspace/InviteNotice';
+import { useInvitePlan } from '@/features/workspace/useInvitePlan';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
@@ -124,7 +126,11 @@ export default function SignupScreen() {
     email?: string;
     firstName?: string;
     lastName?: string;
+    invite?: string;
   }>();
+  // A workspace invitation the sign-up was opened for: it can only be claimed by an account with the invited address,
+  // so that address is filled in and fixed. Only an invitation carried by the route counts, not one left in storage.
+  const invite = useInvitePlan(params.invite, { useStored: false });
 
   /**
    * The role MUST arrive from `choose-role`. There is deliberately no fallback:
@@ -141,9 +147,14 @@ export default function SignupScreen() {
    */
   const googlePrefill = Boolean(params.email);
 
+  // An invitation is for photographers, so it sets the role itself when none was chosen.
   const role = (CUSTOMER_TYPES as string[]).includes(params.role ?? '')
     ? (params.role as CustomerType)
-    : null;
+    : invite.id
+      ? ('Photographer' as CustomerType)
+      : null;
+  const invitePlan = role === 'Photographer' ? invite.plan : null;
+  const inviteLocksEmail = !!invitePlan?.lockEmail;
 
   useEffect(() => {
     if (role === null) router.replace('/login');
@@ -172,6 +183,7 @@ export default function SignupScreen() {
     handleSubmit,
     watch,
     trigger,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -183,6 +195,14 @@ export default function SignupScreen() {
       confirmPassword: '',
     },
   });
+
+  useEffect(() => {
+    if (!invitePlan || !invite.id) return;
+    if (invitePlan.view === 'signup' && invitePlan.email) setValue('email', invitePlan.email);
+    // The address already has a photographer account: sign in with it instead.
+    else if (invitePlan.view === 'login') router.replace({ pathname: '/login', params: { invite: invite.id } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invitePlan?.key]);
 
   const password = watch('password');
   const confirmPassword = watch('confirmPassword');
@@ -295,6 +315,7 @@ export default function SignupScreen() {
     >
       {step === 1 ? (
       <>
+      {invitePlan ? <InviteNotice plan={invitePlan} /> : null}
       <View style={styles.row}>
         <View style={styles.col}>
           <Field
@@ -324,7 +345,7 @@ export default function SignupScreen() {
         control={control}
         name="email"
         label={t('yourEmail')}
-        editable={!googlePrefill}
+        editable={!googlePrefill && !inviteLocksEmail}
         textContentType="emailAddress"
         autoComplete="email"
         error={errors.email?.message}
@@ -420,7 +441,7 @@ export default function SignupScreen() {
         />
       )}
 
-      {step === 1 ? (
+      {step === 1 && !invitePlan?.requireSignup ? (
         <Pressable
           style={styles.signInLine}
           onPress={() => router.replace('/login')}

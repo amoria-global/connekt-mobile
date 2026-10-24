@@ -1,0 +1,157 @@
+import React from 'react';
+import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
+import { Text } from 'react-native';
+
+/**
+ * The Collaborate screen opens on Workspace access, and a chooser says how album collaboration differs. The route says
+ * where it opens, so a link back from a joined album lands on the albums side. Rendered over fake album data
+ * (react-test-renderer); it never talks to a backend.
+ */
+import '@/test/autoUnmount';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const mockParams: { tab?: string; invite?: string } = {};
+const mockSetParams = jest.fn();
+jest.mock('expo-router', () => {
+  const R = require('react');
+  return {
+    useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: (...a: unknown[]) => mockSetParams(...a) }),
+    useLocalSearchParams: () => mockParams,
+    useFocusEffect: (cb: () => void) => { R.useEffect(() => { cb(); }, []); },
+  };
+});
+jest.mock('@/components/ui/Screen', () => ({ Screen: ({ children }: { children: React.ReactNode }) => children }));
+jest.mock('@/features/collab/api', () => ({
+  listOwnedAlbums: jest.fn(async () => [{ id: 'a1', title: 'Wedding at the lake', coverImage: null, imageCount: 12, collaboratorCount: 1, pendingCount: 2 }]),
+  listJoinedAlbums: jest.fn(async () => []),
+}));
+jest.mock('@/features/workspace/WorkspaceAccessPanel', () => {
+  const { Text: T, Pressable: P } = require('react-native');
+  return {
+    WorkspaceAccessPanel: ({ inviteId, onInviteHandled }: { inviteId?: string | null; onInviteHandled?: () => void }) => (
+      <P testID="panel" accessibilityLabel={`panel invite=${inviteId ?? ''}`} onPress={() => onInviteHandled?.()}>
+        <T>workspace panel</T>
+      </P>
+    ),
+  };
+});
+jest.mock('@/hooks/useLanguage', () => ({ useLanguage: () => ({ language: 'en' }) }));
+jest.mock('@/features/auth/role', () => ({ useRole: () => ({ isPhotographer: true, role: 'Photographer' }) }));
+jest.mock('@/store/auth', () => ({ isApiError: () => false, useAuth: Object.assign(() => ({}), { getState: () => ({ user: {} }) }) }));
+
+import CollaborateHub from '@/app/(app)/collaborate/index';
+
+const text = (n: ReactTestInstance) => n.findAllByType(Text).map((t) => [t.props.children].flat().join('')).filter(Boolean).join(' | ');
+const radios = (r: TestRenderer.ReactTestRenderer) => r.root.findAll((n) => n.props?.accessibilityRole === 'radio' && typeof n.props.onPress === 'function');
+const checked = (r: TestRenderer.ReactTestRenderer) => radios(r).filter((n) => n.props.accessibilityState?.checked).map((n) => n.props.accessibilityLabel as string);
+const tabs = (r: TestRenderer.ReactTestRenderer) => r.root.findAll((n) => n.props?.accessibilityRole === 'button' && n.props.accessibilityState && 'selected' in n.props.accessibilityState && typeof n.props.onPress === 'function');
+
+async function mount(tab?: string, invite?: string) {
+  mockParams.tab = tab;
+  mockParams.invite = invite;
+  mockSetParams.mockClear();
+  let r!: TestRenderer.ReactTestRenderer;
+  await act(async () => { r = TestRenderer.create(<CollaborateHub />); });
+  await act(async () => {});
+  return r;
+}
+
+describe('Collaborate screen', () => {
+  it('opens on Workspace access with both choices explained', async () => {
+    const r = await mount();
+    expect(radios(r)).toHaveLength(2);
+    expect(checked(r)).toHaveLength(1);
+    expect(checked(r)[0]).toContain('Workspace access');
+    const all = text(r.root);
+    expect(all).toContain('workspace panel');
+    // The heading matches the side, not the old "Work on albums together".
+    expect(all).toContain('Work together');
+    expect(all).not.toContain('Work on albums together');
+    expect(all).toContain('WHOLE WORKSPACE');
+    expect(all).toContain('ONE ALBUM');
+    // The chosen card lists its points; the other stays short.
+    expect(all).toContain('Withdrawals and transactions stay with you');
+    expect(all).not.toContain('They never see your bookings, clients or money');
+    // The album tabs, the join row and the album stats belong to the albums side.
+    expect(all).not.toContain('My albums');
+    expect(all).not.toContain('Wedding at the lake');
+  });
+
+  it('still opens on the workspace for the old workspace route', async () => {
+    const r = await mount('workspace');
+    expect(checked(r)[0]).toContain('Workspace access');
+  });
+
+  it.each(['mine', 'joined'])('opens on the albums side for ?tab=%s, so a link back from an album lands there', async (tab) => {
+    const r = await mount(tab);
+    expect(checked(r)[0]).toContain('Album collaboration');
+    const all = text(r.root);
+    expect(all).not.toContain('workspace panel');
+    expect(all).toContain('They never see your bookings, clients or money');
+    expect(all).not.toContain('Withdrawals and transactions stay with you');
+    expect(all).toContain('My albums');
+    expect(all).toContain('Joined');
+    const tabLabels = tabs(r).map((n) => text(n)).join(' ');
+    expect(tabLabels).toContain('My albums');
+    expect(tabLabels).toContain('Joined');
+    expect(tabLabels).not.toContain('Workspace access');
+    expect(all).toContain('Work on albums together');
+    expect(all).not.toContain('Choose how you want to work with another photographer.');
+  });
+
+  it('switching the choice swaps the content', async () => {
+    const r = await mount();
+    await act(async () => { radios(r)[1].props.onPress(); });
+    expect(checked(r)[0]).toContain('Album collaboration');
+    expect(text(r.root)).toContain('Wedding at the lake');
+    expect(text(r.root)).not.toContain('workspace panel');
+    await act(async () => { radios(r)[0].props.onPress(); });
+    expect(checked(r)[0]).toContain('Workspace access');
+    expect(text(r.root)).toContain('workspace panel');
+  });
+
+  const INVITE = '3f2a9c1e-5b7d-4c8e-9a10-0b1c2d3e4f50';
+  const panel = (r: TestRenderer.ReactTestRenderer) => r.root.findAll((n) => n.props?.testID === 'panel' && typeof n.props.onPress === 'function')[0];
+
+  it('opens a workspace invitation link on the workspace side and hands the id to the panel', async () => {
+    const r = await mount(undefined, INVITE);
+    expect(checked(r)[0]).toContain('Workspace access');
+    expect(panel(r).props.accessibilityLabel).toBe(`panel invite=${INVITE}`);
+  });
+
+  it('opens the workspace side for an invitation link even if the route also names an albums tab', async () => {
+    const r = await mount('mine', INVITE);
+    expect(checked(r)[0]).toContain('Workspace access');
+    expect(panel(r).props.accessibilityLabel).toBe(`panel invite=${INVITE}`);
+  });
+
+  it('accepts the invitation id from a pasted link and ignores anything that is not an id', async () => {
+    const link = `https://dashboard.connekyt.com/user/photographer/collaborate?tab=workspace&invite=${INVITE}`;
+    expect(panel(await mount(undefined, link)).props.accessibilityLabel).toBe(`panel invite=${INVITE}`);
+    expect(panel(await mount(undefined, '../../etc/passwd')).props.accessibilityLabel).toBe('panel invite=');
+    expect(panel(await mount(undefined, '<script>')).props.accessibilityLabel).toBe('panel invite=');
+  });
+
+  it('drops the id from the route once the invitation has been handled', async () => {
+    const r = await mount(undefined, INVITE);
+    await act(async () => { panel(r).props.onPress(); });
+    expect(mockSetParams).toHaveBeenCalledWith({ invite: undefined });
+    expect(panel(r).props.accessibilityLabel).toBe('panel invite=');
+  });
+
+  it('has no invitation without a link', async () => {
+    expect(panel(await mount()).props.accessibilityLabel).toBe('panel invite=');
+  });
+
+  it('offers a way across from each side', async () => {
+    const r = await mount();
+    const toAlbums = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.props.accessibilityRole === 'button' && text(n) === 'Use Album collaboration')[0];
+    expect(toAlbums).toBeDefined();
+    await act(async () => { toAlbums.props.onPress(); });
+    expect(checked(r)[0]).toContain('Album collaboration');
+    const toWorkspace = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.props.accessibilityRole === 'button' && text(n) === 'Use Workspace access')[0];
+    expect(toWorkspace).toBeDefined();
+    expect(tabs(r).length).toBeGreaterThan(0);
+  });
+});

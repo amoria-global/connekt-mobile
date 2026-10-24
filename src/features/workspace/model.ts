@@ -17,10 +17,14 @@ export const WORKSPACE_NOT_AVAILABLE = 'Workspace access is not available';
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED' | 'EXPIRED' | 'REVOKED' | 'LEFT';
 
 export interface WorkspacePerson {
+  /** Empty for someone known only by the address they were invited at (no account yet): see `registered`. */
   id: string;
   name: string;
   customerType?: string;
   profilePicture?: string;
+  /** False when the address has no account yet; absent on older servers, which means an account. */
+  registered?: boolean;
+  email?: string;
 }
 
 export interface WorkspaceInvitation {
@@ -33,6 +37,10 @@ export interface WorkspaceInvitation {
   expiresAt?: string;
   respondedAt?: string;
   endedAt?: string;
+  /** The address it was sent to. */
+  inviteeEmail?: string;
+  /** "email" when it went to an address with no account yet, "in_app" when it went to an account. */
+  delivery?: string;
 }
 
 /** What the server says a member may do in a workspace. Fixed by the policy; shown, never trusted. */
@@ -57,7 +65,14 @@ const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v 
 
 export function mapPerson(raw: unknown): WorkspacePerson {
   const r = (raw ?? {}) as Raw;
-  return { id: String(r.id ?? ''), name: str(r.name) ?? 'A photographer', customerType: str(r.customerType), profilePicture: str(r.profilePicture) };
+  return {
+    id: String(r.id ?? ''),
+    name: str(r.name) ?? 'A photographer',
+    customerType: str(r.customerType),
+    profilePicture: str(r.profilePicture),
+    registered: typeof r.registered === 'boolean' ? r.registered : undefined,
+    email: str(r.email),
+  };
 }
 
 export function mapInvitation(raw: unknown): WorkspaceInvitation {
@@ -74,6 +89,8 @@ export function mapInvitation(raw: unknown): WorkspaceInvitation {
     expiresAt: str(r.expiresAt),
     respondedAt: str(r.respondedAt),
     endedAt: str(r.endedAt),
+    inviteeEmail: str(r.inviteeEmail),
+    delivery: str(r.delivery),
   };
 }
 
