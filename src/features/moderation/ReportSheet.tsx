@@ -7,7 +7,7 @@
  * serves both the authenticated endpoint and the anonymous-viewer one.
  */
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
@@ -86,6 +86,7 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <GlassScrim style={styles.backdrop} onPress={onClose}>
         <GlassSheetHost style={styles.sheet}>
           <Text style={styles.title}>{tr(`Report ${label}`)}</Text>
@@ -127,6 +128,7 @@ export function ReportSheet({ visible, onClose, targetType, submit, subject }: P
           <Button title="Cancel" variant="ghost" onPress={onClose} disabled={submitting} />
         </GlassSheetHost>
       </GlassScrim>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

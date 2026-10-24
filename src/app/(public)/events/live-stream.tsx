@@ -133,6 +133,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 import { useStackClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { Sheet } from '@/components/ui/Sheet';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /** The side-rail toggles' "on" state: a white wash over the glass. */
@@ -1657,26 +1658,17 @@ export default function PublicLiveStreamScreen() {
    * (name, email, phone). FREE events: name and email only, which registers the viewer.
    */
   const renderInfoModal = (open: boolean) => (
-    <Modal visible={open} transparent animationType="slide" onRequestClose={closeInfoModal}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.modalKeyboard}
-      >
-      <GlassScrim style={styles.modalBackdrop} onPress={closeInfoModal}>
-        <GlassSheetHost
-          style={[styles.modalSheet, { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
-        >
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {status.isPaid ? 'Verify your access' : pendingGift ? 'Send your gift' : 'Join the chat'}
-            </Text>
-            <Text style={styles.modalHint}>
-              {status.isPaid
-                ? "Enter the name, email and phone you used when buying your ticket. We'll restore access on this device."
-                : pendingGift
-                  ? 'Enter your name and email to send your gift. No account needed.'
-                  : 'Enter your name and email to comment. No account needed, and this event is free.'}
-            </Text>
+    <Sheet
+      visible={open}
+      title={status.isPaid ? 'Verify your access' : pendingGift ? 'Send your gift' : 'Join the chat'}
+      subtitle={status.isPaid
+        ? "Enter the name, email and phone you used when buying your ticket. We'll restore access on this device."
+        : pendingGift
+          ? 'Enter your name and email to send your gift. No account needed.'
+          : 'Enter your name and email to comment. No account needed, and this event is free.'}
+      onClose={closeInfoModal}
+      busy={infoBusy}
+    >
             <Input
               label="Name"
               value={accountName}
@@ -1720,11 +1712,7 @@ export default function PublicLiveStreamScreen() {
                 <Text style={styles.linkText}>Buy access instead</Text>
               </Pressable>
             ) : null}
-          </ScrollView>
-        </GlassSheetHost>
-      </GlassScrim>
-      </KeyboardAvoidingView>
-    </Modal>
+    </Sheet>
   );
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -2283,22 +2271,19 @@ export default function PublicLiveStreamScreen() {
       ) : null}
 
       {/* Device-conflict modal */}
-      <Modal visible={conflictOpen} transparent animationType="slide" onRequestClose={() => setConflictOpen(false)}>
-        <GlassScrim style={styles.modalBackdrop} onPress={() => setConflictOpen(false)}>
-          <GlassSheetHost style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{tr('b4_watchingOnAnotherDeviceTitle')}</Text>
-            <Text style={styles.modalHint}>
-              Only one device can watch on the same paid ticket at a time. It'll free up
-              automatically once the other device stops watching. Tap retry to check.
-            </Text>
+      <Sheet
+        visible={conflictOpen}
+        title={tr('b4_watchingOnAnotherDeviceTitle')}
+        subtitle="Only one device can watch on the same paid ticket at a time. It'll free up automatically once the other device stops watching. Tap retry to check."
+        onClose={() => setConflictOpen(false)}
+        busy={conflictBusy}
+      >
             <Button
               title={conflictBusy ? 'Checking…' : 'Retry'}
               onPress={onRetryDeviceAccess}
               loading={conflictBusy}
             />
-          </GlassSheetHost>
-        </GlassScrim>
-      </Modal>
+      </Sheet>
 
       {renderInfoModal(infoModalOpen && !chatFullscreen)}
 

@@ -41,7 +41,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
   const styles = useStyles();
   const { tr, t } = useSharedT();
   const user = useAuth((s) => s.user);
-  const snapPoints = useMemo(() => ['65%', '90%'], []);
+  // One tall snap point: the wizard steps and the pay step need the room, so it never opens short and needs a drag.
+  const snapPoints = useMemo(() => ['90%'], []);
   const [currentStep, setCurrentStep] = useState(1);
 
   // Keyboard visibility tracking & input navigation refs

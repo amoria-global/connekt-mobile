@@ -69,6 +69,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
 import { useStackClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 // The stream-ticket endpoint takes MTN or AIRTEL for mobile money, as before.
@@ -591,6 +592,7 @@ function EventPaymentInner() {
       >
         <GlassScrim style={styles.modalBackdrop} onPress={() => setCountryModalOpen(false)}>
           <GlassSheetHost style={styles.modalSheet}>
+            <SheetCornerClose onPress={() => setCountryModalOpen(false)} />
             <Text style={styles.modalTitle}>{tr('b4_selectPaymentCountry')}</Text>
             <ScrollView style={{ maxHeight: 360 }}>
               {PAYMENT_COUNTRIES.map((c) => (
