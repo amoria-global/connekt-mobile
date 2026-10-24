@@ -39,7 +39,7 @@ export interface WorkspaceInvitation {
   endedAt?: string;
   /** The address it was sent to. */
   inviteeEmail?: string;
-  /** "email" when it went to an address with no account yet, "in_app" when it went to an account. */
+  /** "email" when it went to an address with no account yet, "in_app" or "in_app_and_email" when it went to an account. */
   delivery?: string;
 }
 
