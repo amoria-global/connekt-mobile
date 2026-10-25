@@ -90,6 +90,7 @@ export const fonts = {
 export const tracking = (size: number, em = -0.025) => size * em;
 
 export { shadows } from './shadows';
+export { density, compactFont, compactSpace, compactRadius, hitSlopFor } from './density';
 
 /**
  * The paper calendar tile, the brief's one tactile object per screen. It is an object, not a
@@ -155,5 +156,5 @@ export { makeElevation } from './elevation';
 export type { ElevationLevel, ElevationFn } from './elevation';
 export { ThemeProvider, useTheme } from './ThemeProvider';
 export type { ThemePreference } from './ThemeProvider';
-export { makeStyles } from './makeStyles';
+export { makeStyles, compactSheet } from './makeStyles';
 export { navigationThemeFor } from './navigationTheme';

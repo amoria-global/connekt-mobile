@@ -21,7 +21,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts, makeStyles, radii, shadows, spacing, tracking, useTheme } from '@/theme';
+import { alpha, fonts, makeStyles, radii, shadows, spacing, tracking, useTheme } from '@/theme';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Skeleton as Pulse } from '@/components/ui/Skeleton';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -249,7 +249,7 @@ export function ActionButton({
           ? colors.accentLight
           : variant === 'teal'
             ? colors.active
-            : colors.text;
+            : colors.link;
   return (
     <Pressable
       onPress={inactive ? undefined : onPress}
@@ -264,6 +264,7 @@ export function ActionButton({
         variant !== 'primary' && variant !== 'tertiary' && variant !== 'destructive' && styles.actionGlass,
         (variant === 'tertiary' || variant === 'destructive') && styles.actionQuiet,
         inactive && styles.disabled,
+        variant !== 'primary' && { backgroundColor: alpha(fg, 0.14), borderColor: alpha(fg, 0.6), borderWidth: 1 },
         pressed && !inactive && styles.pressed,
         style,
       ]}

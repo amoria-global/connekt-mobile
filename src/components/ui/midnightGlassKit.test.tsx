@@ -77,10 +77,21 @@ describe('buttons', () => {
     expect(String(style(mount(<GhostButton title="Remove" onPress={() => {}} />)).boxShadow)).not.toMatch(/8px 24px/);
   });
 
-  it('keeps every button at least 44pt tall', () => {
-    for (const el of [<PrimaryButton key="p" title="A" onPress={() => {}} />, <GhostButton key="g" title="B" onPress={() => {}} />]) {
-      expect(style(mount(el)).minHeight as number).toBeGreaterThanOrEqual(44);
-    }
+  it('follows the hierarchy: primary 44, secondary 40, and every button keeps a 44pt target', () => {
+    const primary = mount(<PrimaryButton title="A" onPress={() => {}} />);
+    expect(style(primary).minHeight as number).toBe(44);
+    const ghost = mount(<GhostButton title="B" onPress={() => {}} />);
+    const g = style(ghost);
+    expect(g.minHeight as number).toBe(40);
+    const slop = buttons(ghost)[0].props.hitSlop as { top?: number; bottom?: number } | undefined;
+    expect(40 + (slop?.top ?? 0) + (slop?.bottom ?? 0)).toBeGreaterThanOrEqual(44);
+  });
+
+  it('gives a secondary button a coloured signal: tinted fill and a coloured border', () => {
+    const g = style(mount(<GhostButton title="B" onPress={() => {}} />));
+    expect(g.borderWidth).toBe(1);
+    expect(String(g.borderColor)).toMatch(/rgba\(/);
+    expect(String(g.backgroundColor)).toMatch(/rgba\(/);
   });
 });
 
