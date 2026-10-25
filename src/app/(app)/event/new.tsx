@@ -686,6 +686,7 @@ export default function NewEventScreen() {
                           {entertainmentCategory}
                         </Text>
                       </Pressable>
+                      <Text style={styles.categoryNote}>Coordinator events are listed under Entertainment.</Text>
                     </View>
                   )}
                 />
@@ -769,8 +770,8 @@ export default function NewEventScreen() {
                   </View>
                 </View>
 
-                <View style={styles.row}>
-                  <View style={styles.rowItem}>
+                <View style={styles.stack}>
+                  <View>
                     <Controller
                       control={control}
                       name="price"
@@ -787,13 +788,9 @@ export default function NewEventScreen() {
                     />
                   </View>
 
-                  <View style={styles.rowItem}>
+                  <View style={styles.stackItem}>
                     <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.currencyChipsScroll}
-                    >
+                    <View style={styles.currencyWrap}>
                       {currenciesList.map((c) => {
                         const active = selectedCurrency === c.code;
                         return (
@@ -803,7 +800,9 @@ export default function NewEventScreen() {
                               setSelectedCurrency(c.code);
                               setCurrencyId(c.id);
                             }}
-                            style={[styles.chip, active && styles.chipActive]}
+                            style={[styles.currencyChip, active && styles.chipActive]}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: active }}
                           >
                             <Text style={[styles.chipText, active && styles.chipTextActive]}>
                               {c.code}
@@ -811,7 +810,7 @@ export default function NewEventScreen() {
                           </Pressable>
                         );
                       })}
-                    </ScrollView>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -1037,20 +1036,18 @@ export default function NewEventScreen() {
                           onChangeText={setGeoPriceInput}
                         />
                       </View>
-                      <View style={styles.rowItem}>
+                      <View style={styles.stackItem}>
                         <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.currencyChipsScroll}
-                        >
+                        <View style={styles.currencyWrap}>
                           {currenciesList.map((c) => {
                             const active = (geoCurrencyId ? geoCurrencyId === c.id : selectedCurrency === c.code);
                             return (
                               <Pressable
                                 key={c.code}
                                 onPress={() => setGeoCurrencyId(c.id)}
-                                style={[styles.chip, active && styles.chipActive]}
+                                style={[styles.currencyChip, active && styles.chipActive]}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: active }}
                               >
                                 <Text style={[styles.chipText, active && styles.chipTextActive]}>
                                   {c.code}
@@ -1058,7 +1055,7 @@ export default function NewEventScreen() {
                               </Pressable>
                             );
                           })}
-                        </ScrollView>
+                        </View>
                       </View>
                     </View>
 
@@ -1557,6 +1554,11 @@ const useStyles = makeStyles((c) => ({
     marginTop: 2,
     lineHeight: 16,
   },
+  stack: { gap: spacing.md },
+  stackItem: { gap: spacing.xs },
+  currencyWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  currencyChip: { minWidth: 64, minHeight: 40, paddingHorizontal: spacing.md, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
+  categoryNote: { width: '100%', fontSize: fontSize.xs, color: c.textMuted },
   currencyChipsScroll: {
     flexDirection: 'row',
     gap: spacing.xs,
