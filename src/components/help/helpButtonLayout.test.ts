@@ -11,8 +11,6 @@ const flat = { bottom: 0 }; // a phone without one
 
 describe('where the button shows', () => {
   it.each([
-    ['a tab screen', ['(app)', '(tabs)', 'index']],
-    ['the wallet tab', ['(app)', '(tabs)', 'wallet']],
     ['an app screen outside the tabs', ['(app)', 'bookings']],
     ['a dashboard sub screen', ['(app)', 'analytics']],
     ['the streams list, not a stream', ['(app)', 'streams']],
@@ -71,16 +69,10 @@ describe('where it steps aside', () => {
 });
 
 describe('where it sits', () => {
-  it('goes above the tab bar on the tab screens, whatever the phone', () => {
-    expect(helpButtonPlacement(['(app)', '(tabs)', 'index'], phone).bottom).toBe(34 + BAR_CONTENT_HEIGHT + HELP_GAP);
-    // Without a home indicator the bar still has its own 8 points of padding.
-    expect(helpButtonPlacement(['(app)', '(tabs)', 'index'], flat).bottom).toBe(8 + BAR_CONTENT_HEIGHT + HELP_GAP);
-  });
-
-  it('is clear of the tab bar on every tab', () => {
-    for (const tab of ['index', 'events', 'wallet', 'inbox', 'more']) {
-      const p = helpButtonPlacement(['(app)', '(tabs)', tab], phone);
-      expect(p.bottom).toBeGreaterThanOrEqual(34 + BAR_CONTENT_HEIGHT);
+  it('steps aside on every tab screen, whose top bar carries Help, so it never floats over a button', () => {
+    for (const tab of ['index', 'events', 'wallet', 'inbox', 'profile', 'more']) {
+      expect(helpButtonPlacement(['(app)', '(tabs)', tab], phone)).toEqual({ visible: false, bottom: 0 });
+      expect(helpButtonPlacement(['(app)', '(tabs)', tab], flat).visible).toBe(false);
     }
   });
 

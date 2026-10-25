@@ -75,12 +75,9 @@ describe('the global Help button', () => {
     expect(s.zIndex).toBeGreaterThan(99); // above the tab bar
   });
 
-  it('sits above the tab bar on a tab screen', async () => {
+  it('steps aside on a tab screen, whose top bar carries Help', async () => {
     mockSegments = ['(app)', '(tabs)', 'index'];
-    const tab = style(await mount()).bottom as number;
-    mockSegments = ['(app)', 'bookings'];
-    const plain = style(await mount()).bottom as number;
-    expect(tab).toBeGreaterThan(plain);
+    expect(button(await mount())).toHaveLength(0);
   });
 
   it.each([['fr', "Centre d'aide"], ['es', 'Centro de ayuda']])('is named in %s for people using the app in that language', async (lang, label) => {

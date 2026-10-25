@@ -2,7 +2,7 @@
  * SkeletonLoader: the loading state for every list. Blocks pulse softly; under reduced motion they
  * hold still. Shape the skeleton like the content it stands in for, so nothing jumps on arrival.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native';
 import { makeStyles, motion, radii, spacing, useReducedMotion } from '@/theme';
 import { GlassCard } from './GlassCard';
@@ -10,7 +10,7 @@ import { GlassCard } from './GlassCard';
 export function Skeleton({ width = '100%', height = 14, radius = radii.sm, style }: { width?: DimensionValue; height?: number; radius?: number; style?: StyleProp<ViewStyle> }) {
   const styles = useStyles();
   const reduced = useReducedMotion();
-  const pulse = useRef(new Animated.Value(0.55)).current;
+  const [pulse] = useState(() => new Animated.Value(0.55));
   useEffect(() => {
     if (reduced) return;
     const loop = Animated.loop(

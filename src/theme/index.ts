@@ -100,10 +100,18 @@ export const shadows = {
   /** The 1px top highlight on a flat fill, so it reads as the raised button's family. */
   highlight: 'inset 0 1px 0 rgba(255,255,255,0.22)',
   inset: 'inset 0 2px 6px rgba(0,0,0,0.5)',
+  /** A tactile object (the paper calendar tile) resting on glass. */
+  object: '0 10px 24px rgba(0,0,0,0.45), inset 0 -2px 0 rgba(0,0,0,0.08)',
   insetLight: 'inset 0 2px 5px rgba(8,24,56,0.10)',
   /** The active tab pill and glowing icon tiles. */
   glow: (rgb: string, alpha = 0.45) => `0 0 18px rgba(${rgb},${alpha})`,
 } as const;
+
+/**
+ * The paper calendar tile, the brief's one tactile object per screen. It is an object, not a
+ * surface, so it reads the same in both schemes: white paper, ink numerals, a coloured header.
+ */
+export const paper = { top: '#FFFFFF', bottom: '#DCE3EF', ink: '#0A1220', inkSoft: '#4A5873' } as const;
 
 /** `#RRGGBB` at an opacity, for strokes and washes derived from a palette colour. */
 export const alpha = (hex: string, a: number) => {
