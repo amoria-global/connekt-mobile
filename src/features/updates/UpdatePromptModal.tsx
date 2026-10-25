@@ -8,7 +8,8 @@
  * screen and the same button retries.
  */
 import React, { useContext, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -21,7 +22,24 @@ import {
 import { spacing, radii, fonts, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { UpdateGlyph } from './UpdateGlyph';
+import { countItems, type Release } from './releaseNotes';
 import { updateNow, useAppUpdates, useUpdateChecks } from './useAppUpdates';
+
+type IconName = keyof typeof Ionicons.glyphMap;
+const DEFAULT_ICON: IconName = 'sparkles-outline';
+const iconFor = (name?: string): IconName => (name && name in Ionicons.glyphMap ? (name as IconName) : DEFAULT_ICON);
+
+/** "21 Oct 2026" for an ISO date, or the text as given when it is not one. */
+export function releaseDate(d?: string): string | undefined {
+  if (!d) return undefined;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
+  if (!m) return d;
+  try {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return d;
+  }
+}
 
 const LOGO = require('../../../assets/images/logo.png');
 
@@ -130,6 +148,8 @@ export function UpdatePromptModal() {
   const isChecking = activePreview ? activePreview.isChecking : store.isChecking;
   const downloadProgress = activePreview ? activePreview.downloadProgress : store.downloadProgress;
   const errorMessage = activePreview ? activePreview.errorMessage : store.errorMessage;
+  const releases = isPreviewing ? [] : store.releases;
+  const changes = countItems(releases);
 
   if (!blocking) return null;
 
@@ -192,9 +212,9 @@ export function UpdatePromptModal() {
           </Text>
         </View>
 
-        {/* Center Hero: Clean download icon + title + body (no box wrapper) */}
-        <View style={styles.centerContent}>
-          <View style={styles.iconWrapper}>
+        {/* Hero: icon, title and a one-line summary */}
+        <View style={styles.hero}>
+          <View style={[styles.iconWrapper, changes > 0 && styles.iconWrapperSmall]}>
             <BrandDownloadIcon
               failed={failed}
               primaryColor={colors.primary}
@@ -209,11 +229,55 @@ export function UpdatePromptModal() {
           <Text style={styles.body}>
             {failed
               ? `${errorMessage} ${tr('Check your connection and try again.')}`
-              : isDownloading
-                ? tr('Downloading the latest version of Connekyt. This only takes a moment.')
-                : tr('Update Connekyt to enjoy the latest improvements and features.')}
+              : changes > 0
+                ? `${changes === 1 ? '1 change' : `${changes} changes`} ${tr('to read before you update')}${store.currentVersion ? ` (v${store.currentVersion})` : ''}.`
+                : isDownloading
+                  ? tr('Downloading the latest version of Connekyt. This only takes a moment.')
+                  : tr('Update Connekyt to enjoy the latest improvements and features.')}
           </Text>
+        </View>
 
+        {/* What is new: every release newer than the one this phone runs, above the pinned button */}
+        {changes > 0 ? (
+          <ScrollView
+            style={styles.notes}
+            contentContainerStyle={styles.notesContent}
+            showsVerticalScrollIndicator
+            testID="update-whats-new"
+          >
+            {releases.map((release: Release, ri) => (
+              <View key={release.id} style={styles.release}>
+                <View style={styles.releaseHead}>
+                  <Text style={styles.releaseTitle}>{release.title}</Text>
+                  <View style={styles.releaseMeta}>
+                    {ri === 0 ? (
+                      <View style={styles.newPill}>
+                        <Text style={styles.newPillText}>NEW</Text>
+                      </View>
+                    ) : null}
+                    {releaseDate(release.date) ? <Text style={styles.releaseDate}>{releaseDate(release.date)}</Text> : null}
+                  </View>
+                </View>
+                {release.items.map((item) => (
+                  <View key={item.title} style={styles.item}>
+                    <View style={styles.itemIcon}>
+                      <Ionicons name={iconFor(item.icon)} size={18} color={colors.primary} />
+                    </View>
+                    <View style={styles.itemText}>
+                      <Text style={styles.itemTitle}>{item.title}</Text>
+                      <Text style={styles.itemBody}>{item.body}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.notes} />
+        )}
+
+        {/* Bottom CTA Button */}
+        <View style={styles.footer}>
           {isDownloading ? (
             <View style={styles.progressContainer}>
               <View style={styles.progressTrack}>
@@ -233,10 +297,6 @@ export function UpdatePromptModal() {
               </Text>
             </View>
           ) : null}
-        </View>
-
-        {/* Bottom CTA Button */}
-        <View style={styles.footer}>
           <Pressable
             style={({ pressed }) => [
               styles.primaryBtn,
@@ -313,19 +373,57 @@ const useStyles = makeStyles((c) => ({
     color: c.primary,
     letterSpacing: 0.2,
   },
-  centerContent: {
+  hero: {
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 360,
+    alignItems: 'center',
+    paddingTop: spacing.md,
+  },
+  notes: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 420,
+    marginVertical: spacing.md,
+  },
+  notesContent: { gap: spacing.lg, paddingVertical: spacing.xs },
+  release: { gap: spacing.sm },
+  releaseHead: { gap: 4 },
+  releaseTitle: { fontSize: 17, fontFamily: fonts.bold, color: c.text },
+  releaseMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  newPill: { paddingHorizontal: 10, paddingVertical: 3, backgroundColor: c.accent, borderRadius: radii.full },
+  newPillText: { fontSize: 11, fontFamily: fonts.bold, letterSpacing: 0.6, color: c.textOnPrimary },
+  releaseDate: { fontSize: 12, fontFamily: fonts.regular, color: c.textMuted },
+  item: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    ...glassTile(c),
+  },
+  itemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.md,
+    backgroundColor: c.tint,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -spacing.xl,
   },
+  itemText: { flex: 1, minWidth: 0, gap: 2 },
+  itemTitle: { fontSize: 14.5, fontFamily: fonts.bold, color: c.text },
+  itemBody: { fontSize: 13.5, lineHeight: 19, fontFamily: fonts.regular, color: c.textMuted },
   iconWrapper: {
     width: 88,
     height: 88,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.lg,
+  },
+  iconWrapperSmall: {
+    width: 64,
+    height: 64,
+    marginBottom: spacing.md,
+    transform: [{ scale: 0.72 }],
   },
   title: {
     fontSize: 28,
@@ -345,7 +443,7 @@ const useStyles = makeStyles((c) => ({
   },
   progressContainer: {
     width: '100%',
-    marginTop: spacing.xl,
+    marginBottom: spacing.md,
   },
   progressTrack: {
     width: '100%',
