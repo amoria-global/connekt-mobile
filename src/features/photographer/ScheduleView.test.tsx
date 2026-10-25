@@ -77,9 +77,16 @@ describe('ScheduleView', () => {
     // Any other day of the current week, so this never depends on the weekday it runs on.
     const other = weekOf(today).find((d) => d !== today)!;
     const r = mount([ev({ id: 't', title: 'Other day shoot', eventDate: other, startTime: '10:00' })]);
-    expect(flat(r.root)).not.toContain('Other day shoot');
+    // The day's own list, not Coming up beneath it, which may already name a later shoot.
+    const dayList = () => {
+      const day = r.root.findByProps({ testID: 'schedule-day' });
+      const coming = day.findAll((n) => n.props?.testID === 'schedule-coming-up')[0];
+      const all = flat(day);
+      return coming ? all.replace(flat(coming), '') : all;
+    };
+    expect(dayList()).not.toContain('Other day shoot');
     press(r, (n) => n.props?.accessibilityRole === 'button' && String(n.props.accessibilityLabel).includes('1 event'));
-    expect(flat(r.root)).toContain('Other day shoot');
+    expect(dayList()).toContain('Other day shoot');
   });
 
   it('flags a genuine overlap and offers a review; no flag without one', () => {
@@ -153,5 +160,26 @@ describe('ScheduleView controlled by the screen', () => {
     const r = mountControlled('month', onModeChange);
     press(r, (n) => String(n.props?.accessibilityLabel).includes('schedule conflict'));
     expect(onModeChange).toHaveBeenCalledWith('week');
+  });
+
+  it('an empty day points at the next shoot and jumps to it (design/events.png)', () => {
+    const later = weekOf(today).map((d) => d).concat([]).sort().pop()!;
+    const nextDay = later > today ? later : today.slice(0, 4) + '-12-31';
+    const r = mount([ev({ id: 'n', title: 'Booking Testing', eventDate: nextDay, startTime: '13:00', location: 'Kabuga' })]);
+    const text = flat(r.root);
+    expect(text).toContain('A clear day');
+    expect(text).toContain('Your next shoot is Booking Testing on');
+    expect(text).toContain('Coming up');
+    press(r, byLabel('Jump to next'));
+    expect(flat(r.root.findByProps({ testID: 'schedule-day' }))).toContain('1:00 PM');
+  });
+
+  it('draws the week as seven equal columns with Sunday, never a scroller', () => {
+    const r = mount([]);
+    const days = r.root.findAll(
+      (n) => typeof n.type === 'string' && n.props.accessibilityRole === 'button' && typeof n.props.accessibilityState?.selected === 'boolean' && / (no events|\d+ events?)$/.test(String(n.props.accessibilityLabel)),
+    );
+    expect(days).toHaveLength(7);
+    expect(days.some((d) => String(d.props.accessibilityLabel).startsWith('Sunday'))).toBe(true);
   });
 });

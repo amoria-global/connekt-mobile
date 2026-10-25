@@ -53,6 +53,8 @@ export function Button({ title, variant = 'primary', raised = false, loading, di
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
+      // Named by its label unless the caller says otherwise (spread after, so `rest` still wins).
+      accessibilityLabel={tr(title)}
       disabled={isDisabled}
       style={(state) => [
         styles.base,

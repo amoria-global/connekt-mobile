@@ -1,3 +1,4 @@
+import { View } from 'react-native';
 /**
  * The icon at the top of the update screen: an arrow coming down into a tray, the arrow fading from mint at its tail to
  * cyan at its head, the tray in the screen's blue, a soft glow behind both. Drawn with react-native-svg so it stays
@@ -21,13 +22,12 @@ const TRAY = 'M12 36 V42 A7 7 0 0 0 19 49 H45 A7 7 0 0 0 52 42 V36';
 
 export function UpdateGlyph({ size = 72 }: { size?: number }) {
   return (
-    <Svg
+    // Hidden from screen readers on a View: react-native-svg passes these props to the DOM on web, where they are invalid.
+    <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Svg
       width={size}
       height={size}
       viewBox="0 0 64 64"
-      accessible={false}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
       testID="update-glyph"
     >
       <Defs>
@@ -57,5 +57,6 @@ export function UpdateGlyph({ size = 72 }: { size?: number }) {
       <Path d={SHAFT} stroke="url(#ug-arrow)" strokeWidth={4.5} strokeLinecap="round" fill="none" />
       <Path d={HEAD} stroke="url(#ug-arrow)" strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </Svg>
+    </View>
   );
 }
