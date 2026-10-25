@@ -16,7 +16,8 @@ import { useLanguage } from '@/store/language';
 import { setAudioModeAsync } from '@/utils/safeAudio';
 import { DialogHost } from '@/components/ui/dialog';
 import { SheetCloseButton } from '@/components/ui/SheetCloseButton';
-import { useTheme } from '@/theme';
+import { fonts, useTheme } from '@/theme';
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -138,14 +139,18 @@ export default function AppLayout() {
         screenOptions={{
           // Only while a shared workspace is open. The chip renders nothing otherwise, but on iOS 26 an empty header
           // item is still drawn as a blank glass circle, so no item is registered at all.
-          headerRight: isShared ? () => <WorkspaceChip /> : undefined,
-          // Elevated surface headers — same chrome combo as TopBar /
-          // PersistentBottomBar so light and dark stay consistent.
-          // Dark uses the card step and the link blue, exactly as TopBar does, so a pushed screen's header does not jump
-          // a shade lighter than the tab screens. Light is unchanged.
+          // Help sits in every header (Midnight Glass: nothing floats over a button), beside the workspace chip
+          // while a shared workspace is open. Screens with their own headerRight (sheets with a close) keep theirs.
+          headerRight: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {isShared ? <WorkspaceChip /> : null}
+              <HeaderHelpButton />
+            </View>
+          ),
+          // The header is the page itself, so a pushed screen reads as one piece of Midnight Glass.
           headerTintColor: c.link,
-          headerStyle: { backgroundColor: isDark ? c.card : c.elevated },
-          headerTitleStyle: { color: c.text, fontWeight: '700' },
+          headerStyle: { backgroundColor: c.background },
+          headerTitleStyle: { color: c.text, fontFamily: fonts.display },
           contentStyle: { backgroundColor: c.background },
           headerBackButtonDisplayMode: 'minimal', // chevron only, no "‹ Home" text
           headerShadowVisible: false,

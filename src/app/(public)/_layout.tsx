@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { useTheme } from '@/theme';
+import { fonts, useTheme } from '@/theme';
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 
 /** Guest-accessible screens (no login required). */
 export default function PublicLayout() {
@@ -51,9 +52,11 @@ export default function PublicLayout() {
     <>
       <Stack
         screenOptions={{
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.elevated },
-          headerTitleStyle: { color: colors.text, fontWeight: '700' },
+          headerTintColor: colors.link,
+          headerStyle: { backgroundColor: colors.background },
+          headerTitleStyle: { color: colors.text, fontFamily: fonts.display },
+          // Help in the header; the Help pages themselves hide it (they are where it leads).
+          headerRight: () => <HeaderHelpButton />,
           headerBackButtonDisplayMode: 'minimal',
           headerShadowVisible: false,
           contentStyle: { backgroundColor: colors.background },
