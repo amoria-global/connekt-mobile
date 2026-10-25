@@ -15,7 +15,7 @@ describe('where the button shows', () => {
   // Only where no header carries Help: sign-in and sign-up, and the screens drawn without the stack header.
   it.each([
     ['choose role, which draws its own screen', ['(auth)', 'choose-role']],
-    ['the public events browser, which has no header', ['(public)', 'explore-events']],
+    ['the public scan screen, which has no header', ['(public)', 'scan', '[id]']],
     ['an album page, drawn without the stack header', ['(app)', 'album', '[id]']],
     ['photobook, drawn without the stack header', ['(app)', 'photobook', '[id]']],
   ])('is shown on %s', (_name, segments) => {
@@ -34,6 +34,7 @@ describe('where the button shows', () => {
     ['sign in, whose photo band carries Help', ['(auth)', 'login']],
     ['sign up, whose photo band carries Help', ['(auth)', 'signup']],
     ['analytics, whose own header carries Help', ['(app)', 'analytics']],
+    ['explore events, whose own header carries Help', ['(public)', 'explore-events']],
   ])('steps aside on %s, whose header carries Help', (_name, segments) => {
     expect(helpButtonPlacement(segments, phone)).toEqual({ visible: false, bottom: 0 });
   });

@@ -35,6 +35,7 @@
  * The public list includes enough stream metadata to render the same feed
  * for signed-in clients and guests without an additional Cloudflare request.
  */
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -746,6 +747,7 @@ export default function ExploreEventsScreen() {
           <Text style={styles.topBarPillText}>{tr('Explore Events')}</Text>
         </View>
 
+        <HeaderHelpButton />
         <Pressable
           onPress={() => (isAuthenticated ? router.replace('/(app)/(tabs)') : router.push('/login'))}
           hitSlop={8}

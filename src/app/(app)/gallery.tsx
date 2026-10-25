@@ -11,11 +11,12 @@
  *   • Editorial Photography Grid: 4:5 portrait aspect ratio cards with subtle scrim,
  *     frosted category badges, and crisp typography.
  *   • Spacious List View: Widescreen 4:3 previews with rich metadata and quick navigation.
- *   • Modern Floating Action Button: Solid high-contrast "+ New Album" anchored with safe area.
+ *   • Create in the title row beside sort and layout (no floating button over the albums).
  *   • Night-studio pass: client and coordinator see the latest delivery as the screen's one gradient hero, active
  *     filters use the accent, cards are real data only (cover, count, date, photographer). The photographer keeps the
  *     primary-coloured controls and no hero.
  */
+import { HeaderAddButton } from '@/components/help/HeaderAddButton';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -198,6 +199,8 @@ export default function GalleryScreen() {
               color={colors.text}
             />
           </Pressable>
+          {/* Create sits here, not floating over the albums (Midnight Glass: nothing floats over a button). */}
+          {isPhotographer ? <HeaderAddButton label="Create new album" onPress={() => router.push('/album/new' as Href)} /> : null}
         </View>
       </View>
 
@@ -208,7 +211,8 @@ export default function GalleryScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.segmentScroll}
       >
-        {(['all', 'event', 'personal', 'locked'] as const).map((f) => {
+        {/* A filter with nothing in it is left out rather than shown as 0, unless it is the one selected. */}
+        {(['all', 'event', 'personal', 'locked'] as const).filter((f) => f === 'all' || f === filter || counts[f] > 0).map((f) => {
           const active = filter === f;
           const label =
             f === 'all'
@@ -378,23 +382,6 @@ export default function GalleryScreen() {
           )
         }
       />
-
-      {/* Floating Action Button — Create New Album (Photographer only) */}
-      {isPhotographer ? (
-        <Pressable
-          style={[
-            styles.fab,
-            { bottom: Math.max(insets.bottom + 18, 28) },
-          ]}
-          onPress={() => router.push('/album/new' as Href)}
-          android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
-          accessibilityRole="button"
-          accessibilityLabel="Create new album"
-        >
-          <Ionicons name="add" size={20} color={onFill} />
-          <Text style={styles.fabText}>{t('newAlbum')}</Text>
-        </Pressable>
-      ) : null}
 
       {/* Sort Options Bottom Sheet */}
       <Modal

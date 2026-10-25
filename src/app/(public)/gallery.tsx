@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
-import { useRouter, type Href } from 'expo-router';
+import { Stack, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
-import { Fab } from '@/components/ui/Fab';
+import { HeaderHelpAndAdd } from '@/components/help/HeaderAddButton';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useRole } from '@/features/auth/role';
@@ -72,8 +72,12 @@ export default function GalleryScreen() {
             ? t('b4_emptyAlbumsPhotographer')
             : t('b4_emptyGalleriesClient')
         }
+        emptyAction={isPhotographer ? { label: 'Create album', onPress: () => router.push('/album/new') } : undefined}
       />
-      {isPhotographer ? <Fab icon="add" onPress={() => router.push('/album/new')} /> : null}
+      {/* Create sits in the header beside Help, not floating over the list. */}
+      {isPhotographer ? (
+        <Stack.Screen options={{ headerRight: () => <HeaderHelpAndAdd label="Create album" onPress={() => router.push('/album/new')} /> }} />
+      ) : null}
     </Screen>
   );
 }
