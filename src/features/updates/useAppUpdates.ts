@@ -21,6 +21,7 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { create } from 'zustand';
+import { releasesToShow, type Release } from './releaseNotes';
 
 // Types only — no runtime top-level native import to stay safe across platforms & test runners.
 type UpdatesModule = typeof import('expo-updates');
@@ -68,6 +69,8 @@ export interface AppUpdatesState {
   downloadProgress: number; // 0 to 1
   lastCheckedTime: Date | null;
   errorMessage: string | null;
+  /** What the downloaded update changes, newest first. Empty when the update carries no notes. */
+  releases: Release[];
   currentVersion: string;
   updateId: string | null;
   channel: string | null;
@@ -81,6 +84,7 @@ export interface AppUpdatesState {
   setLastCheckedTime: (time: Date) => void;
   setErrorMessage: (msg: string | null) => void;
   setDevPreviewOpen: (open: boolean) => void;
+  setReleases: (releases: Release[]) => void;
 }
 
 const appVersion =
@@ -97,6 +101,7 @@ export const useUpdatesStore = create<AppUpdatesState>((set) => ({
   downloadProgress: 0,
   lastCheckedTime: null,
   errorMessage: null,
+  releases: [],
   currentVersion: appVersion,
   updateId: null,
   channel: null,
@@ -119,7 +124,14 @@ export const useUpdatesStore = create<AppUpdatesState>((set) => ({
   setErrorMessage: (errorMessage) =>
     set({ errorMessage, status: errorMessage ? 'error' : 'idle' }),
   setDevPreviewOpen: (devPreviewOpen) => set({ devPreviewOpen }),
+  setReleases: (releases) => set({ releases }),
 }));
+
+/** The notes of the update the native layer has found or downloaded, read from its manifest. */
+function stagedReleases(ctx: unknown): Release[] {
+  const c = ctx as { downloadedManifest?: unknown; latestManifest?: unknown } | null | undefined;
+  return releasesToShow(c?.downloadedManifest ?? c?.latestManifest);
+}
 
 // Setup listener on native state machine once module loads on native
 let listenerAttached = false;
@@ -140,6 +152,7 @@ function initNativeListener() {
   try {
     const latest = (Updates as any).latestContext;
     if (latest?.isUpdatePending) {
+      useUpdatesStore.getState().setReleases(stagedReleases(latest));
       useUpdatesStore.getState().setUpdateAvailable(true);
       useUpdatesStore.getState().setUpdateReady(true);
     }
@@ -154,6 +167,11 @@ function initNativeListener() {
         const ctx = event?.context;
         if (!ctx) return;
         const store = useUpdatesStore.getState();
+
+        if (ctx.isUpdatePending || ctx.isUpdateAvailable) {
+          const notes = stagedReleases(ctx);
+          if (notes.length > 0) store.setReleases(notes);
+        }
 
         if (ctx.isUpdatePending) {
           store.setUpdateAvailable(true);
@@ -227,6 +245,8 @@ export async function checkForUpdates(isManual = false): Promise<CheckUpdateResu
     const checkResult = await Updates.checkForUpdateAsync();
 
     if (checkResult.isAvailable) {
+      // The notes ride in the new update's manifest, so they can be shown before it is installed.
+      store.setReleases(releasesToShow((checkResult as { manifest?: unknown }).manifest));
       store.setChecking(false);
       store.setUpdateAvailable(true);
       store.setDownloading(true);
@@ -241,6 +261,7 @@ export async function checkForUpdates(isManual = false): Promise<CheckUpdateResu
 
     // Already staged by the startup check?
     if ((Updates as any).latestContext?.isUpdatePending) {
+      store.setReleases(stagedReleases((Updates as any).latestContext));
       store.setChecking(false);
       store.setUpdateAvailable(true);
       store.setUpdateReady(true);
