@@ -5,11 +5,10 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import {
-  useFonts,
-  PragatiNarrow_400Regular,
-  PragatiNarrow_700Bold,
-} from '@expo-google-fonts/pragati-narrow';
+import { useFonts } from 'expo-font';
+import { PragatiNarrow_400Regular, PragatiNarrow_700Bold } from '@expo-google-fonts/pragati-narrow';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { useAuth } from '@/store/auth';
 import { takePendingScanEvent } from '@/features/events/scanIntent';
 import { isPhotographerType } from '@/features/auth/role';
@@ -30,10 +29,8 @@ SplashScreen.setOptions({
 });
 
 /**
- * Default every `<Text>` and `<TextInput>` to Pragati Narrow so the
- * mobile app matches the web (knockout/app/globals.css line 43:
- * `font-family: 'Pragati Narrow', -apple-system, BlinkMacSystemFont,
- * 'Segoe UI', 'Roboto'…`).
+ * Default every `<Text>` and `<TextInput>` to Inter, the Midnight Glass body
+ * face (design/brief.png). Headings set Space Grotesk through `fonts`.
  *
  * React 19 silently drops `defaultProps` on function/forwardRef
  * components, so the earlier `Text.defaultProps = …` approach was a
@@ -43,12 +40,12 @@ SplashScreen.setOptions({
  * array there makes the family default global.
  *
  * Style arrays merge right-to-left, so any inline `fontFamily:
- * 'PragatiNarrow_700Bold'` (e.g. the FindMyPhotos hero) still wins.
+ * fonts.bold` still wins.
  */
 function applyDefaultFont() {
   // Web (react-native-web): inject a low-specificity CSS default so every
-  // Text / input that doesn't set its own fontFamily inherits Pragati
-  // Narrow. Components that DO set a family (e.g. PragatiNarrow_700Bold on
+  // Text / input that doesn't set its own fontFamily inherits Inter.
+  // Components that DO set a family (e.g. SpaceGrotesk_700Bold on
   // headings) keep it — this only fills in the default. Patching RN's
   // internal Text.render is avoided on purpose: it crashes under React 19
   // in release. Native screens use the theme's `fonts` tokens directly.
@@ -64,11 +61,11 @@ function applyDefaultFont() {
   // Forcing it with `!important` instead would flatten our real bold and
   // break the icon fonts (Ionicons et al.).
   //
-  // The clean fix: build ONE real "Pragati Narrow" family (400 + 700) from
+  // The clean fix: build ONE real "Inter" family (400 + 700) from
   // the already-loaded font files, then REDEFINE the exact fallback family
   // names in RNW's system stack to point at it. Unstyled text resolves to
-  // one of those names → renders Pragati, with fontWeight still selecting the
-  // true bold face. Our explicit `PragatiNarrow_*` families and the icon
+  // one of those names → renders Inter, with fontWeight still selecting the
+  // true bold face. Our explicit `fonts.*` families and the icon
   // fonts are untouched (they're not in the hijack list), so bold and icons
   // keep working — no `!important`, no specificity fight.
   let regular: string | undefined;
@@ -77,10 +74,10 @@ function applyDefaultFont() {
     // Dynamically require expo-asset only on web where @font-face CSS injection is needed.
     // Prevents native iOS/Android from evaluating requireNativeModule('ExpoAsset') on startup.
     const { Asset } = require('expo-asset') as typeof import('expo-asset');
-    regular = Asset.fromModule(PragatiNarrow_400Regular).uri;
-    bold = Asset.fromModule(PragatiNarrow_700Bold).uri;
+    regular = Asset.fromModule(Inter_400Regular).uri;
+    bold = Asset.fromModule(Inter_600SemiBold).uri;
   } catch {
-    /* asset uris unavailable — skip; branded screens still render Pragati */
+    /* asset uris unavailable — skip; screens that set `fonts.*` still render Inter */
   }
   if (!regular || !bold) return;
 
@@ -89,9 +86,9 @@ function applyDefaultFont() {
     `@font-face{font-family:${family};font-style:normal;font-weight:700;src:url("${bold}") format("truetype");}`;
 
   // The real family + the system-stack names browsers actually fall back to.
-  const families = ["'Pragati Narrow'", "'Segoe UI'", 'Roboto', 'Helvetica', 'Arial', 'BlinkMacSystemFont'];
+  const families = ["'Inter'", "'Segoe UI'", 'Roboto', 'Helvetica', 'Arial', 'BlinkMacSystemFont'];
   const stack =
-    "'Pragati Narrow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
   const style = document.createElement('style');
   style.id = id;
@@ -180,7 +177,13 @@ export default function RootLayout() {
   const loadCurrency = useCurrency((s) => s.load);
   const syncCurrency = useCurrency((s) => s.syncWithAccount);
   const authStatus = useAuth((s) => s.status);
+  // Pragati Narrow stays loaded until the last screen that names it is migrated.
   const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
     PragatiNarrow_400Regular,
     PragatiNarrow_700Bold,
   });
@@ -204,7 +207,7 @@ export default function RootLayout() {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
 
-  // Apply the global Pragati Narrow default ONCE the Google Font has
+  // Apply the global Inter default ONCE the Google Font has
   // loaded — applying earlier would print the family name as text since
   // the font file isn't registered yet on Android.
   useEffect(() => {
