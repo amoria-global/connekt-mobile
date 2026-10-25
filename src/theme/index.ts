@@ -111,6 +111,8 @@ export const onMedia = {
   glass: 'rgba(255,255,255,0.16)',
   /** A dark smoke for a small pill on a bright photo. */
   smoke: 'rgba(5,10,24,0.55)',
+  /** The letterbox around video and full-screen photos. */
+  black: '#000000',
   /** The deep ground under a card's photograph while it loads. */
   ground: '#071224',
 } as const;
@@ -125,6 +127,7 @@ export const alpha = (hex: string, a: number) => {
 export const glowRgb = { primary: '62,111,216', accent: '238,14,143', live: '34,199,217', pending: '245,180,0' } as const;
 
 export { motion, useReducedMotion } from './motion';
+export { studioTokens, viewerTokens } from './media';
 
 export const theme = { colors, gradients, spacing, radii, fontSize, fontWeight, fonts };
 export type Theme = typeof theme;

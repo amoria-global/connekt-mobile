@@ -645,9 +645,9 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                 {packages.map(pkg => {
                   const isActive = selectedPackage?.id === pkg.id;
                   
-                  const badgeColor = pkg.name?.toLowerCase().includes('gold') ? '#D97706' : 
-                                     pkg.name?.toLowerCase().includes('silver') ? '#64748B' : 
-                                     pkg.name?.toLowerCase().includes('bronze') ? '#B45309' : colors.primary;
+                  const badgeColor = pkg.name?.toLowerCase().includes('gold') ? colors.pending : 
+                                     pkg.name?.toLowerCase().includes('silver') ? colors.textMuted : 
+                                     pkg.name?.toLowerCase().includes('bronze') ? colors.pending : colors.primary;
 
                   return (
                     <Pressable 
@@ -662,7 +662,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                           </View>
                           {pkg.name?.toLowerCase().includes('live') && (
                             <View style={styles.liveIndicator}>
-                              <Ionicons name="radio" size={11} color="#EF4444" />
+                              <Ionicons name="radio" size={11} color={colors.error} />
                               <Text style={styles.liveText}>{tr('LIVE')}</Text>
                             </View>
                           )}
@@ -703,7 +703,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       {pkg.hasLiveStream === true && (
                         <View style={styles.packageFeaturesRow}>
                           <View style={styles.packageFeature}>
-                            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                             <Text style={styles.packageFeatureText}>{tr('Live stream broadcast included')}</Text>
                           </View>
                         </View>
@@ -1065,7 +1065,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
                   <View style={styles.escrowCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Ionicons name="shield-checkmark" size={18} color="#16A34A" />
+                      <Ionicons name="shield-checkmark" size={18} color={colors.success} />
                       <Text style={styles.escrowTitle}>{tr('Connekyt Escrow Protection')}</Text>
                     </View>
                     <Text style={styles.escrowBody}>

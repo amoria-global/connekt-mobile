@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts, onFill } from '@/theme';
+import { fonts, onFill, viewerTokens } from '@/theme';
 import { ConfirmDialog } from './ConfirmDialog';
 import { S } from './theme';
 import { formatDurationWords, type LiveSummary } from './viewModel';
@@ -111,7 +111,7 @@ export function PostLiveSummary({ eventTitle, summary, resetting, onDone, onStar
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0B0D12' },
+  root: { flex: 1, backgroundColor: viewerTokens.bg },
   content: { alignItems: 'center', paddingHorizontal: 20, gap: 6 },
   badge: {
     width: 72,

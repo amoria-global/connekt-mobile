@@ -172,7 +172,7 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
       <Pressable
         style={[
           styles.container,
-          { backgroundColor: isDark ? '#0E1117' : '#FFFFFF' },
+          { backgroundColor: isDark ? '#0E1117' : colors.card },
         ]}
         onPress={handleFinish}
         accessibilityRole="progressbar"
@@ -210,7 +210,7 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
               <Text
                 style={[
                   styles.tagline,
-                  { color: isDark ? colors.textMuted : '#6A6D76' },
+                  { color: isDark ? colors.textMuted : colors.textMuted },
                   fontsLoaded ? { fontFamily: fonts.regular } : undefined,
                 ]}
               >
@@ -238,7 +238,7 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
             <Text
               style={[
                 styles.message,
-                { color: isDark ? colors.textMuted : '#6A6D76' },
+                { color: isDark ? colors.textMuted : colors.textMuted },
                 fontsLoaded ? { fontFamily: fonts.regular } : undefined,
               ]}
             >

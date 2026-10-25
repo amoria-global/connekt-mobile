@@ -169,7 +169,7 @@ export function ProgressTrack({ steps, label = 'Progress' }: { steps: readonly T
                   on && { borderColor: colors.accent, backgroundColor: colors.tintAccent },
                 ]}
               >
-                {done ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : on ? <View style={[styles.trackInner, { backgroundColor: colors.accent }]} /> : null}
+                {done ? <Ionicons name="checkmark" size={14} color={colors.card} /> : on ? <View style={[styles.trackInner, { backgroundColor: colors.accent }]} /> : null}
               </View>
               <View style={[styles.trackLine, done && { backgroundColor: colors.success }, i === steps.length - 1 && styles.trackLineHidden]} />
             </View>

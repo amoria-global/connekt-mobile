@@ -124,7 +124,7 @@ import { registerAccountViewer } from '@/features/streams/accountViewer';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette, onFill } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette, onFill, onMedia, viewerTokens } from '@/theme';
 import { EndedEventCard } from '@/features/streams/viewer/components/EndedEventCard';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { GlassLayer, glassClear, glassTile } from '@/components/ui/GlassCard';
@@ -475,7 +475,7 @@ function LiveChatPanel({
         {/* Header: Live Chat title + collapse + fullscreen */}
         <View style={chatFx.ytHeader}>
           <View style={chatFx.ytHeaderLeft}>
-            <Ionicons name="chatbubble-ellipses" size={16} color="#4F46E5" />
+            <Ionicons name="chatbubble-ellipses" size={16} color={darkPalette.primaryLight} />
             <Text style={chatFx.ytHeaderTitle}>{tr('b4_liveChatTitle')}</Text>
             <View style={chatFx.ytHeaderLiveDot} />
           </View>
@@ -1796,13 +1796,13 @@ export default function PublicLiveStreamScreen() {
                   <View style={styles.placeholderContent}>
                     {accessLoading ? (
                       <>
-                        <ActivityIndicator color="#10b981" size="large" />
+                        <ActivityIndicator color={darkPalette.live} size="large" />
                         <Text style={styles.placeholderHeadline}>{tr('b4_verifyingAccess')}</Text>
                         <Text style={styles.placeholderText}>{tr('b4_pleaseWaitConfirmAccess')}</Text>
                       </>
                     ) : status.isLive && accessGranted ? (
                       <>
-                        <ActivityIndicator color="#10b981" size="large" />
+                        <ActivityIndicator color={darkPalette.live} size="large" />
                         <Text style={styles.placeholderText}>{tr('b4_streamIsLoading')}</Text>
                       </>
                     ) : status.isLive && status.isPaid ? (
@@ -2424,7 +2424,7 @@ const useGcStyles = makeStyles((c) => ({
   },
   emoji: { fontSize: 52 },
   giftName: { color: c.text, fontSize: 18, fontWeight: '700' },
-  giftPrice: { color: c === darkPalette ? '#ffd166' : c.pending, fontSize: 22, fontWeight: '800' },
+  giftPrice: { color: c === darkPalette ? darkPalette.pending : c.pending, fontSize: 22, fontWeight: '800' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -2570,7 +2570,7 @@ const useStyles = makeStyles((c, e) => ({
     aspectRatio: 16 / 9,
     borderRadius: radii.lg,
     overflow: 'hidden',
-    backgroundColor: '#0F1217',
+    backgroundColor: viewerTokens.bg,
   },
   placeholderScrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(7,8,13,0.62)' },
   placeholderContent: {
@@ -2612,21 +2612,21 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: '700',
   },
 
-  playerWrap: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: '#000' },
+  playerWrap: { aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: onMedia.black },
   player: { width: '100%', height: '100%' },
 
   // Portrait "stage" that hosts the video + transparent chat overlay.
   playerStage: {
     borderRadius: radii.lg,
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
     position: 'relative',
   },
   playerStageRatio: { aspectRatio: 16 / 9 },
 
   // Live full-bleed: the video fills the whole screen, everything overlays.
-  liveRoot: { flex: 1, backgroundColor: '#000' },
-  stageFull: { flex: 1, backgroundColor: '#000', position: 'relative', overflow: 'hidden' },
+  liveRoot: { flex: 1, backgroundColor: onMedia.black },
+  stageFull: { flex: 1, backgroundColor: onMedia.black, position: 'relative', overflow: 'hidden' },
 
   // YouTube 16:9 stage and meta layout
   ytRoot: {
@@ -2635,13 +2635,13 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: c.background,
   },
   ytStageWrap: {
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
     width: '100%',
   },
   ytStage: {
     width: '100%',
     aspectRatio: 16 / 9,
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -2766,7 +2766,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F43F5E',
+    backgroundColor: darkPalette.accent,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radii.full,
@@ -2814,7 +2814,7 @@ const useStyles = makeStyles((c, e) => ({
     height: 48,
     borderRadius: 6,
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
   },
   ytMiniMeta: {
     flex: 1,
@@ -2903,7 +2903,7 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  fsRoot: { flex: 1, backgroundColor: '#000' },
+  fsRoot: { flex: 1, backgroundColor: onMedia.black },
   chatHint: {
     fontSize: fontSize.xs,
     color: c.textMuted,
@@ -2998,7 +2998,7 @@ const useStyles = makeStyles((c, e) => ({
   bubbleTextOwn: { color: c.textOnPrimary },
 
   chatVideoWrap: { marginTop: 4, gap: 4 },
-  chatVideo: { width: 220, height: 124, borderRadius: 8, backgroundColor: '#000' },
+  chatVideo: { width: 220, height: 124, borderRadius: 8, backgroundColor: onMedia.black },
   chatVideoTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chatVideoTagText: { fontSize: 11, color: c.primary, fontStyle: 'italic', fontWeight: '600' },
 
@@ -3239,7 +3239,7 @@ const useChatFx = makeStyles((c) => ({
     textShadowColor: 'rgba(0,0,0,0.55)',
     textShadowRadius: 2,
   },
-  giftAmount: { color: '#ffd166', fontWeight: '800' },
+  giftAmount: { color: darkPalette.pending, fontWeight: '800' },
 
   reactions: { flexDirection: 'row', gap: 6, alignSelf: 'flex-start' },
   reactionBtn: {
@@ -3510,8 +3510,8 @@ const splashStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headline: { fontSize: 22, fontWeight: '800', color: '#f4f6fb', textAlign: 'center' },
-  sub: { fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 20 },
+  headline: { fontSize: 22, fontWeight: '800', color: onMedia.text, textAlign: 'center' },
+  sub: { fontSize: 14, color: onMedia.soft, textAlign: 'center', lineHeight: 20 },
   livePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3521,7 +3521,7 @@ const splashStyles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#fff' },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: onMedia.text },
   liveText: { color: onFill, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   tapHint: { color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 12, textAlign: 'center' },
 });

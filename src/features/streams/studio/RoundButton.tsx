@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts, onFill } from '@/theme';
+import { fonts, onFill, darkPalette, paper } from '@/theme';
 import { S, TOUCH } from './theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -62,7 +62,7 @@ function RoundButtonBase({
         <Ionicons
           name={icon}
           size={Math.round(size * 0.46)}
-          color={active ? '#111' : off ? '#FCA5A5' : S.text}
+          color={active ? paper.ink : off ? darkPalette.error : S.text}
         />
         {badge && badge > 0 ? (
           <View style={styles.badge}>

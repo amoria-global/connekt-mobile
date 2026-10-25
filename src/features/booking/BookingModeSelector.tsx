@@ -641,11 +641,11 @@ export function BookingModeSelector({
   );
 
   const MatchPanel = (
-    <View style={[styles.matchPanel, zero && { borderColor: '#F59E0B', backgroundColor: colors.warningBg }]} accessibilityLiveRegion="polite">
+    <View style={[styles.matchPanel, zero && { borderColor: colors.pending, backgroundColor: colors.warningBg }]} accessibilityLiveRegion="polite">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <View style={{ minWidth: 48, alignItems: 'center' }}>
           {previewLoading ? <ActivityIndicator color={colors.primary} /> : (
-            <Text style={[styles.matchCount, zero && { color: '#B45309' }]}>{count ?? '–'}</Text>
+            <Text style={[styles.matchCount, zero && { color: colors.pending }]}>{count ?? '–'}</Text>
           )}
         </View>
         <View style={{ flex: 1 }}>
@@ -675,7 +675,7 @@ export function BookingModeSelector({
             ...(specialty !== 'ANY' ? [[preview.breakdown.specialtyMatched, `${specialty} specialists`]] : []),
           ] as [number | undefined, string][]).map(([n, l]) => (
             <Text key={l} style={styles.breakdown}>
-              <Ionicons name="checkmark-circle" size={13} color="#10B981" /> <Text style={{ fontWeight: fontWeight.bold, color: colors.text }}>{n ?? 0}</Text> {l}
+              <Ionicons name="checkmark-circle" size={13} color={colors.success} /> <Text style={{ fontWeight: fontWeight.bold, color: colors.text }}>{n ?? 0}</Text> {l}
             </Text>
           ))}
           {preview.breakdown.nearbyFallback ? <Text style={styles.breakdown}>Nobody is free in {city}, so nearby cities are included.</Text> : null}
@@ -754,14 +754,14 @@ export function BookingModeSelector({
         >
           <View style={styles.modeCardHeader}>
             <View style={[styles.modeIconBox, { backgroundColor: isDark ? 'rgba(242, 12, 143, 0.16)' : 'rgba(242, 12, 143, 0.08)' }]}>
-              <Ionicons name="calendar" size={20} color="#F20C8F" />
+              <Ionicons name="calendar" size={20} color={colors.accent} />
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <View style={styles.modeTitleRow}>
                 <Text style={styles.modeCardTitle}>{tr('Post Your Event')}</Text>
                 <View style={[styles.modeTypePill, styles.modeTypePillFeatured]}>
-                  <Ionicons name="flash" size={8} color="#F20C8F" />
-                  <Text style={[styles.modeTypePillText, { color: '#F20C8F' }]}>{tr('Faster')}</Text>
+                  <Ionicons name="flash" size={8} color={colors.accent} />
+                  <Text style={[styles.modeTypePillText, { color: colors.accent }]}>{tr('Faster')}</Text>
                 </View>
               </View>
               <Text style={styles.modeCardDesc}>
@@ -949,7 +949,7 @@ export function BookingModeSelector({
     body = (
       <View style={{ alignItems: 'center', gap: spacing.md, paddingTop: spacing.xl }}>
         <View style={[styles.doneIcon, { backgroundColor: failed ? colors.warningBg : MODE_META.HYBRID.soft }]}>
-          <Ionicons name={failed ? 'alert' : 'radio-outline'} size={34} color={failed ? '#B45309' : accent} />
+          <Ionicons name={failed ? 'alert' : 'radio-outline'} size={34} color={failed ? colors.pending : accent} />
         </View>
         <Text style={styles.doneTitle}>
           {failed

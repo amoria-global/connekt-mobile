@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { makeStyles, onFill } from '@/theme';
+import { makeStyles, onFill, onMedia } from '@/theme';
 
 export type PublishStatus = 'idle' | 'starting' | 'publishing' | 'error';
 
@@ -206,7 +206,7 @@ export function CameraPublisher({ whipUrl, publish, onStatusChange, style }: Pro
 }
 
 const useStyles = makeStyles((c) => ({
-  wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: '#000' },
+  wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: onMedia.black },
   video: { width: '100%', height: '100%', objectFit: 'cover', border: 0 } as any,
   errorOverlay: {
     ...StyleSheet.absoluteFill,

@@ -10,7 +10,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pressable, Text, View } from 'react-native';
 import { Sheet } from '@/components/ui/Sheet';
 import { ErrorNotice, EmptyNote, SkeletonCard } from '@/features/photographer/kit';
-import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill, onMedia, viewerTokens } from '@/theme';
 import type { Stream, StreamHistory, StreamMessage, StreamVideo } from './api';
 import { whenLabel } from './streamsModel';
 
@@ -204,13 +204,13 @@ const useStyles = makeStyles((c) => ({
   user: { flexShrink: 1, color: c.primary, fontSize: 13, fontWeight: '700' },
   time: { color: c.textMuted, fontSize: 12 },
   msgText: { color: c.text, fontSize: 14, lineHeight: 20 },
-  player: { borderRadius: radii.md, overflow: 'hidden', backgroundColor: '#000' },
+  player: { borderRadius: radii.md, overflow: 'hidden', backgroundColor: onMedia.black },
   video: { width: '100%', height: 220 },
   playerFoot: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   tile: { width: '47.5%', borderRadius: radii.md, overflow: 'hidden', borderWidth: 2, borderColor: c.border, backgroundColor: c.surface },
   tileOn: { borderColor: c.primary },
-  thumb: { height: 100, backgroundColor: '#0D1B2A', alignItems: 'center', justifyContent: 'center' },
+  thumb: { height: 100, backgroundColor: viewerTokens.surface, alignItems: 'center', justifyContent: 'center' },
   thumbImg: { ...({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as const) },
   play: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   newTag: { position: 'absolute', top: 4, right: 4, backgroundColor: c.error, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
