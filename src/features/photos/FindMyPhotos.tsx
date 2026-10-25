@@ -23,7 +23,8 @@ import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import {
   browsePhotosUrl,
 } from '@/features/payments/webCheckout';
-import { PhotoLanguagePill } from '@/features/auth/AuthGlassLayout';
+import { PhotoHelpPill, PhotoLanguagePill } from '@/features/auth/AuthGlassLayout';
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { LanguageButton } from '@/components/topbar/LanguageButton';
 import { PhotoCheckoutSheet } from './PhotoCheckoutSheet';
 import { savePhotoToGallery, saveBatchPhotosToGallery } from '@/utils/gallerySaver';
@@ -2172,7 +2173,10 @@ export function FindMyPhotos() {
               <GlassLayer fill="rgba(0,0,0,0.22)" />
               <Ionicons name="chevron-back" size={22} color={onFill} />
             </Pressable>
-            <PhotoLanguagePill />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <PhotoHelpPill />
+              <PhotoLanguagePill />
+            </View>
           </View>
         </>
       ) : (
@@ -2216,6 +2220,7 @@ export function FindMyPhotos() {
             <Text style={styles.topBarPillText}>{t('fmp_title')}</Text>
           </View>
 
+          <HeaderHelpButton />
           <LanguageButton compact />
         </View>
       </View>

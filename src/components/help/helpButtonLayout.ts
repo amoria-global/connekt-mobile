@@ -36,8 +36,8 @@ export const HEADERLESS: Record<string, string[]> = {
 
 /** Headerless screens whose own header carries Help (HeaderHelpButton), so the floating one steps aside there too. */
 export const OWN_HEADER_HELP: Record<string, string[]> = {
-  '(app)': ['notifications', 'analytics'],
-  '(public)': ['explore-events'],
+  '(app)': ['notifications', 'analytics', 'find-my-photos'],
+  '(public)': ['explore-events', 'find-photos'],
 };
 
 function headerCarriesHelp(segments: readonly string[]): boolean {
