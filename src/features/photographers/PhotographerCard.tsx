@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import type { Photographer } from './api';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
 
@@ -176,7 +176,7 @@ export function PhotographerCard({
 
           <View style={styles.getInTouchBtn}>
             <Text style={styles.getInTouchText}>{tr('Get in touch')}</Text>
-            <Ionicons name="arrow-forward" size={11} color="#FFFFFF" />
+            <Ionicons name="arrow-forward" size={11} color={onFill} />
           </View>
         </View>
       </View>
@@ -447,7 +447,7 @@ const useStyles = makeStyles((c, e) => ({
     ...e(1),
   },
   getInTouchText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontFamily: fonts.bold,
     fontSize: 10.5,
   },

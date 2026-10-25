@@ -482,7 +482,7 @@ const useStyles = makeStyles((c) => ({
     ...glassTile(c),
   },
   networkActive: { borderColor: c.primary, backgroundColor: c.tint },
-  networkLogo: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#FFFFFF' },
+  networkLogo: { width: 28, height: 28, borderRadius: 8, backgroundColor: c.card },
   networkLabel: { flex: 1, fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
   kindLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
   kindLabelActive: { color: c.primary },

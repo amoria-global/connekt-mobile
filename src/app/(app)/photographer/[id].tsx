@@ -29,7 +29,7 @@ import { isApiError } from '@/store/auth';
 import { Stars } from '@/components/ui/Stars';
 import { VerifiedAvatar } from '@/components/ui/VerifiedAvatar';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
@@ -665,7 +665,7 @@ export default function PhotographerProfileScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Book ${data?.name ?? 'this photographer'}`}
         >
-          <Ionicons name="calendar" size={18} color="#FFFFFF" />
+          <Ionicons name="calendar" size={18} color={onFill} />
           <Text style={styles.stickyBookText}>{tr('Book now')}</Text>
         </Pressable>
         <Pressable
@@ -825,8 +825,8 @@ const useStyles = makeStyles((c, e) => ({
   portfolioTile: { width: '31.5%', aspectRatio: 1, borderRadius: radii.md, backgroundColor: c.surfaceMuted },
   aboutText: { color: c.textSoft, fontSize: 15, lineHeight: 22 },
   bookedBadge: { backgroundColor: 'rgba(45, 28, 4, 0.78)', borderColor: 'rgba(251, 191, 36, 0.6)' },
-  bookedDot: { backgroundColor: '#FBBF24' },
-  bookedText: { color: '#FDE68A' },
+  bookedDot: { backgroundColor: c.pending },
+  bookedText: { color: c.pendingBg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background },
   muted: { color: c.textMuted, fontSize: fontSize.sm, marginTop: 10 },
 
@@ -902,7 +902,7 @@ const useStyles = makeStyles((c, e) => ({
   name: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
@@ -914,16 +914,16 @@ const useStyles = makeStyles((c, e) => ({
   },
   role: {
     fontSize: 13,
-    color: '#E2E8F0',
+    color: c.border,
     fontWeight: '500',
   },
   dot: {
-    color: '#94A3B8',
+    color: c.textMuted,
     marginHorizontal: 4,
   },
   location: {
     fontSize: 13,
-    color: '#E2E8F0',
+    color: c.border,
   },
   statsRow: {
     flexDirection: 'row',
@@ -933,11 +933,11 @@ const useStyles = makeStyles((c, e) => ({
   },
   statText: {
     fontSize: 11,
-    color: '#CBD5E1',
+    color: c.textSoft,
   },
   statValue: {
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
   // Sits on a dark photograph: light text on a dark ground, in both themes (the theme success colour is dark in light mode).
   availableBadge: {
@@ -996,7 +996,7 @@ const useStyles = makeStyles((c, e) => ({
     color: c.textMuted,
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   card: {
@@ -1075,7 +1075,7 @@ const useStyles = makeStyles((c, e) => ({
     letterSpacing: 0.5,
   },
   bookButtonText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -1170,13 +1170,13 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: 'rgba(245, 158, 11, 0.35)',
   },
   dayTextPartial: {
-    color: '#B45309',
+    color: c.pending,
   },
   dayDotPartial: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#F59E0B',
+    backgroundColor: c.pending,
     position: 'absolute',
     bottom: 3,
   },
@@ -1202,11 +1202,11 @@ const useStyles = makeStyles((c, e) => ({
     color: c.textMuted,
   },
   dayTextAvailable: {
-    color: '#047857',
+    color: c.success,
     fontWeight: '700',
   },
   dayTextBooked: {
-    color: '#B91C1C',
+    color: c.error,
     textDecorationLine: 'line-through',
   },
   dayTextToday: {
@@ -1214,14 +1214,14 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: '800',
   },
   dayTextSelected: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontWeight: '800',
   },
   dayDotAvailable: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
     position: 'absolute',
     bottom: 3,
   },
@@ -1229,7 +1229,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#EF4444',
+    backgroundColor: c.error,
     position: 'absolute',
     bottom: 3,
   },

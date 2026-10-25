@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -41,7 +41,7 @@ export function HeroActionCard({
     >
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <View style={styles.heroIcon} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Ionicons name={icon} size={22} color="#FFFFFF" />
+          <Ionicons name={icon} size={22} color={onFill} />
         </View>
         <View style={styles.heroText}>
           <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.6}>
@@ -53,7 +53,7 @@ export function HeroActionCard({
             </Text>
           ) : null}
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+        <Ionicons name="chevron-forward" size={20} color={onFill} />
       </LinearGradient>
     </Pressable>
   );
@@ -189,8 +189,8 @@ const useStyles = makeStyles((c) => ({
   hero: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 72, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   heroIcon: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
   heroText: { flex: 1, minWidth: 0 },
-  heroTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', lineHeight: 23 },
-  heroSub: { color: '#FFFFFF', opacity: 0.92, fontSize: 13, lineHeight: 18, marginTop: 1 },
+  heroTitle: { color: c.textOnPrimary, fontSize: 18, fontWeight: '800', lineHeight: 23 },
+  heroSub: { color: c.textOnPrimary, opacity: 0.92, fontSize: 13, lineHeight: 18, marginTop: 1 },
 
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 56, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: c.borderSoft },

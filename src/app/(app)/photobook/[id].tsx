@@ -39,7 +39,7 @@ import { dismissReceivedPhotobook, getPhotobook, resubmitPhotobook, type Photobo
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -347,7 +347,7 @@ export default function PhotobookDetailScreen() {
   const baseMeta = statusMetaMap[statusKey] ?? {
     label: data?.status || tr.statusBook,
     bg: 'rgba(0,0,0,0.6)',
-    fg: '#fff',
+    fg: onFill,
   };
   const statusMeta = { ...baseMeta, ...chipColors(baseMeta, isDark, colors) };
 
@@ -391,7 +391,7 @@ export default function PhotobookDetailScreen() {
                   hitSlop={8}
                   accessibilityLabel={tr.backA11y}
                 >
-                  <Ionicons name="chevron-back" size={20} color="#fff" />
+                  <Ionicons name="chevron-back" size={20} color={onFill} />
                 </Pressable>
 
                 {received ? (
@@ -404,7 +404,7 @@ export default function PhotobookDetailScreen() {
                     hitSlop={8}
                     accessibilityLabel={tr.shareBookA11y}
                   >
-                    <Ionicons name="share-outline" size={18} color="#fff" />
+                    <Ionicons name="share-outline" size={18} color={onFill} />
                   </Pressable>
                 )}
               </View>
@@ -500,7 +500,7 @@ export default function PhotobookDetailScreen() {
                 ) : (
                   <View style={styles.payActionBtn}>
                     <Text style={styles.payActionText}>{tr.payAndUnlock}</Text>
-                    <Ionicons name="open-outline" size={14} color="#fff" />
+                    <Ionicons name="open-outline" size={14} color={onFill} />
                   </View>
                 )}
               </Pressable>
@@ -601,7 +601,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     marginTop: spacing.sm,
   },
-  retryBtnText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
+  retryBtnText: { fontFamily: fonts.bold, fontSize: 14, color: c.textOnPrimary },
 
   list: { paddingBottom: 60 },
   header: { gap: spacing.md, marginBottom: spacing.sm },
@@ -676,13 +676,13 @@ const useStyles = makeStyles((c) => ({
   kindBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.6,
   },
   heroTitle: {
     fontFamily: fonts.bold,
     fontSize: 24,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: -0.5,
   },
   heroMetaRow: {
@@ -759,7 +759,7 @@ const useStyles = makeStyles((c) => ({
   payActionText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 
   // Section Header
@@ -936,7 +936,7 @@ const useStyles = makeStyles((c) => ({
   pillSaveText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   btnDisabled: { opacity: 0.6 },
 }));

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { S, TOUCH } from './theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -114,5 +114,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff' },
+  badgeText: { fontFamily: fonts.bold, fontSize: 11, color: onFill },
 });

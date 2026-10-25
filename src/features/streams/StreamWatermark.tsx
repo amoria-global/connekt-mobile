@@ -1,3 +1,4 @@
+import { onFill } from '@/theme';
 /**
  * Persistent brand watermark burned onto every live-stream video (mobile).
  *
@@ -54,7 +55,7 @@ const styles = StyleSheet.create({
     height: 46,
   },
   centerLabel: {
-    color: '#ffffff',
+    color: onFill,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 4,

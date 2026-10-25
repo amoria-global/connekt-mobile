@@ -14,11 +14,11 @@ import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 
 /** The web's seal colour (`.ph-avatar-verif i { color: #3b82f6 }`). */
 export const VERIFIED_BLUE = '#3B82F6';
-const RING = '#FFFFFF';
+const RING = onFill;
 /** The web's empty-avatar grey, with slate text that clears WCAG AA on it. */
 const EMPTY_BG = '#CBD5E1';
 const EMPTY_TEXT = '#334155';

@@ -7,7 +7,7 @@
  */
 import { StyleSheet, Text, View } from 'react-native';
 import { formatDisplay, floorTo, usdToDisplay, type DisplayCurrency, type WithdrawSource } from './model';
-import { fonts, fontSize, fontWeight, makeStyles, radii, spacing } from '@/theme';
+import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 export function BalanceHero({
@@ -45,7 +45,7 @@ const useStyles = makeStyles((c) =>
   StyleSheet.create({
     hero: { backgroundColor: c.primary, borderRadius: radii.xl, padding: spacing.xl, gap: 4 },
     label: { color: 'rgba(255,255,255,0.8)', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-    amount: { color: '#fff', fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
+    amount: { color: onFill, fontFamily: fonts.bold, fontSize: fontSize['2xl'], fontWeight: fontWeight.extrabold },
     sub: { color: 'rgba(255,255,255,0.75)', fontSize: fontSize.sm },
   }),
 );

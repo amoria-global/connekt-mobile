@@ -49,7 +49,7 @@ import {
   type MoneyItem,
 } from '@/features/wallet/moneyView';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -310,7 +310,7 @@ export default function WalletScreen() {
                       accessibilityRole="button"
                       accessibilityLabel="Withdraw funds"
                     >
-                      <Ionicons name="cash-outline" size={15} color="#ffffff" />
+                      <Ionicons name="cash-outline" size={15} color={onFill} />
                       <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.6}>
                         Withdraw funds
                       </Text>
@@ -367,7 +367,7 @@ export default function WalletScreen() {
                     style={({ pressed }) => [styles.heroWithdrawBtn, pressed && { opacity: 0.88 }]}
                     onPress={() => router.push('/withdraw' as Href)}
                   >
-                    <Ionicons name="cash-outline" size={15} color="#ffffff" />
+                    <Ionicons name="cash-outline" size={15} color={onFill} />
                     <Text style={styles.heroWithdrawText}>{tr('Withdraw funds')}</Text>
                   </Pressable>
                 ) : null}
@@ -985,7 +985,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     borderRadius: radii.md,
   },
-  retryBtnText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
+  retryBtnText: { fontFamily: fonts.bold, fontSize: 13, color: c.textOnPrimary },
   scroll: { paddingHorizontal: spacing.lg, gap: spacing.lg },
 
   heroTopRow: {
@@ -1160,7 +1160,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
     marginTop: 8,
   },
-  heroWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: '#ffffff' },
+  heroWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: c.textOnPrimary },
 
   // Breakdown StatCards
   walletBleed: { marginHorizontal: -spacing.lg },
@@ -1257,7 +1257,7 @@ const useStyles = makeStyles((c) => ({
   },
   filterPillActive: { backgroundColor: c.primary, borderColor: c.primary },
   filterPillText: { fontFamily: fonts.bold, fontSize: 12, color: c.textMuted },
-  filterPillTextActive: { color: '#ffffff' },
+  filterPillTextActive: { color: c.textOnPrimary },
 
   activitySearchWrap: {
     marginTop: 2,
@@ -1492,5 +1492,5 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalDoneBtnText: { fontFamily: fonts.bold, fontSize: 15, color: '#ffffff' },
+  modalDoneBtnText: { fontFamily: fonts.bold, fontSize: 15, color: c.textOnPrimary },
 }));

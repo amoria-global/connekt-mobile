@@ -30,7 +30,7 @@ import { ModeBadge, friendlyEventStatus, isOpenHybrid, modeOf } from '@/features
 import { env } from '@/config/env';
 import { useAsync } from '@/hooks/useAsync';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import {
   ActionButton,
   Chip,
@@ -481,7 +481,7 @@ function EventRow({
 
           <View style={styles.coverTopRow}>
             <View style={styles.coverDatePill}>
-              <Ionicons name="calendar" size={12} color="#FFFFFF" />
+              <Ionicons name="calendar" size={12} color={onFill} />
               <Text style={styles.coverDateText} numberOfLines={2}>
                 {whenText(event)}
               </Text>
@@ -501,7 +501,7 @@ function EventRow({
               </Text>
       </View>
             <View style={styles.coverChevronCircle}>
-              <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+              <Ionicons name="chevron-forward" size={16} color={onFill} />
       </View>
           </View>
         </Pressable>
@@ -695,7 +695,7 @@ const useStyles = makeStyles((c, e) => ({
     flexShrink: 1,
   },
   coverDateText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 12,
     fontWeight: '700',
     flexShrink: 1,
@@ -717,7 +717,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
   },
   cardTitle: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 19,
     fontWeight: '800',
     lineHeight: 24,

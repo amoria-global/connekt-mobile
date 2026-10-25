@@ -13,7 +13,7 @@ import { getKyc } from './api';
 import { getKycBannerConfig } from './bannerConfig';
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/store/language';
-import { darkPalette, fonts, fontSize, fontWeight, makeStyles, radii, shadows, spacing, useTheme } from '@/theme';
+import { darkPalette, fonts, fontSize, fontWeight, makeStyles, radii, shadows, spacing, useTheme, onFill } from '@/theme';
 
 export { getKycBannerConfig, type KycBannerConfig } from './bannerConfig';
 
@@ -132,7 +132,7 @@ export function KycBanner({ style, compact }: KycBannerProps) {
             accessibilityLabel={`${cfg.buttonText} identity verification`}
           >
             <Text style={styles.actionText}>{cfg.buttonText}</Text>
-            <Ionicons name="arrow-forward" size={13} color="#fff" />
+            <Ionicons name="arrow-forward" size={13} color={onFill} />
           </Pressable>
         </View>
         )}
@@ -239,7 +239,7 @@ const useStyles = makeStyles((c, e) => ({
   actionText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   closeBtn: {
     width: 28,

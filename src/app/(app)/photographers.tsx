@@ -19,7 +19,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PhotographerCard } from '@/features/photographers/PhotographerCard';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { SkeletonCard } from '@/features/photographer/kit';
 import { env } from '@/config/env';
 import { DirectBookingMapView } from '@/features/photographers/DirectBookingMapView';
@@ -467,7 +467,7 @@ export default function PhotographersScreen() {
         <Ionicons
           name="grid"
           size={12}
-          color={viewMode === 'list' ? '#FFFFFF' : colors.textMuted}
+          color={viewMode === 'list' ? onFill : colors.textMuted}
         />
         <Text
           style={[
@@ -486,7 +486,7 @@ export default function PhotographersScreen() {
         <Ionicons
           name="map"
           size={12}
-          color={viewMode === 'map' ? '#FFFFFF' : colors.textMuted}
+          color={viewMode === 'map' ? onFill : colors.textMuted}
         />
         <Text
           style={[
@@ -532,7 +532,7 @@ export default function PhotographersScreen() {
           {/* tint is translucent, so it sits over the opaque card instead of the page */}
           <View pointerEvents="none" style={styles.hybridBannerWash} />
           <View style={styles.hybridBannerIcon}>
-            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+            <Ionicons name="sparkles" size={16} color={onFill} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.hybridBannerTitle}>{tr('b2_photogsHybridTitle')}</Text>
@@ -542,7 +542,7 @@ export default function PhotographersScreen() {
           </View>
           <View style={styles.hybridBannerBtn}>
             <Text style={styles.hybridBannerBtnText}>{tr('b2_photogsHybridBtn')}</Text>
-            <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+            <Ionicons name="arrow-forward" size={12} color={onFill} />
           </View>
         </Pressable>
       )}
@@ -597,7 +597,7 @@ export default function PhotographersScreen() {
                 <Ionicons
                   name={iconName}
                   size={13}
-                  color={active ? '#FFFFFF' : colors.textMuted}
+                  color={active ? onFill : colors.textMuted}
                 />
                 <Text
                   style={[styles.categoryChipText, active && styles.categoryChipTextActive]}
@@ -730,7 +730,7 @@ export default function PhotographersScreen() {
 
         {isCoordinator && (
           <Pressable style={styles.inviteBtn} onPress={() => setInviteOpen(true)}>
-            <Ionicons name="mail" size={12} color="#FFFFFF" />
+            <Ionicons name="mail" size={12} color={onFill} />
             <Text style={styles.inviteBtnText}>{tr('b2_photogsInvitePro')}</Text>
           </Pressable>
         )}
@@ -1150,7 +1150,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   viewModeBtnActive: {
     backgroundColor: c.primary,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
@@ -1162,13 +1162,13 @@ const useStyles = makeStyles((c, e) => ({
     color: c.textMuted,
   },
   viewModeBtnTextActive: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2.5,
-    backgroundColor: '#F20C8F',
+    backgroundColor: c.accent,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: radii.full,
@@ -1178,12 +1178,12 @@ const useStyles = makeStyles((c, e) => ({
     width: 3.5,
     height: 3.5,
     borderRadius: 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.card,
   },
   liveBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     letterSpacing: 0.5,
   },
   mapScreenContainer: {
@@ -1294,7 +1294,7 @@ const useStyles = makeStyles((c, e) => ({
   hybridBannerBtnText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   // Search Bar
@@ -1353,7 +1353,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   categoryChipTextActive: {
     fontFamily: fonts.bold,
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   // Filter Pills
@@ -1435,7 +1435,7 @@ const useStyles = makeStyles((c, e) => ({
   inviteBtnText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   // List Footer
@@ -1528,7 +1528,7 @@ const useStyles = makeStyles((c, e) => ({
     color: c.text,
   },
   pagerNumTextActive: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
   pagerEllipsis: {
     fontFamily: fonts.bold,

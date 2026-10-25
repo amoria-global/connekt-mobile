@@ -8,7 +8,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { Skeleton } from '@/features/photographer/kit';
 import { albumDateText, photoCountText } from '@/features/gallery/albumFacts';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -39,7 +39,7 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
   const styles = useStyles();
   const { colors, isDark } = useTheme();
   const { tr } = useSharedT();
-  const base = STATUS_META[(book.status ?? '').toUpperCase()] ?? { label: book.status || 'Book', bg: 'rgba(0,0,0,0.55)', fg: '#fff' };
+  const base = STATUS_META[(book.status ?? '').toUpperCase()] ?? { label: book.status || 'Book', bg: 'rgba(0,0,0,0.55)', fg: onFill };
   const tone = { ...base, ...chipColors(base, isDark, colors) };
   const count = photoCountText(book.mediaCount);
   const by = bookByline(book);
@@ -70,7 +70,7 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
         {count ? (
           <View style={styles.bottom}>
             <View style={styles.count}>
-              <Ionicons name="images" size={11} color="#fff" />
+              <Ionicons name="images" size={11} color={onFill} />
               <Text style={styles.countText} maxFontSizeMultiplier={1.6}>
                 {tr(count)}
               </Text>
@@ -128,7 +128,7 @@ const useStyles = makeStyles((c, e) => ({
   statusText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   bottom: { flexDirection: 'row', paddingLeft: 6 },
   count: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(5,12,24,0.62)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
-  countText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  countText: { color: c.textOnPrimary, fontSize: 11, fontWeight: '700' },
   body: { padding: spacing.sm, gap: 3 },
   title: { color: c.text, fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
   meta: { color: c.textMuted, fontSize: 12.5 },

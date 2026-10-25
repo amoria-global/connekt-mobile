@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { PublicStreamChat } from '@/features/streams/api';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { BottomSheet } from './BottomSheet';
 import {
   chatSender,
@@ -172,9 +172,9 @@ export function CommentsSheet({
             accessibilityState={{ disabled: !canSend, busy: sending }}
           >
             {sending ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={onFill} />
             ) : (
-              <Ionicons name="send" size={18} color="#fff" />
+              <Ionicons name="send" size={18} color={onFill} />
             )}
           </Pressable>
         </View>

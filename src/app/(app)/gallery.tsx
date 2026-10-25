@@ -37,7 +37,7 @@ import { listAlbums, type GalleryItem } from '@/features/gallery/api';
 import { featuredAlbum } from '@/features/gallery/albumFacts';
 import { AlbumGridCard, AlbumGridSkeleton, AlbumHero, AlbumListRow } from '@/features/gallery/AlbumCards';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { useLanguage } from '@/store/language';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
@@ -370,7 +370,7 @@ export default function GalleryScreen() {
                   style={styles.emptyBtn}
                   onPress={() => router.push('/album/new' as Href)}
                 >
-                  <Ionicons name="add" size={18} color="#fff" />
+                  <Ionicons name="add" size={18} color={onFill} />
                   <Text style={styles.emptyBtnText}>{t('createFirstAlbum')}</Text>
                 </Pressable>
               ) : null}
@@ -391,7 +391,7 @@ export default function GalleryScreen() {
           accessibilityRole="button"
           accessibilityLabel="Create new album"
         >
-          <Ionicons name="add" size={20} color="#fff" />
+          <Ionicons name="add" size={20} color={onFill} />
           <Text style={styles.fabText}>{t('newAlbum')}</Text>
         </Pressable>
       ) : null}
@@ -446,7 +446,7 @@ export default function GalleryScreen() {
                       <Ionicons
                         name={opt.icon}
                         size={18}
-                        color={active ? '#fff' : colors.primary}
+                        color={active ? onFill : colors.primary}
                       />
                     </View>
                     <View style={styles.sortOptionTextCol}>
@@ -575,7 +575,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textSoft,
   },
   segmentTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   segmentCount: {
     paddingHorizontal: 6,
@@ -592,7 +592,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   segmentCountTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   segmentDivider: {
     width: 1,
@@ -711,7 +711,7 @@ const useStyles = makeStyles((c) => ({
   photoCountText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   gridCardBody: {
     padding: spacing.sm,
@@ -791,13 +791,13 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
   },
   kindTagEvent: { backgroundColor: c.primary },
-  kindTagPaid: { backgroundColor: '#7C3AED' },
-  kindTagFree: { backgroundColor: '#059669' },
+  kindTagPaid: { backgroundColor: c.primaryLight },
+  kindTagFree: { backgroundColor: c.success },
   kindTagDefault: { backgroundColor: 'rgba(0,0,0,0.55)' },
   kindTagText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.5,
   },
 
@@ -812,7 +812,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: radii.full,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOpacity: 0.22,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -822,7 +822,7 @@ const useStyles = makeStyles((c) => ({
   fabText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.2,
   },
 
@@ -884,7 +884,7 @@ const useStyles = makeStyles((c) => ({
   emptyBtnText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 
   // Sort Sheet

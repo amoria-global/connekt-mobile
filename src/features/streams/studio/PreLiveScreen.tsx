@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraFacing } from '@/features/streams/CameraPublisher';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { RoundButton } from './RoundButton';
 import { S, TOUCH } from './theme';
 
@@ -208,12 +208,12 @@ function PreLiveScreenBase({
         >
           {busy ? (
             <>
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={onFill} />
               <Text style={styles.goText}>{tr('Preparing your LIVE…')}</Text>
             </>
           ) : (
             <>
-              <Ionicons name="radio" size={22} color="#fff" />
+              <Ionicons name="radio" size={22} color={onFill} />
               <Text style={styles.goText}>{tr('GO LIVE')}</Text>
             </>
           )}
@@ -279,5 +279,5 @@ const styles = StyleSheet.create({
     minWidth: TOUCH,
   },
   goDisabled: { opacity: 0.5 },
-  goText: { fontFamily: fonts.bold, fontSize: 20, letterSpacing: 0.6, color: '#fff' },
+  goText: { fontFamily: fonts.bold, fontSize: 20, letterSpacing: 0.6, color: onFill },
 });

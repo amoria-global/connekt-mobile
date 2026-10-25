@@ -143,7 +143,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 18,
     fontFamily: fonts.bold,
     fontWeight: '700',
@@ -204,19 +204,19 @@ const useStyles = makeStyles((c) => ({
     width: 9,
     height: 9,
     borderRadius: 4.5,
-    backgroundColor: '#0095F6', // Instagram's iconic direct message unread blue
+    backgroundColor: c.primary, // Instagram's iconic direct message unread blue
   },
   unreadBadge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#0095F6',
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 5,
   },
   unreadBadgeText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 11,
     fontFamily: fonts.bold,
     fontWeight: '700',

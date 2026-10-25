@@ -56,7 +56,7 @@ import { isApiError, useAuth } from '@/store/auth';
 import { accountIdentity, isEmail, loadGuestIdentity, saveGuestIdentity } from '@/features/events/guestIdentity';
 import { pickShortVideo } from '@/features/streams/pickShortVideo';
 import { getDeviceId } from '@/utils/deviceId';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useLanguage } from '@/store/language';
@@ -875,7 +875,7 @@ export default function PublicEventDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('b4_findMyPhotos')}
               >
-                <Ionicons name="search" size={18} color="#FFFFFF" />
+                <Ionicons name="search" size={18} color={onFill} />
                 <Text style={styles.endedFindPhotosBtnText}>{t('b4_findMyPhotos')}</Text>
               </Pressable>
             </View>
@@ -959,7 +959,7 @@ export default function PublicEventDetailScreen() {
                 {organizer ? (
                   <View style={styles.hostCard}>
                     <View style={[styles.hostAvatarWrap, styles.hostAvatarOrganizer]}>
-                      <Ionicons name="mic" size={20} color="#fff" />
+                      <Ionicons name="mic" size={20} color={onFill} />
                     </View>
                     <View style={styles.hostInfo}>
                       <Text style={styles.hostRole}>{t('b4_organizedBy')}</Text>
@@ -978,7 +978,7 @@ export default function PublicEventDetailScreen() {
                           contentFit="cover"
                         />
                       ) : (
-                        <Ionicons name="camera" size={20} color="#fff" />
+                        <Ionicons name="camera" size={20} color={onFill} />
                       )}
                     </View>
                     <View style={styles.hostInfo}>
@@ -1053,7 +1053,7 @@ export default function PublicEventDetailScreen() {
                       disabled={!groupCode.trim() || groupCodeBusy}
                     >
                       {groupCodeBusy ? (
-                        <ActivityIndicator color="#fff" size="small" />
+                        <ActivityIndicator color={onFill} size="small" />
                       ) : (
                         <Text style={styles.groupCodeBtnText}>{t('b4_redeem')}</Text>
                       )}
@@ -1234,7 +1234,7 @@ export default function PublicEventDetailScreen() {
           style={{ position: 'absolute', left: 16, right: 16, bottom: Math.max(insets.bottom, 16) + 84, alignItems: 'center' }}
         >
           <View style={{ backgroundColor: '#0F172A', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 }}>
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14, textAlign: 'center' }}>
+            <Text style={{ color: onFill, fontWeight: '600', fontSize: 14, textAlign: 'center' }}>
               {reminderNote ?? reminderError}
             </Text>
           </View>
@@ -1426,7 +1426,7 @@ const useStyles = makeStyles((c, e) => ({
   statusPillEnded: { backgroundColor: 'rgba(107,114,128,0.78)' },
   statusPillCancelled: { backgroundColor: 'rgba(239,68,68,0.78)' },
   statusPillText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 11,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.9,
@@ -1528,7 +1528,7 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  hostAvatarOrganizer: { backgroundColor: '#083A85' },
+  hostAvatarOrganizer: { backgroundColor: c.primary },
   hostAvatar: { width: '100%', height: '100%' },
   hostInfo: { flex: 1, gap: 2 },
   hostRole: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold, letterSpacing: 0.4 },
@@ -1613,7 +1613,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     gap: spacing.sm,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -1670,7 +1670,7 @@ const useStyles = makeStyles((c, e) => ({
     minWidth: 80,
     height: 42,
   },
-  groupCodeBtnText: { color: '#fff', fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  groupCodeBtnText: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   groupCodeError: { color: c.error, fontSize: 12 },
 
   // Send a wish (web `.ve-wishes`)
@@ -1810,7 +1810,7 @@ const useStyles = makeStyles((c, e) => ({
     ...e(2),
   },
   endedFindPhotosBtnText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.3,

@@ -753,13 +753,13 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 1,
   },
   unreadCountChip: {
-    backgroundColor: '#0095F6',
+    backgroundColor: c.primary,
     borderRadius: 8,
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
   unreadCountChipText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -816,7 +816,7 @@ const useStyles = makeStyles((c, e) => ({
     fontFamily: fonts.bold,
     fontWeight: '700',
     fontSize: 13,
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   // Modals & Sheets
@@ -1002,7 +1002,7 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
   },
   contactAvatarText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 16,
     fontFamily: fonts.bold,
     fontWeight: '700',

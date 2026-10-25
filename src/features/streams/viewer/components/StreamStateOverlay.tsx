@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { V } from '../viewerTheme';
 import type { PlaybackPhase } from '../types';
 
@@ -20,7 +20,7 @@ export const StreamStateOverlay = memo(function StreamStateOverlay({ phase, retr
     return (
       <View style={styles.bufferWrap} pointerEvents="none" accessibilityLiveRegion="polite">
         <View style={styles.bufferPill}>
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color={onFill} />
           <Text style={styles.bufferText}>Buffering…</Text>
         </View>
       </View>
@@ -59,7 +59,7 @@ export const StreamStateOverlay = memo(function StreamStateOverlay({ phase, retr
   return (
     <View style={styles.full} accessibilityLiveRegion="polite">
       {spinning ? (
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={onFill} />
       ) : (
         <Ionicons
           name={phase === 'error' ? 'cloud-offline-outline' : 'videocam-outline'}
@@ -78,7 +78,7 @@ export const StreamStateOverlay = memo(function StreamStateOverlay({ phase, retr
           accessibilityLabel={phase === 'error' ? 'Try again' : 'Check feed now'}
         >
           {retrying ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={onFill} />
           ) : (
             <Text style={styles.primaryText}>{phase === 'error' ? 'Try Again' : 'Check Now'}</Text>
           )}
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
+  primaryText: { fontFamily: fonts.bold, fontSize: 15, color: onFill },
   bufferWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   bufferPill: {
     flexDirection: 'row',
@@ -121,5 +121,5 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: V.chipStrong,
   },
-  bufferText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
+  bufferText: { fontFamily: fonts.bold, fontSize: 14, color: onFill },
 });

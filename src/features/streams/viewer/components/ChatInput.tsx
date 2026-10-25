@@ -1,7 +1,7 @@
 import { memo, type Ref } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { V } from '../viewerTheme';
 import type { ReplyTarget } from '../types';
 
@@ -62,9 +62,9 @@ export const ChatInput = memo(function ChatInput(p: Props) {
           style={[styles.send, !canSend && styles.sendOff]}
         >
           {p.sending ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={onFill} />
           ) : (
-            <Ionicons name="send" size={18} color="#fff" />
+            <Ionicons name="send" size={18} color={onFill} />
           )}
         </Pressable>
       </View>

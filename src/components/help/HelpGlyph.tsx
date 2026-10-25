@@ -1,3 +1,4 @@
+import { onFill } from '@/theme';
 import { View } from 'react-native';
 /**
  * The Help button's icon: a filled speech bubble with three dots and an outlined bubble behind it, both in the same
@@ -27,9 +28,9 @@ export function HelpGlyph({ size = 30 }: { size?: number }) {
       </Defs>
       <Path d={OUTLINE} stroke="url(#hg)" strokeWidth={26} strokeLinecap="round" strokeLinejoin="round" fill="none" />
       <Path d={BUBBLE} fill="url(#hg)" />
-      <Circle cx="106" cy="182" r="32" fill="#FFFFFF" />
-      <Circle cx="213" cy="182" r="32" fill="#FFFFFF" />
-      <Circle cx="320" cy="182" r="32" fill="#FFFFFF" />
+      <Circle cx="106" cy="182" r="32" fill={onFill} />
+      <Circle cx="213" cy="182" r="32" fill={onFill} />
+      <Circle cx="320" cy="182" r="32" fill={onFill} />
     </Svg>
     </View>
   );

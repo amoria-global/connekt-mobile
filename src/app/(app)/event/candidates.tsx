@@ -21,7 +21,7 @@ import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { formatPrice } from '@/utils/format';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const TIERS: RecommendationTier[] = ['HIGH', 'MEDIUM', 'LOW'];
@@ -261,7 +261,7 @@ export default function EventCandidatesScreen() {
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <Pressable onPress={() => setChoosing(null)} disabled={submitting} style={styles.secondary} accessibilityRole="button"><Text style={styles.secondaryText}>{t('b3_conv_cancel')}</Text></Pressable>
               <Pressable onPress={confirmChoice} disabled={submitting} style={styles.primary} accessibilityRole="button">
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{t('b3_cand_book_and_pay_pct', { pct: escrow })}</Text>}
+                {submitting ? <ActivityIndicator color={onFill} /> : <Text style={styles.primaryText}>{t('b3_cand_book_and_pay_pct', { pct: escrow })}</Text>}
               </Pressable>
             </View>
           </GlassSheetHost>
@@ -307,7 +307,7 @@ const useStyles = makeStyles((c) => ({
   counts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 4 },
   count: { fontSize: fontSize.xs, color: c.textSoft, backgroundColor: c.surfaceMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.full, overflow: 'hidden' },
   window: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: 'rgba(242,12,143,0.10)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full, marginTop: 4 },
-  windowText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: '#F20C8F' },
+  windowText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.accent },
   tierTitle: { fontSize: 12, fontWeight: fontWeight.extrabold, letterSpacing: 0.8 },
   error: { color: c.error, backgroundColor: c.errorBg, padding: spacing.md, borderRadius: radii.md, fontSize: fontSize.sm },
   empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing['2xl'] },
@@ -321,8 +321,8 @@ const useStyles = makeStyles((c) => ({
   sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
   escrow: { flex: 1, alignItems: 'center', paddingVertical: spacing.md, borderRadius: radii.md, borderWidth: 2, borderColor: c.border },
   escrowPct: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-  primary: { flex: 1.4, minHeight: 50, borderRadius: radii.md, backgroundColor: '#F20C8F', alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#fff', fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
+  primary: { flex: 1.4, minHeight: 50, borderRadius: radii.md, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
   secondary: { flex: 1, minHeight: 50, borderRadius: radii.md, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: c.textSoft, fontWeight: fontWeight.bold },
 }));

@@ -41,7 +41,7 @@ import { useAuth, isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { translateSharedRw } from '@/i18n/kinyarwanda';
 import { translateSharedSw } from '@/i18n/swahili';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 import { glassTile } from '@/components/ui/GlassCard';
@@ -1031,7 +1031,7 @@ export function BookingModeSelector({
                 ) : (
                   <Pressable onPress={publish} disabled={!canPublish} accessibilityRole="button" accessibilityState={{ disabled: !canPublish }}
                     style={[styles.primaryBtn, { flex: 1, backgroundColor: canPublish ? accent : colors.surfaceMuted }]}>
-                    {submitting ? <ActivityIndicator color="#fff" /> : (
+                    {submitting ? <ActivityIndicator color={onFill} /> : (
                       <Text style={[styles.primaryText, !canPublish && { color: colors.textMuted }]}>
                         {count === 0 ? tr('Widen your request first') : tr('Post and alert photographers')}
                       </Text>
@@ -1380,7 +1380,7 @@ const useStyles = makeStyles((c, e) => ({
     ...e(1),
   },
   primaryText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: fontSize.md,
     fontWeight: fontWeight.extrabold,
   },

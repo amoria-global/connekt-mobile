@@ -778,7 +778,7 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.surface,
   },
   gridBadgeText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 9,
     fontWeight: fontWeight.bold,
   },

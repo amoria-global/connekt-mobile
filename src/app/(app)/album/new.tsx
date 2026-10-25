@@ -47,7 +47,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import type { EventItem } from '@/features/events/types';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
@@ -628,7 +628,7 @@ export default function NewAlbumScreen() {
           <FieldLabel text="ALBUM PHOTOS (OPTIONAL)" />
           <Pressable style={styles.uploadBox} onPress={addPhotos}>
             <View style={styles.uploadIcon}>
-              <Ionicons name="images" size={22} color="#fff" />
+              <Ionicons name="images" size={22} color={onFill} />
             </View>
             <Text style={styles.uploadTitle}>
               {images.length > 0 ? 'Add more photos' : 'Select photos from library'}
@@ -659,7 +659,7 @@ export default function NewAlbumScreen() {
                       hitSlop={6}
                       accessibilityLabel="Remove photo"
                     >
-                      <Ionicons name="close" size={11} color="#fff" />
+                      <Ionicons name="close" size={11} color={onFill} />
                     </Pressable>
                   </View>
                 ))}
@@ -699,7 +699,7 @@ export default function NewAlbumScreen() {
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={onFill} />
             ) : (
               <Text style={styles.createText}>{trAlb('Create Album')}</Text>
             )}
@@ -831,10 +831,10 @@ function TypeCard({
     >
       <View style={styles.typeHead}>
         <View style={[styles.typeIcon, active && styles.typeIconActive]}>
-          <Ionicons name={icon} size={18} color={active ? '#fff' : colors.textMuted} />
+          <Ionicons name={icon} size={18} color={active ? onFill : colors.textMuted} />
         </View>
         <View style={[styles.radio, active && styles.radioActive]}>
-          {active ? <Ionicons name="checkmark" size={11} color="#fff" /> : null}
+          {active ? <Ionicons name="checkmark" size={11} color={onFill} /> : null}
         </View>
       </View>
       <Text style={styles.typeTag}>{tag}</Text>
@@ -889,7 +889,7 @@ const useStyles = makeStyles((c) => ({
   },
   modeTabActive: {
     backgroundColor: c.surface,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
@@ -1049,7 +1049,7 @@ const useStyles = makeStyles((c) => ({
   },
   chipActive: { backgroundColor: c.primary, borderColor: c.primary },
   chipText: { fontFamily: fonts.bold, fontSize: 12.5, color: c.textSoft },
-  chipTextActive: { color: '#fff' },
+  chipTextActive: { color: c.textOnPrimary },
 
   // Upload box
   uploadBox: {
@@ -1134,7 +1134,7 @@ const useStyles = makeStyles((c) => ({
   cancel: { backgroundColor: c.surfaceMuted },
   cancelText: { fontFamily: fonts.bold, fontSize: 14, color: c.textSoft },
   create: { backgroundColor: c.primary },
-  createText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
+  createText: { fontFamily: fonts.bold, fontSize: 14, color: c.textOnPrimary },
   btnDisabled: { opacity: 0.6 },
 
   // Event Picker Modal

@@ -326,7 +326,7 @@ const useS = makeStyles((c) => ({
   tileSel: { borderColor: c.accent, backgroundColor: 'rgba(242,12,143,0.14)' },
   tileEmoji: { fontSize: 30, lineHeight: 34 },
   tileName: { color: c.textSoft, fontSize: 11, fontWeight: fontWeight.semibold, alignSelf: 'stretch', textAlign: 'center' },
-  tilePrice: { color: c === darkPalette ? '#ffd166' : '#B45309', fontSize: fontSize.xs, fontWeight: fontWeight.extrabold, alignSelf: 'stretch', textAlign: 'center' },
+  tilePrice: { color: c === darkPalette ? '#ffd166' : c.pending, fontSize: fontSize.xs, fontWeight: fontWeight.extrabold, alignSelf: 'stretch', textAlign: 'center' },
   tileLocal: { color: c.textMuted, fontSize: 9, fontWeight: fontWeight.semibold, alignSelf: 'stretch', textAlign: 'center' },
   tileSend: {
     backgroundColor: c.accent,

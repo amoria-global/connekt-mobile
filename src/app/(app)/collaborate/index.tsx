@@ -367,7 +367,7 @@ const useStyles = makeStyles((c, e) => ({
     position: 'absolute', top: spacing.md, right: spacing.md, backgroundColor: c.accent,
     borderRadius: radii.full, paddingHorizontal: spacing.md, paddingVertical: 4,
   },
-  pendingText: { color: '#FFFFFF', fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  pendingText: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   cardBody: { padding: spacing.lg, gap: spacing.sm },
   cardTitle: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between' },

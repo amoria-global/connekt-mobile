@@ -13,7 +13,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { eventQrLink, qrMatrix } from '@/features/events/scanIntent';
-import { fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, radii, spacing, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
@@ -79,7 +79,7 @@ export function EventQrSheet({
         <View style={styles.codeBox}>
           {path ? (
             <Svg width="100%" height="100%" viewBox={`0 0 ${path.size} ${path.size}`}>
-              <Rect width={path.size} height={path.size} fill="#fff" />
+              <Rect width={path.size} height={path.size} fill={onFill} />
               <Path d={path.d} fill={NAVY} />
             </Svg>
           ) : null}
@@ -95,7 +95,7 @@ export function EventQrSheet({
           accessibilityRole="button"
           accessibilityLabel={tr('Share link')}
         >
-          <Ionicons name="share-social" size={18} color="#fff" />
+          <Ionicons name="share-social" size={18} color={onFill} />
           <Text style={styles.btnText}>{tr('Share link')}</Text>
         </Pressable>
       </GlassSheetHost>
@@ -131,5 +131,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  btnText: { color: '#fff', fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  btnText: { color: onFill, fontSize: fontSize.md, fontWeight: fontWeight.bold },
 });

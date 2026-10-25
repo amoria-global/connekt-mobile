@@ -1,3 +1,4 @@
+import { onFill } from '@/theme';
 /**
  * Live-stream sponsor-ad overlay (mobile port of knockout's StreamAdBanners).
  *
@@ -88,7 +89,7 @@ function AdMedia({ ad, style }: { ad: StreamAd; style: StyleProp<ViewStyle> }) {
 function CloseButton({ onClose }: { onClose: () => void }) {
   return (
     <Pressable style={styles.close} onPress={onClose} hitSlop={8}>
-      <Ionicons name="close" size={14} color="#fff" />
+      <Ionicons name="close" size={14} color={onFill} />
     </Pressable>
   );
 }

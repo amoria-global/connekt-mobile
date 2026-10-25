@@ -1,3 +1,4 @@
+import { onFill } from '@/theme';
 /**
  * Visual tokens for the Creator Live Studio.
  *
@@ -11,7 +12,7 @@ export const S = {
   glass: 'rgba(16,18,24,0.58)',
   glassActive: 'rgba(255,255,255,0.92)',
   line: 'rgba(255,255,255,0.16)',
-  text: '#FFFFFF',
+  text: onFill,
   textDim: 'rgba(255,255,255,0.74)',
   textFaint: 'rgba(255,255,255,0.5)',
   live: '#EF4444',

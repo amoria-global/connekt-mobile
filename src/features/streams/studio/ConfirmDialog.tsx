@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { S } from './theme';
 
 type Props = {
@@ -63,7 +63,7 @@ export function ConfirmDialog({
           accessibilityLabel={confirmLabel}
           accessibilityState={{ busy, disabled: busy }}
         >
-          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnDangerText}>{tr(confirmLabel)}</Text>}
+          {busy ? <ActivityIndicator color={onFill} /> : <Text style={styles.btnDangerText}>{tr(confirmLabel)}</Text>}
         </Pressable>
       </View>
     </View>
@@ -102,5 +102,5 @@ const styles = StyleSheet.create({
   btnSafeText: { fontFamily: fonts.bold, fontSize: 18, color: '#111' },
   btnDanger: { backgroundColor: 'rgba(220,38,38,0.9)' },
   btnGo: { backgroundColor: S.go },
-  btnDangerText: { fontFamily: fonts.bold, fontSize: 18, color: '#fff' },
+  btnDangerText: { fontFamily: fonts.bold, fontSize: 18, color: onFill },
 });

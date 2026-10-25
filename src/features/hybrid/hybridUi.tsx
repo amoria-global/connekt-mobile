@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { useLanguage } from '@/store/language';
 import { serverNowMs } from './api';
 import type { RecommendationTier } from './types';
@@ -268,7 +268,7 @@ const useStyles = makeStyles((c) => ({
   },
   chipOn: { backgroundColor: c.primary, borderColor: c.primary },
   chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text },
-  chipTextOn: { color: '#fff' },
+  chipTextOn: { color: c.textOnPrimary },
   card: {
     flexDirection: 'row', gap: spacing.sm, padding: spacing.md, borderRadius: radii.lg,
     borderWidth: 2, borderColor: c.border, backgroundColor: c.card, alignItems: 'flex-start',
@@ -314,7 +314,7 @@ export function Chip({ selected, onPress, label, icon }: { selected: boolean; on
   const styles = useStyles();
   return (
     <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ checked: selected }} style={[styles.chip, selected && styles.chipOn]} hitSlop={4}>
-      {icon && <Ionicons name={icon} size={14} color={selected ? '#fff' : undefined} />}
+      {icon && <Ionicons name={icon} size={14} color={selected ? onFill : undefined} />}
       <Text style={[styles.chipText, selected && styles.chipTextOn]}>{label}</Text>
     </Pressable>
   );

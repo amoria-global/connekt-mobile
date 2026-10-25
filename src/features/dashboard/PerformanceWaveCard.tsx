@@ -35,7 +35,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
-import { fonts, fontSize, fontWeight, radii, spacing, useTheme } from '@/theme';
+import { fonts, fontSize, fontWeight, radii, spacing, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { HIDDEN_AMOUNT } from '@/features/photographer/money';
@@ -509,7 +509,7 @@ export function PerformanceWaveCard({
           {/* Layer 2: Foreground Crisp White Trend Line Curve */}
           <Path
             d={trendCurvePath}
-            stroke="#FFFFFF"
+            stroke={onFill}
             strokeWidth="2.4"
             fill="none"
             strokeLinecap="round"
@@ -531,7 +531,7 @@ export function PerformanceWaveCard({
               <SvgText
                 x={startPoint.x}
                 y={startPoint.y - 38}
-                fill="#FFFFFF"
+                fill={onFill}
                 fontSize="12.5"
                 fontFamily={fonts.bold}
                 fontWeight="700"
@@ -540,7 +540,7 @@ export function PerformanceWaveCard({
                 {startPoint.displayValue}
               </SvgText>
               {/* Start circle dot */}
-              <Circle cx={startPoint.x} cy={startPoint.y} r="5" fill="#FFFFFF" />
+              <Circle cx={startPoint.x} cy={startPoint.y} r="5" fill={onFill} />
             </>
           ) : null}
 
@@ -560,7 +560,7 @@ export function PerformanceWaveCard({
               <SvgText
                 x={endPoint.x}
                 y={endPoint.y - 38}
-                fill="#FFFFFF"
+                fill={onFill}
                 fontSize="12.5"
                 fontFamily={fonts.bold}
                 fontWeight="700"
@@ -569,7 +569,7 @@ export function PerformanceWaveCard({
                 {endPoint.displayValue}
               </SvgText>
               {/* End circle dot */}
-              <Circle cx={endPoint.x} cy={endPoint.y} r="5" fill="#FFFFFF" />
+              <Circle cx={endPoint.x} cy={endPoint.y} r="5" fill={onFill} />
             </>
           ) : null}
 
@@ -590,7 +590,7 @@ export function PerformanceWaveCard({
               <SvgText
                 x={activePoint.x}
                 y={12}
-                fill="#FFFFFF"
+                fill={onFill}
                 fontSize="15.5"
                 fontFamily={fonts.bold}
                 fontWeight="800"
@@ -614,7 +614,7 @@ export function PerformanceWaveCard({
                 cy={activePoint.y}
                 r="5.5"
                 fill="#00E5FF"
-                stroke="#FFFFFF"
+                stroke={onFill}
                 strokeWidth="1.5"
               />
             </>
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 19,
     fontWeight: fontWeight.extrabold,
-    color: '#FFFFFF',
+    color: onFill,
     letterSpacing: -0.4,
   },
   trendChip: {
@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   periodTabTextSelected: {
-    color: '#FFFFFF',
+    color: onFill,
   },
   metricChipsRow: {
     flexDirection: 'row',

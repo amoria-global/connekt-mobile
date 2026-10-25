@@ -42,7 +42,7 @@ import {
   phoneCountryFor,
   validateNsn,
 } from '@/lib/phoneKit';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme , type Palette as ThemePalette } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme , type Palette as ThemePalette, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { glassTile } from './GlassCard';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
@@ -137,7 +137,7 @@ const makeGlass = (c: ThemePalette): Palette => {
 };
 
 const DARK: Palette = {
-  text: '#FFFFFF',
+  text: onFill,
   label: 'rgba(255,255,255,0.82)',
   muted: 'rgba(255,255,255,0.55)',
   rowBg: 'rgba(255,255,255,0.07)',
