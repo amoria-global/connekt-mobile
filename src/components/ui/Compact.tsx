@@ -61,6 +61,7 @@ export function SolidTile({ icon, tone = 'primary', size = density.iconTile }: {
 const useTile = makeStyles((c) => ({
   tile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, padding: 10, borderRadius: density.radius.card, borderWidth: 1 },
   text: { flex: 1, minWidth: 0 },
+  tileStacked: { flexDirection: 'column', justifyContent: 'center', gap: 4, minHeight: 64, paddingVertical: 8 },
   title: { fontFamily: fonts.bold, fontSize: 14.5, color: c.text },
   caption: { fontFamily: fonts.regular, fontSize: 11.5, color: c.textMuted, marginTop: 1 },
   badge: { minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
@@ -87,12 +88,14 @@ type TileProps = {
   onPress: () => void;
   /** A count or status at the right, e.g. "3" or "1 LIVE". */
   badge?: ReactNode;
+  /** Icon above the title, for three tiles across. */
+  stacked?: boolean;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
 /** One tap action. Place two side by side in a `TileRow`. */
-export function ActionTile({ icon, tone = 'primary', title, caption, onPress, badge, accessibilityLabel, style }: TileProps) {
+export function ActionTile({ icon, tone = 'primary', title, caption, onPress, badge, stacked, accessibilityLabel, style }: TileProps) {
   const st = useTile();
   const { colors, gradients, isDark } = useTheme();
   const { fg } = chipColors(colors, gradients, isDark, tone);
@@ -103,17 +106,18 @@ export function ActionTile({ icon, tone = 'primary', title, caption, onPress, ba
       accessibilityLabel={accessibilityLabel ?? title}
       style={({ pressed }) => [
         st.tile,
+        stacked && st.tileStacked,
         { backgroundColor: alpha(fg, 0.12), borderColor: alpha(fg, pressed ? 0.8 : 0.55) },
         pressed && st.pressed,
         style,
       ]}
     >
       <SolidTile icon={icon} tone={tone} />
-      <View style={st.text}>
-        <Text style={st.title} numberOfLines={1}>
+      <View style={stacked ? undefined : st.text}>
+        <Text style={[st.title, stacked && { textAlign: 'center', fontSize: 13 }]} numberOfLines={stacked ? 2 : 1}>
           {title}
         </Text>
-        {caption ? (
+        {caption && !stacked ? (
           <Text style={st.caption} numberOfLines={1}>
             {caption}
           </Text>
@@ -247,5 +251,32 @@ export function NavRow({ icon, tone = 'primary', title, caption, onPress, badge,
       {badge}
       <Ionicons name="chevron-forward" size={16} color={colors.link} />
     </Pressable>
+  );
+}
+
+const useGrid = makeStyles(
+  (c) => ({
+    grid: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: density.radius.card, borderWidth: 1, backgroundColor: c.well, borderColor: c.stroke, overflow: 'hidden' },
+    cell: { width: '50%', minHeight: 44, paddingVertical: 8, paddingHorizontal: 12, justifyContent: 'center', flexDirection: 'column-reverse' },
+    value: { fontFamily: fonts.display, fontSize: 22, color: c.text },
+    label: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
+  }),
+  { compact: false },
+);
+
+/** Several single numbers as one flat, non-tappable panel (replaces a grid of one-number cards). */
+export function StatGrid({ items }: { items: { key: string; label: string; value: string | number }[] }) {
+  const st = useGrid();
+  return (
+    <View style={st.grid}>
+      {items.map((it) => (
+        <View key={it.key} style={st.cell} accessible accessibilityLabel={`${it.label}: ${it.value}`}>
+          <Text style={st.label} numberOfLines={1}>
+            {it.label}
+          </Text>
+          <Text style={st.value}>{it.value}</Text>
+        </View>
+      ))}
+    </View>
   );
 }

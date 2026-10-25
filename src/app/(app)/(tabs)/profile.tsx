@@ -26,7 +26,6 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -35,6 +34,7 @@ import { Screen } from '@/components/ui/Screen';
 import { GhostButton } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { IconTile } from '@/components/ui/IconTile';
+import { ActionTile } from '@/components/ui/Compact';
 import { StatusChip, type ChipTone } from '@/components/ui/StatusChip';
 import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { useRole } from '@/features/auth/role';
@@ -54,7 +54,7 @@ import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { useCurrency } from '@/store/currency';
-import { spacing, radii, fonts, makeStyles, tracking, useTheme } from '@/theme';
+import { alpha, spacing, radii, fonts, makeStyles, tracking, useTheme } from '@/theme';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 type ProfileTab = 'details' | 'settings' | 'account';
@@ -369,20 +369,7 @@ export default function ProfileScreen() {
           {/* ── Action tiles: one job each, colour by meaning ── */}
           <View style={styles.tilesRow}>
             {actionTiles.map((a) => (
-              <Pressable
-                key={a.key}
-                onPress={a.onPress}
-                accessibilityRole="button"
-                accessibilityLabel={a.label}
-                style={({ pressed }) => [styles.tileWrap, pressed && styles.pressed]}
-              >
-                <GlassCard style={styles.tile}>
-                  <IconTile icon={a.icon} tone={a.tone} size="sm" />
-                  <Text style={styles.tileLabel} numberOfLines={2}>
-                    {a.label}
-                  </Text>
-                </GlassCard>
-              </Pressable>
+              <ActionTile key={a.key} stacked icon={a.icon} tone={a.tone} title={a.label} onPress={a.onPress} accessibilityLabel={a.label} />
             ))}
           </View>
 
@@ -436,15 +423,14 @@ export default function ProfileScreen() {
             {highlights.map((h) => (
               <Pressable
                 key={h.key}
-                style={({ pressed }) => [styles.highlightItem, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.shortcut, pressed && styles.shortcutPressed]}
                 onPress={() => router.push(h.href)}
+                hitSlop={{ top: 4, bottom: 4 }}
                 accessibilityRole="button"
                 accessibilityLabel={h.label}
               >
-                <View style={styles.highlightCircle}>
-                  <Ionicons name={h.icon} size={22} color={colors.text} />
-                </View>
-                <Text style={styles.highlightLabel} numberOfLines={2}>
+                <Ionicons name={h.icon} size={16} color={colors.link} />
+                <Text style={styles.shortcutLabel} numberOfLines={1}>
                   {h.label}
                 </Text>
               </Pressable>
@@ -716,10 +702,10 @@ const useStyles = makeStyles((c) => ({
     zIndex: 2,
   },
   avatarWrap: { marginTop: spacing.xl, marginBottom: spacing.xs },
-  avatarRing: { width: 112, height: 112, borderRadius: radii.full, padding: 3 },
+  avatarRing: { width: 88, height: 88, borderRadius: radii.full, padding: 3 },
   avatar: { width: '100%', height: '100%', borderRadius: radii.full, borderWidth: 3, borderColor: c.background },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.card },
-  avatarText: { fontFamily: fonts.display, fontSize: 36, color: c.text },
+  avatarText: { fontFamily: fonts.display, fontSize: 28, color: c.text },
   avatarBadge: {
     position: 'absolute',
     right: 4,
@@ -770,19 +756,10 @@ const useStyles = makeStyles((c) => ({
   progressTrack: { height: 6, borderRadius: 3, backgroundColor: c.well, overflow: 'hidden', marginTop: 4 },
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: c.accent },
 
-  highlightsScroll: { gap: spacing.lg, paddingHorizontal: spacing.lg },
-  highlightItem: { alignItems: 'center', gap: spacing.xs, width: 68 },
-  highlightCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: c.glassTop,
-    borderWidth: 1,
-    borderColor: c.stroke,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  highlightLabel: { fontFamily: fonts.medium, fontSize: 12, color: c.textSoft, textAlign: 'center' },
+  highlightsScroll: { gap: spacing.sm, paddingHorizontal: spacing.lg },
+  shortcut: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: 12, borderRadius: radii.full, borderWidth: 1, backgroundColor: alpha(c.primary, 0.16), borderColor: alpha(c.primaryLight, 0.55) },
+  shortcutPressed: { transform: [{ scale: 0.97 }], borderColor: alpha(c.primaryLight, 0.8) },
+  shortcutLabel: { fontFamily: fonts.semibold, fontSize: 13, color: c.link },
 
   tabStrip: { flexDirection: 'row', marginHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: c.stroke },
   tabButton: { flex: 1, alignItems: 'center', gap: 4, paddingTop: spacing.sm, minHeight: 56 },
