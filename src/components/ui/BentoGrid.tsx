@@ -6,7 +6,7 @@
  */
 import { Children, isValidElement, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { Animated, Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { fonts, fontSize, makeStyles, motion, radii, spacing, tracking, useReducedMotion } from '@/theme';
+import { alpha, fonts, fontSize, makeStyles, motion, radii, spacing, tracking, useReducedMotion, useTheme } from '@/theme';
 import { GlassCard } from './GlassCard';
 
 type TileProps = {

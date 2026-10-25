@@ -182,7 +182,7 @@ export function MatchingProfileCard() {
           <Text style={styles.title}>{tr('Matching profile')}</Text>
           <Text style={styles.hint}>{tr('Get Post My Event opportunities')}</Text>
         </View>
-        {live ? <StatusChip label={tr('Live')} tone="live" dot /> : null}
+        {live ? <StatusChip label={tr('Live')} tone="active" dot /> : null}
       </View>
       <MatchingProfileForm onLoaded={(p) => setLive(p.instagramStatus === 'CONNECTED')} />
     </GlassCard>

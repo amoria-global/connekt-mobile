@@ -53,10 +53,10 @@ const AGENDA_PAGE_DAYS = 14;
 const COMING_UP = 3;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const STATUS: Record<EventBucket, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' }> = {
+const STATUS: Record<EventBucket, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' | 'active' }> = {
   pending: { label: 'Awaiting your reply', tone: 'warning' },
   upcoming: { label: 'Scheduled', tone: 'info' },
-  ongoing: { label: 'In progress', tone: 'live' },
+  ongoing: { label: 'In progress', tone: 'active' },
   completed: { label: 'Completed', tone: 'neutral' },
   cancelled: { label: 'Cancelled', tone: 'error' },
 };

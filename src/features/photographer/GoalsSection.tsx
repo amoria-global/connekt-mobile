@@ -51,7 +51,6 @@ export function GoalsSection({ rating, hidden }: { rating: number | null; hidden
     <View>
       <SectionHeader
         title="Goals"
-        subtitle="Targets you set for yourself"
         actionLabel={plans.data ? 'Add goal' : undefined}
         onAction={plans.data ? () => setEditing({ plan: null }) : undefined}
       />

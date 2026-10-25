@@ -2,7 +2,7 @@
  * Fixed-dark tokens for the screens that sit on live video: the creator studio and the viewer.
  * They do not follow the scheme (video is the picture), so they are constants, built from the
  * Midnight Glass dark palette rather than their own hexes. Colour keeps its meaning here too:
- * cyan is live, magenta the call to go live, blue an action, amber a warning.
+ * broadcast red is live, magenta the call to go live, blue an action, amber a warning.
  */
 import { darkPalette as d } from './palettes';
 
