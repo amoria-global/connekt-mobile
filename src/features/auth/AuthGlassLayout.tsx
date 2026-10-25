@@ -81,7 +81,7 @@ export function AuthGlassLayout({
   const glassEdge = useGlassEdge();
 
   return (
-    <Screen padded={false} edges={[]}>
+    <Screen padded={false} edges={[]} glow={false}>
       {/* The band is always a photo, so its chrome is always light. */}
       <StatusBar style="light" />
       <GlassScene image={AUTH_BACKDROP} bleedTop={false}>

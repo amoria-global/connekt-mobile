@@ -2,7 +2,6 @@ import { useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
-import { GlassScene } from '@/components/ui/GlassCard';
 import { useRole } from '@/features/auth/role';
 import { PhotographerEventsDashboard } from '@/features/events/PhotographerEventsDashboard';
 import { ClientEventsDashboard } from '@/features/events/ClientEventsDashboard';
@@ -30,9 +29,7 @@ export default function EventsScreen() {
     // screen is the schedule, not chrome. Currency, language and notifications stay on Home's top bar.
     return (
       <Screen padded={false} edges={[]}>
-        <GlassScene>
           <PhotographerEventsDashboard topInset={insets.top} />
-        </GlassScene>
       </Screen>
     );
   }

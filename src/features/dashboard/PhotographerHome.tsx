@@ -33,7 +33,7 @@ import { Image } from 'expo-image';
 import { Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { Button, PrimaryButton } from '@/components/ui/Button';
 import { BentoCaption, BentoGrid, BentoTile, BentoTitle, BentoValue } from '@/components/ui/BentoGrid';
-import { GlassCard, GlassScene } from '@/components/ui/GlassCard';
+import { GlassCard } from '@/components/ui/GlassCard';
 import { IconTile as GlowTile } from '@/components/ui/IconTile';
 import { InsetWell } from '@/components/ui/Input';
 import { StatusChip } from '@/components/ui/StatusChip';
@@ -307,7 +307,6 @@ export function PhotographerHome() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <GlassScene>
       <ScrollView
         contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
@@ -652,7 +651,6 @@ export function PhotographerHome() {
 
         <GetHelpCard />
       </ScrollView>
-      </GlassScene>
 
       <TopBar />
       {env.hybridBookingEnabled ? <MatchingProfilePrompt /> : null}

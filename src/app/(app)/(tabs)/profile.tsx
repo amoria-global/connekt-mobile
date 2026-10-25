@@ -33,7 +33,7 @@ import {
 import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
 import { GhostButton } from '@/components/ui/Button';
-import { GlassCard, GlassScene } from '@/components/ui/GlassCard';
+import { GlassCard } from '@/components/ui/GlassCard';
 import { IconTile } from '@/components/ui/IconTile';
 import { StatusChip, type ChipTone } from '@/components/ui/StatusChip';
 import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
@@ -268,7 +268,6 @@ export default function ProfileScreen() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <GlassScene>
         <ScrollView
           contentContainerStyle={[styles.scroll, { paddingTop: top + spacing.sm, paddingBottom: clearance }]}
           showsVerticalScrollIndicator={false}
@@ -621,7 +620,6 @@ export default function ProfileScreen() {
             ) : null}
           </View>
         </ScrollView>
-      </GlassScene>
       <LanguageSelectorSheet visible={languageSheetOpen} onClose={() => setLanguageSheetOpen(false)} />
       <CurrencySelectorSheet visible={currencySheetOpen} onClose={() => setCurrencySheetOpen(false)} />
     </Screen>

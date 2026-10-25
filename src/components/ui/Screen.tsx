@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { View, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { useResponsive } from '@/hooks/useResponsive';
 import { spacing, makeStyles } from '@/theme';
+import { GlassScene } from './GlassCard';
 
 /**
  * Maximum content width on large viewports (web / iPad). Beyond ~520 px
@@ -22,24 +23,33 @@ type Props = {
   padded?: boolean;
   edges?: Edge[];
   style?: ViewStyle;
+  /**
+   * Midnight Glass: the screen's soft lights (a GlassScene), which every glass panel on it
+   * blurs, so glass never sits on the flat background alone. On by default; off for full-bleed
+   * media (players, viewers) that bring their own picture.
+   */
+  glow?: boolean;
 };
 
-export function Screen({ children, padded = true, edges = ['top'], style }: Props) {
+export function Screen({ children, padded = true, edges = ['top'], style, glow = true }: Props) {
   const styles = useStyles();
   const { isLarge, isXLarge } = useResponsive();
   const clampWidth = isLarge || isXLarge;
+  const body = (
+    <View
+      style={[
+        styles.content,
+        clampWidth && styles.contentClamped,
+        padded && styles.padded,
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
-      <View
-        style={[
-          styles.content,
-          clampWidth && styles.contentClamped,
-          padded && styles.padded,
-          style,
-        ]}
-      >
-        {children}
-      </View>
+      {glow ? <GlassScene bleedTop={edges.includes('top')}>{body}</GlassScene> : body}
     </SafeAreaView>
   );
 }
