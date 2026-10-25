@@ -66,7 +66,7 @@ export function KycBanner({ style, compact }: KycBannerProps) {
       <View style={styles.mainArea}>
         <View style={styles.topRow}>
           <View style={[styles.iconWrap, { backgroundColor: cfg.tint }]}>
-            <Ionicons name={cfg.icon} size={24} color={cfg.accent} />
+            <Ionicons name={cfg.icon} size={18} color={cfg.accent} />
           </View>
 
           <View style={styles.titleWrap}>
@@ -162,8 +162,8 @@ const useStyles = makeStyles((c, e) => ({
     gap: spacing.md,
   },
   iconWrap: {
-    width: 46,
-    height: 46,
+    width: 34,
+    height: 34,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',

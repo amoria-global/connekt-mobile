@@ -85,7 +85,7 @@ export function DashboardGreeting({
                 accessibilityRole="header"
                 accessibilityLabel={`${phrase}, ${name}`}
               >
-                {phrase},{'\n'}
+                {phrase},{' '}
                 {glyphs.map((g, i) => (
                   <Text key={i} style={{ color: g.color }}>
                     {g.ch}

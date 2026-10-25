@@ -21,7 +21,7 @@ import { ProgressRing } from './charts';
 type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' | 'active';
 
 /** A real photograph when the event has one, otherwise an icon tile of the same size (never a blank grey box). */
-export function Thumb({ uri, size = 88 }: { uri?: string; size?: number }) {
+export function Thumb({ uri, size = 60 }: { uri?: string; size?: number }) {
   const styles = useStyles();
   const { colors } = useTheme();
   if (uri) {
@@ -119,7 +119,7 @@ export function NextShootCard({
     <View style={styles.cardGutter}>
       <GlassCard style={styles.nextCard}>
         <View style={styles.shootRow}>
-          {date ? <DateTile date={date} variant="paper" showWeekday size={68} /> : <Thumb uri={shoot.cover} size={68} />}
+          {date ? <DateTile date={date} variant="paper" showWeekday size={54} /> : <Thumb uri={shoot.cover} size={54} />}
           <View style={styles.shootText}>
             {shoot.live ? (
               <LivePill label="Live now" size="xs" sparkle />
@@ -165,7 +165,7 @@ export function ShootRow({ date, title, meta, onPress }: { date: Date | null; ti
       style={({ pressed }) => [styles.cardGutter, pressed && { opacity: 0.88 }]}
     >
       <GlassCard style={styles.shootRowCard}>
-        {date ? <DateTile date={date} variant="glass" size={68} /> : <Thumb size={50} />}
+        {date ? <DateTile date={date} variant="glass" size={52} /> : <Thumb size={40} />}
         <View style={styles.shootText}>
           <Text style={styles.rowTitleDisplay} numberOfLines={1}>
             {tr(title)}
@@ -203,7 +203,7 @@ export function PriorityCard({
   return (
     <Card>
       <View style={styles.shootRow}>
-        <Thumb uri={cover} size={76} />
+        <Thumb uri={cover} size={56} />
         <View style={styles.shootText}>
           <Text style={styles.shootTitle} numberOfLines={2}>
             {tr(title)}
@@ -386,11 +386,11 @@ const useStyles = makeStyles((c) => ({
   nextCard: { borderRadius: radii.xl, padding: spacing.lg },
   nextTitle: { color: c.text, fontSize: 20, lineHeight: 25, fontFamily: fonts.display, letterSpacing: tracking(20, -0.02) },
   nextFacts: { color: c.textSoft, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
-  shootRowCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radii.lg, minHeight: 72 },
+  shootRowCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radii.lg, minHeight: 52 },
   rowTitleDisplay: { color: c.text, fontSize: 17, fontFamily: fonts.display, letterSpacing: tracking(17, -0.02) },
   squareBtn: {
     width: 52,
-    minHeight: 48,
+    minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.stroke,
