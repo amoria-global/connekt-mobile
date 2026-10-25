@@ -52,7 +52,7 @@ export function compactSpace(v: number): number {
   const a = Math.abs(v);
   if (a <= 10) return v;
   const s = v < 0 ? -1 : 1;
-  const n = a <= 13 ? 10 : a <= 16 ? 12 : a <= 20 ? 14 : a <= 24 ? 16 : a <= 32 ? 20 : Math.round(a * 0.6);
+  const n = a <= 14 ? 10 : a <= 16 ? 12 : a <= 22 ? 12 : a <= 24 ? 14 : a <= 32 ? 18 : Math.round(a * 0.55);
   return s * n;
 }
 

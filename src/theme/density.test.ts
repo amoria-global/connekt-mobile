@@ -24,9 +24,9 @@ describe('Compact Glass density', () => {
   });
 
   it('shrinks card padding, gaps and radii to the reference', () => {
-    expect(compactSpace(22)).toBeLessThanOrEqual(16);
-    expect(compactSpace(14)).toBeLessThanOrEqual(12);
-    expect(compactSpace(32)).toBeLessThanOrEqual(20);
+    expect(compactSpace(22)).toBeLessThanOrEqual(12);
+    expect(compactSpace(14)).toBeLessThanOrEqual(10);
+    expect(compactSpace(32)).toBeLessThanOrEqual(18);
     expect(compactRadius(28)).toBe(density.radius.card);
     expect(compactRadius(14)).toBe(density.radius.button);
   });

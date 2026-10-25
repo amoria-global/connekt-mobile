@@ -36,7 +36,6 @@ import { ActionRow, ActionTile, CountBadge, StatStrip, TileRow } from '@/compone
 import { GlassCard } from '@/components/ui/GlassCard';
 import { IconTile as GlowTile } from '@/components/ui/IconTile';
 import { InsetWell } from '@/components/ui/Input';
-import { StatusChip } from '@/components/ui/StatusChip';
 import { Alert } from '@/components/ui/dialog';
 import { DashboardGreeting } from './DashboardGreeting';
 import { photographerProfileUrl } from '@/features/photographer/profileLink';

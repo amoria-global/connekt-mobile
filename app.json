@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-25-compact-glass",
+            "date": "2026-10-25",
+            "title": "Tighter, clearer screens",
+            "items": [
+              {
+                "icon": "contract-outline",
+                "title": "Less scrolling",
+                "body": "Text, icons, tiles and spacing are smaller across the app, so more fits on one screen. Home now shows your balance, schedule and actions without scrolling."
+              },
+              {
+                "icon": "hand-left-outline",
+                "title": "Buttons that look like buttons",
+                "body": "Everything you can tap now has a colour: a tinted border, a coloured icon, or an arrow. Plain information cards stay flat."
+              }
+            ]
+          },
+          {
             "id": "2026-10-25-live-stream-screen",
             "date": "2026-10-25",
             "title": "A new look for watching live",

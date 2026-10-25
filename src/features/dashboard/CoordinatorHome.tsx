@@ -66,6 +66,7 @@ import { useLanguage } from '@/store/language';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import { DashboardGreeting } from './DashboardGreeting';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
+import { CountBadge, NavGroup, NavRow } from '@/components/ui/Compact';
 
 const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not hand memo hooks a new array every render. */
@@ -273,18 +274,18 @@ export function CoordinatorHome() {
               <ActionButton label="Photographers" icon="camera-outline" onPress={() => open('/photographers')} style={styles.flex} />
             </View>
             <View style={styles.stack}>
-              <ActionButton label="Calendar" caption="Events and payments by day" icon="calendar-outline" onPress={() => open('/calendar')} />
+              <NavGroup>
+                <NavRow icon="calendar-outline" tone="primary" title="Calendar" caption="Events and payments by day" onPress={() => open('/calendar')} />
+                <NavRow
+                  icon="videocam-outline"
+                  tone={anyLive ? 'live' : 'active'}
+                  title="Live streams"
+                  caption={anyLive ? 'Live now' : 'Control and watch'}
+                  badge={anyLive ? <CountBadge tone="live">LIVE</CountBadge> : undefined}
+                  onPress={() => open('/streams')}
+                />
+              </NavGroup>
             </View>
-            <View style={styles.stack}>
-              <ActionButton
-                label="Live streams"
-                caption={anyLive ? 'Live now' : 'Control and watch'}
-                icon="videocam-outline"
-                variant="teal"
-                onPress={() => open('/streams')}
-              />
-            </View>
-
             {/* Event types: a quick way into the Events tab, filtered */}
             {categories.data && categories.data.length > 0 ? (
             <ScrollView

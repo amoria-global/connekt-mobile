@@ -15,7 +15,7 @@ type Props = {
   glow?: boolean;
 };
 
-const SIZES = { sm: { box: 36, icon: 18 }, md: { box: 44, icon: 22 }, lg: { box: 56, icon: 26 } } as const;
+const SIZES = { sm: { box: 32, icon: 16 }, md: { box: 36, icon: 18 }, lg: { box: 40, icon: 20 } } as const;
 const GLOW: Partial<Record<ChipTone, string>> = {
   primary: glowRgb.primary,
   accent: glowRgb.accent,
