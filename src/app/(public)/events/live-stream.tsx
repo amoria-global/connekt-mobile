@@ -126,6 +126,21 @@ import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette, onFill, onMedia, viewerTokens } from '@/theme';
 import { EndedEventCard } from '@/features/streams/viewer/components/EndedEventCard';
+import {
+  ChatHeaderBar,
+  ChatRow,
+  Composer,
+  EmptyChat,
+  FloatingReactions,
+  HostBar,
+  LiveEdge,
+  ReactionRow,
+  StageControls,
+  useAutoHide,
+  useChatText,
+  FLOAT,
+} from '@/features/streams/viewer/public/LiveStreamUI';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { GlassLayer, glassClear, glassTile } from '@/components/ui/GlassCard';
 
@@ -143,6 +158,9 @@ const CTRL_ACTIVE_FILL = 'rgba(255,255,255,0.28)';
 const MODAL_HANDOFF_MS = 400;
 
 const REACTION_EMOJIS = ['🔥', '❤️', '👏', '😍', '🎉', '😮'];
+
+/** Chips in an empty chat; a tap only fills the input, it never sends. */
+const QUICK_HELLOS = ['Hello 👋', 'Great show 🔥', 'Love this ❤️'];
 
 // ─── Welcome splash ────────────────────────────────────────────────────────
 // Web parity: showWelcomeSplash auto-dismisses after 2.6s once the stream
@@ -317,81 +335,49 @@ function OverlayChatRow({
 function YouTubeChatRow({
   chat,
   isOwn,
+  hostName,
   onLongPress,
 }: {
   chat: PublicStreamChat;
   isOwn: boolean;
+  /** The event's organiser, so their messages carry the HOST tag. */
+  hostName?: string;
   onLongPress?: (chat: PublicStreamChat) => void;
 }) {
-  const chatFx = useChatFx();
-  const enter = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(enter, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-  }, [enter]);
-
+  const t = useChatText();
   const name = isOwn ? 'You' : chat.viewerName || 'Guest';
-  const initial = (chat.viewerName || 'G').trim().charAt(0).toUpperCase();
   const hasVideo = !!chat.videoUrl;
   const isGift = (chat.chatType ?? chat.type ?? '').toUpperCase() === 'GIFT';
   const gift = isGift ? parseGiftMeta(chat.giftMeta) : null;
+  const isHost = !isOwn && !!hostName && (chat.viewerName || '').trim().toLowerCase() === hostName.trim().toLowerCase();
 
   return (
-    <Animated.View
-      style={[
-        chatFx.ytRow,
-        {
-          opacity: enter,
-          transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
-        },
-      ]}
+    <ChatRow
+      name={name}
+      avatar={chat.avatar}
+      isOwn={isOwn}
+      isHost={isHost}
+      gift={isGift && !hasVideo}
+      youLabel={tr('b4_youUpper')}
+      onLongPress={onLongPress ? () => onLongPress(chat) : undefined}
     >
-      <Pressable
-        style={[chatFx.ytRowPressable, isGift && chatFx.ytGiftRow]}
-        onLongPress={onLongPress ? () => onLongPress(chat) : undefined}
-        delayLongPress={300}
-        accessibilityRole={onLongPress ? 'button' : undefined}
-        accessibilityHint={
-          onLongPress ? 'Long press to report this message or hide this person' : undefined
-        }
-      >
-        {chat.avatar ? (
-          <Image source={{ uri: chat.avatar }} style={chatFx.ytAvatar} contentFit="cover" />
-        ) : (
-          <View style={[chatFx.ytAvatar, chatFx.ytAvatarFallback]}>
-            <Text style={chatFx.ytAvatarInitial}>{initial}</Text>
-          </View>
-        )}
-
-        <View style={chatFx.ytMsgCol}>
-          <View style={chatFx.ytNameRow}>
-            <Text style={[chatFx.ytAuthorName, isOwn && chatFx.ytAuthorOwn]} numberOfLines={1}>
-              {name}
-            </Text>
-            {isOwn ? (
-              <View style={chatFx.ytYouBadge}>
-                <Text style={chatFx.ytYouBadgeText}>{tr('b4_youUpper')}</Text>
-              </View>
-            ) : null}
-          </View>
-
-          {hasVideo ? (
-            <ChatVideoBubble uri={chat.videoUrl!} />
-          ) : isGift ? (
-            <View style={chatFx.ytGiftContent}>
-              <Text style={chatFx.ytGiftEmoji}>{gift?.emoji ?? '🎁'}</Text>
-              <Text style={chatFx.ytGiftDesc}>
-                sent a <Text style={{ fontWeight: '700' }}>{gift?.name ?? 'gift'}</Text>
-                {gift ? <Text style={chatFx.ytGiftAmount}> · {formatGiftUsd(gift.amountUsd)}</Text> : null}
-              </Text>
-            </View>
-          ) : (
-            <Text style={chatFx.ytMsgText}>{chat.message}</Text>
-          )}
+      {hasVideo ? (
+        <ChatVideoBubble uri={chat.videoUrl!} />
+      ) : isGift ? (
+        <View style={t.giftLine}>
+          <Text style={t.giftEmoji}>{gift?.emoji ?? '🎁'}</Text>
+          <Text style={t.giftText}>
+            sent a <Text style={t.giftName}>{gift?.name ?? 'gift'}</Text>
+            {gift ? <Text style={t.giftAmount}> · {formatGiftUsd(gift.amountUsd)}</Text> : null}
+          </Text>
         </View>
-      </Pressable>
-    </Animated.View>
+      ) : (
+        <Text style={t.msg}>{chat.message}</Text>
+      )}
+    </ChatRow>
   );
 }
+
 
 type LiveChatPanelProps = {
   chats: PublicStreamChat[];
@@ -424,6 +410,8 @@ type LiveChatPanelProps = {
   isMuted?: boolean;
   onToggleMute?: () => void;
   layout?: 'overlay' | 'youtube';
+  /** The event's organiser, to tag their messages HOST. */
+  hostName?: string;
 };
 
 function LiveChatPanel({
@@ -455,6 +443,7 @@ function LiveChatPanel({
   isMuted = false,
   onToggleMute,
   layout = 'overlay',
+  hostName,
 }: LiveChatPanelProps) {
   const chatFx = useChatFx();
   const listRef = useRef<ScrollView>(null);
@@ -472,36 +461,15 @@ function LiveChatPanel({
   if (layout === 'youtube') {
     return (
       <View style={chatFx.ytContainer}>
-        {/* Header: Live Chat title + collapse + fullscreen */}
-        <View style={chatFx.ytHeader}>
-          <View style={chatFx.ytHeaderLeft}>
-            <Ionicons name="chatbubble-ellipses" size={16} color={darkPalette.primaryLight} />
-            <Text style={chatFx.ytHeaderTitle}>{tr('b4_liveChatTitle')}</Text>
-            <View style={chatFx.ytHeaderLiveDot} />
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Pressable
-              style={chatFx.ytCollapseBtn}
-              onPress={onToggleFullscreen}
-              hitSlop={8}
-              accessibilityLabel={tr('b4_fullScreen')}
-            >
-              <Ionicons name="expand" size={16} color={chatFx.ytHeaderTitle.color} />
-            </Pressable>
-            <Pressable
-              style={chatFx.ytCollapseBtn}
-              onPress={onToggleMinimize}
-              hitSlop={8}
-              accessibilityLabel={minimized ? 'Expand chat' : 'Collapse chat'}
-            >
-              <Ionicons
-                name={minimized ? 'chevron-down' : 'chevron-up'}
-                size={18}
-                color={chatFx.ytHeaderTitle.color}
-              />
-            </Pressable>
-          </View>
-        </View>
+        {/* Glass header: Live chat + live dot, full screen, collapse */}
+        <ChatHeaderBar
+          title="Live chat"
+          live
+          minimized={minimized}
+          onFullscreen={onToggleFullscreen}
+          onToggleMinimize={onToggleMinimize}
+          fullscreenLabel={tr('b4_fullScreen')}
+        />
 
         {minimized ? (
           <Pressable style={chatFx.ytCollapsedTeaser} onPress={onToggleMinimize} hitSlop={8}>
@@ -509,37 +477,8 @@ function LiveChatPanel({
           </Pressable>
         ) : (
           <View style={chatFx.ytBody}>
-            {/* Reaction bursts layer — positioned absolute right */}
-            <View pointerEvents="none" style={chatFx.ytFloatLayer}>
-              {floating.map((fx) => (
-                <Animated.Text
-                  key={fx.id}
-                  style={[
-                    chatFx.floatEmoji,
-                    {
-                      left: fx.offset,
-                      opacity: fx.anim.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }),
-                      transform: [
-                        {
-                          translateY: fx.anim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, -220],
-                          }),
-                        },
-                        {
-                          scale: fx.anim.interpolate({
-                            inputRange: [0, 0.2, 1],
-                            outputRange: [0.6, 1.15, 0.9],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  {fx.emoji}
-                </Animated.Text>
-              ))}
-            </View>
+            {/* Tapped reactions rise over the chat (rise, sway, fade, 1.8s) */}
+            <FloatingReactions items={floating} style={chatFx.ytFloatLayer} />
 
             {/* Messages list */}
             <ScrollView
@@ -550,71 +489,32 @@ function LiveChatPanel({
               keyboardShouldPersistTaps="handled"
             >
               {chats.length === 0 ? (
-                <Text style={chatFx.ytEmpty}>{tr('b4_welcomeLiveChat')}</Text>
+                <EmptyChat onPick={setDraft} phrases={QUICK_HELLOS} />
               ) : (
                 chats.map((c) => (
                   <YouTubeChatRow
                     key={c.id}
                     chat={c}
                     isOwn={isOwn(c)}
+                    hostName={hostName}
                     onLongPress={isOwn(c) ? undefined : onLongPressChat}
                   />
                 ))
               )}
             </ScrollView>
 
-            {/* Quick Reaction Emojis Row */}
-            <View style={chatFx.ytReactionsRow} pointerEvents="box-none">
-              {emojis.map((emoji) => (
-                <Pressable
-                  key={emoji}
-                  style={chatFx.ytReactionBtn}
-                  onPress={() => onReact(emoji)}
-                  hitSlop={4}
-                >
-                  <Text style={chatFx.ytReactionEmoji}>{emoji}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <ReactionRow emojis={emojis} onReact={onReact} />
 
-            {/* Composer */}
-            <View style={[chatFx.ytComposer, { paddingBottom: Math.max(insetBottom, 6) }]}>
-              <Pressable
-                style={[chatFx.ytIconBtn, videoSending && { opacity: 0.5 }]}
-                onPress={onVideo}
-                disabled={videoSending || sending}
-                hitSlop={6}
-              >
-                {videoSending ? (
-                  <ActivityIndicator size="small" />
-                ) : (
-                  <Ionicons name="videocam-outline" size={19} color={chatFx.ytMsgText.color} />
-                )}
-              </Pressable>
-
-              <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                placeholder={canChat ? 'Say something…' : joinHint ?? 'Verify access to chat'}
-                placeholderTextColor={chatFx.ytEmpty.color}
-                editable={!sending}
-                style={chatFx.ytInput}
-                returnKeyType="send"
-                onSubmitEditing={onSend}
-              />
-
-              <Pressable
-                style={[chatFx.ytSendBtn, (sending || !draft.trim()) && { opacity: 0.5 }]}
-                onPress={onSend}
-                disabled={sending || !draft.trim()}
-              >
-                {sending ? (
-                  <ActivityIndicator color={onFill} size="small" />
-                ) : (
-                  <Ionicons name="send" size={15} color={onFill} />
-                )}
-              </Pressable>
-            </View>
+            <Composer
+              value={draft}
+              onChange={setDraft}
+              onSend={onSend}
+              onVideo={onVideo}
+              videoSending={videoSending}
+              sending={sending}
+              placeholder={canChat ? 'Say something…' : joinHint ?? 'Verify access to chat'}
+              bottomInset={insetBottom}
+            />
 
             {error ? <Text style={chatFx.ytErrorText}>{error}</Text> : null}
           </View>
@@ -903,6 +803,8 @@ export default function PublicLiveStreamScreen() {
   // blow the player + chat up to a full-screen immersive view.
   const [chatMinimized, setChatMinimized] = useState(false);
   const [chatFullscreen, setChatFullscreen] = useState(false);
+  const stageChrome = useAutoHide();
+  const reducedMotion = useReducedMotion();
 
   // Expo Router delegates this to react-native-screens, which is already
   // available in the client binary. Keeping it in navigation options avoids
@@ -1252,7 +1154,7 @@ export default function PublicLiveStreamScreen() {
     // perfectly stack — but the motion itself stays a straight vertical rise.
     const offset = 8 + Math.random() * 34;
     setFloatingEmoji((prev) => [...prev, { id: itemId, emoji, anim, offset }]);
-    Animated.timing(anim, { toValue: 1, duration: 2200, useNativeDriver: true }).start(() => {
+    Animated.timing(anim, { toValue: 1, duration: reducedMotion ? 600 : FLOAT.ms, useNativeDriver: true }).start(() => {
       setFloatingEmoji((prev) => prev.filter((x) => x.id !== itemId));
     });
   };
@@ -1747,29 +1649,8 @@ export default function PublicLiveStreamScreen() {
       {status.isLive && !isMiniPlayer ? (
         // ── LIVE: YouTube style layout ──
         <View style={styles.ytRoot}>
-          {/* Branded header stays visible above the live player. */}
-          <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
-            <View style={styles.topBarPill}>
-              <Pressable
-                onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore-events'))}
-                hitSlop={12}
-                style={({ pressed }) => [styles.topBarBackBtn, pressed && styles.topBarBackBtnPressed]}
-                accessibilityRole="button"
-                accessibilityLabel={tr('b4_goBack')}
-              >
-                <Ionicons name="chevron-back" size={24} color={colors.text} />
-              </Pressable>
-
-              <View style={styles.topBarPillCenter}>
-                <Text style={styles.topBarPillText} numberOfLines={1}>Live stream</Text>
-              </View>
-
-              <View style={styles.topBarSpacer} />
-            </View>
-          </View>
-
-          {/* 1. 16:9 Player Stage */}
-          <View style={styles.ytStageWrap}>
+          {/* 1. Edge-to-edge 16:9 player stage; back, LIVE and the controls float over it as glass. */}
+          <View style={[styles.ytStageWrap, { paddingTop: insets.top }]}>
             <View style={styles.ytStage}>
               {manifestUrl ? (
                 chatFullscreen ? (
@@ -1821,9 +1702,14 @@ export default function PublicLiveStreamScreen() {
                 </>
               )}
 
-              {/* Top Controls Overlay on Video: Back + Minimize only — left side */}
+              {/* A tap anywhere on the video brings the controls back after they fade. */}
               {!chatFullscreen ? (
-                <View style={styles.ytStageTopOverlay} pointerEvents="box-none" />
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={stageChrome.show}
+                  accessibilityRole="button"
+                  accessibilityLabel="Live video, tap to show controls"
+                />
               ) : null}
 
               {/* In-video Gift Overlay */}
@@ -1845,62 +1731,24 @@ export default function PublicLiveStreamScreen() {
                 insetBottom={0}
               />
 
-              {/* Bottom Controls Overlay: LIVE badge left · mute + gift + fullscreen right */}
+              {/* Glass controls: back, LIVE, viewers on top; donate, volume, fullscreen below. Auto-hide after 3s. */}
               {!chatFullscreen ? (
-                <View style={styles.ytStageBottomOverlay} pointerEvents="box-none">
-                  <View style={styles.ytStageLiveBadge}>
-                    <View style={styles.ytStageLiveDot} />
-                    <Text style={styles.ytStageLiveText}>LIVE</Text>
-                  </View>
-
-                  <View style={styles.ytStageBottomRight}>
-                    {giftsEnabled ? (
-                      <Pressable
-                        style={[styles.ytStageIconBtn, glassClear]}
-                        onPress={() => setGiftOpen(true)}
-                        hitSlop={8}
-                        accessibilityLabel={tr('b4_sendAGift')}
-                      >
-                        <GlassLayer />
-                        <Ionicons name="gift-outline" size={17} color={onFill} />
-                      </Pressable>
-                    ) : null}
-                    <Pressable
-                      style={[styles.ytStageIconBtn, glassClear]}
-                      onPress={onDonate}
-                      hitSlop={8}
-                      accessibilityLabel="Donate"
-                    >
-                      <GlassLayer />
-                      <Ionicons name="heart-outline" size={17} color={onFill} />
-                    </Pressable>
-                    <Pressable
-                      style={[styles.ytStageIconBtn, glassClear]}
-                      onPress={() => setIsMuted((m) => !m)}
-                      hitSlop={8}
-                      accessibilityLabel={isMuted ? 'Unmute stream' : 'Mute stream'}
-                    >
-                      <GlassLayer />
-                      <Ionicons
-                        name={isMuted ? 'volume-mute' : 'volume-high'}
-                        size={18}
-                        color={onFill}
-                      />
-                    </Pressable>
-                    <Pressable
-                      style={[styles.ytStageIconBtn, glassClear]}
-                      onPress={enterFullscreen}
-                      hitSlop={8}
-                      accessibilityLabel="Full screen cinema mode"
-                    >
-                      <GlassLayer />
-                      <Ionicons name="expand" size={17} color={onFill} />
-                    </Pressable>
-                  </View>
-                </View>
+                <StageControls
+                  opacity={stageChrome.opacity}
+                  visible={stageChrome.visible}
+                  live={status.isLive}
+                  viewerCount={viewerCount}
+                  muted={isMuted}
+                  onBack={() => (router.canGoBack() ? router.back() : router.replace('/explore-events'))}
+                  onToggleMute={() => setIsMuted((m) => !m)}
+                  onFullscreen={enterFullscreen}
+                  onDonate={onDonate}
+                  onTouch={stageChrome.show}
+                />
               ) : null}
             </View>
           </View>
+          <LiveEdge />
 
           {/* Invite-token entry (if token needed and not paid) */}
           {!manifestUrl && !status.isPaid ? (
@@ -1932,39 +1780,15 @@ export default function PublicLiveStreamScreen() {
             </View>
           ) : null}
 
-          {/* 2. Event & Host Meta Section */}
-          <View style={styles.ytMetaSection}>
-            <View style={styles.ytMetaTop}>
-              {hostImage ? (
-                <Image source={{ uri: hostImage }} style={styles.ytHostAvatar} contentFit="cover" />
-              ) : (
-                <View style={[styles.ytHostAvatar, styles.ytHostAvatarFallback]}>
-                  <Text style={styles.ytHostInitial}>
-                    {(hostName || eventTitle).charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.ytEventTitle} numberOfLines={2}>{eventTitle}</Text>
-                <Text style={styles.ytHostName} numberOfLines={2}>
-                  {hostName ?? 'Event Host'}
-                </Text>
-              </View>
-              <View style={styles.ytMetaRight}>
-                {viewerCount > 0 ? (
-                  <View style={styles.ytViewerPill}>
-                    <View style={styles.ytViewerDot} />
-                    <Ionicons name="eye" size={11} color={onFill} />
-                    <Text style={styles.ytViewerPillText}>
-                      {viewerCount >= 1000
-                        ? `${(viewerCount / 1000).toFixed(1)}k`
-                        : viewerCount.toLocaleString()}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          </View>
+          {/* 2. Host bar: live ring, title, Gift and Like (both use the existing handlers). */}
+          <HostBar
+            title={eventTitle}
+            hostName={hostName}
+            hostImage={hostImage}
+            live={status.isLive}
+            onGift={giftsEnabled ? () => setGiftOpen(true) : undefined}
+            onLike={() => onSendReaction('❤️')}
+          />
 
           {/* 3. Live Chat — fills remaining screen below meta */}
           <KeyboardAvoidingView
@@ -1973,6 +1797,7 @@ export default function PublicLiveStreamScreen() {
           >
             <LiveChatPanel
               layout="youtube"
+              hostName={hostName}
               chats={visibleChats}
               isOwn={isOwnChat}
               onLongPressChat={onLongPressChat}

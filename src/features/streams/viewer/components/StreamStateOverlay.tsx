@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fonts, onFill } from '@/theme';
 import { V } from '../viewerTheme';
 import type { PlaybackPhase } from '../types';
+import { ReconnectingPanel } from '../public/LiveStreamUI';
 
 type Props = {
   phase: PlaybackPhase;
@@ -46,15 +47,15 @@ export const StreamStateOverlay = memo(function StreamStateOverlay({ phase, retr
     );
   }
 
-  const spinning = phase === 'connecting' || phase === 'reconnecting';
+  if (phase === 'reconnecting') return <ReconnectingPanel onRetry={onRetry} retrying={retrying} />;
+
+  const spinning = phase === 'connecting';
   const copy =
     phase === 'waiting'
       ? { t: 'Waiting for the stream to start', s: 'Playback begins automatically as soon as it goes live.' }
       : phase === 'connecting'
         ? { t: 'Connecting to live stream…', s: undefined }
-        : phase === 'reconnecting'
-          ? { t: 'Connection interrupted. Reconnecting…', s: undefined }
-          : { t: 'Unable to load this live stream.', s: 'Check your connection and try again.' };
+      : { t: 'Unable to load this live stream.', s: 'Check your connection and try again.' };
 
   return (
     <View style={styles.full} accessibilityLiveRegion="polite">
