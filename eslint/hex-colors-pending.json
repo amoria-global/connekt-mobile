@@ -1,7 +1,6 @@
 [
   "src/app/(app)/(tabs)/inbox.tsx",
   "src/app/(app)/(tabs)/index.tsx",
-  "src/app/(app)/(tabs)/profile.tsx",
   "src/app/(app)/(tabs)/wallet.tsx",
   "src/app/(app)/album/new.tsx",
   "src/app/(app)/album/[id].tsx",
@@ -80,7 +79,6 @@
   "src/features/hybrid/ExploreChoiceSheet.tsx",
   "src/features/hybrid/hybridUi.tsx",
   "src/features/hybrid/IncomingOpportunityAlertModal.tsx",
-  "src/features/hybrid/MatchingProfile.tsx",
   "src/features/hybrid/OpportunityCard.tsx",
   "src/features/inbox/ConversationRow.tsx",
   "src/features/kyc/bannerConfig.ts",
