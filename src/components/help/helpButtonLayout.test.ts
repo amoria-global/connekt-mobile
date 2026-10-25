@@ -16,8 +16,6 @@ describe('where the button shows', () => {
   it.each([
     ['choose role, which draws its own screen', ['(auth)', 'choose-role']],
     ['the public scan screen, which has no header', ['(public)', 'scan', '[id]']],
-    ['an album page, drawn without the stack header', ['(app)', 'album', '[id]']],
-    ['photobook, drawn without the stack header', ['(app)', 'photobook', '[id]']],
   ])('is shown on %s', (_name, segments) => {
     expect(isHelpButtonHidden(segments)).toBe(false);
     expect(helpButtonPlacement(segments, phone).visible).toBe(true);
@@ -35,6 +33,9 @@ describe('where the button shows', () => {
     ['sign up, whose photo band carries Help', ['(auth)', 'signup']],
     ['analytics, whose own header carries Help', ['(app)', 'analytics']],
     ['explore events, whose own header carries Help', ['(public)', 'explore-events']],
+    ['an album page, whose own header carries Help', ['(app)', 'album', '[id]']],
+    ['a received photobook, whose hero carries Help', ['(app)', 'photobook', '[id]']],
+    ['the public event page, whose own header carries Help', ['(public)', 'event', '[id]']],
   ])('steps aside on %s, whose header carries Help', (_name, segments) => {
     expect(helpButtonPlacement(segments, phone)).toEqual({ visible: false, bottom: 0 });
   });

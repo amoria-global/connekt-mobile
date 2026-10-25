@@ -14,6 +14,7 @@
  *   • Night-studio pass: the photo strip is a virtualised, memoised grid of thumbnails, the viewer pages by
  *     swipe, loading is a skeleton, and every fact on the header (count, date, place, photographer) is the API's own.
  */
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { FallbackImage } from '@/features/gallery/FallbackImage';
@@ -354,6 +355,7 @@ export default function AlbumDetailScreen() {
         </Text>
 
         <View style={styles.topBarActions}>
+          <HeaderHelpButton />
           <Pressable
             style={styles.navCircleBtn}
             onPress={onShareAlbum}
