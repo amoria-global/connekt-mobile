@@ -69,15 +69,15 @@ describe('Button shape', () => {
     return flatten(typeof p.style === 'function' ? p.style({ pressed: false }) : p.style);
   };
 
-  it('is a 48dp rounded rectangle for photographers and the 52dp pill for other roles', () => {
+  it('is a 44pt rounded rectangle for photographers and a 44pt pill for other roles', () => {
     mockPhotographer = true;
     const a = baseStyle(mount(<Button title="Save" onPress={() => {}} />));
-    expect(a.minHeight).toBe(48);
+    expect(a.minHeight).toBe(44);
     expect(a.height).toBeUndefined(); // a fixed height would clip a long label at large text
-    expect(a.borderRadius).toBe(14); // Midnight Glass tile radius (design/brief.png)
+    expect(a.borderRadius).toBe(12); // Compact Glass button radius (design/compact-glass.png)
     mockPhotographer = false;
     const b = baseStyle(mount(<Button title="Save" onPress={() => {}} />));
-    expect(b.minHeight).toBe(52);
+    expect(b.minHeight).toBe(44);
     expect(b.borderRadius).toBe(999);
   });
 });

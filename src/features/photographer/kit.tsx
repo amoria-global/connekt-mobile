@@ -21,7 +21,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts, makeStyles, radii, shadows, spacing, tracking, useTheme } from '@/theme';
+import { alpha, fonts, makeStyles, radii, shadows, spacing, tracking, useTheme } from '@/theme';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Skeleton as Pulse } from '@/components/ui/Skeleton';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -248,8 +248,8 @@ export function ActionButton({
         : variant === 'accent' || attention
           ? colors.accentLight
           : variant === 'teal'
-            ? colors.live
-            : colors.text;
+            ? colors.active
+            : colors.link;
   return (
     <Pressable
       onPress={inactive ? undefined : onPress}
@@ -264,6 +264,7 @@ export function ActionButton({
         variant !== 'primary' && variant !== 'tertiary' && variant !== 'destructive' && styles.actionGlass,
         (variant === 'tertiary' || variant === 'destructive') && styles.actionQuiet,
         inactive && styles.disabled,
+        variant !== 'primary' && { backgroundColor: alpha(fg, 0.14), borderColor: alpha(fg, 0.6), borderWidth: 1 },
         pressed && !inactive && styles.pressed,
         style,
       ]}
@@ -307,14 +308,14 @@ export function IconTile({
   size?: number;
 }) {
   const { colors } = useTheme();
-  const fg = { primary: colors.link, accent: colors.accentLight, success: colors.success, warning: colors.pending, error: colors.error, teal: colors.live }[tone];
+  const fg = { primary: colors.link, accent: colors.accentLight, success: colors.success, warning: colors.pending, error: colors.error, teal: colors.active }[tone];
   const bg = {
     primary: colors.tint,
     accent: colors.tintAccent,
     success: colors.successBg,
     warning: colors.pendingBg,
     error: colors.errorBg,
-    teal: colors.liveBg,
+    teal: colors.activeBg,
   }[tone];
   return (
     <View
@@ -328,11 +329,11 @@ export function IconTile({
 }
 
 /** A status as a small icon and a word in its own colour (never colour alone, and lighter than a pill in a dense row). */
-export function StatusText({ label, tone, icon }: { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live'; icon?: IconName }) {
+export function StatusText({ label, tone, icon }: { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' | 'active'; icon?: IconName }) {
   const { colors } = useTheme();
   const { tr } = useSharedT();
-  const fg = { success: colors.success, warning: colors.pending, error: colors.error, info: colors.link, neutral: colors.textMuted, live: colors.live }[tone];
-  const glyph = icon ?? ({ success: 'checkmark-circle', warning: 'time', error: 'alert-circle', info: 'information-circle', neutral: 'ellipse-outline', live: 'radio' }[tone] as IconName);
+  const fg = { success: colors.success, warning: colors.pending, error: colors.error, info: colors.link, neutral: colors.textMuted, live: colors.liveText, active: colors.active }[tone];
+  const glyph = icon ?? ({ success: 'checkmark-circle', warning: 'time', error: 'alert-circle', info: 'information-circle', neutral: 'ellipse-outline', live: 'radio', active: 'sync' }[tone] as IconName);
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       <Ionicons name={glyph} size={12} color={fg} />
@@ -424,7 +425,7 @@ export function StatusBadge({
   icon,
 }: {
   label: string;
-  tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live';
+  tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' | 'active';
   icon?: IconName;
 }) {
   const styles = useStyles();
@@ -436,7 +437,8 @@ export function StatusBadge({
     error: [colors.errorBg, colors.error, 'alert-circle'],
     info: [colors.tint, colors.link, 'ellipse'],
     neutral: [colors.glassTop, colors.textSoft, 'ellipse-outline'],
-    live: [colors.liveBg, colors.live, 'radio'],
+    live: [colors.liveDeep, colors.textOnPrimary, 'radio'],
+    active: [colors.activeBg, colors.active, 'sync'],
   } as const;
   const [bg, fg, defaultIcon] = map[tone];
   return (
@@ -577,7 +579,7 @@ export const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   sectionHeaderText: { flex: 1, minWidth: 0, gap: 2 },

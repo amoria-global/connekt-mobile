@@ -915,7 +915,7 @@ function heroStatus(s: string, published?: boolean): { label: string; tone: Swat
     case 'MATCHES_AWAITING_SELECTION':
       return { label: 'CANDIDATES READY', tone: 'accent' as const };
     case 'HYBRID_MATCHING':
-      return { label: 'MATCHING ACTIVE', tone: 'live' as const };
+      return { label: 'MATCHING ACTIVE', tone: 'active' as const };
     case 'HYBRID_TIMEOUT':
       return { label: 'MATCH TIMEOUT', tone: 'pending' as const };
     case 'PENDING':

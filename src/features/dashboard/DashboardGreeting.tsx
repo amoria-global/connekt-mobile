@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { fonts, motion, radii, spacing, tracking, useTheme } from '@/theme';
+import { compactSheet, fonts, motion, radii, spacing, tracking, useTheme } from '@/theme';
 import { GREETINGS, gradientChars, timeOfDay } from './greetingModel';
 
 /** Web cycles the phrase every 5 seconds. */
@@ -85,7 +85,7 @@ export function DashboardGreeting({
                 accessibilityRole="header"
                 accessibilityLabel={`${phrase}, ${name}`}
               >
-                {phrase},{'\n'}
+                {phrase},{' '}
                 {glyphs.map((g, i) => (
                   <Text key={i} style={{ color: g.color }}>
                     {g.ch}
@@ -103,7 +103,7 @@ export function DashboardGreeting({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = compactSheet({
   wrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   card: { borderRadius: radii.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.lg },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },

@@ -17,10 +17,28 @@ export const brandMarks = {
 export const verifiedAvatar = { seal: '#3B82F6', emptyBg: '#CBD5E1', emptyText: '#334155' } as const;
 
 /**
- * Live is cyan in Midnight Glass. The fill runs light to deep, and the middle stop, where a
- * label sits, carries white text at 4.8:1.
+ * Broadcast red (design/live.png), for events on air right now and nothing else. The recipes are
+ * the reference's own: the LIVE badge runs #FF2448 to #E8002B (55%) to #C8001F; Watch Live runs
+ * #FF2D55 to #FF0033 to #D4002A, its middle stop at 35% so the label sits on the deep end (white
+ * 4.7:1; on pure #FF0033 it would be 3.96:1).
  */
-export const liveFill = { top: '#22C7D9', mid: '#0A7E90', deep: '#08697A', glow: '#5FE0EC' } as const;
+export const liveFill = {
+  top: '#FF2D55',
+  mid: '#FF0033',
+  deep: '#C8001F',
+  glow: 'rgba(255,0,51,0.55)',
+  badge: ['#FF2448', '#E8002B', '#C8001F'] as const,
+  badgeStops: [0, 0.55, 1] as const,
+  button: ['#FF2D55', '#FF0033', '#D4002A'] as const,
+  buttonStops: [0, 0.35, 1] as const,
+  /** The live card's edge and its two-layer glow. */
+  cardBorder: 'rgba(255,45,85,0.75)',
+  cardGlow: '0 0 30px rgba(255,0,51,0.45), 0 0 80px rgba(255,0,51,0.25)',
+  badgeShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 6px 18px rgba(255,0,51,0.55)',
+  buttonShadow: '0 10px 26px rgba(255,0,51,0.55)',
+  ringGlow: '0 0 18px rgba(255,0,51,0.6)',
+  shine: 'rgba(255,255,255,0.28)',
+} as const;
 
 /** The app's own illustrations (Help and Update glyphs). */
 export const illustration = {

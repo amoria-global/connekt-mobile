@@ -258,7 +258,7 @@ export function DirectBookingMapView({
     .pro-price {
       font-size: 11px;
       font-weight: 700;
-      color: ${isDark ? colors.live : colors.primary};
+      color: ${isDark ? colors.active : colors.primary};
     }
     .pro-rating {
       font-size: 10px;
@@ -315,8 +315,8 @@ export function DirectBookingMapView({
     // Radius Circle
     var circle = L.circle([clientLat, clientLng], {
       radius: radiusKm * 1000,
-      color: '${isDark ? colors.live : colors.primary}',
-      fillColor: '${isDark ? colors.live : colors.primary}',
+      color: '${isDark ? colors.active : colors.primary}',
+      fillColor: '${isDark ? colors.active : colors.primary}',
       fillOpacity: 0.06,
       weight: 1.5,
       dashArray: '5, 5'
@@ -506,7 +506,7 @@ export function DirectBookingMapView({
               </Text>
               <View style={styles.metaRow}>
                 <View style={styles.distanceBadge}>
-                  <Ionicons name="location" size={11} color={colors.live} />
+                  <Ionicons name="location" size={11} color={colors.active} />
                   <Text style={styles.distanceText}>
                     {selectedPhotographer.distanceFormatted ||
                       `${selectedPhotographer.distanceKm} km away`}
@@ -769,7 +769,7 @@ const useStyles = makeStyles((colors) => ({
   distanceText: {
     fontSize: 12,
     fontWeight: fontWeight.semibold,
-    color: colors.live,
+    color: colors.active,
   },
   ratingBadge: {
     flexDirection: 'row',

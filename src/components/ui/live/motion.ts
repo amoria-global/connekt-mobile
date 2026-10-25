@@ -3,13 +3,13 @@
  *
  * Everything animates transform and opacity on the native driver, so a list full of
  * live cards stays smooth. When the person has "reduce motion" switched on, loops do
- * not run and the static look (cyan fill, white dot, solid border) is what they see.
+ * not run and the static look (red fill, white dot, solid border, steady glow) is what they see.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing } from 'react-native';
 import { liveFill } from '@/theme';
 
-/** Live is cyan in Midnight Glass (design/brief.png). The names stay for the call sites. */
+/** Broadcast red (design/live.png), from the theme. The names stay for the call sites. */
 export const LIVE_RED = liveFill.mid;
 export const LIVE_RED_LIGHT = liveFill.top;
 export const LIVE_RED_GLOW = liveFill.glow;

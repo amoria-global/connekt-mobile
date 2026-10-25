@@ -82,7 +82,9 @@ describe('ScheduleView', () => {
       const day = r.root.findByProps({ testID: 'schedule-day' });
       const coming = day.findAll((n) => n.props?.testID === 'schedule-coming-up')[0];
       const all = flat(day);
-      return coming ? all.replace(flat(coming), '') : all;
+      const rest = coming ? all.replace(flat(coming), '') : all;
+      // An empty day names the next shoot in a hint ("Your next shoot is X on Tue"), which is not the day's list.
+      return rest.replace(/Your next shoot is .*? on [A-Za-z]{3}, [A-Za-z]{3} \d+\./, '');
     };
     expect(dayList()).not.toContain('Other day shoot');
     press(r, (n) => n.props?.accessibilityRole === 'button' && String(n.props.accessibilityLabel).includes('1 event'));

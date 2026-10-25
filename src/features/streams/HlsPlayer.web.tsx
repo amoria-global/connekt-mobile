@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: darkPalette.live,
+    backgroundColor: darkPalette.liveDeep,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
