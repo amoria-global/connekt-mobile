@@ -46,11 +46,10 @@ import { useSharedT } from '@/i18n/sharedStrings';
 import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
 import { WorkspaceSwitcherSheet } from '@/features/workspace/WorkspaceSwitcherSheet';
 import { selectIsShared, useWorkspace } from '@/store/workspace';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { darkPalette, fonts, glowRgb, shadows, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 import { BAR_CONTENT_HEIGHT } from '@/components/barMetrics';
-const BUBBLE_SIZE = 60;
 
 type Tab = {
   key: string;
@@ -100,144 +99,31 @@ type TabButtonProps = {
   onPress: () => void;
   width: number;
   badgeCount?: number;
-  /** Photographer chrome: icon and label always shown, the selected tab in pink with a short underline, no bubble. */
-  flat?: boolean;
 };
 
-/** The restrained tab from the photographer prototype: nothing floats, the selected item is named by colour, a rule and its state. */
-function FlatTabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
+/**
+ * A Midnight Glass tab (design/home.png): icon and label always shown; the selected tab is magenta
+ * with a soft glow pill behind its icon, one of the screen's three glows.
+ */
+function TabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const tone = isFocused ? colors.accent : colors.textMuted;
+  const tone = isFocused ? colors.accentLight : colors.textMuted;
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.flatTab, { width }]}
+      style={[styles.tab, { width }]}
       accessibilityRole="button"
       accessibilityState={isFocused ? { selected: true } : {}}
       accessibilityLabel={tab.label}
     >
-      <View>
+      <View style={[styles.tabPill, isFocused && styles.tabPillOn]}>
         <Ionicons name={isFocused ? tab.iconFocused : tab.icon} size={22} color={tone} />
-        {badgeCount != null && badgeCount > 0 ? <View style={[styles.badgeDot, styles.flatBadge]} /> : null}
+        {badgeCount != null && badgeCount > 0 ? <View style={styles.badgeDot} /> : null}
       </View>
-      <Text style={[styles.flatLabel, { color: tone }, isFocused && styles.flatLabelOn]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
+      <Text style={[styles.tabLabel, { color: tone }, isFocused && styles.tabLabelOn]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
         {tab.label}
       </Text>
-      <View style={[styles.flatRule, { backgroundColor: isFocused ? colors.accent : 'transparent' }]} />
-    </Pressable>
-  );
-}
-
-function TabButton(props: TabButtonProps) {
-  return props.flat ? <FlatTabButton {...props} /> : <AnimatedTabButton {...props} />;
-}
-
-function AnimatedTabButton({ tab, isFocused, onPress, width, badgeCount }: TabButtonProps) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const [focusAnim] = useState(() => new Animated.Value(isFocused ? 1 : 0));
-
-  useEffect(() => {
-    Animated.spring(focusAnim, {
-      toValue: isFocused ? 1 : 0,
-      tension: 65,
-      friction: 7,
-      useNativeDriver: true,
-    }).start();
-  }, [isFocused, focusAnim]);
-
-  const iconTranslateY = focusAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [5, -4],
-  });
-
-  const iconScale = focusAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.12],
-  });
-
-  const inactiveIconOpacity = focusAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
-
-  const activeIconOpacity = focusAnim;
-
-  const labelOpacity = focusAnim;
-
-  const labelTranslateY = focusAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [8, 0],
-  });
-
-  const labelScale = focusAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.85, 1],
-  });
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.tabButton, { width }]}
-      accessibilityRole="button"
-      accessibilityState={isFocused ? { selected: true } : {}}
-      accessibilityLabel={tab.label}
-    >
-      <Animated.View
-        style={[
-          styles.tabIconWrap,
-          {
-            transform: [{ translateY: iconTranslateY }, { scale: iconScale }],
-          },
-        ]}
-      >
-        {/* Inactive Icon: adapts to theme (colors.textMuted) */}
-        <Animated.View style={{ opacity: inactiveIconOpacity }}>
-          <Ionicons
-            name={tab.icon}
-            size={22}
-            color={colors.textMuted}
-          />
-        </Animated.View>
-
-        {/* Active Icon: crisp white atop the vibrant bubble */}
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              opacity: activeIconOpacity,
-              alignItems: 'center',
-              justifyContent: 'center',
-            },
-          ]}
-        >
-          <Ionicons
-            name={tab.iconFocused}
-            size={22}
-            color="#FFFFFF"
-          />
-        </Animated.View>
-
-        {badgeCount != null && badgeCount > 0 ? (
-          <View style={[styles.badgeDot, isFocused && styles.badgeDotFocused]} />
-        ) : null}
-      </Animated.View>
-
-      <Animated.Text
-        style={[
-          styles.tabLabel,
-          {
-            opacity: labelOpacity,
-            transform: [{ translateY: labelTranslateY }, { scale: labelScale }],
-          },
-        ]}
-        numberOfLines={1}
-        // The label sits inside a fixed-size bubble; at 1.6x text it touched the bubble's edges.
-        maxFontSizeMultiplier={1.15}
-      >
-        {tab.label}
-      </Animated.Text>
     </Pressable>
   );
 }
@@ -251,8 +137,7 @@ export function PersistentBottomBar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
-  const { role, isPhotographer } = useRole();
-  const flat = isPhotographer;
+  const { role } = useRole();
   const isShared = useWorkspace(selectIsShared);
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
   const unreadCount = useMemo(
@@ -308,7 +193,7 @@ export function PersistentBottomBar() {
       return 'home';
     }
     // Retain the last active tab when navigating to child pages outside (tabs)
-    // so the bubble remains stationed and never flickers/jumps when returning.
+    // so the selected tab never flickers when returning.
     return lastActiveKeyRef.current;
   }, [segments, tabs]);
 
@@ -331,94 +216,25 @@ export function PersistentBottomBar() {
 
   const tabWidth = barWidth > 0 ? barWidth / tabs.length : 0;
 
-  const [bubbleX] = useState(
-    () =>
-      new Animated.Value(
-        activeIndex * (contentMaxWidth / tabs.length) +
-          (contentMaxWidth / tabs.length - BUBBLE_SIZE) / 2,
-      ),
-  );
-
-  const [stretchAnim] = useState(() => new Animated.Value(0));
-
-  useEffect(() => {
-    if (tabWidth <= 0) return;
-    const targetX = activeIndex * tabWidth + (tabWidth - BUBBLE_SIZE) / 2;
-
-    Animated.parallel([
-      Animated.spring(bubbleX, {
-        toValue: targetX,
-        tension: 65,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.sequence([
-        Animated.timing(stretchAnim, {
-          toValue: 1,
-          duration: 130,
-          useNativeDriver: true,
-        }),
-        Animated.spring(stretchAnim, {
-          toValue: 0,
-          tension: 50,
-          friction: 6,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [activeIndex, tabWidth, bubbleX, stretchAnim]);
-
-  const stretchScaleX = stretchAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.15],
-  });
-  const stretchScaleY = stretchAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.88],
-  });
-
-  // Dark: the same brand pink, a step deeper and with a quieter rim, glow and sheen. On a deep navy bar the light-mode
-  // values glare (a neon bubble with a white rim), so only the bubble's own chrome is toned down.
-  const bubbleGradient: [string, string] = isDark
-    ? ['#E0268F', '#B50B6C']
-    : ['#FF2A9D', '#F20C8F'];
-  const bubbleDark = isDark
-    ? { borderColor: 'rgba(255, 255, 255, 0.2)', shadowOpacity: 0.2 }
-    : null;
-
   return (
     <>
       <View
         pointerEvents={keyboardVisible ? 'none' : 'box-none'}
-        style={[
-          styles.tabBarContainer,
-          { paddingBottom: Math.max(insets.bottom, 8) },
-          keyboardVisible && styles.tabBarHidden,
-        ]}
+        style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, 8) }, keyboardVisible && styles.tabBarHidden]}
       >
-        {/* Docked Bar Background: adopts phone theme like TopBar */}
+        {/* Floating glass: blur where the platform can, the brief's solid fallback where it cannot. */}
         <View style={styles.tabBarBackground}>
-          {Platform.OS === 'ios' && (
-            <BlurView
-              tint={isDark ? 'dark' : 'light'}
-              intensity={GLASS_BAR.intensity}
-              style={StyleSheet.absoluteFill}
-            />
-          )}
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                backgroundColor: isDark ? colors.card : colors.elevated,
-                opacity: Platform.OS === 'ios' ? 0.92 : 1,
-              },
-            ]}
+          {Platform.OS === 'ios' ? (
+            <BlurView tint={isDark ? 'dark' : 'light'} intensity={GLASS_BAR.intensity} style={StyleSheet.absoluteFill} />
+          ) : null}
+          <LinearGradient
+            colors={Platform.OS === 'ios' ? [colors.glassTop, colors.glassBottom] : [colors.glassSolid, colors.glassSolid]}
+            style={StyleSheet.absoluteFill}
           />
         </View>
 
-        {/* Tab Row with animated bubble and buttons */}
         <View
-          style={[styles.tabRow, { maxWidth: 540, width: '100%', alignSelf: 'center' }]}
+          style={styles.tabRow}
           onLayout={(e) => {
             const w = e.nativeEvent.layout.width;
             if (w > 0 && Math.abs(w - barWidth) > 1) {
@@ -426,34 +242,6 @@ export function PersistentBottomBar() {
             }
           }}
         >
-          {/* Animated Bubble Indicator */}
-          {tabWidth > 0 && !flat && (
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                styles.bubbleIndicator,
-                bubbleDark,
-                {
-                  transform: [
-                    { translateX: bubbleX },
-                    { scaleX: stretchScaleX },
-                    { scaleY: stretchScaleY },
-                  ],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={bubbleGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.bubbleGradient}
-              >
-                <View style={[styles.bubbleGlassHighlight, isDark && { backgroundColor: 'rgba(255, 255, 255, 0.12)' }]} />
-              </LinearGradient>
-            </Animated.View>
-          )}
-
-          {/* Interactive Tab Buttons */}
           {tabs.map((tab, idx) => {
             const isFocused = idx === activeIndex;
             const onPress = () => {
@@ -471,7 +259,6 @@ export function PersistentBottomBar() {
                 isFocused={isFocused}
                 onPress={onPress}
                 width={tabWidth}
-                flat={flat}
                 badgeCount={tab.isMore && unreadCount > 0 ? unreadCount : undefined}
               />
             );
@@ -841,22 +628,22 @@ export function MoreSheet({
 }
 
 const useStyles = makeStyles((c) => ({
+  // Floats 16pt in from the edges, above the home indicator (design/home.png).
   tabBarContainer: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    left: spacing.lg,
+    right: spacing.lg,
+    maxWidth: 540,
+    alignSelf: 'center',
     zIndex: 99,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.border,
-    shadowColor: c.shadow,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 10,
+    borderRadius: radii['2xl'],
+    borderWidth: 1,
+    borderColor: c.stroke,
+    boxShadow: c === darkPalette ? shadows.glass : shadows.glassLight,
   },
   tabBarBackground: {
     ...StyleSheet.absoluteFill,
+    borderRadius: radii['2xl'],
     overflow: 'hidden',
   },
   tabBarHidden: {
@@ -866,80 +653,22 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     height: BAR_CONTENT_HEIGHT,
-    position: 'relative',
-    overflow: 'visible',
   },
-  tabButton: {
-    height: BAR_CONTENT_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-    position: 'relative',
-  },
-  tabIconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    width: 28,
-    height: 28,
-  },
-  flatTab: { height: BAR_CONTENT_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: 2, zIndex: 2 },
-  flatLabel: { fontSize: 11, fontWeight: fontWeight.semibold },
-  flatLabelOn: { fontWeight: fontWeight.bold },
-  flatRule: { width: 20, height: 2.5, borderRadius: 2 },
-  flatBadge: { top: -2, right: -5 },
-  tabLabel: {
-    position: 'absolute',
-    bottom: 5,
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
-  },
-  bubbleIndicator: {
-    position: 'absolute',
-    top: -(BUBBLE_SIZE - BAR_CONTENT_HEIGHT) / 2,
-    width: BUBBLE_SIZE,
-    height: BUBBLE_SIZE,
-    borderRadius: BUBBLE_SIZE / 2,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.45)',
-    overflow: 'hidden',
-    zIndex: 1,
-    shadowColor: c.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.38,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  bubbleGradient: {
-    flex: 1,
-    position: 'relative',
-  },
-  bubbleGlassHighlight: {
-    position: 'absolute',
-    top: 2,
-    left: 8,
-    right: 8,
-    height: 16,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.28)',
-  },
+  tab: { height: BAR_CONTENT_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tabPill: { width: 52, height: 30, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },
+  tabPillOn: { backgroundColor: c.tintAccent, boxShadow: shadows.glow(glowRgb.accent, 0.45) },
+  tabLabel: { fontSize: 11, fontFamily: fonts.medium },
+  tabLabelOn: { fontFamily: fonts.semibold },
   badgeDot: {
     position: 'absolute',
-    top: -2,
-    right: -4,
+    top: 2,
+    right: 10,
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: c.accent,
     borderWidth: 1.5,
-    borderColor: c.elevated,
-  },
-  badgeDotFocused: {
-    backgroundColor: '#FFFFFF',
-    borderColor: c.accent,
+    borderColor: c.glassSolid,
   },
 
   backdrop: { flex: 1, backgroundColor: c.scrim },

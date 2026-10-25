@@ -5,10 +5,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type StyleProp,
   type TextInputProps,
   View,
+  type ViewStyle,
 } from 'react-native';
-import { darkPalette, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { darkPalette, fonts, shadows, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 type Props = TextInputProps & {
@@ -43,6 +45,7 @@ export const Input = forwardRef<TextInput, Props>(function Input(
           styles.inputRow,
           glass && styles.inputRowGlass,
           glass && focused && styles.inputRowGlassFocused,
+          focused && styles.inputRowFocused,
           !!error && styles.inputError,
         ]}
       >
@@ -93,35 +96,55 @@ const useStyles = makeStyles((c) => ({
   wrap: { gap: spacing.xs },
   label: {
     fontSize: fontSize.sm,
+    fontFamily: fonts.semibold,
     fontWeight: fontWeight.semibold,
     color: c.textSoft,
   },
+  // Midnight Glass fields sit inset: a sunk well with an inner shadow, the rim lighting on focus.
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: c.border,
+    borderColor: c.stroke,
     borderRadius: radii.md,
-    backgroundColor: c.surface,
+    backgroundColor: c.well,
+    boxShadow: c === darkPalette ? shadows.inset : shadows.insetLight,
   },
   input: {
     flex: 1,
     height: 52,
     paddingHorizontal: spacing.lg,
     fontSize: fontSize.md,
+    fontFamily: fonts.regular,
     color: c.text,
   },
   // Light: a milky field that still shows the glass behind it. Dark: a faint
   // lift off the smoked panel; a white wash would glow.
-  inputRowGlass:
-    c === darkPalette
-      ? { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }
-      : { backgroundColor: 'rgba(255,255,255,0.62)', borderColor: 'rgba(15,18,23,0.1)' },
-  inputRowGlassFocused: {
-    borderColor: c.primary,
-    backgroundColor: c.tint,
-  },
+  // On glass the well is the same; kept as its own style so a glass panel can still tune it.
+  inputRowGlass: {},
+  inputRowGlassFocused: {},
+  inputRowFocused: { borderColor: c.primaryLight },
   eye: { paddingHorizontal: spacing.md },
+  well: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.stroke,
+    backgroundColor: c.well,
+    boxShadow: c === darkPalette ? shadows.inset : shadows.insetLight,
+    padding: spacing.md,
+  },
   inputError: { borderColor: c.error },
   error: { fontSize: fontSize.xs, color: c.error },
 }));
+
+/** The kit name for the inset field. */
+export const InsetField = Input;
+
+/**
+ * An inset well that is not a field: the sunk panel inside a glass card that holds a value or a
+ * linked account (Pending release, the connected Instagram row).
+ */
+export function InsetWell({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const styles = useStyles();
+  return <View style={[styles.well, style]}>{children}</View>;
+}
