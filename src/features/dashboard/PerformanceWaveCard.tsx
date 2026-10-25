@@ -35,7 +35,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
-import { fonts, fontSize, fontWeight, radii, spacing, useTheme, onFill, darkPalette, liveFill } from '@/theme';
+import { compactSheet, fonts, fontSize, fontWeight, radii, spacing, useTheme, onFill, darkPalette, liveFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { HIDDEN_AMOUNT } from '@/features/photographer/money';
@@ -720,7 +720,7 @@ export function PerformanceWaveCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = compactSheet({
   cardContainer: {
     backgroundColor: darkPalette.background,
     borderRadius: radii.xl,

@@ -90,6 +90,8 @@ const CARD_RADIUS = 12;
  *
  * Exported for tests; screens never call it.
  */
+import { compactStyles } from './density';
+
 export function midnightStyles(styles: Record<string, unknown>, c: Palette, isDark: boolean): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, raw] of Object.entries(styles)) {
@@ -122,6 +124,8 @@ export function midnightStyles(styles: Record<string, unknown>, c: Palette, isDa
 
 export function makeStyles<T extends NamedStyles<T> | NamedStyles<Record<string, unknown>>>(
   factory: (colors: Palette, elevation: ElevationFn) => T & NamedStyles<Record<string, unknown>>,
+  /** `{ compact: false }` for the Compact Glass kit itself, whose values are already at the new density. */
+  options: { compact?: boolean } = {},
 ) {
   // One cache per makeStyles call site, keyed by scheme. Holds at most two
   // entries ('light' and 'dark'), so this is bounded, not a leak.
@@ -134,9 +138,18 @@ export function makeStyles<T extends NamedStyles<T> | NamedStyles<Record<string,
       const cached = cache.get(scheme);
       if (cached) return cached;
 
-      const created = StyleSheet.create(midnightStyles(factory(colors, elevation), colors, scheme === 'dark') as T) as T;
+      const glass = midnightStyles(factory(colors, elevation), colors, scheme === 'dark');
+      const created = StyleSheet.create((options.compact === false ? glass : compactStyles(glass)) as T) as T;
       cache.set(scheme, created);
       return created;
     }, [scheme, colors, elevation]);
   };
+}
+
+/**
+ * `StyleSheet.create` for a screen that still keeps a module-level sheet: the same Compact Glass
+ * density as `makeStyles` (type, padding, gaps and corners), without the colour theming.
+ */
+export function compactSheet<T extends NamedStyles<T> | NamedStyles<Record<string, unknown>>>(styles: T): T {
+  return StyleSheet.create(compactStyles(styles as Record<string, unknown>) as T) as T;
 }
