@@ -3,7 +3,7 @@
  * Brand blue #083A85, accent pink #F20C8F, blue→pink gradients.
  */
 
-import { lightPalette } from './palettes';
+import { lightPalette, type Palette } from './palettes';
 
 /**
  * STATIC light palette. Unchanged in value from before dark mode existed, so
@@ -124,10 +124,24 @@ export const alpha = (hex: string, a: number) => {
 };
 
 /** RGB triplets for the glows, matching the palette. */
+/** The `{ bg, fg }` pair for a status tone, from the live palette (status pills and chips). */
+export type SwatchTone = 'success' | 'pending' | 'error' | 'info' | 'neutral' | 'live' | 'accent';
+export const swatch = (c: Palette, tone: SwatchTone): { bg: string; fg: string } =>
+  ({
+    success: { bg: c.successBg, fg: c.success },
+    pending: { bg: c.pendingBg, fg: c.pending },
+    error: { bg: c.errorBg, fg: c.error },
+    info: { bg: c.tint, fg: c.link },
+    neutral: { bg: c.surfaceMuted, fg: c.textSoft },
+    live: { bg: c.liveBg, fg: c.live },
+    accent: { bg: c.tintAccent, fg: c.accentLight },
+  })[tone];
+
 export const glowRgb = { primary: '62,111,216', accent: '238,14,143', live: '34,199,217', pending: '245,180,0' } as const;
 
 export { motion, useReducedMotion } from './motion';
 export { studioTokens, viewerTokens } from './media';
+export { brandMarks, illustration, liveFill, onboardingScrims } from './brand';
 
 export const theme = { colors, gradients, spacing, radii, fontSize, fontWeight, fonts };
 export type Theme = typeof theme;

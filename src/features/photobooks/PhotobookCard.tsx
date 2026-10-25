@@ -8,23 +8,23 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
 import { Skeleton } from '@/features/photographer/kit';
 import { albumDateText, photoCountText } from '@/features/gallery/albumFacts';
 import { useSharedT } from '@/i18n/sharedStrings';
 import type { Photobook } from './api';
 import { chipColors } from './statusChip';
 
-export const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
-  PUBLISHED: { label: 'Published', bg: '#D1FAE5', fg: '#047857' },
-  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
-  PENDING: { label: 'Pending', bg: '#FEF3C7', fg: '#92400E' },
-  SENT: { label: 'Delivered', bg: '#DBEAFE', fg: '#1D4ED8' },
+export const STATUS_META: Record<string, { label: string; tone: SwatchTone; }> = {
+  PUBLISHED: { label: 'Published', tone: 'success' as const },
+  DRAFT: { label: 'Draft', tone: 'neutral' as const },
+  PENDING: { label: 'Pending', tone: 'pending' as const },
+  SENT: { label: 'Delivered', tone: 'info' as const },
   // Photobooks a client sent to the photographer (web: received photobooks).
-  SENT_TO_PHOTOGRAPHER: { label: 'To edit', bg: '#FEF3C7', fg: '#92400E' },
-  PHOTOGRAPHER_EDITING: { label: 'Editing', bg: '#DBEAFE', fg: '#1D4ED8' },
-  RESUBMITTED: { label: 'Resubmitted', bg: '#DBEAFE', fg: '#1D4ED8' },
-  COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
+  SENT_TO_PHOTOGRAPHER: { label: 'To edit', tone: 'pending' as const },
+  PHOTOGRAPHER_EDITING: { label: 'Editing', tone: 'info' as const },
+  RESUBMITTED: { label: 'Resubmitted', tone: 'info' as const },
+  COMPLETED: { label: 'Completed', tone: 'success' as const },
 };
 
 const SCRIM = ['rgba(5,12,24,0)', 'rgba(5,12,24,0.88)'] as const;

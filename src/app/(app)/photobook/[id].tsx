@@ -39,7 +39,7 @@ import { dismissReceivedPhotobook, getPhotobook, resubmitPhotobook, type Photobo
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -171,15 +171,15 @@ const I18N = {
 } as const;
 import { chipColors } from '@/features/photobooks/statusChip';
 
-const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
-  PUBLISHED: { label: 'Published · Live', bg: '#D1FAE5', fg: '#047857' },
-  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
-  PENDING: { label: 'Pending review', bg: '#FEF3C7', fg: '#92400E' },
-  SENT: { label: 'Delivered', bg: '#DBEAFE', fg: '#1D4ED8' },
-  SENT_TO_PHOTOGRAPHER: { label: 'To edit', bg: '#FEF3C7', fg: '#92400E' },
-  PHOTOGRAPHER_EDITING: { label: 'Editing', bg: '#DBEAFE', fg: '#1D4ED8' },
-  RESUBMITTED: { label: 'Resubmitted', bg: '#DBEAFE', fg: '#1D4ED8' },
-  COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
+const STATUS_META: Record<string, { label: string; tone: SwatchTone; }> = {
+  PUBLISHED: { label: 'Published · Live', tone: 'success' as const },
+  DRAFT: { label: 'Draft', tone: 'neutral' as const },
+  PENDING: { label: 'Pending review', tone: 'pending' as const },
+  SENT: { label: 'Delivered', tone: 'info' as const },
+  SENT_TO_PHOTOGRAPHER: { label: 'To edit', tone: 'pending' as const },
+  PHOTOGRAPHER_EDITING: { label: 'Editing', tone: 'info' as const },
+  RESUBMITTED: { label: 'Resubmitted', tone: 'info' as const },
+  COMPLETED: { label: 'Completed', tone: 'success' as const },
 };
 
 const PhotoGap = () => <View style={{ height: 3 }} />;
@@ -209,12 +209,12 @@ export default function PhotobookDetailScreen() {
   const { language } = useLanguage();
   const tr = language === 'rw' ? PB_DETAIL_RW : language === 'sw' ? PB_DETAIL_SW : (I18N as any)[language] || I18N.en;
 
-  const statusMetaMap: Record<string, { label: string; bg: string; fg: string }> = useMemo(
+  const statusMetaMap: Record<string, { label: string; tone: SwatchTone; }> = useMemo(
     () => ({
-      PUBLISHED: { label: tr.statusPublished, bg: '#D1FAE5', fg: '#047857' },
-      DRAFT: { label: tr.statusDraft, bg: '#E5E7EB', fg: '#374151' },
-      PENDING: { label: tr.statusPending, bg: '#FEF3C7', fg: '#92400E' },
-      SENT: { label: tr.statusSent, bg: '#DBEAFE', fg: '#1D4ED8' },
+      PUBLISHED: { label: tr.statusPublished, tone: 'success' as const },
+      DRAFT: { label: tr.statusDraft, tone: 'neutral' as const },
+      PENDING: { label: tr.statusPending, tone: 'pending' as const },
+      SENT: { label: tr.statusSent, tone: 'info' as const },
     }),
     [tr],
   );

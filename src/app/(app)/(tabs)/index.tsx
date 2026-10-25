@@ -75,7 +75,7 @@ import { listStreams } from '@/features/streams/api';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, swatch, type SwatchTone } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -1010,10 +1010,10 @@ function PerformanceMiniChart({ data }: { data: PerformancePoint[] }) {
   );
 }
 
-const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
-  'In Progress': { bg: '#FCE7F3', text: '#DB2777' },
-  Completed: { bg: '#D1FAE5', text: '#059669' },
-  Pending: { bg: '#FEF3C7', text: '#D97706' },
+const STATUS_COLOR: Record<string, { tone: SwatchTone; }> = {
+  'In Progress': { tone: 'accent' as const },
+  Completed: { tone: 'success' as const },
+  Pending: { tone: 'pending' as const },
 };
 
 function PhotographerRow({
@@ -1042,8 +1042,8 @@ function PhotographerRow({
         <Text style={styles.photogName} numberOfLines={2}>{photographer.name}</Text>
         <Text style={styles.photogEvent} numberOfLines={2}>{photographer.event}</Text>
       </View>
-      <View style={[styles.photogChip, { backgroundColor: chip.bg }]}>
-        <Text style={[styles.photogChipText, { color: chip.text }]}>{photographer.status}</Text>
+      <View style={[styles.photogChip, { backgroundColor: swatch(colors, chip.tone).bg }]}>
+        <Text style={[styles.photogChipText, { color: swatch(colors, chip.tone).fg }]}>{photographer.status}</Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
     </Pressable>

@@ -34,7 +34,7 @@ import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
 import { useCurrency } from '@/store/currency';
@@ -529,8 +529,8 @@ export default function EventDetailScreen() {
           )}
           <View style={styles.heroPills}>
             {ev?.status ? (
-              <View style={[styles.heroPill, { backgroundColor: hero.bg }]}>
-                <Text style={[styles.heroPillText, { color: hero.fg }]}>{hero.label}</Text>
+              <View style={[styles.heroPill, { backgroundColor: swatch(colors, hero.tone).bg }]}>
+                <Text style={[styles.heroPillText, { color: swatch(colors, hero.tone).fg }]}>{hero.label}</Text>
               </View>
             ) : null}
             {ev?.hasLiveStream ? (
@@ -897,34 +897,34 @@ function bookingStepIndex(ev?: EventItem | null): number {
  * already surfaced it — the detail screen didn't, so the same event read
  * "PUBLISHED" in the list and "UPCOMING" on its own page.
  */
-function heroStatus(s: string, published?: boolean): { label: string; bg: string; fg: string } {
+function heroStatus(s: string, published?: boolean): { label: string; tone: SwatchTone; } {
   switch (s) {
     case 'ONGOING':
     case 'IN_PROGRESS':
-      return { label: 'ONGOING', bg: '#DBEAFE', fg: '#1D4ED8' };
+      return { label: 'ONGOING', tone: 'info' as const };
     case 'COMPLETED':
     case 'DONE':
-      return { label: 'COMPLETED', bg: '#D1FAE5', fg: '#047857' };
+      return { label: 'COMPLETED', tone: 'success' as const };
     case 'AWAITING_REVIEW':
-      return { label: 'AWAITING REVIEW', bg: '#FEF3C7', fg: '#92400E' };
+      return { label: 'AWAITING REVIEW', tone: 'pending' as const };
     case 'CANCELLED':
     case 'CANCELED':
-      return { label: 'CANCELLED', bg: '#FEE2E2', fg: '#B91C1C' };
+      return { label: 'CANCELLED', tone: 'error' as const };
     case 'PAUSED':
-      return { label: 'PAUSED', bg: '#E5E7EB', fg: '#374151' };
+      return { label: 'PAUSED', tone: 'neutral' as const };
     case 'MATCHES_AWAITING_SELECTION':
-      return { label: 'CANDIDATES READY', bg: '#EDE9FE', fg: '#6D28D9' };
+      return { label: 'CANDIDATES READY', tone: 'accent' as const };
     case 'HYBRID_MATCHING':
-      return { label: 'MATCHING ACTIVE', bg: '#E0F2FE', fg: '#0284C7' };
+      return { label: 'MATCHING ACTIVE', tone: 'live' as const };
     case 'HYBRID_TIMEOUT':
-      return { label: 'MATCH TIMEOUT', bg: '#FEF3C7', fg: '#B45309' };
+      return { label: 'MATCH TIMEOUT', tone: 'pending' as const };
     case 'PENDING':
     case 'PROPOSED':
-      return { label: 'PENDING', bg: '#FEF3C7', fg: '#92400E' };
+      return { label: 'PENDING', tone: 'pending' as const };
     default:
       return published
-        ? { label: 'PUBLISHED', bg: '#CCFBF1', fg: '#0F766E' }
-        : { label: 'NOT PUBLISHED', bg: '#FEF3C7', fg: '#92400E' };
+        ? { label: 'PUBLISHED', tone: 'success' as const }
+        : { label: 'NOT PUBLISHED', tone: 'pending' as const };
   }
 }
 
@@ -985,9 +985,10 @@ function btnStyle(c: ReturnType<typeof useTheme>['colors'], variant: BtnVariant)
     case 'accent':
       return { bg: c.accent, fg: onFill };
     case 'success':
-      return { bg: '#047857', fg: onFill };
+      // Blue is the action, so a confirming button is the primary fill.
+      return { bg: c.primary, fg: onFill };
     case 'danger':
-      return { bg: '#B91C1C', fg: onFill };
+      return { bg: c.dangerFill, fg: onFill };
     case 'dangerOutline':
       // Quiet until pressed: a destructive action should not be the loudest thing in its card.
       return { bg: 'transparent', fg: c.error, border: c.error };

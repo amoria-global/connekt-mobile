@@ -1,3 +1,4 @@
+import { illustration } from '@/theme';
 import { View } from 'react-native';
 /**
  * The icon at the top of the update screen: an arrow coming down into a tray, the arrow fading from mint at its tail to
@@ -9,9 +10,9 @@ import { View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
 export const UPDATE_GLYPH_COLORS = {
-  tray: ['#2F7BFF', '#0B5BFF'],
-  arrow: ['#A6F7D2', '#2BD9F0'],
-  glow: '#0B5BFF',
+  tray: illustration.updateTray,
+  arrow: illustration.updateArrow,
+  glow: illustration.updateGlow,
 } as const;
 
 // One drawing, painted twice: wide and faint for the glow, then narrow and bright for the line. The gradients use fixed

@@ -25,7 +25,7 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
 
 function formatMessageTime(dateStr?: string): string {
   if (!dateStr) return '';

@@ -54,7 +54,7 @@ import {
   regionLabel,
   type GeoRegionItem,
 } from '@/features/geopricing/regions';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
