@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-25-live-stream-screen",
+            "date": "2026-10-25",
+            "title": "A new look for watching live",
+            "items": [
+              {
+                "icon": "tv-outline",
+                "title": "Live stream, redesigned",
+                "body": "The video now fills the top of the screen with glass controls that fade after a few seconds and return when you tap. The host bar has a red live ring, a Gift button and a Like button, chat has coloured names and a HOST tag, and reactions float up over the video."
+              },
+              {
+                "icon": "chatbubbles-outline",
+                "title": "Friendlier chat",
+                "body": "An empty chat now offers quick hello chips that fill the message box, and a dropped connection shows a clear Reconnecting screen with a Retry button."
+              }
+            ]
+          },
+          {
             "id": "2026-10-25-broadcast-red",
             "date": "2026-10-25",
             "title": "Live events are red again",
