@@ -37,7 +37,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
 import { pickFromLibrary, pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 
 const NCA_I18N = {
   en: {
@@ -450,7 +450,7 @@ export default function NewContentAlbumScreen() {
 
             <Pressable style={styles.uploadBox} onPress={addPhotos}>
               <View style={styles.uploadIcon}>
-                <Ionicons name="images" size={20} color="#fff" />
+                <Ionicons name="images" size={20} color={onFill} />
               </View>
               <Text style={styles.uploadTitle}>
                 {images.length > 0 ? s.addMorePhotos : s.selectFromLib}
@@ -481,7 +481,7 @@ export default function NewContentAlbumScreen() {
                         hitSlop={6}
                         accessibilityLabel={s.removePhotoA11y}
                       >
-                        <Ionicons name="close" size={11} color="#fff" />
+                        <Ionicons name="close" size={11} color={onFill} />
                       </Pressable>
                     </View>
                   ))}
@@ -514,7 +514,7 @@ export default function NewContentAlbumScreen() {
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={onFill} />
               ) : (
                 <Text style={styles.createText}>{s.createBtn}</Text>
               )}
@@ -630,7 +630,7 @@ const useStyles = makeStyles((c) => ({
   },
   chipActive: { backgroundColor: c.primary, borderColor: c.primary },
   chipText: { fontFamily: fonts.bold, fontSize: 12.5, color: c.textSoft },
-  chipTextActive: { color: '#fff' },
+  chipTextActive: { color: c.textOnPrimary },
 
   row: { flexDirection: 'row', gap: spacing.md },
   rowItem: { flex: 1 },
@@ -736,6 +736,6 @@ const useStyles = makeStyles((c) => ({
   cancel: { backgroundColor: c.surfaceMuted },
   cancelText: { fontFamily: fonts.bold, fontSize: 14, color: c.textSoft },
   create: { backgroundColor: c.primary },
-  createText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
+  createText: { fontFamily: fonts.bold, fontSize: 14, color: c.textOnPrimary },
   btnDisabled: { opacity: 0.6 },
 }));

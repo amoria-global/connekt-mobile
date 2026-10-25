@@ -11,11 +11,12 @@
  *   • Editorial Photography Grid: 4:5 portrait aspect ratio cards with subtle scrim,
  *     frosted category badges, and crisp typography.
  *   • Spacious List View: Widescreen 4:3 previews with rich metadata and quick navigation.
- *   • Modern Floating Action Button: Solid high-contrast "+ New Album" anchored with safe area.
+ *   • Create in the title row beside sort and layout (no floating button over the albums).
  *   • Night-studio pass: client and coordinator see the latest delivery as the screen's one gradient hero, active
  *     filters use the accent, cards are real data only (cover, count, date, photographer). The photographer keeps the
  *     primary-coloured controls and no hero.
  */
+import { HeaderAddButton } from '@/components/help/HeaderAddButton';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,7 +38,7 @@ import { listAlbums, type GalleryItem } from '@/features/gallery/api';
 import { featuredAlbum } from '@/features/gallery/albumFacts';
 import { AlbumGridCard, AlbumGridSkeleton, AlbumHero, AlbumListRow } from '@/features/gallery/AlbumCards';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { useLanguage } from '@/store/language';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
@@ -198,6 +199,8 @@ export default function GalleryScreen() {
               color={colors.text}
             />
           </Pressable>
+          {/* Create sits here, not floating over the albums (Midnight Glass: nothing floats over a button). */}
+          {isPhotographer ? <HeaderAddButton label="Create new album" onPress={() => router.push('/album/new' as Href)} /> : null}
         </View>
       </View>
 
@@ -208,7 +211,8 @@ export default function GalleryScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.segmentScroll}
       >
-        {(['all', 'event', 'personal', 'locked'] as const).map((f) => {
+        {/* A filter with nothing in it is left out rather than shown as 0, unless it is the one selected. */}
+        {(['all', 'event', 'personal', 'locked'] as const).filter((f) => f === 'all' || f === filter || counts[f] > 0).map((f) => {
           const active = filter === f;
           const label =
             f === 'all'
@@ -370,7 +374,7 @@ export default function GalleryScreen() {
                   style={styles.emptyBtn}
                   onPress={() => router.push('/album/new' as Href)}
                 >
-                  <Ionicons name="add" size={18} color="#fff" />
+                  <Ionicons name="add" size={18} color={onFill} />
                   <Text style={styles.emptyBtnText}>{t('createFirstAlbum')}</Text>
                 </Pressable>
               ) : null}
@@ -378,23 +382,6 @@ export default function GalleryScreen() {
           )
         }
       />
-
-      {/* Floating Action Button — Create New Album (Photographer only) */}
-      {isPhotographer ? (
-        <Pressable
-          style={[
-            styles.fab,
-            { bottom: Math.max(insets.bottom + 18, 28) },
-          ]}
-          onPress={() => router.push('/album/new' as Href)}
-          android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
-          accessibilityRole="button"
-          accessibilityLabel="Create new album"
-        >
-          <Ionicons name="add" size={20} color="#fff" />
-          <Text style={styles.fabText}>{t('newAlbum')}</Text>
-        </Pressable>
-      ) : null}
 
       {/* Sort Options Bottom Sheet */}
       <Modal
@@ -446,7 +433,7 @@ export default function GalleryScreen() {
                       <Ionicons
                         name={opt.icon}
                         size={18}
-                        color={active ? '#fff' : colors.primary}
+                        color={active ? onFill : colors.primary}
                       />
                     </View>
                     <View style={styles.sortOptionTextCol}>
@@ -575,7 +562,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textSoft,
   },
   segmentTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   segmentCount: {
     paddingHorizontal: 6,
@@ -592,7 +579,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   segmentCountTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   segmentDivider: {
     width: 1,
@@ -711,7 +698,7 @@ const useStyles = makeStyles((c) => ({
   photoCountText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   gridCardBody: {
     padding: spacing.sm,
@@ -791,13 +778,13 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
   },
   kindTagEvent: { backgroundColor: c.primary },
-  kindTagPaid: { backgroundColor: '#7C3AED' },
-  kindTagFree: { backgroundColor: '#059669' },
+  kindTagPaid: { backgroundColor: c.primaryLight },
+  kindTagFree: { backgroundColor: c.success },
   kindTagDefault: { backgroundColor: 'rgba(0,0,0,0.55)' },
   kindTagText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.5,
   },
 
@@ -812,7 +799,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: radii.full,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOpacity: 0.22,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -822,7 +809,7 @@ const useStyles = makeStyles((c) => ({
   fabText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.2,
   },
 
@@ -884,7 +871,7 @@ const useStyles = makeStyles((c) => ({
   emptyBtnText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 
   // Sort Sheet

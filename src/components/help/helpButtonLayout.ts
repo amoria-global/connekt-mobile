@@ -6,12 +6,15 @@
  *  - the Help screens themselves (it would open the screen the person is already on);
  *  - first-run onboarding and terms (the next and accept buttons are bottom right, and nothing is signed in yet);
  *  - chat (the send button is bottom right), live streams and the live selfie check (full-screen camera and controls);
- *  - the event, hybrid and album creation wizards (their next and submit buttons are bottom right);
+ *  - the event, hybrid, album, content album and photobook creation forms (their submit buttons are bottom right);
+ *  - the TV pairing scanners (a full-screen camera);
  *  - while the keyboard is open (the same rule the tab bar uses);
- *  - screens that ask it to hide with {@link useHideHelpButton} (a camera, a viewer).
- * It sits above the tab bar where the bar is shown, and above the round add button on the screens that have one.
+ *  - screens that ask it to hide with {@link useHideHelpButton} (a camera, a viewer);
+ *  - every screen with a header (the app and public stacks), and the tab screens, whose headers and top bar carry
+ *    Help instead (see HeaderHelpButton). Floating above the tab bar it sat over whatever scrolled
+ *    beneath it (Home's View shoot button), and Midnight Glass allows nothing to float over a button.
  */
-import { BAR_CONTENT_HEIGHT, FAB_RIGHT, FAB_SIZE, TAB_BAR_HEIGHT, TAB_BAR_MARGIN } from '@/components/barMetrics';
+import { FAB_RIGHT, FAB_SIZE } from '@/components/barMetrics';
 
 export const HELP_BUTTON_SIZE = 52;
 /** Space between the button and whatever it sits above. */
@@ -20,12 +23,36 @@ export const HELP_GAP = 14;
 export const HELP_RIGHT = FAB_RIGHT + (FAB_SIZE - HELP_BUTTON_SIZE) / 2;
 
 /** Route segments (as expo-router reports them) where the button is not shown, and why: see the file header. */
-const HIDDEN_ANYWHERE = ['help-center', 'contact_us', 'feedback', 'conversation', 'stream', 'live-stream', 'kyc'];
+const HIDDEN_ANYWHERE = ['help-center', 'contact_us', 'feedback', 'conversation', 'stream', 'live-stream', 'kyc', 'connect-to-tv', 'pay-on-tv'];
 const HIDDEN_GROUPS = ['(onboarding)'];
 /** Creation wizards: the same word anywhere else is a different screen, so these are matched as a pair. */
-const HIDDEN_PAIRS: [string, string][] = [['event', 'new'], ['event', 'hybrid-wizard'], ['album', 'new']];
-/** Screens that already draw the round add button at the bottom right (kept in step with the screens that import it, by a test). */
-const HAS_FAB = [['(app)', 'packages'], ['(public)', 'gallery']];
+const HIDDEN_PAIRS: [string, string][] = [
+  ['event', 'new'],
+  ['event', 'hybrid-wizard'],
+  ['album', 'new'],
+  ['content-album', 'new'],
+  ['photobook', 'new'],
+];
+
+/** Stacks whose header carries Help, and the screens in them drawn without that header (kept in step with the layouts by a test). */
+const HEADER_HELP_GROUPS = ['(app)', '(public)'];
+export const HEADERLESS: Record<string, string[]> = {
+  '(app)': ['event/hybrid-wizard', 'stream/[id]', 'stream/control/[id]', 'notifications', 'find-my-photos', 'album/new', 'album/[id]', 'content-album/new', 'photobook/[id]', 'photobook/new', 'analytics', 'connect-to-tv', 'pay-on-tv', 'kyc'],
+  '(public)': ['explore-events', 'event/[id]', 'scan/[id]', 'workspace-invite/[id]', 'events/live-stream', 'donate', 'find-photos'],
+};
+
+/** Headerless screens whose own header carries Help (HeaderHelpButton), so the floating one steps aside there too. */
+export const OWN_HEADER_HELP: Record<string, string[]> = {
+  '(app)': ['notifications', 'analytics', 'find-my-photos', 'album/[id]', 'photobook/[id]'],
+  '(public)': ['explore-events', 'find-photos', 'event/[id]', 'donate'],
+};
+
+function headerCarriesHelp(segments: readonly string[]): boolean {
+  const group = segments[0];
+  if (!HEADER_HELP_GROUPS.includes(group) || segments.includes('(tabs)')) return false;
+  const route = segments.slice(1).join('/');
+  return !HEADERLESS[group].includes(route) || (OWN_HEADER_HELP[group] ?? []).includes(route);
+}
 
 const hasPair = (segments: readonly string[], a: string, b: string) => segments.some((s, i) => s === a && segments[i + 1] === b);
 
@@ -48,15 +75,12 @@ export function helpButtonPlacement(
 ): HelpPlacement {
   if (!ready || keyboardVisible || optedOut || isHelpButtonHidden(segments)) return { visible: false, bottom: 0 };
 
-  // The tab bar: its content row, plus its bottom padding (the home indicator, or 8 where there is none).
-  if (segments.includes('(tabs)')) {
-    return { visible: true, bottom: Math.max(insets.bottom, 8) + BAR_CONTENT_HEIGHT + HELP_GAP };
-  }
-  const base = Math.max(insets.bottom, 0) + HELP_GAP + 6;
-  if (HAS_FAB.some(([group, name]) => segments.includes(group) && segments.includes(name))) {
-    // Same position the round add button computes for itself, then one button higher.
-    const fabBottom = (insets.bottom > 0 ? insets.bottom : TAB_BAR_MARGIN) + TAB_BAR_HEIGHT + 12;
-    return { visible: true, bottom: fabBottom + FAB_SIZE + HELP_GAP };
-  }
-  return { visible: true, bottom: base };
+  // The tab screens carry Help in their top bar (see TopBar).
+  if (segments.includes('(tabs)')) return { visible: false, bottom: 0 };
+  if (headerCarriesHelp(segments)) return { visible: false, bottom: 0 };
+  // The sign-in screens carry Help in their photo band (AuthGlassLayout); only Choose role draws its own screen.
+  if (segments[0] === '(auth)' && segments[1] !== 'choose-role') return { visible: false, bottom: 0 };
+  // What is left has no header and no tab bar: just above the bottom edge. The two screens with a round add button
+  // (packages, the public gallery) have headers, so the button never has to clear it.
+  return { visible: true, bottom: Math.max(insets.bottom, 0) + HELP_GAP + 6 };
 }

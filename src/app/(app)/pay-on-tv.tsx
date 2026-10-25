@@ -32,7 +32,7 @@ import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, onMedia } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
 /**
@@ -149,7 +149,7 @@ export default function PayOnTvScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('b1_payTvCloseScannerA11y')}
           >
-            <Ionicons name="close" size={20} color="#fff" />
+            <Ionicons name="close" size={20} color={onFill} />
           </Pressable>
           {scanError ? (
             <View style={styles.scanErrorBar}>
@@ -257,7 +257,7 @@ function PayPanel({
           style={styles.hero}
         >
           <View style={styles.tvBadge}>
-            <Ionicons name="tv" size={13} color="#fff" />
+            <Ionicons name="tv" size={13} color={onFill} />
             <Text style={styles.tvBadgeText}>{t('b1_payTvBadge')}</Text>
           </View>
           <Text style={styles.heroEvent} numberOfLines={2}>{displayTitle}</Text>
@@ -355,7 +355,7 @@ function Step({ icon, text, done }: { icon: keyof typeof Ionicons.glyphMap; text
   return (
     <View style={styles.step}>
       <View style={[styles.stepIcon, done && styles.stepIconDone]}>
-        <Ionicons name={done ? 'checkmark' : icon} size={16} color={done ? '#fff' : colors.primary} />
+        <Ionicons name={done ? 'checkmark' : icon} size={16} color={done ? onFill : colors.primary} />
       </View>
       <Text style={styles.stepText}>{text}</Text>
     </View>
@@ -363,7 +363,7 @@ function Step({ icon, text, done }: { icon: keyof typeof Ionicons.glyphMap; text
 }
 
 const CARD_SHADOW = {
-  shadowColor: '#0F1217',
+  shadowColor: onMedia.black,
   shadowOffset: { width: 0, height: 6 },
   shadowOpacity: 0.08,
   shadowRadius: 14,
@@ -424,7 +424,7 @@ const useStyles = makeStyles((c) => ({
   body: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
 
   // ── Scanner ──
-  cameraWrap: { flex: 1, backgroundColor: '#000' },
+  cameraWrap: { flex: 1, backgroundColor: onMedia.black },
   frame: {
     position: 'absolute',
     top: '24%',
@@ -444,7 +444,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.lg,
     padding: spacing.md,
   },
-  scanErrorText: { fontFamily: fonts.regular, color: '#fff', fontSize: fontSize.sm, textAlign: 'center', lineHeight: 20 },
+  scanErrorText: { fontFamily: fonts.regular, color: c.textOnPrimary, fontSize: fontSize.sm, textAlign: 'center', lineHeight: 20 },
 
   // ── Pay panel ──
   scroll: { padding: spacing.xl, paddingTop: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xl },
@@ -460,11 +460,11 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 4,
     borderRadius: radii.full,
   },
-  tvBadgeText: { fontFamily: fonts.bold, color: '#fff', fontSize: 12, letterSpacing: 1 },
-  heroEvent: { fontFamily: fonts.bold, color: '#fff', fontSize: fontSize.xl, letterSpacing: -0.4, marginTop: 2 },
+  tvBadgeText: { fontFamily: fonts.bold, color: c.textOnPrimary, fontSize: 12, letterSpacing: 1 },
+  heroEvent: { fontFamily: fonts.bold, color: c.textOnPrimary, fontSize: fontSize.xl, letterSpacing: -0.4, marginTop: 2 },
   heroAmountRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: spacing.sm },
   heroAmountLabel: { fontFamily: fonts.regular, color: 'rgba(255,255,255,0.8)', fontSize: fontSize.sm, marginBottom: 5 },
-  heroAmount: { fontFamily: fonts.bold, color: '#fff', fontSize: 34, letterSpacing: -1 },
+  heroAmount: { fontFamily: fonts.bold, color: c.textOnPrimary, fontSize: 34, letterSpacing: -1 },
 
   // ── Steps ──
   steps: {

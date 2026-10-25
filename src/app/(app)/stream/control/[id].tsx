@@ -53,6 +53,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth, isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 
+import { viewerTokens } from '@/theme';
 export default function StreamControlScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -425,7 +426,7 @@ export default function StreamControlScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
   if (bootLoading && !whipUrl) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0B0D12' }}>
+      <View style={{ flex: 1, backgroundColor: viewerTokens.bg }}>
         <Stack.Screen options={{ headerShown: false }} />
         <StatusBar style="light" />
         <BootLoading />
@@ -435,7 +436,7 @@ export default function StreamControlScreen() {
 
   if (!bootLoading && !whipUrl && error) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0B0D12' }}>
+      <View style={{ flex: 1, backgroundColor: viewerTokens.bg }}>
         <Stack.Screen options={{ headerShown: false }} />
         <StatusBar style="light" />
         <StartFailure message={error} onBack={onExit} onRetry={() => setBootNonce((n) => n + 1)} />

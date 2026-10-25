@@ -1,5 +1,12 @@
 # Theme & dark mode
 
+> **Midnight Glass (2026-10-25).** Dark is now the default and carries the brief in
+> `design/brief.png`; the rules live in the root `CLAUDE.md` under "Design System". One
+> reversal below: rule 1 said dark elevation cannot be a shadow. Midnight Glass glass panels
+> do carry a shadow, as a `boxShadow` (`shadows.glass`: inset top highlight plus a wide 35%
+> drop) over the glow orbs, which is what makes it register on the dark ground. Surface
+> lightness steps still apply to solid surfaces.
+
 The app follows the device's system Light/Dark setting. `app.json` sets
 `userInterfaceStyle: "automatic"`, `ThemeProvider` reads `useColorScheme()`, and
 screens consume the active palette through `useTheme()` / `makeStyles()`.

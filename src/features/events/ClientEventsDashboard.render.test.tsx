@@ -152,10 +152,30 @@ describe('client events as rendered', () => {
     expect(text).toContain('Server busy');
   });
 
-  it('filters to past events, and an empty result says no match with a way back', async () => {
+  it('filters to past events', async () => {
+    serve(ok([
+      { id: 'a', title: 'Yubire Wedding', eventDate: future },
+      { id: 'p', title: 'Old Shoot', eventDate: past },
+    ]));
+    const r = await mount();
+    await press(byLabel(r, 'Past, 1'), 'Past');
+    const text = flat(r.root);
+    expect(text).toContain('Old Shoot');
+    expect(text).not.toContain('Yubire Wedding');
+  });
+
+  it('leaves out a filter with nothing in it (Midnight Glass: no chip that says 0)', async () => {
     serve(ok([{ id: 'a', title: 'Yubire Wedding', eventDate: future }]));
     const r = await mount();
-    await press(byLabel(r, 'Past, 0'), 'Past');
+    expect(r.root.findAll((n) => n.props?.accessibilityLabel === 'Past, 0')).toHaveLength(0);
+  });
+
+  it('an empty result says no match with a way back', async () => {
+    serve(ok([{ id: 'a', title: 'Yubire Wedding', eventDate: future }]));
+    const r = await mount();
+    await act(async () => {
+      r.root.findByType(TextInput).props.onChangeText('zzz');
+    });
     const text = flat(r.root);
     expect(text).toContain('No matching events');
     expect(text).not.toContain('Yubire Wedding');

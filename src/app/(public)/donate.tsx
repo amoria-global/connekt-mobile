@@ -9,6 +9,7 @@
  *   5. Seamless USSD push prompt and gateway polling (GET /public/payments/xentripay/status/{refid}).
  *   6. Celebration receipt with instant feedback.
  */
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,7 +53,7 @@ import {
 } from '@/features/payments/formatPhone';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
@@ -490,7 +491,7 @@ export default function PublicDonateScreen() {
             <Text style={styles.topBarPillText}>Donate</Text>
           </View>
 
-          <View style={styles.topBarSpacer} />
+          <HeaderHelpButton />
         </View>
       </View>
 
@@ -499,7 +500,7 @@ export default function PublicDonateScreen() {
         <View style={styles.compactHero}>
           <View style={styles.compactHeroLeft}>
             <View style={styles.compactHeartCircle}>
-              <Ionicons name="heart" size={16} color="#E11D48" />
+              <Ionicons name="heart" size={16} color={colors.error} />
             </View>
             <View style={styles.compactHeroInfo}>
               <Text style={styles.compactHeroTitle} numberOfLines={2}>
@@ -804,7 +805,7 @@ export default function PublicDonateScreen() {
         {stage === 'success' && (
           <View style={styles.successCard}>
             <View style={styles.heartSuccessCircle}>
-              <Ionicons name="heart" size={36} color="#fff" />
+              <Ionicons name="heart" size={36} color={onFill} />
             </View>
             <Text style={styles.successTitle}>{tr('b4_thankYouTitle')}</Text>
             <Text style={styles.successSub}>
@@ -1017,7 +1018,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#FFE4E6',
+    backgroundColor: c.tintAccent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1145,7 +1146,7 @@ const useStyles = makeStyles((c, e) => ({
     color: c.text,
   },
   amountChipTextActive: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   // Payment
@@ -1398,7 +1399,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#E11D48',
+    backgroundColor: c.error,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: spacing.sm,

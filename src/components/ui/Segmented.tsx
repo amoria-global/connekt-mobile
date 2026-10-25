@@ -1,7 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+/**
+ * SegmentedControl: an inset well with the selected option as a flat blue fill (design/events.png,
+ * Month · Week · Agenda · List). No glow: the screen's glows belong to its raised button and tab bar.
+ */
+import { Pressable, Text, View } from 'react-native';
 import { useRole } from '@/features/auth/role';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { darkPalette, fonts, fontSize, makeStyles, radii, shadows, spacing } from '@/theme';
 
 type Option<T extends string> = { label: string; value: T };
 
@@ -16,6 +20,7 @@ export function Segmented<T extends string>({
 }) {
   const styles = useStyles();
   const { tr } = useSharedT();
+  // Photographer screens keep the prototype's squarer corners; other roles keep the pill.
   const flat = useRole().isPhotographer;
   return (
     <View style={[styles.wrap, flat && styles.wrapFlat]}>
@@ -27,9 +32,9 @@ export function Segmented<T extends string>({
             onPress={() => onChange(o.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            style={[styles.seg, flat && styles.segFlat, active && (flat ? styles.segOn : styles.segActive)]}
+            style={[styles.seg, flat && styles.segFlat, active && styles.segOn]}
           >
-            <Text style={[styles.segText, active && (flat ? styles.segTextOn : styles.segTextActive)]}>{tr(o.label)}</Text>
+            <Text style={[styles.segText, active && styles.segTextOn]}>{tr(o.label)}</Text>
           </Pressable>
         );
       })}
@@ -37,23 +42,32 @@ export function Segmented<T extends string>({
   );
 }
 
-const useStyles = makeStyles((c, e) => ({
+/** The kit name. */
+export const SegmentedControl = Segmented;
+
+const useStyles = makeStyles((c) => ({
   wrap: {
     flexDirection: 'row',
-    backgroundColor: c.surfaceMuted,
+    backgroundColor: c.well,
+    borderWidth: 1,
+    borderColor: c.stroke,
+    boxShadow: c === darkPalette ? shadows.inset : shadows.insetLight,
     borderRadius: radii.full,
     padding: 4,
     gap: 4,
   },
-  seg: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radii.full },
-  segActive: {
-    backgroundColor: c.surface,
-    ...e(2),
+  wrapFlat: { borderRadius: radii.md },
+  // 44pt minimum touch target.
+  seg: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    borderRadius: radii.full,
   },
-  wrapFlat: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radii.md, padding: 3, gap: 3 },
-  segFlat: { minHeight: 42, justifyContent: 'center', paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: radii.md - 2 },
-  segOn: { backgroundColor: c.primary },
-  segTextOn: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold },
-  segText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textMuted, textAlign: 'center' },
-  segTextActive: { color: c.primary, fontWeight: fontWeight.bold },
+  segFlat: { borderRadius: radii.md - 4 },
+  segOn: { backgroundColor: c.primary, boxShadow: shadows.highlight },
+  segText: { fontSize: fontSize.sm, fontFamily: fonts.semibold, color: c.textMuted, textAlign: 'center' },
+  segTextOn: { color: c.textOnPrimary },
 }));

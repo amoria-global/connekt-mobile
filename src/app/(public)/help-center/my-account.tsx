@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, fontSize, makeStyles } from '@/theme';
+import { spacing, fontSize, makeStyles, useTheme, alpha } from '@/theme';
 
 export default function MyAccountHelpScreen() {
   const styles = useStyles();
+  const { colors } = useTheme();
   const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('create');
 
@@ -40,7 +41,7 @@ export default function MyAccountHelpScreen() {
               </Text>
 
               <Text style={styles.sectionTitle}>{t('b4_hcRegStepsTitle')}</Text>
-              <View style={[styles.card, { borderColor: '#083A8526', backgroundColor: '#083A850A' }]}>
+              <View style={[styles.card, { borderColor: alpha(colors.primary, 0.15), backgroundColor: alpha(colors.primary, 0.04) }]}>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcRegStep1Title')}</Text> {t('b4_hcRegStep1Desc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcRegStep2Title')}</Text> {t('b4_hcRegStep2Desc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcRegStep3Title')}</Text> {t('b4_hcRegStep3Desc')}</Text>
@@ -50,11 +51,11 @@ export default function MyAccountHelpScreen() {
 
               <Text style={styles.sectionTitle}>{t('b4_hcAccountTypesTitle')}</Text>
               <View style={styles.card}>
-                <Text style={[styles.bold, { color: '#083A85', fontSize: fontSize.md }]}>{t('b4_hcClientAccountTitle')}</Text>
+                <Text style={[styles.bold, { color: colors.primary, fontSize: fontSize.md }]}>{t('b4_hcClientAccountTitle')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcClientAccountDesc')}</Text>
               </View>
               <View style={styles.card}>
-                <Text style={[styles.bold, { color: '#10B981', fontSize: fontSize.md }]}>{t('b4_hcPhotographerAccountTitle')}</Text>
+                <Text style={[styles.bold, { color: colors.success, fontSize: fontSize.md }]}>{t('b4_hcPhotographerAccountTitle')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcPhotographerAccountDesc')}</Text>
               </View>
             </View>
@@ -76,7 +77,7 @@ export default function MyAccountHelpScreen() {
               </Text>
 
               <Text style={styles.sectionTitle}>{t('b4_hcUpdatingProfileTitle')}</Text>
-              <View style={[styles.card, { borderColor: '#10B98126', backgroundColor: '#10B9810A' }]}>
+              <View style={[styles.card, { borderColor: alpha(colors.success, 0.15), backgroundColor: alpha(colors.success, 0.04) }]}>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcUpdateStep1Title')}</Text> {t('b4_hcUpdateStep1Desc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcUpdateStep2Title')}</Text> {t('b4_hcUpdateStep2Desc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcUpdateStep3Title')}</Text> {t('b4_hcUpdateStep3Desc')}</Text>
@@ -106,7 +107,7 @@ export default function MyAccountHelpScreen() {
               </Text>
 
               <Text style={styles.sectionTitle}>{t('b4_hcVerifyReqTitle')}</Text>
-              <View style={[styles.card, { borderColor: '#3B82F626', backgroundColor: '#3B82F60A' }]}>
+              <View style={[styles.card, { borderColor: alpha(colors.primary, 0.15), backgroundColor: alpha(colors.primary, 0.04) }]}>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcVerifyStep1Title')}</Text> {t('b4_hcVerifyStep1Desc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcVerifyStep2Title')}</Text> {t('b4_hcVerifyStep2Desc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcVerifyStep3Title')}</Text> {t('b4_hcVerifyStep3Desc')}</Text>
@@ -151,7 +152,7 @@ export default function MyAccountHelpScreen() {
               <Text style={styles.bodyText}>
                 {t('b4_hcSettingsIntro')}
               </Text>
-              <View style={[styles.card, { borderColor: '#EF444426', backgroundColor: '#EF44440A' }]}>
+              <View style={[styles.card, { borderColor: alpha(colors.error, 0.15), backgroundColor: alpha(colors.error, 0.04) }]}>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcPrivacyVisTitle')}</Text> {t('b4_hcPrivacyVisDesc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcPrivacyContactTitle')}</Text> {t('b4_hcPrivacyContactDesc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcPrivacyPortfolioTitle')}</Text> {t('b4_hcPrivacyPortfolioDesc')}</Text>

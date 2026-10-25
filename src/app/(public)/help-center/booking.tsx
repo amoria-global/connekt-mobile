@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, fontSize, makeStyles } from '@/theme';
+import { spacing, fontSize, makeStyles, alpha } from '@/theme';
 
 export default function BookingHelpScreen() {
   const styles = useStyles();
@@ -161,8 +161,8 @@ const useStyles = makeStyles((c) => ({
     marginBottom: spacing.lg,
   },
   cardGreen: {
-    backgroundColor: '#10B9810A',
-    borderColor: '#10B98126',
+    backgroundColor: alpha(c.success, 0.04),
+    borderColor: alpha(c.success, 0.15),
   },
   listItem: {
     fontSize: fontSize.md,

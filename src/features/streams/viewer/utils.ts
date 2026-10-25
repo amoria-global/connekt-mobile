@@ -2,13 +2,14 @@ import { env } from '@/config/env';
 import type { StreamChat, StreamDetail } from '@/features/streams/api';
 import type { IconName, ReactionDef, ViewerModel } from './types';
 
+import { darkPalette } from '@/theme';
 /** The existing reaction set + keys, sent to the backend exactly as before. */
 export const REACTIONS: ReactionDef[] = [
-  { key: 'heart', icon: 'heart', color: '#EF4444', label: 'Heart' },
-  { key: 'flame', icon: 'flame', color: '#F59E0B', label: 'Flame' },
-  { key: 'clap', icon: 'hand-left', color: '#38BDF8', label: 'Applause' },
-  { key: 'star', icon: 'star', color: '#FBBF24', label: 'Star' },
-  { key: 'rocket', icon: 'rocket', color: '#8B5CF6', label: 'Rocket' },
+  { key: 'heart', icon: 'heart', color: darkPalette.error, label: 'Heart' },
+  { key: 'flame', icon: 'flame', color: darkPalette.pending, label: 'Flame' },
+  { key: 'clap', icon: 'hand-left', color: darkPalette.live, label: 'Applause' },
+  { key: 'star', icon: 'star', color: darkPalette.pending, label: 'Star' },
+  { key: 'rocket', icon: 'rocket', color: darkPalette.primaryLight, label: 'Rocket' },
 ];
 
 /** UI adapter: existing API shape -> viewer presentation model. */
@@ -72,10 +73,10 @@ export function getReactionVisual(key: string): { icon: IconName; color: string 
   const k = (key || '').toLowerCase();
   const hit = REACTIONS.find((r) => r.key === k);
   if (hit) return { icon: hit.icon, color: hit.color };
-  if (k.includes('heart') || k.includes('love') || key === '❤️') return { icon: 'heart', color: '#EF4444' };
-  if (k.includes('fire') || key === '🔥') return { icon: 'flame', color: '#F59E0B' };
-  if (k.includes('star') || key === '⭐') return { icon: 'star', color: '#FBBF24' };
-  if (k.includes('clap') || key === '👏') return { icon: 'hand-left', color: '#38BDF8' };
-  if (k.includes('rocket') || key === '🚀') return { icon: 'rocket', color: '#8B5CF6' };
-  return { icon: 'sparkles', color: '#EC4899' };
+  if (k.includes('heart') || k.includes('love') || key === '❤️') return { icon: 'heart', color: darkPalette.error };
+  if (k.includes('fire') || key === '🔥') return { icon: 'flame', color: darkPalette.pending };
+  if (k.includes('star') || key === '⭐') return { icon: 'star', color: darkPalette.pending };
+  if (k.includes('clap') || key === '👏') return { icon: 'hand-left', color: darkPalette.live };
+  if (k.includes('rocket') || key === '🚀') return { icon: 'rocket', color: darkPalette.primaryLight };
+  return { icon: 'sparkles', color: darkPalette.accent };
 }

@@ -7,14 +7,14 @@
  * (`app.json` already sets `userInterfaceStyle: "automatic"`, so the OS was
  * reporting the scheme correctly — the app simply never read it.)
  *
- * `preference` allows a future in-app Light/Dark/System setting: pass
- * 'system' (default) to follow the phone, or force a scheme. Persisting that
- * choice is deliberately NOT handled here — wire it to the settings store
- * when the setting ships.
+ * Midnight Glass is the default, so with nothing saved the app is dark whatever the
+ * phone says. The Profile header's appearance button saves 'light' or 'dark' on this
+ * device through `setPreference`. A `preference` prop overrides both, for tests.
  */
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { storage, StorageKeys } from '@/services/storage';
 import { makeElevation, type ElevationFn } from './elevation';
 import {
   gradientsFor,
@@ -41,7 +41,14 @@ type ThemeContextValue = {
    * ground. See ./elevation.ts.
    */
   elevation: ElevationFn;
+  /** The saved choice ('dark' unless the person picked otherwise). */
+  preference: ThemePreference;
+  /** Saves a new choice on this device and applies it at once. */
+  setPreference: (next: ThemePreference) => void;
 };
+
+const DEFAULT_PREFERENCE: ThemePreference = 'dark';
+const isPreference = (v: unknown): v is ThemePreference => v === 'light' || v === 'dark' || v === 'system';
 
 /**
  * Default matches the pre-existing behaviour (light), so a component rendered
@@ -54,19 +61,36 @@ const ThemeContext = createContext<ThemeContextValue>({
   colors: palettes.light,
   gradients: gradientsFor('light'),
   elevation: makeElevation('light', palettes.light),
+  preference: 'light',
+  setPreference: () => {},
 });
 
 export function ThemeProvider({
   children,
-  preference = 'system',
+  preference: forced,
 }: {
   children: ReactNode;
   preference?: ThemePreference;
 }) {
   // Returns 'light' | 'dark' | 'unspecified' (React Native 0.86). Anything
-  // that is not an explicit 'dark' is treated as light, matching the
-  // historical default.
+  // that is not an explicit 'dark' is treated as light.
   const systemScheme = useColorScheme();
+  const [saved, setSaved] = useState<ThemePreference>(DEFAULT_PREFERENCE);
+
+  useEffect(() => {
+    if (forced) return;
+    storage
+      .get(StorageKeys.themePreference)
+      .then((v) => isPreference(v) && setSaved(v))
+      .catch(() => {});
+  }, [forced]);
+
+  const setPreference = useCallback((next: ThemePreference) => {
+    setSaved(next);
+    storage.set(StorageKeys.themePreference, next).catch(() => {});
+  }, []);
+
+  const preference = forced ?? saved;
 
   const value = useMemo<ThemeContextValue>(() => {
     const scheme: ColorSchemeName =
@@ -79,8 +103,10 @@ export function ThemeProvider({
       colors,
       gradients: gradientsFor(scheme),
       elevation: makeElevation(scheme, colors),
+      preference,
+      setPreference,
     };
-  }, [preference, systemScheme]);
+  }, [preference, systemScheme, setPreference]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

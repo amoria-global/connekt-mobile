@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraFacing } from '@/features/streams/CameraPublisher';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts } from '@/theme';
+import { fonts, onFill, darkPalette } from '@/theme';
 import { RoundButton } from './RoundButton';
 import { S, TOUCH } from './theme';
 
@@ -53,7 +53,7 @@ function Chip({
       accessibilityRole="button"
       accessibilityLabel={a11y}
     >
-      <Ionicons name={icon} size={17} color={off ? '#FECACA' : S.text} />
+      <Ionicons name={icon} size={17} color={off ? darkPalette.error : S.text} />
       <Text style={[styles.chipText, off && styles.chipTextOff]}>{tr(label)}</Text>
     </Pressable>
   );
@@ -208,12 +208,12 @@ function PreLiveScreenBase({
         >
           {busy ? (
             <>
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={onFill} />
               <Text style={styles.goText}>{tr('Preparing your LIVE…')}</Text>
             </>
           ) : (
             <>
-              <Ionicons name="radio" size={22} color="#fff" />
+              <Ionicons name="radio" size={22} color={onFill} />
               <Text style={styles.goText}>{tr('GO LIVE')}</Text>
             </>
           )}
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   chipOff: { backgroundColor: 'rgba(127,29,29,0.72)' },
   chipText: { fontFamily: fonts.bold, fontSize: 15, color: S.text },
-  chipTextOff: { color: '#FECACA' },
+  chipTextOff: { color: darkPalette.error },
   pressed: { opacity: 0.8 },
   go: {
     height: 58,
@@ -279,5 +279,5 @@ const styles = StyleSheet.create({
     minWidth: TOUCH,
   },
   goDisabled: { opacity: 0.5 },
-  goText: { fontFamily: fonts.bold, fontSize: 20, letterSpacing: 0.6, color: '#fff' },
+  goText: { fontFamily: fonts.bold, fontSize: 20, letterSpacing: 0.6, color: onFill },
 });

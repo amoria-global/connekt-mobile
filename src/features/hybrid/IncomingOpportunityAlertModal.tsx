@@ -294,7 +294,7 @@ export function IncomingOpportunityAlertModal({
             <View style={styles.instructionsBox}>
               {opportunity.matchReasons.slice(0, 4).map((reason) => (
                 <View key={reason} style={styles.instructionsHeader}>
-                  <Ionicons name="checkmark-circle" size={13} color="#10B981" />
+                  <Ionicons name="checkmark-circle" size={13} color={colors.success} />
                   <Text style={styles.instructionsText} numberOfLines={2}>{reason}</Text>
                 </View>
               ))}

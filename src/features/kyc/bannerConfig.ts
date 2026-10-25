@@ -125,9 +125,9 @@ export function getKycBannerConfig(
             : lang === 'rw'
               ? 'Reba aho bigeze'
               : 'Check status',
-      accent: '#3B82F6',
+      accent: palette.primary,
       badgeBg: 'rgba(59, 130, 246, 0.12)',
-      badgeColor: '#2563EB',
+      badgeColor: palette.primary,
       tint: 'rgba(59, 130, 246, 0.10)',
       icon: 'time-outline',
     };

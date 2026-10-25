@@ -1,5 +1,8 @@
 /**
- * Profile tab — Clean, modern Instagram-style profile layout with background cover picture.
+ * Profile tab, Midnight Glass (design/profile.png): the person is the hero, the cover is soft light behind them,
+ * the appearance switch sits in the title row, and every group is a glass panel.
+ *
+ * Earlier layout, kept for the record of what each piece does:
  *
  * Visual hierarchy:
  *   1. Full-bleed background cover picture with camera upload button
@@ -13,7 +16,9 @@
  *   7. Clean tab content (No loud/tacky gradients, pure minimalist typography)
  */
 import { MatchingProfileCard } from '@/features/hybrid/MatchingProfile';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
@@ -27,7 +32,11 @@ import {
 } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
-import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
+import { GhostButton } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { IconTile } from '@/components/ui/IconTile';
+import { StatusChip, type ChipTone } from '@/components/ui/StatusChip';
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { useRole } from '@/features/auth/role';
 import { clientStats, coordinatorStats, photographerStats } from '@/features/profile/clientStats';
 import { KycBadge } from '@/features/kyc/KycBadge';
@@ -45,7 +54,7 @@ import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { useCurrency } from '@/store/currency';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, tracking, useTheme } from '@/theme';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
 type ProfileTab = 'details' | 'settings' | 'account';
@@ -68,7 +77,6 @@ export default function ProfileScreen() {
   const styles = useStyles();
   const clearance = useTabBarClearance();
   const router = useRouter();
-  const topBarHeight = useTopBarHeight();
   const { language, t } = useLanguage();
   const { tr } = useSharedT();
   const currency = useCurrency((s) => s.currency);
@@ -92,7 +100,7 @@ export default function ProfileScreen() {
   const fullName =
     [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Connekyt User';
   const username = user?.email ? user.email.split('@')[0] : 'connekt';
-  const initials = (user?.firstName?.[0] ?? user?.email?.[0] ?? '?').toUpperCase();
+  const initials = `${user?.firstName?.[0] ?? user?.email?.[0] ?? '?'}${user?.lastName?.[0] ?? ''}`.toUpperCase();
   const completion = user?.profileCompletionPercentage ?? null;
   const needsSetup = completion != null && completion < 100;
   const role = roleLabel(user?.customerType);
@@ -235,489 +243,398 @@ export default function ProfileScreen() {
     [isPhotographer],
   );
 
+  const { isDark, setPreference, gradients } = useTheme();
+  const { top } = useSafeAreaInsets();
+  const specialties = (user?.specialty ?? '')
+    .split(/[,/]/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 2);
+  const chips = [...(role && specialties.length === 0 ? [tr(role)] : []), ...specialties];
+
+  const actionTiles: { key: string; icon: keyof typeof Ionicons.glyphMap; tone: ChipTone; label: string; onPress: () => void }[] = [
+    { key: 'edit', icon: 'pencil-outline', tone: 'primary', label: t('editProfile'), onPress: () => router.push('/edit-profile' as Href) },
+    { key: 'wallet', icon: 'wallet-outline', tone: 'pending', label: t('wallet'), onPress: () => router.push('/(app)/(tabs)/wallet' as Href) },
+    isVerified
+      ? { key: 'gallery', icon: 'images-outline', tone: 'live', label: t('gallery'), onPress: () => router.push('/gallery' as Href) }
+      : {
+          key: 'verify',
+          icon: 'shield-checkmark-outline',
+          tone: 'accent',
+          label: kycStatus === 'PENDING' ? t('kycPending') : t('verify'),
+          onPress: () => router.push('/kyc' as Href),
+        },
+  ];
+
   return (
     <Screen padded={false} edges={[]}>
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: clearance }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Background Profile Cover Photo ──────────────────────────── */}
-        <View style={styles.coverWrap}>
-          <View style={[styles.coverContainer, { height: topBarHeight + COVER_HEIGHT }]}>
-            {coverUri ? (
-              <Image
-                key={coverUri}
-                source={{ uri: coverUri }}
-                style={StyleSheet.absoluteFill}
-                contentFit="cover"
-                transition={200}
-              />
-            ) : (
-              <View
-                style={[StyleSheet.absoluteFill, { backgroundColor: '#083a85' }]}
-              />
-            )}
-            <View
-              style={[styles.coverScrim, { backgroundColor: 'rgba(0,0,0,0.18)' }]}
-            />
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingTop: top + spacing.sm, paddingBottom: clearance }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── Title row: Help and the appearance switch (Midnight Glass is the default) ── */}
+          <View style={styles.titleRow}>
+            <Text style={styles.title} accessibilityRole="header">
+              {tr('Profile')}
+            </Text>
+            <HeaderHelpButton />
+            <Pressable
+              onPress={() => setPreference(isDark ? 'light' : 'dark')}
+              accessibilityRole="switch"
+              accessibilityLabel={tr('Dark appearance')}
+              accessibilityState={{ checked: isDark }}
+              style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}
+            >
+              <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={20} color={colors.text} />
+            </Pressable>
+          </View>
 
-            {/* Change cover photo button */}
+          {/* ── Hero: the cover as soft light behind the avatar, the person front and centre ── */}
+          <View style={styles.hero}>
+            {coverUri ? (
+              <Image key={coverUri} source={{ uri: coverUri }} style={styles.coverBackdrop} contentFit="cover" transition={200} />
+            ) : null}
             <Pressable
               style={({ pressed }) => [styles.coverEditBtn, pressed && styles.pressed]}
               onPress={onChangeCover}
               disabled={coverUploading}
-              hitSlop={8}
+              hitSlop={6}
+              accessibilityRole="button"
               accessibilityLabel="Change cover photo"
             >
               {coverUploading ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.text} />
               ) : (
-                <Ionicons name="camera" size={15} color="#fff" />
+                <Ionicons name="image-outline" size={16} color={colors.text} />
               )}
             </Pressable>
-          </View>
-        </View>
 
-        {/* ── Instagram Profile Header Row (Avatar + Stats) ───────────── */}
-        <View style={styles.headerRow}>
-          {/* Avatar with clean halo border cutting into the cover */}
-          <Pressable
-            onPress={onChangeAvatar}
-            disabled={avatarUploading}
-            style={({ pressed }) => [styles.avatarWrap, pressed && styles.pressed]}
-            accessibilityLabel="Change profile photo"
-          >
-            <View style={styles.avatarBorder}>
-              {user?.profilePicture ? (
-                <Image
-                  source={{ uri: user.profilePicture }}
-                  style={styles.avatar}
-                  contentFit="cover"
-                  transition={150}
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarText}>{initials}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.avatarBadge}>
-              {avatarUploading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="camera" size={11} color="#fff" />
-              )}
-            </View>
-          </Pressable>
-
-          {/* Clean Stats Counter Row (Right side of avatar) */}
-          <View style={styles.statsContainer}>
-            {stats.map((s) => (
-              <View key={s.label} style={styles.statCol}>
-                <Text style={styles.statNumber}>{s.value}</Text>
-                <Text style={styles.statLabel}>{tr(s.label)}</Text>
+            <Pressable
+              onPress={onChangeAvatar}
+              disabled={avatarUploading}
+              style={({ pressed }) => [styles.avatarWrap, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+            >
+              <LinearGradient colors={gradients.ring as unknown as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarRing}>
+                {user?.profilePicture ? (
+                  <Image source={{ uri: user.profilePicture }} style={styles.avatar} contentFit="cover" transition={150} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Text style={styles.avatarText}>{initials}</Text>
+                  </View>
+                )}
+              </LinearGradient>
+              <View style={styles.avatarBadge}>
+                {avatarUploading ? (
+                  <ActivityIndicator size="small" color={colors.textOnPrimary} />
+                ) : (
+                  <Ionicons name="camera" size={12} color={colors.textOnPrimary} />
+                )}
               </View>
-            ))}
-          </View>
-        </View>
+            </Pressable>
 
-        {/* ── Bio & Details Section (Instagram style) ─────────────────── */}
-        <View style={styles.bioSection}>
-          <View style={styles.nameRow}>
-            <Text style={styles.fullName}>{fullName}</Text>
-            {isVerified ? (
-              <Ionicons name="checkmark-circle" size={16} color="#3897F0" />
+            <View style={styles.nameRow}>
+              <Text style={styles.fullName}>{fullName}</Text>
+              {isVerified ? <Ionicons name="checkmark-circle" size={20} color={colors.primaryLight} accessibilityLabel="Verified" /> : null}
+            </View>
+            <Text style={styles.usernameHandle}>@{username}</Text>
+
+            {chips.length > 0 || user?.address ? (
+              <View style={styles.chipsRow}>
+                {chips.map((ch) => (
+                  <View key={ch} style={styles.chip}>
+                    <Text style={styles.chipText}>{ch}</Text>
+                  </View>
+                ))}
+                {user?.address ? (
+                  <View style={styles.chip}>
+                    <Ionicons name="location-outline" size={13} color={colors.textSoft} />
+                    <Text style={styles.chipText} numberOfLines={1}>
+                      {user.address}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {user?.about || user?.joinedFrom ? (
+              <Text style={styles.bioText} numberOfLines={4}>
+                {user?.about ? `${user.about}${user.joinedFrom ? '\n' : ''}` : ''}
+                {user?.joinedFrom ? t('memberSince', { date: formatJoinedDate(user.joinedFrom) }) : ''}
+              </Text>
             ) : null}
           </View>
 
-          <Text style={styles.usernameHandle}>@{username}</Text>
-
-          {role ? <Text style={styles.categoryText}>{tr(role)}</Text> : null}
-
-          {user?.about ? (
-            <Text style={styles.bioText} numberOfLines={3}>
-              {user.about}
-            </Text>
-          ) : null}
-
-          {user?.address ? (
-            <View style={styles.locationLink}>
-              <Ionicons name="location-outline" size={13} color={colors.textMuted} />
-              <Text style={styles.locationText} numberOfLines={3}>
-                {user.address}
-              </Text>
-            </View>
-          ) : null}
-
-          {user?.joinedFrom ? (
-          <Text style={styles.joinedText}>
-              {t('memberSince', { date: formatJoinedDate(user.joinedFrom) })}
-          </Text>
-          ) : null}
-        </View>
-
-        {/* ── Action Buttons Row (Instagram style) ────────────────────── */}
-        <View style={styles.actionButtonsRow}>
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
-            onPress={() => router.push('/edit-profile' as Href)}
-          >
-            <Text style={styles.actionBtnText}>{t('editProfile')}</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
-            onPress={() => router.push('/(app)/(tabs)/wallet' as Href)}
-          >
-            <Text style={styles.actionBtnText}>{t('wallet')}</Text>
-          </Pressable>
-
-          {!isVerified ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.actionBtn,
-                styles.actionBtnAccent,
-                pressed && styles.pressed,
-              ]}
-              onPress={() => router.push('/kyc' as Href)}
-            >
-              <Text style={styles.actionBtnAccentText}>
-                {kycStatus === 'PENDING' ? t('kycPending') : t('verify')}
-              </Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
-              onPress={() => router.push('/gallery' as Href)}
-            >
-              <Text style={styles.actionBtnText}>{t('gallery')}</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* ── Setup Prompt (clean & non-intrusive) ─────────────────────── */}
-        {needsSetup ? (
-          <Pressable
-            style={styles.setupBanner}
-            onPress={() => router.push('/edit-profile' as Href)}
-          >
-            <View style={styles.setupBannerTextWrap}>
-              <Text style={styles.setupBannerTitle}>{t('completeYourProfile')}</Text>
-              <Text style={styles.setupBannerSub}>
-                {t('profileCompletionSub', { count: completion })}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </Pressable>
-        ) : null}
-
-        {/* Instagram and base city, for Post My Event matching */}
-        {isPhotographer ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <MatchingProfileCard />
-          </View>
-        ) : null}
-
-        {/* ── Story Highlights Row (Instagram circular shortcuts) ────── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.highlightsScroll}
-        >
-          {highlights.map((h) => (
-            <Pressable
-              key={h.key}
-              style={({ pressed }) => [styles.highlightItem, pressed && styles.pressed]}
-              onPress={() => router.push(h.href)}
-            >
-              <View style={styles.highlightCircle}>
-                <Ionicons name={h.icon} size={22} color={colors.text} />
-              </View>
-              <Text style={styles.highlightLabel} numberOfLines={2}>
-                {h.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {/* ── Instagram-Style Tab Switcher ────────────────────────────── */}
-        <View style={styles.tabStrip} accessibilityRole="tablist">
-          <Pressable
-            style={styles.tabButton}
-            onPress={() => setActiveTab('details')}
-            accessibilityRole="tab"
-            accessibilityLabel="Details"
-            accessibilityState={{ selected: activeTab === 'details' }}
-            hitSlop={6}
-          >
-            <Ionicons
-              name={activeTab === 'details' ? 'person' : 'person-outline'}
-              size={20}
-              color={activeTab === 'details' ? colors.text : colors.textMuted}
-            />
-            {activeTab === 'details' && <View style={styles.activeIndicator} />}
-          </Pressable>
-
-          <Pressable
-            style={styles.tabButton}
-            onPress={() => setActiveTab('settings')}
-            accessibilityRole="tab"
-            accessibilityLabel="Settings"
-            accessibilityState={{ selected: activeTab === 'settings' }}
-            hitSlop={6}
-          >
-            <Ionicons
-              name={activeTab === 'settings' ? 'options' : 'options-outline'}
-              size={20}
-              color={activeTab === 'settings' ? colors.text : colors.textMuted}
-            />
-            {activeTab === 'settings' && <View style={styles.activeIndicator} />}
-          </Pressable>
-
-          <Pressable
-            style={styles.tabButton}
-            onPress={() => setActiveTab('account')}
-            accessibilityRole="tab"
-            accessibilityLabel="Account"
-            accessibilityState={{ selected: activeTab === 'account' }}
-            hitSlop={6}
-          >
-            <Ionicons
-              name={activeTab === 'account' ? 'shield-checkmark' : 'shield-checkmark-outline'}
-              size={20}
-              color={activeTab === 'account' ? colors.text : colors.textMuted}
-            />
-            {activeTab === 'account' && <View style={styles.activeIndicator} />}
-          </Pressable>
-        </View>
-
-        {/* ── Tab Content (Clean, minimalist list views) ──────────────── */}
-        <View style={styles.tabContent}>
-          {activeTab === 'details' && (
-            <View style={styles.detailsList}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>{t('fullName')}</Text>
-                <Text style={styles.detailValue}>{fullName}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>{t('username')}</Text>
-                <Text style={styles.detailValue}>@{username}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>{t('email')}</Text>
-                <Text style={styles.detailValue} numberOfLines={4}>
-                  {user?.email || '—'}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>{t('phone')}</Text>
-                <Text style={styles.detailValue}>{user?.phone || 'Not provided'}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>{t('location')}</Text>
-                <Text style={styles.detailValue}>{user?.address || 'Not provided'}</Text>
-              </View>
-              {isCoordinator && user?.organizationName ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>{t('organization')}</Text>
-                  <Text style={styles.detailValue}>{user.organizationName}</Text>
-                </View>
-              ) : null}
-              {isPhotographer && user?.specialty ? (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>{t('specialty')}</Text>
-                  <Text style={styles.detailValue}>{user.specialty}</Text>
-                </View>
-              ) : null}
-              <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
-                <Text style={styles.detailLabel}>{t('accountType')}</Text>
-                <Text style={styles.detailValue}>{role || 'Client'}</Text>
-              </View>
-
+          {/* ── Action tiles: one job each, colour by meaning ── */}
+          <View style={styles.tilesRow}>
+            {actionTiles.map((a) => (
               <Pressable
-                style={styles.editDetailsFullBtn}
-                onPress={() => router.push('/edit-profile' as Href)}
+                key={a.key}
+                onPress={a.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={a.label}
+                style={({ pressed }) => [styles.tileWrap, pressed && styles.pressed]}
               >
-                <Text style={styles.editDetailsFullBtnText}>{t('editPersonalInfo')}</Text>
+                <GlassCard style={styles.tile}>
+                  <IconTile icon={a.icon} tone={a.tone} size="sm" />
+                  <Text style={styles.tileLabel} numberOfLines={2}>
+                    {a.label}
+                  </Text>
+                </GlassCard>
               </Pressable>
-            </View>
-          )}
+            ))}
+          </View>
 
-          {activeTab === 'settings' && (
-            <View style={styles.menuList}>
-              <MenuRow
-                icon="globe-outline"
-                label={t('languagePreference')}
-                hint={`${currentLanguageInfo.flagEmoji} ${currentLanguageInfo.nativeLabel}`}
-                onPress={() => setLanguageSheetOpen(true)}
-              />
-              <MenuRow
-                icon="cash-outline"
-                label={t('currencyPreference')}
-                hint={`${currency}${currentCurrency ? ` · ${currentCurrency.name}` : ''}`}
-                onPress={() => setCurrencySheetOpen(true)}
-              />
-              <MenuRow
-                icon="options-outline"
-                label={t('notificationSettings')}
-                hint={t('notificationSettingsHint')}
-                onPress={() => router.push('/preferences' as Href)}
-              />
-              <MenuRow
-                icon="notifications-outline"
-                label={t('notificationsHistory')}
-                hint={t('notificationsHistoryHint')}
-                onPress={() => router.push('/notifications' as Href)}
-              />
-              <MenuRow
-                icon="card-outline"
-                label={t('paymentAccounts')}
-                hint={t('paymentAccountsHint')}
-                onPress={() => router.push('/payment-accounts' as Href)}
-              />
-              <MenuRow
-                icon="lock-closed-outline"
-                label={t('twoFactorAuth')}
-                hint={t('twoFactorAuthHint')}
-                onPress={() => router.push('/two-factor' as Href)}
-              />
-              <MenuRow
-                icon="tv-outline"
-                label={t('connectedTvDevices')}
-                hint={t('connectedTvDevicesHint')}
-                onPress={() => router.push('/tv-devices' as Href)}
-              />
-              <MenuRow
-                icon="ban-outline"
-                label={t('blockedAccounts')}
-                onPress={() => router.push('/blocked-accounts' as Href)}
-              />
-              {isPhotographer && (
-                <MenuRow
-                  icon="people-circle-outline"
-                  label={t('menuCollaborate')}
-                  hint={t('collaborateHint')}
-                  onPress={() => router.push('/collaborate' as Href)}
-                />
-              )}
-              <MenuRow
-                icon="bar-chart-outline"
-                label={t('analyticsDashboard')}
-                hint={t('analyticsDashboardHint')}
-                last
-                onPress={() => router.push('/analytics' as Href)}
-              />
-            </View>
-          )}
-
-          {activeTab === 'account' && (
-            <View style={styles.menuList}>
-              {/* KYC Status row */}
-              <Pressable
-                style={styles.menuItemRow}
-                onPress={() => router.push('/kyc' as Href)}
-              >
-                <View style={styles.menuItemLeft}>
-                  <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
-                  <View>
-                    <Text style={styles.menuItemLabel}>{t('identityVerification')}</Text>
-                    <Text style={styles.menuItemHint}>
-                      {isVerified
-                        ? t('kycApproved')
-                        : kycStatus === 'PENDING'
-                        ? t('kycPending')
-                        : 'Action required'}
+          {/* ── Stats: numbers above labels ── */}
+          {stats.length > 0 ? (
+            <View style={styles.gutter}>
+              <GlassCard style={styles.statsCard}>
+                {stats.map((s, i) => (
+                  <View key={s.label} style={[styles.statCol, i > 0 && styles.statDivider]} accessible accessibilityLabel={`${tr(s.label)}, ${s.value}`}>
+                    <Text style={styles.statNumber}>{s.value}</Text>
+                    <Text style={styles.statLabel} numberOfLines={2}>
+                      {tr(s.label)}
                     </Text>
                   </View>
-                </View>
-                <View style={styles.menuItemRight}>
-                  {isVerified ? (
-                    <KycBadge kycStatus="APPROVED" size="sm" />
-                  ) : (
-                    <Text style={styles.verifyActionLink}>
-                      {kycStatus === 'PENDING' ? t('kycPending') : t('verify')}
-                    </Text>
-                  )}
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </View>
-              </Pressable>
+                ))}
+              </GlassCard>
+            </View>
+          ) : null}
 
-              {/* App Update row */}
+          {/* ── Setup prompt ── */}
+          {needsSetup ? (
+            <Pressable
+              style={({ pressed }) => [styles.gutter, pressed && styles.pressed]}
+              onPress={() => router.push('/edit-profile' as Href)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('completeYourProfile')}. ${t('profileCompletionSub', { count: completion })}`}
+            >
+              <GlassCard style={styles.setupBanner}>
+                <IconTile icon="sparkles-outline" tone="accent" size="sm" />
+                <View style={styles.setupBannerTextWrap}>
+                  <Text style={styles.setupBannerTitle}>{t('completeYourProfile')}</Text>
+                  <Text style={styles.setupBannerSub}>{t('profileCompletionSub', { count: completion })}</Text>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${Math.max(4, Math.min(100, completion ?? 0))}%` }]} />
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </GlassCard>
+            </Pressable>
+          ) : null}
+
+          {/* Instagram and base city, for Post My Event matching */}
+          {isPhotographer ? (
+            <View style={styles.gutter}>
+              <MatchingProfileCard />
+            </View>
+          ) : null}
+
+          {/* ── Shortcuts ── */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsScroll}>
+            {highlights.map((h) => (
               <Pressable
-                style={styles.menuItemRow}
-                onPress={handleCheckUpdate}
-                onLongPress={() => previewUpdateScreen(true)}
-                disabled={isCheckingUpdate || isDownloadingUpdate}
+                key={h.key}
+                style={({ pressed }) => [styles.highlightItem, pressed && styles.pressed]}
+                onPress={() => router.push(h.href)}
+                accessibilityRole="button"
+                accessibilityLabel={h.label}
               >
-                <View style={styles.menuItemLeft}>
-                  <Ionicons name="cloud-download-outline" size={20} color={colors.primary} />
-                  <View>
-                    <Text style={styles.menuItemLabel}>{t('appUpdate')}</Text>
-                    <Text style={styles.menuItemHint}>
-                      {updateReady
-                        ? 'Update ready · Tap to restart'
-                        : isCheckingUpdate
+                <View style={styles.highlightCircle}>
+                  <Ionicons name={h.icon} size={22} color={colors.text} />
+                </View>
+                <Text style={styles.highlightLabel} numberOfLines={2}>
+                  {h.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {/* ── Details, Settings, Account ── */}
+          <View style={styles.tabStrip} accessibilityRole="tablist">
+            {(
+              [
+                ['details', 'Details', 'person'],
+                ['settings', 'Settings', 'options'],
+                ['account', 'Account', 'shield-checkmark'],
+              ] as const
+            ).map(([key, label, icon]) => {
+              const on = activeTab === key;
+              return (
+                <Pressable
+                  key={key}
+                  style={styles.tabButton}
+                  onPress={() => setActiveTab(key)}
+                  accessibilityRole="tab"
+                  accessibilityLabel={label}
+                  accessibilityState={{ selected: on }}
+                >
+                  <Ionicons name={on ? icon : (`${icon}-outline` as keyof typeof Ionicons.glyphMap)} size={20} color={on ? colors.text : colors.textMuted} />
+                  <Text style={[styles.tabText, on && styles.tabTextOn]}>{tr(label)}</Text>
+                  <View style={[styles.activeIndicator, on && styles.activeIndicatorOn]} />
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.tabContent}>
+            {activeTab === 'details' && (
+              <GlassCard style={styles.listCard}>
+                <DetailRow label={t('fullName')} value={fullName} />
+                <DetailRow label={t('username')} value={`@${username}`} />
+                <DetailRow label={t('email')} value={user?.email || '—'} />
+                <DetailRow label={t('phone')} value={user?.phone || 'Not provided'} />
+                <DetailRow label={t('location')} value={user?.address || 'Not provided'} />
+                {isCoordinator && user?.organizationName ? <DetailRow label={t('organization')} value={user.organizationName} /> : null}
+                {isPhotographer && user?.specialty ? <DetailRow label={t('specialty')} value={user.specialty} /> : null}
+                <DetailRow label={t('accountType')} value={role || 'Client'} last />
+                <View style={styles.listFooter}>
+                  <GhostButton title={t('editPersonalInfo')} onPress={() => router.push('/edit-profile' as Href)} />
+                </View>
+              </GlassCard>
+            )}
+
+            {activeTab === 'settings' && (
+              <GlassCard style={styles.listCard}>
+                <MenuRow
+                  icon="globe-outline"
+                  label={t('languagePreference')}
+                  hint={`${currentLanguageInfo.flagEmoji} ${currentLanguageInfo.nativeLabel}`}
+                  onPress={() => setLanguageSheetOpen(true)}
+                />
+                <MenuRow
+                  icon="cash-outline"
+                  label={t('currencyPreference')}
+                  hint={`${currency}${currentCurrency ? ` · ${currentCurrency.name}` : ''}`}
+                  onPress={() => setCurrencySheetOpen(true)}
+                />
+                <MenuRow
+                  icon={isDark ? 'moon-outline' : 'sunny-outline'}
+                  label={tr('Appearance')}
+                  hint={isDark ? tr('Midnight (dark)') : tr('Light')}
+                  onPress={() => setPreference(isDark ? 'light' : 'dark')}
+                />
+                <MenuRow
+                  icon="options-outline"
+                  label={t('notificationSettings')}
+                  hint={t('notificationSettingsHint')}
+                  onPress={() => router.push('/preferences' as Href)}
+                />
+                <MenuRow
+                  icon="notifications-outline"
+                  label={t('notificationsHistory')}
+                  hint={t('notificationsHistoryHint')}
+                  onPress={() => router.push('/notifications' as Href)}
+                />
+                <MenuRow
+                  icon="card-outline"
+                  label={t('paymentAccounts')}
+                  hint={t('paymentAccountsHint')}
+                  onPress={() => router.push('/payment-accounts' as Href)}
+                />
+                <MenuRow
+                  icon="lock-closed-outline"
+                  label={t('twoFactorAuth')}
+                  hint={t('twoFactorAuthHint')}
+                  onPress={() => router.push('/two-factor' as Href)}
+                />
+                <MenuRow
+                  icon="tv-outline"
+                  label={t('connectedTvDevices')}
+                  hint={t('connectedTvDevicesHint')}
+                  onPress={() => router.push('/tv-devices' as Href)}
+                />
+                <MenuRow icon="ban-outline" label={t('blockedAccounts')} onPress={() => router.push('/blocked-accounts' as Href)} />
+                {isPhotographer && (
+                  <MenuRow
+                    icon="people-circle-outline"
+                    label={t('menuCollaborate')}
+                    hint={t('collaborateHint')}
+                    onPress={() => router.push('/collaborate' as Href)}
+                  />
+                )}
+                <MenuRow
+                  icon="bar-chart-outline"
+                  label={t('analyticsDashboard')}
+                  hint={t('analyticsDashboardHint')}
+                  last
+                  onPress={() => router.push('/analytics' as Href)}
+                />
+              </GlassCard>
+            )}
+
+            {activeTab === 'account' && (
+              <GlassCard style={styles.listCard}>
+                <MenuRow
+                  icon="shield-checkmark-outline"
+                  label={t('identityVerification')}
+                  hint={isVerified ? t('kycApproved') : kycStatus === 'PENDING' ? t('kycPending') : 'Action required'}
+                  onPress={() => router.push('/kyc' as Href)}
+                  right={
+                    isVerified ? (
+                      <KycBadge kycStatus="APPROVED" size="sm" />
+                    ) : (
+                      <Text style={styles.verifyActionLink}>{kycStatus === 'PENDING' ? t('kycPending') : t('verify')}</Text>
+                    )
+                  }
+                />
+                <MenuRow
+                  icon="cloud-download-outline"
+                  label={t('appUpdate')}
+                  hint={
+                    updateReady
+                      ? 'Update ready · Tap to restart'
+                      : isCheckingUpdate
                         ? 'Checking for updates…'
                         : isDownloadingUpdate
-                        ? 'Downloading update…'
-                        : `v${currentVersion} · Up to date`}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.menuItemRight}>
-                  {updateReady ? (
-                    <View style={styles.updateBadgeReady}>
-                      <Text style={styles.updateBadgeReadyText}>Restart</Text>
-                    </View>
-                  ) : isCheckingUpdate || isDownloadingUpdate ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <Text style={styles.verifyActionLink}>Check</Text>
-                  )}
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </View>
-              </Pressable>
-
-              <MenuRow
-                icon="document-text-outline"
-                label={t('privacyPolicy')}
-                onPress={() => router.push('/privacy-policy' as Href)}
-              />
-              <MenuRow
-                icon="reader-outline"
-                label={t('termsOfService')}
-                onPress={() => router.push('/terms-of-service' as Href)}
-              />
-
-              {/* Sign out */}
-              <Pressable style={styles.menuItemRow} onPress={() => logout()}>
-                <View style={styles.menuItemLeft}>
-                  <Ionicons name="log-out-outline" size={20} color={colors.error} />
-                  <Text style={[styles.menuItemLabel, { color: colors.error }]}>{t('menuSignOut')}</Text>
-                </View>
-              </Pressable>
-
-              {/* Delete account */}
+                          ? 'Downloading update…'
+                          : `v${currentVersion} · Up to date`
+                  }
+                  onPress={handleCheckUpdate}
+                  onLongPress={() => previewUpdateScreen(true)}
+                  disabled={isCheckingUpdate || isDownloadingUpdate}
+                  right={
+                    updateReady ? (
+                      <StatusChip label="Restart" tone="live" />
+                    ) : isCheckingUpdate || isDownloadingUpdate ? (
+                      <ActivityIndicator size="small" color={colors.primaryLight} />
+                    ) : (
+                      <Text style={styles.verifyActionLink}>Check</Text>
+                    )
+                  }
+                />
+                <MenuRow icon="document-text-outline" label={t('privacyPolicy')} onPress={() => router.push('/privacy-policy' as Href)} />
+                <MenuRow icon="reader-outline" label={t('termsOfService')} onPress={() => router.push('/terms-of-service' as Href)} />
+                <MenuRow icon="log-out-outline" label={t('menuSignOut')} danger last onPress={() => logout()} />
+              </GlassCard>
+            )}
+            {activeTab === 'account' ? (
               <Pressable
                 style={styles.deleteLinkRow}
                 onPress={() => router.push('/delete-account' as Href)}
+                accessibilityRole="button"
               >
                 <Text style={styles.deleteLinkText}>{t('deleteAccount')}</Text>
               </Pressable>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-      <TopBar />
-      <LanguageSelectorSheet
-        visible={languageSheetOpen}
-        onClose={() => setLanguageSheetOpen(false)}
-      />
-      <CurrencySelectorSheet
-        visible={currencySheetOpen}
-        onClose={() => setCurrencySheetOpen(false)}
-      />
+            ) : null}
+          </View>
+        </ScrollView>
+      <LanguageSelectorSheet visible={languageSheetOpen} onClose={() => setLanguageSheetOpen(false)} />
+      <CurrencySelectorSheet visible={currencySheetOpen} onClose={() => setCurrencySheetOpen(false)} />
     </Screen>
+  );
+}
+
+function DetailRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  const styles = useStyles();
+  return (
+    <View style={[styles.detailRow, !last && styles.rowBorder]}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue} numberOfLines={4}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -726,415 +643,166 @@ function MenuRow({
   label,
   hint,
   onPress,
+  onLongPress,
+  disabled,
+  right,
+  danger,
   last,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   hint?: string;
   onPress: () => void;
+  onLongPress?: () => void;
+  disabled?: boolean;
+  right?: ReactNode;
+  danger?: boolean;
   last?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.menuItemRow,
-        !last && styles.menuItemBorder,
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.menuItemRow, !last && styles.rowBorder, pressed && styles.pressed]}
       onPress={onPress}
+      onLongPress={onLongPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={hint ? `${label}, ${hint}` : label}
     >
-      <View style={styles.menuItemLeft}>
-        <Ionicons name={icon} size={20} color={colors.text} />
-        <View>
-          <Text style={styles.menuItemLabel}>{label}</Text>
-          {hint ? <Text style={styles.menuItemHint}>{hint}</Text> : null}
-        </View>
+      <IconTile icon={icon} tone={danger ? 'error' : 'neutral'} size="sm" />
+      <View style={styles.menuItemText}>
+        <Text style={[styles.menuItemLabel, danger && { color: colors.error }]}>{label}</Text>
+        {hint ? <Text style={styles.menuItemHint}>{hint}</Text> : null}
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      {right}
+      {danger ? null : <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
     </Pressable>
   );
 }
 
-const COVER_HEIGHT = 140;
-
 const useStyles = makeStyles((c) => ({
-  scroll: {},
-  pressed: { opacity: 0.75 },
+  scroll: { gap: spacing.lg },
+  pressed: { opacity: 0.85 },
+  gutter: { marginHorizontal: spacing.lg },
 
-  // Background Profile Cover Photo
-  coverWrap: {
-    width: '100%',
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg },
+  title: { flex: 1, color: c.text, fontSize: 28, fontFamily: fonts.display, letterSpacing: tracking(28, -0.03) },
+  roundBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    backgroundColor: c.glassTop,
+    borderWidth: 1,
+    borderColor: c.stroke,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  coverContainer: {
-    width: '100%',
-    backgroundColor: c.primaryDark,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  coverScrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '60%',
-  },
+
+  hero: { alignItems: 'center', paddingHorizontal: spacing.lg, gap: spacing.sm },
+  coverBackdrop: { position: 'absolute', top: 0, left: spacing.lg, right: spacing.lg, height: 120, borderRadius: radii.xl, opacity: 0.35 },
   coverEditBtn: {
     position: 'absolute',
-    bottom: 12,
-    right: 16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(15, 18, 23, 0.60)',
+    top: spacing.sm,
+    right: spacing.lg + spacing.sm,
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    backgroundColor: c.glassTop,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderColor: c.stroke,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
   },
-
-  // Profile Header Row (Avatar overlapping cover on left + stats on right)
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: spacing.lg,
-    position: 'relative',
-  },
-  avatarWrap: {
-    marginTop: -42,
-    position: 'relative',
-  },
-  avatarBorder: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 3,
-    borderColor: c.background,
-    overflow: 'hidden',
-    backgroundColor: c.surfaceMuted,
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.primary,
-  },
-  avatarText: {
-    fontFamily: fonts.bold,
-    fontSize: 32,
-    color: '#fff',
-  },
+  avatarWrap: { marginTop: spacing.xl, marginBottom: spacing.xs },
+  avatarRing: { width: 112, height: 112, borderRadius: radii.full, padding: 3 },
+  avatar: { width: '100%', height: '100%', borderRadius: radii.full, borderWidth: 3, borderColor: c.background },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.card },
+  avatarText: { fontFamily: fonts.display, fontSize: 36, color: c.text },
   avatarBadge: {
     position: 'absolute',
-    right: 0,
-    bottom: 2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    right: 4,
+    bottom: 4,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: c.primary,
     borderWidth: 2,
     borderColor: c.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  // Stats Column (Aligned next to avatar)
-  statsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    marginLeft: spacing.md,
-    paddingTop: 8,
-  },
-  statCol: {
-    alignItems: 'center',
-    gap: 1,
-  },
-  statNumber: {
-    fontFamily: fonts.bold,
-    fontSize: 17,
-    color: c.text,
-    letterSpacing: -0.2,
-  },
-  statLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: c.textMuted,
-  },
-
-  // Bio Section
-  bioSection: {
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    gap: 3,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  fullName: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: c.text,
-    letterSpacing: -0.1,
-  },
-  usernameHandle: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: c.textMuted,
-  },
-  categoryText: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: c.textMuted,
-    marginTop: 1,
-  },
-  bioText: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: c.text,
-    lineHeight: 18,
-    marginTop: 3,
-  },
-  locationLink: {
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  fullName: { fontFamily: fonts.display, fontSize: 26, color: c.text, letterSpacing: tracking(26, -0.025), textAlign: 'center' },
+  usernameHandle: { fontFamily: fonts.regular, fontSize: 15, color: c.textMuted },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 3,
-  },
-  locationText: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: c.textMuted,
-  },
-  joinedText: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: c.textMuted,
-    marginTop: 2,
-  },
-
-  // Action Buttons
-  actionButtonsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.md,
-  },
-  actionBtn: {
-    flex: 1,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: c.surfaceMuted,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtnText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: c.text,
-  },
-  actionBtnAccent: {
-    backgroundColor: c.tint,
-    borderColor: c.primary,
-  },
-  actionBtnAccentText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: c.primary,
-  },
-
-  // Setup prompt banner
-  setupBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
+    maxWidth: 220,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderRadius: radii.md,
-    backgroundColor: c.surfaceMuted,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
-  },
-  setupBannerTextWrap: { flex: 1, gap: 1 },
-  setupBannerTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.text },
-  setupBannerSub: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted },
-
-  // Story Highlights
-  highlightsScroll: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: 14,
-  },
-  highlightItem: {
-    alignItems: 'center',
-    gap: 4,
-    width: 62,
-  },
-  highlightCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  highlightLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: c.text,
-    textAlign: 'center',
-  },
-
-  // Instagram Tab Switcher
-  tabStrip: {
-    flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
-    height: 44,
-    marginTop: spacing.xs,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: c.text,
-  },
-
-  // Tab Content
-  tabContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-
-  // Details List (Instagram style)
-  detailsList: {
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
-    overflow: 'hidden',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 13,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: c.borderSoft,
-    gap: 12,
-  },
-  detailLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: c.textMuted,
-  },
-  detailValue: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: c.text,
-    flexShrink: 1,
-    textAlign: 'right',
-  },
-  editDetailsFullBtn: {
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.surfaceMuted,
-  },
-  editDetailsFullBtnText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: c.primary,
-  },
-
-  // Settings & Account List (Instagram style)
-  menuList: {
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
-    overflow: 'hidden',
-  },
-  menuItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 13,
-    paddingHorizontal: spacing.md,
-  },
-  menuItemBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: c.borderSoft,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  menuItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  menuItemLabel: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: c.text,
-  },
-  menuItemHint: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: c.textMuted,
-  },
-  verifyActionLink: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: c.primary,
-  },
-  updateBadgeReady: {
-    backgroundColor: c.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 6,
     borderRadius: radii.full,
+    backgroundColor: c.glassTop,
+    borderWidth: 1,
+    borderColor: c.stroke,
   },
-  updateBadgeReadyText: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: '#fff',
-  },
-  deleteLinkRow: {
-    paddingVertical: 12,
+  chipText: { fontFamily: fonts.semibold, fontSize: 13, color: c.textSoft, flexShrink: 1 },
+  bioText: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: c.textSoft, textAlign: 'center', marginTop: spacing.xs, maxWidth: 340 },
+
+  tilesRow: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg },
+  tileWrap: { flex: 1 },
+  tile: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.lg, paddingHorizontal: spacing.sm, borderRadius: radii.lg, minHeight: 96 },
+  tileLabel: { fontFamily: fonts.semibold, fontSize: 14, color: c.text, textAlign: 'center' },
+
+  statsCard: { flexDirection: 'row', borderRadius: radii.lg, paddingVertical: spacing.md },
+  statCol: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: spacing.xs },
+  statDivider: { borderLeftWidth: 1, borderLeftColor: c.stroke },
+  statNumber: { fontFamily: fonts.display, fontSize: 22, color: c.text },
+  statLabel: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, textAlign: 'center' },
+
+  setupBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radii.lg },
+  setupBannerTextWrap: { flex: 1, gap: 4 },
+  setupBannerTitle: { fontFamily: fonts.display, fontSize: 16, color: c.text },
+  setupBannerSub: { fontFamily: fonts.regular, fontSize: 13, color: c.textMuted },
+  progressTrack: { height: 6, borderRadius: 3, backgroundColor: c.well, overflow: 'hidden', marginTop: 4 },
+  progressFill: { height: '100%', borderRadius: 3, backgroundColor: c.accent },
+
+  highlightsScroll: { gap: spacing.lg, paddingHorizontal: spacing.lg },
+  highlightItem: { alignItems: 'center', gap: spacing.xs, width: 68 },
+  highlightCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: c.glassTop,
+    borderWidth: 1,
+    borderColor: c.stroke,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteLinkText: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: c.textMuted,
-    textDecorationLine: 'underline',
-  },
+  highlightLabel: { fontFamily: fonts.medium, fontSize: 12, color: c.textSoft, textAlign: 'center' },
+
+  tabStrip: { flexDirection: 'row', marginHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: c.stroke },
+  tabButton: { flex: 1, alignItems: 'center', gap: 4, paddingTop: spacing.sm, minHeight: 56 },
+  tabText: { fontFamily: fonts.medium, fontSize: 13, color: c.textMuted },
+  tabTextOn: { color: c.text, fontFamily: fonts.semibold },
+  activeIndicator: { marginTop: 'auto', height: 2, alignSelf: 'stretch', marginHorizontal: spacing.xl, borderRadius: 1, backgroundColor: 'transparent' },
+  activeIndicatorOn: { backgroundColor: c.primaryLight },
+
+  tabContent: { paddingHorizontal: spacing.lg, gap: spacing.md },
+  listCard: { borderRadius: radii.lg, paddingHorizontal: spacing.lg },
+  listFooter: { paddingVertical: spacing.lg },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: c.stroke },
+  detailRow: { paddingVertical: spacing.md, gap: 2 },
+  detailLabel: { fontFamily: fonts.medium, fontSize: 12, color: c.textMuted, letterSpacing: 0.3 },
+  detailValue: { fontFamily: fonts.regular, fontSize: 15, color: c.text },
+  menuItemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, minHeight: 60 },
+  menuItemText: { flex: 1, minWidth: 0, gap: 2 },
+  menuItemLabel: { fontFamily: fonts.semibold, fontSize: 15, color: c.text },
+  menuItemHint: { fontFamily: fonts.regular, fontSize: 13, color: c.textMuted },
+  verifyActionLink: { fontFamily: fonts.semibold, fontSize: 14, color: c.link },
+  deleteLinkRow: { alignItems: 'center', paddingVertical: spacing.md, minHeight: 44, justifyContent: 'center' },
+  deleteLinkText: { fontFamily: fonts.medium, fontSize: 14, color: c.error },
 }));

@@ -54,7 +54,7 @@ import {
   regionLabel,
   type GeoRegionItem,
 } from '@/features/geopricing/regions';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 
@@ -1442,7 +1442,7 @@ const useStyles = makeStyles((c) => ({
   formEyebrow: { fontSize: fontSize.xs, fontWeight: fontWeight.extrabold, color: c.accent, letterSpacing: 1.2, marginBottom: -spacing.xs },
   stickyBar: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: spacing.xs, backgroundColor: c.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   bannerLabel: { color: 'rgba(255,255,255,0.82)', fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: 1 },
-  bannerName: { color: '#FFFFFF', fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+  bannerName: { color: c.textOnPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   bannerPrice: { color: 'rgba(255,255,255,0.92)', fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginTop: 2 },
   form: { gap: spacing.lg },
 
@@ -1489,7 +1489,7 @@ const useStyles = makeStyles((c) => ({
   chipActive: { backgroundColor: c.primary, borderColor: c.primary },
   chipActiveAccent: { backgroundColor: c.accent, borderColor: c.accent },
   chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
-  chipTextActive: { color: '#FFFFFF' },
+  chipTextActive: { color: c.textOnPrimary },
 
   row: { flexDirection: 'row', gap: spacing.md },
   rowItem: { flex: 1, justifyContent: 'flex-end' },

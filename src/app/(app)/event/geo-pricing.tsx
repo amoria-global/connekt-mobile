@@ -37,7 +37,7 @@ import {
   regionLabel,
   type GeoRegionItem,
 } from '@/features/geopricing/regions';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -584,7 +584,7 @@ export default function GeoPricingScreen() {
                       size={14}
                       color={
                         isSelected
-                          ? '#fff'
+                          ? onFill
                           : hasExistingRule
                             ? colors.primary
                             : colors.textMuted
@@ -803,7 +803,7 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   geoItemChipTextSelected: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontFamily: fonts.bold,
   },
   geoItemScopeBadge: {
@@ -816,7 +816,7 @@ const useStyles = makeStyles((c) => ({
     textTransform: 'uppercase',
   },
   geoItemScopeBadgeSelected: {
-    color: '#fff',
+    color: c.textOnPrimary,
     backgroundColor: 'rgba(255,255,255,0.25)',
   },
   noMatchText: {
@@ -861,7 +861,7 @@ const useStyles = makeStyles((c) => ({
   },
   chipActive: { backgroundColor: c.primary, borderColor: c.primary },
   chipText: { fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.text },
-  chipTextActive: { color: '#fff', fontFamily: fonts.bold },
+  chipTextActive: { color: c.textOnPrimary, fontFamily: fonts.bold },
 
   fieldLabel: { fontFamily: fonts.bold, fontSize: fontSize.sm, color: c.textMuted },
   error: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.error },
@@ -903,7 +903,7 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   eventChipTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontFamily: fonts.bold,
   },
 }));

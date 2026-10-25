@@ -145,7 +145,7 @@ const JA_I18N = {
     leaveAlbumBtn: "Salir del álbum",
   },
 } as const;
-import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
+import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme, onFill } from '@/theme';
 
 type Filter = 'ALL' | SubmissionStatus;
 const GAP = 8;
@@ -350,7 +350,7 @@ export default function JoinedAlbumScreen() {
                     {!uploading && (
                       <Pressable onPress={() => removeStaged(p.uri)} hitSlop={6} style={styles.stagedRemove}
                         accessibilityRole="button" accessibilityLabel={`Remove ${p.name}`}>
-                        <Ionicons name="close" size={14} color="#FFFFFF" />
+                        <Ionicons name="close" size={14} color={onFill} />
                       </Pressable>
                     )}
                   </View>

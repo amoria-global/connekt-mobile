@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { V } from '../viewerTheme';
 import type { ViewerModel } from '../types';
 import { formatCount } from '../utils';
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontFamily: fonts.bold, fontSize: 17, color: '#fff' },
+  avatarText: { fontFamily: fonts.bold, fontSize: 17, color: onFill },
   meta: { flex: 1 },
   name: { fontFamily: fonts.bold, fontSize: 15, color: V.text },
   sub: { fontFamily: fonts.regular, fontSize: 13, color: V.textMuted },

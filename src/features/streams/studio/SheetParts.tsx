@@ -2,7 +2,7 @@ import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts } from '@/theme';
+import { fonts, onFill, darkPalette } from '@/theme';
 import { S } from './theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -38,7 +38,7 @@ function SheetRowBase({ icon, label, value, onPress, toggle, destructive, disabl
   const body = (
     <View style={[styles.row, !last && styles.rowDivider, disabled && styles.rowDisabled]}>
       <View style={[styles.rowIcon, destructive && styles.rowIconDanger]}>
-        <Ionicons name={icon} size={18} color={destructive ? '#FCA5A5' : S.text} />
+        <Ionicons name={icon} size={18} color={destructive ? darkPalette.error : S.text} />
       </View>
       <View style={styles.rowText}>
         <Text style={[styles.rowLabel, destructive && styles.rowLabelDanger]} numberOfLines={1}>
@@ -61,7 +61,7 @@ function SheetRowBase({ icon, label, value, onPress, toggle, destructive, disabl
           onValueChange={toggle.onChange}
           disabled={disabled}
           trackColor={{ false: 'rgba(255,255,255,0.2)', true: S.go }}
-          thumbColor="#fff"
+          thumbColor={onFill}
           accessibilityLabel={label}
         />
       ) : onPress ? (
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   rowIconDanger: { backgroundColor: 'rgba(127,29,29,0.5)' },
   rowText: { flex: 1 },
   rowLabel: { fontFamily: fonts.bold, fontSize: 17, color: S.text },
-  rowLabelDanger: { color: '#FCA5A5' },
+  rowLabelDanger: { color: darkPalette.error },
   rowHint: { fontFamily: fonts.regular, fontSize: 13, color: S.textFaint, marginTop: 1 },
   rowValue: { fontFamily: fonts.regular, fontSize: 15, color: S.textDim, maxWidth: '45%' },
 });

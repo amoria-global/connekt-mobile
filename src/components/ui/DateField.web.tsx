@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import type { DateFieldProps } from './DateField';
 
 function toYMD(d: Date): string {
@@ -25,7 +25,8 @@ export function DateField({ label, value, onChange, error, minimumDate }: DateFi
         value: value || '',
         min: minimumDate ? toYMD(minimumDate) : undefined,
         onChange: (e: { target: { value: string } }) => onChange(e.target.value),
-        style: { ...inputStyle, borderColor: error ? colors.error : colors.border },
+        // Colours resolve per render: a module-level object froze the light palette, a white field in dark.
+        style: { ...inputStyle, backgroundColor: colors.well, color: colors.text, borderColor: error ? colors.error : colors.stroke },
       })}
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
@@ -41,8 +42,6 @@ const inputStyle = {
   borderRadius: radii.md,
   paddingLeft: spacing.lg,
   paddingRight: spacing.lg,
-  backgroundColor: colors.surface,
-  color: colors.text,
   fontSize: fontSize.md,
   outline: 'none',
 };

@@ -12,6 +12,8 @@
   "fingerprintNote": "EAS recorded this for build 33 (2026-10-13, build 4f724bff), submitted to Play's production track at releaseStatus completed (submission 7a276295, finished 2026-10-15). Informational only: eas.json is a fingerprint input, so editing build env drifts the hash without changing the installed natives. The dependency and config checks below are what actually decide OTA safety.",
   "allowedJsOnlyDeps": [
     "qrcode",
-    "@types/qrcode"
+    "@types/qrcode",
+    "@expo-google-fonts/inter",
+    "@expo-google-fonts/space-grotesk"
   ]
 }

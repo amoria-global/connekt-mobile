@@ -57,4 +57,6 @@ export const StorageKeys = {
    * every sign-in and sign-out, so one account's selection never carries into another's.
    */
   activeWorkspace: 'workspace.active',
+  /** Light or dark, from the Profile header's appearance button. Absent means Midnight Glass (dark). */
+  themePreference: 'app.themePreference',
 } as const;

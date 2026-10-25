@@ -21,7 +21,7 @@ import { PhotoLanguagePill } from '@/features/auth/AuthGlassLayout';
 import { useLanguage } from '@/store/language';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/store/onboarding';
-import { fonts, spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { fonts, lightPalette, onboardingScrims, spacing, radii, fontSize, fontWeight, makeStyles, onFill } from '@/theme';
 
 type Slide = {
   key: string;
@@ -64,7 +64,7 @@ export default function WelcomeScreen() {
       {
         key: 'photographer',
         subject: require('../../../assets/images/photographer.png'),
-        gradient: ['#1E63D0', '#062B63'],
+        gradient: onboardingScrims.blue,
         title: t('onboardingTitle1'),
         body: t('onboardingBody1'),
         cta: t('next'),
@@ -74,7 +74,7 @@ export default function WelcomeScreen() {
         scene: require('../../../assets/images/onboarding-coordinator.jpg'),
         focus: 0.5,
         verticalFocus: 0.45,
-        gradient: ['#1E3A8A', '#062B63'],
+        gradient: onboardingScrims.navy,
         title: t('onboardingTitle2'),
         body: t('onboardingBody2'),
         cta: t('next'),
@@ -83,7 +83,7 @@ export default function WelcomeScreen() {
         key: 'client',
         video: require('../../../assets/images/onboarding-live-blue.mp4'),
         videoCover: true,
-        gradient: ['#1E63D0', '#062B63'],
+        gradient: onboardingScrims.blue,
         title: t('onboardingTitle3'),
         body: t('onboardingBody3'),
         cta: t('next'),
@@ -92,7 +92,7 @@ export default function WelcomeScreen() {
         key: 'guest',
         video: require('../../../assets/images/screen3.mp4'),
         // Starts on the video's own black, so the frame has no visible edge.
-        gradient: ['#000000', '#03122B'],
+        gradient: onboardingScrims.night,
         title: t('onboardingTitle4'),
         body: t('onboardingBody4'),
         cta: t('getStarted'),
@@ -319,9 +319,9 @@ function Dash({ active }: { active: boolean }) {
  * dark in BOTH schemes, so the values below are deliberately literal, keyed to
  * the scrim rather than the app palette.
  */
-const SCRIM_NAVY = '#062B63';
-const ON_MEDIA = '#FFFFFF';     // CTA surface, always over imagery
-const ON_MEDIA_INK = '#083A85'; // brand navy, reads on the white CTA
+const SCRIM_NAVY = onboardingScrims.blue[1];
+const ON_MEDIA = onFill;     // CTA surface, always over imagery
+const ON_MEDIA_INK = lightPalette.primary; // brand navy, reads on the white CTA
 
 const useStyles = makeStyles((c, e) => ({
   container: { flex: 1, backgroundColor: SCRIM_NAVY },

@@ -5,27 +5,28 @@
 import type { Ionicons } from '@expo/vector-icons';
 import type { PublicStreamChat } from '@/features/streams/api';
 
+import { darkPalette } from '@/theme';
 export function getReactionIcon(key: string): { icon: keyof typeof Ionicons.glyphMap; color: string } {
   const k = (key || '').toLowerCase();
   if (k === '❤️' || k.includes('heart') || k.includes('love')) {
-    return { icon: 'heart', color: '#EF4444' };
+    return { icon: 'heart', color: darkPalette.error };
   }
   if (k === '🔥' || k.includes('fire') || k.includes('flame')) {
-    return { icon: 'flame', color: '#F59E0B' };
+    return { icon: 'flame', color: darkPalette.pending };
   }
   if (k === '🎁' || k.includes('gift')) {
-    return { icon: 'gift', color: '#EC4899' };
+    return { icon: 'gift', color: darkPalette.accent };
   }
   if (k === '⭐' || k === '🌟' || k.includes('star')) {
-    return { icon: 'star', color: '#FBBF24' };
+    return { icon: 'star', color: darkPalette.pending };
   }
   if (k === '👏' || k.includes('clap')) {
-    return { icon: 'hand-left', color: '#38BDF8' };
+    return { icon: 'hand-left', color: darkPalette.live };
   }
   if (k === '👍' || k.includes('like') || k.includes('thumb')) {
-    return { icon: 'thumbs-up', color: '#3B82F6' };
+    return { icon: 'thumbs-up', color: darkPalette.primaryLight };
   }
-  return { icon: 'sparkles', color: '#EC4899' };
+  return { icon: 'sparkles', color: darkPalette.accent };
 }
 
 /** Gifts are viewer-side; the host studio filters these chats out. */

@@ -8,7 +8,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, Text, View, useWindowDim
 import { Ionicons } from '@expo/vector-icons';
 import { FallbackImage } from './FallbackImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { makeStyles, radii, spacing } from '@/theme';
+import { darkPalette, makeStyles, onMedia, radii, spacing, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 export type ViewerPhoto = { id: string; url?: string; fullUrl?: string };
@@ -100,7 +100,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
 
         <View style={[styles.top, { paddingTop: Math.max(insets.top + 6, 18) }]} pointerEvents="box-none">
           <Pressable style={styles.glass} onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close photo viewer">
-            <Ionicons name="close" size={20} color="#fff" />
+            <Ionicons name="close" size={20} color={onFill} />
           </Pressable>
           {open ? (
             <Text style={styles.counter} accessibilityLiveRegion="polite">
@@ -109,11 +109,11 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
           ) : null}
           <View style={styles.topActions}>
             <Pressable style={styles.glass} onPress={() => current && onShare(current)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share photo">
-              <Ionicons name="share-outline" size={18} color="#fff" />
+              <Ionicons name="share-outline" size={18} color={onFill} />
             </Pressable>
             {onReport ? (
               <Pressable style={styles.glass} onPress={() => current && onReport(current)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Report photo">
-                <Ionicons name="flag-outline" size={18} color="#fff" />
+                <Ionicons name="flag-outline" size={18} color={onFill} />
               </Pressable>
             ) : null}
           </View>
@@ -130,7 +130,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
               accessibilityLabel="Previous photo"
               accessibilityState={{ disabled: index <= 0 }}
             >
-              <Ionicons name="chevron-back" size={20} color="#fff" />
+              <Ionicons name="chevron-back" size={20} color={onFill} />
             </Pressable>
             <Pressable
               style={[styles.save, saveColor ? { backgroundColor: saveColor } : null, saving && styles.navOff]}
@@ -140,10 +140,10 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
               accessibilityLabel="Save to camera roll"
             >
               {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={onFill} />
               ) : (
                 <>
-                  <Ionicons name="download-outline" size={17} color="#fff" />
+                  <Ionicons name="download-outline" size={17} color={onFill} />
                   <Text style={styles.saveText} maxFontSizeMultiplier={1.2}>
                     {tr('Save to Camera Roll')}
                   </Text>
@@ -159,7 +159,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
               accessibilityLabel="Next photo"
               accessibilityState={{ disabled: index >= photos.length - 1 }}
             >
-              <Ionicons name="chevron-forward" size={20} color="#fff" />
+              <Ionicons name="chevron-forward" size={20} color={onFill} />
             </Pressable>
           </View>
         </View>
@@ -169,17 +169,17 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
 }
 
 const useStyles = makeStyles(() => ({
-  backdrop: { flex: 1, backgroundColor: '#050B14' },
+  backdrop: { flex: 1, backgroundColor: onMedia.black },
   page: { height: '100%', alignItems: 'center', justifyContent: 'center' },
   image: { width: '100%', height: '100%' },
   top: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   glass: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(15,29,47,0.78)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
-  counter: { color: '#fff', fontSize: 14, fontWeight: '700', backgroundColor: 'rgba(15,29,47,0.78)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: radii.full, overflow: 'hidden' },
+  counter: { color: onMedia.text, fontSize: 14, fontWeight: '700', backgroundColor: 'rgba(15,29,47,0.78)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: radii.full, overflow: 'hidden' },
   topActions: { flexDirection: 'row', gap: spacing.sm },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingHorizontal: spacing.lg },
   pill: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: 6, borderRadius: radii.full, backgroundColor: 'rgba(15,29,47,0.86)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
   nav: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   navOff: { opacity: 0.35 },
-  save: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radii.full, backgroundColor: '#F20C8F' },
-  saveText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  save: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radii.full, backgroundColor: darkPalette.accent },
+  saveText: { color: onFill, fontSize: 14, fontWeight: '800' },
 }));
