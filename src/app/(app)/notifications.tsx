@@ -25,6 +25,8 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
+import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
@@ -433,6 +435,7 @@ export default function NotificationsScreen() {
             </Pressable>
           ) : null}
 
+          <HeaderHelpButton />
           <Pressable
             onPress={onOptionsPress}
             hitSlop={10}
@@ -507,35 +510,21 @@ export default function NotificationsScreen() {
             <SkeletonCard height={72} />
           </View>
         ) : loadError && notifications.length === 0 ? (
-          <View style={styles.emptyWrap} accessibilityRole="alert">
-            <View style={styles.emptyCircle}>
-              <Ionicons name="cloud-offline-outline" size={32} color={colors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>Could not load notifications</Text>
-            <Text style={styles.emptySub}>{loadError}</Text>
-            <Pressable onPress={() => loadData(true)} style={styles.resetPill} accessibilityRole="button" accessibilityLabel="Try again">
-              <Text style={styles.resetPillText}>Try again</Text>
-            </Pressable>
+          <View style={styles.emptyKit}>
+            <ErrorState title="Could not load notifications" message={loadError} onRetry={() => loadData(true)} />
           </View>
         ) : filteredNotifications.length === 0 ? (
-          /* Empty State */
-          <View style={styles.emptyWrap}>
-            <View style={styles.emptyCircle}>
-              <Ionicons name="notifications-outline" size={32} color={colors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>
-              {activeFilter === 'unread' ? t('allCaughtUp') : t('noActivityYet')}
-            </Text>
-            <Text style={styles.emptySub}>
-              {activeFilter === 'unread'
-                ? t('reviewedAllUpdates')
-                : t('activityWillAppearHere')}
-            </Text>
-            {activeFilter !== 'all' ? (
-              <Pressable onPress={() => setActiveFilter('all')} style={styles.resetPill}>
-                <Text style={styles.resetPillText}>{t('viewAllNotifications')}</Text>
-              </Pressable>
-            ) : null}
+          <View style={styles.emptyKit}>
+            <EmptyState
+              icon="notifications-outline"
+              title={activeFilter === 'unread' ? t('allCaughtUp') : t('noActivityYet')}
+              message={activeFilter === 'unread' ? t('reviewedAllUpdates') : t('activityWillAppearHere')}
+              action={
+                activeFilter !== 'all'
+                  ? { label: t('viewAllNotifications'), onPress: () => setActiveFilter('all') }
+                  : { label: t('notificationSettings'), onPress: () => router.push('/preferences' as Href) }
+              }
+            />
           </View>
         ) : (
           /* Instagram Chronological Activity Feed */
@@ -706,6 +695,7 @@ function getCategoryIconMeta(type: NotificationType, colors: Palette) {
 }
 
 const useStyles = makeStyles((c) => ({
+  emptyKit: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
   // ── Top Header ──
   topHeader: {
     flexDirection: 'row',

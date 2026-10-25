@@ -18,7 +18,7 @@ describe('where the button shows', () => {
     ['sign up', ['(auth)', 'signup']],
     ['the public events browser, which has no header', ['(public)', 'explore-events']],
     ['an album page, drawn without the stack header', ['(app)', 'album', '[id]']],
-    ['analytics, drawn without the stack header', ['(app)', 'analytics']],
+    ['photobook, drawn without the stack header', ['(app)', 'photobook', '[id]']],
   ])('is shown on %s', (_name, segments) => {
     expect(isHelpButtonHidden(segments)).toBe(false);
     expect(helpButtonPlacement(segments, phone).visible).toBe(true);
@@ -31,6 +31,8 @@ describe('where the button shows', () => {
     ['an event page', ['(app)', 'event', '[id]']],
     ['the collaborate album screen', ['(app)', 'collaborate', 'album', '[id]']],
     ['a public page with a header', ['(public)', 'about']],
+    ['notifications, whose own header carries Help', ['(app)', 'notifications']],
+    ['analytics, whose own header carries Help', ['(app)', 'analytics']],
   ])('steps aside on %s, whose header carries Help', (_name, segments) => {
     expect(helpButtonPlacement(segments, phone)).toEqual({ visible: false, bottom: 0 });
   });

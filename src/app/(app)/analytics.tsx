@@ -1,3 +1,4 @@
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EventsChart } from '@/features/analytics/EventsChart';
 import { EventsHistogram, SpendingTrendChart } from '@/features/client/ClientWalletAnalytics';
@@ -630,6 +631,7 @@ type StatCardItem = {
           <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
         <Text style={styles.topBarTitle}>{tr('b2_analyticsTitle')}</Text>
+        <HeaderHelpButton />
         <Pressable
           onPress={() => load()}
           hitSlop={12}

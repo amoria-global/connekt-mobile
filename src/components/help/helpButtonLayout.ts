@@ -34,10 +34,16 @@ export const HEADERLESS: Record<string, string[]> = {
   '(public)': ['explore-events', 'event/[id]', 'scan/[id]', 'workspace-invite/[id]', 'events/live-stream', 'donate', 'find-photos'],
 };
 
+/** Headerless screens whose own header carries Help (HeaderHelpButton), so the floating one steps aside there too. */
+export const OWN_HEADER_HELP: Record<string, string[]> = {
+  '(app)': ['notifications', 'analytics'],
+};
+
 function headerCarriesHelp(segments: readonly string[]): boolean {
   const group = segments[0];
   if (!HEADER_HELP_GROUPS.includes(group) || segments.includes('(tabs)')) return false;
-  return !HEADERLESS[group].includes(segments.slice(1).join('/'));
+  const route = segments.slice(1).join('/');
+  return !HEADERLESS[group].includes(route) || (OWN_HEADER_HELP[group] ?? []).includes(route);
 }
 
 const hasPair = (segments: readonly string[], a: string, b: string) => segments.some((s, i) => s === a && segments[i + 1] === b);
