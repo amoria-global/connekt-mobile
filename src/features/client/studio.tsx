@@ -3,13 +3,14 @@
  * Presentational only. Colours and gradients come from the active palette, so light and dark both work; nothing
  * here hard-codes a colour, a size below 12pt or a touch target below 44pt.
  *
- * Gradients are reserved: one hero per screen, plus at most one violet secondary. Everything else stays flat.
+ * Midnight Glass: one raised hero per screen (the brief's one raised action); a second hero is glass with a magenta
+ * icon tile (tone "glass"). The violet tone stays for existing callers but is no longer used on Home.
  */
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
+import { glowRgb, makeStyles, radii, shadows, spacing, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -25,13 +26,15 @@ export function HeroActionCard({
   title: string;
   subtitle?: string;
   icon: IconName;
-  tone?: 'blue' | 'violet';
+  tone?: 'blue' | 'violet' | 'glass';
   onPress: () => void;
 }) {
   const styles = useStyles();
-  const { gradients } = useTheme();
+  const { gradients, colors: palette } = useTheme();
   const { tr } = useSharedT();
-  const colors = tone === 'violet' ? gradients.heroViolet : gradients.heroBlue;
+  const colors = tone === 'violet' ? gradients.heroViolet : gradients.raisedPrimary;
+  const glass = tone === 'glass';
+  const fg = glass ? palette.text : onFill;
   return (
     <Pressable
       onPress={onPress}
@@ -39,21 +42,26 @@ export function HeroActionCard({
       accessibilityLabel={subtitle ? `${tr(title)}, ${tr(subtitle)}` : tr(title)}
       style={({ pressed }) => [styles.heroWrap, pressed && styles.pressed]}
     >
-      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-        <View style={styles.heroIcon} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Ionicons name={icon} size={22} color={onFill} />
+      <LinearGradient
+        colors={glass ? [palette.glassTop, palette.glassBottom] : (colors as unknown as [string, string, ...string[]])}
+        start={{ x: 0, y: 0 }}
+        end={glass ? { x: 0, y: 1 } : { x: 1, y: 1 }}
+        style={[styles.hero, glass ? styles.heroGlass : tone === 'blue' && styles.heroRaised]}
+      >
+        <View style={[styles.heroIcon, glass && styles.heroIconGlass]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Ionicons name={icon} size={22} color={glass ? palette.accentLight : onFill} />
         </View>
         <View style={styles.heroText}>
-          <Text style={styles.heroTitle} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+          <Text style={[styles.heroTitle, { color: fg }]} numberOfLines={2} maxFontSizeMultiplier={1.6}>
             {tr(title)}
           </Text>
           {subtitle ? (
-            <Text style={styles.heroSub} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+            <Text style={[styles.heroSub, glass && { color: palette.textMuted }]} numberOfLines={2} maxFontSizeMultiplier={1.6}>
               {tr(subtitle)}
             </Text>
           ) : null}
         </View>
-        <Ionicons name="chevron-forward" size={20} color={onFill} />
+        <Ionicons name="chevron-forward" size={20} color={glass ? palette.textMuted : onFill} />
       </LinearGradient>
     </Pressable>
   );
@@ -184,6 +192,9 @@ export function ProgressTrack({ steps, label = 'Progress' }: { steps: readonly T
 }
 
 const useStyles = makeStyles((c) => ({
+  heroGlass: { borderWidth: 1, borderColor: c.stroke, boxShadow: shadows.glass },
+  heroRaised: { boxShadow: shadows.raised(glowRgb.primary) },
+  heroIconGlass: { backgroundColor: c.tintAccent, borderWidth: 1, borderColor: c.stroke },
   pressed: { opacity: 0.88 },
   heroWrap: { borderRadius: radii.lg, overflow: 'hidden' },
   hero: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 72, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
