@@ -18,7 +18,7 @@ import { useSharedT } from '@/i18n/sharedStrings';
 import { ActionButton, Card, IconTile, StatusBadge, StatusText } from './kit';
 import { ProgressRing } from './charts';
 
-type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral';
+type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live';
 
 /** A real photograph when the event has one, otherwise an icon tile of the same size (never a blank grey box). */
 export function Thumb({ uri, size = 88 }: { uri?: string; size?: number }) {
@@ -92,8 +92,7 @@ export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts;
   );
 }
 
-// A shoot's success tone is "In progress": happening now, so it takes the live cyan (blue action, cyan live).
-const CHIP_TONE: Record<Tone, ChipTone> = { success: 'live', warning: 'pending', error: 'error', info: 'primary', neutral: 'neutral' };
+const CHIP_TONE: Record<Tone, ChipTone> = { success: 'success', warning: 'pending', error: 'error', info: 'primary', neutral: 'neutral', live: 'live' };
 
 /**
  * The next shoot as Home leads with it (design/home.png): the paper calendar tile (the screen's

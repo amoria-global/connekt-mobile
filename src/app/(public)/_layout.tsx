@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { fonts, useTheme } from '@/theme';
-import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
+import { HELP_ROUTES, HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 
 /** Guest-accessible screens (no login required). */
 export default function PublicLayout() {
@@ -51,17 +51,17 @@ export default function PublicLayout() {
   return (
     <>
       <Stack
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerTintColor: colors.link,
           headerStyle: { backgroundColor: colors.background },
           headerTitleStyle: { color: colors.text, fontFamily: fonts.display },
-          // Help in the header; the Help pages themselves hide it (they are where it leads).
-          headerRight: () => <HeaderHelpButton />,
+          // Help in the header; the Help pages themselves leave it out (they are where it leads).
+          headerRight: HELP_ROUTES.includes(route.name.split('/')[0]) ? undefined : () => <HeaderHelpButton />,
           headerBackButtonDisplayMode: 'minimal',
           headerShadowVisible: false,
           contentStyle: { backgroundColor: colors.background },
           headerLeft: () => renderBackOnly(),
-        }}
+        })}
       >
         <Stack.Screen
           name="explore-events"

@@ -113,6 +113,21 @@ export const shadows = {
  */
 export const paper = { top: '#FFFFFF', bottom: '#DCE3EF', ink: '#0A1220', inkSoft: '#4A5873' } as const;
 
+/**
+ * Text and chrome laid on photographs and video (event cards, players). Media is always dark under
+ * its scrim, so these are fixed light-on-dark in both schemes (see README, fixed-dark surfaces).
+ */
+export const onMedia = {
+  text: '#FFFFFF',
+  soft: 'rgba(255,255,255,0.88)',
+  faint: 'rgba(255,255,255,0.4)',
+  glass: 'rgba(255,255,255,0.16)',
+  /** A dark smoke for a small pill on a bright photo. */
+  smoke: 'rgba(5,10,24,0.55)',
+  /** The deep ground under a card's photograph while it loads. */
+  ground: '#071224',
+} as const;
+
 /** `#RRGGBB` at an opacity, for strokes and washes derived from a palette colour. */
 export const alpha = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1, 7), 16);

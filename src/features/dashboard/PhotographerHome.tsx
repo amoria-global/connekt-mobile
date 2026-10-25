@@ -124,10 +124,10 @@ const shootDate = (e: EventItem): Date | null => {
 };
 
 /** Same buckets and words as the Events calendar, so a shoot is never described two ways. */
-const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' }> = {
+const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' }> = {
   pending: { label: 'Awaiting your reply', tone: 'warning' },
   upcoming: { label: 'Scheduled', tone: 'info' },
-  ongoing: { label: 'In progress', tone: 'success' },
+  ongoing: { label: 'In progress', tone: 'live' },
   completed: { label: 'Completed', tone: 'neutral' },
   cancelled: { label: 'Cancelled', tone: 'error' },
 };

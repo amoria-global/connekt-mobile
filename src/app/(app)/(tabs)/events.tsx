@@ -1,6 +1,8 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
+import { GlassScene } from '@/components/ui/GlassCard';
 import { useRole } from '@/features/auth/role';
 import { PhotographerEventsDashboard } from '@/features/events/PhotographerEventsDashboard';
 import { ClientEventsDashboard } from '@/features/events/ClientEventsDashboard';
@@ -10,6 +12,7 @@ import { useLanguage } from '@/store/language';
 export default function EventsScreen() {
   useLanguage((s) => s.language);
   const topBarHeight = useTopBarHeight();
+  const insets = useSafeAreaInsets();
   const { isPhotographer, isCoordinator } = useRole();
   const params = useLocalSearchParams<{ q?: string; category?: string }>();
   const initialSearch = (params.q || params.category || '').trim();
@@ -23,10 +26,13 @@ export default function EventsScreen() {
      * cards with per-status CTAs (Accept/Deny, Live Stream, Create Album,
      * Accepted chip, package badge) + the accept-booking sheet.
      */
+    // Midnight Glass (design/events.png): the screen's own large title replaces the shared top bar, so the first
+    // screen is the schedule, not chrome. Currency, language and notifications stay on Home's top bar.
     return (
       <Screen padded={false} edges={[]}>
-        <PhotographerEventsDashboard topInset={topBarHeight} />
-        <TopBar />
+        <GlassScene>
+          <PhotographerEventsDashboard topInset={insets.top} />
+        </GlassScene>
       </Screen>
     );
   }

@@ -74,7 +74,7 @@ describe('photographer events workspace', () => {
     expect(flat(r.root)).toContain('Uwase wedding');
   });
 
-  it('puts creation in the search row (no floating button over a card) in calendar modes', async () => {
+  it('puts creation in the title row (no floating button over a card) in calendar modes', async () => {
     const r = await mount();
     const create = byLabel(r, 'Create new event');
     expect(create).toHaveLength(1);
@@ -83,7 +83,7 @@ describe('photographer events workspace', () => {
     expect(byLabel(r, 'Sort events')).toHaveLength(0);
   });
 
-  it('brings back Sort in List mode and still has no floating button (create stays in the search row)', async () => {
+  it('brings back Sort in List mode and still has no floating button (create stays in the title row)', async () => {
     const r = await mount();
     const list = r.root.find((n) => n.props?.accessibilityRole === 'tab' && flat(n) === 'List');
     await act(async () => list.props.onPress());
