@@ -138,6 +138,38 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-25-midnight-glass",
+            "date": "2026-10-25",
+            "title": "A new look: Midnight Glass",
+            "items": [
+              {
+                "icon": "sparkles-outline",
+                "title": "A fresh, darker design across the app",
+                "body": "Every screen now uses frosted glass panels on a deep navy, with clearer headings and colour that means something: blue for actions, pink for what needs your attention, cyan for live and amber for pending."
+              },
+              {
+                "icon": "home-outline",
+                "title": "A clearer Home",
+                "body": "Home leads with your balance, your next shoot on a calendar card and quick tiles for opportunities, collaboration, upcoming shoots and sharing your profile, plus a Withdraw button right on the balance."
+              },
+              {
+                "icon": "calendar-outline",
+                "title": "The whole week, Sunday included",
+                "body": "The Events week view now shows all seven days at once, and an empty day points you to your next shoot with a button to jump to it."
+              },
+              {
+                "icon": "help-circle-outline",
+                "title": "Help in the header, never in the way",
+                "body": "Help now sits at the top of each screen instead of floating over buttons, and create buttons moved into the header too."
+              },
+              {
+                "icon": "sunny-outline",
+                "title": "Light or dark, your choice",
+                "body": "The new look is dark by default. Tap the sun button on your Profile, or use Appearance in Settings, to switch to light."
+              }
+            ]
+          },
+          {
             "id": "2026-10-25-sheets-open-fully",
             "date": "2026-10-25",
             "title": "Forms open fully, and every sheet can be closed",
