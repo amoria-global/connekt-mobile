@@ -989,7 +989,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   activityFilterPillTextActive: {
-    color: '#ffffff',
+    color: c.textOnPrimary,
   },
   activitySearchWrap: {
     flexDirection: 'row',

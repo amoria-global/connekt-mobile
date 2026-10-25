@@ -298,7 +298,7 @@ const OA_I18N = {
 } as const;
 import { buildKinyarwandaDict } from '@/i18n/kinyarwanda';
 import { buildSwahiliDict } from '@/i18n/swahili';
-import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme } from '@/theme';
+import { fontSize, fontWeight, fonts, radii, spacing, makeStyles, useTheme, onFill } from '@/theme';
 
 type Tab = 'review' | 'people' | 'history';
 const GAP = 8;
@@ -577,7 +577,7 @@ export default function OwnerAlbumScreen() {
       <Modal visible={!!preview} animationType="fade" transparent onRequestClose={() => setPreview(null)}>
         <View style={styles.previewBackdrop}>
           <Pressable style={styles.previewClose} onPress={() => setPreview(null)} accessibilityRole="button" accessibilityLabel="Close">
-            <Ionicons name="close" size={28} color="#FFFFFF" />
+            <Ionicons name="close" size={28} color={onFill} />
           </Pressable>
           {(preview?.thumbnailUrl || preview?.imageUrl) ? <Image source={{ uri: preview.thumbnailUrl || preview.imageUrl }} style={styles.previewImage} contentFit="contain" /> : null}
           {preview && (
@@ -633,7 +633,7 @@ function ReviewTile({ s, size, selecting, selected, onPress, onLongPress }: {
       {(s.thumbnailUrl || s.imageUrl) ? <Image source={{ uri: s.thumbnailUrl || s.imageUrl }} style={styles.tileImage} contentFit="cover" transition={120} /> : null}
       {selecting && (
         <View style={[styles.check, selected && styles.checkOn]}>
-          {selected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+          {selected && <Ionicons name="checkmark" size={14} color={onFill} />}
         </View>
       )}
     </Pressable>
@@ -691,7 +691,7 @@ const useStyles = makeStyles((c, e) => ({
   tileStatus: { position: 'absolute', left: 6, bottom: 6 },
   check: {
     position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 11,
-    borderWidth: 2, borderColor: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: c.card, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'center', justifyContent: 'center',
   },
   checkOn: { backgroundColor: c.primary, borderColor: c.primary },
   section: { gap: spacing.md },

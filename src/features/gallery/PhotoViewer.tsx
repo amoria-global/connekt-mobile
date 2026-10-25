@@ -8,7 +8,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, Text, View, useWindowDim
 import { Ionicons } from '@expo/vector-icons';
 import { FallbackImage } from './FallbackImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { makeStyles, radii, spacing } from '@/theme';
+import { makeStyles, radii, spacing, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 export type ViewerPhoto = { id: string; url?: string; fullUrl?: string };
@@ -100,7 +100,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
 
         <View style={[styles.top, { paddingTop: Math.max(insets.top + 6, 18) }]} pointerEvents="box-none">
           <Pressable style={styles.glass} onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close photo viewer">
-            <Ionicons name="close" size={20} color="#fff" />
+            <Ionicons name="close" size={20} color={onFill} />
           </Pressable>
           {open ? (
             <Text style={styles.counter} accessibilityLiveRegion="polite">
@@ -109,11 +109,11 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
           ) : null}
           <View style={styles.topActions}>
             <Pressable style={styles.glass} onPress={() => current && onShare(current)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Share photo">
-              <Ionicons name="share-outline" size={18} color="#fff" />
+              <Ionicons name="share-outline" size={18} color={onFill} />
             </Pressable>
             {onReport ? (
               <Pressable style={styles.glass} onPress={() => current && onReport(current)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Report photo">
-                <Ionicons name="flag-outline" size={18} color="#fff" />
+                <Ionicons name="flag-outline" size={18} color={onFill} />
               </Pressable>
             ) : null}
           </View>
@@ -130,7 +130,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
               accessibilityLabel="Previous photo"
               accessibilityState={{ disabled: index <= 0 }}
             >
-              <Ionicons name="chevron-back" size={20} color="#fff" />
+              <Ionicons name="chevron-back" size={20} color={onFill} />
             </Pressable>
             <Pressable
               style={[styles.save, saveColor ? { backgroundColor: saveColor } : null, saving && styles.navOff]}
@@ -140,10 +140,10 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
               accessibilityLabel="Save to camera roll"
             >
               {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={onFill} />
               ) : (
                 <>
-                  <Ionicons name="download-outline" size={17} color="#fff" />
+                  <Ionicons name="download-outline" size={17} color={onFill} />
                   <Text style={styles.saveText} maxFontSizeMultiplier={1.2}>
                     {tr('Save to Camera Roll')}
                   </Text>
@@ -159,7 +159,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
               accessibilityLabel="Next photo"
               accessibilityState={{ disabled: index >= photos.length - 1 }}
             >
-              <Ionicons name="chevron-forward" size={20} color="#fff" />
+              <Ionicons name="chevron-forward" size={20} color={onFill} />
             </Pressable>
           </View>
         </View>
@@ -181,5 +181,5 @@ const useStyles = makeStyles(() => ({
   nav: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   navOff: { opacity: 0.35 },
   save: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radii.full, backgroundColor: '#F20C8F' },
-  saveText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  saveText: { color: onFill, fontSize: 14, fontWeight: '800' },
 }));

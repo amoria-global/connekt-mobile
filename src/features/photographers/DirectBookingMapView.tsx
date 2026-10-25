@@ -20,7 +20,7 @@ import {
 } from './mapApi';
 import { BookingBottomSheet } from '@/features/booking/BookingBottomSheet';
 import { formatPrice } from '@/utils/format';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 const RADIUS_OPTIONS = [5, 10, 25, 50] as const;
@@ -232,7 +232,7 @@ export function DirectBookingMapView({
       z-index: 9999 !important;
     }
     .pro-pill {
-      background: ${isDark ? '#1E293B' : '#FFFFFF'};
+      background: ${isDark ? '#1E293B' : onFill};
       color: ${isDark ? '#F8FAFC' : '#0F172A'};
       padding: 5px 9px;
       border-radius: 20px;
@@ -560,7 +560,7 @@ export function DirectBookingMapView({
                 style={styles.bookNowBtn}
                 onPress={() => handleOpenBooking(selectedPhotographer)}
               >
-                <Ionicons name="flash" size={14} color="#FFFFFF" />
+                <Ionicons name="flash" size={14} color={onFill} />
                 <Text style={styles.bookNowText}>{tr('Book Now')}</Text>
               </Pressable>
             </View>
@@ -618,7 +618,7 @@ const useStyles = makeStyles((colors) => ({
     borderWidth: 1,
     borderColor: colors.border,
     gap: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.1,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -628,9 +628,9 @@ const useStyles = makeStyles((colors) => ({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.textOnPrimary,
   },
   locationPillText: {
     fontSize: 12,
@@ -646,7 +646,7 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.12,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -681,7 +681,7 @@ const useStyles = makeStyles((colors) => ({
     color: colors.textMuted,
   },
   radiusChipTextActive: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
     fontWeight: fontWeight.bold,
   },
   loaderOverlay: {
@@ -695,7 +695,7 @@ const useStyles = makeStyles((colors) => ({
   loaderText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
   floatingCard: {
     position: 'absolute',
@@ -707,7 +707,7 @@ const useStyles = makeStyles((colors) => ({
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.2,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
@@ -779,7 +779,7 @@ const useStyles = makeStyles((colors) => ({
   ratingText: {
     fontSize: 12,
     fontWeight: fontWeight.bold,
-    color: '#F59E0B',
+    color: colors.pending,
   },
   specChipsRow: {
     flexDirection: 'row',
@@ -845,6 +845,6 @@ const useStyles = makeStyles((colors) => ({
   bookNowText: {
     fontSize: 12,
     fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
 }));

@@ -7,7 +7,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import type { CandidateSummary } from './types';
 import { MODE_META, TierBadge } from './hybridUi';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -61,7 +61,7 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
         ) : null}
         <Pressable onPress={() => onSelect(c)} disabled={selecting} style={[styles.primary, selecting && { opacity: 0.6 }]}
           accessibilityRole="button" accessibilityLabel={tr('Choose')}>
-          {selecting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{tr('Choose')}</Text>}
+          {selecting ? <ActivityIndicator color={onFill} /> : <Text style={styles.primaryText}>{tr('Choose')}</Text>}
         </Pressable>
       </View>
     </View>
@@ -92,7 +92,7 @@ const useStyles = makeStyles((c) => ({
   about: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 17 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   primary: { flex: 1, minHeight: 46, borderRadius: radii.md, backgroundColor: MODE_META.HYBRID.color, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#fff', fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
+  primaryText: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
   secondary: { flex: 1, minHeight: 46, borderRadius: radii.md, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: c.text, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
 }));

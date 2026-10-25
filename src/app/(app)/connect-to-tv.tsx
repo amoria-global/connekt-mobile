@@ -8,7 +8,7 @@ import { Screen } from '@/components/ui/Screen';
 import { confirmTvPairing } from '@/features/tv/api';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill } from '@/theme';
 
 /** The TV's QR encodes {"code":"AB3K9Z"} — fall back to raw text as the code. */
 function extractPairingCode(scanned: string): string {
@@ -104,7 +104,7 @@ export default function ConnectToTvScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('b1_connectTvCloseScannerA11y')}
           >
-            <Ionicons name="close" size={20} color="#fff" />
+            <Ionicons name="close" size={20} color={onFill} />
           </Pressable>
         </View>
       ) : (

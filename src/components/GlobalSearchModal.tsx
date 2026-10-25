@@ -36,7 +36,7 @@ import { isEventLive, type PublicEvent } from '@/features/events/types';
 import { storage } from '@/services/storage';
 import { formatDate } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { GlassSurface, glassTile } from '@/components/ui/GlassCard';
 import { glassField } from '@/components/ui/GlassModal';
@@ -424,7 +424,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                         </Text>
                       </View>
                       <View style={styles.watchLivePill}>
-                        <Ionicons name="play" size={11} color="#FFFFFF" />
+                        <Ionicons name="play" size={11} color={onFill} />
                         <Text style={styles.watchLivePillText}>{tr('Watch')}</Text>
                       </View>
                     </Pressable>
@@ -626,7 +626,7 @@ const useStyles = makeStyles((c, e) => ({
     color: c.textMuted,
   },
   scopeChipTextActive: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   scrollContent: {
@@ -794,12 +794,12 @@ const useStyles = makeStyles((c, e) => ({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#EF4444',
+    backgroundColor: c.error,
   },
   liveHeadTitle: {
     fontFamily: fonts.bold,
     fontSize: 10.5,
-    color: '#EF4444',
+    color: c.error,
     letterSpacing: 0.6,
   },
   liveCard: {
@@ -838,7 +838,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: c.error,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.full,
@@ -846,10 +846,10 @@ const useStyles = makeStyles((c, e) => ({
   watchLivePillText: {
     fontFamily: fonts.bold,
     fontSize: 10.5,
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
   liveTagChip: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: c.errorBg,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.full,
@@ -857,7 +857,7 @@ const useStyles = makeStyles((c, e) => ({
   liveTagChipText: {
     fontFamily: fonts.bold,
     fontSize: 9,
-    color: '#EF4444',
+    color: c.error,
   },
 
   categoryBadge: {

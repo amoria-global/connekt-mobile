@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { CameraErrorKind } from '@/features/streams/CameraPublisher';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { S } from './theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -24,7 +24,7 @@ function Center({
   const { tr } = useSharedT();
   return (
     <View style={styles.center} accessibilityLiveRegion="polite">
-      {spinner ? <ActivityIndicator color="#fff" /> : icon ? <Ionicons name={icon} size={40} color={S.text} /> : null}
+      {spinner ? <ActivityIndicator color={onFill} /> : icon ? <Ionicons name={icon} size={40} color={S.text} /> : null}
       <Text style={styles.title}>{tr(title)}</Text>
       {body ? <Text style={styles.body}>{tr(body)}</Text> : null}
       {children}

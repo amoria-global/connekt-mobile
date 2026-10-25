@@ -38,7 +38,7 @@ import {
   useGlassEdge,
 } from '@/components/ui/GlassCard';
 import { useLanguage } from '@/store/language';
-import { fonts, fontSize, fontWeight, makeStyles, radii, spacing } from '@/theme';
+import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, onFill } from '@/theme';
 
 import { AUTH_BACKDROP } from './backdrop';
 
@@ -113,7 +113,7 @@ export function AuthGlassLayout({
                     accessibilityLabel="Go back"
                   >
                     <GlassLayer fill="rgba(0,0,0,0.22)" />
-                    <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+                    <Ionicons name="chevron-back" size={22} color={onFill} />
                   </Pressable>
                 ) : (
                   <Image
@@ -167,7 +167,7 @@ export function PhotoLanguagePill() {
         accessibilityLabel={`${t('languageSheetTitle')}: ${language.toUpperCase()}`}
       >
         <GlassLayer fill="rgba(0,0,0,0.22)" />
-        <Ionicons name="globe-outline" size={15} color="#FFFFFF" />
+        <Ionicons name="globe-outline" size={15} color={onFill} />
         <Text style={styles.photoPillText}>{language.toUpperCase()}</Text>
         <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.8)" />
       </Pressable>
@@ -207,7 +207,7 @@ const useStyles = makeStyles((c) => ({
     fontSize: 12,
     fontFamily: fonts.bold,
     fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     letterSpacing: 0.6,
   },
 

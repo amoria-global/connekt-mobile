@@ -45,7 +45,7 @@ import {
   scheduleTestLockScreenNotification,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { SkeletonCard } from '@/features/photographer/kit';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
@@ -592,7 +592,7 @@ export default function NotificationsScreen() {
 
                       {/* Small overlapping category badge icon */}
                       <View style={[styles.avatarBadge, { backgroundColor: iconMeta.color }]}>
-                        <Ionicons name={iconMeta.miniIcon} size={10} color="#fff" />
+                        <Ionicons name={iconMeta.miniIcon} size={10} color={onFill} />
                       </View>
                     </View>
 
@@ -737,7 +737,7 @@ const useStyles = makeStyles((c) => ({
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#2563EB',
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
@@ -745,7 +745,7 @@ const useStyles = makeStyles((c) => ({
   unreadCounterText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   headerActionsRight: {
     flexDirection: 'row',
@@ -808,7 +808,7 @@ const useStyles = makeStyles((c) => ({
   filterCountBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#2563EB',
+    color: c.primary,
   },
   filterCountBadgeTextActive: {
     color: c.background,
@@ -918,7 +918,7 @@ const useStyles = makeStyles((c) => ({
   amountPillText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#059669',
+    color: c.success,
   },
 
   // Right Slot: Media Thumbnail or Unread Dot
@@ -938,7 +938,7 @@ const useStyles = makeStyles((c) => ({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#2563EB',
+    backgroundColor: c.primary,
   },
   chevron: {
     opacity: 0.35,

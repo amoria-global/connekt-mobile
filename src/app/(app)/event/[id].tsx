@@ -34,7 +34,7 @@ import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
 import { useCurrency } from '@/store/currency';
@@ -535,8 +535,8 @@ export default function EventDetailScreen() {
             ) : null}
             {ev?.hasLiveStream ? (
               <View style={[styles.heroPill, styles.heroLive]}>
-                <Ionicons name="radio" size={12} color="#fff" />
-                <Text style={[styles.heroPillText, { color: '#fff' }]}>{tr('b3_evdet_live_stream_pill')}</Text>
+                <Ionicons name="radio" size={12} color={onFill} />
+                <Text style={[styles.heroPillText, { color: onFill }]}>{tr('b3_evdet_live_stream_pill')}</Text>
               </View>
             ) : null}
           </View>
@@ -983,11 +983,11 @@ function btnStyle(c: ReturnType<typeof useTheme>['colors'], variant: BtnVariant)
     case 'primary':
       return { bg: c.primary, fg: c.textOnPrimary };
     case 'accent':
-      return { bg: c.accent, fg: '#fff' };
+      return { bg: c.accent, fg: onFill };
     case 'success':
-      return { bg: '#047857', fg: '#fff' };
+      return { bg: '#047857', fg: onFill };
     case 'danger':
-      return { bg: '#B91C1C', fg: '#fff' };
+      return { bg: '#B91C1C', fg: onFill };
     case 'dangerOutline':
       // Quiet until pressed: a destructive action should not be the loudest thing in its card.
       return { bg: 'transparent', fg: c.error, border: c.error };
@@ -1097,7 +1097,7 @@ function ProgressStepper({ currentIndex }: { currentIndex: number }) {
                 ]}
               >
                 {done ? (
-                  <Ionicons name="checkmark" size={14} color="#fff" />
+                  <Ionicons name="checkmark" size={14} color={onFill} />
                 ) : (
                   <Text style={styles.stepNum}>{i + 1}</Text>
                 )}
@@ -1145,7 +1145,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 6,
     borderRadius: radii.full,
   },
-  heroLive: { backgroundColor: '#8B5CF6' },
+  heroLive: { backgroundColor: c.primaryLight },
   heroPillText: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.4 },
 
   desc: { fontFamily: fonts.regular, fontSize: 15, color: c.textSoft, lineHeight: 22 },
@@ -1220,7 +1220,7 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  personInitial: { fontFamily: fonts.bold, fontSize: 18, color: '#fff' },
+  personInitial: { fontFamily: fonts.bold, fontSize: 18, color: c.textOnPrimary },
   personName: { fontFamily: fonts.bold, fontSize: 16, color: c.text, marginBottom: 4 },
   messagePersonBtn: {
     flexDirection: 'row',
@@ -1265,11 +1265,11 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepCircleDone: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  stepCircleDone: { backgroundColor: c.success, borderColor: c.success },
   stepCircleCurrent: { borderColor: c.primary },
   stepNum: { fontFamily: fonts.bold, fontSize: 13, color: c.textMuted },
   stepLine: { flex: 1, height: 2, backgroundColor: c.border, marginHorizontal: 2 },
-  stepLineDone: { backgroundColor: '#10B981' },
+  stepLineDone: { backgroundColor: c.success },
   stepLabel: { fontFamily: fonts.regular, fontSize: 11, color: c.textMuted, marginTop: 6 },
   stepLabelDone: { fontFamily: fonts.bold, color: c.text },
 

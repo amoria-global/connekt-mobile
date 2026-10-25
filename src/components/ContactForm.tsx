@@ -180,7 +180,7 @@ const useStyles = makeStyles((c) => ({
     letterSpacing: 1.5,
     marginBottom: spacing.sm,
   },
-  title: { fontSize: 32, fontWeight: '800', color: '#fff', marginBottom: spacing.sm, textAlign: 'center' },
+  title: { fontSize: 32, fontWeight: '800', color: c.textOnPrimary, marginBottom: spacing.sm, textAlign: 'center' },
   subtitle: { fontSize: fontSize.md, color: 'rgba(255,255,255,0.9)', textAlign: 'center', lineHeight: 24 },
 
   card: {

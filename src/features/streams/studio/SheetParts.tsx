@@ -2,7 +2,7 @@ import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { S } from './theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -61,7 +61,7 @@ function SheetRowBase({ icon, label, value, onPress, toggle, destructive, disabl
           onValueChange={toggle.onChange}
           disabled={disabled}
           trackColor={{ false: 'rgba(255,255,255,0.2)', true: S.go }}
-          thumbColor="#fff"
+          thumbColor={onFill}
           accessibilityLabel={label}
         />
       ) : onPress ? (

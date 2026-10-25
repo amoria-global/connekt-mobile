@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { LiveDot } from '@/components/ui/live';
 import { V } from '../viewerTheme';
 import { formatCount } from '../utils';
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   off: { backgroundColor: 'rgba(255,255,255,0.18)' },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
   dotOff: { opacity: 0.6 },
-  text: { fontFamily: fonts.bold, fontSize: 12, color: '#fff', letterSpacing: 0.6 },
+  text: { fontFamily: fonts.bold, fontSize: 12, color: onFill, letterSpacing: 0.6 },
   count: {
     flexDirection: 'row',
     alignItems: 'center',

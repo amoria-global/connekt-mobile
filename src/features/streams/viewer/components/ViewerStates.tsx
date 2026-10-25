@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { V, VIDEO_ASPECT } from '../viewerTheme';
 
 /** Static skeleton: video, title, creator, chat. No animation loop (cheap on low-end devices). */
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
+  primaryText: { fontFamily: fonts.bold, fontSize: 15, color: onFill },
   ghost: { minHeight: V.hit, justifyContent: 'center', paddingHorizontal: 16 },
   ghostText: { fontFamily: fonts.bold, fontSize: 15, color: V.textSoft },
 });

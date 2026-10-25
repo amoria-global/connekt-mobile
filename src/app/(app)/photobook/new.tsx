@@ -33,7 +33,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { useLanguage, type LanguageCode } from '@/store/language';
 import type { EventItem } from '@/features/events/types';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
 
@@ -396,7 +396,7 @@ export default function NewPhotobookScreen() {
                       <Ionicons
                         name={l.icon}
                         size={18}
-                        color={active ? '#fff' : colors.textMuted}
+                        color={active ? onFill : colors.textMuted}
                       />
                     </View>
                     <View style={{ flex: 1, gap: 2 }}>
@@ -406,7 +406,7 @@ export default function NewPhotobookScreen() {
                       <Text style={styles.layoutDesc}>{l.description}</Text>
                     </View>
                     <View style={[styles.radio, active && styles.radioActive]}>
-                      {active ? <Ionicons name="checkmark" size={11} color="#fff" /> : null}
+                      {active ? <Ionicons name="checkmark" size={11} color={onFill} /> : null}
                     </View>
                   </Pressable>
                 );
@@ -466,7 +466,7 @@ export default function NewPhotobookScreen() {
               disabled={!formOk || submitting}
             >
               {submitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={onFill} />
               ) : (
                 <Text style={styles.createText}>{tr.createBtn}</Text>
               )}
@@ -779,7 +779,7 @@ const useStyles = makeStyles((c) => ({
   cancel: { backgroundColor: c.surfaceMuted },
   cancelText: { fontFamily: fonts.bold, fontSize: 14, color: c.textSoft },
   create: { backgroundColor: c.primary },
-  createText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
+  createText: { fontFamily: fonts.bold, fontSize: 14, color: c.textOnPrimary },
   btnDisabled: { opacity: 0.6 },
 
   // Modal

@@ -16,7 +16,7 @@ import { getCoordinatorPendingPayments } from '@/features/analytics/api';
 import { listCoordinatorEvents } from '@/features/events/api';
 import { Chip, EmptyNote, ErrorNotice, SegmentedTabs, SkeletonCard } from '@/features/photographer/kit';
 import { monthGrid, parseDayKey, shiftDays, shiftMonth, weekOf } from '@/features/photographer/schedule';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import {
   CALENDAR_FILTERS,
   agendaFrom,
@@ -120,7 +120,7 @@ export function CoordinatorCalendar() {
             <Text style={styles.todayText}>Today</Text>
           </Pressable>
           <Pressable onPress={() => open('/event/new')} accessibilityRole="button" accessibilityLabel="New event" style={styles.plusBtn}>
-            <Ionicons name="add" size={24} color="#fff" />
+            <Ionicons name="add" size={24} color={onFill} />
           </Pressable>
         </View>
 
@@ -323,7 +323,7 @@ const useStyles = makeStyles((c) => ({
   weekDay: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radii.md, gap: 2 },
   dow: { color: c.textMuted, fontSize: 12.5, fontWeight: '600' },
   dayNum: { color: c.text, fontSize: 18, fontWeight: '800' },
-  onText: { color: '#fff' },
+  onText: { color: c.textOnPrimary },
   dots: { flexDirection: 'row', gap: 3, height: 6, alignItems: 'center' },
   dot: { width: 5, height: 5, borderRadius: 3 },
   month: { paddingHorizontal: spacing.md, marginTop: spacing.md, gap: 2 },

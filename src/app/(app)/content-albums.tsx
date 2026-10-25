@@ -36,7 +36,7 @@ import {
 } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 
 type Filter = 'ALL' | ContentApprovalStatus;
 
@@ -286,7 +286,7 @@ export default function ContentAlbumsScreen() {
                 {/* Bottom Overlay: Photo count */}
                 <View style={styles.cardBottom}>
                   <View style={styles.photoCountChip}>
-                    <Ionicons name="images" size={11} color="#fff" />
+                    <Ionicons name="images" size={11} color={onFill} />
                     <Text style={styles.photoCountText}>
                       {s.photosCount.replace('{count}', String(typeof item.photoCount === 'number' ? item.photoCount : 0))}
                     </Text>
@@ -337,7 +337,7 @@ export default function ContentAlbumsScreen() {
         accessibilityRole="button"
         accessibilityLabel={s.newBtnA11y}
       >
-        <Ionicons name="add" size={20} color="#fff" />
+        <Ionicons name="add" size={20} color={onFill} />
         <Text style={styles.fabText}>{s.newBtn}</Text>
       </Pressable>
     </Screen>
@@ -415,7 +415,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textSoft,
   },
   filterPillTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   filterBadge: {
     paddingHorizontal: 6,
@@ -432,7 +432,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   filterBadgeTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 
   // Search Bar
@@ -519,7 +519,7 @@ const useStyles = makeStyles((c) => ({
   photoCountText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   cardBody: {
     padding: spacing.sm,
@@ -548,7 +548,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: radii.full,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOpacity: 0.22,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -558,7 +558,7 @@ const useStyles = makeStyles((c) => ({
   fabText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.2,
   },
 
@@ -620,6 +620,6 @@ const useStyles = makeStyles((c) => ({
   emptyBtnText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 }));

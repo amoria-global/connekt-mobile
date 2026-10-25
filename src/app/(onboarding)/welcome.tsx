@@ -21,7 +21,7 @@ import { PhotoLanguagePill } from '@/features/auth/AuthGlassLayout';
 import { useLanguage } from '@/store/language';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useOnboarding } from '@/store/onboarding';
-import { fonts, spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { fonts, spacing, radii, fontSize, fontWeight, makeStyles, onFill } from '@/theme';
 
 type Slide = {
   key: string;
@@ -320,7 +320,7 @@ function Dash({ active }: { active: boolean }) {
  * the scrim rather than the app palette.
  */
 const SCRIM_NAVY = '#062B63';
-const ON_MEDIA = '#FFFFFF';     // CTA surface, always over imagery
+const ON_MEDIA = onFill;     // CTA surface, always over imagery
 const ON_MEDIA_INK = '#083A85'; // brand navy, reads on the white CTA
 
 const useStyles = makeStyles((c, e) => ({

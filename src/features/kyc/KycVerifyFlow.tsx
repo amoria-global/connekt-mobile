@@ -36,7 +36,7 @@ import {
   type PickedImage,
 } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { LiveSelfieVerification } from './LiveSelfieVerification';
@@ -1081,7 +1081,7 @@ export function KycStepper({
                 ]}
               >
                 {isPassed ? (
-                  <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                  <Ionicons name="checkmark" size={15} color={onFill} />
                 ) : (
                   <Text
                     style={[
@@ -1397,7 +1397,7 @@ const useStyles = makeStyles((c, e) => ({
     right: 0,
   },
   connectorPassed: {
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
   },
   connectorRemaining: {
     backgroundColor: c.borderSoft,
@@ -1411,7 +1411,7 @@ const useStyles = makeStyles((c, e) => ({
     zIndex: 2,
   },
   stepNodePassed: {
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
   },
   stepNodeActive: {
     backgroundColor: c.primary,
@@ -1426,7 +1426,7 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: fontWeight.bold,
   },
   stepNodeTextActive: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
   stepNodeTextRemaining: {
     color: c.textMuted,
@@ -1438,7 +1438,7 @@ const useStyles = makeStyles((c, e) => ({
     textAlign: 'center',
   },
   stepLabelPassed: {
-    color: '#10B981',
+    color: c.success,
     fontWeight: fontWeight.semibold,
   },
   stepLabelActive: {
@@ -1538,7 +1538,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: c.errorBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radii.full,
@@ -1556,9 +1556,9 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.xs,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: c.errorBg,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: c.errorBg,
     borderRadius: radii.md,
     padding: spacing.sm,
     marginTop: spacing.xs,

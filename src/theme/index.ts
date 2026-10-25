@@ -97,6 +97,9 @@ export { shadows } from './shadows';
  */
 export const paper = { top: '#FFFFFF', bottom: '#DCE3EF', ink: '#0A1220', inkSoft: '#4A5873' } as const;
 
+/** Text and icons on a filled colour (a primary, accent, success or error fill): white in both schemes. */
+export const onFill = '#FFFFFF';
+
 /**
  * Text and chrome laid on photographs and video (event cards, players). Media is always dark under
  * its scrim, so these are fixed light-on-dark in both schemes (see README, fixed-dark surfaces).

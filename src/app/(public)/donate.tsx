@@ -52,7 +52,7 @@ import {
 } from '@/features/payments/formatPhone';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';
@@ -804,7 +804,7 @@ export default function PublicDonateScreen() {
         {stage === 'success' && (
           <View style={styles.successCard}>
             <View style={styles.heartSuccessCircle}>
-              <Ionicons name="heart" size={36} color="#fff" />
+              <Ionicons name="heart" size={36} color={onFill} />
             </View>
             <Text style={styles.successTitle}>{tr('b4_thankYouTitle')}</Text>
             <Text style={styles.successSub}>
@@ -1145,7 +1145,7 @@ const useStyles = makeStyles((c, e) => ({
     color: c.text,
   },
   amountChipTextActive: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
 
   // Payment
@@ -1398,7 +1398,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#E11D48',
+    backgroundColor: c.error,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: spacing.sm,

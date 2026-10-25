@@ -76,7 +76,7 @@ export function Stat({ value, label, accent }: { value: number; label: string; a
 const useStyles = makeStyles((c) => ({
   fill: { width: '100%', height: '100%' },
   center: { alignItems: 'center', justifyContent: 'center' },
-  initial: { color: '#FFFFFF', fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, fontFamily: fonts.bold },
+  initial: { color: c.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, fontFamily: fonts.bold },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
     paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radii.full,

@@ -47,7 +47,7 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/store/language';
 import { tp } from '@/i18n/plural';
@@ -133,13 +133,13 @@ function PhotoCell({
       {/* Top-Left: Status / Price badge */}
       {owned && (
         <View style={styles.cellOwnedBadge}>
-          <Ionicons name="checkmark-circle" size={12} color="#FFF" />
+          <Ionicons name="checkmark-circle" size={12} color={onFill} />
           <Text style={styles.cellOwnedText}>{t('fmp_owned')}</Text>
         </View>
       )}
       {locked && !owned && (
         <View style={styles.cellPriceBadge}>
-          <Ionicons name="lock-closed" size={11} color="#FFF" />
+          <Ionicons name="lock-closed" size={11} color={onFill} />
           {price != null && price > 0 && (
             <Text style={styles.cellPriceText}>{formatPrice(price, currency)}</Text>
           )}
@@ -169,7 +169,7 @@ function PhotoCell({
           accessibilityLabel={selected ? t('fmp_deselectPhoto') : t('fmp_selectPhoto')}
         >
           {selected ? (
-            <Ionicons name="checkmark" size={14} color="#FFF" />
+            <Ionicons name="checkmark" size={14} color={onFill} />
           ) : null}
         </Pressable>
       )}
@@ -185,7 +185,7 @@ function PhotoCell({
           hitSlop={8}
           accessibilityLabel={t('fmp_previewFullScreen')}
         >
-          <Ionicons name="expand-outline" size={13} color="#FFF" />
+          <Ionicons name="expand-outline" size={13} color={onFill} />
         </Pressable>
       )}
 
@@ -1365,8 +1365,8 @@ export function FindMyPhotos() {
               disabled={albumFaceScanning}
             >
               {albumFaceScanning
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Ionicons name="person-circle-outline" size={15} color="#fff" />}
+                ? <ActivityIndicator size="small" color={onFill} />
+                : <Ionicons name="person-circle-outline" size={15} color={onFill} />}
               <Text style={styles.scanInAlbumBtnText}>{t('fmp_albumFaceScan')}</Text>
             </Pressable>
             {albumFilteredIds !== null && (
@@ -1396,9 +1396,9 @@ export function FindMyPhotos() {
                 disabled={downloadingBatch}
               >
                 {downloadingBatch ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={onFill} />
                 ) : (
-                  <Ionicons name="cloud-download-outline" size={14} color="#FFF" />
+                  <Ionicons name="cloud-download-outline" size={14} color={onFill} />
                 )}
                 <Text style={styles.batchDownloadBtnText}>
                   {downloadingBatch
@@ -1524,9 +1524,9 @@ export function FindMyPhotos() {
                   disabled={downloadingBatch}
                 >
                   {downloadingBatch ? (
-                    <ActivityIndicator size="small" color="#FFF" />
+                    <ActivityIndicator size="small" color={onFill} />
                   ) : (
-                    <Ionicons name="cloud-download-outline" size={16} color="#FFF" />
+                    <Ionicons name="cloud-download-outline" size={16} color={onFill} />
                   )}
                   <Text style={styles.actionBarBtnText}>
                     {downloadingBatch ? (batchProgress || t('fmp_saving')) : t('fmp_downloadN', { count: selectedPurchased.length })}
@@ -1538,7 +1538,7 @@ export function FindMyPhotos() {
                   style={[styles.actionBarBtn, { backgroundColor: colors.primary }]}
                   onPress={handleAlbumBulkBuy}
                 >
-                  <Ionicons name="card-outline" size={16} color="#FFF" />
+                  <Ionicons name="card-outline" size={16} color={onFill} />
                   <Text style={styles.actionBarBtnText}>
                     {t('fmp_buyN', { count: selectedUnpurchased.length })} · {albumCurrencyAbbr}{' '}
                     {selectedUnpurchased.reduce((s, p) => s + (p.price ?? 0), 0)}
@@ -1597,7 +1597,7 @@ export function FindMyPhotos() {
         disabled={freeLoading || !freeEmail.trim()}
       >
         {freeLoading
-          ? <ActivityIndicator size="small" color="#fff" />
+          ? <ActivityIndicator size="small" color={onFill} />
           : <Text style={styles.accessBtnText}>{t('fmp_requestAccess')}</Text>}
       </Pressable>
 
@@ -1630,7 +1630,7 @@ export function FindMyPhotos() {
         disabled={freeLoading || freeOtp.length < 6}
       >
         {freeLoading
-          ? <ActivityIndicator size="small" color="#fff" />
+          ? <ActivityIndicator size="small" color={onFill} />
           : <Text style={styles.accessBtnText}>{t('fmp_verify')}</Text>}
       </Pressable>
 
@@ -1681,7 +1681,7 @@ export function FindMyPhotos() {
           <Text style={styles.albumTitle}>{freeTitle}</Text>
           {freePhotographer ? (
             <Text style={styles.albumSub}>
-              {t('fmp_by')} <Text style={{ color: '#fff', fontWeight: '700' }}>{freePhotographer}</Text>
+              {t('fmp_by')} <Text style={{ color: onFill, fontWeight: '700' }}>{freePhotographer}</Text>
             </Text>
           ) : null}
 
@@ -1704,7 +1704,7 @@ export function FindMyPhotos() {
               style={styles.selectAllBtn}
               onPress={() => setSelectedFreeIds(new Set(freePhotos.map((p) => p.id)))}
             >
-              <Ionicons name="checkmark-done-outline" size={14} color="#fff" />
+              <Ionicons name="checkmark-done-outline" size={14} color={onFill} />
               <Text style={styles.selectAllBtnText}>{t('fmp_selectAll')}</Text>
             </Pressable>
           )}
@@ -1826,8 +1826,8 @@ export function FindMyPhotos() {
               disabled={freeDownloading}
             >
               {freeDownloading
-                ? <ActivityIndicator size="small" color="#FFF" />
-                : <Ionicons name={showPurchase ? 'card-outline' : 'cloud-download-outline'} size={16} color="#FFF" />}
+                ? <ActivityIndicator size="small" color={onFill} />
+                : <Ionicons name={showPurchase ? 'card-outline' : 'cloud-download-outline'} size={16} color={onFill} />}
               <Text style={styles.actionBarBtnText}>
                 {showPurchase
                   ? t('fmp_purchaseExtras', { price: formatPrice(extrasTotal, freeAlbumCurrencyAbbr || undefined), count: info.overflow })
@@ -1923,9 +1923,9 @@ export function FindMyPhotos() {
               accessibilityRole="button"
             >
               {downloadingBatch ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                <ActivityIndicator size="small" color={onFill} />
               ) : (
-                <Ionicons name="cloud-download-outline" size={15} color="#FFF" />
+                <Ionicons name="cloud-download-outline" size={15} color={onFill} />
               )}
               <Text style={[styles.chipText, styles.chipOwnedText]}>
                 {downloadingBatch ? (batchProgress || t('fmp_downloading')) : t('fmp_downloadOwnedN', { count: allPurchased.length })}
@@ -2082,9 +2082,9 @@ export function FindMyPhotos() {
                   disabled={downloadingBatch}
                 >
                   {downloadingBatch ? (
-                    <ActivityIndicator size="small" color="#FFF" />
+                    <ActivityIndicator size="small" color={onFill} />
                   ) : (
-                    <Ionicons name="cloud-download-outline" size={16} color="#FFF" />
+                    <Ionicons name="cloud-download-outline" size={16} color={onFill} />
                   )}
                   <Text style={styles.actionBarBtnText}>
                     {downloadingBatch ? (batchProgress || t('fmp_saving')) : t('fmp_downloadN', { count: selectedPurchased.length })}
@@ -2096,7 +2096,7 @@ export function FindMyPhotos() {
                   style={[styles.actionBarBtn, { backgroundColor: colors.primary }]}
                   onPress={handleResultBulkBuy}
                 >
-                  <Ionicons name="card-outline" size={16} color="#FFF" />
+                  <Ionicons name="card-outline" size={16} color={onFill} />
                   <Text style={styles.actionBarBtnText}>
                     {t('fmp_buyN', { count: selectedUnpurchased.length })}
                     {selectedUnpurchasedTotal > 0
@@ -2170,7 +2170,7 @@ export function FindMyPhotos() {
               accessibilityLabel={t('fmp_goBack')}
             >
               <GlassLayer fill="rgba(0,0,0,0.22)" />
-              <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={22} color={onFill} />
             </Pressable>
             <PhotoLanguagePill />
           </View>
@@ -2229,7 +2229,7 @@ export function FindMyPhotos() {
           ]}
           accessibilityLiveRegion="polite"
         >
-          <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+          <ActivityIndicator size="small" color={onFill} style={{ marginRight: 8 }} />
           <Text style={styles.floatingProgressText}>{batchProgress}</Text>
         </View>
       ) : null}
@@ -2407,7 +2407,7 @@ export function FindMyPhotos() {
                 accessibilityLabel={t('fmp_reportPhoto')}
                 hitSlop={8}
               >
-                <Ionicons name="flag-outline" size={20} color="#FFF" />
+                <Ionicons name="flag-outline" size={20} color={onFill} />
               </Pressable>
               <Pressable
                 onPress={() => setPreviewPhoto(null)}
@@ -2416,7 +2416,7 @@ export function FindMyPhotos() {
                 accessibilityLabel={t('fmp_closePreview')}
                 hitSlop={8}
               >
-                <Ionicons name="close" size={26} color="#FFF" />
+                <Ionicons name="close" size={26} color={onFill} />
               </Pressable>
             </View>
 
@@ -2474,7 +2474,7 @@ export function FindMyPhotos() {
                   </Text>
                   <Text style={styles.lightboxPhotographer}>
                     {t('fmp_by')}{' '}
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>
+                    <Text style={{ color: onFill, fontWeight: '700' }}>
                       {(previewPhoto as FoundPhoto).photographerName ||
                         albumPhotographerName ||
                         t('fmp_photographer')}
@@ -2492,7 +2492,7 @@ export function FindMyPhotos() {
                         handleDownloadPurchased(target);
                       }}
                     >
-                      <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
+                      <Ionicons name="cloud-download-outline" size={18} color={onFill} />
                       <Text style={styles.lbBtnText}>{t('fmp_downloadHiRes')}</Text>
                     </Pressable>
                   ) : (previewPhoto.price ?? 0) === 0 ? (
@@ -2507,7 +2507,7 @@ export function FindMyPhotos() {
                         );
                       }}
                     >
-                      <Ionicons name="cloud-download-outline" size={18} color="#FFF" />
+                      <Ionicons name="cloud-download-outline" size={18} color={onFill} />
                       <Text style={styles.lbBtnText}>{t('fmp_downloadFree')}</Text>
                     </Pressable>
                   ) : (
@@ -2537,7 +2537,7 @@ export function FindMyPhotos() {
                               : 'add-circle-outline'
                           }
                           size={18}
-                          color="#FFF"
+                          color={onFill}
                         />
                         <Text style={styles.lbBtnText}>
                           {selectedAlbumIds.has(previewPhoto.id as string) ||
@@ -2559,7 +2559,7 @@ export function FindMyPhotos() {
                             );
                           }}
                         >
-                          <Ionicons name="card-outline" size={18} color="#FFF" />
+                          <Ionicons name="card-outline" size={18} color={onFill} />
                           <Text style={styles.lbBtnText}>
                             {t('fmp_buy')} ·{' '}
                             {formatPrice(
@@ -2690,7 +2690,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   badgeText: { color: c.accent, fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 1.2 },
   // On the video, so light in both schemes.
-  heroTitle: { fontSize: 32, lineHeight: 38, fontWeight: fontWeight.extrabold, color: '#FFFFFF', letterSpacing: -0.6 },
+  heroTitle: { fontSize: 32, lineHeight: 38, fontWeight: fontWeight.extrabold, color: c.textOnPrimary, letterSpacing: -0.6 },
   lead: { fontSize: fontSize.md, color: 'rgba(255,255,255,0.85)', lineHeight: 22 },
 
   // ── Entry screen: video band + glass sheet ────────────────────────────
@@ -2817,7 +2817,7 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: 'rgba(16,185,129,0.3)',
     marginBottom: 10,
   },
-  selfieReadyText: { color: '#10B981', fontSize: 12.5, fontWeight: fontWeight.bold },
+  selfieReadyText: { color: c.success, fontSize: 12.5, fontWeight: fontWeight.bold },
   changeSelfieBtn: {
     paddingHorizontal: 16, paddingVertical: 8,
     borderRadius: radii.full, borderWidth: 1,
@@ -2892,7 +2892,7 @@ const useStyles = makeStyles((c, e) => ({
   inviteFooterHint: { marginTop: spacing.md, alignItems: 'center', gap: 8 },
   inviteFooterText: { color: c.textMuted, fontSize: 11, textAlign: 'center', lineHeight: 16 },
 
-  error: { color: '#EF4444', textAlign: 'center', marginTop: spacing.xs, fontSize: 12 },
+  error: { color: c.error, textAlign: 'center', marginTop: spacing.xs, fontSize: 12 },
 
 
   inviteHeading: { fontSize: 16, fontWeight: fontWeight.bold, color: c.text, marginBottom: 4 },
@@ -2995,7 +2995,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   selectCheckboxActive: {
     backgroundColor: c.primary,
-    borderColor: '#FFF',
+    borderColor: c.textOnPrimary,
   },
   cellOwnedBadge: {
     position: 'absolute',
@@ -3011,7 +3011,7 @@ const useStyles = makeStyles((c, e) => ({
     zIndex: 5,
   },
   cellOwnedText: {
-    color: '#FFF',
+    color: c.textOnPrimary,
     fontSize: 9.5,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
@@ -3030,7 +3030,7 @@ const useStyles = makeStyles((c, e) => ({
     zIndex: 5,
   },
   cellPriceText: {
-    color: '#FFF',
+    color: c.textOnPrimary,
     fontSize: 11,
     fontWeight: fontWeight.bold,
   },
@@ -3045,7 +3045,7 @@ const useStyles = makeStyles((c, e) => ({
     zIndex: 5,
   },
   cellFreeText: {
-    color: '#FFF',
+    color: c.textOnPrimary,
     fontSize: 9.5,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
@@ -3066,7 +3066,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 999,
     gap: 4,
   },
-  lockPrice: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+  lockPrice: { color: c.textOnPrimary, fontSize: 11, fontWeight: '700' },
   selectedOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: c.tint,
@@ -3082,7 +3082,7 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: 'rgba(0,0,0,0.6)',
     padding: spacing.sm,
   },
-  captionText: { color: '#FFF', fontSize: 11, fontWeight: '500' },
+  captionText: { color: c.textOnPrimary, fontSize: 11, fontWeight: '500' },
 
   // Action bar
   // ── Face results header ────────────────────────────────────────────
@@ -3105,8 +3105,8 @@ const useStyles = makeStyles((c, e) => ({
   },
   chipPressed: { opacity: 0.75 },
   chipText: { color: c.text, fontSize: 13, fontWeight: fontWeight.semibold },
-  chipOwned: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  chipOwnedText: { color: '#FFFFFF' },
+  chipOwned: { backgroundColor: c.success, borderColor: c.success },
+  chipOwnedText: { color: c.textOnPrimary },
 
   // A floating frosted card; the GlassSurface inside carries the material.
   actionBar: {
@@ -3132,7 +3132,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
     ...e(1),
   },
-  actionBarBtnText: { color: '#FFF', fontSize: 14, fontWeight: fontWeight.bold },
+  actionBarBtnText: { color: c.textOnPrimary, fontSize: 14, fontWeight: fontWeight.bold },
 
   ghostLink: { color: c.textMuted, fontSize: 14, fontWeight: '500' },
 
@@ -3143,7 +3143,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingHorizontal: 14, paddingVertical: 10,
     borderRadius: radii.full, backgroundColor: c.primary,
   },
-  scanInAlbumBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  scanInAlbumBtnText: { color: c.textOnPrimary, fontSize: 13, fontWeight: '700' },
   showAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 10,
@@ -3208,7 +3208,7 @@ const useStyles = makeStyles((c, e) => ({
     fontWeight: '700',
     textAlign: 'center',
   },
-  otpBoxError: { borderColor: '#EF4444' },
+  otpBoxError: { borderColor: c.error },
 
   // Modals
   modalOverlay: {
@@ -3241,7 +3241,7 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: 15,
     marginBottom: spacing.sm,
   },
-  errorText: { color: '#EF4444', fontSize: 13, marginBottom: spacing.sm },
+  errorText: { color: c.error, fontSize: 13, marginBottom: spacing.sm },
 
   // Clean customized modal
   customModalCard: {
@@ -3341,14 +3341,14 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: radii.full,
     ...e(1),
   },
   batchDownloadBtnText: {
-    color: '#FFF',
+    color: c.textOnPrimary,
     fontSize: 13,
     fontWeight: fontWeight.bold,
   },
@@ -3509,7 +3509,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 999,
   },
   lightboxOwnedText: {
-    color: '#FFF',
+    color: c.textOnPrimary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
@@ -3524,7 +3524,7 @@ const useStyles = makeStyles((c, e) => ({
     marginBottom: spacing.sm,
   },
   lightboxTitle: {
-    color: '#FFF',
+    color: c.textOnPrimary,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -3546,7 +3546,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
   },
   lbBtnOwned: {
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
   },
   lbBtnPrimary: {
     backgroundColor: c.primary,
@@ -3561,7 +3561,7 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: c.primary,
   },
   lbBtnText: {
-    color: '#FFF',
+    color: c.textOnPrimary,
     fontSize: 14,
     fontWeight: fontWeight.bold,
   },
@@ -3579,14 +3579,14 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   floatingProgressText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 13,
     fontWeight: fontWeight.semibold,
   },

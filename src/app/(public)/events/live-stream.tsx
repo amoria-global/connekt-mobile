@@ -124,7 +124,7 @@ import { registerAccountViewer } from '@/features/streams/accountViewer';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette } from '@/theme';
+import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette, onFill } from '@/theme';
 import { EndedEventCard } from '@/features/streams/viewer/components/EndedEventCard';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { GlassLayer, glassClear, glassTile } from '@/components/ui/GlassCard';
@@ -177,7 +177,7 @@ function WelcomeSplash({ eventTitle, onDismiss }: { eventTitle?: string; onDismi
       <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
       <View style={splashStyles.content} pointerEvents="none">
         <View style={splashStyles.iconWrap}>
-          <Ionicons name="play-circle" size={40} color="#fff" />
+          <Ionicons name="play-circle" size={40} color={onFill} />
         </View>
         <Text style={splashStyles.headline}>{tr('b4_welcomeYouAreIn')}</Text>
         {eventTitle ? (
@@ -609,9 +609,9 @@ function LiveChatPanel({
                 disabled={sending || !draft.trim()}
               >
                 {sending ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={onFill} size="small" />
                 ) : (
-                  <Ionicons name="send" size={15} color="#fff" />
+                  <Ionicons name="send" size={15} color={onFill} />
                 )}
               </Pressable>
             </View>
@@ -668,13 +668,13 @@ function LiveChatPanel({
         <Pressable style={[chatFx.ctrlBtn, glassClear]} onPress={onToggleFullscreen} hitSlop={8}
           accessibilityLabel={tr('b4_exitFullScreen')}>
           <GlassLayer />
-          <Ionicons name="contract" size={16} color="#fff" />
+          <Ionicons name="contract" size={16} color={onFill} />
         </Pressable>
         {onToggleMute ? (
           <Pressable style={[chatFx.ctrlBtn, glassClear]} onPress={onToggleMute} hitSlop={8}
             accessibilityLabel={isMuted ? 'Unmute' : 'Mute'}>
             <GlassLayer />
-            <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={16} color="#fff" />
+            <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={16} color={onFill} />
           </Pressable>
         ) : null}
         <Pressable
@@ -684,7 +684,7 @@ function LiveChatPanel({
           accessibilityLabel={reactOpen ? 'Hide reactions' : 'Show reactions'}
         >
           <GlassLayer fill={reactOpen ? CTRL_ACTIVE_FILL : undefined} />
-          <Ionicons name="happy-outline" size={16} color="#fff" />
+          <Ionicons name="happy-outline" size={16} color={onFill} />
         </Pressable>
         <Pressable
           style={[chatFx.ctrlBtn, chatOpen && chatFx.ctrlBtnActive, glassClear]}
@@ -693,19 +693,19 @@ function LiveChatPanel({
           accessibilityLabel={chatOpen ? 'Hide comments' : 'Show comments'}
         >
           <GlassLayer fill={chatOpen ? CTRL_ACTIVE_FILL : undefined} />
-          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+          <Ionicons name="chatbubble-ellipses-outline" size={16} color={onFill} />
         </Pressable>
         {showGift ? (
           <Pressable style={[chatFx.ctrlBtn, glassClear]} onPress={onGift} hitSlop={8}
             accessibilityLabel={tr('b4_sendAGift')}>
             <GlassLayer />
-            <Ionicons name="gift-outline" size={16} color="#fff" />
+            <Ionicons name="gift-outline" size={16} color={onFill} />
           </Pressable>
         ) : null}
         <Pressable style={[chatFx.ctrlBtn, glassClear]} onPress={onDonate} hitSlop={8}
           accessibilityLabel="Donate">
           <GlassLayer />
-          <Ionicons name="heart-outline" size={16} color="#fff" />
+          <Ionicons name="heart-outline" size={16} color={onFill} />
         </Pressable>
       </View>
 
@@ -755,9 +755,9 @@ function LiveChatPanel({
             hitSlop={6}
           >
             {videoSending ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={onFill} />
             ) : (
-              <Ionicons name="videocam-outline" size={18} color="#fff" />
+              <Ionicons name="videocam-outline" size={18} color={onFill} />
             )}
           </Pressable>
           <TextInput
@@ -778,7 +778,7 @@ function LiveChatPanel({
             onPress={onSend}
             disabled={sending || !draft.trim()}
           >
-            {sending ? <ActivityIndicator color="#fff" /> : <Ionicons name="send" size={16} color="#fff" />}
+            {sending ? <ActivityIndicator color={onFill} /> : <Ionicons name="send" size={16} color={onFill} />}
           </Pressable>
         </View>
         {error ? <Text style={chatFx.error}>{error}</Text> : null}
@@ -1807,12 +1807,12 @@ export default function PublicLiveStreamScreen() {
                       </>
                     ) : status.isLive && status.isPaid ? (
                       <>
-                        <ActivityIndicator color="#fff" />
+                        <ActivityIndicator color={onFill} />
                         <Text style={styles.placeholderHeadline}>{tr('b4_loading')}</Text>
                       </>
                     ) : (
                       <>
-                        <ActivityIndicator color="#fff" />
+                        <ActivityIndicator color={onFill} />
                         <Text style={styles.placeholderHeadline}>{tr('b4_streamIsStarting')}</Text>
                         <Text style={styles.placeholderText}>{tr('b4_hangTightStreamLoading')}</Text>
                       </>
@@ -1862,7 +1862,7 @@ export default function PublicLiveStreamScreen() {
                         accessibilityLabel={tr('b4_sendAGift')}
                       >
                         <GlassLayer />
-                        <Ionicons name="gift-outline" size={17} color="#fff" />
+                        <Ionicons name="gift-outline" size={17} color={onFill} />
                       </Pressable>
                     ) : null}
                     <Pressable
@@ -1872,7 +1872,7 @@ export default function PublicLiveStreamScreen() {
                       accessibilityLabel="Donate"
                     >
                       <GlassLayer />
-                      <Ionicons name="heart-outline" size={17} color="#fff" />
+                      <Ionicons name="heart-outline" size={17} color={onFill} />
                     </Pressable>
                     <Pressable
                       style={[styles.ytStageIconBtn, glassClear]}
@@ -1884,7 +1884,7 @@ export default function PublicLiveStreamScreen() {
                       <Ionicons
                         name={isMuted ? 'volume-mute' : 'volume-high'}
                         size={18}
-                        color="#fff"
+                        color={onFill}
                       />
                     </Pressable>
                     <Pressable
@@ -1894,7 +1894,7 @@ export default function PublicLiveStreamScreen() {
                       accessibilityLabel="Full screen cinema mode"
                     >
                       <GlassLayer />
-                      <Ionicons name="expand" size={17} color="#fff" />
+                      <Ionicons name="expand" size={17} color={onFill} />
                     </Pressable>
                   </View>
                 </View>
@@ -1927,7 +1927,7 @@ export default function PublicLiveStreamScreen() {
 
           {tokenError ? (
             <View style={[styles.errorToast, { top: insets.top + 70 }]} pointerEvents="none">
-              <Ionicons name="alert-circle" size={18} color="#fff" />
+              <Ionicons name="alert-circle" size={18} color={onFill} />
               <Text style={styles.errorToastText}>{tokenError}</Text>
             </View>
           ) : null}
@@ -1954,7 +1954,7 @@ export default function PublicLiveStreamScreen() {
                 {viewerCount > 0 ? (
                   <View style={styles.ytViewerPill}>
                     <View style={styles.ytViewerDot} />
-                    <Ionicons name="eye" size={11} color="#fff" />
+                    <Ionicons name="eye" size={11} color={onFill} />
                     <Text style={styles.ytViewerPillText}>
                       {viewerCount >= 1000
                         ? `${(viewerCount / 1000).toFixed(1)}k`
@@ -2060,7 +2060,7 @@ export default function PublicLiveStreamScreen() {
                 <Image source={eventThumbSource} style={StyleSheet.absoluteFill} contentFit="cover" />
                 <View style={styles.placeholderScrim} />
                 <View style={styles.placeholderContent}>
-                  <Ionicons name="scan-outline" size={32} color="#fff" />
+                  <Ionicons name="scan-outline" size={32} color={onFill} />
                   <Text style={styles.placeholderHeadline}>{tr('b4_playingInMiniPlayer')}</Text>
                   <Text style={styles.placeholderText}>{tr('b4_tapToExpandFullPlayer')}</Text>
                 </View>
@@ -2384,10 +2384,10 @@ function GiftConfirmSheet({
           accessibilityLabel={`Send ${gift.name} gift`}
         >
           {busy ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={onFill} />
           ) : (
             <>
-              <Ionicons name="gift" size={18} color="#fff" />
+              <Ionicons name="gift" size={18} color={onFill} />
               <Text style={gcStyles.ctaText}>Send {gift.emoji} {gift.name} · {formatGiftUsd(gift.amountUsd)}</Text>
             </>
           )}
@@ -2424,7 +2424,7 @@ const useGcStyles = makeStyles((c) => ({
   },
   emoji: { fontSize: 52 },
   giftName: { color: c.text, fontSize: 18, fontWeight: '700' },
-  giftPrice: { color: c === darkPalette ? '#ffd166' : '#B45309', fontSize: 22, fontWeight: '800' },
+  giftPrice: { color: c === darkPalette ? '#ffd166' : c.pending, fontSize: 22, fontWeight: '800' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -2439,11 +2439,11 @@ const useGcStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#F20C8F',
+    backgroundColor: c.accent,
     borderRadius: 50,
     paddingVertical: 15,
   },
-  ctaText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  ctaText: { color: c.textOnPrimary, fontSize: 15, fontWeight: '800' },
   cancel: { alignItems: 'center', paddingVertical: 8 },
   cancelText: { color: c.textMuted, fontSize: 13 },
 }));
@@ -2513,7 +2513,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 4,
     borderRadius: radii.full,
   },
-  viewerBadgeText: { color: '#fff', fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  viewerBadgeText: { color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
 
   offlineTitle: { fontFamily: fonts.bold, fontSize: fontSize.xl, color: c.text, letterSpacing: -0.3 },
 
@@ -2526,23 +2526,23 @@ const useStyles = makeStyles((c, e) => ({
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   topAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)' },
   topAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
-  topInitial: { fontFamily: fonts.bold, fontSize: 16, color: '#fff' },
+  topInitial: { fontFamily: fonts.bold, fontSize: 16, color: c.textOnPrimary },
   liveNowPill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#EF4444',
+    backgroundColor: c.error,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radii.full,
   },
-  liveNowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  liveNowText: { fontFamily: fonts.bold, fontSize: 10, color: '#fff', letterSpacing: 0.6 },
+  liveNowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.card },
+  liveNowText: { fontFamily: fonts.bold, fontSize: 10, color: c.textOnPrimary, letterSpacing: 0.6 },
   topTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: -0.2,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
@@ -2554,7 +2554,7 @@ const useStyles = makeStyles((c, e) => ({
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 3,
   },
-  topHostName: { fontFamily: fonts.bold, color: '#fff' },
+  topHostName: { fontFamily: fonts.bold, color: c.textOnPrimary },
   viewerPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2564,7 +2564,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 5,
     borderRadius: radii.full,
   },
-  viewerPillText: { fontFamily: fonts.bold, color: '#fff', fontSize: 12 },
+  viewerPillText: { fontFamily: fonts.bold, color: c.textOnPrimary, fontSize: 12 },
 
   placeholder: {
     aspectRatio: 16 / 9,
@@ -2588,7 +2588,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 32,
   },
   placeholderHeadline: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
@@ -2599,7 +2599,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     paddingHorizontal: spacing.lg,
     paddingVertical: 12,
     borderRadius: radii.full,
@@ -2686,7 +2686,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#ef4444',
+    backgroundColor: c.error,
     paddingHorizontal: 8,
     paddingVertical: 3.5,
     borderRadius: 4,
@@ -2695,10 +2695,10 @@ const useStyles = makeStyles((c, e) => ({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
   },
   ytStageLiveText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 10.5,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -2741,20 +2741,20 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
     backgroundColor: c.primary,
   },
-  ytHostInitial: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  ytHostInitial: { color: c.textOnPrimary, fontSize: 14, fontWeight: '800' },
   ytHostName: { fontSize: 12, color: c.textMuted, fontWeight: '500', marginTop: 1 },
   ytMetaRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ytViewerPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: c.error,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 20,
   },
-  ytViewerDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
-  ytViewerPillText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  ytViewerDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: c.card },
+  ytViewerPillText: { color: c.textOnPrimary, fontSize: 11, fontWeight: '700' },
   ytViewerCountRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
   ytViewerCountText: { fontSize: 11.5, color: c.textMuted },
   ytActionPills: {
@@ -2772,7 +2772,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
   },
   ytGiftPillText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -2793,7 +2793,7 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     paddingHorizontal: 8,
     gap: 10,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -2834,7 +2834,7 @@ const useStyles = makeStyles((c, e) => ({
   ytMiniLiveText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#ef4444',
+    color: c.error,
   },
   ytMiniViewers: {
     fontSize: 10,
@@ -2895,7 +2895,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 10,
     borderRadius: radii.md,
   },
-  errorToastText: { flex: 1, color: '#fff', fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+  errorToastText: { flex: 1, color: c.textOnPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
 
   fsReturn: {
     ...StyleSheet.absoluteFill,
@@ -2960,7 +2960,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 5,
     borderRadius: radii.full,
   },
-  giftPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  giftPillText: { color: c.textOnPrimary, fontSize: 12, fontWeight: '700' },
   chatList: { gap: 8, maxHeight: 320 },
   chatEmpty: { fontSize: fontSize.sm, color: c.textMuted, fontStyle: 'italic' },
 
@@ -2976,7 +2976,7 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitial: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  avatarInitial: { color: c.textOnPrimary, fontSize: 12, fontWeight: '800' },
   bubble: {
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
@@ -2995,7 +2995,7 @@ const useStyles = makeStyles((c, e) => ({
   bubbleTime: { fontSize: 10, color: c.textMuted },
   bubbleTimeOwn: { fontSize: 10, color: 'rgba(255,255,255,0.7)' },
   bubbleText: { fontSize: fontSize.sm, color: c.text },
-  bubbleTextOwn: { color: '#fff' },
+  bubbleTextOwn: { color: c.textOnPrimary },
 
   chatVideoWrap: { marginTop: 4, gap: 4 },
   chatVideo: { width: 220, height: 124, borderRadius: 8, backgroundColor: '#000' },
@@ -3075,7 +3075,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   amountChipActive: { backgroundColor: c.primary, borderColor: c.primary },
   amountChipText: { fontSize: fontSize.xs, color: c.textSoft, fontWeight: '700' },
-  amountChipTextActive: { color: '#fff' },
+  amountChipTextActive: { color: c.textOnPrimary },
   payTabs: { flexDirection: 'row', gap: 6, marginVertical: 6 },
   payTab: {
     flex: 1,
@@ -3122,8 +3122,8 @@ const useChatFx = makeStyles((c) => ({
 
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   controlsLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full },
-  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#ef4444' },
-  controlsTitle: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 3 },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: c.error },
+  controlsTitle: { color: c.textOnPrimary, fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 3 },
   controlsRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ctrlBtn: {
     width: 32,
@@ -3174,7 +3174,7 @@ const useChatFx = makeStyles((c) => ({
     borderRadius: radii.full,
   },
   minimizedBarText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -3195,18 +3195,18 @@ const useChatFx = makeStyles((c) => ({
   pillHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   avatar: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)' },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary },
-  avatarInitial: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  avatarInitial: { color: c.textOnPrimary, fontSize: 10, fontWeight: '800' },
   pillName: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#7dd3fc',
+    color: c.live,
     flexShrink: 1,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 2,
   },
-  pillNameOwn: { color: '#fbbf24' },
+  pillNameOwn: { color: c.pending },
   pillText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 13,
     lineHeight: 18,
     textShadowColor: 'rgba(0,0,0,0.55)',
@@ -3231,7 +3231,7 @@ const useChatFx = makeStyles((c) => ({
   giftLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   giftEmoji: { fontSize: 16, lineHeight: 18 },
   giftText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '700',
@@ -3267,7 +3267,7 @@ const useChatFx = makeStyles((c) => ({
     borderRadius: 19,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 10 : 7,
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 13.5,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
@@ -3281,7 +3281,7 @@ const useChatFx = makeStyles((c) => ({
     justifyContent: 'center',
   },
   error: {
-    color: '#fca5a5',
+    color: c.errorBg,
     fontSize: 11.5,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 2,
@@ -3317,7 +3317,7 @@ const useChatFx = makeStyles((c) => ({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#ef4444',
+    backgroundColor: c.error,
   },
   ytCollapseBtn: {
     width: 30,
@@ -3399,11 +3399,11 @@ const useChatFx = makeStyles((c) => ({
     justifyContent: 'center',
     backgroundColor: c.primary,
   },
-  ytAvatarInitial: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  ytAvatarInitial: { color: c.textOnPrimary, fontSize: 12, fontWeight: '800' },
   ytMsgCol: { flex: 1, minWidth: 0, gap: 2 },
   ytNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ytAuthorName: { fontSize: 12.5, fontWeight: '700', color: c.primary },
-  ytAuthorOwn: { color: '#f59e0b' },
+  ytAuthorOwn: { color: c.pending },
   ytYouBadge: {
     backgroundColor: 'rgba(245,158,11,0.15)',
     paddingHorizontal: 6,
@@ -3412,12 +3412,12 @@ const useChatFx = makeStyles((c) => ({
     borderWidth: 1,
     borderColor: 'rgba(245,158,11,0.35)',
   },
-  ytYouBadgeText: { color: '#f59e0b', fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
+  ytYouBadgeText: { color: c.pending, fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
   ytMsgText: { color: c.text, fontSize: 13.5, lineHeight: 19 },
   ytGiftContent: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   ytGiftEmoji: { fontSize: 20 },
   ytGiftDesc: { fontSize: 13, color: c.text, fontWeight: '600' },
-  ytGiftAmount: { color: '#f59e0b', fontWeight: '800' },
+  ytGiftAmount: { color: c.pending, fontWeight: '800' },
 
   ytReactionsRow: {
     flexDirection: 'row',
@@ -3522,6 +3522,6 @@ const splashStyles = StyleSheet.create({
     borderRadius: 999,
   },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#fff' },
-  liveText: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  liveText: { color: onFill, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   tapHint: { color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 12, textAlign: 'center' },
 });
