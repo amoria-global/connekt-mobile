@@ -39,7 +39,7 @@ import { dismissReceivedPhotobook, getPhotobook, resubmitPhotobook, type Photobo
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone, onMedia } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -609,12 +609,12 @@ const useStyles = makeStyles((c) => ({
   // Hero Cover Banner
   heroBanner: {
     width: '100%',
-    backgroundColor: '#071224',
+    backgroundColor: onMedia.ground,
     justifyContent: 'space-between',
     padding: spacing.lg,
   },
   heroFallback: {
-    backgroundColor: '#0B162C',
+    backgroundColor: onMedia.ground,
     alignItems: 'center',
     // Icon sits high so the status chips and title never collide with it at large text sizes.
     justifyContent: 'flex-start',
@@ -849,7 +849,7 @@ const useStyles = makeStyles((c) => ({
   // Master Lightbox
   lightboxBackdrop: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
     justifyContent: 'space-between',
   },
   lightboxTopBar: {

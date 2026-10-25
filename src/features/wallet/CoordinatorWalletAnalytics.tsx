@@ -46,7 +46,7 @@ export function CoordinatorWalletAnalytics({ wallet }: { wallet: WalletDTO | nul
   const stats = useMemo(() => (wallet ? selectWalletStats(wallet, 'event-coordinator') : null), [wallet]);
   const currency = wallet?.currency;
 
-  const hues = [colors.primary, colors.accent, isDark ? colors.live : '#0E7490', colors.warning, colors.success];
+  const hues = [colors.primary, colors.accent, colors.live, colors.warning, colors.success];
   const segments = useMemo(
     () =>
       (stats?.cards ?? [])

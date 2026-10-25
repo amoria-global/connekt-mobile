@@ -29,7 +29,7 @@ import { isApiError } from '@/store/auth';
 import { Stars } from '@/components/ui/Stars';
 import { VerifiedAvatar } from '@/components/ui/VerifiedAvatar';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, onMedia } from '@/theme';
 import { PHOTOGRAPHER_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
@@ -414,7 +414,7 @@ export default function PhotographerProfileScreen() {
               {data?.location ? (
                 <>
                   <Text style={styles.dot}>•</Text>
-                  <Ionicons name="location-outline" size={12} color="#D1D5DB" />
+                  <Ionicons name="location-outline" size={12} color={colors.textMuted} />
                   <Text style={styles.location}>{data.location}</Text>
                 </>
               ) : null}
@@ -423,7 +423,7 @@ export default function PhotographerProfileScreen() {
             <View style={styles.statsRow}>
               {facts.rating ? (
                 <>
-                  <Ionicons name="star" size={12} color="#FBBF24" />
+                  <Ionicons name="star" size={12} color={colors.pending} />
                   <Text style={styles.statText}>
                     <Text style={styles.statValue}>{facts.rating}</Text> ({facts.reviews} {tr(facts.reviews === 1 ? 'review' : 'reviews')})
                   </Text>
@@ -433,7 +433,7 @@ export default function PhotographerProfileScreen() {
               )}
               {facts.shoots ? (
                 <>
-                  <Ionicons name="camera" size={12} color="#D1D5DB" style={{ marginLeft: 8 }} />
+                  <Ionicons name="camera" size={12} color={colors.textMuted} style={{ marginLeft: 8 }} />
                   <Text style={styles.statText}>
                     <Text style={styles.statValue}>{facts.shoots}</Text> {tr(facts.shoots === 1 ? 'shoot' : 'shoots')}
                   </Text>
@@ -588,15 +588,15 @@ export default function PhotographerProfileScreen() {
                   {/* Legend */}
                   <View style={styles.legendRow}>
                     <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                      <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
                       <Text style={styles.legendText}>{tr('Available (Tap to book)')}</Text>
                     </View>
                     <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+                      <View style={[styles.legendDot, { backgroundColor: colors.pending }]} />
                       <Text style={styles.legendText}>{tr('Partly booked')}</Text>
                     </View>
                     <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
+                      <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
                       <Text style={styles.legendText}>{tr('Fully booked')}</Text>
                     </View>
                   </View>
@@ -857,7 +857,7 @@ const useStyles = makeStyles((c, e) => ({
     height: 480, // Substantial height for the cover and gradient
     width: '100%',
     position: 'relative',
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
   },
   coverImage: {
     width: '100%',
@@ -955,10 +955,10 @@ const useStyles = makeStyles((c, e) => ({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#34D399',
+    backgroundColor: c.success,
   },
   availableText: {
-    color: '#A7F3D0',
+    color: c.success,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,

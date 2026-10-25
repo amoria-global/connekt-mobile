@@ -30,7 +30,7 @@ import { ModeBadge, friendlyEventStatus, isOpenHybrid, modeOf } from '@/features
 import { env } from '@/config/env';
 import { useAsync } from '@/hooks/useAsync';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill, onMedia } from '@/theme';
 import {
   ActionButton,
   Chip,
@@ -656,7 +656,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   coverBanner: {
     height: 164,
-    backgroundColor: '#0B162C',
+    backgroundColor: onMedia.ground,
     justifyContent: 'space-between',
     padding: spacing.md,
   },

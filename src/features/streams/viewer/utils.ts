@@ -9,7 +9,7 @@ export const REACTIONS: ReactionDef[] = [
   { key: 'flame', icon: 'flame', color: darkPalette.pending, label: 'Flame' },
   { key: 'clap', icon: 'hand-left', color: darkPalette.live, label: 'Applause' },
   { key: 'star', icon: 'star', color: darkPalette.pending, label: 'Star' },
-  { key: 'rocket', icon: 'rocket', color: '#8B5CF6', label: 'Rocket' },
+  { key: 'rocket', icon: 'rocket', color: darkPalette.primaryLight, label: 'Rocket' },
 ];
 
 /** UI adapter: existing API shape -> viewer presentation model. */
@@ -77,6 +77,6 @@ export function getReactionVisual(key: string): { icon: IconName; color: string 
   if (k.includes('fire') || key === '🔥') return { icon: 'flame', color: darkPalette.pending };
   if (k.includes('star') || key === '⭐') return { icon: 'star', color: darkPalette.pending };
   if (k.includes('clap') || key === '👏') return { icon: 'hand-left', color: darkPalette.live };
-  if (k.includes('rocket') || key === '🚀') return { icon: 'rocket', color: '#8B5CF6' };
+  if (k.includes('rocket') || key === '🚀') return { icon: 'rocket', color: darkPalette.primaryLight };
   return { icon: 'sparkles', color: darkPalette.accent };
 }

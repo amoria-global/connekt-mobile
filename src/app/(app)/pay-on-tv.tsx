@@ -32,7 +32,7 @@ import { getPublicEventDetailed } from '@/features/events/api';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, onMedia } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
 /**
@@ -363,7 +363,7 @@ function Step({ icon, text, done }: { icon: keyof typeof Ionicons.glyphMap; text
 }
 
 const CARD_SHADOW = {
-  shadowColor: '#0F1217',
+  shadowColor: onMedia.black,
   shadowOffset: { width: 0, height: 6 },
   shadowOpacity: 0.08,
   shadowRadius: 14,
@@ -424,7 +424,7 @@ const useStyles = makeStyles((c) => ({
   body: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center', lineHeight: 20 },
 
   // ── Scanner ──
-  cameraWrap: { flex: 1, backgroundColor: '#000' },
+  cameraWrap: { flex: 1, backgroundColor: onMedia.black },
   frame: {
     position: 'absolute',
     top: '24%',

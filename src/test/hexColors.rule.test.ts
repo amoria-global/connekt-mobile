@@ -10,8 +10,8 @@ const ROOT = path.join(__dirname, '..', '..');
 const HEX = /['"`]#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})['"`]/;
 const pending: string[] = JSON.parse(fs.readFileSync(path.join(ROOT, 'eslint/hex-colors-pending.json'), 'utf8'));
 
-/** The size of the list when the rule landed; it may only go down. */
-const BASELINE = 147;
+/** The list started at 147 files and reached 0 when the migration finished; it may not grow back. */
+const BASELINE = 0;
 
 function files(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

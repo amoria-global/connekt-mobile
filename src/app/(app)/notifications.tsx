@@ -45,7 +45,7 @@ import {
   scheduleTestLockScreenNotification,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill, type Palette } from '@/theme';
 import { SkeletonCard } from '@/features/photographer/kit';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
@@ -557,7 +557,7 @@ export default function NotificationsScreen() {
 
               {/* Activity Rows */}
               {group.items.map((item) => {
-                const iconMeta = getCategoryIconMeta(item.type, isDark);
+                const iconMeta = getCategoryIconMeta(item.type, colors);
                 const isUnread = !item.read;
                 const { title, body } = cleanNarrative(item);
 
@@ -645,22 +645,22 @@ export default function NotificationsScreen() {
 /**
  * Category metadata with distinct icon and badge for Instagram feed.
  */
-function getCategoryIconMeta(type: NotificationType, isDark: boolean) {
+function getCategoryIconMeta(type: NotificationType, colors: Palette) {
   switch (type) {
     case 'album':
     case 'photobook':
       return {
         name: 'images' as const,
         miniIcon: 'images' as const,
-        bg: isDark ? 'rgba(139, 92, 246, 0.18)' : '#F3E8FF',
-        color: '#8B5CF6',
+        bg: colors.tintAccent,
+        color: colors.accentLight,
       };
     case 'gift':
       return {
         name: 'gift' as const,
         miniIcon: 'gift' as const,
-        bg: isDark ? 'rgba(16, 185, 129, 0.16)' : '#DCFCE7',
-        color: '#10B981',
+        bg: colors.successBg,
+        color: colors.success,
       };
     case 'payment':
     case 'streamfee':
@@ -669,38 +669,38 @@ function getCategoryIconMeta(type: NotificationType, isDark: boolean) {
       return {
         name: 'card' as const,
         miniIcon: 'cash-outline' as const,
-        bg: isDark ? 'rgba(16, 185, 129, 0.16)' : '#DCFCE7',
-        color: '#10B981',
+        bg: colors.successBg,
+        color: colors.success,
       };
     case 'security':
       return {
         name: 'shield-checkmark' as const,
         miniIcon: 'shield' as const,
-        bg: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2',
-        color: '#EF4444',
+        bg: colors.errorBg,
+        color: colors.error,
       };
     case 'booking':
     case 'event':
       return {
         name: 'calendar' as const,
         miniIcon: 'calendar' as const,
-        bg: isDark ? 'rgba(59, 130, 246, 0.16)' : '#DBEAFE',
-        color: '#2563EB',
+        bg: colors.tint,
+        color: colors.primary,
       };
     case 'photographer':
     case 'review':
       return {
         name: 'camera' as const,
         miniIcon: 'camera' as const,
-        bg: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FEF3C7',
-        color: '#F59E0B',
+        bg: colors.pendingBg,
+        color: colors.pending,
       };
     default:
       return {
         name: 'notifications' as const,
         miniIcon: 'notifications' as const,
-        bg: isDark ? 'rgba(148, 163, 184, 0.14)' : '#F1F5F9',
-        color: '#64748B',
+        bg: colors.surfaceMuted,
+        color: colors.textMuted,
       };
   }
 }

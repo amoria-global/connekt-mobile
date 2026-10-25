@@ -486,7 +486,7 @@ export default function BrowsePhotosScreen() {
         <GlassScrim onPress={() => setPurchased(null)} style={styles.successContainer}>
           <GlassSheetHost variant="dialog" style={[styles.successCard, { marginTop: insets.top + 20, marginBottom: insets.bottom + 20 }]}>
             <View style={styles.successHead}>
-              <Ionicons name="checkmark-circle" size={28} color="#10B981" />
+              <Ionicons name="checkmark-circle" size={28} color={colors.success} />
               <Text style={styles.successTitle}>{t('b4_purchaseComplete')}</Text>
               <Pressable onPress={() => setPurchased(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={colors.text} />

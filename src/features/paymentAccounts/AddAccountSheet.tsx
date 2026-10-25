@@ -32,7 +32,7 @@ import { Input } from '@/components/ui/Input';
 import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import type { Role } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, alpha } from '@/theme';
 import { MOMO_LOGO, operatorLogo } from '@/features/payments/operatorLogos';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { CountrySelectModal } from '@/features/payments/CountrySelectModal';
@@ -292,7 +292,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                   }}
                   style={[styles.kind, !isMobile && styles.kindActive]}
                 >
-                  <View style={[styles.kindIcon, { backgroundColor: '#3B82F61F' }]}>
+                  <View style={[styles.kindIcon, { backgroundColor: alpha(colors.primary, 0.12) }]}>
                     <Ionicons name="business-outline" size={22} color={colors.primary} />
                   </View>
                   <Text style={[styles.kindLabel, !isMobile && styles.kindLabelActive]}>{tr('Bank')}</Text>

@@ -47,7 +47,7 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, darkPalette, onMedia } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/store/language';
 import { tp } from '@/i18n/plural';
@@ -1188,7 +1188,7 @@ export function FindMyPhotos() {
             <Image source={{ uri: selfie.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
           </View>
           <View style={styles.selfieReadyPill}>
-            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
             <Text style={styles.selfieReadyText}>{t('fmp_photoReady')}</Text>
           </View>
           <Pressable
@@ -1382,7 +1382,7 @@ export function FindMyPhotos() {
               style={styles.unlockPillBtn}
               onPress={() => openUnlock(albumId)}
             >
-              <Ionicons name="lock-open-outline" size={15} color="#7be0e5" />
+              <Ionicons name="lock-open-outline" size={15} color={darkPalette.live} />
               <Text style={styles.unlockPillBtnText}>{t('fmp_alreadyPaidUnlock')}</Text>
             </Pressable>
           </View>
@@ -1519,7 +1519,7 @@ export function FindMyPhotos() {
             <View style={{ flexDirection: 'row', gap: spacing.sm, width: '100%' }}>
               {selectedPurchased.length > 0 && (
                 <Pressable
-                  style={[styles.actionBarBtn, { backgroundColor: '#10B981' }]}
+                  style={[styles.actionBarBtn, { backgroundColor: colors.success }]}
                   onPress={() => handleBatchDownload(selectedPurchased)}
                   disabled={downloadingBatch}
                 >
@@ -1583,7 +1583,7 @@ export function FindMyPhotos() {
         onChangeText={(t) => { setFreeEmail(t); setFreeError(''); }}
         keyboardType="email-address"
         autoCapitalize="none"
-        style={[styles.codeInput, freeError ? { borderColor: '#EF4444' } : {}]}
+        style={[styles.codeInput, freeError ? { borderColor: colors.error } : {}]}
         placeholderTextColor={colors.textMuted}
         returnKeyType="done"
         onSubmitEditing={handleFreeRequestAccess}
@@ -1686,12 +1686,12 @@ export function FindMyPhotos() {
           ) : null}
 
           {expiresDays !== null && expiresDays <= 0 && (
-            <Text style={{ color: '#EF4444', fontSize: 13, marginTop: 6 }}>
+            <Text style={{ color: colors.error, fontSize: 13, marginTop: 6 }}>
               ✕ This album has expired
             </Text>
           )}
           {expiresDays !== null && expiresDays > 0 && expiresDays <= 7 && (
-            <Text style={{ color: '#F59E0B', fontSize: 13, marginTop: 6 }}>
+            <Text style={{ color: colors.pending, fontSize: 13, marginTop: 6 }}>
               ⏱ Expires in {expiresDays} day{expiresDays !== 1 ? 's' : ''}
             </Text>
           )}
@@ -1819,7 +1819,7 @@ export function FindMyPhotos() {
             <Pressable
               style={[
                 styles.actionBarBtn,
-                { backgroundColor: showPurchase ? '#F59E0B' : '#10B981' },
+                { backgroundColor: showPurchase ? colors.pending : colors.success },
                 freeDownloading && { opacity: 0.6 },
               ]}
               onPress={handleFreeDownload}
@@ -2077,7 +2077,7 @@ export function FindMyPhotos() {
             <View style={{ flexDirection: 'row', gap: spacing.sm, width: '100%' }}>
               {selectedPurchased.length > 0 && (
                 <Pressable
-                  style={[styles.actionBarBtn, { backgroundColor: '#10B981' }]}
+                  style={[styles.actionBarBtn, { backgroundColor: colors.success }]}
                   onPress={() => handleBatchDownload(selectedPurchased)}
                   disabled={downloadingBatch}
                 >
@@ -2134,7 +2134,7 @@ export function FindMyPhotos() {
   const ambientSource = ambientUri ? { uri: ambientUri } : AUTH_BACKDROP;
 
   return (
-    <View style={{ flex: 1, backgroundColor: showConnect ? '#000000' : colors.background }}>
+    <View style={{ flex: 1, backgroundColor: showConnect ? onMedia.black : colors.background }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {showConnect ? (
@@ -2330,7 +2330,7 @@ export function FindMyPhotos() {
               onChangeText={setUnlockIdentifier}
               autoCapitalize="none"
               style={styles.modalInput}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textMuted}
             />
             {unlockError ? <Text style={styles.errorText}>{unlockError}</Text> : null}
             <Button
@@ -2458,7 +2458,7 @@ export function FindMyPhotos() {
 
                 {previewPhoto.isPurchased && (
                   <View style={styles.lightboxOwnedPill}>
-                    <Ionicons name="checkmark-circle" size={15} color="#10B981" />
+                    <Ionicons name="checkmark-circle" size={15} color={colors.success} />
                     <Text style={styles.lightboxOwnedText}>{t('fmp_ownedFullRes')}</Text>
                   </View>
                 )}
@@ -2588,7 +2588,7 @@ function ScanBackdrop() {
   return (
     <View style={StyleSheet.absoluteFill}>
       <LinearGradient
-        colors={['#040B18', '#0A1832', '#071224']}
+        colors={[darkPalette.background, darkPalette.surface, onMedia.ground]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -3157,7 +3157,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 50, backgroundColor: 'rgba(3,150,156,0.15)',
     borderWidth: 1, borderColor: 'rgba(3,150,156,0.45)',
   },
-  unlockPillBtnText: { color: '#7be0e5', fontSize: 13, fontWeight: '600' },
+  unlockPillBtnText: { color: darkPalette.live, fontSize: 13, fontWeight: '600' },
 
   // Select all (uncapped free albums)
   selectAllBtn: {

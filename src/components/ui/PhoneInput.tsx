@@ -42,7 +42,7 @@ import {
   phoneCountryFor,
   validateNsn,
 } from '@/lib/phoneKit';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme , type Palette as ThemePalette, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme , type Palette as ThemePalette, onFill, darkPalette } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { glassTile } from './GlassCard';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
@@ -122,12 +122,12 @@ const makeLight = (c: ThemePalette): Palette => ({
   border: c.border,
   divider: c.borderSoft,
   focus: c.primary,
-  ok: '#059669',
-  err: '#DC2626',
+  ok: c.success,
+  err: c.error,
   sheetBg: c.surface,
   searchBg: c.background,
   itemSelected: c.infoBg,
-  itemPressed: '#F1F5FB',
+  itemPressed: c.surfaceMuted,
 });
 
 /** The themed variant on a glass panel: the field frosts instead of sitting solid. */
@@ -143,10 +143,10 @@ const DARK: Palette = {
   rowBg: 'rgba(255,255,255,0.07)',
   border: 'rgba(255,255,255,0.22)',
   divider: 'rgba(255,255,255,0.15)',
-  focus: '#5B8AD9',
-  ok: '#34D399',
-  err: '#F87171',
-  sheetBg: '#161B28',
+  focus: darkPalette.primaryLight,
+  ok: darkPalette.success,
+  err: darkPalette.error,
+  sheetBg: darkPalette.surface,
   searchBg: 'rgba(255,255,255,0.08)',
   itemSelected: 'rgba(8,58,133,0.5)',
   itemPressed: 'rgba(255,255,255,0.08)',

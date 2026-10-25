@@ -13,12 +13,13 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { eventQrLink, qrMatrix } from '@/features/events/scanIntent';
-import { fontSize, fontWeight, radii, spacing, useTheme, onFill } from '@/theme';
+import { fontSize, fontWeight, lightPalette, radii, spacing, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
 const QUIET = 2; // modules of white margin around the code
-const NAVY = '#083A85';
+// The code is always navy on white, so it scans in either scheme.
+const NAVY = lightPalette.primary;
 
 export function EventQrSheet({
   visible,
@@ -116,11 +117,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '78%',
     aspectRatio: 1,
-    backgroundColor: '#fff',
+    backgroundColor: onFill,
     borderRadius: radii.lg,
     padding: spacing.sm,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: lightPalette.border,
   },
   hint: { fontSize: fontSize.sm, textAlign: 'center', marginVertical: spacing.md },
   btn: {

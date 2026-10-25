@@ -8,7 +8,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, Text, View, useWindowDim
 import { Ionicons } from '@expo/vector-icons';
 import { FallbackImage } from './FallbackImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { makeStyles, radii, spacing, onFill } from '@/theme';
+import { darkPalette, makeStyles, onMedia, radii, spacing, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 export type ViewerPhoto = { id: string; url?: string; fullUrl?: string };
@@ -169,17 +169,17 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, onSave, onS
 }
 
 const useStyles = makeStyles(() => ({
-  backdrop: { flex: 1, backgroundColor: '#050B14' },
+  backdrop: { flex: 1, backgroundColor: onMedia.black },
   page: { height: '100%', alignItems: 'center', justifyContent: 'center' },
   image: { width: '100%', height: '100%' },
   top: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   glass: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(15,29,47,0.78)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
-  counter: { color: '#fff', fontSize: 14, fontWeight: '700', backgroundColor: 'rgba(15,29,47,0.78)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: radii.full, overflow: 'hidden' },
+  counter: { color: onMedia.text, fontSize: 14, fontWeight: '700', backgroundColor: 'rgba(15,29,47,0.78)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: radii.full, overflow: 'hidden' },
   topActions: { flexDirection: 'row', gap: spacing.sm },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingHorizontal: spacing.lg },
   pill: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: 6, borderRadius: radii.full, backgroundColor: 'rgba(15,29,47,0.86)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
   nav: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   navOff: { opacity: 0.35 },
-  save: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radii.full, backgroundColor: '#F20C8F' },
+  save: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radii.full, backgroundColor: darkPalette.accent },
   saveText: { color: onFill, fontSize: 14, fontWeight: '800' },
 }));

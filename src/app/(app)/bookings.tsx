@@ -432,7 +432,7 @@ export default function BookingsScreen() {
           }
         >
           <View style={styles.oppExplainer}>
-            <Ionicons name="information-circle-outline" size={16} color="#F20C8F" />
+            <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
             <Text style={styles.oppExplainerText}>
               Opportunities come from clients who used Post My Event: you were matched because you are free for the whole event and fit what they asked for. Say yes and the client sees you; they choose one photographer. Direct requests are sent to you by name.
             </Text>

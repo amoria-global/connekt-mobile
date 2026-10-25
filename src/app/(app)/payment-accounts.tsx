@@ -22,13 +22,12 @@ import { useAsync } from '@/hooks/useAsync';
 import { parsePhone } from '@/lib/phoneKit';
 import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { brandMarks, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { brandMarks, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, type Palette } from '@/theme';
 
-const KIND_STYLE: Record<PaymentAccount['kind'], { icon: 'phone-portrait-outline' | 'business-outline'; tint: string }> = {
+const KIND_STYLE = (c: Palette): Record<PaymentAccount['kind'], { icon: 'phone-portrait-outline' | 'business-outline'; tint: string }> => ({
   mtn: { icon: 'phone-portrait-outline', tint: brandMarks.mtn },
   airtel: { icon: 'phone-portrait-outline', tint: brandMarks.airtel },
-  bank: { icon: 'business-outline', tint: '#3B82F6' },
-};
+  bank: { icon: 'business-outline', tint: c.primary },});
 
 export default function PaymentAccountsScreen() {
   const { colors } = useTheme();
@@ -124,7 +123,7 @@ export default function PaymentAccountsScreen() {
                   : t('b1_payAccCountMany', { count: list.length })}
               </Text>
               {list.map((a) => {
-                const k = KIND_STYLE[a.kind];
+                const k = KIND_STYLE(colors)[a.kind];
                 const busy = busyId === a.id;
                 return (
                   <View key={a.id} style={[styles.card, a.isDefault && styles.cardDefault]}>

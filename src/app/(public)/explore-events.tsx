@@ -68,7 +68,7 @@ import {
 } from '@/features/events/types';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, instagramRing } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { canShowDigitalPrice } from '@/features/payments/policy';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -806,12 +806,12 @@ export default function ExploreEventsScreen() {
                 >
                   <View style={styles.storyCircleWrapper}>
                     {isLive ? (
-                      <LiveRing size={68} colors={['#F58529', '#DD2A7B', '#8134AF', '#F58529']} live>
+                      <LiveRing size={68} colors={[...instagramRing]} live>
                         <View style={styles.storyRingPad}>{storyInner}</View>
                       </LiveRing>
                     ) : (
                       <LinearGradient
-                        colors={isEnded ? ['#64748B', '#94A3B8'] : ['#4F46E5', '#7C3AED', '#EC4899']}
+                        colors={isEnded ? [colors.textMuted, colors.textMuted] : [colors.primary, colors.primaryLight, colors.accent]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.storyGradientRing}
@@ -944,7 +944,7 @@ export default function ExploreEventsScreen() {
                         : 'person'
                     }
                     size={14}
-                    color={item.type === 'event' && item.badge ? '#E11D48' : colors.primary}
+                    color={item.type === 'event' && item.badge ? colors.error : colors.primary}
                   />
                 </View>
                 <View style={styles.suggestionTextCol}>
@@ -1623,7 +1623,7 @@ const useStyles = makeStyles((c, e) => ({
     position: 'absolute',
     bottom: -5,
     alignSelf: 'center',
-    backgroundColor: '#4F46E5',
+    backgroundColor: c.primary,
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: radii.full,
@@ -1779,7 +1779,7 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
   },
   suggestionIconWrapLive: {
-    backgroundColor: '#FFE4E6',
+    backgroundColor: c.tintAccent,
   },
   suggestionTextCol: {
     flex: 1,

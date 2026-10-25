@@ -60,7 +60,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary } from '@/services/imagePicker';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone, onMedia } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
@@ -848,10 +848,10 @@ export default function AlbumDetailScreen() {
                   disabled={busy === 'delete'}
                 >
                   <View style={[styles.sheetIconBox, styles.sheetIconDestructive]}>
-                    <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                    <Ionicons name="trash-outline" size={18} color={colors.error} />
                   </View>
                   <View style={styles.sheetItemText}>
-                    <Text style={[styles.sheetItemLabel, { color: '#DC2626' }]}>
+                    <Text style={[styles.sheetItemLabel, { color: colors.error }]}>
                       Delete Album
                     </Text>
                     <Text style={styles.sheetItemDesc}>Permanently remove this collection</Text>
@@ -1066,7 +1066,7 @@ const useStyles = makeStyles((c) => ({
   kindEvent: { backgroundColor: c.primary },
   kindPaid: { backgroundColor: c.primaryLight },
   kindFree: { backgroundColor: c.success },
-  kindContent: { backgroundColor: '#6D28D9' },
+  kindContent: { backgroundColor: c.accent },
   kindDefault: { backgroundColor: 'rgba(0,0,0,0.6)' },
   kindText: { fontFamily: fonts.bold, fontSize: 10, color: c.textOnPrimary, letterSpacing: 0.5 },
 
@@ -1307,7 +1307,7 @@ const useStyles = makeStyles((c) => ({
   // World-Class Lightbox
   lightboxBackdrop: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
     justifyContent: 'space-between',
   },
   lightboxTopBar: {
