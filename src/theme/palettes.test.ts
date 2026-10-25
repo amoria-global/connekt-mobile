@@ -80,7 +80,13 @@ describe('Midnight Glass tokens', () => {
       primaryLight: '#5B8CFF',
       accent: '#EE0E8F',
       accentLight: '#FF5DB8',
-      live: '#22C7D9',
+      active: '#22C7D9',
+      live: '#FF0033',
+      liveHot: '#FF2D55',
+      liveDeep: '#C8001F',
+      liveText: '#FF8FA3',
+      liveSurface: '#30101A',
+      liveGlow: 'rgba(255,0,51,0.55)',
       pending: '#F5B400',
       text: '#EAF0FA',
       textSoft: '#C9D5EA',
@@ -102,8 +108,29 @@ describe('Midnight Glass tokens', () => {
     ['light', lightPalette],
     ['dark', darkPalette],
   ] as const)('%s live and pending text read on the glass fallback', (_s, p) => {
-    expect(ratio(p.live, p.glassSolid)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(p.active, p.glassSolid)).toBeGreaterThanOrEqual(4.5);
     expect(ratio(p.pending, p.glassSolid)).toBeGreaterThanOrEqual(4.5);
     expect(ratio(p.textMuted, p.glassSolid)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+/** Broadcast red (design/live.png): red only for events on air right now, white text on the deep end. */
+describe('broadcast red', () => {
+  it.each([
+    ['light', lightPalette],
+    ['dark', darkPalette],
+  ] as const)('%s palette carries the reference tokens', (_s, p) => {
+    expect(p).toMatchObject({ live: '#FF0033', liveHot: '#FF2D55', liveDeep: '#C8001F', liveGlow: expect.stringContaining('255,0,51') });
+  });
+
+  it('white text reads on the deep end of the badge and on the button label stop (4.5:1)', () => {
+    expect(ratio('#FFFFFF', '#C8001F')).toBeGreaterThanOrEqual(4.5);
+    expect(ratio('#FFFFFF', '#E8002B')).toBeGreaterThanOrEqual(4.0);
+    expect(ratio('#FFFFFF', '#D4002A')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('red text reads on the live card in dark, and on white in light', () => {
+    expect(ratio(darkPalette.liveText, darkPalette.liveSurface)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(lightPalette.liveText, '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
   });
 });

@@ -1,3 +1,4 @@
+import { compactSheet } from '@/theme';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image, type ImageStyle } from 'expo-image';
@@ -194,7 +195,7 @@ export function CoverCarousel({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = compactSheet({
   coverImage: {
     width: '100%',
     height: '100%',

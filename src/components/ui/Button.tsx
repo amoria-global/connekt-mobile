@@ -12,6 +12,8 @@ import { ActivityIndicator, Pressable, Text, View, type PressableProps, type Sty
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRole } from '@/features/auth/role';
 import {
+  alpha,
+  density,
   fontSize,
   fonts,
   glowRgb,
@@ -47,8 +49,8 @@ export function Button({ title, variant = 'primary', raised = false, loading, di
   const isDisabled = disabled || loading;
   const isOutlined = variant === 'ghost' || variant === 'outline';
   const fill = raised && !isDisabled ? (variant === 'accent' ? gradients.raisedAccent : variant === 'primary' ? gradients.raisedPrimary : null) : null;
-  const radius = flat ? radii.md : radii.full;
-  const labelColor = variant === 'ghost' ? colors.text : isOutlined ? colors.link : colors.textOnPrimary;
+  const radius = flat ? density.radius.button : radii.full;
+  const labelColor = variant === 'ghost' ? colors.link : isOutlined ? colors.link : colors.textOnPrimary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -56,6 +58,7 @@ export function Button({ title, variant = 'primary', raised = false, loading, di
       // Named by its label unless the caller says otherwise (spread after, so `rest` still wins).
       accessibilityLabel={tr(title)}
       disabled={isDisabled}
+      hitSlop={isOutlined ? { top: 4, bottom: 4 } : undefined}
       style={(state) => [
         styles.base,
         flat && styles.baseFlat,
@@ -63,7 +66,8 @@ export function Button({ title, variant = 'primary', raised = false, loading, di
         variantStyles[variant],
         // The flat magenta takes the raised fill's middle stop, the AA-safe one.
         variant === 'accent' && { backgroundColor: gradients.raisedAccent[1] },
-        variant === 'ghost' && { boxShadow: isDark ? shadows.glass : shadows.glassLight },
+        variant === 'ghost' && styles.secondary,
+        variant === 'outline' && styles.tertiary,
         fill && { boxShadow: shadows.raised(variant === 'accent' ? glowRgb.accent : glowRgb.primary) },
         isDisabled && styles.disabled,
         state.pressed && !isDisabled && styles.pressed,
@@ -111,17 +115,20 @@ export function GhostButton(props: KitProps) {
 const useStyles = makeStyles(() => ({
   // minHeight, not height: at large text sizes a long label must grow the button, never be cut off.
   base: {
-    minHeight: 52,
+    minHeight: density.button.primary,
     paddingVertical: spacing.xs,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   // Photographer screens: the prototype's 48dp, still over the 44pt minimum.
-  baseFlat: { minHeight: 48 },
+  baseFlat: { minHeight: density.button.primary },
+  // Secondary 40: tinted fill and a coloured border. Tertiary 36: outline and coloured text. Hit area stays 44 via hitSlop.
+  secondary: { minHeight: density.button.secondary },
+  tertiary: { minHeight: density.button.tertiary },
   fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.97 }] },
   disabled: { opacity: 0.5 },
   label: {
     fontFamily: fonts.bold,
@@ -134,7 +141,7 @@ const useVariantStyles = makeStyles((c) => ({
   // Flat fills keep a 1px top highlight so they read as the same family as the raised ones.
   primary: { backgroundColor: c.primary, boxShadow: shadows.highlight },
   accent: { boxShadow: shadows.highlight },
-  ghost: { backgroundColor: c.glassTop, borderWidth: 1, borderColor: c.stroke },
-  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: c.primary },
+  ghost: { backgroundColor: alpha(c.primary, 0.16), borderWidth: 1, borderColor: alpha(c.primaryLight, 0.6) },
+  outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: alpha(c.primaryLight, 0.5) },
   danger: { backgroundColor: c.error },
 }));

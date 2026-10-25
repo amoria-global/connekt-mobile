@@ -67,17 +67,74 @@ describe('live-event styling pieces', () => {
 
   it('LiveRing and LiveDot render with and without live motion', async () => {
     const ring = await mount(
-      <LiveRing size={68} colors={['#F58529', '#DD2A7B']} live>
+      <LiveRing size={68} colors={['#111111', '#222222']} live>
         <View />
       </LiveRing>,
     );
     expect(ring.toJSON()).not.toBeNull();
     const still = await mount(
-      <LiveRing size={68} colors={['#4F46E5', '#EC4899']} live={false}>
+      <LiveRing size={68} colors={['#111111', '#222222']} live={false}>
         <View />
       </LiveRing>,
     );
     expect(still.toJSON()).not.toBeNull();
     expect((await mount(<LiveDot />)).toJSON()).not.toBeNull();
+  });
+});
+
+/** Broadcast red (design/live.png): the recipes, and motion that switches off under reduced motion. */
+describe('broadcast red live elements', () => {
+  const flat = (style: unknown): Record<string, unknown> => Object.assign({}, ...[style].flat(4).filter(Boolean));
+  const gradients = (r: TestRenderer.ReactTestRenderer) => r.root.findAll((n) => Array.isArray(n.props?.colors) && !!n.props.locations);
+
+  it('the LIVE badge runs the reference gradient, #FF2448 to #E8002B at 55% to #C8001F', async () => {
+    const [g] = gradients(await mount(<LivePill />));
+    expect(g.props.colors).toEqual(['#FF2448', '#E8002B', '#C8001F']);
+    expect(g.props.locations).toEqual([0, 0.55, 1]);
+  });
+
+  it('Watch Live runs #FF2D55, #FF0033 at 35%, #D4002A and a red glow', async () => {
+    const r = await mount(<LiveButton label="Watch Live" onPress={() => {}} />);
+    const [g] = gradients(r);
+    expect(g.props.colors).toEqual(['#FF2D55', '#FF0033', '#D4002A']);
+    expect(g.props.locations).toEqual([0, 0.35, 1]);
+    const wrap = r.root.findAll((n) => typeof n.type === 'string' && String(flat(n.props.style).boxShadow ?? '').includes('0 10px 26px rgba(255,0,51,0.55)'));
+    expect(wrap.length).toBeGreaterThan(0);
+  });
+
+  it('a live card gets the red edge and the two-layer glow, a quiet one gets neither', async () => {
+    const edge = (r: TestRenderer.ReactTestRenderer) => r.root.findAll((n) => flat(n.props?.style).borderColor === 'rgba(255,45,85,0.75)');
+    const glow = (r: TestRenderer.ReactTestRenderer) => r.root.findAll((n) => String(flat(n.props?.style).boxShadow ?? '').includes('0 0 80px rgba(255,0,51,0.25)'));
+    const live = await mount(<LiveTwinkle active><Text>x</Text></LiveTwinkle>);
+    expect(edge(live).length).toBeGreaterThan(0);
+    expect(glow(live).length).toBeGreaterThan(0);
+    const quiet = await mount(<LiveTwinkle active={false}><Text>x</Text></LiveTwinkle>);
+    expect(edge(quiet)).toHaveLength(0);
+  });
+
+  it('the story ring is solid red while live and keeps the caller colours otherwise', async () => {
+    const ring = (live: boolean) => mount(<LiveRing size={68} colors={['#111111', '#222222']} live={live}><View /></LiveRing>);
+    expect(gradients(await ring(true))).toHaveLength(0); // the ring gradient has no locations
+    const colorsOf = (r: TestRenderer.ReactTestRenderer) => r.root.findAll((n) => Array.isArray(n.props?.colors) && !!n.props.start)[0].props.colors; // the gradient, not LiveRing's own `colors` prop
+    expect(colorsOf(await ring(true))).toEqual(['#FF2D55', '#FF0033', '#C8001F']);
+    expect(colorsOf(await ring(false))).toEqual(['#111111', '#222222']);
+  });
+});
+
+describe('live motion under reduced motion', () => {
+  const { AccessibilityInfo } = jest.requireActual('react-native');
+  let spy: jest.SpyInstance;
+  beforeEach(() => {
+    spy = jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+  });
+  afterEach(() => spy.mockRestore());
+
+  it('draws no button shine, and the dot halo holds still', async () => {
+    const r = await mount(<LiveButton label="Watch Live" onPress={() => {}} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const shine = r.root.findAll((n) => Array.isArray(n.props?.colors) && n.props.colors[1] === 'rgba(255,255,255,0.28)');
+    expect(shine).toHaveLength(0);
   });
 });
