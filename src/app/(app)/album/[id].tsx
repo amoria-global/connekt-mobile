@@ -60,18 +60,18 @@ import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary } from '@/services/imagePicker';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
 import { useSharedT } from '@/i18n/sharedStrings';
 
-const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> = {
-  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
-  PENDING_APPROVAL: { label: 'Pending review', bg: '#FEF3C7', fg: '#92400E' },
-  APPROVED: { label: 'Approved · Live', bg: '#D1FAE5', fg: '#047857' },
-  REJECTED: { label: 'Needs changes', bg: '#FEE2E2', fg: '#B91C1C' },
+const APPROVAL_META: Record<string, { label: string; tone: SwatchTone; }> = {
+  DRAFT: { label: 'Draft', tone: 'neutral' as const },
+  PENDING_APPROVAL: { label: 'Pending review', tone: 'pending' as const },
+  APPROVED: { label: 'Approved · Live', tone: 'success' as const },
+  REJECTED: { label: 'Needs changes', tone: 'error' as const },
 };
 
 const PhotoGap = () => <View style={{ height: 3 }} />;

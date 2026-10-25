@@ -1,4 +1,4 @@
-import { onFill } from '@/theme';
+import { liveFill, onFill } from '@/theme';
 /**
  * Live-event look, matching the web `ev-card-live` / `ev-card.is-live` / `ev-story-*`
  * styles and going a little further on a phone: haptic-free, native-driver motion only.
@@ -171,7 +171,7 @@ export const LiveButton = memo(function LiveButton({
         style={({ pressed }) => [{ opacity: disabled ? 0.55 : pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
       >
         <LinearGradient
-          colors={[LIVE_RED_LIGHT, LIVE_RED, '#B91C1C']}
+          colors={[LIVE_RED_LIGHT, LIVE_RED, liveFill.deep]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.button, { paddingHorizontal: s.padH, paddingVertical: s.padV, gap: s.gap, borderRadius: radius }]}

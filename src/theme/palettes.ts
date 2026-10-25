@@ -95,6 +95,8 @@ export const lightPalette = {
   /** Pending and waiting: amber. */
   pending: '#8A5A00',
   pendingBg: 'rgba(245,180,0,0.16)',
+  /** A destructive filled button: white text reads on it (AA). */
+  dangerFill: '#B91C1C',
 } as const;
 
 /** The shape every palette must satisfy. */
@@ -164,6 +166,7 @@ export const darkPalette: Palette = {
   liveBg: 'rgba(34,199,217,0.14)',
   pending: '#F5B400',
   pendingBg: 'rgba(245,180,0,0.14)',
+  dangerFill: '#C2353F',
 };
 
 export type ColorSchemeName = 'light' | 'dark';

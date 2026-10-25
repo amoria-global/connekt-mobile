@@ -1,4 +1,4 @@
-import { onFill } from '@/theme';
+import { illustration, onFill } from '@/theme';
 import { View } from 'react-native';
 /**
  * The Help button's icon: a filled speech bubble with three dots and an outlined bubble behind it, both in the same
@@ -7,7 +7,7 @@ import { View } from 'react-native';
  */
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
-export const HELP_GLYPH_COLORS = { from: '#00E5FF', to: '#0A22FF' } as const;
+export const HELP_GLYPH_COLORS = illustration.help;
 
 // Drawn on a 512 grid, like the artwork it follows.
 const BUBBLE =

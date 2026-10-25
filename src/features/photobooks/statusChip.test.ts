@@ -1,23 +1,24 @@
 import { darkPalette, lightPalette } from '@/theme/palettes';
 import { chipColors } from './statusChip';
 
-/** Found in the dark-mode review: the received-photobook chips were cream and light-blue pills on a navy screen. */
+/**
+ * Found in the dark-mode review: the received-photobook chips were cream and light-blue pills on a navy screen.
+ * Midnight Glass: a status names its tone and the palette gives the pair, so neither scheme carries a pastel hex.
+ */
 describe('photobook status chip colours', () => {
-  const pastel = { bg: '#FEF3C7', fg: '#92400E' };
-
-  it('leaves light mode exactly as it was', () => {
-    expect(chipColors(pastel, false, lightPalette)).toEqual(pastel);
+  it('gives each meaning its own tinted ground in dark, one hue per meaning', () => {
+    expect(chipColors({ tone: 'pending' }, true, darkPalette)).toEqual({ bg: darkPalette.pendingBg, fg: darkPalette.pending });
+    expect(chipColors({ tone: 'info' }, true, darkPalette)).toEqual({ bg: darkPalette.tint, fg: darkPalette.link });
+    expect(chipColors({ tone: 'success' }, true, darkPalette)).toEqual({ bg: darkPalette.successBg, fg: darkPalette.success });
+    expect(chipColors({ tone: 'neutral' }, true, darkPalette)).toEqual({ bg: darkPalette.surfaceMuted, fg: darkPalette.textSoft });
   });
 
-  it('swaps the pastel pills for tinted grounds in dark, one hue per meaning', () => {
-    expect(chipColors(pastel, true, darkPalette)).toEqual({ bg: darkPalette.warningBg, fg: darkPalette.warning });
-    expect(chipColors({ bg: '#DBEAFE', fg: '#1D4ED8' }, true, darkPalette)).toEqual({ bg: darkPalette.infoBg, fg: darkPalette.info });
-    expect(chipColors({ bg: '#D1FAE5', fg: '#047857' }, true, darkPalette)).toEqual({ bg: darkPalette.successBg, fg: darkPalette.success });
-    expect(chipColors({ bg: '#E5E7EB', fg: '#374151' }, true, darkPalette)).toEqual({ bg: darkPalette.surfaceMuted, fg: darkPalette.textSoft });
+  it('follows the light palette in light mode', () => {
+    expect(chipColors({ tone: 'pending' }, false, lightPalette)).toEqual({ bg: lightPalette.pendingBg, fg: lightPalette.pending });
   });
 
   it('keeps an unknown status on its own scrim and white text', () => {
-    const unknown = { bg: 'rgba(0,0,0,0.55)', fg: '#fff' };
+    const unknown = { bg: 'rgba(0,0,0,0.55)', fg: 'white' };
     expect(chipColors(unknown, true, darkPalette)).toEqual(unknown);
   });
 });

@@ -52,7 +52,7 @@ import {
 } from '@/features/payments/formatPhone';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { translate, type TranslationKey } from '@/i18n/translations';

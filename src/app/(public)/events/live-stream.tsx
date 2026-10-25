@@ -124,7 +124,7 @@ import { registerAccountViewer } from '@/features/streams/accountViewer';
 import { storage } from '@/services/storage';
 import { getDeviceId } from '@/utils/deviceId';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette, onFill, onMedia, viewerTokens } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, darkPalette, onFill, onMedia, viewerTokens } from '@/theme';
 import { EndedEventCard } from '@/features/streams/viewer/components/EndedEventCard';
 import { EVENT_COVER_PLACEHOLDER } from "@/utils/placeholders";
 import { GlassLayer, glassClear, glassTile } from '@/components/ui/GlassCard';

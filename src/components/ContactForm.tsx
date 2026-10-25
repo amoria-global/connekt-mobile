@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { submitContactMessage } from '@/features/support/api';
 import { isApiError } from '@/store/auth';
-import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 const CHANNELS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string; href: string }[] = [

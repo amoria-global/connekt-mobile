@@ -62,7 +62,7 @@ import {
 } from '@/features/payments/formatPhone';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
 import { useLanguage } from '@/hooks/useLanguage';

@@ -47,7 +47,7 @@ import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { pickFromLibrary, takeSelfie, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/store/language';
 import { tp } from '@/i18n/plural';

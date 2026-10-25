@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Alert } from '@/components/ui/dialog';
 import { useRouter } from 'expo-router';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { acceptEventBooking, declineEventBooking } from './api';
 import type { EventItem } from './types';

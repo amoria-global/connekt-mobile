@@ -36,7 +36,7 @@ import {
 } from '@/features/gallery/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
 
 type Filter = 'ALL' | ContentApprovalStatus;
 
@@ -134,11 +134,11 @@ export default function ContentAlbumsScreen() {
   const { language } = useLanguage();
   const s = language === 'rw' ? CA_RW : language === 'sw' ? CA_SW : (CA_I18N as any)[language] ?? CA_I18N.en;
 
-  const STATUS_META: Record<ContentApprovalStatus, { label: string; bg: string; fg: string }> = {
-    DRAFT: { label: s.statusDraft, bg: '#E5E7EB', fg: '#374151' },
-    PENDING_APPROVAL: { label: s.statusInReview, bg: '#FEF3C7', fg: '#92400E' },
-    APPROVED: { label: s.statusApproved, bg: '#D1FAE5', fg: '#047857' },
-    REJECTED: { label: s.statusRejected, bg: '#FEE2E2', fg: '#B91C1C' },
+  const STATUS_META: Record<ContentApprovalStatus, { label: string; tone: SwatchTone; }> = {
+    DRAFT: { label: s.statusDraft, tone: 'neutral' as const },
+    PENDING_APPROVAL: { label: s.statusInReview, tone: 'pending' as const },
+    APPROVED: { label: s.statusApproved, tone: 'success' as const },
+    REJECTED: { label: s.statusRejected, tone: 'error' as const },
   };
 
   const FILTERS: { key: Filter; label: string }[] = [
@@ -275,8 +275,8 @@ export default function ContentAlbumsScreen() {
                 {/* Status Badge in Top Corner */}
                 <View style={styles.cardTop}>
                   {meta ? (
-                    <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
-                      <Text style={[styles.statusBadgeText, { color: meta.fg }]}>
+                    <View style={[styles.statusBadge, { backgroundColor: swatch(colors, meta.tone).bg }]}>
+                      <Text style={[styles.statusBadgeText, { color: swatch(colors, meta.tone).fg }]}>
                         {meta.label}
                       </Text>
                     </View>

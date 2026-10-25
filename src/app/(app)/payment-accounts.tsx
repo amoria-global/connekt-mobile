@@ -22,11 +22,11 @@ import { useAsync } from '@/hooks/useAsync';
 import { parsePhone } from '@/lib/phoneKit';
 import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { brandMarks, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 
 const KIND_STYLE: Record<PaymentAccount['kind'], { icon: 'phone-portrait-outline' | 'business-outline'; tint: string }> = {
-  mtn: { icon: 'phone-portrait-outline', tint: '#F59E0B' },
-  airtel: { icon: 'phone-portrait-outline', tint: '#ED1C24' },
+  mtn: { icon: 'phone-portrait-outline', tint: brandMarks.mtn },
+  airtel: { icon: 'phone-portrait-outline', tint: brandMarks.airtel },
   bank: { icon: 'business-outline', tint: '#3B82F6' },
 };
 
