@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { darkPalette, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { darkPalette, fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import {
   GlassSurface,
   glassScrim,
@@ -121,7 +121,7 @@ export function ExploreChoiceSheet({ visible, onClose, signedIn, onPostEvent, on
               <CardCopy
                 chip={
                   <View style={styles.chip}>
-                    <Ionicons name="flash" size={10} color="#FFFFFF" />
+                    <Ionicons name="flash" size={10} color={onFill} />
                     <Text style={styles.chipText}>{t('exploreFastMatch')}</Text>
                   </View>
                 }
@@ -184,7 +184,7 @@ function CardCopy({ chip, title, subtitle }: { chip: React.ReactNode; title: str
             <Text style={styles.cardSub} numberOfLines={2}>{subtitle}</Text>
           </View>
           <View style={styles.arrow}>
-            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+            <Ionicons name="arrow-forward" size={16} color={onFill} />
           </View>
         </View>
       </View>
@@ -279,10 +279,10 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: 'rgba(242,12,143,0.9)',
   },
   chipLive: { backgroundColor: 'rgba(220,38,38,0.9)' },
-  chipText: { color: '#FFFFFF', fontSize: 10, fontWeight: fontWeight.extrabold, letterSpacing: 0.8 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
+  chipText: { color: c.textOnPrimary, fontSize: 10, fontWeight: fontWeight.extrabold, letterSpacing: 0.8 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.card },
   cardText: { flex: 1, gap: 3 },
-  cardTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: fontWeight.extrabold, letterSpacing: -0.3 },
+  cardTitle: { color: c.textOnPrimary, fontSize: 18, fontWeight: fontWeight.extrabold, letterSpacing: -0.3 },
   cardSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12.5, lineHeight: 17 },
   arrow: {
     width: 32,

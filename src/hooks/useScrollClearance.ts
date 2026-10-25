@@ -1,8 +1,9 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BAR_CONTENT_HEIGHT } from '@/components/barMetrics';
 import { spacing } from '@/theme';
 
-/** Height of the docked tab bar: its 56 row plus the home-indicator inset (see PersistentBottomBar). */
-export const TAB_BAR_ROW = 56;
+/** Height of the floating tab bar; it sits the home-indicator inset above the bottom (see PersistentBottomBar). */
+export const TAB_BAR_ROW = BAR_CONTENT_HEIGHT;
 
 /**
  * Bottom padding for a scroll view under the docked tab bar (Home, Events, Wallet, Inbox, Profile, More).

@@ -3,8 +3,11 @@
  * that sits above both. One place, so they cannot drift apart.
  */
 
-/** Height of the tab bar's content row; its bottom padding (the home indicator) comes on top of it. */
-export const BAR_CONTENT_HEIGHT = 56;
+/**
+ * Height of the floating glass tab bar (icon and label both shown). It floats above the home
+ * indicator, so its bottom offset comes on top of this.
+ */
+export const BAR_CONTENT_HEIGHT = 64;
 
 /** The round add button's own placement above where a tab bar would be. */
 export const TAB_BAR_HEIGHT = 64;

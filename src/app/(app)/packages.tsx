@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { DataList } from '@/components/ui/DataList';
-import { Fab } from '@/components/ui/Fab';
+import { HeaderHelpAndAdd } from '@/components/help/HeaderAddButton';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { deletePackage, listPackages, type Package } from '@/features/packages/api';
@@ -99,8 +99,10 @@ export default function PackagesScreen() {
         emptyIcon="pricetags-outline"
         emptyTitle={t('b2_packagesEmptyTitle')}
         emptyMessage={t('b2_packagesEmptyMessage')}
+        emptyAction={{ label: 'Create package', onPress: () => router.push('/package/new') }}
       />
-      <Fab icon="add" onPress={() => router.push('/package/new')} />
+      {/* Create sits in the header beside Help, not floating over the list. */}
+      <Stack.Screen options={{ headerRight: () => <HeaderHelpAndAdd label="Create package" onPress={() => router.push('/package/new')} /> }} />
     </Screen>
   );
 }

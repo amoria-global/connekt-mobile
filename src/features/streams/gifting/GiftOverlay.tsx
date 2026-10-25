@@ -26,7 +26,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors, spacing, radii, fontSize, fontWeight, useTheme , makeStyles} from '@/theme';
+import { spacing, radii, fontSize, fontWeight, useTheme, makeStyles } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 

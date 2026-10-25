@@ -62,7 +62,7 @@ import {
 } from '@/features/payments/formatPhone';
 import { flagEmoji } from '@/components/ui/PhoneInput';
 import { PaymentMethodPicker } from '@/features/payments/PaymentMethodPicker';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 
 import { useLanguage } from '@/hooks/useLanguage';
@@ -563,7 +563,7 @@ function EventPaymentInner() {
         {stage === 'success' && (
           <View style={styles.successCard}>
             <View style={styles.successIconCircle}>
-              <Ionicons name="checkmark" size={32} color="#fff" />
+              <Ionicons name="checkmark" size={32} color={onFill} />
             </View>
             <Text style={styles.successTitle}>{isTicket ? 'Event Ticket Confirmed!' : 'Access Pass Activated!'}</Text>
             <Text style={styles.successSub}>
@@ -927,7 +927,7 @@ const useStyles = makeStyles((c) => ({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: spacing.sm,

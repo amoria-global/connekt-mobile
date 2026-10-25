@@ -1,3 +1,4 @@
+import { onFill } from '@/theme';
 import { memo, type ReactNode } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +26,7 @@ export const RoundButton = memo(function RoundButton({
       accessibilityLabel={label}
       style={({ pressed }) => [styles.round, active && styles.roundActive, pressed && { opacity: 0.7 }]}
     >
-      <Ionicons name={icon} size={22} color="#fff" />
+      <Ionicons name={icon} size={22} color={onFill} />
     </Pressable>
   );
 });

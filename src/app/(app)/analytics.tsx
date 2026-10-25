@@ -1,3 +1,4 @@
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EventsChart } from '@/features/analytics/EventsChart';
 import { EventsHistogram, SpendingTrendChart } from '@/features/client/ClientWalletAnalytics';
@@ -58,7 +59,7 @@ import { useRole } from '@/features/auth/role';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { ErrorNotice } from '@/features/photographer/kit';
@@ -630,6 +631,7 @@ type StatCardItem = {
           <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
         <Text style={styles.topBarTitle}>{tr('b2_analyticsTitle')}</Text>
+        <HeaderHelpButton />
         <Pressable
           onPress={() => load()}
           hitSlop={12}
@@ -1636,7 +1638,7 @@ function TrendCurveChart({
                     opacity={0.3}
                   />
                   <Circle cx={points.peak.x} cy={points.peak.y} r={4.5} fill={colors.accent} />
-                  <Circle cx={points.peak.x} cy={points.peak.y} r={2} fill="#FFFFFF" />
+                  <Circle cx={points.peak.x} cy={points.peak.y} r={2} fill={onFill} />
                 </G>
               )}
             </>

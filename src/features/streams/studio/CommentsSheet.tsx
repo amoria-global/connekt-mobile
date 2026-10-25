@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { PublicStreamChat } from '@/features/streams/api';
-import { fonts } from '@/theme';
+import { fonts, onFill, darkPalette } from '@/theme';
 import { BottomSheet } from './BottomSheet';
 import {
   chatSender,
@@ -76,7 +76,7 @@ export function CommentsSheet({
         >
           <View style={[styles.avatar, host && styles.avatarHost]}>
             {host ? (
-              <Ionicons name="sparkles" size={13} color="#FCD34D" />
+              <Ionicons name="sparkles" size={13} color={darkPalette.pending} />
             ) : (
               <Text style={styles.avatarText}>{sender.charAt(0).toUpperCase()}</Text>
             )}
@@ -172,9 +172,9 @@ export function CommentsSheet({
             accessibilityState={{ disabled: !canSend, busy: sending }}
           >
             {sending ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={onFill} />
             ) : (
-              <Ionicons name="send" size={18} color="#fff" />
+              <Ionicons name="send" size={18} color={onFill} />
             )}
           </Pressable>
         </View>
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   avatarHost: { backgroundColor: 'rgba(252,211,77,0.18)' },
   avatarText: { fontFamily: fonts.bold, fontSize: 15, color: S.text },
   name: { fontFamily: fonts.bold, fontSize: 15, color: S.textDim },
-  nameHost: { color: '#FCD34D' },
+  nameHost: { color: darkPalette.pending },
   msg: { fontFamily: fonts.regular, fontSize: 17, color: S.text, lineHeight: 21 },
   empty: { alignItems: 'center', gap: 6, paddingVertical: 36 },
   emptyTitle: { fontFamily: fonts.bold, fontSize: 18, color: S.text },

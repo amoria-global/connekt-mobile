@@ -25,7 +25,7 @@ import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
 
 function formatMessageTime(dateStr?: string): string {
   if (!dateStr) return '';
@@ -356,7 +356,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     borderRadius: radii.full,
   },
-  retryText: { color: '#FFFFFF', fontSize: fontSize.sm, fontWeight: '600' },
+  retryText: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: '600' },
   list: { padding: spacing.lg, gap: spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing['3xl'], gap: spacing.sm },
   empty: { textAlign: 'center', color: c.textMuted, fontSize: fontSize.sm },

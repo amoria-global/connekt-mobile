@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { StreamChat } from '@/features/streams/api';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { V } from '../viewerTheme';
 import { isGiftChat } from '../utils';
 
@@ -33,6 +33,6 @@ export const ChatOverlayFeed = memo(function ChatOverlayFeed({
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', width: '46%', padding: 8, borderRadius: 12, gap: 3 },
-  line: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 19, color: '#fff' },
+  line: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 19, color: onFill },
   name: { fontFamily: fonts.bold, color: V.textSoft },
 });

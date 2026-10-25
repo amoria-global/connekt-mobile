@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, fontSize, makeStyles } from '@/theme';
+import { spacing, fontSize, makeStyles, alpha, useTheme } from '@/theme';
 
 export default function SecurityHelpScreen() {
   const styles = useStyles();
+  const { colors } = useTheme();
   const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('security');
 
@@ -37,7 +38,7 @@ export default function SecurityHelpScreen() {
               <Text style={styles.bodyText}>
                 {t('b4_hcSecurityIntro')}
               </Text>
-              <View style={[styles.card, { borderColor: '#EF444426', backgroundColor: '#EF44440A' }]}>
+              <View style={[styles.card, { borderColor: alpha(colors.error, 0.15), backgroundColor: alpha(colors.error, 0.04) }]}>
                 <Text style={styles.listItem}>{t('b4_hcSecBullet1')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcSecBullet2')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcSecBullet3')}</Text>

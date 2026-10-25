@@ -1,7 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
 import { statusTone } from '@/features/payments/statusBucket';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, type Palette } from '@/theme';
+import { StatusChip, type ChipTone } from './StatusChip';
 
 const STATUS_TRANSLATIONS: Record<string, { fr: string; es: string; rw: string; sw: string }> = {
   COMPLETED: { fr: 'Terminé', es: 'Completado', rw: 'Byakozwe', sw: 'Imekamilika' },
@@ -28,44 +27,30 @@ const STATUS_TRANSLATIONS: Record<string, { fr: string; es: string; rw: string; 
   PARTIALLY_PAID: { fr: 'Partiellement payé', es: 'Parcialmente pagado', rw: 'Byishyuwe igice', sw: 'Imelipwa kiasi' },
 };
 
-/**
- * Maps a free-form status string to a colour family.
- * Takes the palette as an argument rather than closing over the static import,
- * because a plain helper cannot call `useTheme()`.
- */
-function tone(c: Palette, status?: string): { bg: string; fg: string } {
+/** Statuses that mean "happening now" take the live cyan, not the generic info blue. */
+const LIVE = new Set(['ONGOING', 'LIVE', 'IN_PROGRESS', 'STREAMING']);
+
+/** Maps a free-form status string to a chip tone (blue action, amber pending, cyan live). */
+export function statusChipTone(status?: string): ChipTone {
+  const key = (status ?? '').trim().toUpperCase().replace(/\s+/g, '_');
+  if (LIVE.has(key)) return 'live';
   switch (statusTone(status)) {
-    case 'success': return { bg: c.successBg, fg: c.success };
-    case 'warning': return { bg: c.warningBg, fg: c.warning };
-    case 'error': return { bg: c.errorBg, fg: c.error };
-    default: return { bg: c.infoBg, fg: c.info };
+    case 'success': return 'success';
+    case 'warning': return 'pending';
+    case 'error': return 'error';
+    default: return 'primary';
   }
 }
 
 export function StatusPill({ status }: { status?: string }) {
-  const styles = useStyles();
-  const { colors } = useTheme();
   const { language } = useLanguage();
   if (!status) return null;
-  const { bg, fg } = tone(colors, status);
   const key = status.trim().toUpperCase().replace(/\s+/g, '_');
   const translated =
     language !== 'en' && STATUS_TRANSLATIONS[key]
       ? STATUS_TRANSLATIONS[key][language]
       : status;
-  return (
-    <View style={[styles.pill, { backgroundColor: bg }]}>
-      <Text style={[styles.text, { color: fg }]}>{translated}</Text>
-    </View>
-  );
+  // Capitalised here rather than by textTransform, which StatusChip does not apply.
+  const label = translated.charAt(0).toUpperCase() + translated.slice(1).toLowerCase();
+  return <StatusChip label={label} tone={statusChipTone(status)} dot />;
 }
-
-const useStyles = makeStyles((c) => ({
-  pill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-  },
-  text: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'capitalize' },
-}));

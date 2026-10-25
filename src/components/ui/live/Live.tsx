@@ -1,3 +1,4 @@
+import { liveFill, onFill } from '@/theme';
 /**
  * Live-event look, matching the web `ev-card-live` / `ev-card.is-live` / `ev-story-*`
  * styles and going a little further on a phone: haptic-free, native-driver motion only.
@@ -27,7 +28,7 @@ const SIZES: Record<LiveSize, { padH: number; padV: number; font: number; dot: n
 };
 
 /** Blinking white dot with a halo that grows and fades, like a recording light. */
-export const LiveDot = memo(function LiveDot({ size = 6, color = '#FFFFFF' }: { size?: number; color?: string }) {
+export const LiveDot = memo(function LiveDot({ size = 6, color = onFill }: { size?: number; color?: string }) {
   const blink = useLoop({ duration: 1200, yoyo: true });
   const halo = useLoop({ duration: 1500 });
   const opacity = blink.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] });
@@ -72,7 +73,7 @@ const Glint = memo(function Glint({
       pointerEvents="none"
       style={{ position: 'absolute', left, top, opacity, transform: [{ scale }, { rotate }] }}
     >
-      <Ionicons name="sparkles" size={size} color="#FFFFFF" />
+      <Ionicons name="sparkles" size={size} color={onFill} />
     </Animated.View>
   );
 });
@@ -170,7 +171,7 @@ export const LiveButton = memo(function LiveButton({
         style={({ pressed }) => [{ opacity: disabled ? 0.55 : pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
       >
         <LinearGradient
-          colors={[LIVE_RED_LIGHT, LIVE_RED, '#B91C1C']}
+          colors={[LIVE_RED_LIGHT, LIVE_RED, liveFill.deep]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.button, { paddingHorizontal: s.padH, paddingVertical: s.padV, gap: s.gap, borderRadius: radius }]}
@@ -187,7 +188,7 @@ export const LiveButton = memo(function LiveButton({
               </Text>
             ) : null}
           </View>
-          <Ionicons name={icon} size={s.icon + 3} color="#FFFFFF" />
+          <Ionicons name={icon} size={s.icon + 3} color={onFill} />
           <Glint left="88%" top="6%" size={s.icon} delay={0} />
           <Glint left="12%" top="62%" size={Math.max(8, s.icon - 3)} delay={600} />
           <Glint left="52%" top="-6%" size={Math.max(7, s.icon - 5)} delay={1200} />
@@ -288,7 +289,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
   },
-  pillText: { color: '#FFFFFF', fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
+  pillText: { color: onFill, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
   stretch: { alignSelf: 'stretch' },
   hug: { alignSelf: 'flex-start' },
   button: {
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
   },
   buttonCopy: { flexShrink: 1, alignItems: 'center' },
   buttonSub: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginTop: 1 },
-  buttonText: { color: '#FFFFFF', fontWeight: '800', letterSpacing: 0.6, flexShrink: 1 },
+  buttonText: { color: onFill, fontWeight: '800', letterSpacing: 0.6, flexShrink: 1 },
   sheen: {
     position: 'absolute',
     left: 0,

@@ -8,7 +8,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FallbackImage } from './FallbackImage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { Skeleton } from '@/features/photographer/kit';
 import { useSharedT } from '@/i18n/sharedStrings';
 import type { GalleryItem } from './api';
@@ -48,7 +48,7 @@ function CountChip({ count }: { count?: number }) {
   if (!text) return null;
   return (
     <View style={styles.chip}>
-      <Ionicons name="images" size={11} color="#fff" />
+      <Ionicons name="images" size={11} color={onFill} />
       <Text style={styles.chipText} maxFontSizeMultiplier={1.6}>
         {tr(text)}
       </Text>
@@ -60,7 +60,7 @@ function LockBadge() {
   const styles = useStyles();
   return (
     <View style={styles.lock} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Ionicons name="lock-closed" size={11} color="#fff" />
+      <Ionicons name="lock-closed" size={11} color={onFill} />
     </View>
   );
 }
@@ -207,15 +207,15 @@ const useStyles = makeStyles((c, e) => ({
   pressed: { opacity: 0.88 },
   coverEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.surfaceMuted },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(5,12,24,0.62)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
-  chipText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  chipText: { color: c.textOnPrimary, fontSize: 11, fontWeight: '700' },
   lock: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(5,12,24,0.7)', alignItems: 'center', justifyContent: 'center' },
 
   hero: { marginTop: spacing.sm, height: 196, borderRadius: radii.xl, overflow: 'hidden', backgroundColor: c.card, borderWidth: 1, borderColor: c.border, justifyContent: 'space-between', padding: spacing.md, ...e(2) },
   heroTop: { flexDirection: 'row' },
   eyebrowPill: { backgroundColor: c.accent, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.full },
-  eyebrowText: { color: '#fff', fontSize: 10.5, fontWeight: '800', letterSpacing: 1 },
+  eyebrowText: { color: c.textOnPrimary, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 },
   heroBottom: { gap: spacing.xs },
-  heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  heroTitle: { color: c.textOnPrimary, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   heroMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   heroSub: { color: 'rgba(255,255,255,0.86)', fontSize: 13, flexShrink: 1 },
 
@@ -225,7 +225,7 @@ const useStyles = makeStyles((c, e) => ({
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardBottom: { flexDirection: 'row' },
   kind: { backgroundColor: 'rgba(5,12,24,0.62)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
-  kindText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  kindText: { color: c.textOnPrimary, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
   cardBody: { padding: spacing.sm, gap: 3 },
   cardTitle: { color: c.text, fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
   cardSub: { color: c.textMuted, fontSize: 12.5 },

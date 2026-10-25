@@ -1,3 +1,4 @@
+import { alpha, type Palette } from '@/theme';
 /**
  * Role-aware money formatting layer.
  * Direct mobile port of salo-run/lib/moneyView.ts.
@@ -697,29 +698,28 @@ export function getFilterTags(role: DashboardRole): string[] {
   return ['All', 'Payment', 'Booking', 'Tip', 'Donation', 'Refund'];
 }
 
-export const PALETTE: Record<
-  MoneyItem['color'],
-  { bar: string; tint: string; icon: string }
-> = {
-  green: { bar: '#10B981', tint: 'rgba(16,185,129,0.12)', icon: 'cash-outline' },
-  amber: { bar: '#F59E0B', tint: 'rgba(245,158,11,0.14)', icon: 'time-outline' },
-  blue: { bar: '#083A85', tint: 'rgba(8,58,133,0.10)', icon: 'videocam-outline' },
-  red: { bar: '#DC2626', tint: 'rgba(220,38,38,0.12)', icon: 'arrow-up-circle-outline' },
-  purple: { bar: '#F20C8F', tint: 'rgba(242,12,143,0.12)', icon: 'gift-outline' },
-  neutral: { bar: '#797D86', tint: 'rgba(0,0,0,0.06)', icon: 'wallet-outline' },
-};
+/**
+ * Movement colours by meaning, from the active palette (Midnight Glass): green money in, amber
+ * waiting, blue a stream or booking, red money out, magenta a gift. Functions of the palette so
+ * they follow the scheme.
+ */
+export const PALETTE = (c: Palette): Record<MoneyItem['color'], { bar: string; tint: string; icon: string }> => ({
+  green: { bar: c.success, tint: c.successBg, icon: 'cash-outline' },
+  amber: { bar: c.pending, tint: c.pendingBg, icon: 'time-outline' },
+  blue: { bar: c.primary, tint: c.tint, icon: 'videocam-outline' },
+  red: { bar: c.error, tint: c.errorBg, icon: 'arrow-up-circle-outline' },
+  purple: { bar: c.accent, tint: c.tintAccent, icon: 'gift-outline' },
+  neutral: { bar: c.textMuted, tint: c.surfaceMuted, icon: 'wallet-outline' },
+});
 
-export const COLOR_MAP: Record<
-  MoneyItem['color'],
-  { bg: string; text: string; border: string }
-> = {
-  green:   { bg: 'rgba(16, 185, 129, 0.12)', text: '#059669', border: 'rgba(16, 185, 129, 0.25)' },
-  red:     { bg: 'rgba(220, 38, 38, 0.12)',   text: '#DC2626', border: 'rgba(220, 38, 38, 0.25)' },
-  blue:    { bg: 'rgba(8, 58, 133, 0.10)',    text: '#083A85', border: 'rgba(8, 58, 133, 0.22)' },
-  amber:   { bg: 'rgba(245, 158, 11, 0.14)', text: '#D97706', border: 'rgba(245, 158, 11, 0.30)' },
-  purple:  { bg: 'rgba(242, 12, 143, 0.12)', text: '#F20C8F', border: 'rgba(242, 12, 143, 0.25)' },
-  neutral: { bg: 'rgba(0, 0, 0, 0.06)',       text: '#4B5563', border: 'rgba(0, 0, 0, 0.10)' },
-};
+export const COLOR_MAP = (c: Palette): Record<MoneyItem['color'], { bg: string; text: string; border: string }> => ({
+  green: { bg: c.successBg, text: c.success, border: alpha(c.success, 0.3) },
+  red: { bg: c.errorBg, text: c.error, border: alpha(c.error, 0.3) },
+  blue: { bg: c.tint, text: c.link, border: alpha(c.link, 0.3) },
+  amber: { bg: c.pendingBg, text: c.pending, border: alpha(c.pending, 0.3) },
+  purple: { bg: c.tintAccent, text: c.accentLight, border: alpha(c.accent, 0.3) },
+  neutral: { bg: c.surfaceMuted, text: c.textSoft, border: c.stroke },
+});
 
 export function formatRelativeTime(isoString?: string): string {
   if (!isoString) return '';

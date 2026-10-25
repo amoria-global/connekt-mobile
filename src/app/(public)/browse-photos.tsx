@@ -43,7 +43,7 @@ import { PhotoCheckoutSheet } from '@/features/photos/PhotoCheckoutSheet';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
-import { spacing, radii, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/store/language';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
@@ -312,7 +312,7 @@ export default function BrowsePhotosScreen() {
             onPress={() => toggleCart(item)}
             hitSlop={8}
           >
-            <Ionicons name={selected ? 'checkmark' : 'add'} size={16} color="#fff" />
+            <Ionicons name={selected ? 'checkmark' : 'add'} size={16} color={onFill} />
           </Pressable>
         ) : null}
         <View style={styles.cardFooter}>
@@ -404,10 +404,10 @@ export default function BrowsePhotosScreen() {
                 accessibilityLabel={t('b4_reportPhoto')}
                 hitSlop={8}
               >
-                <Ionicons name="flag-outline" size={22} color="#FFF" />
+                <Ionicons name="flag-outline" size={22} color={onFill} />
               </Pressable>
               <Pressable onPress={() => setPreviewing(null)} style={styles.closeButton}>
-                <Ionicons name="close" size={28} color="#FFF" />
+                <Ionicons name="close" size={28} color={onFill} />
               </Pressable>
             </View>
 
@@ -451,7 +451,7 @@ export default function BrowsePhotosScreen() {
                       <Ionicons
                         name={inCart(previewing.imageId) ? 'checkmark-circle' : 'add-circle-outline'}
                         size={18}
-                        color="#fff"
+                        color={onFill}
                       />
                       <Text style={styles.lbBtnText}>{inCart(previewing.imageId) ? t('b4_inCart') : t('b4_addToCart')}</Text>
                     </Pressable>
@@ -486,7 +486,7 @@ export default function BrowsePhotosScreen() {
         <GlassScrim onPress={() => setPurchased(null)} style={styles.successContainer}>
           <GlassSheetHost variant="dialog" style={[styles.successCard, { marginTop: insets.top + 20, marginBottom: insets.bottom + 20 }]}>
             <View style={styles.successHead}>
-              <Ionicons name="checkmark-circle" size={28} color="#10B981" />
+              <Ionicons name="checkmark-circle" size={28} color={colors.success} />
               <Text style={styles.successTitle}>{t('b4_purchaseComplete')}</Text>
               <Pressable onPress={() => setPurchased(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={colors.text} />
@@ -503,9 +503,9 @@ export default function BrowsePhotosScreen() {
                 disabled={savingAllBatch}
               >
                 {savingAllBatch ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={onFill} />
                 ) : (
-                  <Ionicons name="cloud-download-outline" size={18} color="#fff" />
+                  <Ionicons name="cloud-download-outline" size={18} color={onFill} />
                 )}
                 <Text style={styles.saveAllBtnText}>
                   {savingAllBatch ? (batchProgress || t('b4_savingToPhotos')) : t('b4_saveAllToPhotos', { count: purchased.length })}
@@ -522,7 +522,7 @@ export default function BrowsePhotosScreen() {
                 <Pressable style={styles.successThumb} onPress={() => downloadPhoto(item)}>
                   <Image source={{ uri: item.thumbnailUrl || item.fileUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   <View style={styles.successThumbOverlay}>
-                    <Ionicons name="download" size={18} color="#fff" />
+                    <Ionicons name="download" size={18} color={onFill} />
                   </View>
                 </Pressable>
               )}
@@ -553,10 +553,10 @@ const useStyles = makeStyles((c, e) => ({
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)',
   },
-  cartToggleOn: { backgroundColor: '#F20C8F', borderColor: '#F20C8F' },
+  cartToggleOn: { backgroundColor: c.accent, borderColor: c.accent },
   cardFooter: { position: 'absolute', bottom: 8, left: 8, right: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  cardTitle: { color: '#FFF', fontSize: 12, fontWeight: '600', flex: 1, marginRight: 8 },
-  cardPrice: { color: '#FFF', fontSize: 12, fontWeight: '700', backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+  cardTitle: { color: c.textOnPrimary, fontSize: 12, fontWeight: '600', flex: 1, marginRight: 8 },
+  cardPrice: { color: c.card, fontSize: 12, fontWeight: '700', backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
   watermark: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   watermarkText: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
@@ -572,7 +572,7 @@ const useStyles = makeStyles((c, e) => ({
   cartBarCount: { color: c.textMuted, fontSize: 12 },
   cartBarTotal: { color: c.text, fontSize: 18, fontWeight: '800' },
   cartBarBtn: { backgroundColor: c.primary, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 12 },
-  cartBarBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  cartBarBtnText: { color: c.textOnPrimary, fontWeight: '800', fontSize: 15 },
 
   lightboxContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' },
   lightboxContent: { flex: 1 },
@@ -612,13 +612,13 @@ const useStyles = makeStyles((c, e) => ({
     textShadowRadius: 2,
   },
   lightboxFooter: { padding: spacing.xl },
-  lightboxTitle: { color: '#FFF', fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  lightboxTitle: { color: c.textOnPrimary, fontSize: 20, fontWeight: '700', marginBottom: 4 },
   lightboxPhotographer: { color: 'rgba(255,255,255,0.7)', fontSize: 15, marginBottom: 20 },
   lightboxActions: { flexDirection: 'row', gap: 10 },
   lbBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14, borderRadius: 12 },
   lbBtnGhost: { backgroundColor: 'rgba(255,255,255,0.12)' },
   lbBtnPrimary: { backgroundColor: c.primary },
-  lbBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  lbBtnText: { color: c.textOnPrimary, fontWeight: '700', fontSize: 14 },
 
   sheetHint: { color: c.textMuted, fontSize: 13, lineHeight: 19 },
 
@@ -626,7 +626,7 @@ const useStyles = makeStyles((c, e) => ({
   successCard: { padding: spacing.xl, maxHeight: '80%' },
   successHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   successTitle: { flex: 1, color: c.text, fontSize: 18, fontWeight: '800' },
-  unlockCode: { color: '#FBBF24', fontSize: 14, fontWeight: '700', marginBottom: 8 },
+  unlockCode: { color: c.pending, fontSize: 14, fontWeight: '700', marginBottom: 8 },
   successThumb: { flex: 1, maxWidth: '32%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.1)' },
   successThumbOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
 
@@ -646,7 +646,7 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
     borderRadius: radii.full,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -654,7 +654,7 @@ const useStyles = makeStyles((c, e) => ({
     marginBottom: 6,
   },
   saveAllBtnText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontWeight: '700',
     fontSize: 14,
   },

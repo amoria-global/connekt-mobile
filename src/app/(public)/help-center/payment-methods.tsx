@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, fontSize, makeStyles } from '@/theme';
+import { spacing, fontSize, makeStyles, useTheme, alpha } from '@/theme';
 
 export default function PaymentMethodsHelpScreen() {
   const styles = useStyles();
+  const { colors } = useTheme();
   const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('cards');
 
@@ -39,7 +40,7 @@ export default function PaymentMethodsHelpScreen() {
               </Text>
 
               <Text style={styles.sectionTitle}>{t('b4_hcPmAcceptedTypes')}</Text>
-              <View style={[styles.card, { borderColor: '#F59E0B26', backgroundColor: '#F59E0B0A' }]}>
+              <View style={[styles.card, { borderColor: alpha(colors.pending, 0.15), backgroundColor: alpha(colors.pending, 0.04) }]}>
                 <Text style={styles.listItem}>{t('b4_hcPmVisa')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcPmMastercard')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcPmAmex')}</Text>
@@ -56,11 +57,11 @@ export default function PaymentMethodsHelpScreen() {
               </View>
 
               <Text style={styles.sectionTitle}>{t('b4_hcPmTroubleshooting')}</Text>
-              <View style={[styles.card, { borderColor: '#EF444426', backgroundColor: '#EF44440A' }]}>
-                <Text style={[styles.bold, { color: '#EF4444', marginBottom: 4 }]}>{t('b4_hcPmCardDeclinedTitle')}</Text>
+              <View style={[styles.card, { borderColor: alpha(colors.error, 0.15), backgroundColor: alpha(colors.error, 0.04) }]}>
+                <Text style={[styles.bold, { color: colors.error, marginBottom: 4 }]}>{t('b4_hcPmCardDeclinedTitle')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcPmCardDeclinedDesc')}</Text>
 
-                <Text style={[styles.bold, { color: '#EF4444', marginBottom: 4, marginTop: 8 }]}>{t('b4_hcPmCvvFailedTitle')}</Text>
+                <Text style={[styles.bold, { color: colors.error, marginBottom: 4, marginTop: 8 }]}>{t('b4_hcPmCvvFailedTitle')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcPmCvvFailedDesc')}</Text>
               </View>
             </View>

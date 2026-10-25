@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, fontSize, makeStyles } from '@/theme';
+import { spacing, fontSize, makeStyles, alpha, useTheme } from '@/theme';
 
 export default function PaymentHelpScreen() {
   const styles = useStyles();
+  const { colors } = useTheme();
   const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('escrow');
 
@@ -37,7 +38,7 @@ export default function PaymentHelpScreen() {
               <Text style={styles.bodyText}>
                 {t('b4_hcEscrowIntro')}
               </Text>
-              <View style={[styles.card, { borderColor: '#10B98126', backgroundColor: '#10B9810A' }]}>
+              <View style={[styles.card, { borderColor: alpha(colors.success, 0.15), backgroundColor: alpha(colors.success, 0.04) }]}>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcEscrowStep1Title')}</Text> {t('b4_hcEscrowStep1Desc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcEscrowStep2Title')}</Text> {t('b4_hcEscrowStep2Desc')}</Text>
                 <Text style={styles.listItem}><Text style={styles.bold}>{t('b4_hcEscrowStep3Title')}</Text> {t('b4_hcEscrowStep3Desc')}</Text>

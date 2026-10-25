@@ -76,51 +76,75 @@ export const lightPalette = {
   warningLine: '#FDE68A',
   errorSoft: '#FEE2E2',
   errorLine: '#FECACA',
+
+  // Midnight Glass roles (design/brief.png). Light mode keeps the same roles on light tokens.
+  /** Highlight blue: the top stop of a raised button, active icons, a selected day. */
+  primaryLight: '#2F64C8',
+  /** Glass panel fill, top and bottom stops of the vertical gradient. */
+  glassTop: 'rgba(255,255,255,0.82)',
+  glassBottom: 'rgba(255,255,255,0.66)',
+  /** Solid fill for glass where blur is unavailable (Android without a blur target, low power). */
+  glassSolid: '#FFFFFF',
+  /** The glass edge. */
+  stroke: 'rgba(8,58,133,0.12)',
+  /** Inset well (fields, inner panels) sunk into glass. */
+  well: 'rgba(8,24,56,0.05)',
+  /** Live and collaboration: cyan. */
+  live: '#0B7C8C',
+  liveBg: 'rgba(11,124,140,0.10)',
+  /** Pending and waiting: amber. */
+  pending: '#8A5A00',
+  pendingBg: 'rgba(245,180,0,0.16)',
+  /** A destructive filled button: white text reads on it (AA). */
+  dangerFill: '#B91C1C',
 } as const;
 
 /** The shape every palette must satisfy. */
 export type Palette = { [K in keyof typeof lightPalette]: string };
 
+/**
+ * Midnight Glass (design/brief.png): the default scheme. The values are the brief's tokens; the
+ * solid surfaces are what the glass flattens to over `background`, so a screen not yet on glass
+ * still sits in the same family.
+ */
 export const darkPalette: Palette = {
-  // Brand — brightened so it still reads as a fill against dark surfaces.
-  primary: '#3D6FD6',
-  primaryDark: '#2A54A8',
-  accent: '#F20C8F',
-  accentLight: '#ff4fae',
+  // Brand: brightened so it still reads as a fill against dark surfaces.
+  primary: '#3E6FD8',
+  primaryDark: '#3360C4',
+  accent: '#EE0E8F',
+  accentLight: '#FF5DB8',
   link: '#7FA6F5',
 
-  // Surfaces — four deliberate steps. These carry elevation on their own,
-  // because shadows do not register on a dark ground. Sampled from the Photographer prototype, whose screens sit on
-  // a deep blue-teal (about #071321 to #0B1828) with cards a step lighter (about #0F2231 to #132434). The native
-  // splash in app.json stays #0E1117 (changing it is a native change); AppPreloader keeps that hex as the splash
-  // continuation, so the app fades from the splash colour into this ground.
-  background: '#0A1524',
-  surface: '#0F1D2F',
-  card: '#13243A',
-  surfaceMuted: '#1A2E47',
-  elevated: '#1B3049',
+  // Surfaces: four deliberate steps. `card` is the brief's blur fallback, #16243C. The native
+  // splash in app.json stays #0E1117 (changing it is a native change); AppPreloader keeps that hex
+  // as the splash continuation, so the app fades from the splash colour into this ground.
+  background: '#0A1220',
+  surface: '#101B2E',
+  card: '#16243C',
+  surfaceMuted: '#1B2B46',
+  elevated: '#1D2F4D',
 
-  // Text: softened whites; pure #FFF on near-black causes halation. Slightly cool so it sits on the navy.
-  text: '#EDF2F8',
-  textSoft: '#C4D0E0',
-  textMuted: '#8FA4BF',
+  // Text: softened whites; pure #FFF on near-black causes halation.
+  text: '#EAF0FA',
+  textSoft: '#C9D5EA',
+  textMuted: '#93A3BE',
   textOnPrimary: '#FFFFFF',
 
-  // Lines: a blue hairline, visible enough to define a card edge, quiet enough not to grid up.
-  border: '#274463',
-  borderSoft: '#1A304A',
+  // Lines: the glass stroke flattened over a card, so solid hairlines and glass edges agree.
+  border: '#2A3B58',
+  borderSoft: '#1E2D47',
 
   // Tints must be lighter AND more opaque than their light counterparts,
   // otherwise they vanish against the background.
-  tint: 'rgba(61,111,214,0.16)',
-  tintAccent: 'rgba(242,12,143,0.15)',
+  tint: 'rgba(62,111,216,0.16)',
+  tintAccent: 'rgba(238,14,143,0.15)',
   scrim: 'rgba(0,0,0,0.65)',
   shadow: '#000000',
 
-  // Status — light foreground on a deep, desaturated tinted ground.
+  // Status: light foreground on a deep, desaturated tinted ground. Warning is the brief's amber.
   success: '#4ADE80',
   successBg: '#0E2F22',
-  warning: '#FBBF24',
+  warning: '#F5B400',
   warningBg: '#33260A',
   error: '#F87171',
   errorBg: '#341A1D',
@@ -131,6 +155,18 @@ export const darkPalette: Palette = {
   warningLine: '#5A4210',
   errorSoft: '#40191D',
   errorLine: '#6B2A31',
+
+  primaryLight: '#5B8CFF',
+  glassTop: 'rgba(32,50,82,0.62)',
+  glassBottom: 'rgba(18,30,52,0.52)',
+  glassSolid: '#16243C',
+  stroke: 'rgba(170,195,240,0.14)',
+  well: 'rgba(4,9,18,0.55)',
+  live: '#22C7D9',
+  liveBg: 'rgba(34,199,217,0.14)',
+  pending: '#F5B400',
+  pendingBg: 'rgba(245,180,0,0.14)',
+  dangerFill: '#C2353F',
 };
 
 export type ColorSchemeName = 'light' | 'dark';
@@ -160,6 +196,14 @@ export const gradientsFor = (scheme: ColorSchemeName) =>
         heroBlue: ['#173A8F', '#2A5FCC'] as const,
         /** The one secondary hero per screen (Publish offer). */
         heroViolet: ['#4C1D95', '#9226B8'] as const,
+        /**
+         * Raised (skeuo) button fills, top to bottom, with `raisedStops`. The magenta middle is
+         * darker than `accent` on purpose: white on #EE0E8F is 4.1:1, on #D80C82 it is 4.9:1.
+         */
+        raisedPrimary: ['#5B8CFF', '#3E6FD8', '#3360C4'] as const,
+        raisedAccent: ['#F64BA8', '#D80C82', '#B0076F'] as const,
+        /** Greeting name and avatar ring. */
+        ring: ['#5B8CFF', '#EE0E8F'] as const,
       }
     : {
         brand: ['#083A85', '#0a4da3', '#F20C8F'] as const,
@@ -167,6 +211,12 @@ export const gradientsFor = (scheme: ColorSchemeName) =>
         wash: ['rgba(8,58,133,0.08)', 'rgba(242,12,143,0.08)'] as const,
         heroBlue: ['#083A85', '#1B55B8'] as const,
         heroViolet: ['#5B21B6', '#A21CAF'] as const,
+        raisedPrimary: ['#2F64C8', '#083A85', '#062D6B'] as const,
+        raisedAccent: ['#F64BA8', '#D80C82', '#B0076F'] as const,
+        ring: ['#083A85', '#F20C8F'] as const,
       };
+
+/** Stop positions for the three-stop raised fills (the brief's 55% middle). */
+export const raisedStops = [0, 0.55, 1] as const;
 
 export type Gradients = ReturnType<typeof gradientsFor>;

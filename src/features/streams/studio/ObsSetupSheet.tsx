@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { BottomSheet } from './BottomSheet';
 import { S } from './theme';
 
@@ -55,7 +55,7 @@ export function ObsSetupSheet({ visible, onClose, whipUrl, copied, onCopy }: Pro
           accessibilityRole="button"
           accessibilityLabel="Share WHIP server URL"
         >
-          <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color="#fff" />
+          <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color={onFill} />
           <Text style={styles.copyText}>{copied ? 'Done' : 'Copy'}</Text>
         </Pressable>
       </View>
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: S.brand,
   },
-  numText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
+  numText: { fontFamily: fonts.bold, fontSize: 13, color: onFill },
   stepText: { flex: 1, fontFamily: fonts.regular, fontSize: 16, color: S.text },
   label: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.8, color: S.textFaint, marginBottom: 6 },
   urlBox: {
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: S.go,
   },
-  copyText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
+  copyText: { fontFamily: fonts.bold, fontSize: 15, color: onFill },
   table: { backgroundColor: S.sheetRow, borderRadius: 14, overflow: 'hidden' },
   tr: {
     flexDirection: 'row',

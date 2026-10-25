@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { RoundButton } from './RoundButton';
 import { S, TOUCH } from './theme';
 
@@ -68,10 +68,10 @@ function BottomLiveControlsBase({
         accessibilityState={{ disabled: ending, busy: ending }}
       >
         {ending ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color={onFill} />
         ) : (
           <>
-            <Ionicons name="stop" size={16} color="#fff" />
+            <Ionicons name="stop" size={16} color={onFill} />
             <Text style={styles.endText}>End</Text>
           </>
         )}
@@ -120,5 +120,5 @@ const styles = StyleSheet.create({
     borderRadius: TOUCH / 2,
     backgroundColor: 'rgba(220,38,38,0.92)',
   },
-  endText: { fontFamily: fonts.bold, fontSize: 17, color: '#fff' },
+  endText: { fontFamily: fonts.bold, fontSize: 17, color: onFill },
 });

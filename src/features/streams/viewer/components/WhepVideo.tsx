@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { buildWhepHtml, parseWhepMessage, type WhepStatus } from '../whep';
 
+import { onMedia } from '@/theme';
 export type WhepHandle = {
   setMuted: (muted: boolean) => void;
   setPlaying: (playing: boolean) => void;
@@ -69,5 +70,5 @@ export const WhepVideo = memo(
 );
 
 const styles = StyleSheet.create({
-  web: { flex: 1, backgroundColor: '#000' },
+  web: { flex: 1, backgroundColor: onMedia.black },
 });

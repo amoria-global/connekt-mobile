@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts } from '@/theme';
+import { fonts, darkPalette } from '@/theme';
 import { RoundButton } from './RoundButton';
 import { S } from './theme';
 import { CONNECTION_COPY, formatCount, formatDuration, type ConnectionState } from './viewModel';
@@ -39,7 +39,7 @@ function DeviceChip({ kind, off }: { kind: 'mic' | 'cam'; off: boolean }) {
       accessible
       accessibilityLabel={`${name} ${off ? 'off' : 'on'}`}
     >
-      <Ionicons name={icon} size={13} color={off ? '#FCA5A5' : S.text} />
+      <Ionicons name={icon} size={13} color={off ? darkPalette.error : S.text} />
       <Text style={[styles.chipText, off && styles.chipTextOff]}>{off ? 'OFF' : 'ON'}</Text>
     </View>
   );
@@ -163,5 +163,5 @@ const styles = StyleSheet.create({
   },
   chipOff: { backgroundColor: 'rgba(127,29,29,0.72)' },
   chipText: { fontFamily: fonts.bold, fontSize: 13, color: S.text },
-  chipTextOff: { color: '#FECACA' },
+  chipTextOff: { color: darkPalette.error },
 });

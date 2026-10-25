@@ -21,7 +21,7 @@ import { useRole } from '@/features/auth/role';
 import { listNotifications, type AppNotification } from './api';
 import { freshUnread, inAppAlertKind, type InAppAlertKind } from './inAppAlerts';
 import { notificationTarget } from './routing';
-import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
+import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme, onFill } from '@/theme';
 
 const POLL_MS = 15_000;
 const BANNER_MS = 6_000;
@@ -138,7 +138,7 @@ export function InAppNotificationWatcher() {
           <Ionicons
             name={ring ? 'notifications' : 'checkmark-circle-outline'}
             size={18}
-            color={ring ? '#FFFFFF' : colors.primary}
+            color={ring ? onFill : colors.primary}
           />
         </View>
         <View style={{ flex: 1 }}>
@@ -176,7 +176,7 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1,
     borderColor: c.borderSoft,
     padding: spacing.md,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },

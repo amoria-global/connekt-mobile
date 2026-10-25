@@ -27,6 +27,7 @@ import { StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import type { PublishStatus } from './CameraPublisher.web';
 
+import { darkPalette, onMedia } from '@/theme';
 export type { PublishStatus } from './CameraPublisher.web';
 
 export type CameraFacing = 'user' | 'environment';
@@ -97,9 +98,9 @@ function buildPublisherHtml(whipUrl: string, nativeUi: boolean): string {
 
   var ICONS = {
     micOn: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
-    micOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
+    micOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${darkPalette.error}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
     camOn: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
-    camOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="m21 15.5-5-3.5 5-3.5v7z"/><path d="M10.5 5H15a2 2 0 0 1 2 2v4.5"/><path d="M1 5.5A2 2 0 0 1 3 5h2m11 11.5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 .5-1.3"/></svg>',
+    camOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${darkPalette.error}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="m21 15.5-5-3.5 5-3.5v7z"/><path d="M10.5 5H15a2 2 0 0 1 2 2v4.5"/><path d="M1 5.5A2 2 0 0 1 3 5h2m11 11.5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 .5-1.3"/></svg>',
     flip: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/><path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/><circle cx="12" cy="12" r="3"/><path d="m18 22-3-3 3-3"/><path d="m6 2 3 3-3 3"/></svg>'
   };
 
@@ -294,7 +295,7 @@ export const CameraPublisher = forwardRef<CameraPublisherHandle, Props>(function
 });
 
 const styles = StyleSheet.create({
-  wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: '#000' },
-  fill: { ...StyleSheet.absoluteFill, backgroundColor: '#000' },
-  webview: { width: '100%', height: '100%', backgroundColor: '#000' },
+  wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: onMedia.black },
+  fill: { ...StyleSheet.absoluteFill, backgroundColor: onMedia.black },
+  webview: { width: '100%', height: '100%', backgroundColor: onMedia.black },
 });
