@@ -1,3 +1,4 @@
+import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Image, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, KeyboardAvoidingView } from 'react-native';
@@ -360,49 +361,38 @@ export default function InboxScreen() {
             </View>
           ) : error && !data ? (
             // A failed read is not an empty inbox.
-            <View style={styles.emptyContainer}>
-              <Ionicons name="cloud-offline-outline" size={44} color={colors.textMuted} />
-              <Text style={styles.emptyTitle}>Could not load your messages</Text>
-              <Text style={styles.emptySubtitle}>{error}</Text>
-              <Pressable style={styles.emptyActionBtn} onPress={refresh} accessibilityRole="button" accessibilityLabel="Try again">
-                <Text style={styles.emptyActionBtnText}>Try again</Text>
-              </Pressable>
+            <View style={styles.emptyKit}>
+              <ErrorState title="Could not load your messages" message={error} onRetry={refresh} />
             </View>
           ) : (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="paper-plane-outline" size={44} color={colors.text} />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {searchQuery.trim().length > 0 ? t('noMatchingMessages') : t('yourMessages')}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {searchQuery.trim().length > 0
-                  ? t('noConversationsMatch', { query: searchQuery.trim() })
-                  : activeFilter !== 'ALL'
-                  ? t('noConversationsCategory')
-                  : t('privateMessagesBlurb')}
-              </Text>
+            <View style={styles.emptyKit}>
               {searchQuery.trim().length > 0 || activeFilter !== 'ALL' ? (
-                <Pressable
-                  style={styles.emptyActionBtn}
-                  onPress={() => {
-                    setSearchQuery('');
-                    setActiveFilter('ALL');
+                <EmptyState
+                  icon="search-outline"
+                  title={searchQuery.trim().length > 0 ? t('noMatchingMessages') : t('yourMessages')}
+                  message={searchQuery.trim().length > 0 ? t('noConversationsMatch', { query: searchQuery.trim() }) : t('noConversationsCategory')}
+                  action={{
+                    label: t('viewAllMessages'),
+                    onPress: () => {
+                      setSearchQuery('');
+                      setActiveFilter('ALL');
+                    },
                   }}
-                >
-                  <Text style={styles.emptyActionBtnText}>{t('viewAllMessages')}</Text>
-                </Pressable>
+                />
               ) : (
-                <Pressable
-                  style={styles.emptyActionBtn}
-                  onPress={() => {
-                    setShowNewMessageModal(true);
-                    void loadContacts();
+                <EmptyState
+                  icon="paper-plane-outline"
+                  title={t('yourMessages')}
+                  message={t('privateMessagesBlurb')}
+                  action={{
+                    label: t('sendMessage'),
+                    raised: true,
+                    onPress: () => {
+                      setShowNewMessageModal(true);
+                      void loadContacts();
+                    },
                   }}
-                >
-                  <Text style={styles.emptyActionBtnText}>{t('sendMessage')}</Text>
-                </Pressable>
+                />
               )}
             </View>
           )
@@ -655,6 +645,7 @@ export default function InboxScreen() {
 }
 
 const useStyles = makeStyles((c, e) => ({
+  emptyKit: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
   listContent: {
     paddingHorizontal: 0,
     flexGrow: 1,
