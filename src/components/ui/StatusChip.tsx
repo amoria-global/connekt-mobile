@@ -1,6 +1,6 @@
 /**
  * StatusChip: a pill carrying a state, coloured by meaning (design/brief.png):
- * blue = action or scheduled, magenta = attention, cyan = live, amber = pending.
+ * blue = action or scheduled, magenta = attention, red = live right now, cyan = active, amber = pending.
  *
  * With `onPress` it is a filter chip (Events: All 60 · Upcoming 29 · Ongoing 1); the hit area is
  * padded to 44pt whatever the chip's drawn height.
@@ -8,11 +8,13 @@
 import { Pressable, Text, View } from 'react-native';
 import { alpha, fonts, fontSize, makeStyles, radii, spacing, useTheme, type Palette, type Gradients } from '@/theme';
 
-export type ChipTone = 'primary' | 'accent' | 'live' | 'pending' | 'success' | 'error' | 'neutral';
+export type ChipTone = 'primary' | 'accent' | 'live' | 'active' | 'pending' | 'success' | 'error' | 'neutral';
 
 export function chipColors(c: Palette, g: Gradients, isDark: boolean, tone: ChipTone): { fg: string; bg: string } {
   switch (tone) {
-    case 'live': return { fg: c.live, bg: c.liveBg };
+    // Broadcast red, only for on air right now; active (cyan) is in progress, collaboration, connected.
+    case 'live': return { fg: c.liveText, bg: alpha(c.live, 0.16) };
+    case 'active': return { fg: c.active, bg: c.activeBg };
     case 'pending': return { fg: c.pending, bg: c.pendingBg };
     // Light mode's magenta is too pale for 12px text on white; it takes the raised fill's deep stop.
     case 'accent': return { fg: isDark ? c.accentLight : g.raisedAccent[2], bg: c.tintAccent };

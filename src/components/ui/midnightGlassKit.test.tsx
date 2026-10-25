@@ -123,7 +123,9 @@ describe('BentoGrid', () => {
 
 describe('status chip colour meaning', () => {
   it.each([
-    ['Ongoing', 'live'],
+    ['Live', 'live'],
+    ['Streaming', 'live'],
+    ['Ongoing', 'active'],
     ['PENDING', 'pending'],
     ['Completed', 'success'],
     ['Cancelled', 'error'],

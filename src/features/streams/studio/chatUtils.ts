@@ -21,7 +21,7 @@ export function getReactionIcon(key: string): { icon: keyof typeof Ionicons.glyp
     return { icon: 'star', color: darkPalette.pending };
   }
   if (k === '👏' || k.includes('clap')) {
-    return { icon: 'hand-left', color: darkPalette.live };
+    return { icon: 'hand-left', color: darkPalette.active };
   }
   if (k === '👍' || k.includes('like') || k.includes('thumb')) {
     return { icon: 'thumbs-up', color: darkPalette.primaryLight };

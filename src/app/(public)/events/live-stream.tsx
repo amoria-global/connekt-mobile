@@ -1796,13 +1796,13 @@ export default function PublicLiveStreamScreen() {
                   <View style={styles.placeholderContent}>
                     {accessLoading ? (
                       <>
-                        <ActivityIndicator color={darkPalette.live} size="large" />
+                        <ActivityIndicator color={darkPalette.active} size="large" />
                         <Text style={styles.placeholderHeadline}>{tr('b4_verifyingAccess')}</Text>
                         <Text style={styles.placeholderText}>{tr('b4_pleaseWaitConfirmAccess')}</Text>
                       </>
                     ) : status.isLive && accessGranted ? (
                       <>
-                        <ActivityIndicator color={darkPalette.live} size="large" />
+                        <ActivityIndicator color={darkPalette.active} size="large" />
                         <Text style={styles.placeholderText}>{tr('b4_streamIsLoading')}</Text>
                       </>
                     ) : status.isLive && status.isPaid ? (
@@ -3199,7 +3199,7 @@ const useChatFx = makeStyles((c) => ({
   pillName: {
     fontSize: 12,
     fontWeight: '800',
-    color: c.live,
+    color: c.active,
     flexShrink: 1,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 2,

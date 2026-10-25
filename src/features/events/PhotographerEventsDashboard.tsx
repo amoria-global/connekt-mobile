@@ -118,13 +118,13 @@ const STATUS_LABEL: Record<PhotogStatus, string> = {
 
 /** A bucket's meaning as a colour: amber pending, blue scheduled, cyan live, green done, red cancelled. */
 const statusColor = (c: Palette, s: PhotogStatus) =>
-  ({ pending: c.pending, upcoming: c.primaryLight, ongoing: c.live, completed: c.success, cancelled: c.error })[s];
+  ({ pending: c.pending, upcoming: c.primaryLight, ongoing: c.active, completed: c.success, cancelled: c.error })[s];
 
 const FILTER_TONE: Record<EventFilter, ChipTone> = {
   all: 'primary',
   pending: 'pending',
   upcoming: 'primary',
-  ongoing: 'live',
+  ongoing: 'active',
   completed: 'success',
 };
 
@@ -849,7 +849,7 @@ function PhotographerEventCard({
             <>
               {canStream ? (
                 <Pressable style={[styles.actBtn, styles.actStream]} onPress={onLiveStream} accessibilityRole="button">
-                  <Ionicons name="radio" size={13} color={colors.live} />
+                  <Ionicons name="radio" size={13} color={colors.active} />
                   <Text style={styles.actText}>{t('liveStream')}</Text>
                 </Pressable>
               ) : null}
@@ -1218,7 +1218,7 @@ const useStyles = makeStyles((c) => ({
   // Blue is the action; declining and the rest are glass on the photograph, so only one control is filled.
   actAccept: { backgroundColor: c.primary, flex: 1 },
   actDeny: { backgroundColor: onMedia.glass, borderWidth: 1, borderColor: onMedia.faint, flex: 1 },
-  actStream: { backgroundColor: onMedia.glass, borderWidth: 1, borderColor: c.live },
+  actStream: { backgroundColor: onMedia.glass, borderWidth: 1, borderColor: c.active },
   actAlbum: { backgroundColor: c.primary },
   actAcceptedChip: { backgroundColor: onMedia.glass },
   actQr: { backgroundColor: 'rgba(255,255,255,0.16)' },
