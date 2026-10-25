@@ -43,7 +43,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { formatPrice } from '@/utils/format';
 import { useLanguage } from '@/store/language';

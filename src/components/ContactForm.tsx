@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { submitContactMessage } from '@/features/support/api';
 import { isApiError } from '@/store/auth';
-import { colors, spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 const CHANNELS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string; href: string }[] = [
@@ -180,7 +180,7 @@ const useStyles = makeStyles((c) => ({
     letterSpacing: 1.5,
     marginBottom: spacing.sm,
   },
-  title: { fontSize: 32, fontWeight: '800', color: '#fff', marginBottom: spacing.sm, textAlign: 'center' },
+  title: { fontSize: 32, fontWeight: '800', color: c.textOnPrimary, marginBottom: spacing.sm, textAlign: 'center' },
   subtitle: { fontSize: fontSize.md, color: 'rgba(255,255,255,0.9)', textAlign: 'center', lineHeight: 24 },
 
   card: {

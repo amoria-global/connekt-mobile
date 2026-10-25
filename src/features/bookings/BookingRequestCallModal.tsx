@@ -26,7 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from '@/utils/safeAudio';
 import type { EventItem } from '@/features/events/types';
 import { formatPrice } from '@/utils/format';
-import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
+import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 const RINGTONE = require('../../../assets/sounds/connekyt_ringtone.wav');
@@ -191,7 +191,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
                 accessibilityLabel={tr('Decline booking')}
               >
                 {busy === 'decline' ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={onFill} />
                 ) : (
                   <Text style={styles.btnText}>{tr('Decline booking')}</Text>
                 )}
@@ -214,7 +214,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
                 accessibilityRole="button"
                 accessibilityLabel={tr('Decline')}
               >
-                <Ionicons name="close" size={22} color="#FFFFFF" />
+                <Ionicons name="close" size={22} color={onFill} />
                 <Text style={styles.btnText}>{tr('Decline')}</Text>
               </Pressable>
               <Pressable
@@ -225,10 +225,10 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
                 accessibilityLabel={tr('Accept')}
               >
                 {busy === 'accept' ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={onFill} />
                 ) : (
                   <>
-                    <Ionicons name="checkmark" size={22} color="#FFFFFF" />
+                    <Ionicons name="checkmark" size={22} color={onFill} />
                     <Text style={styles.btnText}>{tr('Accept')}</Text>
                   </>
                 )}
@@ -293,7 +293,7 @@ const useStyles = makeStyles((c) => ({
   rowText: { flex: 1, fontSize: fontSize.md, color: c.text },
   link: { color: c.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.sm, marginTop: spacing.xs },
   hint: { fontSize: fontSize.xs, color: c.textMuted, textAlign: 'center', marginBottom: spacing.md },
-  error: { color: '#DC2626', fontSize: fontSize.sm, textAlign: 'center', marginBottom: spacing.sm },
+  error: { color: c.error, fontSize: fontSize.sm, textAlign: 'center', marginBottom: spacing.sm },
   actions: { flexDirection: 'row', gap: spacing.md },
   btn: {
     flex: 1,
@@ -304,10 +304,10 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  btnAccept: { backgroundColor: '#16A34A' },
-  btnDecline: { backgroundColor: '#DC2626' },
+  btnAccept: { backgroundColor: c.success },
+  btnDecline: { backgroundColor: c.error },
   btnGhost: { backgroundColor: c.surfaceMuted },
-  btnText: { color: '#FFFFFF', fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  btnText: { color: c.textOnPrimary, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   btnGhostText: { color: c.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
   later: { alignSelf: 'center', marginTop: spacing.md, padding: spacing.sm },
   laterText: { color: c.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },

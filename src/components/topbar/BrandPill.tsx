@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { spacing, radii, fontSize, fontWeight, makeStyles } from '@/theme';
+import { fonts, spacing, radii, makeStyles, tracking } from '@/theme';
 
 /**
  * Center slot: a rounded pill. Defaults to the Connekyt brand (logo + wordmark),
@@ -61,12 +61,13 @@ const useStyles = makeStyles((c, e) => ({
   },
   flat: { height: 40, backgroundColor: 'transparent', justifyContent: 'flex-start', paddingHorizontal: 0, shadowOpacity: 0, elevation: 0 },
   pressed: { opacity: 0.9 },
-  mark: { width: 20, height: 20 },
+  mark: { width: 22, height: 22 },
+  // The wordmark in the display face, as design/home.png sets it.
   text: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-    letterSpacing: 0.2,
+    fontSize: 19,
+    fontFamily: fonts.display,
+    color: c.text,
+    letterSpacing: tracking(19, -0.02),
     flexShrink: 1,
   },
 }));

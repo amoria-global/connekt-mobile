@@ -19,6 +19,8 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { registerPushToken } from './api';
 import { showSystemBannerInForeground } from './inAppAlerts';
+// The notification LED is the brand colour, whatever the app's scheme.
+import { lightPalette } from '@/theme';
 
 // With the app open, booking and payment pushes are shown by
 // InAppNotificationWatcher (its own banner and sound), so the phone's banner
@@ -76,7 +78,7 @@ export async function ensureAndroidChannels(): Promise<void> {
     name: 'Amoria Connect Notifications',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#083A85',
+    lightColor: lightPalette.primary,
     sound: 'connekyt_chime.wav',
     enableVibrate: true,
     showBadge: true,
@@ -88,7 +90,7 @@ export async function ensureAndroidChannels(): Promise<void> {
     description: 'Accepted, declined and paid bookings, deposits and payment reminders',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#083A85',
+    lightColor: lightPalette.primary,
     sound: 'connekyt_chime.wav',
     enableVibrate: true,
     showBadge: true,
@@ -100,7 +102,7 @@ export async function ensureAndroidChannels(): Promise<void> {
     description: 'Rings for new booking requests and event opportunities',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 500, 250, 500, 250, 500],
-    lightColor: '#F20C8F',
+    lightColor: lightPalette.accent,
     sound: 'connekyt_ringtone.wav',
     enableVibrate: true,
     showBadge: true,

@@ -2,12 +2,18 @@
  * Small component family for the photographer workspace (home, wallet, calendar).
  * Presentational only: no data fetching, no business rules. Colours come from the
  * active palette so light and dark both work.
+ *
+ * Midnight Glass (design/brief.png): every block is glass (`Card`, `MetricCard`,
+ * notices), actions are flat fills or glass with a stroke, and colour carries meaning:
+ * blue action, magenta attention, cyan live or collaboration, amber pending. The one
+ * raised button on a screen is the kit's `PrimaryButton`, never an ActionButton.
  */
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  StyleSheet,
   Text,
   useWindowDimensions,
   View,
@@ -15,7 +21,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fonts, makeStyles, radii, shadows, spacing, tracking, useTheme } from '@/theme';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { Skeleton as Pulse } from '@/components/ui/Skeleton';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -144,9 +152,9 @@ export function MetricCard({
   const styles = useStyles();
   const { colors } = useTheme();
   const { tr } = useSharedT();
-  const toneColor = { primary: colors.primary, accent: colors.accent, success: colors.success, warning: colors.warning }[tone];
-  // The icon tile carries the tone too (the prototype tints each tile: blue wallet, amber clock, green check).
-  const toneTile = { primary: colors.tint, accent: colors.tintAccent, success: colors.successBg, warning: colors.warningBg }[tone];
+  const toneColor = { primary: colors.link, accent: colors.accentLight, success: colors.success, warning: colors.pending }[tone];
+  // The icon tile carries the tone too (blue wallet, amber clock, green check).
+  const toneTile = { primary: colors.tint, accent: colors.tintAccent, success: colors.successBg, warning: colors.pendingBg }[tone];
   const body = (
     <>
       <View style={styles.metricTop}>
@@ -175,10 +183,11 @@ export function MetricCard({
     </>
   );
   const a11y = loading ? `${tr(label)}, loading` : `${tr(label)}, ${value}${caption ? `, ${tr(caption)}` : ''}`;
+  const card = <GlassCard style={styles.metricCard}>{body}</GlassCard>;
   if (!onPress) {
     return (
-      <View style={[styles.metricCard, style]} accessible accessibilityLabel={a11y}>
-        {body}
+      <View style={[styles.metricWrap, style]} accessible accessibilityLabel={a11y}>
+        {card}
       </View>
     );
   }
@@ -188,9 +197,9 @@ export function MetricCard({
       accessibilityRole="button"
       accessibilityLabel={a11y}
       accessibilityHint={accessibilityHint}
-      style={({ pressed }) => [styles.metricCard, style, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.metricWrap, style, pressed && styles.pressed]}
     >
-      {body}
+      {card}
     </Pressable>
   );
 }
@@ -222,27 +231,25 @@ export function ActionButton({
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { tr } = useSharedT();
   const { fontScale } = useWindowDimensions();
   // At large text two buttons per row leave a label only ~100dp beside its icon, which split words ("Opportuniti / es").
   // Stacking the icon over the label gives it the whole button width.
   const stacked = fontScale > 1.3 && !!icon && !busy;
   const inactive = disabled || busy;
-  // A secondary action with items waiting on the photographer (a badge) takes the accent, as in the prototype.
+  // A secondary action with items waiting on the photographer (a badge) takes the accent: magenta is attention.
   const attention = variant === 'secondary' && !!badge;
-  const teal = isDark ? '#2DD4E4' : '#0E7490';
   const fg =
     variant === 'primary'
       ? colors.textOnPrimary
       : variant === 'destructive'
         ? colors.error
         : variant === 'accent' || attention
-          ? colors.accent
+          ? colors.accentLight
           : variant === 'teal'
-            ? teal
-            : colors.link;
-  const outline = variant === 'accent' || attention ? colors.accent : variant === 'teal' ? teal : colors.primary;
+            ? colors.live
+            : colors.text;
   return (
     <Pressable
       onPress={inactive ? undefined : onPress}
@@ -253,9 +260,9 @@ export function ActionButton({
         styles.action,
         compact && styles.actionCompact,
         stacked && styles.actionStacked,
-        variant === 'primary' && { backgroundColor: colors.primary, borderColor: colors.primary },
-        variant !== 'primary' && variant !== 'tertiary' && variant !== 'destructive' && { borderColor: outline },
-        (variant === 'tertiary' || variant === 'destructive') && { borderColor: 'transparent' },
+        variant === 'primary' && styles.actionPrimary,
+        variant !== 'primary' && variant !== 'tertiary' && variant !== 'destructive' && styles.actionGlass,
+        (variant === 'tertiary' || variant === 'destructive') && styles.actionQuiet,
         inactive && styles.disabled,
         pressed && !inactive && styles.pressed,
         style,
@@ -299,22 +306,21 @@ export function IconTile({
   tone?: 'primary' | 'accent' | 'success' | 'warning' | 'error' | 'teal';
   size?: number;
 }) {
-  const { colors, isDark } = useTheme();
-  const teal = isDark ? '#2DD4E4' : '#0E7490';
-  const fg = { primary: colors.link, accent: colors.accent, success: colors.success, warning: colors.warning, error: colors.error, teal }[tone];
+  const { colors } = useTheme();
+  const fg = { primary: colors.link, accent: colors.accentLight, success: colors.success, warning: colors.pending, error: colors.error, teal: colors.live }[tone];
   const bg = {
     primary: colors.tint,
     accent: colors.tintAccent,
     success: colors.successBg,
-    warning: colors.warningBg,
+    warning: colors.pendingBg,
     error: colors.errorBg,
-    teal: isDark ? 'rgba(45,212,228,0.14)' : 'rgba(14,116,144,0.10)',
+    teal: colors.liveBg,
   }[tone];
   return (
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.3), backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: size, height: size, borderRadius: Math.round(size * 0.36), backgroundColor: bg, borderWidth: 1, borderColor: colors.stroke, alignItems: 'center', justifyContent: 'center' }}
     >
       <Ionicons name={icon} size={Math.round(size * 0.5)} color={fg} />
     </View>
@@ -322,15 +328,15 @@ export function IconTile({
 }
 
 /** A status as a small icon and a word in its own colour (never colour alone, and lighter than a pill in a dense row). */
-export function StatusText({ label, tone, icon }: { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral'; icon?: IconName }) {
+export function StatusText({ label, tone, icon }: { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live'; icon?: IconName }) {
   const { colors } = useTheme();
   const { tr } = useSharedT();
-  const fg = { success: colors.success, warning: colors.warning, error: colors.error, info: colors.link, neutral: colors.textMuted }[tone];
-  const glyph = icon ?? ({ success: 'checkmark-circle', warning: 'time', error: 'alert-circle', info: 'information-circle', neutral: 'ellipse-outline' }[tone] as IconName);
+  const fg = { success: colors.success, warning: colors.pending, error: colors.error, info: colors.link, neutral: colors.textMuted, live: colors.live }[tone];
+  const glyph = icon ?? ({ success: 'checkmark-circle', warning: 'time', error: 'alert-circle', info: 'information-circle', neutral: 'ellipse-outline', live: 'radio' }[tone] as IconName);
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       <Ionicons name={glyph} size={12} color={fg} />
-      <Text style={{ color: fg, fontSize: 12, fontWeight: '700' }} numberOfLines={1} maxFontSizeMultiplier={1.6}>
+      <Text style={{ color: fg, fontSize: 12, fontFamily: fonts.semibold }} numberOfLines={1} maxFontSizeMultiplier={1.6}>
         {tr(label)}
       </Text>
     </View>
@@ -418,7 +424,7 @@ export function StatusBadge({
   icon,
 }: {
   label: string;
-  tone: 'success' | 'warning' | 'error' | 'info' | 'neutral';
+  tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live';
   icon?: IconName;
 }) {
   const styles = useStyles();
@@ -426,10 +432,11 @@ export function StatusBadge({
   const { tr } = useSharedT();
   const map = {
     success: [colors.successBg, colors.success, 'checkmark-circle'],
-    warning: [colors.warningBg, colors.warning, 'time'],
+    warning: [colors.pendingBg, colors.pending, 'time'],
     error: [colors.errorBg, colors.error, 'alert-circle'],
-    info: [colors.infoBg, colors.info, 'information-circle'],
-    neutral: [colors.surfaceMuted, colors.textSoft, 'ellipse-outline'],
+    info: [colors.tint, colors.link, 'ellipse'],
+    neutral: [colors.glassTop, colors.textSoft, 'ellipse-outline'],
+    live: [colors.liveBg, colors.live, 'radio'],
   } as const;
   const [bg, fg, defaultIcon] = map[tone];
   return (
@@ -443,13 +450,10 @@ export function StatusBadge({
 }
 
 export function Skeleton({ height, width = '100%', radius = radii.sm }: { height: number; width?: number | `${number}%`; radius?: number }) {
-  const { colors } = useTheme();
   return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      style={{ height, width, borderRadius: radius, backgroundColor: colors.surfaceMuted, opacity: 0.6 }}
-    />
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Pulse height={height} width={width} radius={radius} />
+    </View>
   );
 }
 
@@ -457,10 +461,12 @@ export function Skeleton({ height, width = '100%', radius = radii.sm }: { height
 export function SkeletonCard({ height = 96 }: { height?: number }) {
   const styles = useStyles();
   return (
-    <View style={[styles.card, { minHeight: height, gap: spacing.sm }]} accessibilityLabel="Loading">
-      <Skeleton height={12} width="40%" />
-      <Skeleton height={24} width="65%" />
-      <Skeleton height={10} width="50%" />
+    <View style={styles.cardWrap} accessibilityLabel="Loading" accessibilityRole="progressbar">
+      <GlassCard style={[styles.cardInner, { minHeight: height, gap: spacing.sm }]}>
+        <Skeleton height={12} width="40%" />
+        <Skeleton height={24} width="65%" />
+        <Skeleton height={10} width="50%" />
+      </GlassCard>
     </View>
   );
 }
@@ -481,7 +487,7 @@ export function ErrorNotice({
   const { colors } = useTheme();
   const { tr } = useSharedT();
   return (
-    <View style={[styles.notice, { backgroundColor: colors.errorBg }, flush && { marginHorizontal: 0 }]} accessibilityRole="alert">
+    <View style={[styles.notice, flush && { marginHorizontal: 0 }]} accessibilityRole="alert">
       <Ionicons name="cloud-offline-outline" size={compact ? 18 : 22} color={colors.error} />
       <Text style={[styles.noticeText, { color: colors.error }]}>{tr(message)}</Text>
       {onRetry ? (
@@ -515,11 +521,11 @@ export function EmptyNote({
   compact?: boolean;
 }) {
   const styles = useStyles();
-  const { colors } = useTheme();
   const { tr } = useSharedT();
   if (compact) {
     return (
-      <View style={styles.emptyCompact}>
+      <View style={styles.cardWrap}>
+      <GlassCard style={styles.emptyCompact}>
         <View style={styles.emptyCompactTop}>
           <IconTile icon={icon} tone="primary" size={36} />
           <View style={styles.emptyCompactText}>
@@ -528,15 +534,18 @@ export function EmptyNote({
           </View>
         </View>
         {actionLabel && onAction ? <ActionButton label={actionLabel} onPress={onAction} variant="secondary" compact /> : null}
+      </GlassCard>
       </View>
     );
   }
   return (
-    <View style={styles.empty}>
-      <Ionicons name={icon} size={28} color={colors.textMuted} />
-      <Text style={styles.emptyTitle}>{tr(title)}</Text>
-      {body ? <Text style={styles.emptyBody}>{tr(body)}</Text> : null}
-      {actionLabel && onAction ? <ActionButton label={actionLabel} onPress={onAction} variant="secondary" /> : null}
+    <View style={styles.cardWrap}>
+      <GlassCard style={styles.empty}>
+        <IconTile icon={icon} tone="primary" size={44} />
+        <Text style={styles.emptyTitle}>{tr(title)}</Text>
+        {body ? <Text style={styles.emptyBody}>{tr(body)}</Text> : null}
+        {actionLabel && onAction ? <ActionButton label={actionLabel} onPress={onAction} variant="secondary" /> : null}
+      </GlassCard>
     </View>
   );
 }
@@ -544,50 +553,51 @@ export function EmptyNote({
 /** Raised surface used by every block in the workspace. */
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const styles = useStyles();
-  return <View style={[styles.card, style]}>{children}</View>;
+  // The gutter sits on an outer view so the glass keeps its own shadow and corner clip.
+  const { marginHorizontal, marginTop, marginBottom, margin, ...inner } = (StyleSheet.flatten([styles.card, style]) ?? {}) as ViewStyle;
+  return (
+    <View style={{ marginHorizontal, marginTop, marginBottom, margin }}>
+      <GlassCard style={inner}>{children}</GlassCard>
+    </View>
+  );
 }
 
-export const useStyles = makeStyles((c, elevation) => ({
-  pressed: { opacity: 0.85 },
+export const useStyles = makeStyles((c) => ({
+  pressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
   disabled: { opacity: 0.5 },
   card: {
-    backgroundColor: c.card,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: spacing.md,
+    padding: spacing.lg,
     marginHorizontal: spacing.lg,
-    ...elevation(1),
   },
+  cardWrap: { marginHorizontal: spacing.lg },
+  cardInner: { borderRadius: radii.lg, padding: spacing.lg },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.lg + 4,
+    marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
   sectionHeaderText: { flex: 1, minWidth: 0, gap: 2 },
-  sectionTitle: { color: c.text, fontSize: 17, fontWeight: '800' },
-  sectionSubtitle: { color: c.textMuted, fontSize: 12.5, lineHeight: 17 },
-  sectionAction: { flexDirection: 'row', alignItems: 'center', minHeight: TOUCH, paddingLeft: spacing.sm },
-  sectionActionText: { color: c.link, fontSize: 14, fontWeight: '700' },
+  sectionTitle: { color: c.text, fontSize: 20, fontFamily: fonts.display, letterSpacing: tracking(20, -0.02) },
+  sectionSubtitle: { color: c.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.regular },
+  sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: TOUCH, paddingLeft: spacing.sm },
+  sectionActionText: { color: c.link, fontSize: 14, fontFamily: fonts.semibold },
+  metricWrap: { flex: 1 },
   metricCard: {
     flex: 1,
-    backgroundColor: c.card,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: spacing.md,
+    padding: spacing.lg,
     gap: 6,
-    minHeight: 84,
-    ...elevation(1),
+    minHeight: 96,
   },
   metricTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  metricIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  metricLabel: { flex: 1, color: c.textSoft, fontSize: 12.5, fontWeight: '600', lineHeight: 16 },
-  metricValue: { color: c.text, fontSize: 21, fontWeight: '800' },
-  metricCaption: { color: c.textMuted, fontSize: 12, lineHeight: 16 },
+  metricIcon: { width: 32, height: 32, borderRadius: 11, borderWidth: 1, borderColor: c.stroke, alignItems: 'center', justifyContent: 'center' },
+  metricLabel: { flex: 1, color: c.textSoft, fontSize: 13, fontFamily: fonts.medium, lineHeight: 17 },
+  metricValue: { color: c.text, fontSize: 24, fontFamily: fonts.display, letterSpacing: tracking(24, -0.03) },
+  metricCaption: { color: c.textMuted, fontSize: 12, lineHeight: 16, fontFamily: fonts.regular },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -597,14 +607,20 @@ export const useStyles = makeStyles((c, elevation) => ({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radii.md,
-    borderWidth: 1.25,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
+  // Flat blue fill with the raised family's top highlight; the screen's one raised button is PrimaryButton.
+  actionPrimary: { backgroundColor: c.primary, borderColor: c.primary, boxShadow: shadows.highlight },
+  // Every other action is glass with a stroke.
+  actionGlass: { backgroundColor: c.glassTop, borderColor: c.stroke },
+  actionQuiet: { backgroundColor: 'transparent' },
   actionCompact: { minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: 6 },
   actionTextCol: { flexShrink: 1, minWidth: 0 },
   actionTextLeft: { textAlign: 'left' },
-  actionCaption: { color: c.textMuted, fontSize: 12, marginTop: 1 },
+  actionCaption: { color: c.textMuted, fontSize: 12, marginTop: 1, fontFamily: fonts.regular },
   actionStacked: { flexDirection: 'column', gap: spacing.xs, paddingHorizontal: spacing.sm },
-  actionText: { fontSize: 15, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
+  actionText: { fontSize: 15, fontFamily: fonts.bold, flexShrink: 1, textAlign: 'center' },
   badge: {
     minWidth: 22,
     height: 22,
@@ -614,43 +630,46 @@ export const useStyles = makeStyles((c, elevation) => ({
     justifyContent: 'center',
     paddingHorizontal: 6,
   },
-  badgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  badgeText: { color: c.textOnPrimary, fontSize: 12, fontFamily: fonts.bold },
   chip: {
     minHeight: 40,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
+    borderColor: c.stroke,
+    backgroundColor: c.glassTop,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipSelected: { backgroundColor: c.primary, borderColor: c.primary },
-  chipText: { color: c.textSoft, fontSize: 14, fontWeight: '600' },
-  chipTextSelected: { color: c.textOnPrimary },
+  chipSelected: { backgroundColor: c.tint, borderColor: c.primaryLight },
+  chipText: { color: c.textSoft, fontSize: 14, fontFamily: fonts.semibold },
+  chipTextSelected: { color: c.text },
   segment: {
     flexDirection: 'row',
-    backgroundColor: c.surface,
+    backgroundColor: c.well,
     borderWidth: 1,
-    borderColor: c.border,
+    borderColor: c.stroke,
+    boxShadow: shadows.inset,
     borderRadius: radii.md,
-    padding: 3,
+    padding: 4,
     marginHorizontal: spacing.lg,
   },
-  segmentItem: { flex: 1, minHeight: 42, borderRadius: radii.md - 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
-  segmentItemOn: { backgroundColor: c.primary },
-  segmentText: { color: c.textSoft, fontSize: 14, fontWeight: '600' },
-  segmentTextOn: { color: c.textOnPrimary, fontWeight: '800' },
+  segmentItem: { flex: 1, minHeight: 44, borderRadius: radii.md - 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
+  segmentItemOn: { backgroundColor: c.primary, boxShadow: shadows.highlight },
+  segmentText: { color: c.textMuted, fontSize: 14, fontFamily: fonts.semibold },
+  segmentTextOn: { color: c.textOnPrimary },
   badgePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 4,
     borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: c.stroke,
   },
-  badgePillText: { fontSize: 12, fontWeight: '700' },
+  badgePillText: { fontSize: 12, fontFamily: fonts.semibold },
   notice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -659,35 +678,30 @@ export const useStyles = makeStyles((c, elevation) => ({
     marginHorizontal: spacing.lg,
     padding: spacing.md,
     borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.errorLine,
+    backgroundColor: c.errorBg,
   },
-  noticeText: { flex: 1, minWidth: 160, fontSize: 14, lineHeight: 20 },
-  retry: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  retryText: { fontSize: 14, fontWeight: '800' },
+  noticeText: { flex: 1, minWidth: 160, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
+  retry: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  retryText: { fontSize: 14, fontFamily: fonts.bold },
   empty: {
     alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.lg,
-    marginHorizontal: spacing.lg,
+    padding: spacing.xl,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: c.border,
   },
   emptyCompact: {
     gap: spacing.md,
-    padding: spacing.md,
-    marginHorizontal: spacing.lg,
+    padding: spacing.lg,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.card,
   },
   emptyCompactTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   emptyCompactText: { flex: 1, minWidth: 0, gap: 2 },
-  emptyTitleLeft: { color: c.text, fontSize: 15, fontWeight: '700' },
-  emptyBodyLeft: { color: c.textMuted, fontSize: 13, lineHeight: 18 },
-  emptyTitle: { color: c.text, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  emptyBody: { color: c.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  emptyTitleLeft: { color: c.text, fontSize: 16, fontFamily: fonts.display },
+  emptyBodyLeft: { color: c.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.regular },
+  emptyTitle: { color: c.text, fontSize: 18, fontFamily: fonts.display, textAlign: 'center' },
+  emptyBody: { color: c.textSoft, fontSize: 14, lineHeight: 20, textAlign: 'center', fontFamily: fonts.regular },
 }));
 
 /** Module level so the carousel keeps one separator type and does not remount each gap on every render. */

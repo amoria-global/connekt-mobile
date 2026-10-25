@@ -14,14 +14,14 @@ import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { fonts } from '@/theme';
+import { fonts, onFill, onMedia, verifiedAvatar } from '@/theme';
 
 /** The web's seal colour (`.ph-avatar-verif i { color: #3b82f6 }`). */
-export const VERIFIED_BLUE = '#3B82F6';
-const RING = '#FFFFFF';
+export const VERIFIED_BLUE = verifiedAvatar.seal;
+const RING = onFill;
 /** The web's empty-avatar grey, with slate text that clears WCAG AA on it. */
-const EMPTY_BG = '#CBD5E1';
-const EMPTY_TEXT = '#334155';
+const EMPTY_BG = verifiedAvatar.emptyBg;
+const EMPTY_TEXT = verifiedAvatar.emptyText;
 
 /** Ring width: 3px at the web's 56px avatar, 2px at its 40px mobile one. */
 export function ringWidthFor(size: number) {
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     backgroundColor: RING,
     overflow: 'hidden',
     // box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15)
-    shadowColor: '#000',
+    shadowColor: onMedia.black,
     shadowOpacity: 0.15,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 4 },
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     // box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); above the ring's elevation
-    shadowColor: '#000',
+    shadowColor: onMedia.black,
     shadowOpacity: 0.18,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 2 },

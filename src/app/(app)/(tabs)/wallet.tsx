@@ -49,7 +49,7 @@ import {
   type MoneyItem,
 } from '@/features/wallet/moneyView';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -310,7 +310,7 @@ export default function WalletScreen() {
                       accessibilityRole="button"
                       accessibilityLabel="Withdraw funds"
                     >
-                      <Ionicons name="cash-outline" size={15} color="#ffffff" />
+                      <Ionicons name="cash-outline" size={15} color={onFill} />
                       <Text style={styles.heroWithdrawText} maxFontSizeMultiplier={1.6}>
                         Withdraw funds
                       </Text>
@@ -367,7 +367,7 @@ export default function WalletScreen() {
                     style={({ pressed }) => [styles.heroWithdrawBtn, pressed && { opacity: 0.88 }]}
                     onPress={() => router.push('/withdraw' as Href)}
                   >
-                    <Ionicons name="cash-outline" size={15} color="#ffffff" />
+                    <Ionicons name="cash-outline" size={15} color={onFill} />
                     <Text style={styles.heroWithdrawText}>{tr('Withdraw funds')}</Text>
                   </Pressable>
                 ) : null}
@@ -428,7 +428,7 @@ export default function WalletScreen() {
               <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : isCoordinator ? 'Balance breakdown' : 'Earnings breakdown'}</Text>
               <View style={styles.rowsCard}>
                 {visibleCards.map((card, i) => {
-                  const p = PALETTE[card.color] ?? PALETTE.neutral;
+                  const p = PALETTE(colors)[card.color] ?? PALETTE(colors).neutral;
                   return (
                     <View
                       key={card.label}
@@ -488,7 +488,7 @@ export default function WalletScreen() {
                 ) : (
                   <View style={styles.rowsCard}>
                     {recentItems.map((item, i) => {
-                      const palette = COLOR_MAP[item.color] ?? COLOR_MAP.neutral;
+                      const palette = COLOR_MAP(colors)[item.color] ?? COLOR_MAP(colors).neutral;
                       const isIn = item.direction === 'in';
                       const amount = balanceHidden
                         ? `${isIn ? '+' : '−'}••••`
@@ -555,7 +555,7 @@ export default function WalletScreen() {
               </Text>
               <View style={styles.potGrid}>
                 {visibleCards.map((card) => {
-                  const p = PALETTE[card.color] ?? PALETTE.neutral;
+                  const p = PALETTE(colors)[card.color] ?? PALETTE(colors).neutral;
                   return (
                     <View key={card.label} style={styles.potCard}>
                       <View style={styles.potHeader}>
@@ -681,10 +681,10 @@ export default function WalletScreen() {
               <>
                 <View style={styles.activityCardGroup}>
                   {paginatedActivityItems.map((item, idx) => {
-                    const palette = COLOR_MAP[item.color] ?? COLOR_MAP.neutral;
+                    const palette = COLOR_MAP(colors)[item.color] ?? COLOR_MAP(colors).neutral;
                     const isIn = item.direction === 'in';
                     const sign = isIn ? '+' : '−';
-                    const amountColor = isIn ? '#10B981' : colors.text;
+                    const amountColor = isIn ? colors.success : colors.text;
                     const timeStr = formatRelativeTime(item.timestamp);
                     const isLast = idx === paginatedActivityItems.length - 1;
 
@@ -861,7 +861,7 @@ export default function WalletScreen() {
                   <Text
                     style={[
                       styles.modalHeroAmount,
-                      { color: selectedItem.direction === 'in' ? '#10B981' : colors.text },
+                      { color: selectedItem.direction === 'in' ? colors.success : colors.text },
                     ]}
                   >
                     {selectedItem.direction === 'in' ? '+' : '−'}
@@ -879,7 +879,7 @@ export default function WalletScreen() {
                         styles.tagBadge,
                         {
                           backgroundColor:
-                            COLOR_MAP[selectedItem.color]?.bg ?? COLOR_MAP.neutral.bg,
+                            COLOR_MAP(colors)[selectedItem.color]?.bg ?? COLOR_MAP(colors).neutral.bg,
                         },
                       ]}
                     >
@@ -888,7 +888,7 @@ export default function WalletScreen() {
                           styles.tagBadgeText,
                           {
                             color:
-                              COLOR_MAP[selectedItem.color]?.text ?? COLOR_MAP.neutral.text,
+                              COLOR_MAP(colors)[selectedItem.color]?.text ?? COLOR_MAP(colors).neutral.text,
                           },
                         ]}
                       >
@@ -985,7 +985,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     borderRadius: radii.md,
   },
-  retryBtnText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
+  retryBtnText: { fontFamily: fonts.bold, fontSize: 13, color: c.textOnPrimary },
   scroll: { paddingHorizontal: spacing.lg, gap: spacing.lg },
 
   heroTopRow: {
@@ -1160,7 +1160,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
     marginTop: 8,
   },
-  heroWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: '#ffffff' },
+  heroWithdrawText: { fontFamily: fonts.bold, fontSize: 13, color: c.textOnPrimary },
 
   // Breakdown StatCards
   walletBleed: { marginHorizontal: -spacing.lg },
@@ -1257,7 +1257,7 @@ const useStyles = makeStyles((c) => ({
   },
   filterPillActive: { backgroundColor: c.primary, borderColor: c.primary },
   filterPillText: { fontFamily: fonts.bold, fontSize: 12, color: c.textMuted },
-  filterPillTextActive: { color: '#ffffff' },
+  filterPillTextActive: { color: c.textOnPrimary },
 
   activitySearchWrap: {
     marginTop: 2,
@@ -1492,5 +1492,5 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalDoneBtnText: { fontFamily: fonts.bold, fontSize: 15, color: '#ffffff' },
+  modalDoneBtnText: { fontFamily: fonts.bold, fontSize: 15, color: c.textOnPrimary },
 }));

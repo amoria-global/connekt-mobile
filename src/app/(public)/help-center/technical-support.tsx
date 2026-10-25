@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, fontSize, makeStyles } from '@/theme';
+import { spacing, fontSize, makeStyles, useTheme, alpha } from '@/theme';
 
 export default function TechSupportHelpScreen() {
   const styles = useStyles();
+  const { colors } = useTheme();
   const { t } = useLanguage();
   const [openSection, setOpenSection] = useState<string | null>('issues');
 
@@ -34,14 +35,14 @@ export default function TechSupportHelpScreen() {
 
           {openSection === 'issues' && (
             <View style={styles.accordionContent}>
-              <View style={[styles.card, { borderColor: '#6366F126', backgroundColor: '#6366F10A' }]}>
-                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4 }]}>{t('b4_hcLoginIssuesTitle')}</Text>
+              <View style={[styles.card, { borderColor: alpha(colors.primaryLight, 0.15), backgroundColor: alpha(colors.primaryLight, 0.04) }]}>
+                <Text style={[styles.bold, { color: colors.primaryLight, marginBottom: 4 }]}>{t('b4_hcLoginIssuesTitle')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcLoginIssuesDesc')}</Text>
 
-                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4, marginTop: 8 }]}>{t('b4_hcUploadErrorsTitle')}</Text>
+                <Text style={[styles.bold, { color: colors.primaryLight, marginBottom: 4, marginTop: 8 }]}>{t('b4_hcUploadErrorsTitle')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcUploadErrorsDesc')}</Text>
 
-                <Text style={[styles.bold, { color: '#6366F1', marginBottom: 4, marginTop: 8 }]}>{t('b4_hcAppCrashingTitle')}</Text>
+                <Text style={[styles.bold, { color: colors.primaryLight, marginBottom: 4, marginTop: 8 }]}>{t('b4_hcAppCrashingTitle')}</Text>
                 <Text style={styles.listItem}>{t('b4_hcAppCrashingDesc')}</Text>
               </View>
             </View>

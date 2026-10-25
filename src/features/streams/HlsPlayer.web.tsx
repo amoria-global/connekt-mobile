@@ -1,3 +1,4 @@
+import { darkPalette, onFill, onMedia } from '@/theme';
 /**
  * Web live-stream player (Expo web / browser).
  *
@@ -90,15 +91,15 @@ function PlayerControls({
       ) : null}
       {paused ? (
         <Pressable style={styles.centerPlay} onPress={togglePlay}>
-          <Ionicons name="play" size={30} color="#fff" />
+          <Ionicons name="play" size={30} color={onFill} />
         </Pressable>
       ) : null}
       <View style={[styles.controlsBar, { bottom: bottomOffset }]}>
         <Pressable style={styles.ctrlBtn} onPress={toggleMute} hitSlop={6}>
-          <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#fff" />
+          <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color={onFill} />
         </Pressable>
         <Pressable style={styles.ctrlBtn} onPress={toggleFullscreen} hitSlop={6}>
-          <Ionicons name="expand" size={16} color="#fff" />
+          <Ionicons name="expand" size={16} color={onFill} />
         </Pressable>
       </View>
     </>
@@ -510,7 +511,7 @@ const styles = StyleSheet.create({
   // absolute-filled, leaving the live stage short and chat spilling below.
   wrap: {
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
     position: 'relative',
   },
   video: {
@@ -527,13 +528,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#EF4444',
+    backgroundColor: darkPalette.live,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  liveText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: onMedia.text },
+  liveText: { color: onFill, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
 
   centerPlay: {
     position: 'absolute',

@@ -7,7 +7,7 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
-import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
+import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme, onFill } from '@/theme';
 
 export type CollaborateMode = 'workspace' | 'albums';
 
@@ -57,14 +57,14 @@ export function ModeChooser({ mode, onChange }: { mode: CollaborateMode; onChang
           >
             <View style={styles.head}>
               <View style={[styles.iconTile, on && styles.iconTileOn]}>
-                <Ionicons name={o.icon} size={20} color={on ? '#FFFFFF' : colors.textMuted} />
+                <Ionicons name={o.icon} size={20} color={on ? onFill : colors.textMuted} />
               </View>
               <View style={styles.headText}>
                 <Text style={[styles.badge, on && styles.badgeOn]}>{o.badge}</Text>
                 <Text style={styles.title}>{o.title}</Text>
               </View>
               <View style={[styles.radio, on && styles.radioOn]}>
-                {on ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
+                {on ? <Ionicons name="checkmark" size={14} color={onFill} /> : null}
               </View>
             </View>
             <Text style={styles.lead}>{o.lead}</Text>

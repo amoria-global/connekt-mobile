@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { fontSize, fontWeight, spacing, makeStyles } from '@/theme';
+import { fontSize, fontWeight, spacing, makeStyles, onFill } from '@/theme';
 
 export function InvitePaste({ onAdopt }: { onAdopt: (text: string) => boolean }) {
   const styles = useStyles();
@@ -29,7 +29,7 @@ export function InvitePaste({ onAdopt }: { onAdopt: (text: string) => boolean })
   if (!open) {
     return (
       <Pressable style={styles.row} onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel="Have a workspace invitation link?" hitSlop={8}>
-        <Ionicons name="link-outline" size={18} color="#FFFFFF" />
+        <Ionicons name="link-outline" size={18} color={onFill} />
         <Text style={styles.rowText}>Have a workspace invitation link?</Text>
       </Pressable>
     );
@@ -58,7 +58,7 @@ export function InvitePaste({ onAdopt }: { onAdopt: (text: string) => boolean })
 
 const useStyles = makeStyles(() => ({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, minHeight: 44 },
-  rowText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: '#FFFFFF' },
+  rowText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: onFill },
   box: { gap: spacing.md },
   actions: { flexDirection: 'row', gap: spacing.md },
   flex: { flex: 1 },

@@ -42,7 +42,7 @@ import { pendingFor } from '@/features/payments/payNowLookup';
 import { Alert } from '@/components/ui/dialog';
 import { isApiError } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate, formatMoney, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
@@ -290,7 +290,7 @@ function PaymentsContent() {
           <View style={styles.streamCard}>
             <View style={styles.streamCardHead}>
               <View style={styles.streamBadgeIcon}>
-                <Ionicons name="radio" size={20} color="#fff" />
+                <Ionicons name="radio" size={20} color={onFill} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.streamEyebrow}>CONNEKTLIVE</Text>
@@ -314,7 +314,7 @@ function PaymentsContent() {
           <View style={styles.streamCard}>
             <View style={styles.streamCardHead}>
               <View style={styles.streamBadgeIcon}>
-                <Ionicons name="heart" size={20} color="#fff" />
+                <Ionicons name="heart" size={20} color={onFill} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.streamEyebrow}>{tr('CONNEKTLIVE GIFTS')}</Text>
@@ -418,7 +418,7 @@ function PaymentsContent() {
                             void onOpenPayNow(item);
                           }}
                         >
-                          <Ionicons name={isFailed ? 'refresh-outline' : 'card-outline'} size={12} color="#fff" />
+                          <Ionicons name={isFailed ? 'refresh-outline' : 'card-outline'} size={12} color={onFill} />
                           <Text style={styles.payNowBtnText}>{tr(isFailed ? 'Retry' : 'Pay Now')}</Text>
                         </Pressable>
                       ) : (
@@ -579,7 +579,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   sectionTabTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 
   totalCard: {
@@ -588,13 +588,13 @@ const useStyles = makeStyles((c) => ({
     gap: 4,
   },
   totalLabel: { fontFamily: fonts.bold, color: 'rgba(255,255,255,0.8)', fontSize: 12, letterSpacing: 1 },
-  totalValue: { fontFamily: fonts.bold, color: '#fff', fontSize: 32, letterSpacing: -0.5 },
+  totalValue: { fontFamily: fonts.bold, color: c.textOnPrimary, fontSize: 32, letterSpacing: -0.5 },
   totalSplit: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: spacing.md },
   totalSplitCell: { flex: 1, gap: 1 },
   totalSplitLabel: { fontFamily: fonts.regular, color: 'rgba(255,255,255,0.75)', fontSize: 12 },
-  totalSplitValue: { fontFamily: fonts.bold, color: '#fff', fontSize: 16 },
+  totalSplitValue: { fontFamily: fonts.bold, color: c.textOnPrimary, fontSize: 16 },
   totalDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.25)' },
-  totalMixed: { fontFamily: fonts.bold, color: '#fff', fontSize: 22, letterSpacing: -0.3 },
+  totalMixed: { fontFamily: fonts.bold, color: c.textOnPrimary, fontSize: 22, letterSpacing: -0.3 },
   totalCurrencyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: 6 },
   totalNote: { fontFamily: fonts.regular, color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 6 },
 
@@ -623,7 +623,7 @@ const useStyles = makeStyles((c) => ({
   },
   pillActive: { backgroundColor: c.primary },
   pillText: { fontFamily: fonts.bold, fontSize: 14, color: c.textSoft },
-  pillTextActive: { color: '#fff' },
+  pillTextActive: { color: c.textOnPrimary },
   badge: {
     minWidth: 22,
     paddingHorizontal: 6,
@@ -634,7 +634,7 @@ const useStyles = makeStyles((c) => ({
   },
   badgeActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
   badgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.primary },
-  badgeTextActive: { color: '#fff' },
+  badgeTextActive: { color: c.textOnPrimary },
 
   row: {
     flexDirection: 'row',
@@ -668,7 +668,7 @@ const useStyles = makeStyles((c) => ({
   payNowBtnText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.2,
   },
 
@@ -709,7 +709,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 6,
     borderRadius: radii.full,
   },
-  withdrawBtnText: { fontFamily: fonts.bold, fontSize: 12, color: '#fff' },
+  withdrawBtnText: { fontFamily: fonts.bold, fontSize: 12, color: c.textOnPrimary },
   streamDivider: { height: 1, backgroundColor: c.borderSoft },
   streamCardBottom: {
     flexDirection: 'row',
@@ -733,7 +733,7 @@ const useStyles = makeStyles((c) => ({
   streamRowMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
   streamRowMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
   streamEventTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.text },
-  streamRowAmount: { fontFamily: fonts.bold, fontSize: 14, color: '#047857' },
+  streamRowAmount: { fontFamily: fonts.bold, fontSize: 14, color: c.success },
   streamRowFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',

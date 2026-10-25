@@ -13,7 +13,7 @@ import { getKyc } from './api';
 import { getKycBannerConfig } from './bannerConfig';
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/store/language';
-import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { darkPalette, fonts, fontSize, fontWeight, makeStyles, radii, shadows, spacing, useTheme, onFill } from '@/theme';
 
 export { getKycBannerConfig, type KycBannerConfig } from './bannerConfig';
 
@@ -61,12 +61,9 @@ export function KycBanner({ style, compact }: KycBannerProps) {
 
   return (
     <View style={[styles.card, { borderColor: cfg.accent + '35' }, style]}>
-      <Pressable
-        style={({ pressed }) => [styles.mainArea, pressed && styles.pressed]}
-        onPress={() => router.push('/kyc')}
-        accessibilityRole="button"
-        accessibilityLabel={`${cfg.title} (${cfg.badge}). ${cfg.detail}`}
-      >
+      {/* Not a button itself: a button around Verify and Dismiss hid both from VoiceOver and TalkBack, and
+          Verify already opens the same screen. */}
+      <View style={styles.mainArea}>
         <View style={styles.topRow}>
           <View style={[styles.iconWrap, { backgroundColor: cfg.tint }]}>
             <Ionicons name={cfg.icon} size={24} color={cfg.accent} />
@@ -135,22 +132,23 @@ export function KycBanner({ style, compact }: KycBannerProps) {
             accessibilityLabel={`${cfg.buttonText} identity verification`}
           >
             <Text style={styles.actionText}>{cfg.buttonText}</Text>
-            <Ionicons name="arrow-forward" size={13} color="#fff" />
+            <Ionicons name="arrow-forward" size={13} color={onFill} />
           </Pressable>
         </View>
         )}
-      </Pressable>
+      </View>
     </View>
   );
 }
 
 const useStyles = makeStyles((c, e) => ({
+  // Midnight Glass: a glass panel; the status colour stays on the icon, the edge and the action.
   card: {
-    backgroundColor: c.card,
+    backgroundColor: c.glassTop,
     borderRadius: radii.xl,
-    borderWidth: 1.5,
-    padding: spacing.lg + 2,
-    ...e(2),
+    borderWidth: 1,
+    padding: spacing.lg,
+    boxShadow: c === darkPalette ? shadows.glass : shadows.glassLight,
   },
   mainArea: {
     gap: spacing.sm + 4,
@@ -241,7 +239,7 @@ const useStyles = makeStyles((c, e) => ({
   actionText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   closeBtn: {
     width: 28,

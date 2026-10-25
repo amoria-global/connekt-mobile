@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { StreamChat } from '@/features/streams/api';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { V } from '../viewerTheme';
 import type { ChatConnection, ChatMode, ReplyTarget } from '../types';
 import { formatCount } from '../utils';
@@ -198,7 +198,7 @@ export const LiveChat = memo(function LiveChat(p: Props) {
                 accessibilityRole="button"
                 accessibilityLabel="Jump to latest messages"
               >
-                <Ionicons name="arrow-down" size={14} color="#fff" />
+                <Ionicons name="arrow-down" size={14} color={onFill} />
                 <Text style={styles.jumpText}>New messages</Text>
               </Pressable>
             ) : null}
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     backgroundColor: V.primary,
   },
-  jumpText: { fontFamily: fonts.bold, fontSize: 13, color: '#fff' },
+  jumpText: { fontFamily: fonts.bold, fontSize: 13, color: onFill },
   skRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 8 },
   skAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: V.surfaceRaised },
   skLine: { height: 12, borderRadius: 6, backgroundColor: V.surfaceRaised },

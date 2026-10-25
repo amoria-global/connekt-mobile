@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { StreamChat } from '@/features/streams/api';
 import { formatGiftUsd, parseGiftMeta } from '@/features/streams/gifting/GiftOverlay';
-import { fonts } from '@/theme';
+import { fonts, onFill, darkPalette } from '@/theme';
 import { V } from '../viewerTheme';
 import { getGiftIconName, isGiftChat, isHostSender } from '../utils';
 
@@ -67,11 +67,11 @@ const styles = StyleSheet.create({
   avatarText: { fontFamily: fonts.bold, fontSize: 13, color: V.text },
   body: { flex: 1, fontSize: 15, lineHeight: 20 },
   name: { fontFamily: fonts.bold, fontSize: 15, color: V.textMuted },
-  nameHost: { color: '#8FB0FF' },
+  nameHost: { color: darkPalette.primaryLight },
   badge: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: '#fff',
+    color: onFill,
     backgroundColor: V.primary,
     letterSpacing: 0.4,
   },

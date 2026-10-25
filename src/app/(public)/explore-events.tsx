@@ -35,6 +35,7 @@
  * The public list includes enough stream metadata to render the same feed
  * for signed-in clients and guests without an additional Cloudflare request.
  */
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -68,7 +69,7 @@ import {
 } from '@/features/events/types';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, instagramRing } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { canShowDigitalPrice } from '@/features/payments/policy';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -746,6 +747,7 @@ export default function ExploreEventsScreen() {
           <Text style={styles.topBarPillText}>{tr('Explore Events')}</Text>
         </View>
 
+        <HeaderHelpButton />
         <Pressable
           onPress={() => (isAuthenticated ? router.replace('/(app)/(tabs)') : router.push('/login'))}
           hitSlop={8}
@@ -806,12 +808,12 @@ export default function ExploreEventsScreen() {
                 >
                   <View style={styles.storyCircleWrapper}>
                     {isLive ? (
-                      <LiveRing size={68} colors={['#F58529', '#DD2A7B', '#8134AF', '#F58529']} live>
+                      <LiveRing size={68} colors={[...instagramRing]} live>
                         <View style={styles.storyRingPad}>{storyInner}</View>
                       </LiveRing>
                     ) : (
                       <LinearGradient
-                        colors={isEnded ? ['#64748B', '#94A3B8'] : ['#4F46E5', '#7C3AED', '#EC4899']}
+                        colors={isEnded ? [colors.textMuted, colors.textMuted] : [colors.primary, colors.primaryLight, colors.accent]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.storyGradientRing}
@@ -944,7 +946,7 @@ export default function ExploreEventsScreen() {
                         : 'person'
                     }
                     size={14}
-                    color={item.type === 'event' && item.badge ? '#E11D48' : colors.primary}
+                    color={item.type === 'event' && item.badge ? colors.error : colors.primary}
                   />
                 </View>
                 <View style={styles.suggestionTextCol}>
@@ -1199,7 +1201,7 @@ export default function ExploreEventsScreen() {
                       <Ionicons
                         name={opt.icon}
                         size={18}
-                        color={active ? '#fff' : colors.primary}
+                        color={active ? onFill : colors.primary}
                       />
                     </View>
                     <View style={styles.sortOptionTextCol}>
@@ -1365,7 +1367,7 @@ const PosterCard = memo(function PosterCard({
               accessibilityRole="button"
               accessibilityLabel="Find My Photos"
             >
-              <Ionicons name="search" size={14} color="#FFFFFF" />
+              <Ionicons name="search" size={14} color={onFill} />
               <Text style={styles.findPhotosBtnText} numberOfLines={1}>
                 {tr('Find Photos')}
               </Text>
@@ -1623,7 +1625,7 @@ const useStyles = makeStyles((c, e) => ({
     position: 'absolute',
     bottom: -5,
     alignSelf: 'center',
-    backgroundColor: '#4F46E5',
+    backgroundColor: c.primary,
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: radii.full,
@@ -1631,7 +1633,7 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: c.background,
   },
   storySoonPillText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 8.5,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.4,
@@ -1682,7 +1684,7 @@ const useStyles = makeStyles((c, e) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabCountText: { color: '#fff', fontSize: 10, fontWeight: fontWeight.bold },
+  tabCountText: { color: c.textOnPrimary, fontSize: 10, fontWeight: fontWeight.bold },
 
   // Controls (search + filters)
   controls: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, gap: spacing.sm },
@@ -1779,7 +1781,7 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
   },
   suggestionIconWrapLive: {
-    backgroundColor: '#FFE4E6',
+    backgroundColor: c.tintAccent,
   },
   suggestionTextCol: {
     flex: 1,
@@ -1801,13 +1803,13 @@ const useStyles = makeStyles((c, e) => ({
     color: c.textMuted,
   },
   suggestionBadge: {
-    backgroundColor: '#E11D48',
+    backgroundColor: c.error,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: radii.full,
   },
   suggestionBadgeText: {
-    color: '#fff',
+    color: c.textOnPrimary,
     fontSize: 8.5,
     fontWeight: fontWeight.bold,
   },
@@ -1953,7 +1955,7 @@ const useStyles = makeStyles((c, e) => ({
     ...e(1),
   },
   findPhotosBtnText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 11,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
@@ -1970,7 +1972,7 @@ const useStyles = makeStyles((c, e) => ({
     ...e(1),
   },
   watchLiveBtnText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 11.5,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
@@ -2036,7 +2038,7 @@ const useStyles = makeStyles((c, e) => ({
   // made the day vanish on the white tile.
   cardDate: {
     width: 36,
-    backgroundColor: '#fff',
+    backgroundColor: c.card,
     borderRadius: radii.sm,
     overflow: 'hidden',
     alignItems: 'center',
@@ -2044,15 +2046,15 @@ const useStyles = makeStyles((c, e) => ({
   cardDateMo: {
     width: '100%',
     paddingVertical: 2,
-    backgroundColor: '#083A85',
-    color: '#fff',
+    backgroundColor: c.primary,
+    color: c.textOnPrimary,
     fontSize: 8.5,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
     textAlign: 'center',
   },
   cardDateDay: {
-    color: '#083A85',
+    color: c.primary,
     fontSize: 12,
     fontWeight: fontWeight.extrabold,
     paddingVertical: 1,
@@ -2074,11 +2076,11 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: 2.5,
     borderRadius: radii.sm,
   },
-  statusText: { color: '#fff', fontSize: 8.5, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
+  statusText: { color: c.textOnPrimary, fontSize: 8.5, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
   statusUpcoming: { backgroundColor: c.primary },
   statusLive: { backgroundColor: c.accent },
-  statusEnded: { backgroundColor: '#6A6D76' },
-  pulseDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#fff' },
+  statusEnded: { backgroundColor: c.textMuted },
+  pulseDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: c.card },
   bookmark: {
     width: 24,
     height: 24,

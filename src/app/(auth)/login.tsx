@@ -1,3 +1,4 @@
+import { onFill, onMedia } from '@/theme';
 import { FindPhotosBottomSheet } from "@/components/FindPhotosBottomSheet";
 import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
 import { MODE_META } from '@/features/hybrid/hybridUi';
@@ -490,7 +491,7 @@ function GuestCardLabel({
   return (
     <GlassOnMedia style={styles.guestLabel} fill="rgba(5,10,24,0.38)">
       <View style={[styles.guestIcon, iconStyle]}>
-        <Ionicons name={icon} size={14} color="#FFFFFF" />
+        <Ionicons name={icon} size={14} color={onFill} />
       </View>
       <View style={styles.flex}>
         <Text style={styles.guestTitle} numberOfLines={1}>{title}</Text>
@@ -512,7 +513,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.lg,
     overflow: "hidden",
     justifyContent: "flex-end",
-    backgroundColor: "#0A1428",
+    backgroundColor: onMedia.ground,
     // A glass rim, so the media reads as set into the photo, not pasted on.
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.28)",
@@ -543,7 +544,7 @@ const useStyles = makeStyles((c) => ({
     fontSize: 13,
     fontFamily: fonts.bold,
     fontWeight: fontWeight.bold,
-    color: "#FFFFFF",
+    color: c.textOnPrimary,
   },
   guestSub: { fontSize: 10, color: "rgba(255,255,255,0.78)", marginTop: 1, letterSpacing: 0.3 },
 

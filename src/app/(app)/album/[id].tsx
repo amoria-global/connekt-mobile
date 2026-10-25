@@ -14,6 +14,7 @@
  *   • Night-studio pass: the photo strip is a virtualised, memoised grid of thumbnails, the viewer pages by
  *     swipe, loading is a skeleton, and every fact on the header (count, date, place, photographer) is the API's own.
  */
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { FallbackImage } from '@/features/gallery/FallbackImage';
@@ -60,18 +61,18 @@ import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary } from '@/services/imagePicker';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone, onMedia } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
 import { useSharedT } from '@/i18n/sharedStrings';
 
-const APPROVAL_META: Record<string, { label: string; bg: string; fg: string }> = {
-  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
-  PENDING_APPROVAL: { label: 'Pending review', bg: '#FEF3C7', fg: '#92400E' },
-  APPROVED: { label: 'Approved · Live', bg: '#D1FAE5', fg: '#047857' },
-  REJECTED: { label: 'Needs changes', bg: '#FEE2E2', fg: '#B91C1C' },
+const APPROVAL_META: Record<string, { label: string; tone: SwatchTone; }> = {
+  DRAFT: { label: 'Draft', tone: 'neutral' as const },
+  PENDING_APPROVAL: { label: 'Pending review', tone: 'pending' as const },
+  APPROVED: { label: 'Approved · Live', tone: 'success' as const },
+  REJECTED: { label: 'Needs changes', tone: 'error' as const },
 };
 
 const PhotoGap = () => <View style={{ height: 3 }} />;
@@ -354,6 +355,7 @@ export default function AlbumDetailScreen() {
         </Text>
 
         <View style={styles.topBarActions}>
+          <HeaderHelpButton />
           <Pressable
             style={styles.navCircleBtn}
             onPress={onShareAlbum}
@@ -442,7 +444,7 @@ export default function AlbumDetailScreen() {
 
                   {data?.locked ? (
                     <View style={styles.lockBadge}>
-                      <Ionicons name="lock-closed" size={10} color="#fff" />
+                      <Ionicons name="lock-closed" size={10} color={onFill} />
                       <Text style={styles.lockText}>LOCKED</Text>
                     </View>
                   ) : null}
@@ -566,10 +568,10 @@ export default function AlbumDetailScreen() {
                   disabled={busy === 'add'}
                 >
                   {busy === 'add' ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color={onFill} size="small" />
                   ) : (
                     <>
-                      <Ionicons name="cloud-upload" size={17} color="#fff" />
+                      <Ionicons name="cloud-upload" size={17} color={onFill} />
                       <Text style={styles.primaryActionText}>{tr('Add Photos')}</Text>
                     </>
                   )}
@@ -705,7 +707,7 @@ export default function AlbumDetailScreen() {
                   onPress={onAddPhotos}
                   disabled={busy === 'add'}
                 >
-                  <Ionicons name="add" size={18} color="#fff" />
+                  <Ionicons name="add" size={18} color={onFill} />
                   <Text style={styles.emptyActionText}>Upload Photos</Text>
                 </Pressable>
               ) : null}
@@ -848,10 +850,10 @@ export default function AlbumDetailScreen() {
                   disabled={busy === 'delete'}
                 >
                   <View style={[styles.sheetIconBox, styles.sheetIconDestructive]}>
-                    <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                    <Ionicons name="trash-outline" size={18} color={colors.error} />
                   </View>
                   <View style={styles.sheetItemText}>
-                    <Text style={[styles.sheetItemLabel, { color: '#DC2626' }]}>
+                    <Text style={[styles.sheetItemLabel, { color: colors.error }]}>
                       Delete Album
                     </Text>
                     <Text style={styles.sheetItemDesc}>Permanently remove this collection</Text>
@@ -945,7 +947,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     marginTop: spacing.sm,
   },
-  retryBtnText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
+  retryBtnText: { fontFamily: fonts.bold, fontSize: 14, color: c.textOnPrimary },
 
   list: { paddingBottom: 60, paddingTop: spacing.md },
   skeletonWrap: { flex: 1, gap: spacing.md, paddingTop: spacing.md },
@@ -1064,11 +1066,11 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
   },
   kindEvent: { backgroundColor: c.primary },
-  kindPaid: { backgroundColor: '#7C3AED' },
-  kindFree: { backgroundColor: '#059669' },
-  kindContent: { backgroundColor: '#6D28D9' },
+  kindPaid: { backgroundColor: c.primaryLight },
+  kindFree: { backgroundColor: c.success },
+  kindContent: { backgroundColor: c.accent },
   kindDefault: { backgroundColor: 'rgba(0,0,0,0.6)' },
-  kindText: { fontFamily: fonts.bold, fontSize: 10, color: '#fff', letterSpacing: 0.5 },
+  kindText: { fontFamily: fonts.bold, fontSize: 10, color: c.textOnPrimary, letterSpacing: 0.5 },
 
   approvalPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
   approvalPillText: { fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.3 },
@@ -1082,7 +1084,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 3,
     borderRadius: radii.full,
   },
-  lockText: { color: '#fff', fontSize: 9.5, fontFamily: fonts.bold, letterSpacing: 0.5 },
+  lockText: { color: c.textOnPrimary, fontSize: 9.5, fontFamily: fonts.bold, letterSpacing: 0.5 },
 
   // Content approval note
   approvalCard: {
@@ -1113,7 +1115,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
     backgroundColor: c.primary,
   },
-  primaryActionText: { fontFamily: fonts.bold, fontSize: 14.5, color: '#fff' },
+  primaryActionText: { fontFamily: fonts.bold, fontSize: 14.5, color: c.textOnPrimary },
   secondaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1302,12 +1304,12 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 10,
     borderRadius: radii.md,
   },
-  emptyActionText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
+  emptyActionText: { fontFamily: fonts.bold, fontSize: 14, color: c.textOnPrimary },
 
   // World-Class Lightbox
   lightboxBackdrop: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
     justifyContent: 'space-between',
   },
   lightboxTopBar: {
@@ -1399,7 +1401,7 @@ const useStyles = makeStyles((c) => ({
   pillSaveText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 
   // Action Sheet (···)

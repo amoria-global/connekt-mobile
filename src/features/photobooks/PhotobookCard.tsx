@@ -8,23 +8,23 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
 import { Skeleton } from '@/features/photographer/kit';
 import { albumDateText, photoCountText } from '@/features/gallery/albumFacts';
 import { useSharedT } from '@/i18n/sharedStrings';
 import type { Photobook } from './api';
 import { chipColors } from './statusChip';
 
-export const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
-  PUBLISHED: { label: 'Published', bg: '#D1FAE5', fg: '#047857' },
-  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
-  PENDING: { label: 'Pending', bg: '#FEF3C7', fg: '#92400E' },
-  SENT: { label: 'Delivered', bg: '#DBEAFE', fg: '#1D4ED8' },
+export const STATUS_META: Record<string, { label: string; tone: SwatchTone; }> = {
+  PUBLISHED: { label: 'Published', tone: 'success' as const },
+  DRAFT: { label: 'Draft', tone: 'neutral' as const },
+  PENDING: { label: 'Pending', tone: 'pending' as const },
+  SENT: { label: 'Delivered', tone: 'info' as const },
   // Photobooks a client sent to the photographer (web: received photobooks).
-  SENT_TO_PHOTOGRAPHER: { label: 'To edit', bg: '#FEF3C7', fg: '#92400E' },
-  PHOTOGRAPHER_EDITING: { label: 'Editing', bg: '#DBEAFE', fg: '#1D4ED8' },
-  RESUBMITTED: { label: 'Resubmitted', bg: '#DBEAFE', fg: '#1D4ED8' },
-  COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
+  SENT_TO_PHOTOGRAPHER: { label: 'To edit', tone: 'pending' as const },
+  PHOTOGRAPHER_EDITING: { label: 'Editing', tone: 'info' as const },
+  RESUBMITTED: { label: 'Resubmitted', tone: 'info' as const },
+  COMPLETED: { label: 'Completed', tone: 'success' as const },
 };
 
 const SCRIM = ['rgba(5,12,24,0)', 'rgba(5,12,24,0.88)'] as const;
@@ -39,7 +39,7 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
   const styles = useStyles();
   const { colors, isDark } = useTheme();
   const { tr } = useSharedT();
-  const base = STATUS_META[(book.status ?? '').toUpperCase()] ?? { label: book.status || 'Book', bg: 'rgba(0,0,0,0.55)', fg: '#fff' };
+  const base = STATUS_META[(book.status ?? '').toUpperCase()] ?? { label: book.status || 'Book', bg: 'rgba(0,0,0,0.55)', fg: onFill };
   const tone = { ...base, ...chipColors(base, isDark, colors) };
   const count = photoCountText(book.mediaCount);
   const by = bookByline(book);
@@ -70,7 +70,7 @@ function PhotobookCardImpl({ book, received, onOpen }: { book: Photobook; receiv
         {count ? (
           <View style={styles.bottom}>
             <View style={styles.count}>
-              <Ionicons name="images" size={11} color="#fff" />
+              <Ionicons name="images" size={11} color={onFill} />
               <Text style={styles.countText} maxFontSizeMultiplier={1.6}>
                 {tr(count)}
               </Text>
@@ -128,7 +128,7 @@ const useStyles = makeStyles((c, e) => ({
   statusText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   bottom: { flexDirection: 'row', paddingLeft: 6 },
   count: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(5,12,24,0.62)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full },
-  countText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  countText: { color: c.textOnPrimary, fontSize: 11, fontWeight: '700' },
   body: { padding: spacing.sm, gap: 3 },
   title: { color: c.text, fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
   meta: { color: c.textMuted, fontSize: 12.5 },

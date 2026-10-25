@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, type ImageSource } from 'expo-image';
 import { Text, View } from 'react-native';
 import { ActionButton } from '@/features/photographer/kit';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 
 /**
  * What the viewer shows when an event is over or was cancelled. The cover sits on its own at the top with a status pill,
@@ -33,7 +33,7 @@ export function EndedEventCard({
       <View style={styles.media}>
         <Image source={cover} style={styles.cover} contentFit="cover" accessibilityIgnoresInvertColors />
         <View style={styles.pill}>
-          <Ionicons name={cancelled ? 'close-circle' : 'checkmark-circle'} size={14} color="#FFFFFF" />
+          <Ionicons name={cancelled ? 'close-circle' : 'checkmark-circle'} size={14} color={onFill} />
           <Text style={styles.pillText}>{cancelled ? 'Cancelled' : 'Ended'}</Text>
         </View>
       </View>
@@ -69,7 +69,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
     backgroundColor: 'rgba(7,8,13,0.78)',
   },
-  pillText: { color: '#FFFFFF', fontSize: 12, fontWeight: fontWeight.bold, letterSpacing: 0.4, textTransform: 'uppercase' },
+  pillText: { color: c.textOnPrimary, fontSize: 12, fontWeight: fontWeight.bold, letterSpacing: 0.4, textTransform: 'uppercase' },
   body: { padding: spacing.lg, gap: spacing.md },
   headline: { color: c.text, fontSize: fontSize.lg, fontWeight: fontWeight.extrabold },
   message: { fontSize: fontSize.sm, lineHeight: 20 },

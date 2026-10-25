@@ -13,6 +13,7 @@
  *     "Save to Camera Roll".
  *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
  */
+import { PhotoHelpPill } from '@/features/auth/AuthGlassLayout';
 import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -39,7 +40,7 @@ import { dismissReceivedPhotobook, getPhotobook, resubmitPhotobook, type Photobo
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { savePhotoToGallery } from '@/utils/gallerySaver';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone, onMedia } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -171,15 +172,15 @@ const I18N = {
 } as const;
 import { chipColors } from '@/features/photobooks/statusChip';
 
-const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
-  PUBLISHED: { label: 'Published · Live', bg: '#D1FAE5', fg: '#047857' },
-  DRAFT: { label: 'Draft', bg: '#E5E7EB', fg: '#374151' },
-  PENDING: { label: 'Pending review', bg: '#FEF3C7', fg: '#92400E' },
-  SENT: { label: 'Delivered', bg: '#DBEAFE', fg: '#1D4ED8' },
-  SENT_TO_PHOTOGRAPHER: { label: 'To edit', bg: '#FEF3C7', fg: '#92400E' },
-  PHOTOGRAPHER_EDITING: { label: 'Editing', bg: '#DBEAFE', fg: '#1D4ED8' },
-  RESUBMITTED: { label: 'Resubmitted', bg: '#DBEAFE', fg: '#1D4ED8' },
-  COMPLETED: { label: 'Completed', bg: '#D1FAE5', fg: '#047857' },
+const STATUS_META: Record<string, { label: string; tone: SwatchTone; }> = {
+  PUBLISHED: { label: 'Published · Live', tone: 'success' as const },
+  DRAFT: { label: 'Draft', tone: 'neutral' as const },
+  PENDING: { label: 'Pending review', tone: 'pending' as const },
+  SENT: { label: 'Delivered', tone: 'info' as const },
+  SENT_TO_PHOTOGRAPHER: { label: 'To edit', tone: 'pending' as const },
+  PHOTOGRAPHER_EDITING: { label: 'Editing', tone: 'info' as const },
+  RESUBMITTED: { label: 'Resubmitted', tone: 'info' as const },
+  COMPLETED: { label: 'Completed', tone: 'success' as const },
 };
 
 const PhotoGap = () => <View style={{ height: 3 }} />;
@@ -209,12 +210,12 @@ export default function PhotobookDetailScreen() {
   const { language } = useLanguage();
   const tr = language === 'rw' ? PB_DETAIL_RW : language === 'sw' ? PB_DETAIL_SW : (I18N as any)[language] || I18N.en;
 
-  const statusMetaMap: Record<string, { label: string; bg: string; fg: string }> = useMemo(
+  const statusMetaMap: Record<string, { label: string; tone: SwatchTone; }> = useMemo(
     () => ({
-      PUBLISHED: { label: tr.statusPublished, bg: '#D1FAE5', fg: '#047857' },
-      DRAFT: { label: tr.statusDraft, bg: '#E5E7EB', fg: '#374151' },
-      PENDING: { label: tr.statusPending, bg: '#FEF3C7', fg: '#92400E' },
-      SENT: { label: tr.statusSent, bg: '#DBEAFE', fg: '#1D4ED8' },
+      PUBLISHED: { label: tr.statusPublished, tone: 'success' as const },
+      DRAFT: { label: tr.statusDraft, tone: 'neutral' as const },
+      PENDING: { label: tr.statusPending, tone: 'pending' as const },
+      SENT: { label: tr.statusSent, tone: 'info' as const },
     }),
     [tr],
   );
@@ -347,7 +348,7 @@ export default function PhotobookDetailScreen() {
   const baseMeta = statusMetaMap[statusKey] ?? {
     label: data?.status || tr.statusBook,
     bg: 'rgba(0,0,0,0.6)',
-    fg: '#fff',
+    fg: onFill,
   };
   const statusMeta = { ...baseMeta, ...chipColors(baseMeta, isDark, colors) };
 
@@ -391,21 +392,24 @@ export default function PhotobookDetailScreen() {
                   hitSlop={8}
                   accessibilityLabel={tr.backA11y}
                 >
-                  <Ionicons name="chevron-back" size={20} color="#fff" />
+                  <Ionicons name="chevron-back" size={20} color={onFill} />
                 </Pressable>
 
                 {received ? (
                   // The share link points at the customer view of a book, which a received book does not have.
-                  <View />
+                  <PhotoHelpPill />
                 ) : (
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <PhotoHelpPill />
                   <Pressable
                     style={styles.heroNavCircle}
                     onPress={onShareBook}
                     hitSlop={8}
                     accessibilityLabel={tr.shareBookA11y}
                   >
-                    <Ionicons name="share-outline" size={18} color="#fff" />
+                    <Ionicons name="share-outline" size={18} color={onFill} />
                   </Pressable>
+                  </View>
                 )}
               </View>
 
@@ -500,7 +504,7 @@ export default function PhotobookDetailScreen() {
                 ) : (
                   <View style={styles.payActionBtn}>
                     <Text style={styles.payActionText}>{tr.payAndUnlock}</Text>
-                    <Ionicons name="open-outline" size={14} color="#fff" />
+                    <Ionicons name="open-outline" size={14} color={onFill} />
                   </View>
                 )}
               </Pressable>
@@ -601,7 +605,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
     marginTop: spacing.sm,
   },
-  retryBtnText: { fontFamily: fonts.bold, fontSize: 14, color: '#fff' },
+  retryBtnText: { fontFamily: fonts.bold, fontSize: 14, color: c.textOnPrimary },
 
   list: { paddingBottom: 60 },
   header: { gap: spacing.md, marginBottom: spacing.sm },
@@ -609,12 +613,12 @@ const useStyles = makeStyles((c) => ({
   // Hero Cover Banner
   heroBanner: {
     width: '100%',
-    backgroundColor: '#071224',
+    backgroundColor: onMedia.ground,
     justifyContent: 'space-between',
     padding: spacing.lg,
   },
   heroFallback: {
-    backgroundColor: '#0B162C',
+    backgroundColor: onMedia.ground,
     alignItems: 'center',
     // Icon sits high so the status chips and title never collide with it at large text sizes.
     justifyContent: 'flex-start',
@@ -676,13 +680,13 @@ const useStyles = makeStyles((c) => ({
   kindBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.6,
   },
   heroTitle: {
     fontFamily: fonts.bold,
     fontSize: 24,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: -0.5,
   },
   heroMetaRow: {
@@ -759,7 +763,7 @@ const useStyles = makeStyles((c) => ({
   payActionText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 
   // Section Header
@@ -849,7 +853,7 @@ const useStyles = makeStyles((c) => ({
   // Master Lightbox
   lightboxBackdrop: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
     justifyContent: 'space-between',
   },
   lightboxTopBar: {
@@ -936,7 +940,7 @@ const useStyles = makeStyles((c) => ({
   pillSaveText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   btnDisabled: { opacity: 0.6 },
 }));

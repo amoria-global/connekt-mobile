@@ -11,11 +11,12 @@ import type { Person, SubmissionStatus } from './model';
 
 export function AlbumCover({ uri, title }: { uri?: string; title: string }) {
   const styles = useStyles();
+  const { gradients } = useTheme();
   if (uri) {
     return <Image source={{ uri }} style={styles.fill} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />;
   }
   return (
-    <LinearGradient colors={['#083A85', '#3B5FA8', '#F20C8F']} start={{ x: 0, y: 0 }} end={{ x: 1.3, y: 1.3 }}
+    <LinearGradient colors={gradients.brand as unknown as [string, string, string]} start={{ x: 0, y: 0 }} end={{ x: 1.3, y: 1.3 }}
       style={[styles.fill, styles.center]}>
       <Text style={styles.initial}>{(title || '?').trim().charAt(0).toUpperCase()}</Text>
     </LinearGradient>
@@ -76,7 +77,7 @@ export function Stat({ value, label, accent }: { value: number; label: string; a
 const useStyles = makeStyles((c) => ({
   fill: { width: '100%', height: '100%' },
   center: { alignItems: 'center', justifyContent: 'center' },
-  initial: { color: '#FFFFFF', fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, fontFamily: fonts.bold },
+  initial: { color: c.textOnPrimary, fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, fontFamily: fonts.bold },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
     paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radii.full,

@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill, midTones } from '@/theme';
 import { useLanguage } from '@/store/language';
 import { serverNowMs } from './api';
 import type { RecommendationTier } from './types';
@@ -16,7 +16,7 @@ export const MODE_META = {
     label: 'Find a Photographer',
     short: 'Direct booking',
     icon: 'search' as const,
-    color: '#083A85',
+    color: midTones.blue,
     soft: 'rgba(8,58,133,0.10)',
     line: 'You browse photographers, pick one, and send them a request.',
   },
@@ -24,7 +24,7 @@ export const MODE_META = {
     label: 'Post My Event',
     short: 'Matched booking',
     icon: 'radio-outline' as const,
-    color: '#F20C8F',
+    color: midTones.magenta,
     soft: 'rgba(242,12,143,0.10)',
     line: 'You describe the event; available photographers who fit say yes; you pick one.',
   },
@@ -88,9 +88,9 @@ export function modeOf(bookingMode?: string | null): BookingModeKey {
 }
 
 export const TIER_META: Record<RecommendationTier, { label: string; hint: string; color: string; bg: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  HIGH: { label: 'Top match', hint: 'Closest fit to what you asked for', color: '#047857', bg: 'rgba(16,185,129,0.12)', icon: 'sparkles' },
-  MEDIUM: { label: 'Good match', hint: 'Fits most of your requirements', color: '#083A85', bg: 'rgba(8,58,133,0.10)', icon: 'thumbs-up-outline' },
-  LOW: { label: 'Possible match', hint: 'Available, with fewer requirements matched', color: '#9A3412', bg: 'rgba(234,88,12,0.10)', icon: 'checkmark' },
+  HIGH: { label: 'Top match', hint: 'Closest fit to what you asked for', color: midTones.green, bg: 'rgba(16,185,129,0.12)', icon: 'sparkles' },
+  MEDIUM: { label: 'Good match', hint: 'Fits most of your requirements', color: midTones.blue, bg: 'rgba(62,111,216,0.14)', icon: 'thumbs-up-outline' },
+  LOW: { label: 'Possible match', hint: 'Available, with fewer requirements matched', color: midTones.orange, bg: 'rgba(234,88,12,0.10)', icon: 'checkmark' },
 };
 
 const TIER_META_I18N: Record<'fr' | 'es' | 'rw' | 'sw', Record<RecommendationTier, { label: string; hint: string }>> = {
@@ -268,7 +268,7 @@ const useStyles = makeStyles((c) => ({
   },
   chipOn: { backgroundColor: c.primary, borderColor: c.primary },
   chipText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text },
-  chipTextOn: { color: '#fff' },
+  chipTextOn: { color: c.textOnPrimary },
   card: {
     flexDirection: 'row', gap: spacing.sm, padding: spacing.md, borderRadius: radii.lg,
     borderWidth: 2, borderColor: c.border, backgroundColor: c.card, alignItems: 'flex-start',
@@ -314,7 +314,7 @@ export function Chip({ selected, onPress, label, icon }: { selected: boolean; on
   const styles = useStyles();
   return (
     <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ checked: selected }} style={[styles.chip, selected && styles.chipOn]} hitSlop={4}>
-      {icon && <Ionicons name={icon} size={14} color={selected ? '#fff' : undefined} />}
+      {icon && <Ionicons name={icon} size={14} color={selected ? onFill : undefined} />}
       <Text style={[styles.chipText, selected && styles.chipTextOn]}>{label}</Text>
     </Pressable>
   );

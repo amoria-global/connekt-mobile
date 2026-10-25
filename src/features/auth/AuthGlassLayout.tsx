@@ -13,6 +13,8 @@
  *   │ children…            │
  *   └──────────────────────┘
  */
+import { useRouter, type Href } from 'expo-router';
+import { HELP_HREF } from '@/components/help/GlobalHelpButton';
 import { useState, type ReactNode, type Ref } from 'react';
 import {
   Image,
@@ -38,7 +40,7 @@ import {
   useGlassEdge,
 } from '@/components/ui/GlassCard';
 import { useLanguage } from '@/store/language';
-import { fonts, fontSize, fontWeight, makeStyles, radii, spacing } from '@/theme';
+import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, onFill } from '@/theme';
 
 import { AUTH_BACKDROP } from './backdrop';
 
@@ -81,7 +83,7 @@ export function AuthGlassLayout({
   const glassEdge = useGlassEdge();
 
   return (
-    <Screen padded={false} edges={[]}>
+    <Screen padded={false} edges={[]} glow={false}>
       {/* The band is always a photo, so its chrome is always light. */}
       <StatusBar style="light" />
       <GlassScene image={AUTH_BACKDROP} bleedTop={false}>
@@ -113,7 +115,7 @@ export function AuthGlassLayout({
                     accessibilityLabel="Go back"
                   >
                     <GlassLayer fill="rgba(0,0,0,0.22)" />
-                    <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+                    <Ionicons name="chevron-back" size={22} color={onFill} />
                   </Pressable>
                 ) : (
                   <Image
@@ -123,7 +125,10 @@ export function AuthGlassLayout({
                     accessibilityIgnoresInvertColors
                   />
                 )}
-                <PhotoLanguagePill />
+                <View style={styles.bandActions}>
+                  <PhotoHelpPill />
+                  <PhotoLanguagePill />
+                </View>
               </View>
               {bandFooter ? <View style={styles.bandFooter}>{bandFooter}</View> : null}
             </View>
@@ -150,6 +155,27 @@ export function AuthGlassLayout({
 }
 
 /**
+ * Help for chrome that sits on a photo: the same dark glass as the language pill. It replaces the floating
+ * Help button on the sign-in screens, where that one sat over the invitation link (helpButtonLayout).
+ */
+export function PhotoHelpPill() {
+  const styles = useStyles();
+  const router = useRouter();
+  return (
+    <Pressable
+      onPress={() => router.push(HELP_HREF as Href)}
+      hitSlop={8}
+      style={({ pressed }) => [styles.photoPill, styles.photoPillRound, glassClear, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel="Help"
+    >
+      <GlassLayer fill="rgba(0,0,0,0.22)" />
+      <Ionicons name="help-circle-outline" size={18} color={onFill} />
+    </Pressable>
+  );
+}
+
+/**
  * Language switch for chrome that sits on a photo: dark glass, white type, in
  * both schemes. Opens the language sheet itself.
  */
@@ -167,7 +193,7 @@ export function PhotoLanguagePill() {
         accessibilityLabel={`${t('languageSheetTitle')}: ${language.toUpperCase()}`}
       >
         <GlassLayer fill="rgba(0,0,0,0.22)" />
-        <Ionicons name="globe-outline" size={15} color="#FFFFFF" />
+        <Ionicons name="globe-outline" size={15} color={onFill} />
         <Text style={styles.photoPillText}>{language.toUpperCase()}</Text>
         <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.8)" />
       </Pressable>
@@ -177,6 +203,8 @@ export function PhotoLanguagePill() {
 }
 
 const useStyles = makeStyles((c) => ({
+  bandActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  photoPillRound: { width: 40, paddingHorizontal: 0, justifyContent: 'center' },
   flex: { flex: 1 },
   scroll: { flexGrow: 1 },
   pressed: { opacity: 0.7 },
@@ -207,7 +235,7 @@ const useStyles = makeStyles((c) => ({
     fontSize: 12,
     fontFamily: fonts.bold,
     fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     letterSpacing: 0.6,
   },
 

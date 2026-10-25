@@ -5,6 +5,7 @@ import type { Ref } from 'react';
 import { WhepVideo, type WhepHandle } from './WhepVideo';
 import type { WhepStatus } from '../whep';
 
+import { onMedia } from '@/theme';
 type Props = {
   player: VideoPlayer;
   hasSource: boolean;
@@ -47,5 +48,5 @@ export const LiveVideoSurface = memo(function LiveVideoSurface({ player, hasSour
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
+  root: { flex: 1, backgroundColor: onMedia.black, overflow: 'hidden' },
 });

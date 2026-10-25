@@ -7,7 +7,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage, type TranslationKey } from '@/store/language';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill, type Palette } from '@/theme';
 import type { PhotographerOpportunity } from './types';
 import { budgetLabel, countdownString, EventStartClock, hhmm, MODE_META, useCountdown } from './hybridUi';
 
@@ -20,16 +20,15 @@ type Props = {
   highlighted?: boolean;
 };
 
-const STATUS: Record<string, { key: TranslationKey; color: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = {
-  INVITED: { key: 'oppInvited', color: '#F20C8F', icon: 'radio-outline' },
-  APPROVED: { key: 'oppApproved', color: '#1E40AF', icon: 'hourglass-outline' },
-  SELECTED: { key: 'oppSelected', color: '#047857', icon: 'trophy-outline' },
-  NOT_SELECTED: { key: 'oppNotSelected', color: '#6A6D76', icon: 'person-outline' },
-  REJECTED: { key: 'oppRejected', color: '#6A6D76', icon: 'close-circle-outline' },
-  EXPIRED: { key: 'oppExpired', color: '#6A6D76', icon: 'timer-outline' },
-  WITHDRAWN: { key: 'oppWithdrawn', color: '#6A6D76', icon: 'lock-closed-outline' },
-  NO_LONGER_AVAILABLE: { key: 'oppNoLongerAvailable', color: '#6A6D76', icon: 'calendar-outline' },
-};
+const STATUS = (c: Palette): Record<string, { key: TranslationKey; color: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> => ({
+  INVITED: { key: 'oppInvited', color: c.accent, icon: 'radio-outline' },
+  APPROVED: { key: 'oppApproved', color: c.primary, icon: 'hourglass-outline' },
+  SELECTED: { key: 'oppSelected', color: c.success, icon: 'trophy-outline' },
+  NOT_SELECTED: { key: 'oppNotSelected', color: c.textMuted, icon: 'person-outline' },
+  REJECTED: { key: 'oppRejected', color: c.textMuted, icon: 'close-circle-outline' },
+  EXPIRED: { key: 'oppExpired', color: c.textMuted, icon: 'timer-outline' },
+  WITHDRAWN: { key: 'oppWithdrawn', color: c.textMuted, icon: 'lock-closed-outline' },
+  NO_LONGER_AVAILABLE: { key: 'oppNoLongerAvailable', color: c.textMuted, icon: 'calendar-outline' },});
 
 const prettyDate = (d: string, lang: string) => {
   const t = Date.parse(`${d.slice(0, 10)}T00:00:00`);
@@ -45,7 +44,7 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
   const left = useCountdown(open ? o.responseDeadlineAt || o.candidateExpiresAt : null);
   const expired = open && !!left?.done;
   const urgent = open && !!left && !left.done && left.ms < 5 * 60 * 1000;
-  const st = STATUS[o.status ?? 'INVITED'] ?? STATUS.INVITED;
+  const st = STATUS(colors)[o.status ?? 'INVITED'] ?? STATUS(colors).INVITED;
   const budget = budgetLabel(o.minBudget, o.maxBudget);
 
   return (
@@ -81,7 +80,7 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
         <View style={styles.reasons}>
           {o.matchReasons.map((r) => (
             <View key={r} style={styles.reason}>
-              <Ionicons name="checkmark" size={12} color="#047857" />
+              <Ionicons name="checkmark" size={12} color={colors.success} />
               <Text style={styles.reasonText}>{r}</Text>
             </View>
           ))}
@@ -100,9 +99,9 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
           </Pressable>
           <Pressable onPress={() => onApprove(o)} disabled={busy || expired} style={[styles.primary, (busy || expired) && styles.disabled]}
             accessibilityRole="button" accessibilityLabel={t('oppYesAvailable')}>
-            {busy ? <ActivityIndicator color="#fff" /> : (
+            {busy ? <ActivityIndicator color={onFill} /> : (
               <>
-                <Ionicons name="checkmark" size={18} color="#fff" />
+                <Ionicons name="checkmark" size={18} color={onFill} />
                 <Text style={styles.primaryText}>{expired ? t('oppTimeIsUp') : t('oppYesAvailable')}</Text>
               </>
             )}
@@ -129,7 +128,7 @@ const useStyles = makeStyles((c) => ({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   eyebrow: { fontSize: 11, fontWeight: fontWeight.extrabold, letterSpacing: 0.6 },
   timer: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: 'rgba(242,12,143,0.10)' },
-  timerText: { fontSize: 12, fontWeight: fontWeight.extrabold, color: '#F20C8F', fontVariant: ['tabular-nums'] },
+  timerText: { fontSize: 12, fontWeight: fontWeight.extrabold, color: c.accent, fontVariant: ['tabular-nums'] },
   title: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
   sub: { fontSize: fontSize.xs, color: c.textMuted, marginTop: -4 },
   facts: { gap: 6 },
@@ -140,8 +139,8 @@ const useStyles = makeStyles((c) => ({
   reasonText: { fontSize: 11, color: c.text },
   notes: { fontSize: fontSize.xs, color: c.textSoft, backgroundColor: c.surfaceMuted, padding: spacing.sm, borderRadius: radii.md, fontStyle: 'italic' },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
-  primary: { flex: 1.4, minHeight: 48, borderRadius: radii.md, backgroundColor: '#10B981', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  primaryText: { color: '#fff', fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
+  primary: { flex: 1.4, minHeight: 48, borderRadius: radii.md, backgroundColor: c.success, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  primaryText: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
   secondary: { flex: 1, minHeight: 48, borderRadius: radii.md, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: c.textSoft, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
   disabled: { opacity: 0.5 },

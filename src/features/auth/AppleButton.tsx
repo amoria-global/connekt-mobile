@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Platform, Pressable, Text } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { isApiError, useAuth } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { brandMarks, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { appleLogin, isNeedsRole, isNeedsTotp } from './api';
 import type { AppleProfile } from './api';
 import { appleSignInStatus, isAppleSignInCancelled, requestAppleCredential } from './apple';
@@ -80,8 +80,8 @@ export function AppleButton(props: Props) {
   // outline for Sign in with Apple, and App Review enforces it: black on a
   // light screen, white on a dark one. A brand-coloured button also competed
   // with the screen's real primary action.
-  const background = isDark ? '#FFFFFF' : '#000000';
-  const foreground = isDark ? '#000000' : '#FFFFFF';
+  const background = isDark ? onFill : brandMarks.appleBlack;
+  const foreground = isDark ? brandMarks.appleBlack : onFill;
   const borderColor = background;
 
   const onPress = async () => {

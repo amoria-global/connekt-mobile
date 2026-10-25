@@ -60,12 +60,12 @@ describe('the screens it steps aside on still exist under those names', () => {
   });
 });
 
-describe('the screens it lifts above the round add button', () => {
-  it('are exactly the screens that draw one: a new add button needs an entry in helpButtonLayout', () => {
+describe('floating add buttons', () => {
+  // Midnight Glass: nothing floats over a button. Create lives in the header or title row (HeaderAddButton).
+  it('are drawn on no screen', () => {
     const importers = sourceFiles(SRC)
-      .filter((f) => !f.includes(`${path.sep}ui${path.sep}Fab.`) && /from '@\/components\/ui\/Fab'/.test(readFileSync(f, 'utf8')))
-      .map((f) => path.relative(SRC, f).split(path.sep).join('/'))
-      .sort();
-    expect(importers).toEqual(['app/(app)/packages.tsx', 'app/(public)/gallery.tsx']);
+      .filter((f) => /from '@\/components\/ui\/Fab'/.test(readFileSync(f, 'utf8')))
+      .map((f) => path.relative(SRC, f).split(path.sep).join('/'));
+    expect(importers).toEqual([]);
   });
 });
