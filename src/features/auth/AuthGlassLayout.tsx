@@ -13,6 +13,8 @@
  *   │ children…            │
  *   └──────────────────────┘
  */
+import { useRouter, type Href } from 'expo-router';
+import { HELP_HREF } from '@/components/help/GlobalHelpButton';
 import { useState, type ReactNode, type Ref } from 'react';
 import {
   Image,
@@ -123,7 +125,10 @@ export function AuthGlassLayout({
                     accessibilityIgnoresInvertColors
                   />
                 )}
-                <PhotoLanguagePill />
+                <View style={styles.bandActions}>
+                  <PhotoHelpPill />
+                  <PhotoLanguagePill />
+                </View>
               </View>
               {bandFooter ? <View style={styles.bandFooter}>{bandFooter}</View> : null}
             </View>
@@ -146,6 +151,27 @@ export function AuthGlassLayout({
         </KeyboardAvoidingView>
       </GlassScene>
     </Screen>
+  );
+}
+
+/**
+ * Help for chrome that sits on a photo: the same dark glass as the language pill. It replaces the floating
+ * Help button on the sign-in screens, where that one sat over the invitation link (helpButtonLayout).
+ */
+export function PhotoHelpPill() {
+  const styles = useStyles();
+  const router = useRouter();
+  return (
+    <Pressable
+      onPress={() => router.push(HELP_HREF as Href)}
+      hitSlop={8}
+      style={({ pressed }) => [styles.photoPill, styles.photoPillRound, glassClear, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel="Help"
+    >
+      <GlassLayer fill="rgba(0,0,0,0.22)" />
+      <Ionicons name="help-circle-outline" size={18} color={onFill} />
+    </Pressable>
   );
 }
 
@@ -177,6 +203,8 @@ export function PhotoLanguagePill() {
 }
 
 const useStyles = makeStyles((c) => ({
+  bandActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  photoPillRound: { width: 40, paddingHorizontal: 0, justifyContent: 'center' },
   flex: { flex: 1 },
   scroll: { flexGrow: 1 },
   pressed: { opacity: 0.7 },

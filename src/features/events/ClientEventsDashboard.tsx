@@ -194,7 +194,8 @@ export function ClientEventsDashboard({
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityLabel="Filter events">
-        {FILTERS.map((f) => (
+        {/* A bucket with nothing in it is left out rather than shown as 0, unless it is the one selected. */}
+        {FILTERS.filter((f) => f.key === 'all' || f.key === filter || !counts || counts[f.key] > 0).map((f) => (
           <Chip
             key={f.key}
             label={f.label}

@@ -359,7 +359,7 @@ export function ClientHome() {
               title="Publish offer"
               subtitle="Set your budget, match with talent"
               icon="document-text-outline"
-              tone="violet"
+              tone="glass"
               onPress={() => {
                 setBookingStep(1);
                 setBookingModeOpen(true);

@@ -70,6 +70,8 @@ export function helpButtonPlacement(
   // The tab screens carry Help in their top bar (see TopBar).
   if (segments.includes('(tabs)')) return { visible: false, bottom: 0 };
   if (headerCarriesHelp(segments)) return { visible: false, bottom: 0 };
+  // The sign-in screens carry Help in their photo band (AuthGlassLayout); only Choose role draws its own screen.
+  if (segments[0] === '(auth)' && segments[1] !== 'choose-role') return { visible: false, bottom: 0 };
   // What is left has no header and no tab bar: just above the bottom edge. The two screens with a round add button
   // (packages, the public gallery) have headers, so the button never has to clear it.
   return { visible: true, bottom: Math.max(insets.bottom, 0) + HELP_GAP + 6 };

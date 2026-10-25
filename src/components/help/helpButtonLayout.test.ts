@@ -14,8 +14,7 @@ const flat = { bottom: 0 }; // a phone without one
 describe('where the button shows', () => {
   // Only where no header carries Help: sign-in and sign-up, and the screens drawn without the stack header.
   it.each([
-    ['sign in', ['(auth)', 'login']],
-    ['sign up', ['(auth)', 'signup']],
+    ['choose role, which draws its own screen', ['(auth)', 'choose-role']],
     ['the public events browser, which has no header', ['(public)', 'explore-events']],
     ['an album page, drawn without the stack header', ['(app)', 'album', '[id]']],
     ['photobook, drawn without the stack header', ['(app)', 'photobook', '[id]']],
@@ -32,6 +31,8 @@ describe('where the button shows', () => {
     ['the collaborate album screen', ['(app)', 'collaborate', 'album', '[id]']],
     ['a public page with a header', ['(public)', 'about']],
     ['notifications, whose own header carries Help', ['(app)', 'notifications']],
+    ['sign in, whose photo band carries Help', ['(auth)', 'login']],
+    ['sign up, whose photo band carries Help', ['(auth)', 'signup']],
     ['analytics, whose own header carries Help', ['(app)', 'analytics']],
   ])('steps aside on %s, whose header carries Help', (_name, segments) => {
     expect(helpButtonPlacement(segments, phone)).toEqual({ visible: false, bottom: 0 });
@@ -80,8 +81,8 @@ describe('where it steps aside', () => {
   });
 
   it('waits until the app is ready, so it does not sit on the intro video', () => {
-    expect(helpButtonPlacement(['(auth)', 'login'], phone, { ready: false }).visible).toBe(false);
-    expect(helpButtonPlacement(['(auth)', 'login'], phone, { ready: true }).visible).toBe(true);
+    expect(helpButtonPlacement(['(auth)', 'choose-role'], phone, { ready: false }).visible).toBe(false);
+    expect(helpButtonPlacement(['(auth)', 'choose-role'], phone, { ready: true }).visible).toBe(true);
   });
 
   it('matches whole screen names: stream is hidden but streams is not, event/new is hidden but event/newest is not', () => {
@@ -100,10 +101,10 @@ describe('where it sits', () => {
   });
 
   it('sits just above the bottom edge where it shows', () => {
-    const p = helpButtonPlacement(['(auth)', 'login'], phone);
+    const p = helpButtonPlacement(['(auth)', 'choose-role'], phone);
     expect(p.bottom).toBeGreaterThanOrEqual(34);
     expect(p.bottom).toBeLessThan(34 + BAR_CONTENT_HEIGHT);
-    expect(helpButtonPlacement(['(auth)', 'login'], flat).bottom).toBeGreaterThan(0);
+    expect(helpButtonPlacement(['(auth)', 'choose-role'], flat).bottom).toBeGreaterThan(0);
   });
 
   it.each([
