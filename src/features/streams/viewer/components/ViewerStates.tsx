@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, onFill } from '@/theme';
+import { fonts, onFill, onMedia, viewerTokens } from '@/theme';
 import { V, VIDEO_ASPECT } from '../viewerTheme';
 
 /** Static skeleton: video, title, creator, chat. No animation loop (cheap on low-end devices). */
@@ -10,7 +10,7 @@ export const ViewerSkeleton = memo(function ViewerSkeleton() {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root} accessibilityLabel="Loading live stream" accessibilityLiveRegion="polite">
-      <View style={{ paddingTop: insets.top, backgroundColor: '#000' }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: onMedia.black }}>
         <View style={styles.video}>
           <Text style={styles.connecting}>Connecting to live stream…</Text>
         </View>
@@ -62,7 +62,7 @@ export function ViewerError({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: V.bg },
   center: { alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
-  video: { aspectRatio: VIDEO_ASPECT, backgroundColor: '#14171E', alignItems: 'center', justifyContent: 'center' },
+  video: { aspectRatio: VIDEO_ASPECT, backgroundColor: viewerTokens.surface, alignItems: 'center', justifyContent: 'center' },
   connecting: { fontFamily: fonts.regular, fontSize: 14, color: V.textMuted },
   pad: { padding: 14, gap: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },

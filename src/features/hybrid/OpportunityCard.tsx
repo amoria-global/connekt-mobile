@@ -7,7 +7,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage, type TranslationKey } from '@/store/language';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill, type Palette } from '@/theme';
 import type { PhotographerOpportunity } from './types';
 import { budgetLabel, countdownString, EventStartClock, hhmm, MODE_META, useCountdown } from './hybridUi';
 
@@ -20,16 +20,15 @@ type Props = {
   highlighted?: boolean;
 };
 
-const STATUS: Record<string, { key: TranslationKey; color: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = {
-  INVITED: { key: 'oppInvited', color: '#F20C8F', icon: 'radio-outline' },
-  APPROVED: { key: 'oppApproved', color: '#1E40AF', icon: 'hourglass-outline' },
-  SELECTED: { key: 'oppSelected', color: '#047857', icon: 'trophy-outline' },
-  NOT_SELECTED: { key: 'oppNotSelected', color: '#6A6D76', icon: 'person-outline' },
-  REJECTED: { key: 'oppRejected', color: '#6A6D76', icon: 'close-circle-outline' },
-  EXPIRED: { key: 'oppExpired', color: '#6A6D76', icon: 'timer-outline' },
-  WITHDRAWN: { key: 'oppWithdrawn', color: '#6A6D76', icon: 'lock-closed-outline' },
-  NO_LONGER_AVAILABLE: { key: 'oppNoLongerAvailable', color: '#6A6D76', icon: 'calendar-outline' },
-};
+const STATUS = (c: Palette): Record<string, { key: TranslationKey; color: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> => ({
+  INVITED: { key: 'oppInvited', color: c.accent, icon: 'radio-outline' },
+  APPROVED: { key: 'oppApproved', color: c.primary, icon: 'hourglass-outline' },
+  SELECTED: { key: 'oppSelected', color: c.success, icon: 'trophy-outline' },
+  NOT_SELECTED: { key: 'oppNotSelected', color: c.textMuted, icon: 'person-outline' },
+  REJECTED: { key: 'oppRejected', color: c.textMuted, icon: 'close-circle-outline' },
+  EXPIRED: { key: 'oppExpired', color: c.textMuted, icon: 'timer-outline' },
+  WITHDRAWN: { key: 'oppWithdrawn', color: c.textMuted, icon: 'lock-closed-outline' },
+  NO_LONGER_AVAILABLE: { key: 'oppNoLongerAvailable', color: c.textMuted, icon: 'calendar-outline' },});
 
 const prettyDate = (d: string, lang: string) => {
   const t = Date.parse(`${d.slice(0, 10)}T00:00:00`);
@@ -45,7 +44,7 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
   const left = useCountdown(open ? o.responseDeadlineAt || o.candidateExpiresAt : null);
   const expired = open && !!left?.done;
   const urgent = open && !!left && !left.done && left.ms < 5 * 60 * 1000;
-  const st = STATUS[o.status ?? 'INVITED'] ?? STATUS.INVITED;
+  const st = STATUS(colors)[o.status ?? 'INVITED'] ?? STATUS(colors).INVITED;
   const budget = budgetLabel(o.minBudget, o.maxBudget);
 
   return (
@@ -81,7 +80,7 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
         <View style={styles.reasons}>
           {o.matchReasons.map((r) => (
             <View key={r} style={styles.reason}>
-              <Ionicons name="checkmark" size={12} color="#047857" />
+              <Ionicons name="checkmark" size={12} color={colors.success} />
               <Text style={styles.reasonText}>{r}</Text>
             </View>
           ))}

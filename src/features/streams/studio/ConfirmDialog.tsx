@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts, onFill } from '@/theme';
+import { fonts, onFill, onMedia, paper } from '@/theme';
 import { S } from './theme';
 
 type Props = {
@@ -98,8 +98,8 @@ const styles = StyleSheet.create({
   },
   btn: { minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.8 },
-  btnSafe: { backgroundColor: '#fff' },
-  btnSafeText: { fontFamily: fonts.bold, fontSize: 18, color: '#111' },
+  btnSafe: { backgroundColor: onMedia.text },
+  btnSafeText: { fontFamily: fonts.bold, fontSize: 18, color: paper.ink },
   btnDanger: { backgroundColor: 'rgba(220,38,38,0.9)' },
   btnGo: { backgroundColor: S.go },
   btnDangerText: { fontFamily: fonts.bold, fontSize: 18, color: onFill },

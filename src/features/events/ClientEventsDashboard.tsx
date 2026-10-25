@@ -143,8 +143,8 @@ export function ClientEventsDashboard({
       if (label === 'Ongoing') return colors.accent;
       if (label === 'Published') return colors.success;
       if (label === 'Not published') return colors.warning;
-      if (label === 'Completed') return '#3B82F6';
-      if (label === 'Paused') return '#8B5CF6';
+      if (label === 'Completed') return colors.primary;
+      if (label === 'Paused') return colors.primaryLight;
       if (label === 'Cancelled') return colors.error;
       return toneColor[tone];
     };

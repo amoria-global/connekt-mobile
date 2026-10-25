@@ -1,4 +1,4 @@
-import { onFill } from '@/theme';
+import { onFill, onMedia } from '@/theme';
 /**
  * Live-stream sponsor-ad overlay (mobile port of knockout's StreamAdBanners).
  *
@@ -83,7 +83,7 @@ function AdVideo({ uri, style }: { uri: string; style: StyleProp<ViewStyle> }) {
 function AdMedia({ ad, style }: { ad: StreamAd; style: StyleProp<ViewStyle> }) {
   if (ad.videoUrl) return <AdVideo uri={ad.videoUrl} style={style} />;
   if (ad.imageUrl) return <Image source={{ uri: ad.imageUrl }} style={style as any} contentFit="cover" />;
-  return <View style={[style, { backgroundColor: ad.brandColor || '#111827' }]} />;
+  return <View style={[style, { backgroundColor: ad.brandColor || onMedia.ground }]} />;
 }
 
 function CloseButton({ onClose }: { onClose: () => void }) {

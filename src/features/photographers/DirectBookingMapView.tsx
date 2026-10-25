@@ -142,9 +142,9 @@ export function DirectBookingMapView({
     const tileTheme = isDark
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    const bgColor = isDark ? '#0A0F1D' : '#F8FAFC';
-    const primaryColor = '#083A85';
-    const accentColor = '#F20C8F';
+    const bgColor = isDark ? '#0A0F1D' : colors.surfaceMuted;
+    const primaryColor = colors.primary;
+    const accentColor = colors.accent;
 
     return `<!DOCTYPE html>
 <html>
@@ -232,15 +232,15 @@ export function DirectBookingMapView({
       z-index: 9999 !important;
     }
     .pro-pill {
-      background: ${isDark ? '#1E293B' : onFill};
-      color: ${isDark ? '#F8FAFC' : '#0F172A'};
+      background: ${isDark ? colors.textSoft : onFill};
+      color: ${isDark ? colors.surfaceMuted : colors.text};
       padding: 5px 9px;
       border-radius: 20px;
       display: flex;
       align-items: center;
       gap: 6px;
       box-shadow: 0 6px 16px rgba(0,0,0,${isDark ? '0.6' : '0.18'});
-      border: 2px solid ${isDark ? '#334155' : '#E2E8F0'};
+      border: 2px solid ${isDark ? colors.textSoft : colors.border};
       white-space: nowrap;
       transition: all 0.2s ease;
     }
@@ -258,7 +258,7 @@ export function DirectBookingMapView({
     .pro-price {
       font-size: 11px;
       font-weight: 700;
-      color: ${isDark ? '#38BDF8' : '#083A85'};
+      color: ${isDark ? colors.live : colors.primary};
     }
     .pro-rating {
       font-size: 10px;
@@ -272,7 +272,7 @@ export function DirectBookingMapView({
       height: 0;
       border-left: 6px solid transparent;
       border-right: 6px solid transparent;
-      border-top: 6px solid ${isDark ? '#334155' : '#E2E8F0'};
+      border-top: 6px solid ${isDark ? colors.textSoft : colors.border};
       margin-top: -1px;
       transition: border-top-color 0.2s ease;
     }
@@ -315,8 +315,8 @@ export function DirectBookingMapView({
     // Radius Circle
     var circle = L.circle([clientLat, clientLng], {
       radius: radiusKm * 1000,
-      color: '${isDark ? '#38BDF8' : '#2563EB'}',
-      fillColor: '${isDark ? '#38BDF8' : '#2563EB'}',
+      color: '${isDark ? colors.live : colors.primary}',
+      fillColor: '${isDark ? colors.live : colors.primary}',
       fillOpacity: 0.06,
       weight: 1.5,
       dashArray: '5, 5'
@@ -506,14 +506,14 @@ export function DirectBookingMapView({
               </Text>
               <View style={styles.metaRow}>
                 <View style={styles.distanceBadge}>
-                  <Ionicons name="location" size={11} color="#0284C7" />
+                  <Ionicons name="location" size={11} color={colors.live} />
                   <Text style={styles.distanceText}>
                     {selectedPhotographer.distanceFormatted ||
                       `${selectedPhotographer.distanceKm} km away`}
                   </Text>
                 </View>
                 <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={11} color="#F59E0B" />
+                  <Ionicons name="star" size={11} color={colors.pending} />
                   <Text style={styles.ratingText}>
                     {selectedPhotographer.rating.toFixed(1)} (
                     {selectedPhotographer.reviewCount})
@@ -769,7 +769,7 @@ const useStyles = makeStyles((colors) => ({
   distanceText: {
     fontSize: 12,
     fontWeight: fontWeight.semibold,
-    color: '#0284C7',
+    color: colors.live,
   },
   ratingBadge: {
     flexDirection: 'row',

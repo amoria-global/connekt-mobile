@@ -36,6 +36,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StreamWatermark } from './StreamWatermark';
 import { logoBase64 } from '@/utils/logoBase64';
 
+import { onMedia } from '@/theme';
 /**
  * Normalize any Cloudflare playback URL to its WHEP endpoint
  * (`.../webRTC/play`). Returns null for non-Cloudflare URLs so the
@@ -386,8 +387,8 @@ const styles = StyleSheet.create({
   // absolute-filled, so the live stage never reached full screen height.
   wrap: {
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: onMedia.black,
   },
   video: { width: '100%', height: '100%' },
-  webview: { width: '100%', height: '100%', backgroundColor: '#000' },
+  webview: { width: '100%', height: '100%', backgroundColor: onMedia.black },
 });

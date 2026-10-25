@@ -66,7 +66,7 @@ export function WalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
 
   const { colors, isDark } = useTheme();
   // One hue per source, in a fixed order, so a source keeps its colour while the list changes length.
-  const hues = [colors.primary, colors.accent, isDark ? '#2DD4E4' : '#0E7490', colors.warning, colors.success];
+  const hues = [colors.primary, colors.accent, isDark ? colors.live : '#0E7490', colors.warning, colors.success];
 
   return (
     <View>

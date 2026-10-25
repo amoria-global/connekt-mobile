@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { PublicStreamChat } from '@/features/streams/api';
-import { fonts } from '@/theme';
+import { fonts, darkPalette } from '@/theme';
 import { chatSender, isHostChat } from './chatUtils';
 import { S } from './theme';
 
@@ -94,6 +94,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.34)',
   },
   name: { fontFamily: fonts.bold, color: 'rgba(255,255,255,0.78)', fontSize: 15 },
-  nameHost: { color: '#FCD34D' },
+  nameHost: { color: darkPalette.pending },
   text: { flexShrink: 1, fontFamily: fonts.regular, fontSize: 16, color: S.text, lineHeight: 20 },
 });

@@ -293,7 +293,7 @@ export function AddAccountSheet({ visible, role, hasAccounts, defaultPhoneIso2 =
                   style={[styles.kind, !isMobile && styles.kindActive]}
                 >
                   <View style={[styles.kindIcon, { backgroundColor: '#3B82F61F' }]}>
-                    <Ionicons name="business-outline" size={22} color="#3B82F6" />
+                    <Ionicons name="business-outline" size={22} color={colors.primary} />
                   </View>
                   <Text style={[styles.kindLabel, !isMobile && styles.kindLabelActive]}>{tr('Bank')}</Text>
                   <Text style={styles.kindHint}>{tr('Bank transfer')}</Text>

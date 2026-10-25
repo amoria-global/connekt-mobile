@@ -67,7 +67,7 @@ export function PhotographerCard({
         {/* Top-Right: Rating Pill */}
         {rating > 0 && (
           <View style={styles.ratingPill}>
-            <Ionicons name="star" size={11} color="#F59E0B" />
+            <Ionicons name="star" size={11} color={colors.pending} />
             <Text style={styles.ratingText}>
               {ratingText}
               {reviewsCount > 0 ? (

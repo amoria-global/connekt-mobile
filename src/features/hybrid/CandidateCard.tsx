@@ -40,7 +40,7 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
         <Meta icon={c.photographerType === 'STUDIO' ? 'business-outline' : 'person-outline'} text={c.photographerType === 'STUDIO' ? tr('Company / Studio') : tr('Freelancer / Individual')} />
         {c.distanceLabel ? <Meta icon="location-outline" text={c.distanceLabel} /> : null}
         {c.rating != null && c.reviewCount ? (
-          <Meta icon="star" iconColor="#F59E0B" text={`${c.rating.toFixed(1)} · ${c.reviewCount} ${tr('reviews')}`} />
+          <Meta icon="star" iconColor={colors.pending} text={`${c.rating.toFixed(1)} · ${c.reviewCount} ${tr('reviews')}`} />
         ) : <Meta icon="star-outline" text={tr('No reviews yet')} muted />}
         {c.typicalPriceRange ? <Meta icon="pricetag-outline" text={c.typicalPriceRange} /> : null}
         {c.instagram?.handle ? <Meta icon="logo-instagram" text={`@${c.instagram.handle}`} /> : null}

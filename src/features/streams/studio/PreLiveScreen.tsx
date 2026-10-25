@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CameraFacing } from '@/features/streams/CameraPublisher';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts, onFill } from '@/theme';
+import { fonts, onFill, darkPalette } from '@/theme';
 import { RoundButton } from './RoundButton';
 import { S, TOUCH } from './theme';
 
@@ -53,7 +53,7 @@ function Chip({
       accessibilityRole="button"
       accessibilityLabel={a11y}
     >
-      <Ionicons name={icon} size={17} color={off ? '#FECACA' : S.text} />
+      <Ionicons name={icon} size={17} color={off ? darkPalette.error : S.text} />
       <Text style={[styles.chipText, off && styles.chipTextOff]}>{tr(label)}</Text>
     </Pressable>
   );
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   chipOff: { backgroundColor: 'rgba(127,29,29,0.72)' },
   chipText: { fontFamily: fonts.bold, fontSize: 15, color: S.text },
-  chipTextOff: { color: '#FECACA' },
+  chipTextOff: { color: darkPalette.error },
   pressed: { opacity: 0.8 },
   go: {
     height: 58,
