@@ -8,10 +8,12 @@
  *  - chat (the send button is bottom right), live streams and the live selfie check (full-screen camera and controls);
  *  - the event, hybrid and album creation wizards (their next and submit buttons are bottom right);
  *  - while the keyboard is open (the same rule the tab bar uses);
- *  - screens that ask it to hide with {@link useHideHelpButton} (a camera, a viewer).
- * It sits above the tab bar where the bar is shown, and above the round add button on the screens that have one.
+ *  - screens that ask it to hide with {@link useHideHelpButton} (a camera, a viewer);
+ *  - the tab screens, whose top bar carries Help instead. Floating above the tab bar it sat over whatever scrolled
+ *    beneath it (Home's View shoot button), and Midnight Glass allows nothing to float over a button.
+ * It sits above the round add button on the screens that have one.
  */
-import { BAR_CONTENT_HEIGHT, FAB_RIGHT, FAB_SIZE, TAB_BAR_HEIGHT, TAB_BAR_MARGIN } from '@/components/barMetrics';
+import { FAB_RIGHT, FAB_SIZE, TAB_BAR_HEIGHT, TAB_BAR_MARGIN } from '@/components/barMetrics';
 
 export const HELP_BUTTON_SIZE = 52;
 /** Space between the button and whatever it sits above. */
@@ -48,10 +50,8 @@ export function helpButtonPlacement(
 ): HelpPlacement {
   if (!ready || keyboardVisible || optedOut || isHelpButtonHidden(segments)) return { visible: false, bottom: 0 };
 
-  // The tab bar: its content row, plus its bottom padding (the home indicator, or 8 where there is none).
-  if (segments.includes('(tabs)')) {
-    return { visible: true, bottom: Math.max(insets.bottom, 8) + BAR_CONTENT_HEIGHT + HELP_GAP };
-  }
+  // The tab screens carry Help in their top bar (see TopBar).
+  if (segments.includes('(tabs)')) return { visible: false, bottom: 0 };
   const base = Math.max(insets.bottom, 0) + HELP_GAP + 6;
   if (HAS_FAB.some(([group, name]) => segments.includes(group) && segments.includes(name))) {
     // Same position the round add button computes for itself, then one button higher.

@@ -4,7 +4,7 @@
  *
  * Tiles stagger in 40ms apart on first mount, and simply appear under reduced motion.
  */
-import { Children, isValidElement, useEffect, useRef, type ReactElement, type ReactNode } from 'react';
+import { Children, isValidElement, useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { Animated, Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { fonts, fontSize, makeStyles, motion, radii, spacing, tracking, useReducedMotion } from '@/theme';
 import { GlassCard } from './GlassCard';
@@ -96,7 +96,7 @@ export function BentoGrid({ children, style }: { children: ReactNode; style?: St
 
 function StaggerRow({ children, index, reduced }: { children: ReactNode; index: number; reduced: boolean }) {
   const styles = useStyles();
-  const t = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const [t] = useState(() => new Animated.Value(reduced ? 1 : 0));
   useEffect(() => {
     if (reduced) {
       t.setValue(1);
