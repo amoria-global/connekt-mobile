@@ -27,6 +27,8 @@ type Props<T> = {
   emptyIcon: keyof typeof Ionicons.glyphMap;
   emptyTitle: string;
   emptyMessage: string;
+  /** The next step from an empty list (Midnight Glass: an empty state is never a dead end). */
+  emptyAction?: { label: string; onPress: () => void };
   /** Optional in-scroll header (scrolls under a translucent top bar). */
   title?: string;
   subtitle?: string;
@@ -52,6 +54,7 @@ export function DataList<T>({
   emptyIcon,
   emptyTitle,
   emptyMessage,
+  emptyAction,
   title,
   subtitle,
   headerExtra,
@@ -128,7 +131,7 @@ export function DataList<T>({
           progressViewOffset={topInset}
         />
       }
-      ListEmptyComponent={<EmptyState icon={emptyIcon} title={emptyTitle} message={emptyMessage} />}
+      ListEmptyComponent={<EmptyState icon={emptyIcon} title={emptyTitle} message={emptyMessage} action={emptyAction} />}
       ListFooterComponent={footer}
     />
   );
