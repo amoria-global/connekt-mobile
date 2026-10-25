@@ -1383,7 +1383,7 @@ export function FindMyPhotos() {
               style={styles.unlockPillBtn}
               onPress={() => openUnlock(albumId)}
             >
-              <Ionicons name="lock-open-outline" size={15} color={darkPalette.live} />
+              <Ionicons name="lock-open-outline" size={15} color={darkPalette.active} />
               <Text style={styles.unlockPillBtnText}>{t('fmp_alreadyPaidUnlock')}</Text>
             </Pressable>
           </View>
@@ -3162,7 +3162,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: 50, backgroundColor: 'rgba(3,150,156,0.15)',
     borderWidth: 1, borderColor: 'rgba(3,150,156,0.45)',
   },
-  unlockPillBtnText: { color: darkPalette.live, fontSize: 13, fontWeight: '600' },
+  unlockPillBtnText: { color: darkPalette.active, fontSize: 13, fontWeight: '600' },
 
   // Select all (uncapped free albums)
   selectAllBtn: {

@@ -20,6 +20,7 @@ const GLOW: Partial<Record<ChipTone, string>> = {
   primary: glowRgb.primary,
   accent: glowRgb.accent,
   live: glowRgb.live,
+  active: glowRgb.active,
   pending: glowRgb.pending,
 };
 

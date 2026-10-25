@@ -256,7 +256,7 @@ export default function ProfileScreen() {
     { key: 'edit', icon: 'pencil-outline', tone: 'primary', label: t('editProfile'), onPress: () => router.push('/edit-profile' as Href) },
     { key: 'wallet', icon: 'wallet-outline', tone: 'pending', label: t('wallet'), onPress: () => router.push('/(app)/(tabs)/wallet' as Href) },
     isVerified
-      ? { key: 'gallery', icon: 'images-outline', tone: 'live', label: t('gallery'), onPress: () => router.push('/gallery' as Href) }
+      ? { key: 'gallery', icon: 'images-outline', tone: 'active', label: t('gallery'), onPress: () => router.push('/gallery' as Href) }
       : {
           key: 'verify',
           icon: 'shield-checkmark-outline',
@@ -596,7 +596,7 @@ export default function ProfileScreen() {
                   disabled={isCheckingUpdate || isDownloadingUpdate}
                   right={
                     updateReady ? (
-                      <StatusChip label="Restart" tone="live" />
+                      <StatusChip label="Restart" tone="active" />
                     ) : isCheckingUpdate || isDownloadingUpdate ? (
                       <ActivityIndicator size="small" color={colors.primaryLight} />
                     ) : (

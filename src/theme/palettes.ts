@@ -89,9 +89,22 @@ export const lightPalette = {
   stroke: 'rgba(8,58,133,0.12)',
   /** Inset well (fields, inner panels) sunk into glass. */
   well: 'rgba(8,24,56,0.05)',
-  /** Live and collaboration: cyan. */
-  live: '#0B7C8C',
-  liveBg: 'rgba(11,124,140,0.10)',
+  /** Active: in progress, collaboration, connected. Cyan. */
+  active: '#0B7C8C',
+  activeBg: 'rgba(11,124,140,0.10)',
+  /**
+   * Broadcast red (design/live.png): ONLY for an event that is on air right now. Upcoming stays
+   * blue and ended is muted grey. White text sits on the deep end (liveDeep, 6.0:1).
+   */
+  live: '#FF0033',
+  liveHot: '#FF2D55',
+  liveDeep: '#C8001F',
+  /** Red text on the page: on light the deep red, which reads on white. */
+  liveText: '#C8001F',
+  /** The live card's fill, top and bottom. */
+  liveSurface: '#FFF0F3',
+  liveSurfaceEnd: '#FFE1E7',
+  liveGlow: 'rgba(255,0,51,0.35)',
   /** Pending and waiting: amber. */
   pending: '#8A5A00',
   pendingBg: 'rgba(245,180,0,0.16)',
@@ -162,8 +175,15 @@ export const darkPalette: Palette = {
   glassSolid: '#16243C',
   stroke: 'rgba(170,195,240,0.14)',
   well: 'rgba(4,9,18,0.55)',
-  live: '#22C7D9',
-  liveBg: 'rgba(34,199,217,0.14)',
+  active: '#22C7D9',
+  activeBg: 'rgba(34,199,217,0.14)',
+  live: '#FF0033',
+  liveHot: '#FF2D55',
+  liveDeep: '#C8001F',
+  liveText: '#FF8FA3',
+  liveSurface: '#30101A',
+  liveSurfaceEnd: '#16101E',
+  liveGlow: 'rgba(255,0,51,0.55)',
   pending: '#F5B400',
   pendingBg: 'rgba(245,180,0,0.14)',
   dangerFill: '#C2353F',

@@ -49,7 +49,7 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
   const stats = useMemo(() => (wallet ? selectWalletStats(wallet, 'client') : null), [wallet, language]);
   const currency = wallet?.currency;
 
-  const hues = [colors.primary, colors.accent, colors.live, colors.warning, colors.success];
+  const hues = [colors.primary, colors.accent, colors.active, colors.warning, colors.success];
   // Total spent and Processing are wallet figures like the rest, so a client who has spent money but holds no balance
   // still gets a ring (it used to show only an empty-state line for them).
   const segments = useMemo(

@@ -58,7 +58,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
-import { LiveButton, LivePill, LiveRing, LiveTwinkle } from '@/components/ui/live';
+import { LiveButton, LiveDot, LivePill, LiveRing, LiveTwinkle } from '@/components/ui/live';
 import { listPublicEventsDetailed } from '@/features/events/api';
 import {
   isEventEnded,
@@ -69,7 +69,7 @@ import {
 } from '@/features/events/types';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, instagramRing } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, onMedia, paper, alpha } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { canShowDigitalPrice } from '@/features/payments/policy';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -808,12 +808,12 @@ export default function ExploreEventsScreen() {
                 >
                   <View style={styles.storyCircleWrapper}>
                     {isLive ? (
-                      <LiveRing size={68} colors={[...instagramRing]} live>
+                      <LiveRing size={68} colors={[colors.liveHot, colors.live]} live>
                         <View style={styles.storyRingPad}>{storyInner}</View>
                       </LiveRing>
                     ) : (
                       <LinearGradient
-                        colors={isEnded ? [colors.textMuted, colors.textMuted] : [colors.primary, colors.primaryLight, colors.accent]}
+                        colors={isEnded ? [colors.textMuted, colors.textMuted] : [colors.primaryLight, colors.primary]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.storyGradientRing}
@@ -848,14 +848,17 @@ export default function ExploreEventsScreen() {
             <Pressable
               key={tDef.value}
               onPress={() => switchTab(tDef.value)}
-              style={[styles.tab, active && styles.tabActive]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              style={[styles.tab, active && styles.tabActive, tDef.value === 'live' && liveCount > 0 && styles.tabLive, tDef.value === 'live' && active && styles.tabLiveActive]}
             >
-              <Ionicons
-                name={tDef.icon}
-                size={14}
-                color={active ? colors.primary : colors.textMuted}
-              />
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tr(tDef.short)}</Text>
+              {/* Red is only for on air right now: the Live pill carries the dot, the others stay blue or grey. */}
+              {tDef.value === 'live' && liveCount > 0 ? (
+                <LiveDot size={6} color={colors.live} />
+              ) : (
+                <Ionicons name={tDef.icon} size={14} color={active ? colors.primaryLight : colors.textMuted} />
+              )}
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive, tDef.value === 'live' && liveCount > 0 && styles.tabLabelLive]}>{tr(tDef.short)}</Text>
               {tDef.value === 'live' && liveCount > 0 ? (
                 <View style={styles.tabCount}>
                   <Text style={styles.tabCountText}>{liveCount}</Text>
@@ -1258,7 +1261,7 @@ const PosterCard = memo(function PosterCard({
 
   return (
     <LiveTwinkle active={isLive} radius={radii.lg} style={styles.cardTwinkle}>
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={() => onPress(event.id)}>
+    <Pressable style={({ pressed }) => [styles.card, isLive && styles.cardLive, pressed && styles.cardPressed]} onPress={() => onPress(event.id)}>
       <View style={styles.cardMedia}>
         <Image
           source={event.eventPhoto ? { uri: event.eventPhoto } : EVENT_COVER_PLACEHOLDER}
@@ -1267,28 +1270,35 @@ const PosterCard = memo(function PosterCard({
           transition={250}
         />
         <View style={styles.cardScrim} />
+        {/* The live card's red progress line, where the picture ends and the details begin. */}
+        {isLive ? <View style={styles.cardLiveLine} /> : null}
 
         {date ? (
           <View style={styles.cardTl}>
             <View style={styles.cardDate}>
-              <Text style={styles.cardDateMo}>{date.mo}</Text>
+              {/* The header carries the state: red on air, muted when ended, blue otherwise. */}
+              <Text style={[styles.cardDateMo, isLive ? styles.cardDateMoLive : isEnded ? styles.cardDateMoEnded : null]}>{date.mo}</Text>
               <Text style={styles.cardDateDay}>{date.day}</Text>
             </View>
           </View>
         ) : null}
 
+        {/* LIVE sits bottom left on the picture, UPCOMING and ENDED bottom right, as in design/live.png. */}
+        {isLive ? (
+          <View style={styles.cardBadgeLeft}>
+            <LivePill size="sm" />
+          </View>
+        ) : isEnded ? (
+          <View style={[styles.statusBadge, styles.statusEnded, styles.cardBadgeRight]}>
+            <Text style={[styles.statusText, styles.statusTextEnded]}>{tr('ENDED')}</Text>
+          </View>
+        ) : (
+          <View style={[styles.statusBadge, styles.statusUpcoming, styles.cardBadgeRight]}>
+            <Text style={styles.statusText}>{tr('UPCOMING')}</Text>
+          </View>
+        )}
+
         <View style={styles.cardTr}>
-          {isLive ? (
-            <LivePill size="sm" sparkle />
-          ) : isEnded ? (
-            <View style={[styles.statusBadge, styles.statusEnded]}>
-              <Text style={styles.statusText}>{tr('ENDED')}</Text>
-            </View>
-          ) : (
-            <View style={[styles.statusBadge, styles.statusUpcoming]}>
-              <Text style={styles.statusText}>{tr('UPCOMING')}</Text>
-            </View>
-          )}
           <Pressable
             style={[styles.bookmark, isSaved && styles.bookmarkSaved]}
             onPress={(e) => {
@@ -1300,7 +1310,7 @@ const PosterCard = memo(function PosterCard({
             <Ionicons
               name={isSaved ? 'bookmark' : 'bookmark-outline'}
               size={16}
-              color={isSaved ? colors.accent : colors.text}
+              color={isSaved ? colors.accentLight : onMedia.text}
             />
           </Pressable>
         </View>
@@ -1672,15 +1682,19 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
     backgroundColor: c.surfaceMuted,
   },
-  tabActive: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.primary },
+  tabActive: { backgroundColor: c.tint, borderWidth: 1, borderColor: c.primaryLight },
+  // The Live pill: red edge and fill while something is on air, brighter when selected.
+  tabLive: { backgroundColor: alpha(c.live, 0.12), borderWidth: 1, borderColor: alpha(c.live, 0.45) },
+  tabLiveActive: { backgroundColor: alpha(c.live, 0.2), borderColor: c.liveHot, boxShadow: `0 0 14px ${c.liveGlow}` },
   tabLabel: { color: c.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
-  tabLabelActive: { color: c.primary, fontWeight: fontWeight.bold },
+  tabLabelActive: { color: c.text, fontWeight: fontWeight.bold },
+  tabLabelLive: { color: c.liveText },
   tabCount: {
     minWidth: 18,
     height: 18,
     paddingHorizontal: 5,
     borderRadius: 9,
-    backgroundColor: c.accent,
+    backgroundColor: c.liveDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2020,6 +2034,9 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'space-between',
   },
   cardPressed: { opacity: 0.92 },
+  // Live card: the red-tinted surface (liveSurface to its end stop) over the usual card.
+  cardLive: { backgroundColor: c.liveSurface, borderColor: 'transparent' },
+  cardLiveLine: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3, backgroundColor: c.liveHot },
   cardTwinkle: { flex: 1 },
   cardMedia: { width: '100%', height: 130, position: 'relative', backgroundColor: c.surfaceMuted },
   cardArt: { width: '100%', height: '100%' },
@@ -2038,7 +2055,7 @@ const useStyles = makeStyles((c, e) => ({
   // made the day vanish on the white tile.
   cardDate: {
     width: 36,
-    backgroundColor: c.card,
+    backgroundColor: paper.top,
     borderRadius: radii.sm,
     overflow: 'hidden',
     alignItems: 'center',
@@ -2053,8 +2070,10 @@ const useStyles = makeStyles((c, e) => ({
     letterSpacing: 0.5,
     textAlign: 'center',
   },
+  cardDateMoLive: { backgroundColor: c.liveDeep },
+  cardDateMoEnded: { backgroundColor: c.surfaceMuted, color: c.textSoft },
   cardDateDay: {
-    color: c.primary,
+    color: paper.ink,
     fontSize: 12,
     fontWeight: fontWeight.extrabold,
     paddingVertical: 1,
@@ -2079,17 +2098,23 @@ const useStyles = makeStyles((c, e) => ({
   statusText: { color: c.textOnPrimary, fontSize: 8.5, fontWeight: fontWeight.bold, letterSpacing: 0.5 },
   statusUpcoming: { backgroundColor: c.primary },
   statusLive: { backgroundColor: c.accent },
-  statusEnded: { backgroundColor: c.textMuted },
+  statusEnded: { backgroundColor: c.surfaceMuted },
   pulseDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: c.card },
+  cardBadgeLeft: { position: 'absolute', left: spacing.sm, bottom: spacing.sm },
+  cardBadgeRight: { position: 'absolute', right: spacing.sm, bottom: spacing.sm },
+  statusTextEnded: { color: c.textSoft },
+  // Dark glass over the photo with a white outline icon, as in the reference.
   bookmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: onMedia.smoke,
+    borderWidth: 1,
+    borderColor: onMedia.faint,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookmarkSaved: { backgroundColor: c.surface },
+  bookmarkSaved: { backgroundColor: onMedia.smoke, borderColor: c.accentLight },
 
   cardMeta: { padding: spacing.sm, gap: 4, flex: 1, justifyContent: 'space-between' },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },

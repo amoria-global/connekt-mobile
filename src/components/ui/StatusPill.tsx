@@ -27,13 +27,15 @@ const STATUS_TRANSLATIONS: Record<string, { fr: string; es: string; rw: string; 
   PARTIALLY_PAID: { fr: 'Partiellement payé', es: 'Parcialmente pagado', rw: 'Byishyuwe igice', sw: 'Imelipwa kiasi' },
 };
 
-/** Statuses that mean "happening now" take the live cyan, not the generic info blue. */
-const LIVE = new Set(['ONGOING', 'LIVE', 'IN_PROGRESS', 'STREAMING']);
+/** On air right now takes the broadcast red; in progress takes the active cyan. */
+const LIVE = new Set(['LIVE', 'STREAMING']);
+const ACTIVE = new Set(['ONGOING', 'IN_PROGRESS']);
 
 /** Maps a free-form status string to a chip tone (blue action, amber pending, cyan live). */
 export function statusChipTone(status?: string): ChipTone {
   const key = (status ?? '').trim().toUpperCase().replace(/\s+/g, '_');
   if (LIVE.has(key)) return 'live';
+  if (ACTIVE.has(key)) return 'active';
   switch (statusTone(status)) {
     case 'success': return 'success';
     case 'warning': return 'pending';

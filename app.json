@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-25-broadcast-red",
+            "date": "2026-10-25",
+            "title": "Live events are red again",
+            "items": [
+              {
+                "icon": "radio-outline",
+                "title": "Red means live right now",
+                "body": "Live event cards, the Live filter, story rings, LIVE badges and Watch Live buttons are red again, with a glowing edge, a pulsing dot and a shimmering button. Upcoming events stay blue and ended events are grey."
+              }
+            ]
+          },
+          {
             "id": "2026-10-25-midnight-glass",
             "date": "2026-10-25",
             "title": "A new look: Midnight Glass",

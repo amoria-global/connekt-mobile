@@ -124,10 +124,10 @@ const shootDate = (e: EventItem): Date | null => {
 };
 
 /** Same buckets and words as the Events calendar, so a shoot is never described two ways. */
-const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' }> = {
+const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' | 'active' }> = {
   pending: { label: 'Awaiting your reply', tone: 'warning' },
   upcoming: { label: 'Scheduled', tone: 'info' },
-  ongoing: { label: 'In progress', tone: 'live' },
+  ongoing: { label: 'In progress', tone: 'active' },
   completed: { label: 'Completed', tone: 'neutral' },
   cancelled: { label: 'Cancelled', tone: 'error' },
 };
@@ -405,7 +405,7 @@ export function PhotographerHome() {
           ) : null}
           {isShared ? null : (
             <BentoTile onPress={() => open('/collaborate')} accessibilityLabel={tr('Collaborate')}>
-              <GlowTile icon="people-outline" tone="live" />
+              <GlowTile icon="people-outline" tone="active" />
               <BentoTitle>{tr('Collaborate')}</BentoTitle>
               <BentoCaption>{tr('Other photographers')}</BentoCaption>
             </BentoTile>
@@ -694,7 +694,7 @@ const useStyles = makeStyles((c) => ({
   tileHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   tileEyebrow: { color: c.textSoft, fontSize: 14, fontFamily: fonts.medium },
   liveLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.live },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.active },
   liveText: { color: c.textSoft, fontSize: 13, fontFamily: fonts.regular, flexShrink: 1 },
   shoots: { gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.md },

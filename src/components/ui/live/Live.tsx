@@ -1,39 +1,39 @@
-import { liveFill, onFill } from '@/theme';
 /**
- * Live-event look, matching the web `ev-card-live` / `ev-card.is-live` / `ev-story-*`
- * styles and going a little further on a phone: haptic-free, native-driver motion only.
+ * Broadcast red: the live-event look (design/live.png). Red means one thing only, this is on
+ * air right now; upcoming stays Midnight Glass blue and ended is muted grey. Every value comes
+ * from the theme (`liveFill`, the palette's live family).
  *
- *  - LiveDot:     white dot that blinks, with an expanding halo.
- *  - LivePill:    red gradient pill, breathing halo, optional sparkle glints.
- *  - LiveButton:  full-size call to action (Watch live) with ripple rings and glints.
- *  - LiveTwinkle: wraps a card; red border that brightens, plus two outward ripples.
- *  - LiveRing:    story ring whose gradient spins, with a pulsing halo.
+ *  - LiveDot:     white dot whose halo pulses, scale 1 to 1.6 and opacity 1 to 0, every 1.4s.
+ *  - LivePill:    the LIVE badge: vertical red gradient, 8pt corners, inset highlight and glow.
+ *  - LiveButton:  Watch Live: red gradient, a white play disc, a shine that sweeps every 3s.
+ *  - LiveTwinkle: wraps a live card: the red edge and a two-layer glow that breathes (40% to
+ *                 60% over 2.4s).
+ *  - LiveRing:    the story ring: solid red with a glow when live, the caller's colours otherwise.
  *
- * Sizes are tokens (`xs` to `lg`) and every piece also takes `style`, so a pill can sit
- * in a 24pt chip or stretch across a full-width button without per-screen styles.
+ * Reduced motion turns the pulse, the breathing and the shine off; the static look stays.
+ * Sizes are tokens (`xs` to `lg`) and every piece takes `style`.
  */
-import { memo, type ReactNode } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { memo, useState, type ReactNode } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { LIVE_RED, LIVE_RED_GLOW, LIVE_RED_LIGHT, useLoop, useReducedMotion } from './motion';
+import { fonts, liveFill, onFill } from '@/theme';
+import { useLoop, useReducedMotion } from './motion';
 
 export type LiveSize = 'xs' | 'sm' | 'md' | 'lg';
 
-const SIZES: Record<LiveSize, { padH: number; padV: number; font: number; dot: number; gap: number; icon: number }> = {
-  xs: { padH: 6, padV: 2.5, font: 8.5, dot: 5, gap: 3, icon: 9 },
-  sm: { padH: 9, padV: 4, font: 10, dot: 6, gap: 4, icon: 11 },
-  md: { padH: 14, padV: 7, font: 11.5, dot: 8, gap: 7, icon: 13 },
-  lg: { padH: 22, padV: 14, font: 15, dot: 9, gap: 9, icon: 18 },
+const SIZES: Record<LiveSize, { padH: number; padV: number; font: number; dot: number; gap: number; icon: number; radius: number }> = {
+  xs: { padH: 6, padV: 2.5, font: 9, dot: 5, gap: 4, icon: 9, radius: 6 },
+  sm: { padH: 9, padV: 4, font: 11, dot: 6, gap: 5, icon: 11, radius: 8 },
+  md: { padH: 11, padV: 6, font: 13, dot: 8, gap: 7, icon: 13, radius: 8 },
+  lg: { padH: 22, padV: 14, font: 16, dot: 9, gap: 10, icon: 18, radius: 14 },
 };
 
-/** Blinking white dot with a halo that grows and fades, like a recording light. */
+/** The white recording dot: a solid core and a halo that pulses out and fades. */
 export const LiveDot = memo(function LiveDot({ size = 6, color = onFill }: { size?: number; color?: string }) {
-  const blink = useLoop({ duration: 1200, yoyo: true });
-  const halo = useLoop({ duration: 1500 });
-  const opacity = blink.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] });
-  const haloScale = halo.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] });
-  const haloOpacity = halo.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] });
+  const pulse = useLoop({ duration: 1400 });
+  const haloScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] });
+  const haloOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }} pointerEvents="none">
       <Animated.View
@@ -47,86 +47,68 @@ export const LiveDot = memo(function LiveDot({ size = 6, color = onFill }: { siz
           transform: [{ scale: haloScale }],
         }}
       />
-      <Animated.View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity }} />
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />
     </View>
   );
 });
 
-/** A four-point glint that scales and fades on its own schedule. */
-const Glint = memo(function Glint({
-  left,
-  top,
-  size,
-  delay,
-}: {
-  left: `${number}%`;
-  top: `${number}%`;
-  size: number;
-  delay: number;
-}) {
-  const t = useLoop({ duration: 1800, delay, yoyo: true });
-  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1.1] });
-  const opacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.6, 1] });
-  const rotate = t.interpolate({ inputRange: [0, 1], outputRange: ['-20deg', '20deg'] });
+/** A four-point glint, scaling and fading on its own schedule (the reference's sparkles). */
+const Glint = memo(function Glint({ left, top, size, delay }: { left: `${number}%`; top: `${number}%`; size: number; delay: number }) {
+  const t = useLoop({ duration: 1800, delay, yoyo: true, rest: 0.6 });
+  const opacity = t.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.9] });
+  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={{ position: 'absolute', left, top, opacity, transform: [{ scale }, { rotate }] }}
-    >
+    <Animated.View pointerEvents="none" style={{ position: 'absolute', left, top, opacity, transform: [{ scale }] }}>
       <Ionicons name="sparkles" size={size} color={onFill} />
     </Animated.View>
   );
 });
 
-function Ripple({ delay, radius, grow }: { delay: number; radius: number; grow: number }) {
-  const t = useLoop({ duration: 1800, delay });
-  const scale = t.interpolate({ inputRange: [0, 1], outputRange: [1, grow] });
-  const opacity = t.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] });
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        StyleSheet.absoluteFill,
-        { borderRadius: radius, borderWidth: 2, borderColor: LIVE_RED_LIGHT, opacity, transform: [{ scale }] },
-      ]}
-    />
-  );
-}
-
 type PillProps = {
   label?: string;
   size?: LiveSize;
-  /** Show the glints. Off for tiny badges where they would be noise. */
+  /** Kept for callers; the reference badge has no glints, so this no longer draws any. */
   sparkle?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-/** The red "LIVE" pill. */
-export const LivePill = memo(function LivePill({ label = 'LIVE', size = 'sm', sparkle = false, style }: PillProps) {
+/** The LIVE badge. */
+export const LivePill = memo(function LivePill({ label = 'LIVE', size = 'sm', style }: PillProps) {
   const s = SIZES[size];
   return (
-    <View style={[styles.pillWrap, style]} accessible accessibilityLabel="Live now" accessibilityRole="text">
-      <Ripple delay={0} radius={999} grow={size === 'xs' ? 1.25 : 1.35} />
+    <View style={[styles.pillWrap, { borderRadius: s.radius, boxShadow: liveFill.badgeShadow }, style]} accessible accessibilityLabel="Live now" accessibilityRole="text">
       <LinearGradient
-        colors={[LIVE_RED_LIGHT, LIVE_RED]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.pill, { paddingHorizontal: s.padH, paddingVertical: s.padV, gap: s.gap }]}
+        colors={liveFill.badge as unknown as [string, string, string]}
+        locations={liveFill.badgeStops as unknown as [number, number, number]}
+        style={[styles.pill, { paddingHorizontal: s.padH, paddingVertical: s.padV, gap: s.gap, borderRadius: s.radius }]}
       >
         <LiveDot size={s.dot} />
-        <Text style={[styles.pillText, { fontSize: s.font }]} allowFontScaling={false}>
+        <Text style={[styles.pillText, { fontSize: s.font, letterSpacing: s.font * 0.12 }]} allowFontScaling={false}>
           {label}
         </Text>
-        {sparkle ? (
-          <>
-            <Glint left="82%" top="-12%" size={s.icon} delay={0} />
-            <Glint left="6%" top="70%" size={Math.max(7, s.icon - 4)} delay={700} />
-          </>
-        ) : null}
       </LinearGradient>
     </View>
   );
 });
+
+/** A soft white band that sweeps across the button, left to right, every 3s. */
+function Shine({ width }: { width: number }) {
+  const t = useLoop({ duration: 3000, easing: (v) => v });
+  const band = Math.max(40, width * 0.22);
+  const translateX = t.interpolate({ inputRange: [0, 0.4, 1], outputRange: [-band, width + band, width + band] });
+  const reduced = useReducedMotion();
+  if (reduced || width <= 0) return null;
+  return (
+    <Animated.View pointerEvents="none" style={[styles.shine, { width: band, transform: [{ translateX }, { skewX: '-20deg' }] }]}>
+      <LinearGradient
+        colors={['rgba(255,255,255,0)', liveFill.shine, 'rgba(255,255,255,0)']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </Animated.View>
+  );
+}
 
 type ButtonProps = {
   label: string;
@@ -142,42 +124,42 @@ type ButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Full-size "Watch live" call to action: gradient, rippling halo, sparkle glints. */
+/** Watch Live: the one call to action of a live card. */
 export const LiveButton = memo(function LiveButton({
   label,
   sub,
   onPress,
   size = 'lg',
   stretch = true,
-  icon = 'play-circle',
+  icon = 'play',
   accessibilityLabel,
   disabled,
   style,
 }: ButtonProps) {
   const s = SIZES[size];
-  const breathe = useLoop({ duration: 1800, yoyo: true });
-  const lift = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] });
-  const radius = s.padV + s.font * 0.9;
+  const [width, setWidth] = useState(0);
+  const disc = s.icon + 10;
   return (
-    <Animated.View style={[stretch ? styles.stretch : styles.hug, { transform: [{ scale: lift }] }, style]}>
-      <Ripple delay={0} radius={radius} grow={stretch ? 1.06 : 1.18} />
-      <Ripple delay={900} radius={radius} grow={stretch ? 1.1 : 1.3} />
+    <View style={[stretch ? styles.stretch : styles.hug, { borderRadius: s.radius, boxShadow: liveFill.buttonShadow }, style]}>
       <Pressable
         onPress={onPress}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled: !!disabled }}
-        style={({ pressed }) => [{ opacity: disabled ? 0.55 : pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+        style={({ pressed }) => [{ opacity: disabled ? 0.55 : pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
       >
         <LinearGradient
-          colors={[LIVE_RED_LIGHT, LIVE_RED, liveFill.deep]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.button, { paddingHorizontal: s.padH, paddingVertical: s.padV, gap: s.gap, borderRadius: radius }]}
+          colors={liveFill.button as unknown as [string, string, string]}
+          locations={liveFill.buttonStops as unknown as [number, number, number]}
+          onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+          style={[styles.button, { paddingHorizontal: s.padH, paddingVertical: s.padV, gap: s.gap, borderRadius: s.radius }]}
         >
-          <View style={styles.sheen} pointerEvents="none" />
-          <LiveDot size={s.dot} />
+          <View style={styles.highlight} pointerEvents="none" />
+          <Shine width={width} />
+          <View style={[styles.disc, { width: disc, height: disc, borderRadius: disc / 2 }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Ionicons name={icon} size={s.icon} color={liveFill.deep} style={icon === 'play' ? { marginLeft: 2 } : undefined} />
+          </View>
           <View style={styles.buttonCopy}>
             <Text style={[styles.buttonText, { fontSize: s.font }]} numberOfLines={1}>
               {label}
@@ -188,23 +170,22 @@ export const LiveButton = memo(function LiveButton({
               </Text>
             ) : null}
           </View>
-          <Ionicons name={icon} size={s.icon + 3} color={onFill} />
-          <Glint left="88%" top="6%" size={s.icon} delay={0} />
-          <Glint left="12%" top="62%" size={Math.max(8, s.icon - 3)} delay={600} />
-          <Glint left="52%" top="-6%" size={Math.max(7, s.icon - 5)} delay={1200} />
+          <Glint left="8%" top="18%" size={Math.max(7, s.icon - 6)} delay={0} />
+          <Glint left="86%" top="14%" size={Math.max(8, s.icon - 4)} delay={600} />
+          <Glint left="74%" top="62%" size={Math.max(6, s.icon - 8)} delay={1200} />
         </LinearGradient>
       </Pressable>
-    </Animated.View>
+    </View>
   );
 });
 
 /**
- * Wraps a card that is live: two ripples travel outward and a bright border breathes.
+ * Wraps a card that is live: the red edge, and a two-layer glow breathing between 40% and 60%.
  * The wrapper adds no layout of its own, so pass the card's radius.
  */
 export const LiveTwinkle = memo(function LiveTwinkle({
   active,
-  radius = 16,
+  radius = 20,
   style,
   children,
 }: {
@@ -213,31 +194,27 @@ export const LiveTwinkle = memo(function LiveTwinkle({
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
 }) {
-  const reduced = useReducedMotion();
-  const border = useLoop({ duration: 1000, yoyo: true, active, rest: 1 });
-  const borderOpacity = border.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+  const breathe = useLoop({ duration: 2400, yoyo: true, active, rest: 0.5 });
+  const glowOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.6] });
   if (!active) return <View style={style}>{children}</View>;
   return (
     <View style={[styles.twinkle, style]}>
-      {children}
+      {/* The glow is the reference's two-layer shadow, steady underneath, with the same recipe breathing 40% to 60% on top. */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, boxShadow: liveFill.cardGlow }]} />
       <Animated.View
         pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          { borderRadius: radius, borderWidth: 2, borderColor: LIVE_RED_GLOW, opacity: reduced ? 1 : borderOpacity },
-        ]}
+        style={[StyleSheet.absoluteFill, { borderRadius: radius, boxShadow: liveFill.cardGlow, opacity: glowOpacity }]}
       />
-      {!reduced ? (
-        <>
-          <Ripple delay={0} radius={radius} grow={1.05} />
-          <Ripple delay={900} radius={radius} grow={1.09} />
-        </>
-      ) : null}
+      {children}
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { borderRadius: radius, borderWidth: 1.5, borderColor: liveFill.cardBorder }]}
+      />
     </View>
   );
 });
 
-/** Story ring: spinning gradient behind the avatar, with a pulsing halo when live. */
+/** Story ring: solid red with its glow while live; the caller's gradient when not. */
 export const LiveRing = memo(function LiveRing({
   size,
   colors,
@@ -249,26 +226,12 @@ export const LiveRing = memo(function LiveRing({
   live: boolean;
   children: ReactNode;
 }) {
-  const spin = useLoop({ duration: 4000, easing: (v) => v, active: live });
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const half = size / 2;
+  const ring = live ? ([liveFill.top, liveFill.mid, liveFill.deep] as const) : colors;
   return (
-    <View style={{ width: size, height: size }}>
-      {live ? <Ripple delay={0} radius={half} grow={1.3} /> : null}
+    <View style={{ width: size, height: size, borderRadius: half, boxShadow: live ? liveFill.ringGlow : undefined }}>
       <View style={{ width: size, height: size, borderRadius: half, overflow: 'hidden' }}>
-        <Animated.View
-          style={{
-            position: 'absolute',
-            // the gradient square is larger than the circle so its corners never show while it turns
-            left: -size * 0.21,
-            top: -size * 0.21,
-            width: size * 1.42,
-            height: size * 1.42,
-            transform: [{ rotate }],
-          }}
-        >
-          <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        </Animated.View>
+        <LinearGradient colors={ring as unknown as [string, string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         {children}
       </View>
     </View>
@@ -277,19 +240,8 @@ export const LiveRing = memo(function LiveRing({
 
 const styles = StyleSheet.create({
   pillWrap: { alignSelf: 'flex-start' },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
-    shadowColor: LIVE_RED,
-    shadowOpacity: 0.55,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  pillText: { color: onFill, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
+  pill: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
+  pillText: { color: onFill, fontFamily: fonts.bold, textTransform: 'uppercase' },
   stretch: { alignSelf: 'stretch' },
   hug: { alignSelf: 'flex-start' },
   button: {
@@ -297,27 +249,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    minHeight: 48,
-    shadowColor: LIVE_RED,
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-    overflow: 'visible',
+    borderColor: 'rgba(255,255,255,0.22)',
+    minHeight: 52,
+    overflow: 'hidden',
   },
+  highlight: { position: 'absolute', left: 0, right: 0, top: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.45)' },
+  shine: { position: 'absolute', top: -8, bottom: -8, left: 0 },
+  disc: { backgroundColor: onFill, alignItems: 'center', justifyContent: 'center' },
   buttonCopy: { flexShrink: 1, alignItems: 'center' },
-  buttonSub: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginTop: 1 },
-  buttonText: { color: onFill, fontWeight: '800', letterSpacing: 0.6, flexShrink: 1 },
-  sheen: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: '48%',
-    borderTopLeftRadius: 999,
-    borderTopRightRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
+  buttonSub: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.medium, marginTop: 1 },
+  buttonText: { color: onFill, fontFamily: fonts.bold, letterSpacing: 0.2, flexShrink: 1 },
   twinkle: { position: 'relative' },
 });
