@@ -29,6 +29,7 @@
  *     (web `.ve-wishes` → POST /public/events/{id}/wishes)
  *   • Donation link (non-cancelled events)
  */
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { useCallback, useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -753,6 +754,7 @@ export default function PublicEventDetailScreen() {
           </View>
 
           <View style={styles.topBarActions}>
+            <HeaderHelpButton />
             <Pressable
               style={({ pressed }) => [styles.topBarActionBtn, pressed && { opacity: 0.7 }]}
               onPress={onShare}

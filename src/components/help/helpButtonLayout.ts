@@ -6,7 +6,8 @@
  *  - the Help screens themselves (it would open the screen the person is already on);
  *  - first-run onboarding and terms (the next and accept buttons are bottom right, and nothing is signed in yet);
  *  - chat (the send button is bottom right), live streams and the live selfie check (full-screen camera and controls);
- *  - the event, hybrid and album creation wizards (their next and submit buttons are bottom right);
+ *  - the event, hybrid, album, content album and photobook creation forms (their submit buttons are bottom right);
+ *  - the TV pairing scanners (a full-screen camera);
  *  - while the keyboard is open (the same rule the tab bar uses);
  *  - screens that ask it to hide with {@link useHideHelpButton} (a camera, a viewer);
  *  - every screen with a header (the app and public stacks), and the tab screens, whose headers and top bar carry
@@ -22,10 +23,16 @@ export const HELP_GAP = 14;
 export const HELP_RIGHT = FAB_RIGHT + (FAB_SIZE - HELP_BUTTON_SIZE) / 2;
 
 /** Route segments (as expo-router reports them) where the button is not shown, and why: see the file header. */
-const HIDDEN_ANYWHERE = ['help-center', 'contact_us', 'feedback', 'conversation', 'stream', 'live-stream', 'kyc'];
+const HIDDEN_ANYWHERE = ['help-center', 'contact_us', 'feedback', 'conversation', 'stream', 'live-stream', 'kyc', 'connect-to-tv', 'pay-on-tv'];
 const HIDDEN_GROUPS = ['(onboarding)'];
 /** Creation wizards: the same word anywhere else is a different screen, so these are matched as a pair. */
-const HIDDEN_PAIRS: [string, string][] = [['event', 'new'], ['event', 'hybrid-wizard'], ['album', 'new']];
+const HIDDEN_PAIRS: [string, string][] = [
+  ['event', 'new'],
+  ['event', 'hybrid-wizard'],
+  ['album', 'new'],
+  ['content-album', 'new'],
+  ['photobook', 'new'],
+];
 
 /** Stacks whose header carries Help, and the screens in them drawn without that header (kept in step with the layouts by a test). */
 const HEADER_HELP_GROUPS = ['(app)', '(public)'];
@@ -36,8 +43,8 @@ export const HEADERLESS: Record<string, string[]> = {
 
 /** Headerless screens whose own header carries Help (HeaderHelpButton), so the floating one steps aside there too. */
 export const OWN_HEADER_HELP: Record<string, string[]> = {
-  '(app)': ['notifications', 'analytics', 'find-my-photos'],
-  '(public)': ['explore-events', 'find-photos'],
+  '(app)': ['notifications', 'analytics', 'find-my-photos', 'album/[id]', 'photobook/[id]'],
+  '(public)': ['explore-events', 'find-photos', 'event/[id]', 'donate'],
 };
 
 function headerCarriesHelp(segments: readonly string[]): boolean {

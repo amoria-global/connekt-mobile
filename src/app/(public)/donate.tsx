@@ -9,6 +9,7 @@
  *   5. Seamless USSD push prompt and gateway polling (GET /public/payments/xentripay/status/{refid}).
  *   6. Celebration receipt with instant feedback.
  */
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -490,7 +491,7 @@ export default function PublicDonateScreen() {
             <Text style={styles.topBarPillText}>Donate</Text>
           </View>
 
-          <View style={styles.topBarSpacer} />
+          <HeaderHelpButton />
         </View>
       </View>
 

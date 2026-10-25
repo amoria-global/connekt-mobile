@@ -13,6 +13,7 @@
  *     "Save to Camera Roll".
  *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
  */
+import { PhotoHelpPill } from '@/features/auth/AuthGlassLayout';
 import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -396,8 +397,10 @@ export default function PhotobookDetailScreen() {
 
                 {received ? (
                   // The share link points at the customer view of a book, which a received book does not have.
-                  <View />
+                  <PhotoHelpPill />
                 ) : (
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <PhotoHelpPill />
                   <Pressable
                     style={styles.heroNavCircle}
                     onPress={onShareBook}
@@ -406,6 +409,7 @@ export default function PhotobookDetailScreen() {
                   >
                     <Ionicons name="share-outline" size={18} color={onFill} />
                   </Pressable>
+                  </View>
                 )}
               </View>
 
