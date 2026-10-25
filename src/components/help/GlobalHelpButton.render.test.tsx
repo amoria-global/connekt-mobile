@@ -10,7 +10,7 @@ import '@/test/autoUnmount';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-let mockSegments: string[] = ['(app)', 'bookings'];
+let mockSegments: string[] = ['(auth)', 'choose-role'];
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: (...a: unknown[]) => mockPush(...a) }),
@@ -38,7 +38,7 @@ const style = (r: TestRenderer.ReactTestRenderer) => StyleSheet.flatten(button(r
 // Capture what the button listens to on the keyboard, so a test can open and close it.
 const keyboard: Record<string, () => void> = {};
 beforeEach(() => {
-  mockSegments = ['(app)', 'bookings'];
+  mockSegments = ['(auth)', 'choose-role'];
   mockPush.mockReset();
   mockLang.language = 'en';
   Object.keys(keyboard).forEach((k) => delete keyboard[k]);
@@ -75,12 +75,9 @@ describe('the global Help button', () => {
     expect(s.zIndex).toBeGreaterThan(99); // above the tab bar
   });
 
-  it('sits above the tab bar on a tab screen', async () => {
+  it('steps aside on a tab screen, whose top bar carries Help', async () => {
     mockSegments = ['(app)', '(tabs)', 'index'];
-    const tab = style(await mount()).bottom as number;
-    mockSegments = ['(app)', 'bookings'];
-    const plain = style(await mount()).bottom as number;
-    expect(tab).toBeGreaterThan(plain);
+    expect(button(await mount())).toHaveLength(0);
   });
 
   it.each([['fr', "Centre d'aide"], ['es', 'Centro de ayuda']])('is named in %s for people using the app in that language', async (lang, label) => {
@@ -89,7 +86,7 @@ describe('the global Help button', () => {
   });
 
   it('shows on sign in too, so help is there when someone cannot get in', async () => {
-    mockSegments = ['(auth)', 'login'];
+    mockSegments = ['(auth)', 'choose-role'];
     expect(button(await mount())).toHaveLength(1);
   });
 

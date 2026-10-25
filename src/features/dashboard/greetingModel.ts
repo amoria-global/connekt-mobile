@@ -1,3 +1,4 @@
+import { darkPalette, lightPalette } from '@/theme/palettes';
 /**
  * Greeting copy and the name gradient for the dashboard hero. The phrases and the
  * time-of-day windows are the web dashboards' (app/pages/*\/home.tsx), so a user sees
@@ -24,8 +25,8 @@ export function timeOfDay(now: Date = new Date()): TimeOfDay {
 
 /** Web ends the gradient at the brand pink; the name starts navy on light and light blue on dark. */
 export const NAME_GRADIENT = {
-  light: { from: '#083A85', to: '#F20C8F' },
-  dark: { from: '#93C5FD', to: '#F472B6' },
+  light: { from: lightPalette.primary, to: lightPalette.accent },
+  dark: { from: darkPalette.primaryLight, to: darkPalette.accentLight },
 } as const;
 
 function channels(hex: string): [number, number, number] {

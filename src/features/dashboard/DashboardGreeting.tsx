@@ -1,33 +1,36 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { GlassCard } from '@/components/ui/GlassCard';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { spacing, useTheme } from '@/theme';
-import { GREETINGS, NAME_GRADIENT, gradientChars, timeOfDay } from './greetingModel';
+import { fonts, motion, radii, spacing, tracking, useTheme } from '@/theme';
+import { GREETINGS, gradientChars, timeOfDay } from './greetingModel';
 
 /** Web cycles the phrase every 5 seconds. */
 export const GREETING_ROTATE_MS = 5000;
 
 /**
- * The welcome hero at the top of every role's Home, matching the web dashboards: a
- * tinted blue-to-pink card with a 3px gradient bar, the "Your dashboard" eyebrow, a
- * time-of-day greeting that rotates every five seconds, and the first name in the
- * brand gradient. The card eases up on mount and the phrase cross-fades on change.
- * With "Reduce motion" on it shows one fixed phrase and does not animate.
+ * The welcome hero at the top of every role's Home (design/home.png): a glass panel with a
+ * magenta eyebrow (the date, or "Your dashboard"), a time-of-day greeting that rotates every
+ * five seconds, and the first name in the blue-to-magenta ring gradient. The card eases up on
+ * mount and the phrase cross-fades on change. With "Reduce motion" on it shows one fixed
+ * phrase and does not animate.
  */
 export function DashboardGreeting({
   name,
+  eyebrow = 'Your dashboard',
   subtitle,
   trailing,
   footer,
 }: {
   name: string;
+  /** The small magenta line above the greeting. */
+  eyebrow?: string;
   subtitle?: string;
   trailing?: ReactNode;
   /** Rendered inside the card under the greeting, e.g. a stats strip. */
   footer?: ReactNode;
 }) {
-  const { colors, isDark } = useTheme();
+  const { colors, gradients } = useTheme();
   const reduced = useReducedMotion();
   const [tod, setTod] = useState(() => timeOfDay());
   const [index, setIndex] = useState(0);
@@ -40,28 +43,28 @@ export function DashboardGreeting({
       enter.setValue(1);
       return;
     }
-    Animated.timing(enter, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(enter, { toValue: 1, duration: motion.slow, easing: motion.easing, useNativeDriver: true }).start();
   }, [enter, reduced]);
 
   useEffect(() => {
     if (reduced) return;
     const id = setInterval(() => {
       const now = timeOfDay();
-      Animated.timing(fade, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => {
+      Animated.timing(fade, { toValue: 0, duration: motion.fast, useNativeDriver: true }).start(() => {
         if (now !== tod) {
           setTod(now);
           setIndex(0);
         } else {
           setIndex((i) => (i + 1) % phrases.length);
         }
-        Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+        Animated.timing(fade, { toValue: 1, duration: motion.slow, useNativeDriver: true }).start();
       });
     }, GREETING_ROTATE_MS);
     return () => clearInterval(id);
   }, [fade, phrases.length, reduced, tod]);
 
-  const ramp = isDark ? NAME_GRADIENT.dark : NAME_GRADIENT.light;
-  const glyphs = useMemo(() => gradientChars(name, ramp.from, ramp.to), [name, ramp.from, ramp.to]);
+  const [from, to] = gradients.ring;
+  const glyphs = useMemo(() => gradientChars(name, from, to), [name, from, to]);
   const phrase = reduced ? phrases[0] : phrases[index % phrases.length];
 
   return (
@@ -71,29 +74,18 @@ export function DashboardGreeting({
         { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] },
       ]}
     >
-      <LinearGradient
-        colors={['rgba(8,58,133,0.08)', 'rgba(242,12,143,0.08)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.card, { borderColor: colors.border }]}
-      >
-        <LinearGradient
-          colors={isDark ? ['#60A5FA', '#F472B6'] : ['#083A85', '#F20C8F']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.bar}
-        />
+      <GlassCard style={styles.card}>
         <View style={styles.row}>
           <View style={styles.text}>
-            <Text style={[styles.eyebrow, { color: colors.accent }]}>Your dashboard</Text>
+            <Text style={[styles.eyebrow, { color: colors.accentLight }]}>{eyebrow}</Text>
             <Animated.View style={{ opacity: fade }}>
               <Text
                 style={[styles.title, { color: colors.text }]}
-                numberOfLines={2}
+                numberOfLines={3}
                 accessibilityRole="header"
                 accessibilityLabel={`${phrase}, ${name}`}
               >
-                {phrase},{' '}
+                {phrase},{'\n'}
                 {glyphs.map((g, i) => (
                   <Text key={i} style={{ color: g.color }}>
                     {g.ch}
@@ -101,23 +93,22 @@ export function DashboardGreeting({
                 ))}
               </Text>
             </Animated.View>
-            {subtitle ? <Text style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text> : null}
+            {subtitle ? <Text style={[styles.subtitle, { color: colors.textSoft }]}>{subtitle}</Text> : null}
           </View>
           {trailing}
         </View>
         {footer}
-      </LinearGradient>
+      </GlassCard>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
-  card: { borderRadius: 20, borderWidth: 1, overflow: 'hidden', paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16 },
-  bar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  card: { borderRadius: radii.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.lg },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   text: { flex: 1, minWidth: 0 },
-  eyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 0.9, textTransform: 'uppercase', marginBottom: 6 },
-  title: { fontSize: 24, fontWeight: '800', lineHeight: 29, letterSpacing: -0.4 },
-  subtitle: { fontSize: 13, marginTop: 6 },
+  eyebrow: { fontSize: 12, fontFamily: fonts.semibold, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: spacing.sm },
+  title: { fontSize: 32, fontFamily: fonts.display, lineHeight: 36, letterSpacing: tracking(32, -0.03) },
+  subtitle: { fontSize: 15, lineHeight: 21, fontFamily: fonts.regular, marginTop: spacing.sm },
 });

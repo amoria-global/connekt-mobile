@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, View } from 'react-native';
+import { useTheme } from '@/theme';
 
-const GOLD = '#F59E0B';
 
 /** Read-only star display. */
 export function Stars({ value, size = 14 }: { value: number; size?: number }) {
+  const GOLD = useTheme().colors.pending;
   return (
     <View style={{ flexDirection: 'row', gap: 1 }}>
       {[1, 2, 3, 4, 5].map((i) => (
@@ -24,6 +25,7 @@ export function StarInput({
   onChange: (v: number) => void;
   size?: number;
 }) {
+  const GOLD = useTheme().colors.pending;
   return (
     <View style={{ flexDirection: 'row', gap: 6 }}>
       {[1, 2, 3, 4, 5].map((i) => (

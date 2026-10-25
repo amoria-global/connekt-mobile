@@ -1,5 +1,7 @@
-import { BAR_CONTENT_HEIGHT, FAB_SIZE, TAB_BAR_HEIGHT, TAB_BAR_MARGIN } from '@/components/barMetrics';
-import { HELP_GAP, helpButtonPlacement, isHelpButtonHidden } from './helpButtonLayout';
+import { BAR_CONTENT_HEIGHT } from '@/components/barMetrics';
+import * as fs from 'fs';
+import * as path from 'path';
+import { HEADERLESS, HELP_GAP, helpButtonPlacement, isHelpButtonHidden } from './helpButtonLayout';
 
 /**
  * Where the global Help button shows, where it steps aside and why, and where it sits when it does show: above the tab
@@ -10,21 +12,43 @@ const phone = { bottom: 34 }; // a phone with a home indicator
 const flat = { bottom: 0 }; // a phone without one
 
 describe('where the button shows', () => {
+  // Only where no header carries Help: sign-in and sign-up, and the screens drawn without the stack header.
   it.each([
-    ['a tab screen', ['(app)', '(tabs)', 'index']],
-    ['the wallet tab', ['(app)', '(tabs)', 'wallet']],
-    ['an app screen outside the tabs', ['(app)', 'bookings']],
-    ['a dashboard sub screen', ['(app)', 'analytics']],
-    ['the streams list, not a stream', ['(app)', 'streams']],
-    ['an event page, not the wizard', ['(app)', 'event', '[id]']],
-    ['an album page, not the new album form', ['(app)', 'album', '[id]']],
-    ['sign in', ['(auth)', 'login']],
-    ['sign up', ['(auth)', 'signup']],
-    ['a public page', ['(public)', 'explore-events']],
-    ['the collaborate album screen', ['(app)', 'collaborate', 'album', '[id]']],
+    ['choose role, which draws its own screen', ['(auth)', 'choose-role']],
+    ['the public scan screen, which has no header', ['(public)', 'scan', '[id]']],
   ])('is shown on %s', (_name, segments) => {
     expect(isHelpButtonHidden(segments)).toBe(false);
     expect(helpButtonPlacement(segments, phone).visible).toBe(true);
+  });
+
+  it.each([
+    ['an app screen outside the tabs', ['(app)', 'bookings']],
+    ['a dashboard sub screen', ['(app)', 'payments']],
+    ['the streams list', ['(app)', 'streams']],
+    ['an event page', ['(app)', 'event', '[id]']],
+    ['the collaborate album screen', ['(app)', 'collaborate', 'album', '[id]']],
+    ['a public page with a header', ['(public)', 'about']],
+    ['notifications, whose own header carries Help', ['(app)', 'notifications']],
+    ['sign in, whose photo band carries Help', ['(auth)', 'login']],
+    ['sign up, whose photo band carries Help', ['(auth)', 'signup']],
+    ['analytics, whose own header carries Help', ['(app)', 'analytics']],
+    ['explore events, whose own header carries Help', ['(public)', 'explore-events']],
+    ['an album page, whose own header carries Help', ['(app)', 'album', '[id]']],
+    ['a received photobook, whose hero carries Help', ['(app)', 'photobook', '[id]']],
+    ['the public event page, whose own header carries Help', ['(public)', 'event', '[id]']],
+  ])('steps aside on %s, whose header carries Help', (_name, segments) => {
+    expect(helpButtonPlacement(segments, phone)).toEqual({ visible: false, bottom: 0 });
+  });
+
+  it('knows exactly which stack screens are drawn without a header', () => {
+    for (const group of ['(app)', '(public)'] as const) {
+      const src = fs.readFileSync(path.join(__dirname, '..', '..', 'app', group, '_layout.tsx'), 'utf8');
+      const headerless = [...src.matchAll(/<Stack\.Screen\s+name="([^"]+)"([\s\S]*?)\/>/g)]
+        .filter((m) => /headerShown:\s*false/.test(m[2]))
+        .map((m) => m[1])
+        .filter((n) => n !== '(tabs)');
+      expect([...HEADERLESS[group]].sort()).toEqual(headerless.sort());
+    }
   });
 });
 
@@ -59,8 +83,8 @@ describe('where it steps aside', () => {
   });
 
   it('waits until the app is ready, so it does not sit on the intro video', () => {
-    expect(helpButtonPlacement(['(auth)', 'login'], phone, { ready: false }).visible).toBe(false);
-    expect(helpButtonPlacement(['(auth)', 'login'], phone, { ready: true }).visible).toBe(true);
+    expect(helpButtonPlacement(['(auth)', 'choose-role'], phone, { ready: false }).visible).toBe(false);
+    expect(helpButtonPlacement(['(auth)', 'choose-role'], phone, { ready: true }).visible).toBe(true);
   });
 
   it('matches whole screen names: stream is hidden but streams is not, event/new is hidden but event/newest is not', () => {
@@ -71,43 +95,24 @@ describe('where it steps aside', () => {
 });
 
 describe('where it sits', () => {
-  it('goes above the tab bar on the tab screens, whatever the phone', () => {
-    expect(helpButtonPlacement(['(app)', '(tabs)', 'index'], phone).bottom).toBe(34 + BAR_CONTENT_HEIGHT + HELP_GAP);
-    // Without a home indicator the bar still has its own 8 points of padding.
-    expect(helpButtonPlacement(['(app)', '(tabs)', 'index'], flat).bottom).toBe(8 + BAR_CONTENT_HEIGHT + HELP_GAP);
-  });
-
-  it('is clear of the tab bar on every tab', () => {
-    for (const tab of ['index', 'events', 'wallet', 'inbox', 'more']) {
-      const p = helpButtonPlacement(['(app)', '(tabs)', tab], phone);
-      expect(p.bottom).toBeGreaterThanOrEqual(34 + BAR_CONTENT_HEIGHT);
+  it('steps aside on every tab screen, whose top bar carries Help, so it never floats over a button', () => {
+    for (const tab of ['index', 'events', 'wallet', 'inbox', 'profile', 'more']) {
+      expect(helpButtonPlacement(['(app)', '(tabs)', tab], phone)).toEqual({ visible: false, bottom: 0 });
+      expect(helpButtonPlacement(['(app)', '(tabs)', tab], flat).visible).toBe(false);
     }
   });
 
-  it('sits just above the bottom edge on screens with no tab bar', () => {
-    const p = helpButtonPlacement(['(app)', 'bookings'], phone);
+  it('sits just above the bottom edge where it shows', () => {
+    const p = helpButtonPlacement(['(auth)', 'choose-role'], phone);
     expect(p.bottom).toBeGreaterThanOrEqual(34);
     expect(p.bottom).toBeLessThan(34 + BAR_CONTENT_HEIGHT);
-    expect(helpButtonPlacement(['(auth)', 'login'], flat).bottom).toBeGreaterThan(0);
+    expect(helpButtonPlacement(['(auth)', 'choose-role'], flat).bottom).toBeGreaterThan(0);
   });
 
   it.each([
     ['packages', ['(app)', 'packages']],
     ['the public gallery', ['(public)', 'gallery']],
-  ])('lifts above the round add button on %s, which sits where %s draws it', (_n, segments) => {
-    const fabBottom = (phone.bottom > 0 ? phone.bottom : TAB_BAR_MARGIN) + TAB_BAR_HEIGHT + 12;
-    const p = helpButtonPlacement(segments, phone);
-    expect(p.bottom).toBeGreaterThanOrEqual(fabBottom + FAB_SIZE);
-    // And without a home indicator the add button uses its own margin, so the lift follows it.
-    const noIndicator = helpButtonPlacement(segments, flat);
-    expect(noIndicator.bottom).toBeGreaterThanOrEqual(TAB_BAR_MARGIN + TAB_BAR_HEIGHT + 12 + FAB_SIZE);
-  });
-
-  it('does not lift on the signed-in gallery, which has no add button', () => {
-    expect(helpButtonPlacement(['(app)', 'gallery'], phone).bottom).toBe(helpButtonPlacement(['(app)', 'bookings'], phone).bottom);
-  });
-
-  it('does not lift on the same word in a different place', () => {
-    expect(helpButtonPlacement(['(app)', 'photobooks'], phone).bottom).toBe(helpButtonPlacement(['(app)', 'bookings'], phone).bottom);
+  ])('never floats over the round add button on %s: the header carries Help there', (_n, segments) => {
+    expect(helpButtonPlacement(segments, phone).visible).toBe(false);
   });
 });

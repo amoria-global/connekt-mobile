@@ -1,12 +1,16 @@
 /**
  * PhotographerHome: the photographer's working dashboard.
  *
- * Reading order follows what a photographer opens the app for:
- *   1. Orientation: DashboardGreeting hero (rotating greeting, date, privacy toggle).
- *   2. Money now: available to withdraw and pending release (from the wallet).
- *   3. Actions: create event, share profile, opportunities, collaborate.
+ * Midnight Glass layout (design/home.png). Reading order follows what a photographer opens
+ * the app for:
+ *   1. Orientation: DashboardGreeting hero (date eyebrow, rotating greeting, shoot summary).
+ *   2. Money now: the hero tile, available to withdraw over pending release, with the
+ *      privacy toggle and Withdraw (from the wallet).
+ *   3. Actions: a bento of opportunities, collaborate, upcoming count and share profile,
+ *      then Create event, the screen's one raised button.
  *   4. Needs your reply: booking requests and open opportunities.
- *   5. Next shoots: horizontal preview, "See all" opens the Events tab.
+ *   5. Next shoot: the first on the paper calendar tile, the rest as compact rows;
+ *      "See all" opens the Events tab.
  *   6. Business overview: lifetime figures, horizontal preview, "View analytics".
  *   7. Recent earnings and recent clients.
  *
@@ -27,6 +31,12 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
+import { Button, PrimaryButton } from '@/components/ui/Button';
+import { BentoCaption, BentoGrid, BentoTile, BentoTitle, BentoValue } from '@/components/ui/BentoGrid';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { IconTile as GlowTile } from '@/components/ui/IconTile';
+import { InsetWell } from '@/components/ui/Input';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { Alert } from '@/components/ui/dialog';
 import { DashboardGreeting } from './DashboardGreeting';
 import { photographerProfileUrl } from '@/features/photographer/profileLink';
@@ -56,7 +66,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useCurrency } from '@/store/currency';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { formatDate } from '@/utils/format';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fonts, makeStyles, radii, spacing, tracking, useTheme } from '@/theme';
 import {
   ActionButton,
   Card,
@@ -65,9 +75,10 @@ import {
   HCarousel,
   MetricCard,
   SectionHeader,
+  Skeleton,
   SkeletonCard,
 } from '@/features/photographer/kit';
-import { BusinessOverview, EarningRow, PriorityCard, ShootCard } from '@/features/photographer/homeParts';
+import { BusinessOverview, EarningRow, NextShootCard, PriorityCard, ShootCard, ShootRow } from '@/features/photographer/homeParts';
 import { moneyText, signedMoneyText } from '@/features/photographer/money';
 import {
   bucketOf,
@@ -75,6 +86,7 @@ import {
   clock12,
   dayKey,
   eventDay,
+  parseDayKey,
   upcomingEvents as pickUpcoming,
 } from '@/features/photographer/schedule';
 import type { EventItem } from '@/features/events/types';
@@ -87,20 +99,35 @@ const PREVIEW_LIMIT = 6;
 /** Stable fallback so `data ?? EMPTY` does not give memo hooks a new array every render. */
 const EMPTY: never[] = [];
 
+/** The hero's eyebrow, "Sunday · 25 October" (upper-cased by the style). */
 function longDate(lang?: string, now = new Date()): string {
   try {
     const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : lang === 'rw' ? 'rw-RW' : lang === 'sw' ? 'sw-TZ' : undefined;
-    return now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
+    const weekday = now.toLocaleDateString(locale, { weekday: 'long' });
+    const day = now.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
+    return `${weekday} · ${day}`;
   } catch {
     return '';
   }
 }
 
+/** The hero's one line about the schedule, from the events the API returned. */
+function scheduleSummary(upcoming: number, ongoing: number): string {
+  if (upcoming === 0 && ongoing === 0) return 'Nothing booked yet. Share your profile to get booked.';
+  const u = `${upcoming} upcoming shoot${upcoming === 1 ? '' : 's'}`;
+  return ongoing > 0 ? `You have ${u} and ${ongoing} ongoing.` : `You have ${u}.`;
+}
+
+const shootDate = (e: EventItem): Date | null => {
+  const day = eventDay(e);
+  return day ? parseDayKey(day) : null;
+};
+
 /** Same buckets and words as the Events calendar, so a shoot is never described two ways. */
-const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' }> = {
+const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' }> = {
   pending: { label: 'Awaiting your reply', tone: 'warning' },
   upcoming: { label: 'Scheduled', tone: 'info' },
-  ongoing: { label: 'In progress', tone: 'success' },
+  ongoing: { label: 'In progress', tone: 'live' },
   completed: { label: 'Completed', tone: 'neutral' },
   cancelled: { label: 'Cancelled', tone: 'error' },
 };
@@ -243,6 +270,15 @@ export function PhotographerHome() {
     () => eventList.filter((e) => bucketOf(e) === 'pending').sort(byStart),
     [eventList],
   );
+  // Priority today already shows today's first shoot, so Next shoot starts after it rather than repeating it.
+  const comingUp = useMemo(
+    () => (todayShoots.length > 0 ? nextShoots.filter((e) => e.id !== todayShoots[0].id) : nextShoots),
+    [nextShoots, todayShoots],
+  );
+  const upcomingCount = useMemo(() => eventList.filter((e) => bucketOf(e) === 'upcoming').length, [eventList]);
+  const ongoingCount = useMemo(() => eventList.filter((e) => bucketOf(e) === 'ongoing').length, [eventList]);
+  const profileUrl = useAsync(useCallback(() => photographerProfileUrl(user?.customerId), [user?.customerId]));
+  const profileHost = (profileUrl.data ?? env.webBaseUrl).replace(/^https?:\/\//, '').replace(/\/+$/, '');
 
   // ── Business ─────────────────────────────────────────────────────────────
   const a = analytics.data;
@@ -288,74 +324,119 @@ export function PhotographerHome() {
         {/* 1. Orientation */}
         <DashboardGreeting
           name={name}
-          subtitle={longDate()}
-          trailing={
-          <Pressable
-            onPress={() => setHidden((v) => !v)}
-            accessibilityRole="button"
-            accessibilityLabel={privacyLabel}
-            accessibilityState={{ checked: !hidden }}
-            style={({ pressed }) => [styles.eye, pressed && { opacity: 0.8 }]}
-          >
-            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={19} color={colors.textSoft} />
-          </Pressable>
-          }
+          eyebrow={longDate(language)}
+          subtitle={events.data ? tr(scheduleSummary(upcomingCount, ongoingCount)) : undefined}
         />
 
-        {/* 2. Money now */}
-        {wallet.error && !wallet.data ? (
-          <ErrorNotice message={wallet.error} onRetry={wallet.refresh} />
-        ) : (
-          <View style={styles.row}>
-            <MetricCard
-              label="Available to withdraw"
-              icon="wallet-outline"
-              loading={wallet.loading && !wallet.data}
-              value={moneyText(available, walletCurrency, hidden)}
-              caption={wallet.error ? 'Last known balance. Pull to refresh.' : undefined}
-              onPress={isShared ? undefined : () => open('/(app)/(tabs)/wallet')}
-              accessibilityHint="Opens your wallet"
-            />
-            <MetricCard
-              label="Pending release"
-              icon="time-outline"
-              tone="warning"
-              loading={wallet.loading && !wallet.data}
-              value={moneyText(pending, walletCurrency, hidden)}
-              caption="Not in your available balance"
-              onPress={isShared ? undefined : () => open('/(app)/(tabs)/wallet')}
-              accessibilityHint="Opens your wallet"
-            />
+        {/* 2. Money now: the hero tile. Tapping it opens the wallet; Withdraw goes straight to the flow. The tile
+            stays when the wallet fails, because it carries the privacy toggle the rest of Home's figures use. */}
+        <View style={styles.gutter}>
+              <GlassCard style={styles.moneyCard}>
+                {/* Only the label row opens the wallet: one button around the whole tile would swallow the
+                    privacy toggle and Withdraw for VoiceOver and TalkBack. */}
+                <View style={styles.moneyHead}>
+                  <Pressable
+                    onPress={isShared ? undefined : () => open('/(app)/(tabs)/wallet')}
+                    disabled={isShared}
+                    accessibilityRole={isShared ? undefined : 'button'}
+                    accessibilityLabel={`${tr('Available to withdraw')}, ${moneyText(available, walletCurrency, hidden)}`}
+                    accessibilityHint={isShared ? undefined : 'Opens your wallet'}
+                    style={({ pressed }) => [styles.moneyLink, pressed && { opacity: 0.85 }]}
+                  >
+                    <GlowTile icon="wallet-outline" tone="neutral" size="sm" />
+                    <Text style={styles.moneyLabel}>{tr('Available to withdraw')}</Text>
+                    {isShared ? null : <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setHidden((v) => !v)}
+                    accessibilityRole="button"
+                    accessibilityLabel={privacyLabel}
+                    accessibilityState={{ checked: !hidden }}
+                    style={({ pressed }) => [styles.eye, pressed && { opacity: 0.8 }]}
+                  >
+                    <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textSoft} />
+                  </Pressable>
+                </View>
+                {wallet.error && !wallet.data ? (
+                  <ErrorNotice message={wallet.error} onRetry={wallet.refresh} flush />
+                ) : wallet.loading && !wallet.data ? (
+                  <Skeleton height={40} width="62%" />
+                ) : (
+                  <Text style={styles.moneyValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                    {/* Masked, the currency stays: it is not sensitive, and it says what the dots stand for. */}
+                    {hidden && walletCurrency ? <Text style={styles.moneyCurrency}>{walletCurrency}  </Text> : null}
+                    <Text style={hidden ? styles.moneyMasked : undefined}>{moneyText(available, walletCurrency, hidden)}</Text>
+                  </Text>
+                )}
+                {wallet.error && wallet.data ? <Text style={styles.moneyCaption}>{tr('Last known balance. Pull to refresh.')}</Text> : null}
+                {wallet.error && !wallet.data ? null : (
+                <View style={styles.moneyFoot}>
+                  <InsetWell style={styles.pendingWell}>
+                    <Ionicons name="time-outline" size={16} color={colors.pending} />
+                    <View style={styles.pendingText}>
+                      <Text style={styles.pendingLabel} numberOfLines={2}>
+                        {tr('Pending release')}
+                      </Text>
+                      <Text style={styles.pendingValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                        {wallet.loading && !wallet.data ? ' ' : moneyText(pending, walletCurrency, hidden)}
+                      </Text>
+                    </View>
+                  </InsetWell>
+                  {isShared ? null : <Button title="Withdraw" onPress={() => open('/withdraw')} style={styles.withdraw} />}
+                </View>
+                )}
+              </GlassCard>
           </View>
-        )}
 
-        {/* 3. Actions: Create event leads, Share profile is secondary, and the two work queues carry their own colour. */}
-        <View style={styles.row}>
-          <ActionButton label="Create event" icon="add" variant="primary" onPress={() => open('/event/new')} style={styles.flex} />
-          <ActionButton label="Share profile" icon="share-social-outline" onPress={shareProfile} style={styles.flex} />
-        </View>
-        <View style={styles.row}>
+        {/* 3. Actions: one job per tile, then Create event, the screen's one raised button. */}
+        <BentoGrid style={styles.gutter}>
           {env.hybridBookingEnabled ? (
-            <ActionButton
-              label="Opportunities"
-              caption="Booking requests"
-              icon="radio-outline"
-              variant="accent"
-              badge={openOppCount}
+            <BentoTile
               onPress={() => open('/bookings?tab=opportunities')}
-              style={styles.flex}
-            />
+              accessibilityLabel={openOppCount ? `${tr('Opportunities')}, ${openOppCount} waiting` : tr('Opportunities')}
+            >
+              <View style={styles.tileHead}>
+                <GlowTile icon="radio-outline" tone="accent" glow={openOppCount > 0} />
+                {openOppCount > 0 ? <StatusChip label={String(openOppCount > 99 ? '99+' : openOppCount)} tone="accent" /> : null}
+              </View>
+              <BentoTitle>{tr('Opportunities')}</BentoTitle>
+              <BentoCaption>{tr('Booking requests')}</BentoCaption>
+            </BentoTile>
           ) : null}
           {isShared ? null : (
-          <ActionButton
-            label="Collaborate"
-            caption="Other photographers"
-            icon="people-outline"
-            variant="teal"
-            onPress={() => open('/collaborate')}
-            style={styles.flex}
-          />
+            <BentoTile onPress={() => open('/collaborate')} accessibilityLabel={tr('Collaborate')}>
+              <GlowTile icon="people-outline" tone="live" />
+              <BentoTitle>{tr('Collaborate')}</BentoTitle>
+              <BentoCaption>{tr('Other photographers')}</BentoCaption>
+            </BentoTile>
           )}
+          <BentoTile
+            onPress={() => open('/events')}
+            accessibilityLabel={events.data ? `${upcomingCount} ${tr('Upcoming')}, ${ongoingCount} ${tr('ongoing now')}` : tr('Upcoming')}
+          >
+            <Text style={styles.tileEyebrow}>{tr('Upcoming')}</Text>
+            {events.loading && !events.data ? <Skeleton height={40} width="40%" /> : <BentoValue>{events.data ? upcomingCount : 'N/A'}</BentoValue>}
+            {ongoingCount > 0 ? (
+              <View style={styles.liveLine}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText} numberOfLines={1}>
+                  {ongoingCount} {tr('ongoing now')}
+                </Text>
+              </View>
+            ) : null}
+          </BentoTile>
+          <BentoTile onPress={shareProfile} accessibilityLabel={tr('Share profile')}>
+            <GlowTile icon="share-social-outline" tone="primary" size="sm" />
+            <BentoTitle>{tr('Share profile')}</BentoTitle>
+            <BentoCaption>{profileHost}</BentoCaption>
+          </BentoTile>
+        </BentoGrid>
+        <View style={[styles.gutter, styles.cta]}>
+          <PrimaryButton
+            title="Create event"
+            onPress={() => open('/event/new')}
+            icon={<Ionicons name="add" size={20} color={colors.textOnPrimary} />}
+          />
         </View>
 
         {/* 3b. Priority today */}
@@ -413,56 +494,53 @@ export function PhotographerHome() {
           </>
         ) : null}
 
-        {/* 5. Next shoots */}
+        {/* 5. Next shoot: the date leads, on the paper calendar tile; the rest follow as rows. */}
         <SectionHeader
-          title="Next shoots"
-          actionLabel={nextShoots.length > 0 ? 'See all' : undefined}
+          title="Next shoot"
+          actionLabel={comingUp.length > 0 ? 'See all' : undefined}
           onAction={() => open('/events')}
         />
         {events.error && !events.data ? (
           <ErrorNotice message={events.error} onRetry={events.refresh} />
         ) : events.loading && !events.data ? (
           <SkeletonCard height={150} />
-        ) : nextShoots.length === 0 ? (
+        ) : comingUp.length === 0 ? (
           <EmptyNote
             icon="calendar-outline"
             title="No upcoming shoots"
             body="Create an event or share your profile to get booked."
-            actionLabel="Create event"
-            onAction={() => open('/event/new')}
+            actionLabel="Share profile"
+            onAction={shareProfile}
           />
         ) : (
-          <HCarousel
-            label="Upcoming shoots"
-            data={nextShoots.slice(0, PREVIEW_LIMIT)}
-            keyOf={(e) => String(e.id)}
-            renderItem={(e) => (
-              <ShootCard
-                shoot={{
-                  title: e.title || 'Photo shoot',
-                  cover: e.coverImage,
-                  status: SHOOT_STATUS[bucketOf(e)],
-                  when: whenText(e),
-                  location: e.location,
-                  client: e.clientName,
-                }}
-                actions={
-                  <>
-                    <ActionButton label="View shoot" compact onPress={() => open(`/event/${e.id}`)} style={styles.flex} />
-                    {e.clientId ? (
-                      <ActionButton
-                        label="Message"
-                        icon="chatbubble-outline"
-                        compact
-                        onPress={() => open(`/conversation/${e.clientId}?name=${encodeURIComponent(e.clientName ?? '')}`)}
-                        style={styles.flex}
-                      />
-                    ) : null}
-                  </>
-                }
+          <View style={styles.shoots}>
+            <NextShootCard
+              date={shootDate(comingUp[0])}
+              shoot={{
+                title: comingUp[0].title || 'Photo shoot',
+                cover: comingUp[0].coverImage,
+                status: SHOOT_STATUS[bucketOf(comingUp[0])],
+                when: comingUp[0].startTime ? clock12(comingUp[0].startTime) : whenText(comingUp[0]),
+                location: comingUp[0].location,
+                client: comingUp[0].clientName,
+              }}
+              onView={() => open(`/event/${comingUp[0].id}`)}
+              onMessage={
+                comingUp[0].clientId
+                  ? () => open(`/conversation/${comingUp[0].clientId}?name=${encodeURIComponent(comingUp[0].clientName ?? '')}`)
+                  : undefined
+              }
+            />
+            {comingUp.slice(1, PREVIEW_LIMIT).map((e) => (
+              <ShootRow
+                key={String(e.id)}
+                date={shootDate(e)}
+                title={e.title || 'Photo shoot'}
+                meta={[e.startTime ? clock12(e.startTime) : '', e.location].filter(Boolean).join(' · ') || whenText(e)}
+                onPress={() => open(`/event/${e.id}`)}
               />
-            )}
-          />
+            ))}
+          </View>
         )}
 
         {/* 6. Business overview */}
@@ -546,8 +624,9 @@ export function PhotographerHome() {
                   onPress={() => open(`/conversation/${c.id}?name=${encodeURIComponent(c.name)}`)}
                   accessibilityRole="button"
                   accessibilityLabel={`Message ${c.name}`}
-                  style={({ pressed }) => [styles.clientCard, pressed && { opacity: 0.85 }]}
+                  style={({ pressed }) => [styles.flex, pressed && { opacity: 0.85 }]}
                 >
+                  <GlassCard style={styles.clientCard}>
                   {c.avatar ? (
                     <Image source={{ uri: c.avatar }} style={styles.avatar} contentFit="cover" accessibilityIgnoresInvertColors />
                   ) : (
@@ -563,6 +642,7 @@ export function PhotographerHome() {
                       {c.totalEvents ? `${c.totalEvents} shoot${c.totalEvents > 1 ? 's' : ''}` : tr('Client')}
                     </Text>
                   </View>
+                  </GlassCard>
                 </Pressable>
               )}
             />
@@ -587,41 +667,52 @@ export function PhotographerHome() {
   );
 }
 
-const useStyles = makeStyles((c, elevation) => ({
+const useStyles = makeStyles((c) => ({
+  gutter: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
+  cta: { marginTop: 0 },
   eye: {
     width: 44,
     height: 44,
     borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: c.surfaceMuted,
   },
+  moneyCard: { borderRadius: radii.xl, padding: spacing.lg, gap: spacing.sm },
+  moneyHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  moneyLink: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
+  moneyLabel: { flex: 1, color: c.textSoft, fontSize: 15, fontFamily: fonts.medium },
+  moneyValue: { color: c.text, fontSize: 36, lineHeight: 42, fontFamily: fonts.display, letterSpacing: tracking(36, -0.035) },
+  moneyCurrency: { color: c.textMuted, fontSize: 18, fontFamily: fonts.displayMedium, letterSpacing: 0 },
+  moneyMasked: { letterSpacing: 8 },
+  moneyCaption: { color: c.textMuted, fontSize: 12, fontFamily: fonts.regular },
+  moneyFoot: { flexDirection: 'row', alignItems: 'stretch', gap: spacing.md },
+  pendingWell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+  pendingText: { flex: 1, minWidth: 0 },
+  pendingLabel: { color: c.textSoft, fontSize: 13, fontFamily: fonts.regular },
+  pendingValue: { color: c.pending, fontSize: 15, fontFamily: fonts.display },
+  withdraw: { paddingHorizontal: spacing.xl },
+  tileHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  tileEyebrow: { color: c.textSoft, fontSize: 14, fontFamily: fonts.medium },
+  liveLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.live },
+  liveText: { color: c.textSoft, fontSize: 13, fontFamily: fonts.regular, flexShrink: 1 },
+  shoots: { gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   flex: { flex: 1 },
-  noMargin: { marginHorizontal: 0, gap: spacing.xs },
-  shootCard: { gap: 4 },
-  cover: { width: '100%', height: 110, borderRadius: radii.md, marginBottom: spacing.xs },
-  cardTitle: { color: c.text, fontSize: 16, fontWeight: '700' },
-  cardMeta: { color: c.textMuted, fontSize: 13, lineHeight: 18 },
-  cardActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   list: { padding: 0, overflow: 'hidden' },
   countChip: {
     color: c.textSoft,
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: fonts.semibold,
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: 4,
     borderRadius: radii.full,
     overflow: 'hidden',
-    backgroundColor: c.surfaceMuted,
+    backgroundColor: c.glassTop,
   },
-  txRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, minHeight: 56 },
-  txDivider: { borderBottomWidth: 1, borderBottomColor: c.borderSoft },
-  txIcon: { width: 34, height: 34, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },
-  shootBadge: { alignSelf: 'flex-start', marginBottom: spacing.xs },
   txText: { flex: 1, minWidth: 0 },
-  txAmount: { alignItems: 'flex-end', maxWidth: '45%' },
-  amount: { color: c.text, fontSize: 15, fontWeight: '800' },
+  cardTitle: { color: c.text, fontSize: 16, fontFamily: fonts.display },
+  cardMeta: { color: c.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.regular },
   clientCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -629,12 +720,8 @@ const useStyles = makeStyles((c, elevation) => ({
     padding: spacing.md,
     minHeight: 64,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.card,
-    ...elevation(1),
   },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   avatarFallback: { backgroundColor: c.tint, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: c.primary, fontWeight: '800', fontSize: 16 },
+  avatarText: { color: c.link, fontFamily: fonts.display, fontSize: 16 },
 }));

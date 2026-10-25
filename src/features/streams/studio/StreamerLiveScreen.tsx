@@ -55,7 +55,7 @@ import { S, TOUCH } from './theme';
 import { Toast, useToast } from './Toast';
 import { useControlsAutoHide } from './useControlsAutoHide';
 import { type LiveSummary, type StreamerLiveViewModel } from './viewModel';
-import { fonts } from '@/theme';
+import { fonts, onMedia } from '@/theme';
 
 /** UI-only state (the "visual" half of the state architecture). */
 type StreamerLiveUIState = {
@@ -543,7 +543,7 @@ export function StreamerLiveScreen(p: StreamerLiveScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000' },
+  root: { flex: 1, backgroundColor: onMedia.black },
   topScrim: { position: 'absolute', top: 0, left: 0, right: 0 },
   camOffNote: {
     position: 'absolute',

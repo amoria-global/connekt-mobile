@@ -65,6 +65,43 @@ repo and its `EXPO_PUBLIC_*` values are inlined at publish time, so check it bef
 publishing; an exported shell variable wins over it, which makes a stale `.env` easy to
 miss.
 
+## Design System: Midnight Glass
+
+Every screen follows Midnight Glass. The references in `design/` (`home.png`, `events.png`,
+`profile.png`, `brief.png`) are the source of truth; a new screen must read as one of them.
+
+- **Tokens and kit only.** Colour, type, radius, shadow and motion come from `@/theme`
+  (`useTheme`, `makeStyles`, `fonts`, `radii`, `spacing`, `shadows`, `motion`). Build with the
+  kit in `src/components/ui`: `GlassScene`/`GlassCard`, `GlowOrbs`, `BentoGrid`/`BentoTile`,
+  `PrimaryButton`, `AccentButton`, `GhostButton`, `InsetField`/`InsetWell`, `StatusChip`,
+  `IconTile`, `SegmentedControl`, `WeekStrip`, `EmptyState`/`ErrorState`, `Skeleton`/`SkeletonList`,
+  and the floating glass tab bar in `PersistentBottomBar`. Never hardcode a colour.
+  `src/test/hexColors.rule.test.ts` fails on a hex literal outside `src/theme` (ESLint flags it
+  too); `eslint/hex-colors-pending.json` lists the files still waiting for migration, and it only
+  shrinks. Remove a file from it when you migrate that file.
+- **Type.** Space Grotesk (`fonts.display`, `fonts.bold`) for headings, numbers and buttons;
+  Inter (`fonts.regular`, `fonts.medium`, `fonts.semibold`) for body and UI. Body 13 to 15.
+- **Radius** 14 tile · 20 card · 24 panel · 28 hero · pill. **Spacing** on the 4pt grid.
+- **Restraint.** One raised (`PrimaryButton` or `AccentButton`) per screen; every other action is
+  a flat `Button`, a `GhostButton` or text. At most 3 glows per screen, the tab bar's pill
+  counting as one.
+- **Colour means something.** Blue = action, magenta = attention, cyan = live or collaboration,
+  amber = pending. Do not use a colour for decoration.
+- **Glass needs light behind it.** Glass sits over a `GlassScene` (or `GlowOrbs`), never over the
+  flat background alone. Where blur is unsupported it falls back to solid `glassSolid`
+  (#16243C); `GlassSurface` handles that, so do not hand-roll a blur.
+- **Patterns.** Bento for summaries, glass panels for groups, the raised button for the main
+  action. A screen with no reference image applies these.
+- **Accessibility.** Touch targets of 44pt or more; text contrast of 4.5:1 or more, checked on the
+  brightest glow; nothing floats over a button (the global Help button steps aside, see
+  `helpButtonPlacement`). Motion is 180 to 260ms on `motion.easing`, and every animation honours
+  `useReducedMotion()`.
+- **States.** Every list has an empty state with a next step, a skeleton loading state and an
+  error state with a retry.
+- **Appearance.** Midnight Glass (dark) is the default; the Profile header's appearance button
+  saves light or dark per device (`useTheme().setPreference`). Light mode keeps the same
+  structure on the light palette, so both palettes must carry every role.
+
 ## Modals use the glass kit
 
 Every `<Modal>` draws the sign-in sheet's frosted glass look from `src/components/ui/GlassModal.tsx`: wrap the

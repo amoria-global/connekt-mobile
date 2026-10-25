@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts } from '@/theme';
+import { fonts, onFill } from '@/theme';
 import { V } from '../viewerTheme';
 import type { FloatingReaction } from '../hooks/useFloatingReactions';
 import { REACTIONS } from '../utils';
@@ -72,7 +72,7 @@ export const ReactionRail = memo(function ReactionRail({ onReact, onGift, vertic
           accessibilityLabel="Send gift to broadcaster"
           style={({ pressed }) => [styles.gift, vertical && styles.giftV, pressed && { opacity: 0.8 }]}
         >
-          <Ionicons name="gift" size={18} color="#fff" />
+          <Ionicons name="gift" size={18} color={onFill} />
           {vertical ? null : <Text style={styles.giftText}>Gift</Text>}
         </Pressable>
       ) : null}
@@ -104,5 +104,5 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   giftV: { width: V.hit, paddingHorizontal: 0, justifyContent: 'center', marginLeft: 0 },
-  giftText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
+  giftText: { fontFamily: fonts.bold, fontSize: 15, color: onFill },
 });

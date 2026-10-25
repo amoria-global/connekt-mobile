@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { CameraErrorKind } from '@/features/streams/CameraPublisher';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { fonts } from '@/theme';
+import { fonts, onFill, darkPalette, onMedia, paper, viewerTokens } from '@/theme';
 import { S } from './theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -24,7 +24,7 @@ function Center({
   const { tr } = useSharedT();
   return (
     <View style={styles.center} accessibilityLiveRegion="polite">
-      {spinner ? <ActivityIndicator color="#fff" /> : icon ? <Ionicons name={icon} size={40} color={S.text} /> : null}
+      {spinner ? <ActivityIndicator color={onFill} /> : icon ? <Ionicons name={icon} size={40} color={S.text} /> : null}
       <Text style={styles.title}>{tr(title)}</Text>
       {body ? <Text style={styles.body}>{tr(body)}</Text> : null}
       {children}
@@ -41,7 +41,7 @@ function PrimaryBtn({ label, onPress, icon }: { label: string; onPress: () => vo
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      {icon ? <Ionicons name={icon} size={18} color="#111" /> : null}
+      {icon ? <Ionicons name={icon} size={18} color={paper.ink} /> : null}
       <Text style={styles.btnText}>{tr(label)}</Text>
     </Pressable>
   );
@@ -173,7 +173,7 @@ export function ErrorBanner({
   const { tr } = useSharedT();
   return (
     <View style={[styles.banner, { top }]} accessibilityLiveRegion="assertive">
-      <Ionicons name="alert-circle" size={22} color="#FCA5A5" />
+      <Ionicons name="alert-circle" size={22} color={darkPalette.error} />
       <View style={{ flex: 1 }}>
         <Text style={styles.bannerTitle}>{tr(title)}</Text>
         {message ? <Text style={styles.bannerMsg}>{tr(message)}</Text> : null}
@@ -206,7 +206,7 @@ export function PausedOverlay({ onResume, busy }: { onResume: () => void; busy: 
           accessibilityRole="button"
           accessibilityLabel="Resume stream"
         >
-          {busy ? <ActivityIndicator color="#111" /> : <Ionicons name="play" size={18} color="#111" />}
+          {busy ? <ActivityIndicator color={paper.ink} /> : <Ionicons name="play" size={18} color={paper.ink} />}
           <Text style={styles.btnText}>{tr('Resume')}</Text>
         </Pressable>
       </View>
@@ -216,7 +216,7 @@ export function PausedOverlay({ onResume, busy }: { onResume: () => void; busy: 
 
 const styles = StyleSheet.create({
   fillDark: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(8,10,16,0.94)' },
-  solid: { backgroundColor: '#0B0D12', zIndex: 70 },
+  solid: { backgroundColor: viewerTokens.bg, zIndex: 70 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 32 },
   title: { fontFamily: fonts.bold, fontSize: 24, color: S.text, textAlign: 'center' },
   body: { fontFamily: fonts.regular, fontSize: 17, color: S.textDim, textAlign: 'center', maxWidth: 320 },
@@ -227,10 +227,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#fff',
+    backgroundColor: onMedia.text,
     marginTop: 8,
   },
-  btnText: { fontFamily: fonts.bold, fontSize: 18, color: '#111' },
+  btnText: { fontFamily: fonts.bold, fontSize: 18, color: paper.ink },
   link: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
   linkText: { fontFamily: fonts.bold, fontSize: 16, color: S.textDim, textDecorationLine: 'underline' },
   banner: {
@@ -254,9 +254,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderRadius: 18,
-    backgroundColor: '#fff',
+    backgroundColor: onMedia.text,
   },
-  bannerBtnText: { fontFamily: fonts.bold, fontSize: 15, color: '#111' },
+  bannerBtnText: { fontFamily: fonts.bold, fontSize: 15, color: paper.ink },
   paused: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', zIndex: 6 },
   pausedCard: {
     alignItems: 'center',

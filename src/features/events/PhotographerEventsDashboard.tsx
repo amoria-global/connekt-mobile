@@ -15,7 +15,10 @@
  *   • Accept-booking confirmation sheet (green header, event summary,
  *     escrow note, Confirm Accept).
  *
- * Type is Pragati Narrow throughout, matching the web brand.
+ * Midnight Glass (design/events.png): a large title with search, Help and Create; underline
+ * library tabs; the layout switch; filter chips that hide while they would say "0"; then the
+ * schedule. Cards on photographs keep fixed light-on-dark text (`onMedia`), and colour means
+ * what it means everywhere: blue action, magenta attention, cyan live, amber pending.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
@@ -44,7 +47,9 @@ import { isApiError } from '@/store/auth';
 import { ScheduleView, type ScheduleMode } from '@/features/photographer/ScheduleView';
 import { bucketOf } from '@/features/photographer/schedule';
 import { SegmentedTabs } from '@/features/photographer/kit';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { alpha, darkPalette, spacing, radii, fonts, makeStyles, onMedia, shadows, tracking, useTheme, type Palette } from '@/theme';
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
+import { StatusChip, type ChipTone } from '@/components/ui/StatusChip';
 import { formatDate } from '@/utils/format';
 import {
   acceptEventBooking,
@@ -103,24 +108,24 @@ type PhotogStatus = 'pending' | 'upcoming' | 'ongoing' | 'completed' | 'cancelle
 /** Same buckets as the schedule view, so the list and the calendar never disagree. */
 const statusOf = (e: EventItem): PhotogStatus => bucketOf(e);
 
-const STATUS_PILL: Record<PhotogStatus, { bg: string; fg: string; label: string }> = {
-  pending: { bg: '#FEF3C7', fg: '#92400E', label: 'PENDING' },
-  upcoming: { bg: '#FACC15', fg: '#1A2E05', label: 'UPCOMING' },
-  ongoing: { bg: '#DBEAFE', fg: '#1D4ED8', label: 'ONGOING' },
-  completed: { bg: '#D1FAE5', fg: '#047857', label: 'COMPLETED' },
-  cancelled: { bg: '#FEE2E2', fg: '#B91C1C', label: 'CANCELLED' },
+const STATUS_LABEL: Record<PhotogStatus, string> = {
+  pending: 'PENDING',
+  upcoming: 'UPCOMING',
+  ongoing: 'ONGOING',
+  completed: 'COMPLETED',
+  cancelled: 'CANCELLED',
 };
 
-/**
- * Dark mode: the light pills are pastel or solid yellow fills, which glare on a navy screen. These are the deep tinted
- * grounds with light text that the status tokens use elsewhere, one distinct hue per bucket.
- */
-const STATUS_PILL_DARK: Record<PhotogStatus, { bg: string; fg: string }> = {
-  pending: { bg: '#2C220C', fg: '#FBBF24' },
-  upcoming: { bg: '#152A52', fg: '#8FB4FF' },
-  ongoing: { bg: '#10324A', fg: '#7DD3FC' },
-  completed: { bg: '#10281E', fg: '#4ADE80' },
-  cancelled: { bg: '#2D1719', fg: '#F87171' },
+/** A bucket's meaning as a colour: amber pending, blue scheduled, cyan live, green done, red cancelled. */
+const statusColor = (c: Palette, s: PhotogStatus) =>
+  ({ pending: c.pending, upcoming: c.primaryLight, ongoing: c.live, completed: c.success, cancelled: c.error })[s];
+
+const FILTER_TONE: Record<EventFilter, ChipTone> = {
+  all: 'primary',
+  pending: 'pending',
+  upcoming: 'primary',
+  ongoing: 'live',
+  completed: 'success',
 };
 
 /** "8:20 PM" from an "HH:mm[:ss]" or ISO time. */
@@ -348,24 +353,61 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
 
   const scheduleMode = view === 'events' && layout !== 'list';
 
+  const [searchOpen, setSearchOpen] = useState(false);
+  const filterLabel = (f: EventFilter) =>
+    f === 'all'
+      ? t('filterAll')
+      : f === 'pending'
+        ? t('pending')
+        : f === 'upcoming'
+          ? t('filterUpcoming')
+          : f === 'ongoing'
+            ? t('filterOngoing')
+            : t('filterCompleted');
+
   const header = (
-    <View style={{ paddingTop: topInset + spacing.xs, gap: spacing.sm }}>
-      {/* Quick action view tabs: Events, Albums, Photobooks, Content */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.viewTabs}
-      >
-        {viewTabs.map((t) => {
-          const active = view === t.key;
+    <View style={{ paddingTop: topInset + spacing.sm, gap: spacing.md }}>
+      {/* Large title: search, Help and Create stay one tap away, nothing floats over a card. */}
+      <View style={styles.titleRow}>
+        <Text style={styles.title} accessibilityRole="header" numberOfLines={1}>
+          {t('eventsTitle')}
+        </Text>
+        {view === 'events' ? (
+          <Pressable
+            onPress={() => setSearchOpen((o) => !o)}
+            accessibilityRole="button"
+            accessibilityLabel={t('searchEventsPlaceholder')}
+            accessibilityState={{ expanded: searchOpen || !!search }}
+            style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}
+          >
+            <Ionicons name="search" size={20} color={colors.text} />
+          </Pressable>
+        ) : null}
+        <HeaderHelpButton />
+        <Pressable
+          onPress={() => router.push('/event/new' as Href)}
+          accessibilityRole="button"
+          accessibilityLabel="Create new event"
+          style={({ pressed }) => [styles.createBtn, pressed && styles.pressed]}
+        >
+          <Ionicons name="add" size={24} color={colors.textOnPrimary} />
+        </Pressable>
+      </View>
+
+      {/* Library tabs: Events here, the other three open their screens. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.viewTabs}>
+        {viewTabs.map((tab) => {
+          const active = view === tab.key;
           return (
             <Pressable
-              key={t.key}
-              onPress={() => (t.route ? router.push(t.route) : setView('events'))}
-              style={[styles.viewTab, active && styles.viewTabActive]}
+              key={tab.key}
+              onPress={() => (tab.route ? router.push(tab.route) : setView('events'))}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              style={styles.viewTab}
             >
-              <Ionicons name={t.icon} size={15} color={active ? '#fff' : colors.textMuted} />
-              <Text style={[styles.viewTabText, active && styles.viewTabTextActive]}>{t.label}</Text>
+              <Text style={[styles.viewTabText, active && styles.viewTabTextActive]}>{tab.label}</Text>
+              <View style={[styles.viewTabRule, active && styles.viewTabRuleOn]} />
             </Pressable>
           );
         })}
@@ -388,93 +430,60 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
             />
           </View>
 
-          {/* Filter pills */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-          >
-            {(['all', 'pending', 'upcoming', 'ongoing', 'completed'] as const).map((f) => {
-              const active = filter === f;
-              const label =
-                f === 'all'
-                  ? t('filterAll')
-                  : f === 'pending'
-                  ? t('pending')
-                  : f === 'upcoming'
-                  ? t('filterUpcoming')
-                  : f === 'ongoing'
-                  ? t('filterOngoing')
-                  : t('filterCompleted');
-              return (
-                <Pressable
+          {/* Filter chips with live counts. A bucket with nothing in it is left out rather than shown as "0", unless
+              it is the one selected, so the row never spends space saying nothing. */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {(['all', 'pending', 'upcoming', 'ongoing', 'completed'] as const)
+              .filter((f) => f === 'all' || f === filter || !data || counts[f] > 0)
+              .map((f) => (
+                <StatusChip
                   key={f}
+                  label={filterLabel(f)}
+                  tone={FILTER_TONE[f]}
+                  dot={f === 'ongoing'}
+                  count={data ? counts[f] : undefined}
+                  selected={filter === f}
                   onPress={() => setFilter(f)}
-                  style={[styles.filterPill, active && styles.filterPillActive]}
-                >
-                  <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                    {label}
-                  </Text>
-                  <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
-                    <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
-                      {data ? counts[f] : '-'}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+                />
+              ))}
           </ScrollView>
 
-          {/* Search & Sort Row */}
-          <View style={styles.searchRow}>
-            <View style={styles.search}>
-              <Ionicons name="search" size={16} color={colors.textMuted} />
-              <TextInput
-                value={search}
-                onChangeText={setSearch}
-                placeholder={t('searchEventsPlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                style={styles.searchInput}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {search ? (
-                <Pressable onPress={() => setSearch('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                </Pressable>
-              ) : null}
-            </View>
+          {searchOpen || search || !scheduleMode ? (
+            <View style={styles.searchRow}>
+              <View style={styles.search}>
+                <Ionicons name="search" size={16} color={colors.textMuted} />
+                <TextInput
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder={t('searchEventsPlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.searchInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus={searchOpen && !search}
+                />
+                {search ? (
+                  <Pressable onPress={() => setSearch('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search">
+                    <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                  </Pressable>
+                ) : null}
+              </View>
 
-            {/* Sorting means nothing on a calendar, so only List mode shows it. Creation is always one tap away here, so no
-                floating button ever sits over a card or the pager. */}
-            {scheduleMode ? null : (
-            <Pressable
-              style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
-              onPress={() => setSortSheetOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t('sortEvents')}
-            >
-              <Ionicons
-                name="swap-vertical"
-                size={16}
-                color={sortBy !== 'newest' ? '#fff' : colors.text}
-              />
-              <Text style={[styles.sortBtnText, sortBy !== 'newest' && styles.sortBtnTextActive]}>
-                {t('sort')}
-              </Text>
-              {sortBy !== 'newest' && <View style={styles.sortActiveDot} />}
-            </Pressable>
-            )}
-            <Pressable
-              style={[styles.sortBtn, styles.sortBtnActive, { minWidth: 44, justifyContent: 'center' }]}
-              onPress={() => router.push('/event/new' as Href)}
-              accessibilityRole="button"
-              accessibilityLabel="Create new event"
-            >
-              <Ionicons name="add" size={18} color="#fff" />
-              {scheduleMode ? <Text style={[styles.sortBtnText, styles.sortBtnTextActive]}>New</Text> : null}
-            </Pressable>
-          </View>
+              {/* Sorting means nothing on a calendar, so only List mode shows it. */}
+              {scheduleMode ? null : (
+                <Pressable
+                  style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
+                  onPress={() => setSortSheetOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('sortEvents')}
+                >
+                  <Ionicons name="swap-vertical" size={16} color={sortBy !== 'newest' ? colors.textOnPrimary : colors.text} />
+                  <Text style={[styles.sortBtnText, sortBy !== 'newest' && styles.sortBtnTextActive]}>{t('sort')}</Text>
+                  {sortBy !== 'newest' && <View style={styles.sortActiveDot} />}
+                </Pressable>
+              )}
+            </View>
+          ) : null}
         </>
       ) : null}
     </View>
@@ -684,7 +693,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
                 }}
               >
                 <View style={[styles.sortOptionIconBox, active && styles.sortOptionIconBoxActive]}>
-                  <Ionicons name={opt.icon} size={18} color={active ? '#fff' : colors.primary} />
+                  <Ionicons name={opt.icon} size={18} color={active ? colors.textOnPrimary : colors.link} />
                 </View>
                 <View style={styles.sortOptionTextCol}>
                   <Text style={[styles.sortOptionLabel, active && styles.sortOptionLabelActive]}>{label}</Text>
@@ -729,10 +738,9 @@ function PhotographerEventCard({
 }) {
   const styles = useStyles();
   const { t } = useLanguage();
-  const { isDark } = useTheme();
+  const { colors } = useTheme();
   const s = statusOf(event);
   const booking = (event.bookingStatus ?? '').toUpperCase();
-  const pill = { ...STATUS_PILL[s], ...(isDark ? STATUS_PILL_DARK[s] : null) };
   const isPending = booking === 'PENDING';
   const isAccepted = booking === 'ACCEPTED';
   const canStream = event.hasLiveStream && (s === 'upcoming' || s === 'ongoing');
@@ -743,7 +751,9 @@ function PhotographerEventCard({
     <Pressable
       style={styles.card}
       onPress={onOpen}
-      android_ripple={{ color: 'rgba(255,255,255,0.06)' }}
+      android_ripple={{ color: onMedia.glass }}
+      accessibilityRole="button"
+      accessibilityLabel={`${event.title}, ${STATUS_LABEL[s].toLowerCase()}`}
     >
       <Image
         source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER}
@@ -758,16 +768,17 @@ function PhotographerEventCard({
       <View style={styles.cardTop}>
         <View style={styles.topLeft}>
           <GlassOnMedia style={styles.datePill} edge>
-            <Ionicons name="calendar" size={11} color="#fff" />
+            <Ionicons name="calendar" size={11} color={onMedia.text} />
             <Text style={styles.datePillText}>{fmtShortDate(event.eventDate)}</Text>
           </GlassOnMedia>
-          <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
-            <Text style={[styles.statusPillText, { color: pill.fg }]}>{pill.label}</Text>
-          </View>
+          <GlassOnMedia style={styles.statusPill} edge>
+            <View style={[styles.statusDot, { backgroundColor: statusColor(colors, s) }]} />
+            <Text style={styles.statusPillText}>{STATUS_LABEL[s]}</Text>
+          </GlassOnMedia>
         </View>
         {showStreamPill ? (
           <GlassOnMedia style={styles.streamPill} edge>
-            <Ionicons name="radio" size={11} color="#fff" />
+            <Ionicons name="radio" size={11} color={onMedia.text} />
             <Text style={styles.streamPillText}>STREAM</Text>
           </GlassOnMedia>
         ) : null}
@@ -780,7 +791,7 @@ function PhotographerEventCard({
         </Text>
         {event.location ? (
           <View style={styles.locRow}>
-            <Ionicons name="location" size={12} color="rgba(255,255,255,0.85)" />
+            <Ionicons name="location" size={12} color={onMedia.soft} />
             <Text style={styles.locText} numberOfLines={2}>
               {event.location}
             </Text>
@@ -805,7 +816,7 @@ function PhotographerEventCard({
           </View>
           {event.startTime ? (
             <View style={styles.timePill}>
-              <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.9)" />
+              <Ionicons name="time-outline" size={12} color={onMedia.soft} />
               <Text style={styles.timeText}>{fmtTime(event.startTime)}</Text>
             </View>
           ) : null}
@@ -819,36 +830,38 @@ function PhotographerEventCard({
                 style={[styles.actBtn, styles.actAccept, busy && styles.actBusy]}
                 onPress={onAccept}
                 disabled={busy}
+                accessibilityRole="button"
               >
-                <Ionicons name="checkmark-circle" size={13} color="#fff" />
+                <Ionicons name="checkmark-circle" size={13} color={onMedia.text} />
                 <Text style={styles.actText}>{t('acceptBooking')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.actBtn, styles.actDeny, busy && styles.actBusy]}
                 onPress={onDecline}
                 disabled={busy}
+                accessibilityRole="button"
               >
-                <Ionicons name="close-circle" size={13} color="#fff" />
+                <Ionicons name="close-circle" size={13} color={onMedia.text} />
                 <Text style={styles.actText}>{t('declineBooking')}</Text>
               </Pressable>
             </>
           ) : (
             <>
               {canStream ? (
-                <Pressable style={[styles.actBtn, styles.actStream]} onPress={onLiveStream}>
-                  <Ionicons name="radio" size={13} color="#fff" />
+                <Pressable style={[styles.actBtn, styles.actStream]} onPress={onLiveStream} accessibilityRole="button">
+                  <Ionicons name="radio" size={13} color={colors.live} />
                   <Text style={styles.actText}>{t('liveStream')}</Text>
                 </Pressable>
               ) : null}
               {canCreateAlbum ? (
                 <Pressable style={[styles.actBtn, styles.actAlbum]} onPress={onCreateAlbum}>
-                  <Ionicons name="add-circle" size={13} color="#fff" />
+                  <Ionicons name="add-circle" size={13} color={onMedia.text} />
                   <Text style={styles.actText}>{t('createAlbum')}</Text>
                 </Pressable>
               ) : null}
               {isAccepted && event.published ? (
                 <Pressable style={[styles.actBtn, styles.actQr]} onPress={onQr} accessibilityLabel="Show event QR code">
-                  <Ionicons name="qr-code" size={13} color="#fff" />
+                  <Ionicons name="qr-code" size={13} color={onMedia.text} />
                   <Text style={styles.actText}>{t('qrCode')}</Text>
                 </Pressable>
               ) : null}
@@ -860,19 +873,19 @@ function PhotographerEventCard({
                   accessibilityRole="button"
                   accessibilityLabel={`Remove ${event.title} from my list`}
                 >
-                  <Ionicons name="eye-off-outline" size={13} color="#fff" />
+                  <Ionicons name="eye-off-outline" size={13} color={onMedia.text} />
                   <Text style={styles.actText}>Remove</Text>
                 </Pressable>
               ) : null}
               {isAccepted ? (
                 <View style={[styles.actBtn, styles.actAcceptedChip]}>
-                  <Ionicons name="checkmark-circle" size={13} color="#fff" />
+                  <Ionicons name="checkmark-circle" size={13} color={colors.success} />
                   <Text style={styles.actText}>{t('accepted')}</Text>
                 </View>
               ) : null}
               {event.packageName ? (
                 <View style={styles.pkgBadge}>
-                  <Ionicons name="cube" size={12} color="#fff" />
+                  <Ionicons name="cube" size={12} color={onMedia.text} />
                   <Text style={styles.pkgText}>{event.packageName}</Text>
                 </View>
               ) : null}
@@ -910,7 +923,7 @@ function AcceptBookingSheet({
         >
           <View style={styles.sheetHandle} />
           <View style={styles.sheetIcon}>
-            <Ionicons name="checkmark" size={30} color="#fff" />
+            <Ionicons name="checkmark" size={30} color={colors.textOnPrimary} />
           </View>
           <Text style={styles.sheetEyebrow}>{t('confirmAcceptance')}</Text>
           <Text style={styles.sheetTitle}>{t('acceptBookingTitle')}</Text>
@@ -949,10 +962,10 @@ function AcceptBookingSheet({
             </Pressable>
             <Pressable style={[styles.sheetBtn, styles.sheetConfirm]} onPress={onConfirm} disabled={busy}>
               {busy ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.textOnPrimary} />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                  <Ionicons name="checkmark-circle" size={16} color={colors.textOnPrimary} />
                   <Text style={styles.sheetConfirmText}>{t('confirmAccept')}</Text>
                 </>
               )}
@@ -1025,49 +1038,38 @@ const useStyles = makeStyles((c) => ({
 
 
   // Header
-  viewTabs: { gap: 6, paddingVertical: spacing.xs },
-  viewTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radii.md,
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  title: { flex: 1, color: c.text, fontSize: 34, fontFamily: fonts.display, letterSpacing: tracking(34, -0.03) },
+  roundBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    backgroundColor: c.glassTop,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surface,
-  },
-  viewTabActive: { backgroundColor: c.primary, borderColor: c.primary },
-  viewTabText: { fontFamily: fonts.bold, fontSize: 14, color: c.textMuted },
-  viewTabTextActive: { color: '#fff' },
-
-  // Filters
-  filterRow: { gap: 8, paddingBottom: spacing.md },
-  filterPill: {
-    flexDirection: 'row',
+    borderColor: c.stroke,
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.full,
-    backgroundColor: c.surfaceMuted,
+    justifyContent: 'center',
   },
-  filterPillActive: { backgroundColor: c.primary },
-  filterText: { fontFamily: fonts.bold, fontSize: 14, color: c.textSoft },
-  filterTextActive: { color: '#fff' },
-  filterBadge: {
-    minWidth: 22,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+  // Flat blue with the raised family's highlight: the day's empty state carries the screen's one raised button.
+  createBtn: {
+    width: 48,
+    height: 48,
     borderRadius: radii.full,
-    backgroundColor: 'rgba(8,58,133,0.10)',
+    backgroundColor: c.primary,
+    boxShadow: shadows.highlight,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
-  filterBadgeText: { fontFamily: fonts.bold, fontSize: 12, color: c.link },
-  filterBadgeTextActive: { color: '#fff' },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
+  viewTabs: { gap: spacing.xl, borderBottomWidth: 1, borderBottomColor: c.stroke, minWidth: '100%' },
+  viewTab: { minHeight: 44, justifyContent: 'flex-end', gap: spacing.sm },
+  viewTabText: { fontFamily: fonts.medium, fontSize: 16, color: c.textMuted },
+  viewTabTextActive: { color: c.text, fontFamily: fonts.semibold },
+  viewTabRule: { height: 2, borderRadius: 1, backgroundColor: 'transparent' },
+  viewTabRuleOn: { backgroundColor: c.primaryLight },
 
-  // Search & Sort Row
+  filterRow: { gap: spacing.sm, paddingVertical: 4 },
+
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1107,13 +1109,13 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   sortBtnTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   sortActiveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#fff',
+    backgroundColor: c.textOnPrimary,
   },
   searchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 15, color: c.text, padding: 0 },
 
@@ -1123,9 +1125,9 @@ const useStyles = makeStyles((c) => ({
     minHeight: 260,
     borderRadius: radii.xl,
     overflow: 'hidden',
-    backgroundColor: '#071224',
+    backgroundColor: onMedia.ground,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     justifyContent: 'space-between',
   },
   cardScrim: {
@@ -1153,9 +1155,10 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 3.5,
     borderRadius: radii.full,
   },
-  datePillText: { fontFamily: fonts.bold, fontSize: 10.5, color: '#fff' },
-  statusPill: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: radii.full },
-  statusPillText: { fontFamily: fonts.bold, fontSize: 9.5, letterSpacing: 0.3 },
+  datePillText: { fontFamily: fonts.bold, fontSize: 10.5, color: onMedia.text },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radii.full, backgroundColor: onMedia.smoke },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusPillText: { fontFamily: fonts.semibold, fontSize: 9.5, letterSpacing: 0.4, color: onMedia.text },
   streamPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1165,7 +1168,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 3,
     borderRadius: radii.full,
   },
-  streamPillText: { fontFamily: fonts.bold, fontSize: 9, color: '#fff', letterSpacing: 0.3 },
+  streamPillText: { fontFamily: fonts.bold, fontSize: 9, color: onMedia.text, letterSpacing: 0.3 },
 
   cardBottom: {
     backgroundColor: 'rgba(3, 8, 20, 0.85)',
@@ -1174,7 +1177,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.sm,
     gap: 4,
   },
-  cardTitle: { fontFamily: fonts.bold, fontSize: 14.5, color: '#fff', letterSpacing: -0.2, lineHeight: 18 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 14.5, color: onMedia.text, letterSpacing: -0.2, lineHeight: 18 },
   locRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   locText: { fontFamily: fonts.regular, fontSize: 11, color: 'rgba(255,255,255,0.85)', flex: 1 },
 
@@ -1187,7 +1190,7 @@ const useStyles = makeStyles((c) => ({
   clientLeft: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 },
   avatar: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
   avatarFallback: { backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { fontFamily: fonts.bold, fontSize: 9.5, color: '#fff' },
+  avatarInitial: { fontFamily: fonts.bold, fontSize: 9.5, color: onMedia.text },
   clientName: { fontFamily: fonts.regular, fontSize: 11, color: 'rgba(255,255,255,0.9)', flexShrink: 1 },
   timePill: {
     flexDirection: 'row',
@@ -1210,13 +1213,14 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 5,
     borderRadius: radii.sm,
   },
-  actText: { fontFamily: fonts.bold, fontSize: 11, color: '#fff' },
+  actText: { fontFamily: fonts.bold, fontSize: 11, color: onMedia.text },
   actBusy: { opacity: 0.6 },
-  actAccept: { backgroundColor: '#047857', flex: 1 },
-  actDeny: { backgroundColor: '#B91C1C', flex: 1 },
-  actStream: { backgroundColor: '#8B5CF6' },
+  // Blue is the action; declining and the rest are glass on the photograph, so only one control is filled.
+  actAccept: { backgroundColor: c.primary, flex: 1 },
+  actDeny: { backgroundColor: onMedia.glass, borderWidth: 1, borderColor: onMedia.faint, flex: 1 },
+  actStream: { backgroundColor: onMedia.glass, borderWidth: 1, borderColor: c.live },
   actAlbum: { backgroundColor: c.primary },
-  actAcceptedChip: { backgroundColor: '#047857' },
+  actAcceptedChip: { backgroundColor: onMedia.glass },
   actQr: { backgroundColor: 'rgba(255,255,255,0.16)' },
   pkgBadge: {
     marginLeft: 'auto',
@@ -1228,7 +1232,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 4,
     borderRadius: radii.sm,
   },
-  pkgText: { fontFamily: fonts.bold, fontSize: 10.5, color: '#fff' },
+  pkgText: { fontFamily: fonts.bold, fontSize: 10.5, color: onMedia.text },
 
   // Accept sheet
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end' },
@@ -1249,12 +1253,12 @@ const useStyles = makeStyles((c) => ({
     width: 60,
     height: 60,
     borderRadius: 16,
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
-  sheetEyebrow: { fontFamily: fonts.bold, fontSize: 11, color: '#10B981', letterSpacing: 1 },
+  sheetEyebrow: { fontFamily: fonts.bold, fontSize: 11, color: c.success, letterSpacing: 1 },
   sheetTitle: { fontFamily: fonts.bold, fontSize: 22, color: c.text },
   sheetCard: {
     alignSelf: 'stretch',
@@ -1300,8 +1304,8 @@ const useStyles = makeStyles((c) => ({
   },
   sheetCancel: { ...glassTile(c) },
   sheetCancelText: { fontFamily: fonts.bold, fontSize: 15, color: c.textSoft },
-  sheetConfirm: { backgroundColor: '#10B981' },
-  sheetConfirmText: { fontFamily: fonts.bold, fontSize: 15, color: '#fff' },
+  sheetConfirm: { backgroundColor: c.primary, boxShadow: shadows.highlight },
+  sheetConfirmText: { fontFamily: fonts.bold, fontSize: 15, color: c.textOnPrimary },
 
   // Decline sheet
   declineInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },

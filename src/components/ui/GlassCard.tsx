@@ -51,31 +51,27 @@ import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { darkPalette, radii, spacing, useTheme, type Palette } from '@/theme';
+import { darkPalette, radii, shadows, spacing, useTheme, type Palette } from '@/theme';
 
 export type GlassStrength = 'thin' | 'regular' | 'thick';
 
-/** Fill opacity over a real blur, per scheme and strength. */
-const FILL_OVER_BLUR = {
-  light: { thin: 0.3, regular: 0.48, thick: 0.7 },
-  dark: { thin: 0.32, regular: 0.5, thick: 0.72 },
-} as const;
-/** Fill opacity where nothing is blurred: near-solid, so text stays clean. */
-const FILL_NO_BLUR = { light: 0.9, dark: 0.94 } as const;
+/**
+ * How much of the palette's glass gradient (`glassTop` to `glassBottom`, the brief's
+ * rgba(32,50,82,.62) to rgba(18,30,52,.52)) lies over the blur. `regular` is the brief exactly;
+ * `thick` adds a solid underlay wherever people read or type.
+ */
+const FILL_STRENGTH = { thin: 0.7, regular: 1, thick: 1 } as const;
+const THICK_UNDERLAY = 0.45;
+/** expo-blur intensity for the brief's 22px blur. */
 const BLUR_INTENSITY = { thin: 30, regular: 45, thick: 60 } as const;
-
-/** Light frosts with white; dark smokes with the palette's `surface` (#161B24). */
-const fillRgb = (isDark: boolean) => (isDark ? '22,27,36' : '255,255,255');
 
 /**
  * Glass catches light on its rim: bright at the top, fading toward the bottom.
  * Spread it onto any view that carries a `GlassSurface`.
  */
 export function useGlassEdge(): ViewStyle {
-  const { isDark } = useTheme();
-  return isDark
-    ? { borderColor: 'rgba(255,255,255,0.12)', borderBottomColor: 'rgba(255,255,255,0.05)' }
-    : { borderColor: 'rgba(255,255,255,0.9)', borderBottomColor: 'rgba(255,255,255,0.45)' };
+  const { colors } = useTheme();
+  return { borderColor: colors.stroke };
 }
 
 /**
@@ -179,13 +175,11 @@ export function GlassSurface({
   intensity,
   style,
 }: GlassSurfaceProps) {
-  const { isDark } = useTheme();
+  const { isDark, colors } = useTheme();
   const sceneTarget = useContext(GlassTargetContext);
   const blurTarget = detached ? undefined : (explicitTarget ?? sceneTarget);
-  const scheme = isDark ? 'dark' : 'light';
   const realBlur = Platform.OS !== 'android' || !!blurTarget;
-  const alpha = realBlur ? FILL_OVER_BLUR[scheme][strength] : FILL_NO_BLUR[scheme];
-  const sheen = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.55)';
+  const sheen = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.55)';
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.clip, style]} pointerEvents="none">
@@ -198,7 +192,15 @@ export function GlassSurface({
           style={StyleSheet.absoluteFill}
         />
       ) : null}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(${fillRgb(isDark)},${alpha})` }]} />
+      {/* No blur: the brief's solid fallback, so text never collides with what is behind. */}
+      {!realBlur ? <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.glassSolid }]} /> : null}
+      {realBlur && strength === 'thick' ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.glassSolid, opacity: THICK_UNDERLAY }]} />
+      ) : null}
+      <LinearGradient
+        colors={[colors.glassTop, colors.glassBottom]}
+        style={[StyleSheet.absoluteFill, { opacity: FILL_STRENGTH[strength] }]}
+      />
       <LinearGradient
         colors={[sheen, 'rgba(255,255,255,0)']}
         start={{ x: 0, y: 0 }}
@@ -241,7 +243,7 @@ export function GlassCard({
   const radius = StyleSheet.flatten(style)?.borderRadius ?? radii.lg;
 
   const card = (
-    <View style={[styles.card, edge, style]}>
+    <View style={[styles.card, edge, { boxShadow: isDark ? shadows.glass : shadows.glassLight }, style]}>
       <GlassSurface strength={strength} intensity={intensity} blurTarget={blurTarget} style={{ borderRadius: radius }} />
       {children}
     </View>
@@ -253,7 +255,7 @@ export function GlassCard({
     <View
       style={[
         { borderRadius: radius },
-        Platform.OS !== 'android' && (isDark ? styles.liftDark : styles.liftLight),
+        { boxShadow: isDark ? shadows.glass : shadows.glassLight },
         containerStyle,
       ]}
     >
@@ -329,7 +331,7 @@ export function GlassLayer({ intensity = 30, fill = MEDIA_FILL }: { intensity?: 
   );
 }
 
-type Orb = { color: 'primary' | 'accent'; cx: string; cy: string; r: string; boost?: number };
+type Orb = { color: 'primary' | 'accent' | 'live'; cx: string; cy: string; r: string; boost?: number };
 
 const ORBS: Record<'panel' | 'aurora', Orb[]> = {
   // Behind a single card: three glows, weighted to the corners.
@@ -338,13 +340,13 @@ const ORBS: Record<'panel' | 'aurora', Orb[]> = {
     { color: 'accent', cx: '92%', cy: '62%', r: '50%' },
     { color: 'primary', cx: '40%', cy: '110%', r: '40%' },
   ],
-  // Behind a whole screen: large, slow light that never sits under the
-  // densest text (the middle third stays the calmest).
+  // Behind a whole screen: the brief's 2 to 3 lights, never under the densest text (the middle
+  // third stays the calmest). Blue top left, magenta high right, magenta low left, as the
+  // references place them.
   aurora: [
-    { color: 'primary', cx: '0%', cy: '4%', r: '48%', boost: 1.1 },
-    { color: 'accent', cx: '105%', cy: '22%', r: '38%' },
-    { color: 'primary', cx: '100%', cy: '78%', r: '42%', boost: 0.8 },
-    { color: 'accent', cx: '-5%', cy: '96%', r: '40%', boost: 0.9 },
+    { color: 'primary', cx: '0%', cy: '4%', r: '52%', boost: 1.1 },
+    { color: 'accent', cx: '108%', cy: '20%', r: '36%' },
+    { color: 'accent', cx: '-8%', cy: '68%', r: '34%', boost: 0.7 },
   ],
 };
 
@@ -385,6 +387,14 @@ export function GlassBackdrop({ ref, style, variant = 'panel' }: GlassBackdropPr
 }
 
 /**
+ * GlowOrbs: the soft lights glass needs behind it. A screen's `GlassScene` already draws them;
+ * use this directly only behind a single panel.
+ */
+export function GlowOrbs(props: GlassBackdropProps) {
+  return <GlassBackdrop variant="panel" {...props} />;
+}
+
+/**
  * The frosted top and bottom bars. They cover the whole screen's content, so
  * Android has no single `BlurTargetView` to blur and stays near-solid there.
  */
@@ -406,18 +416,6 @@ const styles = StyleSheet.create({
   // image out at its intrinsic size and shows only its top-left corner.
   photo: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
   scenePadded: { paddingHorizontal: spacing.xl },
-  liftLight: {
-    shadowColor: '#0B2A66',
-    shadowOpacity: 0.12,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 12 },
-  },
-  liftDark: {
-    shadowColor: '#000',
-    shadowOpacity: 0.45,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: 14 },
-  },
   onMedia: { backgroundColor: 'transparent', overflow: 'hidden' },
   onMediaEdge: { borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.28)' },
 });

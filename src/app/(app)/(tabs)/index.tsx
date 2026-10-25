@@ -75,7 +75,7 @@ import { listStreams } from '@/features/streams/api';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
-import { colors, spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, swatch, type SwatchTone } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
@@ -365,21 +365,21 @@ export default function HomeScreen() {
       return [
         { label: 'Spent', value: formatPrice(analyticsClient.totalSpent, wallet.data?.currency), tone: colors.primary },
         { label: 'Bookings', value: String(analyticsClient.totalBookings), tone: colors.accent },
-        { label: 'Photos', value: String(analyticsClient.totalPhotos), tone: '#10B981' },
+        { label: 'Photos', value: String(analyticsClient.totalPhotos), tone: colors.success },
       ];
     }
     if (isCoordinator && analyticsCoord) {
       return [
         { label: 'Revenue', value: formatPrice(analyticsCoord.totalRevenue, wallet.data?.currency), tone: colors.primary },
         { label: 'Events', value: String(analyticsCoord.totalEvents), tone: colors.accent },
-        { label: 'Photographers', value: String(analyticsCoord.totalPhotographers), tone: '#10B981' },
+        { label: 'Photographers', value: String(analyticsCoord.totalPhotographers), tone: colors.success },
       ];
     }
     if (isPhotographer && analyticsPhotog) {
       return [
         { label: 'Earnings', value: formatPrice(analyticsPhotog.totalEarnings, wallet.data?.currency), tone: colors.primary },
         { label: 'Clients', value: String(analyticsPhotog.totalClients), tone: colors.accent },
-        { label: 'Photos', value: String(analyticsPhotog.totalPhotosUploaded), tone: '#10B981' },
+        { label: 'Photos', value: String(analyticsPhotog.totalPhotosUploaded), tone: colors.success },
       ];
     }
     return [];
@@ -388,33 +388,33 @@ export default function HomeScreen() {
   const kpis = useMemo(() => {
     if (isClient && analyticsClient) {
       return [
-        kpi('Total Spent', formatPrice(analyticsClient.totalSpent, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalSpent),
-        kpi('Pending', formatPrice(analyticsClient.pendingAmount, wallet.data?.currency), 'time-outline', '#F59E0B', trends.pending),
-        kpi('Bookings', String(analyticsClient.totalBookings), 'people-outline', '#3B82F6', trends.events, '/events'),
-        kpi('Gifts', formatPrice(analyticsClient.gifts, wallet.data?.currency), 'gift-outline', '#10B981', trends.gifts),
-        kpi('Favorites', String(analyticsClient.bookmarkedPhotographers), 'star-outline', '#8B5CF6', trends.photographers, '/photographers'),
+        kpi('Total Spent', formatPrice(analyticsClient.totalSpent, wallet.data?.currency), 'cash-outline', colors.primary, trends.totalSpent),
+        kpi('Pending', formatPrice(analyticsClient.pendingAmount, wallet.data?.currency), 'time-outline', colors.pending, trends.pending),
+        kpi('Bookings', String(analyticsClient.totalBookings), 'people-outline', colors.primary, trends.events, '/events'),
+        kpi('Gifts', formatPrice(analyticsClient.gifts, wallet.data?.currency), 'gift-outline', colors.success, trends.gifts),
+        kpi('Favorites', String(analyticsClient.bookmarkedPhotographers), 'star-outline', colors.primaryLight, trends.photographers, '/photographers'),
       ];
     }
     if (isCoordinator && analyticsCoord) {
       return [
-        kpi('Revenue', formatPrice(analyticsCoord.totalRevenue, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalRevenue),
-        kpi('Pending', formatPrice(analyticsCoord.totalPending, wallet.data?.currency), 'time-outline', '#F59E0B', trends.totalPending),
-        kpi('Events', String(analyticsCoord.totalEvents), 'calendar-outline', '#3B82F6', trends.totalEvents, '/events'),
-        kpi('Clients', String(analyticsCoord.totalCustomers), 'people-outline', '#10B981', trends.totalCustomers),
-        kpi('Photographers', String(analyticsCoord.totalPhotographers), 'camera-outline', '#8B5CF6', trends.totalPhotographers, '/photographers'),
+        kpi('Revenue', formatPrice(analyticsCoord.totalRevenue, wallet.data?.currency), 'cash-outline', colors.primary, trends.totalRevenue),
+        kpi('Pending', formatPrice(analyticsCoord.totalPending, wallet.data?.currency), 'time-outline', colors.pending, trends.totalPending),
+        kpi('Events', String(analyticsCoord.totalEvents), 'calendar-outline', colors.primary, trends.totalEvents, '/events'),
+        kpi('Clients', String(analyticsCoord.totalCustomers), 'people-outline', colors.success, trends.totalCustomers),
+        kpi('Photographers', String(analyticsCoord.totalPhotographers), 'camera-outline', colors.primaryLight, trends.totalPhotographers, '/photographers'),
       ];
     }
     if (isPhotographer && analyticsPhotog) {
       return [
-        kpi('Total Earnings', formatPrice(analyticsPhotog.totalEarnings, wallet.data?.currency), 'cash-outline', '#083A85', trends.totalEarnings, '/transactions'),
-        kpi('Pending', formatPrice(analyticsPhotog.pendingPayments, wallet.data?.currency), 'time-outline', '#F59E0B', trends.pending, '/transactions'),
-        kpi('Total clients', String(analyticsPhotog.totalClients), 'people-outline', '#3B82F6', trends.clients, '/clients'),
-        kpi('Bonuses', formatPrice(analyticsPhotog.bonuses, wallet.data?.currency), 'gift-outline', '#10B981', trends.bonuses, '/transactions'),
+        kpi('Total Earnings', formatPrice(analyticsPhotog.totalEarnings, wallet.data?.currency), 'cash-outline', colors.primary, trends.totalEarnings, '/transactions'),
+        kpi('Pending', formatPrice(analyticsPhotog.pendingPayments, wallet.data?.currency), 'time-outline', colors.pending, trends.pending, '/transactions'),
+        kpi('Total clients', String(analyticsPhotog.totalClients), 'people-outline', colors.primary, trends.clients, '/clients'),
+        kpi('Bonuses', formatPrice(analyticsPhotog.bonuses, wallet.data?.currency), 'gift-outline', colors.success, trends.bonuses, '/transactions'),
         kpi(
           'Ratings',
           `${(analyticsPhotog.averageRating ?? 5).toFixed(1)}/5`,
           'star-outline',
-          '#8B5CF6',
+          colors.primaryLight,
           trends.rating,
           '/profile',
         ),
@@ -713,8 +713,9 @@ function KpiCard({
   onPress,
 }: KpiSpec & { timeframe: string; onPress?: () => void }) {
   const styles = useStyles();
+  const { colors } = useTheme();
   const dir = trend?.direction ?? 'up';
-  const trendColor = dir === 'up' ? '#10B981' : '#EF4444';
+  const trendColor = dir === 'up' ? colors.success : colors.error;
   return (
     <Pressable
       style={({ pressed }) => [styles.kpi, pressed && onPress && styles.pressed]}
@@ -1010,10 +1011,10 @@ function PerformanceMiniChart({ data }: { data: PerformancePoint[] }) {
   );
 }
 
-const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
-  'In Progress': { bg: '#FCE7F3', text: '#DB2777' },
-  Completed: { bg: '#D1FAE5', text: '#059669' },
-  Pending: { bg: '#FEF3C7', text: '#D97706' },
+const STATUS_COLOR: Record<string, { tone: SwatchTone; }> = {
+  'In Progress': { tone: 'accent' as const },
+  Completed: { tone: 'success' as const },
+  Pending: { tone: 'pending' as const },
 };
 
 function PhotographerRow({
@@ -1042,8 +1043,8 @@ function PhotographerRow({
         <Text style={styles.photogName} numberOfLines={2}>{photographer.name}</Text>
         <Text style={styles.photogEvent} numberOfLines={2}>{photographer.event}</Text>
       </View>
-      <View style={[styles.photogChip, { backgroundColor: chip.bg }]}>
-        <Text style={[styles.photogChipText, { color: chip.text }]}>{photographer.status}</Text>
+      <View style={[styles.photogChip, { backgroundColor: swatch(colors, chip.tone).bg }]}>
+        <Text style={[styles.photogChipText, { color: swatch(colors, chip.tone).fg }]}>{photographer.status}</Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
     </Pressable>
@@ -1265,7 +1266,7 @@ const useStyles = makeStyles((c, e) => ({
     elevation: 6,
   },
   cardPressed: { opacity: 0.95 },
-  balanceLabel: { color: '#C7D2FE', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  balanceLabel: { color: c.textSoft, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   balanceValue: { color: c.textOnPrimary, fontSize: fontSize['3xl'], fontWeight: fontWeight.extrabold },
   balanceFoot: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
   balanceLink: { color: c.accentLight, fontSize: fontSize.sm, fontWeight: fontWeight.bold },

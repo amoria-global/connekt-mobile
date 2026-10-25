@@ -74,7 +74,7 @@ describe('Button shape', () => {
     const a = baseStyle(mount(<Button title="Save" onPress={() => {}} />));
     expect(a.minHeight).toBe(48);
     expect(a.height).toBeUndefined(); // a fixed height would clip a long label at large text
-    expect(a.borderRadius).toBe(12);
+    expect(a.borderRadius).toBe(14); // Midnight Glass tile radius (design/brief.png)
     mockPhotographer = false;
     const b = baseStyle(mount(<Button title="Save" onPress={() => {}} />));
     expect(b.minHeight).toBe(52);

@@ -37,6 +37,7 @@ import { StreamHeader } from '../components/StreamHeader';
 import { StreamStateOverlay } from '../components/StreamStateOverlay';
 import { ViewerError, ViewerSkeleton } from '../components/ViewerStates';
 
+import { onMedia } from '@/theme';
 type UIAction =
   | { type: 'set'; patch: Partial<LiveViewerUIState> }
   | { type: 'toggle'; key: 'chatOpen' | 'fullscreen' };
@@ -340,7 +341,7 @@ export default function LiveViewerScreen() {
         <StatusBar style="light" />
         <View style={styles.wideRow}>
           <View style={styles.wideMain}>
-            <View style={{ paddingTop: insets.top, backgroundColor: '#000' }}>
+            <View style={{ paddingTop: insets.top, backgroundColor: onMedia.black }}>
               <View style={{ aspectRatio: VIDEO_ASPECT }}>{video}</View>
             </View>
             <StreamHeader model={model} live={model.isLive && pb.phase !== 'ended'} onShare={openShare} />
@@ -364,7 +365,7 @@ export default function LiveViewerScreen() {
     >
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style="light" />
-      <View style={{ paddingTop: insets.top, backgroundColor: '#000' }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: onMedia.black }}>
         <View style={{ aspectRatio: VIDEO_ASPECT }}>{video}</View>
       </View>
       {keyboardUp ? null : (
@@ -383,7 +384,7 @@ export default function LiveViewerScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: V.bg },
-  fsRoot: { flex: 1, backgroundColor: '#000' },
+  fsRoot: { flex: 1, backgroundColor: onMedia.black },
   fsRail: { position: 'absolute' },
   clip: { overflow: 'hidden' },
   railRow: { paddingHorizontal: 14, paddingVertical: 12 },

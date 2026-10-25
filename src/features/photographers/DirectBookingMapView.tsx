@@ -20,7 +20,7 @@ import {
 } from './mapApi';
 import { BookingBottomSheet } from '@/features/booking/BookingBottomSheet';
 import { formatPrice } from '@/utils/format';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 const RADIUS_OPTIONS = [5, 10, 25, 50] as const;
@@ -142,9 +142,9 @@ export function DirectBookingMapView({
     const tileTheme = isDark
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    const bgColor = isDark ? '#0A0F1D' : '#F8FAFC';
-    const primaryColor = '#083A85';
-    const accentColor = '#F20C8F';
+    const bgColor = isDark ? colors.background : colors.surfaceMuted;
+    const primaryColor = colors.primary;
+    const accentColor = colors.accent;
 
     return `<!DOCTYPE html>
 <html>
@@ -232,15 +232,15 @@ export function DirectBookingMapView({
       z-index: 9999 !important;
     }
     .pro-pill {
-      background: ${isDark ? '#1E293B' : '#FFFFFF'};
-      color: ${isDark ? '#F8FAFC' : '#0F172A'};
+      background: ${isDark ? colors.textSoft : onFill};
+      color: ${isDark ? colors.surfaceMuted : colors.text};
       padding: 5px 9px;
       border-radius: 20px;
       display: flex;
       align-items: center;
       gap: 6px;
       box-shadow: 0 6px 16px rgba(0,0,0,${isDark ? '0.6' : '0.18'});
-      border: 2px solid ${isDark ? '#334155' : '#E2E8F0'};
+      border: 2px solid ${isDark ? colors.textSoft : colors.border};
       white-space: nowrap;
       transition: all 0.2s ease;
     }
@@ -258,7 +258,7 @@ export function DirectBookingMapView({
     .pro-price {
       font-size: 11px;
       font-weight: 700;
-      color: ${isDark ? '#38BDF8' : '#083A85'};
+      color: ${isDark ? colors.live : colors.primary};
     }
     .pro-rating {
       font-size: 10px;
@@ -272,7 +272,7 @@ export function DirectBookingMapView({
       height: 0;
       border-left: 6px solid transparent;
       border-right: 6px solid transparent;
-      border-top: 6px solid ${isDark ? '#334155' : '#E2E8F0'};
+      border-top: 6px solid ${isDark ? colors.textSoft : colors.border};
       margin-top: -1px;
       transition: border-top-color 0.2s ease;
     }
@@ -315,8 +315,8 @@ export function DirectBookingMapView({
     // Radius Circle
     var circle = L.circle([clientLat, clientLng], {
       radius: radiusKm * 1000,
-      color: '${isDark ? '#38BDF8' : '#2563EB'}',
-      fillColor: '${isDark ? '#38BDF8' : '#2563EB'}',
+      color: '${isDark ? colors.live : colors.primary}',
+      fillColor: '${isDark ? colors.live : colors.primary}',
       fillOpacity: 0.06,
       weight: 1.5,
       dashArray: '5, 5'
@@ -506,14 +506,14 @@ export function DirectBookingMapView({
               </Text>
               <View style={styles.metaRow}>
                 <View style={styles.distanceBadge}>
-                  <Ionicons name="location" size={11} color="#0284C7" />
+                  <Ionicons name="location" size={11} color={colors.live} />
                   <Text style={styles.distanceText}>
                     {selectedPhotographer.distanceFormatted ||
                       `${selectedPhotographer.distanceKm} km away`}
                   </Text>
                 </View>
                 <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={11} color="#F59E0B" />
+                  <Ionicons name="star" size={11} color={colors.pending} />
                   <Text style={styles.ratingText}>
                     {selectedPhotographer.rating.toFixed(1)} (
                     {selectedPhotographer.reviewCount})
@@ -560,7 +560,7 @@ export function DirectBookingMapView({
                 style={styles.bookNowBtn}
                 onPress={() => handleOpenBooking(selectedPhotographer)}
               >
-                <Ionicons name="flash" size={14} color="#FFFFFF" />
+                <Ionicons name="flash" size={14} color={onFill} />
                 <Text style={styles.bookNowText}>{tr('Book Now')}</Text>
               </Pressable>
             </View>
@@ -618,7 +618,7 @@ const useStyles = makeStyles((colors) => ({
     borderWidth: 1,
     borderColor: colors.border,
     gap: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.1,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -628,9 +628,9 @@ const useStyles = makeStyles((colors) => ({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.textOnPrimary,
   },
   locationPillText: {
     fontSize: 12,
@@ -646,7 +646,7 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.12,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -681,7 +681,7 @@ const useStyles = makeStyles((colors) => ({
     color: colors.textMuted,
   },
   radiusChipTextActive: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
     fontWeight: fontWeight.bold,
   },
   loaderOverlay: {
@@ -695,7 +695,7 @@ const useStyles = makeStyles((colors) => ({
   loaderText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
   floatingCard: {
     position: 'absolute',
@@ -707,7 +707,7 @@ const useStyles = makeStyles((colors) => ({
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.2,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
@@ -769,7 +769,7 @@ const useStyles = makeStyles((colors) => ({
   distanceText: {
     fontSize: 12,
     fontWeight: fontWeight.semibold,
-    color: '#0284C7',
+    color: colors.live,
   },
   ratingBadge: {
     flexDirection: 'row',
@@ -779,7 +779,7 @@ const useStyles = makeStyles((colors) => ({
   ratingText: {
     fontSize: 12,
     fontWeight: fontWeight.bold,
-    color: '#F59E0B',
+    color: colors.pending,
   },
   specChipsRow: {
     flexDirection: 'row',
@@ -845,6 +845,6 @@ const useStyles = makeStyles((colors) => ({
   bookNowText: {
     fontSize: 12,
     fontWeight: fontWeight.bold,
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
 }));

@@ -30,7 +30,7 @@ import { ModeBadge, friendlyEventStatus, isOpenHybrid, modeOf } from '@/features
 import { env } from '@/config/env';
 import { useAsync } from '@/hooks/useAsync';
 import { useSharedT } from '@/i18n/sharedStrings';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, onFill, onMedia } from '@/theme';
 import {
   ActionButton,
   Chip,
@@ -143,8 +143,8 @@ export function ClientEventsDashboard({
       if (label === 'Ongoing') return colors.accent;
       if (label === 'Published') return colors.success;
       if (label === 'Not published') return colors.warning;
-      if (label === 'Completed') return '#3B82F6';
-      if (label === 'Paused') return '#8B5CF6';
+      if (label === 'Completed') return colors.primary;
+      if (label === 'Paused') return colors.primaryLight;
       if (label === 'Cancelled') return colors.error;
       return toneColor[tone];
     };
@@ -194,7 +194,8 @@ export function ClientEventsDashboard({
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityLabel="Filter events">
-        {FILTERS.map((f) => (
+        {/* A bucket with nothing in it is left out rather than shown as 0, unless it is the one selected. */}
+        {FILTERS.filter((f) => f.key === 'all' || f.key === filter || !counts || counts[f.key] > 0).map((f) => (
           <Chip
             key={f.key}
             label={f.label}
@@ -481,7 +482,7 @@ function EventRow({
 
           <View style={styles.coverTopRow}>
             <View style={styles.coverDatePill}>
-              <Ionicons name="calendar" size={12} color="#FFFFFF" />
+              <Ionicons name="calendar" size={12} color={onFill} />
               <Text style={styles.coverDateText} numberOfLines={2}>
                 {whenText(event)}
               </Text>
@@ -501,7 +502,7 @@ function EventRow({
               </Text>
       </View>
             <View style={styles.coverChevronCircle}>
-              <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+              <Ionicons name="chevron-forward" size={16} color={onFill} />
       </View>
           </View>
         </Pressable>
@@ -656,7 +657,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   coverBanner: {
     height: 164,
-    backgroundColor: '#0B162C',
+    backgroundColor: onMedia.ground,
     justifyContent: 'space-between',
     padding: spacing.md,
   },
@@ -695,7 +696,7 @@ const useStyles = makeStyles((c, e) => ({
     flexShrink: 1,
   },
   coverDateText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 12,
     fontWeight: '700',
     flexShrink: 1,
@@ -717,7 +718,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
   },
   cardTitle: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 19,
     fontWeight: '800',
     lineHeight: 24,

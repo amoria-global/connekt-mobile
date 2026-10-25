@@ -25,6 +25,8 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
+import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
+import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { isApiError } from '@/store/auth';
@@ -45,7 +47,7 @@ import {
   scheduleTestLockScreenNotification,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill, type Palette } from '@/theme';
 import { SkeletonCard } from '@/features/photographer/kit';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
@@ -433,6 +435,7 @@ export default function NotificationsScreen() {
             </Pressable>
           ) : null}
 
+          <HeaderHelpButton />
           <Pressable
             onPress={onOptionsPress}
             hitSlop={10}
@@ -507,35 +510,21 @@ export default function NotificationsScreen() {
             <SkeletonCard height={72} />
           </View>
         ) : loadError && notifications.length === 0 ? (
-          <View style={styles.emptyWrap} accessibilityRole="alert">
-            <View style={styles.emptyCircle}>
-              <Ionicons name="cloud-offline-outline" size={32} color={colors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>Could not load notifications</Text>
-            <Text style={styles.emptySub}>{loadError}</Text>
-            <Pressable onPress={() => loadData(true)} style={styles.resetPill} accessibilityRole="button" accessibilityLabel="Try again">
-              <Text style={styles.resetPillText}>Try again</Text>
-            </Pressable>
+          <View style={styles.emptyKit}>
+            <ErrorState title="Could not load notifications" message={loadError} onRetry={() => loadData(true)} />
           </View>
         ) : filteredNotifications.length === 0 ? (
-          /* Empty State */
-          <View style={styles.emptyWrap}>
-            <View style={styles.emptyCircle}>
-              <Ionicons name="notifications-outline" size={32} color={colors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>
-              {activeFilter === 'unread' ? t('allCaughtUp') : t('noActivityYet')}
-            </Text>
-            <Text style={styles.emptySub}>
-              {activeFilter === 'unread'
-                ? t('reviewedAllUpdates')
-                : t('activityWillAppearHere')}
-            </Text>
-            {activeFilter !== 'all' ? (
-              <Pressable onPress={() => setActiveFilter('all')} style={styles.resetPill}>
-                <Text style={styles.resetPillText}>{t('viewAllNotifications')}</Text>
-              </Pressable>
-            ) : null}
+          <View style={styles.emptyKit}>
+            <EmptyState
+              icon="notifications-outline"
+              title={activeFilter === 'unread' ? t('allCaughtUp') : t('noActivityYet')}
+              message={activeFilter === 'unread' ? t('reviewedAllUpdates') : t('activityWillAppearHere')}
+              action={
+                activeFilter !== 'all'
+                  ? { label: t('viewAllNotifications'), onPress: () => setActiveFilter('all') }
+                  : { label: t('notificationSettings'), onPress: () => router.push('/preferences' as Href) }
+              }
+            />
           </View>
         ) : (
           /* Instagram Chronological Activity Feed */
@@ -557,7 +546,7 @@ export default function NotificationsScreen() {
 
               {/* Activity Rows */}
               {group.items.map((item) => {
-                const iconMeta = getCategoryIconMeta(item.type, isDark);
+                const iconMeta = getCategoryIconMeta(item.type, colors);
                 const isUnread = !item.read;
                 const { title, body } = cleanNarrative(item);
 
@@ -592,7 +581,7 @@ export default function NotificationsScreen() {
 
                       {/* Small overlapping category badge icon */}
                       <View style={[styles.avatarBadge, { backgroundColor: iconMeta.color }]}>
-                        <Ionicons name={iconMeta.miniIcon} size={10} color="#fff" />
+                        <Ionicons name={iconMeta.miniIcon} size={10} color={onFill} />
                       </View>
                     </View>
 
@@ -645,22 +634,22 @@ export default function NotificationsScreen() {
 /**
  * Category metadata with distinct icon and badge for Instagram feed.
  */
-function getCategoryIconMeta(type: NotificationType, isDark: boolean) {
+function getCategoryIconMeta(type: NotificationType, colors: Palette) {
   switch (type) {
     case 'album':
     case 'photobook':
       return {
         name: 'images' as const,
         miniIcon: 'images' as const,
-        bg: isDark ? 'rgba(139, 92, 246, 0.18)' : '#F3E8FF',
-        color: '#8B5CF6',
+        bg: colors.tintAccent,
+        color: colors.accentLight,
       };
     case 'gift':
       return {
         name: 'gift' as const,
         miniIcon: 'gift' as const,
-        bg: isDark ? 'rgba(16, 185, 129, 0.16)' : '#DCFCE7',
-        color: '#10B981',
+        bg: colors.successBg,
+        color: colors.success,
       };
     case 'payment':
     case 'streamfee':
@@ -669,43 +658,44 @@ function getCategoryIconMeta(type: NotificationType, isDark: boolean) {
       return {
         name: 'card' as const,
         miniIcon: 'cash-outline' as const,
-        bg: isDark ? 'rgba(16, 185, 129, 0.16)' : '#DCFCE7',
-        color: '#10B981',
+        bg: colors.successBg,
+        color: colors.success,
       };
     case 'security':
       return {
         name: 'shield-checkmark' as const,
         miniIcon: 'shield' as const,
-        bg: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2',
-        color: '#EF4444',
+        bg: colors.errorBg,
+        color: colors.error,
       };
     case 'booking':
     case 'event':
       return {
         name: 'calendar' as const,
         miniIcon: 'calendar' as const,
-        bg: isDark ? 'rgba(59, 130, 246, 0.16)' : '#DBEAFE',
-        color: '#2563EB',
+        bg: colors.tint,
+        color: colors.primary,
       };
     case 'photographer':
     case 'review':
       return {
         name: 'camera' as const,
         miniIcon: 'camera' as const,
-        bg: isDark ? 'rgba(245, 158, 11, 0.16)' : '#FEF3C7',
-        color: '#F59E0B',
+        bg: colors.pendingBg,
+        color: colors.pending,
       };
     default:
       return {
         name: 'notifications' as const,
         miniIcon: 'notifications' as const,
-        bg: isDark ? 'rgba(148, 163, 184, 0.14)' : '#F1F5F9',
-        color: '#64748B',
+        bg: colors.surfaceMuted,
+        color: colors.textMuted,
       };
   }
 }
 
 const useStyles = makeStyles((c) => ({
+  emptyKit: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
   // ── Top Header ──
   topHeader: {
     flexDirection: 'row',
@@ -737,7 +727,7 @@ const useStyles = makeStyles((c) => ({
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#2563EB',
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
@@ -745,7 +735,7 @@ const useStyles = makeStyles((c) => ({
   unreadCounterText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   headerActionsRight: {
     flexDirection: 'row',
@@ -808,7 +798,7 @@ const useStyles = makeStyles((c) => ({
   filterCountBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#2563EB',
+    color: c.primary,
   },
   filterCountBadgeTextActive: {
     color: c.background,
@@ -918,7 +908,7 @@ const useStyles = makeStyles((c) => ({
   amountPillText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#059669',
+    color: c.success,
   },
 
   // Right Slot: Media Thumbnail or Unread Dot
@@ -938,7 +928,7 @@ const useStyles = makeStyles((c) => ({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#2563EB',
+    backgroundColor: c.primary,
   },
   chevron: {
     opacity: 0.35,

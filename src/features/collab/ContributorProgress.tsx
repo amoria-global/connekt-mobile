@@ -10,7 +10,7 @@
  */
 import { Pressable, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
-import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
+import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme, midTones } from '@/theme';
 import { PersonRow } from './components';
 import { timeAgo } from './model';
 import type { Contributor, ContributorState, ProgressSummary, ProgressTotals } from './progress';
@@ -53,7 +53,8 @@ export function fill(template: string, vars: Record<string, string | number>): s
   return template.replace(/\{(\w+)\}/g, (_m, k: string) => String(vars[k] ?? ''));
 }
 
-const COLORS = { approved: '#059669', pending: '#F20C8F', rejected: '#94A3B8' } as const;
+// Mid tones: these bars sit on either scheme (green added, magenta waiting, slate not accepted).
+const COLORS = { approved: midTones.green, pending: midTones.magenta, rejected: midTones.slate } as const;
 
 /** A stacked bar of the three outcomes. The same numbers are written beside it. */
 export function ProgressBar({ approved, pending, rejected, labels, height = 10 }: {

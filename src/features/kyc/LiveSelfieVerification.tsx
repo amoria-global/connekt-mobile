@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill, onMedia } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { logKycEvent } from './livenessEngine';
 
@@ -312,7 +312,7 @@ export function LiveSelfieVerification({
     return (
       <View style={styles.reviewContainer}>
         <View style={styles.verifiedPill}>
-          <Ionicons name="camera" size={16} color="#10B981" />
+          <Ionicons name="camera" size={16} color={colors.success} />
           <Text style={styles.verifiedPillText}>{tr('Selfie Captured')}</Text>
         </View>
 
@@ -380,7 +380,7 @@ export function LiveSelfieVerification({
               accessibilityRole="button"
               accessibilityLabel={tr('Cancel')}
             >
-              <Ionicons name="close" size={20} color="#FFFFFF" />
+              <Ionicons name="close" size={20} color={onFill} />
             </Pressable>
           ) : null}
         </View>
@@ -424,7 +424,7 @@ export function LiveSelfieVerification({
           accessibilityRole="button"
           accessibilityLabel={tr('Take Photo')}
         >
-          <Ionicons name="camera" size={22} color="#FFFFFF" />
+          <Ionicons name="camera" size={22} color={onFill} />
           <Text style={styles.actionButtonText}>{tr('Take Photo')}</Text>
         </Pressable>
 
@@ -449,16 +449,16 @@ const useStyles = makeStyles((c, e) => ({
     minHeight: 460,
     borderRadius: radii.xl,
     overflow: 'hidden',
-    backgroundColor: '#000000',
+    backgroundColor: onMedia.black,
     position: 'relative',
     justifyContent: 'space-between',
     ...e(3),
   },
   cameraBackground: {
-    backgroundColor: '#0F172A',
+    backgroundColor: c.text,
   },
   shutterFlash: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.card,
     zIndex: 99,
   },
   centerContainer: {
@@ -500,7 +500,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
   },
   progressText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.5,
@@ -571,7 +571,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 44,
     height: 44,
     borderRadius: radii.full,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -580,7 +580,7 @@ const useStyles = makeStyles((c, e) => ({
     gap: 2,
   },
   promptTitle: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
   },
@@ -602,7 +602,7 @@ const useStyles = makeStyles((c, e) => ({
     opacity: 0.88,
   },
   actionButtonText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
   },
@@ -660,15 +660,15 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: c.successBg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: c.success,
   },
   verifiedPillText: {
-    color: '#065F46',
+    color: c.success,
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
   },
@@ -676,7 +676,7 @@ const useStyles = makeStyles((c, e) => ({
     borderRadius: radii.full,
     overflow: 'hidden',
     borderWidth: 3,
-    borderColor: '#10B981',
+    borderColor: c.success,
     backgroundColor: c.surfaceMuted,
     ...e(3),
   },

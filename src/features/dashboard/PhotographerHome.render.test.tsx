@@ -271,3 +271,49 @@ describe('get help on the home', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/contact_us');
   });
 });
+
+describe('Midnight Glass home (design/home.png)', () => {
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  it('Withdraw on the money tile opens the withdraw flow, and the label row opens the wallet', async () => {
+    serve({});
+    const r = await mount();
+    await pressText(r, 'Withdraw');
+    expect(mockPush).toHaveBeenLastCalledWith('/withdraw');
+    await press(r, 'Available to withdraw, ••••');
+    expect(mockPush).toHaveBeenLastCalledWith('/(app)/(tabs)/wallet');
+  });
+
+  it('keeps the privacy toggle and Withdraw reachable: neither sits inside another button', async () => {
+    serve({});
+    const r = await mount();
+    const buttons = r.root.findAll((n) => typeof n.type === 'string' && n.props.accessibilityRole === 'button');
+    const nested = buttons.filter((b) => {
+      for (let p = b.parent; p; p = p.parent) if (typeof p.type === 'string' && p.props.accessibilityRole === 'button') return true;
+      return false;
+    });
+    expect(nested.map((b) => b.props.accessibilityLabel)).toEqual([]);
+  });
+
+  it('says how many shoots are coming in the greeting, from the events the API returned', async () => {
+    serve({ events: ok([{ id: 'a', title: 'A', eventDate: '2999-01-01', status: 'UPCOMING' }, { id: 'b', title: 'B', eventDate: today(), status: 'ONGOING' }]) });
+    const r = await mount();
+    expect(flat(r.root)).toContain('You have 1 upcoming shoot and 1 ongoing.');
+  });
+
+  it("does not repeat today's shoot under Next shoot when Priority today already shows it", async () => {
+    serve({
+      events: ok([
+        { id: 't', title: 'Fashion week', eventDate: today(), startTime: '08:00', status: 'ONGOING' },
+        { id: 'n', title: 'Booking Testing', eventDate: '2999-11-08', startTime: '13:00', location: 'Kabuga', status: 'UPCOMING' },
+      ]),
+    });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text.split('Fashion week').length - 1).toBe(1);
+    expect(text).toContain('Booking Testing');
+  });
+});

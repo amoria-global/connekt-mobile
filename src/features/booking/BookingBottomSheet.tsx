@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, brandMarks } from '@/theme';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { bookingsApi } from '@/api/endpoints/bookings';
 import { useAuth, isApiError } from '@/store/auth';
@@ -481,7 +481,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   onPress={() => setServiceType('OUTDOOR')}
                 >
                   <View style={[styles.serviceIconContainer, serviceType === 'OUTDOOR' && styles.serviceIconContainerActive]}>
-                    <Ionicons name="location" size={18} color={serviceType === 'OUTDOOR' ? '#FFFFFF' : colors.primary} />
+                    <Ionicons name="location" size={18} color={serviceType === 'OUTDOOR' ? onFill : colors.primary} />
                   </View>
                   <View style={styles.serviceTextContainer}>
                     <View style={styles.serviceHeader}>
@@ -497,7 +497,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   onPress={() => setServiceType('STUDIO')}
                 >
                   <View style={[styles.serviceIconContainer, serviceType === 'STUDIO' && styles.serviceIconContainerActive]}>
-                    <Ionicons name="camera" size={18} color={serviceType === 'STUDIO' ? '#FFFFFF' : colors.primary} />
+                    <Ionicons name="camera" size={18} color={serviceType === 'STUDIO' ? onFill : colors.primary} />
                   </View>
                   <View style={styles.serviceTextContainer}>
                     <View style={styles.serviceHeader}>
@@ -526,7 +526,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   themeVariant={isDark ? 'dark' : 'light'}
                   isDarkModeEnabled={isDark}
-                  textColor={isDark ? '#FFFFFF' : '#000000'}
+                  textColor={isDark ? onFill : brandMarks.appleBlack}
                   minimumDate={new Date()}
                   onConfirm={(selectedDate) => {
                     setShowDatePicker(false);
@@ -606,7 +606,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         onPress={() => toggleTag(tag)}
                       >
                         {isSelected && (
-                          <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+                          <Ionicons name="checkmark-circle" size={14} color={onFill} style={{ marginRight: 4 }} />
                         )}
                         <Text style={[styles.tagText, isSelected && styles.tagTextActive]}>{tr(tag)}</Text>
                       </Pressable>
@@ -618,7 +618,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               <View style={styles.footer}>
                 <Pressable style={styles.continueButton} onPress={handleContinueStep1}>
                   <Text style={styles.continueButtonText}>{tr('Continue to Packages')}</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  <Ionicons name="arrow-forward" size={18} color={onFill} style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
             </View>
@@ -645,9 +645,9 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                 {packages.map(pkg => {
                   const isActive = selectedPackage?.id === pkg.id;
                   
-                  const badgeColor = pkg.name?.toLowerCase().includes('gold') ? '#D97706' : 
-                                     pkg.name?.toLowerCase().includes('silver') ? '#64748B' : 
-                                     pkg.name?.toLowerCase().includes('bronze') ? '#B45309' : colors.primary;
+                  const badgeColor = pkg.name?.toLowerCase().includes('gold') ? colors.pending : 
+                                     pkg.name?.toLowerCase().includes('silver') ? colors.textMuted : 
+                                     pkg.name?.toLowerCase().includes('bronze') ? colors.pending : colors.primary;
 
                   return (
                     <Pressable 
@@ -662,7 +662,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                           </View>
                           {pkg.name?.toLowerCase().includes('live') && (
                             <View style={styles.liveIndicator}>
-                              <Ionicons name="radio" size={11} color="#EF4444" />
+                              <Ionicons name="radio" size={11} color={colors.error} />
                               <Text style={styles.liveText}>{tr('LIVE')}</Text>
                             </View>
                           )}
@@ -703,7 +703,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       {pkg.hasLiveStream === true && (
                         <View style={styles.packageFeaturesRow}>
                           <View style={styles.packageFeature}>
-                            <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                             <Text style={styles.packageFeatureText}>{tr('Live stream broadcast included')}</Text>
                           </View>
                         </View>
@@ -720,7 +720,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   disabled={!selectedPackage && packages.length > 0}
                 >
                   <Text style={styles.continueButtonText}>{tr('Continue to Schedule')}</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  <Ionicons name="arrow-forward" size={18} color={onFill} style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
             </View>
@@ -770,7 +770,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     themeVariant={isDark ? 'dark' : 'light'}
                     isDarkModeEnabled={isDark}
-                    textColor={isDark ? '#FFFFFF' : '#000000'}
+                    textColor={isDark ? onFill : brandMarks.appleBlack}
                     minimumDate={date && new Date().toDateString() === date.toDateString() ? new Date() : undefined}
                     onConfirm={(selectedTime) => {
                       setShowStartTimePicker(false);
@@ -796,7 +796,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     themeVariant={isDark ? 'dark' : 'light'}
                     isDarkModeEnabled={isDark}
-                    textColor={isDark ? '#FFFFFF' : '#000000'}
+                    textColor={isDark ? onFill : brandMarks.appleBlack}
                     date={endTime || (startTime ? new Date(startTime.getTime() + 15 * 60000) : new Date())}
                     onConfirm={(selectedTime) => {
                       setShowEndTimePicker(false);
@@ -848,7 +848,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               <View style={styles.footer}>
                 <Pressable style={styles.continueButton} onPress={handleContinueStep3}>
                   <Text style={styles.continueButtonText}>{tr('Review & Payment')}</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  <Ionicons name="arrow-forward" size={18} color={onFill} style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
             </View>
@@ -860,7 +860,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               {bookingSuccess ? (
                 <View style={styles.successContainer}>
                   <View style={styles.successIconCircle}>
-                    <Ionicons name="checkmark" size={44} color="#FFFFFF" />
+                    <Ionicons name="checkmark" size={44} color={onFill} />
                   </View>
                   <Text style={styles.successTitle}>{tr('Booking Reserved!')}</Text>
                   <Text style={styles.successSubtitle}>
@@ -895,7 +895,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                         style={[styles.continueButton, { marginBottom: 12 }]}
                         onPress={handleCompletePayment}
                       >
-                        <Ionicons name="card-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                        <Ionicons name="card-outline" size={18} color={onFill} style={{ marginRight: 8 }} />
                         <Text style={styles.continueButtonText}>{tr('Pay now')}</Text>
                       </Pressable>
                       <Text style={styles.handoffHint}>
@@ -1065,7 +1065,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
                   <View style={styles.escrowCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Ionicons name="shield-checkmark" size={18} color="#16A34A" />
+                      <Ionicons name="shield-checkmark" size={18} color={colors.success} />
                       <Text style={styles.escrowTitle}>{tr('Connekyt Escrow Protection')}</Text>
                     </View>
                     <Text style={styles.escrowBody}>
@@ -1080,11 +1080,11 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                       disabled={isSubmitting}
                     >
                       {isSubmitting ? (
-                        <ActivityIndicator color="#FFFFFF" size="small" />
+                        <ActivityIndicator color={onFill} size="small" />
                       ) : (
                         <>
                           <Text style={styles.continueButtonText}>{tr('Confirm Booking Request')}</Text>
-                          <Ionicons name="lock-closed" size={16} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                          <Ionicons name="lock-closed" size={16} color={onFill} style={{ marginLeft: 8 }} />
                         </>
                       )}
                     </Pressable>
@@ -1417,7 +1417,7 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   tagTextActive: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
   },
   emptyPackagesCard: {
     alignItems: 'center',
@@ -1475,7 +1475,7 @@ const useStyles = makeStyles((c) => ({
   packageBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     letterSpacing: 0.5,
   },
   liveIndicator: {
@@ -1490,7 +1490,7 @@ const useStyles = makeStyles((c) => ({
   liveText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#EF4444',
+    color: c.error,
   },
   packagePrice: {
     fontSize: 16,
@@ -1543,7 +1543,7 @@ const useStyles = makeStyles((c) => ({
   },
   packageFeatureText: {
     fontSize: 11,
-    color: '#10B981',
+    color: c.success,
     fontWeight: '600',
   },
   heroAmountCard: {
@@ -1738,11 +1738,11 @@ const useStyles = makeStyles((c) => ({
   escrowTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#16A34A',
+    color: c.success,
   },
   escrowBody: {
     fontSize: 11,
-    color: '#15803D',
+    color: c.success,
     lineHeight: 16,
     marginTop: 2,
   },
@@ -1759,7 +1759,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.lg,
   },
   continueButtonText: {
-    color: '#FFFFFF',
+    color: c.textOnPrimary,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1799,7 +1799,7 @@ const useStyles = makeStyles((c) => ({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#10B981',
+    backgroundColor: c.success,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,

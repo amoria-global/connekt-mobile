@@ -31,7 +31,7 @@ import { listPhotobooks, listReceivedPhotobooks, type Photobook } from '@/featur
 import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/store/language';
 import { PhotobookCard, PhotobookGridSkeleton } from '@/features/photobooks/PhotobookCard';
-import { spacing, radii, fonts, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 
 type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT' | 'SENT';
 
@@ -339,7 +339,7 @@ export default function PhotobooksScreen() {
                   style={styles.emptyBtn}
                   onPress={() => router.push('/photobook/new' as Href)}
                 >
-                  <Ionicons name="add" size={18} color="#fff" />
+                  <Ionicons name="add" size={18} color={onFill} />
                   <Text style={styles.emptyBtnText}>{tr.createPhotobook}</Text>
                 </Pressable>
               ) : null}
@@ -360,7 +360,7 @@ export default function PhotobooksScreen() {
           accessibilityRole="button"
           accessibilityLabel={tr.newPhotobookA11y}
         >
-          <Ionicons name="add" size={20} color="#fff" />
+          <Ionicons name="add" size={20} color={onFill} />
           <Text style={styles.fabText}>{tr.newPhotobook}</Text>
         </Pressable>
       ) : null}
@@ -439,7 +439,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textSoft,
   },
   filterPillTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   filterBadge: {
     paddingHorizontal: 6,
@@ -456,7 +456,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   filterBadgeTextActive: {
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 
   // Search Bar
@@ -545,7 +545,7 @@ const useStyles = makeStyles((c) => ({
   photoCountText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
   cardBody: {
     padding: spacing.sm,
@@ -574,7 +574,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: radii.full,
-    shadowColor: '#000',
+    shadowColor: c.shadow,
     shadowOpacity: 0.22,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -584,7 +584,7 @@ const useStyles = makeStyles((c) => ({
   fabText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#fff',
+    color: c.textOnPrimary,
     letterSpacing: 0.2,
   },
 
@@ -646,6 +646,6 @@ const useStyles = makeStyles((c) => ({
   emptyBtnText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#fff',
+    color: c.textOnPrimary,
   },
 }));

@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Alert } from '@/components/ui/dialog';
 import { useRouter } from 'expo-router';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { colors, spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { acceptEventBooking, declineEventBooking } from './api';
 import type { EventItem } from './types';
@@ -118,10 +118,10 @@ export function EventCard({
                   disabled={busy !== null}
                 >
                   {busy === 'accept' ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color={onFill} size="small" />
                   ) : (
                     <>
-                      <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                      <Ionicons name="checkmark-circle" size={14} color={onFill} />
                       <Text style={styles.ctaText}>{tr('Accept')}</Text>
                     </>
                   )}
@@ -148,10 +148,10 @@ export function EventCard({
                   disabled={busy !== null}
                 >
                   {busy === 'decline' ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color={onFill} size="small" />
                   ) : (
                     <>
-                      <Ionicons name="close-circle" size={14} color="#fff" />
+                      <Ionicons name="close-circle" size={14} color={onFill} />
                       <Text style={styles.ctaText}>{tr('Decline')}</Text>
                     </>
                   )}
@@ -160,16 +160,16 @@ export function EventCard({
             ) : null}
             {canGoLive ? (
               <Pressable
-                style={[styles.cta, { backgroundColor: '#7C3AED' }]}
+                style={[styles.cta, { backgroundColor: colors.primaryLight }]}
                 onPress={() => router.push(`/(app)/event/${event.id}` as never)}
               >
-                <Ionicons name="videocam" size={14} color="#fff" />
+                <Ionicons name="videocam" size={14} color={onFill} />
                 <Text style={styles.ctaText}>{tr('Live Stream')}</Text>
               </Pressable>
             ) : null}
             {albumSent ? (
               <View style={styles.sentChip}>
-                <Ionicons name="checkmark-done" size={12} color="#fff" />
+                <Ionicons name="checkmark-done" size={12} color={onFill} />
                 <Text style={styles.sentChipText}>{tr('Album sent')}</Text>
               </View>
             ) : canCreateAlbum ? (
@@ -177,7 +177,7 @@ export function EventCard({
                 style={styles.cta}
                 onPress={() => router.push(`/album/new?eventId=${event.id}` as never)}
               >
-                <Ionicons name="add-circle-outline" size={14} color="#fff" />
+                <Ionicons name="add-circle-outline" size={14} color={onFill} />
                 <Text style={styles.ctaText}>{tr('Create Album')}</Text>
               </Pressable>
             ) : null}
@@ -239,7 +239,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 6,
     borderRadius: radii.md,
   },
-  ctaText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  ctaText: { color: c.textOnPrimary, fontSize: 12, fontWeight: '700' },
   sentChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,15 +249,15 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 5,
     borderRadius: radii.md,
   },
-  sentChipText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  sentChipText: { color: c.textOnPrimary, fontSize: 11, fontWeight: '700' },
   pendingChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#7C3AED',
+    backgroundColor: c.primaryLight,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.md,
   },
-  pendingChipText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pendingChipText: { color: c.textOnPrimary, fontSize: 11, fontWeight: '700' },
 }));

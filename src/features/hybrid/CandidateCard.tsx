@@ -7,7 +7,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import type { CandidateSummary } from './types';
 import { MODE_META, TierBadge } from './hybridUi';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -40,7 +40,7 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
         <Meta icon={c.photographerType === 'STUDIO' ? 'business-outline' : 'person-outline'} text={c.photographerType === 'STUDIO' ? tr('Company / Studio') : tr('Freelancer / Individual')} />
         {c.distanceLabel ? <Meta icon="location-outline" text={c.distanceLabel} /> : null}
         {c.rating != null && c.reviewCount ? (
-          <Meta icon="star" iconColor="#F59E0B" text={`${c.rating.toFixed(1)} · ${c.reviewCount} ${tr('reviews')}`} />
+          <Meta icon="star" iconColor={colors.pending} text={`${c.rating.toFixed(1)} · ${c.reviewCount} ${tr('reviews')}`} />
         ) : <Meta icon="star-outline" text={tr('No reviews yet')} muted />}
         {c.typicalPriceRange ? <Meta icon="pricetag-outline" text={c.typicalPriceRange} /> : null}
         {c.instagram?.handle ? <Meta icon="logo-instagram" text={`@${c.instagram.handle}`} /> : null}
@@ -61,7 +61,7 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
         ) : null}
         <Pressable onPress={() => onSelect(c)} disabled={selecting} style={[styles.primary, selecting && { opacity: 0.6 }]}
           accessibilityRole="button" accessibilityLabel={tr('Choose')}>
-          {selecting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{tr('Choose')}</Text>}
+          {selecting ? <ActivityIndicator color={onFill} /> : <Text style={styles.primaryText}>{tr('Choose')}</Text>}
         </Pressable>
       </View>
     </View>
@@ -92,7 +92,7 @@ const useStyles = makeStyles((c) => ({
   about: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 17 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   primary: { flex: 1, minHeight: 46, borderRadius: radii.md, backgroundColor: MODE_META.HYBRID.color, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#fff', fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
+  primaryText: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
   secondary: { flex: 1, minHeight: 46, borderRadius: radii.md, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: c.text, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
 }));

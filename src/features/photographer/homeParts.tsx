@@ -8,13 +8,17 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { darkPalette, fonts, makeStyles, radii, shadows, spacing, tracking, useTheme } from '@/theme';
+import { Button } from '@/components/ui/Button';
+import { DateTile } from '@/components/ui/DateTile';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { StatusChip, type ChipTone } from '@/components/ui/StatusChip';
 import { LivePill, LiveTwinkle } from '@/components/ui/live';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { ActionButton, Card, IconTile, StatusBadge, StatusText } from './kit';
 import { ProgressRing } from './charts';
 
-type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral';
+type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live';
 
 /** A real photograph when the event has one, otherwise an icon tile of the same size (never a blank grey box). */
 export function Thumb({ uri, size = 88 }: { uri?: string; size?: number }) {
@@ -85,6 +89,94 @@ export function ShootCard({ shoot, actions, flush = true }: { shoot: ShootFacts;
     <LiveTwinkle active radius={radii.lg} style={!flush ? styles.twinkleWrap : undefined}>
       {card}
     </LiveTwinkle>
+  );
+}
+
+const CHIP_TONE: Record<Tone, ChipTone> = { success: 'success', warning: 'pending', error: 'error', info: 'primary', neutral: 'neutral', live: 'live' };
+
+/**
+ * The next shoot as Home leads with it (design/home.png): the paper calendar tile (the screen's
+ * one tactile object), status, title and facts, then View shoot and a square Message button.
+ * The date is the most useful fact, so it is the biggest thing on the card.
+ */
+export function NextShootCard({
+  date,
+  shoot,
+  onView,
+  onMessage,
+}: {
+  /** The shoot's day, or null when it has none yet (the tile then falls back to the photograph). */
+  date: Date | null;
+  shoot: ShootFacts;
+  onView: () => void;
+  onMessage?: () => void;
+}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const { tr } = useSharedT();
+  const facts = [shoot.when, shoot.location, shoot.client].filter(Boolean) as string[];
+  return (
+    <View style={styles.cardGutter}>
+      <GlassCard style={styles.nextCard}>
+        <View style={styles.shootRow}>
+          {date ? <DateTile date={date} variant="paper" showWeekday size={68} /> : <Thumb uri={shoot.cover} size={68} />}
+          <View style={styles.shootText}>
+            {shoot.live ? (
+              <LivePill label="Live now" size="xs" sparkle />
+            ) : (
+              <StatusChip label={tr(shoot.status.label)} tone={CHIP_TONE[shoot.status.tone]} dot />
+            )}
+            <Text style={styles.nextTitle} numberOfLines={2}>
+              {tr(shoot.title)}
+            </Text>
+            <Text style={styles.nextFacts} numberOfLines={2}>
+              {facts.map((f) => tr(f)).join('  ·  ')}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.actions}>
+          <Button title="View shoot" onPress={onView} style={styles.fill} />
+          {onMessage ? (
+            <Pressable
+              onPress={onMessage}
+              accessibilityRole="button"
+              accessibilityLabel={shoot.client ? `${tr('Message')} ${shoot.client}` : tr('Message')}
+              style={({ pressed }) => [styles.squareBtn, pressed && { opacity: 0.85 }]}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
+            </Pressable>
+          ) : null}
+        </View>
+      </GlassCard>
+    </View>
+  );
+}
+
+/** A compact shoot row (design/events.png, Coming up): date well, title, time and place, chevron. */
+export function ShootRow({ date, title, meta, onPress }: { date: Date | null; title: string; meta: string; onPress: () => void }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const { tr } = useSharedT();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${tr(title)}, ${meta}`}
+      style={({ pressed }) => [styles.cardGutter, pressed && { opacity: 0.88 }]}
+    >
+      <GlassCard style={styles.shootRowCard}>
+        {date ? <DateTile date={date} variant="glass" size={68} /> : <Thumb size={50} />}
+        <View style={styles.shootText}>
+          <Text style={styles.rowTitleDisplay} numberOfLines={1}>
+            {tr(title)}
+          </Text>
+          <Text style={styles.meta} numberOfLines={1}>
+            {meta}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </GlassCard>
+    </Pressable>
   );
 }
 
@@ -204,14 +296,16 @@ export function BusinessOverview({
       </View>
       <View style={styles.tiles}>
         {tiles.map((t) => (
-          <View key={t.key} style={styles.tile} accessible accessibilityLabel={`${t.label}, ${loading ? 'loading' : t.value}`}>
-            <IconTile icon={t.icon} tone="primary" size={28} />
-            <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-              {loading ? ' ' : t.value}
-            </Text>
-            <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.6}>
-              {t.label}
-            </Text>
+          <View key={t.key} style={styles.fill} accessible accessibilityLabel={`${t.label}, ${loading ? 'loading' : t.value}`}>
+            <GlassCard style={styles.tile}>
+              <IconTile icon={t.icon} tone="primary" size={28} />
+              <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                {loading ? ' ' : t.value}
+              </Text>
+              <Text style={styles.tileLabel} numberOfLines={2} maxFontSizeMultiplier={1.6}>
+                {t.label}
+              </Text>
+            </GlassCard>
           </View>
         ))}
       </View>
@@ -270,43 +364,60 @@ export function EarningRow({
 const useStyles = makeStyles((c) => ({
   flush: { marginHorizontal: 0 },
   twinkleWrap: { marginHorizontal: spacing.lg },
+  cardGutter: { marginHorizontal: spacing.lg },
   fill: { flex: 1 },
-  thumbFallback: { borderRadius: radii.md, backgroundColor: c.tint, alignItems: 'center', justifyContent: 'center' },
-  shootRow: { flexDirection: 'row', gap: spacing.md },
-  shootText: { flex: 1, minWidth: 0, gap: 3, alignItems: 'flex-start' },
-  shootTitle: { color: c.text, fontSize: 16, fontWeight: '800', lineHeight: 21 },
-  meta: { color: c.textMuted, fontSize: 12.5, lineHeight: 17 },
+  thumbFallback: {
+    borderRadius: radii.md,
+    backgroundColor: c.well,
+    borderWidth: 1,
+    borderColor: c.stroke,
+    boxShadow: c === darkPalette ? shadows.inset : shadows.insetLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shootRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
+  shootText: { flex: 1, minWidth: 0, gap: 4, alignItems: 'flex-start' },
+  shootTitle: { color: c.text, fontSize: 17, fontFamily: fonts.display, lineHeight: 22, letterSpacing: tracking(17, -0.02) },
+  meta: { color: c.textMuted, fontSize: 13, lineHeight: 18, fontFamily: fonts.regular },
   metaLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, alignSelf: 'stretch' },
   metaIcon: { marginTop: 2 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+
+  nextCard: { borderRadius: radii.xl, padding: spacing.lg },
+  nextTitle: { color: c.text, fontSize: 20, lineHeight: 25, fontFamily: fonts.display, letterSpacing: tracking(20, -0.02) },
+  nextFacts: { color: c.textSoft, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
+  shootRowCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radii.lg, minHeight: 72 },
+  rowTitleDisplay: { color: c.text, fontSize: 17, fontFamily: fonts.display, letterSpacing: tracking(17, -0.02) },
+  squareBtn: {
+    width: 52,
+    minHeight: 48,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.stroke,
+    backgroundColor: c.glassTop,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   overviewTop: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg },
   earnCard: { flex: 1.15, gap: 6, justifyContent: 'space-between' },
   ratingCard: { flex: 1, alignItems: 'center', gap: 6 },
   earnHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  earnLabel: { flexShrink: 1, color: c.textSoft, fontSize: 12.5, fontWeight: '700' },
-  earnValue: { color: c.text, fontSize: 24, fontWeight: '800', minHeight: 30 },
+  earnLabel: { flexShrink: 1, color: c.textSoft, fontSize: 13, fontFamily: fonts.medium },
+  earnValue: { color: c.text, fontSize: 26, fontFamily: fonts.display, minHeight: 32, letterSpacing: tracking(26, -0.03) },
   ringCentre: { alignItems: 'center' },
-  ringValue: { color: c.text, fontSize: 22, fontWeight: '800', lineHeight: 26 },
-  ringOutOf: { color: c.textMuted, fontSize: 11 },
-  ringNone: { color: c.textMuted, fontSize: 11.5, fontWeight: '600', textAlign: 'center', paddingHorizontal: 14 },
+  ringValue: { color: c.text, fontSize: 24, fontFamily: fonts.display, lineHeight: 28 },
+  ringOutOf: { color: c.textMuted, fontSize: 11, fontFamily: fonts.regular },
+  ringNone: { color: c.textMuted, fontSize: 12, fontFamily: fonts.medium, textAlign: 'center', paddingHorizontal: 14 },
   tiles: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.md },
-  tile: {
-    flex: 1,
-    gap: 5,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.card,
-  },
-  tileValue: { color: c.text, fontSize: 20, fontWeight: '800' },
-  tileLabel: { color: c.textMuted, fontSize: 12, lineHeight: 15 },
+  tile: { flex: 1, gap: 5, padding: spacing.md, borderRadius: radii.lg },
+  tileValue: { color: c.text, fontSize: 22, fontFamily: fonts.display },
+  tileLabel: { color: c.textMuted, fontSize: 12, lineHeight: 15, fontFamily: fonts.regular },
 
   earnRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md - 2, minHeight: 60 },
-  divider: { borderBottomWidth: 1, borderBottomColor: c.borderSoft },
+  divider: { borderBottomWidth: 1, borderBottomColor: c.stroke },
   rowText: { flex: 1, minWidth: 0 },
-  rowTitle: { color: c.text, fontSize: 15, fontWeight: '700' },
+  rowTitle: { color: c.text, fontSize: 15, fontFamily: fonts.semibold },
   rowAmount: { alignItems: 'flex-end', maxWidth: '42%', gap: 2 },
-  amount: { color: c.text, fontSize: 15, fontWeight: '800' },
+  amount: { color: c.text, fontSize: 16, fontFamily: fonts.display },
 }));

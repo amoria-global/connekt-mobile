@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { makeStyles } from '@/theme';
+import { makeStyles, onFill, onMedia } from '@/theme';
 
 export type PublishStatus = 'idle' | 'starting' | 'publishing' | 'error';
 
@@ -181,23 +181,23 @@ export function CameraPublisher({ whipUrl, publish, onStatusChange, style }: Pro
       <VideoTag ref={videoRef} style={styles.video as any} playsInline autoPlay muted />
       {error ? (
         <View style={styles.errorOverlay}>
-          <Ionicons name="alert-circle" size={26} color="#fff" />
+          <Ionicons name="alert-circle" size={26} color={onFill} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
       {publish && !error ? (
         <View style={styles.controls}>
           <Pressable style={styles.ctrlBtn} onPress={toggleMic}>
-            <Ionicons name={micOff ? 'mic-off' : 'mic'} size={18} color="#fff" />
+            <Ionicons name={micOff ? 'mic-off' : 'mic'} size={18} color={onFill} />
           </Pressable>
           <Pressable style={styles.ctrlBtn} onPress={toggleCam}>
-            <Ionicons name={camOff ? 'videocam-off' : 'videocam'} size={18} color="#fff" />
+            <Ionicons name={camOff ? 'videocam-off' : 'videocam'} size={18} color={onFill} />
           </Pressable>
           <Pressable
             style={styles.ctrlBtn}
             onPress={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))}
           >
-            <Ionicons name="camera-reverse" size={18} color="#fff" />
+            <Ionicons name="camera-reverse" size={18} color={onFill} />
           </Pressable>
         </View>
       ) : null}
@@ -206,7 +206,7 @@ export function CameraPublisher({ whipUrl, publish, onStatusChange, style }: Pro
 }
 
 const useStyles = makeStyles((c) => ({
-  wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: '#000' },
+  wrap: { aspectRatio: 16 / 9, borderRadius: 12, overflow: 'hidden', backgroundColor: onMedia.black },
   video: { width: '100%', height: '100%', objectFit: 'cover', border: 0 } as any,
   errorOverlay: {
     ...StyleSheet.absoluteFill,
@@ -216,7 +216,7 @@ const useStyles = makeStyles((c) => ({
     padding: 24,
     backgroundColor: 'rgba(0,0,0,0.7)',
   },
-  errorText: { color: '#fff', fontSize: 13, textAlign: 'center' },
+  errorText: { color: c.textOnPrimary, fontSize: 13, textAlign: 'center' },
   controls: {
     position: 'absolute',
     bottom: 10,

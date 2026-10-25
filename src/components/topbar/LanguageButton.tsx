@@ -3,14 +3,14 @@ import { Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
 import { useLanguage } from '@/store/language';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
 /**
  * TopBar Language Button: A sleek, elevated chip matching the CurrencyButton.
  * Uses a globe map icon and active language code (EN, FR, ES) to open
  * the LanguageSelectorSheet from any screen.
  */
-export function LanguageButton({ compact }: { compact?: boolean } = {}) {
+export function LanguageButton({ compact, inPill }: { compact?: boolean; inPill?: boolean } = {}) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -23,13 +23,13 @@ export function LanguageButton({ compact }: { compact?: boolean } = {}) {
         accessibilityRole="button"
         accessibilityLabel={`${t('languageSheetTitle')}: ${language.toUpperCase()}. ${t('selectLanguage')}`}
         style={({ pressed }) => [
-          styles.chip,
-          compact && styles.chipCompact,
+          inPill ? styles.half : styles.chip,
+          !inPill && compact && styles.chipCompact,
           pressed && styles.pressed,
         ]}
       >
-        <Ionicons name="globe-outline" size={16} color={colors.primary} />
-        <Text style={styles.code}>{language.toUpperCase()}</Text>
+        {inPill ? null : <Ionicons name="globe-outline" size={16} color={colors.primary} />}
+        <Text style={[styles.code, inPill && styles.codePill]}>{language.toUpperCase()}</Text>
       </Pressable>
 
       <LanguageSelectorSheet
@@ -58,6 +58,9 @@ const useStyles = makeStyles((c, e) => ({
     minWidth: 34,
     paddingHorizontal: spacing.xs + 2,
   },
+  /** One half of the top bar's "RWF · EN" glass pill: the pill draws the glass, this is the target. */
+  half: { minHeight: 44, minWidth: 36, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
+  codePill: { fontFamily: fonts.semibold, fontSize: 13, fontWeight: undefined, letterSpacing: 0.4 },
   pressed: {
     opacity: 0.85,
     transform: [{ scale: 0.97 }],

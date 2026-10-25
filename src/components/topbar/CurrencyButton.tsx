@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { Pressable, Text } from 'react-native';
 import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { useCurrency } from '@/store/currency';
-import { fontSize, fontWeight, makeStyles, radii, spacing } from '@/theme';
+import { fonts, fontSize, fontWeight, makeStyles, radii, spacing } from '@/theme';
 
 const flagUri = (flag: string) => `https://flagcdn.com/w40/${flag}.png`;
 
@@ -11,7 +11,7 @@ const flagUri = (flag: string) => `https://flagcdn.com/w40/${flag}.png`;
  * Display-currency selector button. A compact flag + code chip opens the
  * CurrencySelectorSheet listing all available currencies.
  */
-export function CurrencyButton({ compact, bar }: { compact?: boolean; bar?: boolean } = {}) {
+export function CurrencyButton({ compact, bar, inPill }: { compact?: boolean; bar?: boolean; inPill?: boolean } = {}) {
   const styles = useStyles();
   const [open, setOpen] = useState(false);
   const currency = useCurrency((s) => s.currency);
@@ -25,20 +25,20 @@ export function CurrencyButton({ compact, bar }: { compact?: boolean; bar?: bool
         accessibilityRole="button"
         accessibilityLabel={`Display currency ${currency}. Change currency`}
         style={({ pressed }) => [
-          styles.chip,
-          compact && styles.chipCompact,
-          bar && styles.chipBar,
+          inPill ? styles.half : styles.chip,
+          !inPill && compact && styles.chipCompact,
+          !inPill && bar && styles.chipBar,
           pressed && styles.pressed,
         ]}
       >
-        {current ? (
+        {current && !inPill ? (
           <Image
             source={{ uri: flagUri(current.flag) }}
             style={styles.flag}
             contentFit="cover"
           />
         ) : null}
-        <Text style={styles.code}>{currency}</Text>
+        <Text style={[styles.code, inPill && styles.codePill]}>{currency}</Text>
       </Pressable>
 
       <CurrencySelectorSheet visible={open} onClose={() => setOpen(false)} />
@@ -73,6 +73,9 @@ const useStyles = makeStyles((c, e) => ({
     shadowOpacity: 0,
     elevation: 0,
   },
+  /** One half of the top bar's "RWF · EN" glass pill. */
+  half: { minHeight: 44, minWidth: 40, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
+  codePill: { fontFamily: fonts.semibold, fontSize: 13, fontWeight: undefined, letterSpacing: 0.4 },
   pressed: {
     opacity: 0.85,
   },

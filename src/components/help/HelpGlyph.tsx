@@ -1,3 +1,5 @@
+import { illustration, onFill } from '@/theme';
+import { View } from 'react-native';
 /**
  * The Help button's icon: a filled speech bubble with three dots and an outlined bubble behind it, both in the same
  * cyan-to-blue gradient. Drawn with react-native-svg so it stays sharp at any size and needs no image file. Decoration
@@ -5,7 +7,7 @@
  */
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
-export const HELP_GLYPH_COLORS = { from: '#00E5FF', to: '#0A22FF' } as const;
+export const HELP_GLYPH_COLORS = illustration.help;
 
 // Drawn on a 512 grid, like the artwork it follows.
 const BUBBLE =
@@ -15,7 +17,9 @@ const OUTLINE =
 
 export function HelpGlyph({ size = 30 }: { size?: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 512 512" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" testID="help-glyph">
+    // Hidden from screen readers on a View: react-native-svg passes these props to the DOM on web, where they are invalid.
+    <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Svg width={size} height={size} viewBox="0 0 512 512" testID="help-glyph">
       <Defs>
         <LinearGradient id="hg" gradientUnits="userSpaceOnUse" x1="22" y1="32" x2="480" y2="470">
           <Stop offset="0" stopColor={HELP_GLYPH_COLORS.from} />
@@ -24,9 +28,10 @@ export function HelpGlyph({ size = 30 }: { size?: number }) {
       </Defs>
       <Path d={OUTLINE} stroke="url(#hg)" strokeWidth={26} strokeLinecap="round" strokeLinejoin="round" fill="none" />
       <Path d={BUBBLE} fill="url(#hg)" />
-      <Circle cx="106" cy="182" r="32" fill="#FFFFFF" />
-      <Circle cx="213" cy="182" r="32" fill="#FFFFFF" />
-      <Circle cx="320" cy="182" r="32" fill="#FFFFFF" />
+      <Circle cx="106" cy="182" r="32" fill={onFill} />
+      <Circle cx="213" cy="182" r="32" fill={onFill} />
+      <Circle cx="320" cy="182" r="32" fill={onFill} />
     </Svg>
+    </View>
   );
 }
