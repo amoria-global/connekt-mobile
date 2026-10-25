@@ -89,6 +89,21 @@ describe('mandatory update prompt', () => {
     expect(pressables[0].props.accessibilityLabel).toBe('Update now');
   });
 
+  it('lists what is new from the update manifest above the button', async () => {
+    const manifest = {
+      extra: { expoClient: { extra: { releaseNotes: { releases: [{ id: 'r1', date: '2026-10-25', title: 'Compact Glass', items: [{ title: 'Tighter screens', body: 'Home fits more on one screen.', icon: 'phone-portrait-outline' }] }] } } } },
+    };
+    mockCheck.mockResolvedValue({ isAvailable: true, manifest });
+    mockFetch.mockResolvedValue({ isNew: true });
+    const r = await mount();
+    const t = text(r.root);
+    expect(t).toContain('1 change');
+    expect(t).toContain('Compact Glass');
+    expect(t).toContain('Tighter screens');
+    expect(t).toContain('Home fits more on one screen.');
+    expect(t).toContain('Update now');
+  });
+
   it('shows the glowing arrow-into-tray icon while updating, and no stars or sparkles', async () => {
     mockCheck.mockResolvedValue({ isAvailable: true });
     mockFetch.mockResolvedValue({ isNew: true });

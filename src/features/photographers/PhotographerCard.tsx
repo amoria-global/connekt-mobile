@@ -310,7 +310,7 @@ const useStyles = makeStyles((c, e) => ({
   // Details
   detailsContainer: {
     padding: spacing.md,
-    paddingTop: 24,
+    paddingTop: 30,
     gap: 3,
   },
   name: {
@@ -451,4 +451,6 @@ const useStyles = makeStyles((c, e) => ({
     fontFamily: fonts.bold,
     fontSize: 10.5,
   },
-}));
+  // This card is already sized for density and its avatar is pinned to the cover edge by pixels, so the
+  // Compact Glass pass must not shrink the padding the avatar's overhang depends on.
+}), { compact: false });
