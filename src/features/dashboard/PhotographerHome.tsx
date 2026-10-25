@@ -95,6 +95,8 @@ import { useTabBarClearance } from '@/hooks/useScrollClearance';
 const LEDGER_CURRENCY = 'USD';
 const OPPORTUNITY_POLL_MS = 6000;
 const PREVIEW_LIMIT = 6;
+/** Compact Glass: Home previews the next shoot in full and two more as rows (one at ROW_PREVIEW 3 plus the card); See all has the rest. */
+const ROW_PREVIEW = 3;
 /** Stable fallback so `data ?? EMPTY` does not give memo hooks a new array every render. */
 const EMPTY: never[] = [];
 
@@ -503,7 +505,7 @@ export function PhotographerHome() {
         ) : events.loading && !events.data ? (
           <SkeletonCard height={150} />
         ) : comingUp.length === 0 ? (
-          <EmptyNote
+          <EmptyNote compact
             icon="calendar-outline"
             title="No upcoming shoots"
             body="Create an event or share your profile to get booked."
@@ -529,7 +531,7 @@ export function PhotographerHome() {
                   : undefined
               }
             />
-            {comingUp.slice(1, PREVIEW_LIMIT).map((e) => (
+            {comingUp.slice(1, ROW_PREVIEW).map((e) => (
               <ShootRow
                 key={String(e.id)}
                 date={shootDate(e)}
@@ -544,7 +546,7 @@ export function PhotographerHome() {
         {/* 6. Business overview */}
         <SectionHeader
           title="Business overview"
-          subtitle="Lifetime figures. Pick a period on Analytics."
+          subtitle="Lifetime figures"
           actionLabel="View analytics"
           onAction={() => open('/analytics')}
         />
@@ -582,7 +584,7 @@ export function PhotographerHome() {
         ) : transactions.loading && !transactions.data ? (
           <SkeletonCard height={120} />
         ) : (transactions.data ?? []).length === 0 ? (
-          <EmptyNote
+          <EmptyNote compact
             icon="cash-outline"
             title="No earnings yet"
             body="Payments from bookings and deliveries will appear here."

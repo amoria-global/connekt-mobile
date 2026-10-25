@@ -579,7 +579,7 @@ export const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   sectionHeaderText: { flex: 1, minWidth: 0, gap: 2 },
