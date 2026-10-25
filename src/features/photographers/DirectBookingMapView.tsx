@@ -142,7 +142,7 @@ export function DirectBookingMapView({
     const tileTheme = isDark
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    const bgColor = isDark ? '#0A0F1D' : colors.surfaceMuted;
+    const bgColor = isDark ? colors.background : colors.surfaceMuted;
     const primaryColor = colors.primary;
     const accentColor = colors.accent;
 

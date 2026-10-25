@@ -12,7 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { fonts, fontSize, makeStyles, spacing, useTheme } from '@/theme';
+import { fonts, fontSize, makeStyles, spacing, useTheme, nativeSplash } from '@/theme';
 
 const LOGO = require('../../../assets/images/logo.png');
 const SPLASH_LIGHT = require('../../../assets/splash.mp4');
@@ -172,7 +172,7 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
       <Pressable
         style={[
           styles.container,
-          { backgroundColor: isDark ? '#0E1117' : colors.card },
+          { backgroundColor: isDark ? nativeSplash : colors.card },
         ]}
         onPress={handleFinish}
         accessibilityRole="progressbar"
@@ -201,7 +201,7 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
               <Text
                 style={[
                   styles.wordmark,
-                  { color: isDark ? colors.text : '#0F1217' },
+                  { color: colors.text },
                   fontsLoaded ? { fontFamily: fonts.bold } : { fontWeight: '700' },
                 ]}
               >
@@ -222,7 +222,7 @@ export function AppPreloader({ fontsLoaded = false, message, onFinish }: AppPrel
 
         {/* Sleek branded progress track at the bottom */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.xl }]}>
-          <View style={[styles.track, { backgroundColor: isDark ? colors.border : '#E6E7EC' }]}>
+          <View style={[styles.track, { backgroundColor: isDark ? colors.border : colors.borderSoft }]}>
             <Animated.View
               style={[
                 styles.bar,

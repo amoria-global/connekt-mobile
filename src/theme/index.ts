@@ -141,7 +141,7 @@ export const glowRgb = { primary: '62,111,216', accent: '238,14,143', live: '34,
 
 export { motion, useReducedMotion } from './motion';
 export { studioTokens, viewerTokens } from './media';
-export { brandMarks, illustration, liveFill, onboardingScrims } from './brand';
+export { brandMarks, illustration, instagramRing, liveFill, midTones, nativeSplash, onboardingScrims, verifiedAvatar } from './brand';
 
 export const theme = { colors, gradients, spacing, radii, fontSize, fontWeight, fonts };
 export type Theme = typeof theme;

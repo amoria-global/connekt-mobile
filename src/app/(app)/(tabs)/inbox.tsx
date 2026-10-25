@@ -543,7 +543,7 @@ export default function InboxScreen() {
                               {item.name}
                             </Text>
                             {item.isVerified ? (
-                              <Ionicons name="checkmark-circle" size={13} color="#3B82F6" />
+                              <Ionicons name="checkmark-circle" size={13} color={colors.primary} />
                             ) : null}
                           </View>
                           <Text style={styles.contactCategory} numberOfLines={1}>

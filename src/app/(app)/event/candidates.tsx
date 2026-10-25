@@ -142,7 +142,7 @@ export default function EventCandidatesScreen() {
     // Someone was chosen: answers are closed because the event is booked, not because matching failed.
     content = (
       <View style={styles.empty}>
-        <View style={[styles.emptyIcon, { backgroundColor: '#D1FAE5' }]}><Ionicons name="checkmark" size={30} color="#047857" /></View>
+        <View style={[styles.emptyIcon, { backgroundColor: colors.successBg }]}><Ionicons name="checkmark" size={30} color={colors.success} /></View>
         <Text style={styles.emptyTitle}>{t('b3_cand_booked_title')}</Text>
         <Text style={[styles.hint, { textAlign: 'center' }]}>{t('b3_cand_booked_hint')}</Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' }}>
@@ -173,7 +173,7 @@ export default function EventCandidatesScreen() {
     content = (
       <View style={{ gap: spacing.md }}>
         <View style={styles.warn}>
-          <Ionicons name="hourglass-outline" size={18} color="#B45309" />
+          <Ionicons name="hourglass-outline" size={18} color={colors.pending} />
           <Text style={[styles.body, { flex: 1 }]}>
             {data.status === 'MATCHING_FAILED' ? t('b3_cand_nobody_fit') : t('b3_cand_matching_ended')} {t('b3_cand_repost_prompt')}
           </Text>
@@ -222,7 +222,7 @@ export default function EventCandidatesScreen() {
             {budget ? <Text style={styles.body}><Ionicons name="cash-outline" size={13} /> {budget}</Text> : null}
             <View style={styles.counts}>
               {([
-                [candidates.length, t('b3_cand_said_yes'), '#047857'],
+                [candidates.length, t('b3_cand_said_yes'), colors.success],
                 [data.pendingCount ?? 0, t('b3_cand_deciding'), colors.info],
                 [data.declinedCount ?? 0, t('b3_cand_passed'), colors.textMuted],
                 [(data.expiredCount ?? 0) + (data.noLongerAvailableCount ?? 0), t('b3_cand_missed_it'), colors.textMuted],
@@ -257,7 +257,7 @@ export default function EventCandidatesScreen() {
                 </Pressable>
               ))}
             </View>
-            <Text style={styles.hint}><Ionicons name="shield-checkmark" size={12} color="#047857" /> {t('b3_cand_escrow_note')}</Text>
+            <Text style={styles.hint}><Ionicons name="shield-checkmark" size={12} color={colors.success} /> {t('b3_cand_escrow_note')}</Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <Pressable onPress={() => setChoosing(null)} disabled={submitting} style={styles.secondary} accessibilityRole="button"><Text style={styles.secondaryText}>{t('b3_conv_cancel')}</Text></Pressable>
               <Pressable onPress={confirmChoice} disabled={submitting} style={styles.primary} accessibilityRole="button">

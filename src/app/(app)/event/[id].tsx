@@ -34,7 +34,7 @@ import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill, swatch, type SwatchTone, onMedia } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import type { EventItem } from '@/features/events/types';
 import { useCurrency } from '@/store/currency';
@@ -1134,7 +1134,7 @@ const useStyles = makeStyles((c) => ({
     height: 210,
     borderRadius: radii.xl,
     overflow: 'hidden',
-    backgroundColor: '#0B1B34',
+    backgroundColor: onMedia.ground,
   },
   heroFallback: { alignItems: 'center', justifyContent: 'center' },
   heroPills: { position: 'absolute', top: spacing.md, left: spacing.md, flexDirection: 'row', gap: 8 },

@@ -36,7 +36,7 @@ import { isEventLive, type PublicEvent } from '@/features/events/types';
 import { storage } from '@/services/storage';
 import { formatDate } from '@/utils/format';
 import { EVENT_COVER_PLACEHOLDER, PHOTOGRAPHER_COVER_PLACEHOLDER } from '@/utils/placeholders';
-import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme, onFill, type Palette } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { GlassSurface, glassTile } from '@/components/ui/GlassCard';
 import { glassField } from '@/components/ui/GlassModal';
@@ -44,18 +44,18 @@ import { glassField } from '@/components/ui/GlassModal';
 const RECENT_SEARCHES_KEY = 'connekt.global_search_recents';
 
 /** Decorative only: each category gets the next of these, by position. The names come from the backend. */
-const STYLE_LOOKS: { icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
-  { icon: 'heart', color: '#F20C8F' },
-  { icon: 'person', color: '#3B82F6' },
-  { icon: 'calendar', color: '#0EA5E9' },
-  { icon: 'gift', color: '#F59E0B' },
-  { icon: 'camera', color: '#10B981' },
-  { icon: 'shirt-outline', color: '#8B5CF6' },
-  { icon: 'school-outline', color: '#EC4899' },
-  { icon: 'people-outline', color: '#14B8A6' },
-  { icon: 'briefcase-outline', color: '#64748B' },
+const STYLE_LOOKS: { icon: keyof typeof Ionicons.glyphMap; role: keyof Palette }[] = [
+  { icon: 'heart', role: 'accent' },
+  { icon: 'person', role: 'primary' },
+  { icon: 'calendar', role: 'live' },
+  { icon: 'gift', role: 'pending' },
+  { icon: 'camera', role: 'success' },
+  { icon: 'shirt-outline', role: 'primaryLight' },
+  { icon: 'school-outline', role: 'accent' },
+  { icon: 'people-outline', role: 'live' },
+  { icon: 'briefcase-outline', role: 'textMuted' },
 ];
-const LIVE_STYLE = { name: 'Live Streams', icon: 'videocam' as const, color: '#EF4444' };
+const LIVE_STYLE = { name: 'Live Streams', icon: 'videocam' as const, role: 'live' as keyof Palette };
 type SearchScope = 'all' | 'photographers' | 'events' | 'styles';
 
 interface GlobalSearchModalProps {
@@ -190,8 +190,12 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
   }, [photographers, query]);
 
   const popularStyles = useMemo(
-    () => [LIVE_STYLE, ...specialtyNames.map((name, i) => ({ name, ...STYLE_LOOKS[i % STYLE_LOOKS.length] }))],
-    [specialtyNames],
+    () =>
+      [LIVE_STYLE, ...specialtyNames.map((name, i) => ({ name, ...STYLE_LOOKS[i % STYLE_LOOKS.length] }))].map(({ role, ...st }) => ({
+        ...st,
+        color: colors[role],
+      })),
+    [specialtyNames, colors],
   );
 
   // Filter styles/categories
@@ -457,7 +461,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                             <Text style={styles.resultTitle} numberOfLines={2}>
                               {p.name}
                             </Text>
-                            <Ionicons name="checkmark-circle" size={14} color="#3B82F6" />
+                            <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
                           </View>
                           <Text style={styles.resultSub} numberOfLines={2}>
                             {[p.category, p.location].filter(Boolean).join(' · ')}
@@ -466,7 +470,7 @@ export function GlobalSearchModal({ visible, onClose, initialQuery = '' }: Globa
                         <View style={styles.resultMeta}>
                           {p.rating ? (
                             <View style={styles.ratingChip}>
-                              <Ionicons name="star" size={10} color="#FBBF24" />
+                              <Ionicons name="star" size={10} color={colors.pending} />
                               <Text style={styles.ratingChipText}>{p.rating.toFixed(1)}</Text>
                             </View>
                           ) : null}

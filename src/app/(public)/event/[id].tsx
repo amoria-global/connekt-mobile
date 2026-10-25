@@ -772,7 +772,7 @@ export default function PublicEventDetailScreen() {
               <Ionicons
                 name={isSaved ? 'bookmark' : 'bookmark-outline'}
                 size={19}
-                color={isSaved ? '#F59E0B' : colors.text}
+                color={isSaved ? colors.pending : colors.text}
               />
             </Pressable>
           </View>
@@ -1233,7 +1233,7 @@ export default function PublicEventDetailScreen() {
           accessibilityLiveRegion="polite"
           style={{ position: 'absolute', left: 16, right: 16, bottom: Math.max(insets.bottom, 16) + 84, alignItems: 'center' }}
         >
-          <View style={{ backgroundColor: '#0F172A', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 }}>
+          <View style={{ backgroundColor: colors.text, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 }}>
             <Text style={{ color: onFill, fontWeight: '600', fontSize: 14, textAlign: 'center' }}>
               {reminderNote ?? reminderError}
             </Text>

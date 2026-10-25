@@ -1,4 +1,4 @@
-import { onFill } from '@/theme';
+import { onFill, onMedia } from '@/theme';
 import { FindPhotosBottomSheet } from "@/components/FindPhotosBottomSheet";
 import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
 import { MODE_META } from '@/features/hybrid/hybridUi';
@@ -513,7 +513,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.lg,
     overflow: "hidden",
     justifyContent: "flex-end",
-    backgroundColor: "#0A1428",
+    backgroundColor: onMedia.ground,
     // A glass rim, so the media reads as set into the photo, not pasted on.
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.28)",

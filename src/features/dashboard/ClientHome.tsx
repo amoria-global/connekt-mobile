@@ -90,7 +90,7 @@ import {
 import { useCurrency } from '@/store/currency';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { formatDate } from '@/utils/format';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { makeStyles, radii, spacing, useTheme, type Palette } from '@/theme';
 import { DashboardGreeting } from './DashboardGreeting';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 
@@ -100,14 +100,14 @@ import { useTabBarClearance } from '@/hooks/useScrollClearance';
  * Money is labelled in the wallet currency, as the old Home did; the trends and performance sums are not converted
  * server side for spend, so this is the wallet's own currency and N/A until the wallet has loaded.
  */
-const CLIENT_WAVE_METRICS: Record<string, WaveMetricMeta> = {
+const CLIENT_WAVE_METRICS = (c: Palette): Record<string, WaveMetricMeta> => ({
   totalSpent: {
     title: 'TOTAL SPENT',
     shortTitle: 'Spent',
     unit: 'USD',
     icon: 'wallet-outline',
-    color: '#00E5FF',
-    accentGlow: '#00E5FF',
+    color: c.live,
+    accentGlow: c.live,
     isMoney: true,
     series: 'value1',
     trendKeys: ['totalSpent'],
@@ -117,13 +117,12 @@ const CLIENT_WAVE_METRICS: Record<string, WaveMetricMeta> = {
     shortTitle: 'Events',
     unit: 'Events',
     icon: 'calendar-outline',
-    color: '#38BDF8',
-    accentGlow: '#38BDF8',
+    color: c.live,
+    accentGlow: c.live,
     isMoney: false,
     series: 'value2',
     trendKeys: ['events'],
-  },
-};
+  },});
 
 const PREVIEW_LIMIT = 6;
 const ACTIVITY_LIMIT = 4;
@@ -549,7 +548,7 @@ export function ClientHome() {
         <View style={styles.wave}>
           <PerformanceWaveCard
             analytics={{ totalSpent: walletStats?.hero.value, totalEvents: analytics.data?.totalEvents }}
-            metrics={CLIENT_WAVE_METRICS}
+            metrics={CLIENT_WAVE_METRICS(colors)}
             trends={trendsState.data ?? NO_TRENDS}
             period={period}
             onPeriodChange={setPeriod}

@@ -41,7 +41,7 @@ import type { CustomerType } from '@/features/auth/types';
 import { InviteNotice } from '@/features/workspace/InviteNotice';
 import { useInvitePlan } from '@/features/workspace/useInvitePlan';
 import { isApiError } from '@/store/auth';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, type Palette } from '@/theme';
 
 const schema = z
   .object({
@@ -80,7 +80,6 @@ type Checks = {
   longer: boolean;
   score: number;
   label: string;
-  color: string;
   strongEnough: boolean;
 };
 
@@ -108,13 +107,12 @@ function checkPassword(pwd: string): Checks {
   else if (requiredScore < 4) score = Math.min(2, requiredScore);
   else score = Math.min(4, 2 + bonusScore);
 
-  // Web's exact labels/colours, including 'Too weak' at 1 and #3b82f6 at 3.
+  // Web's exact labels, including 'Too weak' at 1; the colours follow the score (strengthColor).
   const label = ['', 'Too weak', 'Fair', 'Good', 'Strong'][score];
-  const color = ['#e5e7eb', '#dc2626', '#f59e0b', '#3b82f6', '#10b981'][score];
 
   const allRequiredMet = requiredScore === 4;
   const strongEnough = allRequiredMet && score >= 3;
-  return { lengthOk, hasLetter, hasDigit, hasSpecial, mixedCase, longer, score, label, color, strongEnough };
+  return { lengthOk, hasLetter, hasDigit, hasSpecial, mixedCase, longer, score, label, strongEnough };
 }
 
 export default function SignupScreen() {
@@ -530,8 +528,12 @@ function Field({
 
 // ────── Strength meter (web parity: login.tsx:1137-1178) ────────────────
 
+/** Red, amber, blue, green as the password strengthens: the palette roles for the web's four colours. */
+const strengthColor = (c: Palette, score: number) => [c.surfaceMuted, c.error, c.pending, c.primary, c.success][score];
+
 function StrengthMeter({ checks }: { checks: Checks }) {
   const { colors } = useTheme();
+  const color = strengthColor(colors, checks.score);
   const styles = useStyles();
   return (
     <View style={styles.strengthWrap}>
@@ -542,13 +544,13 @@ function StrengthMeter({ checks }: { checks: Checks }) {
             style={[
               styles.strengthSeg,
               {
-                backgroundColor: checks.score >= seg ? checks.color : colors.surfaceMuted,
+                backgroundColor: checks.score >= seg ? color : colors.surfaceMuted,
               },
             ]}
           />
         ))}
       </View>
-      <Text style={[styles.strengthLabel, { color: checks.color }]}>{checks.label}</Text>
+      <Text style={[styles.strengthLabel, { color }]}>{checks.label}</Text>
       <View style={styles.checklist}>
         <Bullet ok={checks.lengthOk} label="At least 8 characters" />
         <Bullet ok={checks.hasLetter} label="Contains a letter" />
@@ -572,12 +574,12 @@ function Bullet({ ok, label, bonus }: { ok: boolean; label: string; bonus?: bool
       <Ionicons
         name={ok ? 'checkmark-circle' : 'ellipse-outline'}
         size={12}
-        color={ok ? '#10b981' : bonus ? colors.textMuted : colors.textSoft}
+        color={ok ? colors.success : bonus ? colors.textMuted : colors.textSoft}
       />
       <Text
         style={[
           styles.bulletText,
-          { color: ok ? '#10b981' : bonus ? colors.textMuted : colors.textSoft },
+          { color: ok ? colors.success : bonus ? colors.textMuted : colors.textSoft },
         ]}
       >
         {label}
@@ -590,20 +592,21 @@ function Bullet({ ok, label, bonus }: { ok: boolean; label: string; bonus?: bool
 
 function MatchIndicator({ matches, strongEnough }: { matches: boolean; strongEnough: boolean }) {
   const styles = useStyles();
+  const { colors } = useTheme();
   const { t } = useLanguage();
   if (matches && strongEnough) {
     return (
       <View style={styles.matchRow}>
-        <Ionicons name="checkmark-circle" size={12} color="#10b981" />
-        <Text style={[styles.matchText, { color: '#10b981' }]}>{t('passwordsMatch')}</Text>
+        <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+        <Text style={[styles.matchText, { color: colors.success }]}>{t('passwordsMatch')}</Text>
       </View>
     );
   }
   if (!matches) {
     return (
       <View style={styles.matchRow}>
-        <Ionicons name="alert-circle" size={12} color="#dc2626" />
-        <Text style={[styles.matchText, { color: '#dc2626' }]}>{t('passwordsDontMatch')}</Text>
+        <Ionicons name="alert-circle" size={12} color={colors.error} />
+        <Text style={[styles.matchText, { color: colors.error }]}>{t('passwordsDontMatch')}</Text>
       </View>
     );
   }

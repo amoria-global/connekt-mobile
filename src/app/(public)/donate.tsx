@@ -499,7 +499,7 @@ export default function PublicDonateScreen() {
         <View style={styles.compactHero}>
           <View style={styles.compactHeroLeft}>
             <View style={styles.compactHeartCircle}>
-              <Ionicons name="heart" size={16} color="#E11D48" />
+              <Ionicons name="heart" size={16} color={colors.error} />
             </View>
             <View style={styles.compactHeroInfo}>
               <Text style={styles.compactHeroTitle} numberOfLines={2}>
@@ -1017,7 +1017,7 @@ const useStyles = makeStyles((c, e) => ({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#FFE4E6',
+    backgroundColor: c.tintAccent,
     alignItems: 'center',
     justifyContent: 'center',
   },

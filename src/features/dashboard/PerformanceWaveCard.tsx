@@ -4,7 +4,7 @@
  * (https://www.pinterest.com/pin/299067231493891387/)
  *
  * Visual highlights from reference:
- *   1. Midnight slate/navy card container (#070D18) with subtle high-contrast border (#1E293B).
+ *   1. Midnight card container (the dark palette background) with a hairline border, always dark.
  *   2. Header with uppercase metric label ("ENERGY - (km)" in ref -> "PRODUCTION WAVE METRICS").
  *   3. Organic rolling cyan/teal gradient wave swells underneath the curve.
  *   4. Crisp white bezier trend curve traversing 6 temporal data points.
@@ -35,7 +35,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
-import { fonts, fontSize, fontWeight, radii, spacing, useTheme, onFill } from '@/theme';
+import { fonts, fontSize, fontWeight, radii, spacing, useTheme, onFill, darkPalette, liveFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { HIDDEN_AMOUNT } from '@/features/photographer/money';
@@ -101,8 +101,8 @@ export const METRICS_META: Record<MetricKey, WaveMetricMeta> = {
     shortTitle: 'Revenue',
     unit: 'USD',
     icon: 'cash-outline',
-    color: '#00E5FF',
-    accentGlow: '#00E5FF',
+    color: darkPalette.live,
+    accentGlow: darkPalette.live,
     isMoney: true,
     series: 'value1',
     trendKeys: ['totalRevenue', 'revenue'],
@@ -112,8 +112,8 @@ export const METRICS_META: Record<MetricKey, WaveMetricMeta> = {
     shortTitle: 'Events',
     unit: 'Productions',
     icon: 'calendar-outline',
-    color: '#38BDF8',
-    accentGlow: '#38BDF8',
+    color: darkPalette.primaryLight,
+    accentGlow: darkPalette.primaryLight,
     isMoney: false,
     series: 'value2',
     trendKeys: ['totalEvents', 'events'],
@@ -123,8 +123,8 @@ export const METRICS_META: Record<MetricKey, WaveMetricMeta> = {
     shortTitle: 'Clients',
     unit: 'Accounts',
     icon: 'people-outline',
-    color: '#10B981',
-    accentGlow: '#10B981',
+    color: darkPalette.success,
+    accentGlow: darkPalette.success,
     isMoney: false,
     trendKeys: ['totalCustomers', 'clients', 'customers'],
   },
@@ -133,8 +133,8 @@ export const METRICS_META: Record<MetricKey, WaveMetricMeta> = {
     shortTitle: 'Photographers',
     unit: 'Creators',
     icon: 'camera-outline',
-    color: '#A855F7',
-    accentGlow: '#A855F7',
+    color: darkPalette.accentLight,
+    accentGlow: darkPalette.accentLight,
     isMoney: false,
     trendKeys: ['totalPhotographers', 'photographers'],
   },
@@ -143,8 +143,8 @@ export const METRICS_META: Record<MetricKey, WaveMetricMeta> = {
     shortTitle: 'Pending',
     unit: 'USD',
     icon: 'time-outline',
-    color: '#F59E0B',
-    accentGlow: '#F59E0B',
+    color: darkPalette.pending,
+    accentGlow: darkPalette.pending,
     isMoney: true,
     trendKeys: ['totalPending', 'pending'],
   },
@@ -402,12 +402,12 @@ export function PerformanceWaveCard({
                 <Ionicons
                   name={trendDir === 'up' ? 'trending-up' : 'trending-down'}
                   size={12}
-                  color={trendDir === 'up' ? '#10B981' : '#EF4444'}
+                  color={trendDir === 'up' ? darkPalette.success : darkPalette.error}
                 />
                 <Text
                   style={[
                     styles.trendChipText,
-                    { color: trendDir === 'up' ? '#10B981' : '#EF4444' },
+                    { color: trendDir === 'up' ? darkPalette.success : darkPalette.error },
                   ]}
                 >
                   {trendPct}
@@ -465,7 +465,7 @@ export function PerformanceWaveCard({
               <Ionicons
                 name={m.icon}
                 size={11}
-                color={isSelected ? m.color : '#94A3B8'}
+                color={isSelected ? m.color : darkPalette.textMuted}
               />
               <Text
                 style={[
@@ -491,15 +491,15 @@ export function PerformanceWaveCard({
           <Defs>
             {/* Background rolling wave gradient (Cyan/Teal to Transparent) */}
             <SvgLinearGradient id="waveGlowGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#00E5FF" stopOpacity="0.55" />
-              <Stop offset="50%" stopColor="#0891B2" stopOpacity="0.25" />
-              <Stop offset="100%" stopColor="#070D18" stopOpacity="0.0" />
+              <Stop offset="0%" stopColor={darkPalette.live} stopOpacity="0.55" />
+              <Stop offset="50%" stopColor={liveFill.mid} stopOpacity="0.25" />
+              <Stop offset="100%" stopColor={darkPalette.background} stopOpacity="0.0" />
             </SvgLinearGradient>
 
             {/* Active needle gradient */}
             <SvgLinearGradient id="needleGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#00E5FF" stopOpacity="0.9" />
-              <Stop offset="100%" stopColor="#00E5FF" stopOpacity="0.3" />
+              <Stop offset="0%" stopColor={darkPalette.live} stopOpacity="0.9" />
+              <Stop offset="100%" stopColor={darkPalette.live} stopOpacity="0.3" />
             </SvgLinearGradient>
           </Defs>
 
@@ -582,7 +582,7 @@ export function PerformanceWaveCard({
                 y1={activePoint.y}
                 x2={activePoint.x}
                 y2={18}
-                stroke="#00E5FF"
+                stroke={darkPalette.live}
                 strokeWidth="1.5"
               />
 
@@ -604,7 +604,7 @@ export function PerformanceWaveCard({
                 cx={activePoint.x}
                 cy={activePoint.y}
                 r="10"
-                fill="#00E5FF"
+                fill={darkPalette.live}
                 fillOpacity="0.28"
               />
 
@@ -613,7 +613,7 @@ export function PerformanceWaveCard({
                 cx={activePoint.x}
                 cy={activePoint.y}
                 r="5.5"
-                fill="#00E5FF"
+                fill={darkPalette.live}
                 stroke={onFill}
                 strokeWidth="1.5"
               />
@@ -694,7 +694,7 @@ export function PerformanceWaveCard({
             y1="8"
             x2={SVG_WIDTH - 14}
             y2="8"
-            stroke="#1E293B"
+            stroke={darkPalette.border}
             strokeWidth="1.2"
             strokeDasharray="4, 4"
           />
@@ -708,8 +708,8 @@ export function PerformanceWaveCard({
                 cx={pt.x}
                 cy={8}
                 r={isActive ? 4 : 2.5}
-                fill={isActive ? '#00E5FF' : '#334155'}
-                stroke={isActive ? '#080E1C' : 'none'}
+                fill={isActive ? darkPalette.live : darkPalette.surfaceMuted}
+                stroke={isActive ? darkPalette.background : 'none'}
                 strokeWidth={isActive ? 1.5 : 0}
               />
             );
@@ -722,14 +722,14 @@ export function PerformanceWaveCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: '#070D18',
+    backgroundColor: darkPalette.background,
     borderRadius: radii.xl,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
-    borderColor: '#1E293B',
-    shadowColor: '#00E5FF',
+    borderColor: darkPalette.border,
+    shadowColor: darkPalette.live,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    shadowColor: '#00E5FF',
+    shadowColor: darkPalette.live,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 4,
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 9.5,
     fontWeight: fontWeight.bold,
-    color: '#94A3B8',
+    color: darkPalette.textMuted,
     letterSpacing: 0.8,
   },
   headlineRow: {
@@ -796,11 +796,11 @@ const styles = StyleSheet.create({
   },
   periodTabsWrap: {
     flexDirection: 'row',
-    backgroundColor: '#0F172A',
+    backgroundColor: darkPalette.surface,
     borderRadius: radii.full,
     padding: 2,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: darkPalette.border,
   },
   periodTab: {
     paddingHorizontal: 8,
@@ -808,13 +808,13 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
   },
   periodTabSelected: {
-    backgroundColor: '#083A85',
+    backgroundColor: darkPalette.primary,
   },
   periodTabText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
     fontWeight: fontWeight.bold,
-    color: '#64748B',
+    color: darkPalette.textMuted,
   },
   periodTabTextSelected: {
     color: onFill,
@@ -830,18 +830,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0D1527',
+    backgroundColor: darkPalette.surface,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: darkPalette.border,
   },
   metricChipText: {
     fontFamily: fonts.bold,
     fontSize: 10,
     fontWeight: fontWeight.medium,
-    color: '#94A3B8',
+    color: darkPalette.textMuted,
   },
   canvasContainer: {
     width: '100%',
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
   noSeries: {
     position: 'absolute',
     top: 60,
-    color: '#94A3B8',
+    color: darkPalette.textMuted,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -874,10 +874,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 11,
     fontWeight: fontWeight.bold,
-    color: '#64748B',
+    color: darkPalette.textMuted,
   },
   dateTextActive: {
-    color: '#00E5FF',
+    color: darkPalette.live,
     textShadowColor: 'rgba(0, 229, 255, 0.4)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 6,

@@ -451,7 +451,7 @@ export default function NewAlbumScreen() {
               <Text style={styles.noteText}>
                 Personal albums can be <Text style={styles.bold}>{trAlb('PAID')}</Text> with facial
                 recognition search, or{' '}
-                <Text style={[styles.bold, { color: '#059669' }]}>{trAlb('FREE')}</Text> with private email
+                <Text style={[styles.bold, { color: colors.success }]}>{trAlb('FREE')}</Text> with private email
                 invite access.
               </Text>
             </View>
@@ -575,7 +575,7 @@ export default function NewAlbumScreen() {
             ) : (
               <>
                 <View style={[styles.detailNote, styles.detailNoteFree]}>
-                  <Text style={[styles.detailNoteTitle, { color: '#059669' }]}>
+                  <Text style={[styles.detailNoteTitle, { color: colors.success }]}>
                     {trAlb('FREE Album Details')}
                   </Text>
                   <Text style={styles.detailNoteText}>{trAlb('• NOT indexed on public face search')}</Text>

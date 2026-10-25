@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, brandMarks } from '@/theme';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { bookingsApi } from '@/api/endpoints/bookings';
 import { useAuth, isApiError } from '@/store/auth';
@@ -526,7 +526,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   themeVariant={isDark ? 'dark' : 'light'}
                   isDarkModeEnabled={isDark}
-                  textColor={isDark ? onFill : '#000000'}
+                  textColor={isDark ? onFill : brandMarks.appleBlack}
                   minimumDate={new Date()}
                   onConfirm={(selectedDate) => {
                     setShowDatePicker(false);
@@ -770,7 +770,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     themeVariant={isDark ? 'dark' : 'light'}
                     isDarkModeEnabled={isDark}
-                    textColor={isDark ? onFill : '#000000'}
+                    textColor={isDark ? onFill : brandMarks.appleBlack}
                     minimumDate={date && new Date().toDateString() === date.toDateString() ? new Date() : undefined}
                     onConfirm={(selectedTime) => {
                       setShowStartTimePicker(false);
@@ -796,7 +796,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     themeVariant={isDark ? 'dark' : 'light'}
                     isDarkModeEnabled={isDark}
-                    textColor={isDark ? onFill : '#000000'}
+                    textColor={isDark ? onFill : brandMarks.appleBlack}
                     date={endTime || (startTime ? new Date(startTime.getTime() + 15 * 60000) : new Date())}
                     onConfirm={(selectedTime) => {
                       setShowEndTimePicker(false);

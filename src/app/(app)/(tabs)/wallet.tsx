@@ -428,7 +428,7 @@ export default function WalletScreen() {
               <Text style={styles.sectionTitle}>{isClient ? 'Spending breakdown' : isCoordinator ? 'Balance breakdown' : 'Earnings breakdown'}</Text>
               <View style={styles.rowsCard}>
                 {visibleCards.map((card, i) => {
-                  const p = PALETTE[card.color] ?? PALETTE.neutral;
+                  const p = PALETTE(colors)[card.color] ?? PALETTE(colors).neutral;
                   return (
                     <View
                       key={card.label}
@@ -488,7 +488,7 @@ export default function WalletScreen() {
                 ) : (
                   <View style={styles.rowsCard}>
                     {recentItems.map((item, i) => {
-                      const palette = COLOR_MAP[item.color] ?? COLOR_MAP.neutral;
+                      const palette = COLOR_MAP(colors)[item.color] ?? COLOR_MAP(colors).neutral;
                       const isIn = item.direction === 'in';
                       const amount = balanceHidden
                         ? `${isIn ? '+' : '−'}••••`
@@ -555,7 +555,7 @@ export default function WalletScreen() {
               </Text>
               <View style={styles.potGrid}>
                 {visibleCards.map((card) => {
-                  const p = PALETTE[card.color] ?? PALETTE.neutral;
+                  const p = PALETTE(colors)[card.color] ?? PALETTE(colors).neutral;
                   return (
                     <View key={card.label} style={styles.potCard}>
                       <View style={styles.potHeader}>
@@ -681,10 +681,10 @@ export default function WalletScreen() {
               <>
                 <View style={styles.activityCardGroup}>
                   {paginatedActivityItems.map((item, idx) => {
-                    const palette = COLOR_MAP[item.color] ?? COLOR_MAP.neutral;
+                    const palette = COLOR_MAP(colors)[item.color] ?? COLOR_MAP(colors).neutral;
                     const isIn = item.direction === 'in';
                     const sign = isIn ? '+' : '−';
-                    const amountColor = isIn ? '#10B981' : colors.text;
+                    const amountColor = isIn ? colors.success : colors.text;
                     const timeStr = formatRelativeTime(item.timestamp);
                     const isLast = idx === paginatedActivityItems.length - 1;
 
@@ -861,7 +861,7 @@ export default function WalletScreen() {
                   <Text
                     style={[
                       styles.modalHeroAmount,
-                      { color: selectedItem.direction === 'in' ? '#10B981' : colors.text },
+                      { color: selectedItem.direction === 'in' ? colors.success : colors.text },
                     ]}
                   >
                     {selectedItem.direction === 'in' ? '+' : '−'}
@@ -879,7 +879,7 @@ export default function WalletScreen() {
                         styles.tagBadge,
                         {
                           backgroundColor:
-                            COLOR_MAP[selectedItem.color]?.bg ?? COLOR_MAP.neutral.bg,
+                            COLOR_MAP(colors)[selectedItem.color]?.bg ?? COLOR_MAP(colors).neutral.bg,
                         },
                       ]}
                     >
@@ -888,7 +888,7 @@ export default function WalletScreen() {
                           styles.tagBadgeText,
                           {
                             color:
-                              COLOR_MAP[selectedItem.color]?.text ?? COLOR_MAP.neutral.text,
+                              COLOR_MAP(colors)[selectedItem.color]?.text ?? COLOR_MAP(colors).neutral.text,
                           },
                         ]}
                       >

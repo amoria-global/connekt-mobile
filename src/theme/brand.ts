@@ -13,6 +13,9 @@ export const brandMarks = {
   airtel: '#ED1C24',
 } as const;
 
+/** The verified avatar, kept identical to the web (`.ph-avatar-verif`): seal blue and the empty-avatar greys. */
+export const verifiedAvatar = { seal: '#3B82F6', emptyBg: '#CBD5E1', emptyText: '#334155' } as const;
+
 /**
  * Live is cyan in Midnight Glass. The fill runs light to deep, and the middle stop, where a
  * label sits, carries white text at 4.8:1.
@@ -33,3 +36,15 @@ export const onboardingScrims = {
   navy: ['#1E3A8A', '#062B63'] as const,
   night: ['#000000', '#03122B'] as const,
 } as const;
+
+/**
+ * Mid tones for module-level labels and icons that sit on both schemes (booking modes, match
+ * tiers, contribution bars): each clears 3:1 on white and on the Midnight ground.
+ */
+export const midTones = { blue: '#3E6FD8', magenta: '#EE0E8F', green: '#1F9D57', orange: '#D9621A', slate: '#93A3BE' } as const;
+
+/** The native splash colour (app.json); the preloader continues it, so it stays exact. */
+export const nativeSplash = '#0E1117';
+
+/** Instagram's story ring, drawn in its owner's colours. */
+export const instagramRing = ['#F58529', '#DD2A7B', '#8134AF', '#F58529'] as const;

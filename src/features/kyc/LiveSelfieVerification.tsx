@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill, onMedia } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { logKycEvent } from './livenessEngine';
 
@@ -312,7 +312,7 @@ export function LiveSelfieVerification({
     return (
       <View style={styles.reviewContainer}>
         <View style={styles.verifiedPill}>
-          <Ionicons name="camera" size={16} color="#10B981" />
+          <Ionicons name="camera" size={16} color={colors.success} />
           <Text style={styles.verifiedPillText}>{tr('Selfie Captured')}</Text>
         </View>
 
@@ -449,13 +449,13 @@ const useStyles = makeStyles((c, e) => ({
     minHeight: 460,
     borderRadius: radii.xl,
     overflow: 'hidden',
-    backgroundColor: '#000000',
+    backgroundColor: onMedia.black,
     position: 'relative',
     justifyContent: 'space-between',
     ...e(3),
   },
   cameraBackground: {
-    backgroundColor: '#0F172A',
+    backgroundColor: c.text,
   },
   shutterFlash: {
     backgroundColor: c.card,
@@ -665,7 +665,7 @@ const useStyles = makeStyles((c, e) => ({
     paddingVertical: spacing.xs,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: c.success,
   },
   verifiedPillText: {
     color: c.success,

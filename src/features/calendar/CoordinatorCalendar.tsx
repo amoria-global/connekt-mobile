@@ -262,7 +262,7 @@ function DayDots({ kinds, colors, on }: { kinds?: Set<CalendarKind>; colors: Rec
       {(['event', 'live', 'payment'] as const)
         .filter((k) => kinds?.has(k))
         .map((k) => (
-          <View key={k} style={[styles.dot, { backgroundColor: on ? '#fff' : colors[k] }]} />
+          <View key={k} style={[styles.dot, { backgroundColor: on ? onFill : colors[k] }]} />
         ))}
     </View>
   );

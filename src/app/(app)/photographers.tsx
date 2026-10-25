@@ -680,7 +680,7 @@ export default function PhotographersScreen() {
             <Ionicons
               name="star-outline"
               size={13}
-              color={rating !== ALL_RATINGS ? '#F59E0B' : colors.textMuted}
+              color={rating !== ALL_RATINGS ? colors.pending : colors.textMuted}
             />
             <Text
               style={[
@@ -694,7 +694,7 @@ export default function PhotographersScreen() {
             <Ionicons
               name="chevron-down"
               size={11}
-              color={rating !== ALL_RATINGS ? '#F59E0B' : colors.textMuted}
+              color={rating !== ALL_RATINGS ? colors.pending : colors.textMuted}
             />
           </Pressable>
 
