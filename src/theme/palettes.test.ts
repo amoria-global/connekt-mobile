@@ -70,3 +70,40 @@ describe.each(['light', 'dark'] as const)('%s hero gradients', (scheme) => {
     for (const stop of gradientsFor(scheme)[name]) expect(ratio('#FFFFFF', stop)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+/** Midnight Glass (design/brief.png): the brief's tokens, and its 4.5:1 rule applied to the new roles. */
+describe('Midnight Glass tokens', () => {
+  it('dark carries the brief values', () => {
+    expect(darkPalette).toMatchObject({
+      background: '#0A1220',
+      primary: '#3E6FD8',
+      primaryLight: '#5B8CFF',
+      accent: '#EE0E8F',
+      accentLight: '#FF5DB8',
+      live: '#22C7D9',
+      pending: '#F5B400',
+      text: '#EAF0FA',
+      textSoft: '#C9D5EA',
+      textMuted: '#93A3BE',
+      glassSolid: '#16243C',
+      stroke: 'rgba(170,195,240,0.14)',
+    });
+  });
+
+  it.each(['light', 'dark'] as const)('white button text reads on every %s raised fill stop', (scheme) => {
+    const g = gradientsFor(scheme);
+    // The label sits on the middle and lower stops; the top stop is a 1px-ish highlight.
+    for (const fill of [g.raisedPrimary, g.raisedAccent]) {
+      for (const stop of fill.slice(1)) expect(ratio('#FFFFFF', stop)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each([
+    ['light', lightPalette],
+    ['dark', darkPalette],
+  ] as const)('%s live and pending text read on the glass fallback', (_s, p) => {
+    expect(ratio(p.live, p.glassSolid)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(p.pending, p.glassSolid)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(p.textMuted, p.glassSolid)).toBeGreaterThanOrEqual(4.5);
+  });
+});
