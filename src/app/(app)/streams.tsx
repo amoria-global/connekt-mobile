@@ -7,7 +7,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
-import { RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { RefreshControl, ScrollView, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Alert } from '@/components/ui/dialog';
 import { Screen } from '@/components/ui/Screen';
@@ -35,6 +35,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useRole } from '@/features/auth/role';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
+import { StatGrid } from '@/components/ui/Compact';
 
 /** Shown in place of a total that is not known yet. */
 const DASH = '\u2026';
@@ -148,20 +149,14 @@ export default function StreamsScreen() {
         ) : null}
 
         {totals ? (
-          <View style={styles.stats}>
-            {[
-              { key: 'streams', label: 'Total streams', value: num(totals.streams), icon: 'radio-outline' as const },
-              { key: 'viewers', label: 'Total viewers', value: num(totals.viewers), icon: 'people-outline' as const },
-              { key: 'messages', label: 'Chat messages', value: num(totals.messages), icon: 'chatbubbles-outline' as const },
-              { key: 'videos', label: 'Video messages', value: num(totals.videos), icon: 'videocam-outline' as const },
-            ].map((c) => (
-              <View key={c.key} style={styles.stat} accessible accessibilityLabel={`${c.label}: ${c.value === DASH ? 'loading' : c.value}`}>
-                <Ionicons name={c.icon} size={18} color={colors.primary} />
-                <Text style={styles.statLabel}>{c.label}</Text>
-                <Text style={styles.statValue}>{c.value}</Text>
-              </View>
-            ))}
-          </View>
+          <StatGrid
+            items={[
+              { key: 'streams', label: 'Total streams', value: num(totals.streams) },
+              { key: 'viewers', label: 'Total viewers', value: num(totals.viewers) },
+              { key: 'messages', label: 'Chat messages', value: num(totals.messages) },
+              { key: 'videos', label: 'Video messages', value: num(totals.videos) },
+            ]}
+          />
         ) : null}
 
         {data && data.length > 0 ? (

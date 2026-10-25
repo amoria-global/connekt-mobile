@@ -32,11 +32,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { Button, PrimaryButton } from '@/components/ui/Button';
-import { BentoCaption, BentoGrid, BentoTile, BentoTitle, BentoValue } from '@/components/ui/BentoGrid';
+import { ActionRow, ActionTile, CountBadge, StatStrip, TileRow } from '@/components/ui/Compact';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { IconTile as GlowTile } from '@/components/ui/IconTile';
 import { InsetWell } from '@/components/ui/Input';
-import { StatusChip } from '@/components/ui/StatusChip';
 import { Alert } from '@/components/ui/dialog';
 import { DashboardGreeting } from './DashboardGreeting';
 import { photographerProfileUrl } from '@/features/photographer/profileLink';
@@ -96,6 +95,8 @@ import { useTabBarClearance } from '@/hooks/useScrollClearance';
 const LEDGER_CURRENCY = 'USD';
 const OPPORTUNITY_POLL_MS = 6000;
 const PREVIEW_LIMIT = 6;
+/** Compact Glass: Home previews the next shoot in full and two more as rows (one at ROW_PREVIEW 3 plus the card); See all has the rest. */
+const ROW_PREVIEW = 3;
 /** Stable fallback so `data ?? EMPTY` does not give memo hooks a new array every render. */
 const EMPTY: never[] = [];
 
@@ -124,10 +125,10 @@ const shootDate = (e: EventItem): Date | null => {
 };
 
 /** Same buckets and words as the Events calendar, so a shoot is never described two ways. */
-const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' }> = {
+const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' | 'active' }> = {
   pending: { label: 'Awaiting your reply', tone: 'warning' },
   upcoming: { label: 'Scheduled', tone: 'info' },
-  ongoing: { label: 'In progress', tone: 'live' },
+  ongoing: { label: 'In progress', tone: 'active' },
   completed: { label: 'Completed', tone: 'neutral' },
   cancelled: { label: 'Cancelled', tone: 'error' },
 };
@@ -388,49 +389,48 @@ export function PhotographerHome() {
               </GlassCard>
           </View>
 
-        {/* 3. Actions: one job per tile, then Create event, the screen's one raised button. */}
-        <BentoGrid style={styles.gutter}>
-          {env.hybridBookingEnabled ? (
-            <BentoTile
-              onPress={() => open('/bookings?tab=opportunities')}
-              accessibilityLabel={openOppCount ? `${tr('Opportunities')}, ${openOppCount} waiting` : tr('Opportunities')}
-            >
-              <View style={styles.tileHead}>
-                <GlowTile icon="radio-outline" tone="accent" glow={openOppCount > 0} />
-                {openOppCount > 0 ? <StatusChip label={String(openOppCount > 99 ? '99+' : openOppCount)} tone="accent" /> : null}
-              </View>
-              <BentoTitle>{tr('Opportunities')}</BentoTitle>
-              <BentoCaption>{tr('Booking requests')}</BentoCaption>
-            </BentoTile>
-          ) : null}
-          {isShared ? null : (
-            <BentoTile onPress={() => open('/collaborate')} accessibilityLabel={tr('Collaborate')}>
-              <GlowTile icon="people-outline" tone="live" />
-              <BentoTitle>{tr('Collaborate')}</BentoTitle>
-              <BentoCaption>{tr('Other photographers')}</BentoCaption>
-            </BentoTile>
+        {/* 3. Actions (Compact Glass): a slim stat strip, two horizontal action tiles, one share row, then
+            Create event, the screen's one raised button. */}
+        <View style={[styles.gutter, styles.actions]}>
+          {events.loading && !events.data ? (
+            <Skeleton height={44} />
+          ) : (
+            <StatStrip
+              value={events.data ? upcomingCount : 'N/A'}
+              label={tr('Upcoming').toLowerCase()}
+              note={ongoingCount > 0 ? `${ongoingCount} ${tr('ongoing now')}` : undefined}
+              noteDot
+            />
           )}
-          <BentoTile
-            onPress={() => open('/events')}
-            accessibilityLabel={events.data ? `${upcomingCount} ${tr('Upcoming')}, ${ongoingCount} ${tr('ongoing now')}` : tr('Upcoming')}
-          >
-            <Text style={styles.tileEyebrow}>{tr('Upcoming')}</Text>
-            {events.loading && !events.data ? <Skeleton height={40} width="40%" /> : <BentoValue>{events.data ? upcomingCount : 'N/A'}</BentoValue>}
-            {ongoingCount > 0 ? (
-              <View style={styles.liveLine}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText} numberOfLines={1}>
-                  {ongoingCount} {tr('ongoing now')}
-                </Text>
-              </View>
-            ) : null}
-          </BentoTile>
-          <BentoTile onPress={shareProfile} accessibilityLabel={tr('Share profile')}>
-            <GlowTile icon="share-social-outline" tone="primary" size="sm" />
-            <BentoTitle>{tr('Share profile')}</BentoTitle>
-            <BentoCaption>{profileHost}</BentoCaption>
-          </BentoTile>
-        </BentoGrid>
+          {env.hybridBookingEnabled || !isShared ? (
+            <TileRow>
+              {env.hybridBookingEnabled ? (
+                <ActionTile
+                  icon="radio-outline"
+                  tone="accent"
+                  title={tr('Opportunities')}
+                  caption={tr('Booking requests')}
+                  onPress={() => open('/bookings?tab=opportunities')}
+                  accessibilityLabel={openOppCount ? `${tr('Opportunities')}, ${openOppCount} waiting` : tr('Opportunities')}
+                  badge={openOppCount > 0 ? <CountBadge tone="accent">{openOppCount > 99 ? '99+' : openOppCount}</CountBadge> : undefined}
+                />
+              ) : null}
+              {isShared ? null : (
+                <ActionTile icon="people-outline" tone="active" title={tr('Collaborate')} caption={tr('Other photographers')} onPress={() => open('/collaborate')} />
+              )}
+            </TileRow>
+          ) : null}
+          <ActionRow
+            icon="share-social-outline"
+            tone="primary"
+            title={tr('Share profile')}
+            caption={profileHost}
+            actionLabel="Share"
+            actionIcon="share-outline"
+            onAction={shareProfile}
+            accessibilityLabel={tr('Share profile')}
+          />
+        </View>
         <View style={[styles.gutter, styles.cta]}>
           <PrimaryButton
             title="Create event"
@@ -505,7 +505,7 @@ export function PhotographerHome() {
         ) : events.loading && !events.data ? (
           <SkeletonCard height={150} />
         ) : comingUp.length === 0 ? (
-          <EmptyNote
+          <EmptyNote compact
             icon="calendar-outline"
             title="No upcoming shoots"
             body="Create an event or share your profile to get booked."
@@ -531,7 +531,7 @@ export function PhotographerHome() {
                   : undefined
               }
             />
-            {comingUp.slice(1, PREVIEW_LIMIT).map((e) => (
+            {comingUp.slice(1, ROW_PREVIEW).map((e) => (
               <ShootRow
                 key={String(e.id)}
                 date={shootDate(e)}
@@ -546,7 +546,7 @@ export function PhotographerHome() {
         {/* 6. Business overview */}
         <SectionHeader
           title="Business overview"
-          subtitle="Lifetime figures. Pick a period on Analytics."
+          subtitle="Lifetime figures"
           actionLabel="View analytics"
           onAction={() => open('/analytics')}
         />
@@ -584,7 +584,7 @@ export function PhotographerHome() {
         ) : transactions.loading && !transactions.data ? (
           <SkeletonCard height={120} />
         ) : (transactions.data ?? []).length === 0 ? (
-          <EmptyNote
+          <EmptyNote compact
             icon="cash-outline"
             title="No earnings yet"
             body="Payments from bookings and deliveries will appear here."
@@ -691,10 +691,10 @@ const useStyles = makeStyles((c) => ({
   pendingLabel: { color: c.textSoft, fontSize: 13, fontFamily: fonts.regular },
   pendingValue: { color: c.pending, fontSize: 15, fontFamily: fonts.display },
   withdraw: { paddingHorizontal: spacing.xl },
-  tileHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  actions: { gap: spacing.sm },
   tileEyebrow: { color: c.textSoft, fontSize: 14, fontFamily: fonts.medium },
   liveLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.live },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.active },
   liveText: { color: c.textSoft, fontSize: 13, fontFamily: fonts.regular, flexShrink: 1 },
   shoots: { gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.md },

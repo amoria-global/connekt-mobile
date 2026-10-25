@@ -35,7 +35,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg';
-import { fonts, fontSize, fontWeight, radii, spacing, useTheme, onFill, darkPalette, liveFill } from '@/theme';
+import { compactSheet, fonts, fontSize, fontWeight, radii, spacing, useTheme, onFill, darkPalette, liveFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { HIDDEN_AMOUNT } from '@/features/photographer/money';
@@ -101,8 +101,8 @@ export const METRICS_META: Record<MetricKey, WaveMetricMeta> = {
     shortTitle: 'Revenue',
     unit: 'USD',
     icon: 'cash-outline',
-    color: darkPalette.live,
-    accentGlow: darkPalette.live,
+    color: darkPalette.active,
+    accentGlow: darkPalette.active,
     isMoney: true,
     series: 'value1',
     trendKeys: ['totalRevenue', 'revenue'],
@@ -491,15 +491,15 @@ export function PerformanceWaveCard({
           <Defs>
             {/* Background rolling wave gradient (Cyan/Teal to Transparent) */}
             <SvgLinearGradient id="waveGlowGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={darkPalette.live} stopOpacity="0.55" />
+              <Stop offset="0%" stopColor={darkPalette.active} stopOpacity="0.55" />
               <Stop offset="50%" stopColor={liveFill.mid} stopOpacity="0.25" />
               <Stop offset="100%" stopColor={darkPalette.background} stopOpacity="0.0" />
             </SvgLinearGradient>
 
             {/* Active needle gradient */}
             <SvgLinearGradient id="needleGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={darkPalette.live} stopOpacity="0.9" />
-              <Stop offset="100%" stopColor={darkPalette.live} stopOpacity="0.3" />
+              <Stop offset="0%" stopColor={darkPalette.active} stopOpacity="0.9" />
+              <Stop offset="100%" stopColor={darkPalette.active} stopOpacity="0.3" />
             </SvgLinearGradient>
           </Defs>
 
@@ -582,7 +582,7 @@ export function PerformanceWaveCard({
                 y1={activePoint.y}
                 x2={activePoint.x}
                 y2={18}
-                stroke={darkPalette.live}
+                stroke={darkPalette.active}
                 strokeWidth="1.5"
               />
 
@@ -604,7 +604,7 @@ export function PerformanceWaveCard({
                 cx={activePoint.x}
                 cy={activePoint.y}
                 r="10"
-                fill={darkPalette.live}
+                fill={darkPalette.active}
                 fillOpacity="0.28"
               />
 
@@ -613,7 +613,7 @@ export function PerformanceWaveCard({
                 cx={activePoint.x}
                 cy={activePoint.y}
                 r="5.5"
-                fill={darkPalette.live}
+                fill={darkPalette.active}
                 stroke={onFill}
                 strokeWidth="1.5"
               />
@@ -708,7 +708,7 @@ export function PerformanceWaveCard({
                 cx={pt.x}
                 cy={8}
                 r={isActive ? 4 : 2.5}
-                fill={isActive ? darkPalette.live : darkPalette.surfaceMuted}
+                fill={isActive ? darkPalette.active : darkPalette.surfaceMuted}
                 stroke={isActive ? darkPalette.background : 'none'}
                 strokeWidth={isActive ? 1.5 : 0}
               />
@@ -720,7 +720,7 @@ export function PerformanceWaveCard({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = compactSheet({
   cardContainer: {
     backgroundColor: darkPalette.background,
     borderRadius: radii.xl,
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: darkPalette.border,
-    shadowColor: darkPalette.live,
+    shadowColor: darkPalette.active,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    shadowColor: darkPalette.live,
+    shadowColor: darkPalette.active,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 4,
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
     color: darkPalette.textMuted,
   },
   dateTextActive: {
-    color: darkPalette.live,
+    color: darkPalette.active,
     textShadowColor: 'rgba(0, 229, 255, 0.4)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 6,

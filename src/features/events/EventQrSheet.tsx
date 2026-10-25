@@ -13,7 +13,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { eventQrLink, qrMatrix } from '@/features/events/scanIntent';
-import { fontSize, fontWeight, lightPalette, radii, spacing, useTheme, onFill } from '@/theme';
+import { compactSheet, fontSize, fontWeight, lightPalette, radii, spacing, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
@@ -105,7 +105,7 @@ export function EventQrSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = compactSheet({
   backdrop: { flex: 1, backgroundColor: 'rgba(5,8,18,0.6)' },
   sheet: {
     padding: spacing.lg,

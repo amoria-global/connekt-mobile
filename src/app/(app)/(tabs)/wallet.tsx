@@ -54,7 +54,8 @@ import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { useLanguage } from '@/store/language';
 import { canUsePaymentsScreen } from '@/features/payments/access';
-import { IconTile, SegmentedTabs } from '@/features/photographer/kit';
+import { SegmentedTabs } from '@/features/photographer/kit';
+import { NavGroup, NavRow } from '@/components/ui/Compact';
 import { WalletAnalytics } from '@/features/photographer/WalletAnalytics';
 import { ClientWalletAnalytics } from '@/features/client/ClientWalletAnalytics';
 import { CoordinatorWalletAnalytics } from '@/features/wallet/CoordinatorWalletAnalytics';
@@ -80,7 +81,6 @@ export default function WalletScreen() {
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
   // At large text two tiles per row leave "Transactions" too little width and it breaks mid-word: one per row.
-  const { fontScale } = useWindowDimensions();
 
   const { isPhotographer, isCoordinator, isClient, role } = useRole();
   const user = useAuth((s) => s.user);
@@ -522,23 +522,18 @@ export default function WalletScreen() {
                 )}
               </View>
 
-              <View style={styles.tiles}>
+              <NavGroup>
                 {links.map((l) => (
-                  <Pressable
+                  <NavRow
                     key={l.label}
-                    onPress={() => router.push(l.href)}
-                    accessibilityRole="button"
+                    icon={l.icon}
+                    tone="primary"
+                    title={l.label === 'Payroll report' ? 'Earnings report' : l.label}
                     accessibilityLabel={l.label === 'Payroll report' ? 'Export earnings report' : l.label}
-                    style={({ pressed }) => [styles.tile, fontScale > 1.3 && { flexBasis: '100%' }, pressed && { opacity: 0.85 }]}
-                  >
-                    <IconTile icon={l.icon} tone="primary" size={30} />
-                    <Text style={styles.tileText} numberOfLines={2} maxFontSizeMultiplier={1.6}>
-                      {l.label === 'Payroll report' ? 'Earnings report' : l.label}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
-                  </Pressable>
+                    onPress={() => router.push(l.href)}
+                  />
                 ))}
-              </View>
+              </NavGroup>
             </>
           ) : null}
 

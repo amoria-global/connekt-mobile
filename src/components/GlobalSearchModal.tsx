@@ -47,12 +47,12 @@ const RECENT_SEARCHES_KEY = 'connekt.global_search_recents';
 const STYLE_LOOKS: { icon: keyof typeof Ionicons.glyphMap; role: keyof Palette }[] = [
   { icon: 'heart', role: 'accent' },
   { icon: 'person', role: 'primary' },
-  { icon: 'calendar', role: 'live' },
+  { icon: 'calendar', role: 'active' },
   { icon: 'gift', role: 'pending' },
   { icon: 'camera', role: 'success' },
   { icon: 'shirt-outline', role: 'primaryLight' },
   { icon: 'school-outline', role: 'accent' },
-  { icon: 'people-outline', role: 'live' },
+  { icon: 'people-outline', role: 'active' },
   { icon: 'briefcase-outline', role: 'textMuted' },
 ];
 const LIVE_STYLE = { name: 'Live Streams', icon: 'videocam' as const, role: 'live' as keyof Palette };

@@ -79,6 +79,13 @@ Every screen follows Midnight Glass. The references in `design/` (`home.png`, `e
   `src/test/hexColors.rule.test.ts` fails on a hex literal outside `src/theme` (ESLint flags it
   too); `eslint/hex-colors-pending.json` lists the files still waiting for migration, and it only
   shrinks. Remove a file from it when you migrate that file.
+- **Density: Compact Glass** (`design/compact-glass.png`, `src/theme/density.ts`). Same glass, tighter size: title 22, card title
+  14.5 to 16, body 14, caption 11.5 to 12, card padding 10 to 12, gap 8, radius 16/12, icons 16 to 18 in 32 to 36 tiles, tiles 48 to
+  56, rows 48 to 52. `makeStyles` applies it to every themed sheet (`compactSheet` for a module-level one; `{ compact: false }`
+  for a kit already at density), so write the old design sizes and do not hand-shrink. Tappable means a coloured signal (tint plus 1px
+  border, a raised gradient, or coloured text with a chevron); navigation rows end in a chevron; info-only cards stay flat. Buttons:
+  Primary 44 raised (one per screen), Secondary 40, Tertiary 36, Chip 32, each with a 44pt hit area (`hitSlop`). Use `ActionTile`,
+  `ActionRow`, `StatStrip`, `StatGrid`, `NavGroup`/`NavRow` from `components/ui/Compact` instead of a bento tile for a single action or number.
 - **Type.** Space Grotesk (`fonts.display`, `fonts.bold`) for headings, numbers and buttons;
   Inter (`fonts.regular`, `fonts.medium`, `fonts.semibold`) for body and UI. Body 13 to 15.
 - **Radius** 14 tile · 20 card · 24 panel · 28 hero · pill. **Spacing** on the 4pt grid.

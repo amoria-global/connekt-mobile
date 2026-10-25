@@ -59,7 +59,7 @@ import { useRole } from '@/features/auth/role';
 import { getWallet } from '@/features/wallet/api';
 import { useAsync } from '@/hooks/useAsync';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { compactSheet, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { ErrorNotice } from '@/features/photographer/kit';
@@ -1182,7 +1182,7 @@ function CardHistogramChart({
   );
 }
 
-const cardHistoStyles = StyleSheet.create({
+const cardHistoStyles = compactSheet({
   container: {
     width: '100%',
     marginVertical: 4,
@@ -1385,7 +1385,7 @@ function SaloStatCard({
   );
 }
 
-const cardStyles = StyleSheet.create({
+const cardStyles = compactSheet({
   card: {
     flexBasis: '47%',
     flexGrow: 1,
@@ -1698,7 +1698,7 @@ function TrendCurveChart({
   );
 }
 
-const trendStyles = StyleSheet.create({
+const trendStyles = compactSheet({
   container: {
     width: '100%',
     paddingTop: 4,
@@ -1897,7 +1897,7 @@ function DonutBreakdownChart({
   );
 }
 
-const donutStyles = StyleSheet.create({
+const donutStyles = compactSheet({
   container: {
     width: '100%',
   },
@@ -2034,7 +2034,7 @@ function HorizontalRatioBar({
   );
 }
 
-const ratioStyles = StyleSheet.create({
+const ratioStyles = compactSheet({
   container: {
     width: '100%',
     paddingTop: 2,
@@ -2218,7 +2218,7 @@ function SaloPerformanceChart({
   );
 }
 
-const perfStyles = StyleSheet.create({
+const perfStyles = compactSheet({
   container: {
     width: '100%',
     paddingTop: 8,
@@ -2460,7 +2460,7 @@ function PaymentItemRow({
   );
 }
 
-const rowStyles = StyleSheet.create({
+const rowStyles = compactSheet({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
