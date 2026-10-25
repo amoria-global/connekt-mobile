@@ -9,11 +9,11 @@
  *  - the event, hybrid and album creation wizards (their next and submit buttons are bottom right);
  *  - while the keyboard is open (the same rule the tab bar uses);
  *  - screens that ask it to hide with {@link useHideHelpButton} (a camera, a viewer);
- *  - the tab screens, whose top bar carries Help instead. Floating above the tab bar it sat over whatever scrolled
+ *  - every screen with a header (the app and public stacks), and the tab screens, whose headers and top bar carry
+ *    Help instead (see HeaderHelpButton). Floating above the tab bar it sat over whatever scrolled
  *    beneath it (Home's View shoot button), and Midnight Glass allows nothing to float over a button.
- * It sits above the round add button on the screens that have one.
  */
-import { FAB_RIGHT, FAB_SIZE, TAB_BAR_HEIGHT, TAB_BAR_MARGIN } from '@/components/barMetrics';
+import { FAB_RIGHT, FAB_SIZE } from '@/components/barMetrics';
 
 export const HELP_BUTTON_SIZE = 52;
 /** Space between the button and whatever it sits above. */
@@ -26,8 +26,19 @@ const HIDDEN_ANYWHERE = ['help-center', 'contact_us', 'feedback', 'conversation'
 const HIDDEN_GROUPS = ['(onboarding)'];
 /** Creation wizards: the same word anywhere else is a different screen, so these are matched as a pair. */
 const HIDDEN_PAIRS: [string, string][] = [['event', 'new'], ['event', 'hybrid-wizard'], ['album', 'new']];
-/** Screens that already draw the round add button at the bottom right (kept in step with the screens that import it, by a test). */
-const HAS_FAB = [['(app)', 'packages'], ['(public)', 'gallery']];
+
+/** Stacks whose header carries Help, and the screens in them drawn without that header (kept in step with the layouts by a test). */
+const HEADER_HELP_GROUPS = ['(app)', '(public)'];
+export const HEADERLESS: Record<string, string[]> = {
+  '(app)': ['event/hybrid-wizard', 'stream/[id]', 'stream/control/[id]', 'notifications', 'find-my-photos', 'album/new', 'album/[id]', 'content-album/new', 'photobook/[id]', 'photobook/new', 'analytics', 'connect-to-tv', 'pay-on-tv', 'kyc'],
+  '(public)': ['explore-events', 'event/[id]', 'scan/[id]', 'workspace-invite/[id]', 'events/live-stream', 'donate', 'find-photos'],
+};
+
+function headerCarriesHelp(segments: readonly string[]): boolean {
+  const group = segments[0];
+  if (!HEADER_HELP_GROUPS.includes(group) || segments.includes('(tabs)')) return false;
+  return !HEADERLESS[group].includes(segments.slice(1).join('/'));
+}
 
 const hasPair = (segments: readonly string[], a: string, b: string) => segments.some((s, i) => s === a && segments[i + 1] === b);
 
@@ -52,11 +63,8 @@ export function helpButtonPlacement(
 
   // The tab screens carry Help in their top bar (see TopBar).
   if (segments.includes('(tabs)')) return { visible: false, bottom: 0 };
-  const base = Math.max(insets.bottom, 0) + HELP_GAP + 6;
-  if (HAS_FAB.some(([group, name]) => segments.includes(group) && segments.includes(name))) {
-    // Same position the round add button computes for itself, then one button higher.
-    const fabBottom = (insets.bottom > 0 ? insets.bottom : TAB_BAR_MARGIN) + TAB_BAR_HEIGHT + 12;
-    return { visible: true, bottom: fabBottom + FAB_SIZE + HELP_GAP };
-  }
-  return { visible: true, bottom: base };
+  if (headerCarriesHelp(segments)) return { visible: false, bottom: 0 };
+  // What is left has no header and no tab bar: just above the bottom edge. The two screens with a round add button
+  // (packages, the public gallery) have headers, so the button never has to clear it.
+  return { visible: true, bottom: Math.max(insets.bottom, 0) + HELP_GAP + 6 };
 }

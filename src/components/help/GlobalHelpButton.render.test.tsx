@@ -10,7 +10,7 @@ import '@/test/autoUnmount';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-let mockSegments: string[] = ['(app)', 'bookings'];
+let mockSegments: string[] = ['(auth)', 'login'];
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: (...a: unknown[]) => mockPush(...a) }),
@@ -38,7 +38,7 @@ const style = (r: TestRenderer.ReactTestRenderer) => StyleSheet.flatten(button(r
 // Capture what the button listens to on the keyboard, so a test can open and close it.
 const keyboard: Record<string, () => void> = {};
 beforeEach(() => {
-  mockSegments = ['(app)', 'bookings'];
+  mockSegments = ['(auth)', 'login'];
   mockPush.mockReset();
   mockLang.language = 'en';
   Object.keys(keyboard).forEach((k) => delete keyboard[k]);
