@@ -6248,6 +6248,34 @@
     "pathVariables" : [ "clientId" ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/photographer/hosted-events",
+    "controller" : "PhotographerHostedEventController#list",
+    "params" : [ {
+      "name" : "bucket",
+      "required" : false
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/hosted-events",
+    "controller" : "PhotographerHostedEventController#create",
+    "body" : {
+      "type" : "HostedEventRequestDTO",
+      "properties" : [ "description", "endTime", "eventCategoryId", "eventDate", "eventType", "location", "maxGuests", "publish", "startTime", "streamFee", "streamFeeCurrencyId", "title" ]
+    }
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/hosted-events/earnings-preview",
+    "controller" : "PhotographerHostedEventController#earningsPreview",
+    "params" : [ {
+      "name" : "fee",
+      "required" : true
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/hosted-events/eligibility",
+    "controller" : "PhotographerHostedEventController#eligibility"
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/photographer/hybrid-profile",
     "controller" : "HybridProfileController#getProfile"
   }, {
@@ -8084,7 +8112,11 @@
     "controller" : "WebhookWhatsAppController#receiveInbound",
     "body" : {
       "type" : "Map"
-    }
+    },
+    "params" : [ {
+      "name" : "authorization",
+      "required" : false
+    } ]
   }, {
     "method" : "GET",
     "path" : "/login",

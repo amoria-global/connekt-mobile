@@ -170,6 +170,8 @@ export default function AppLayout() {
             headerRight: sheetHeaderRight,
           }}
         />
+        <Stack.Screen name="host/index" options={{ title: 'My hosted events' }} />
+        <Stack.Screen name="host/new" options={{ title: 'Host an event' }} />
         <Stack.Screen name="event/[id]" options={{ title: t('navEvent') }} />
         <Stack.Screen name="event/geo-pricing" options={{ title: t('navGeoPricing') }} />
         <Stack.Screen

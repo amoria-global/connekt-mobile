@@ -87,7 +87,7 @@ export function EventCard({
         ) : null}
         {event.location ? <Row icon="location-outline" text={event.location} /> : null}
         {event.photographerName ? (
-          <Row icon="camera-outline" text={event.photographerName} />
+          <Row icon="camera-outline" text={event.hostedByPhotographer ? `Hosted by ${event.photographerName}` : event.photographerName} />
         ) : null}
 
         {/*

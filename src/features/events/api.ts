@@ -19,7 +19,7 @@ import {
   type PublicEventsQuery,
 } from './types';
 
-type RawEvent = Record<string, unknown>;
+export type RawEvent = Record<string, unknown>;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -75,7 +75,7 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
   return payload;
 }
 
-function mapEvent(r: RawEvent): EventItem {
+export function mapEvent(r: RawEvent): EventItem {
   const photographer = (r.photographer ?? {}) as RawEvent;
   const photographerName =
     [str(photographer.firstName), str(photographer.lastName)].filter(Boolean).join(' ') ||
@@ -134,6 +134,8 @@ function mapEvent(r: RawEvent): EventItem {
     packageName: str(r.packageName),
     bookingId: str(r.bookingId),
     hasLiveStream: r.hasLiveStream === true || r.hasLiveStream === 'true' || r.hasLiveStream === 1,
+    // Set by servers that support photographer-hosted events; absent on older ones.
+    hostedByPhotographer: r.hostedByPhotographer === true,
     // Backend returns the event hero as `eventPhoto` on every events
     // endpoint (/customer/events, /coordinator/events, /public/events).
     // The legacy `coverImage` / `thumbnail` / `coverPhoto` fallbacks

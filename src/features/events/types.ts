@@ -63,6 +63,8 @@ export type EventItem = {
   bookingId?: string;
   /** Whether this event carries a live stream (drives the Stream pill + CTA). */
   hasLiveStream?: boolean;
+  /** The photographer created this event to stream it themselves; they are its host. */
+  hostedByPhotographer?: boolean;
   coverImage?: string;
   description?: string;
   startTime?: string;
