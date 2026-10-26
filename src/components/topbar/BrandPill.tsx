@@ -55,7 +55,7 @@ const useStyles = makeStyles((c, e) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: spacing.xs + 2,
+    gap: spacing.xs - 1,
     paddingHorizontal: spacing.sm + 2,
     ...e(2),
   },
