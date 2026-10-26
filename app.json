@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-26-brand-polish",
+            "date": "2026-10-26",
+            "title": "Brand polish and update screen fix",
+            "items": [
+              {
+                "icon": "image-outline",
+                "title": "Logo and name sit together",
+                "body": "The Connekyt icon and wordmark in the top bar are now closer together, so they read as a single brand mark instead of two separate items."
+              },
+              {
+                "icon": "megaphone-outline",
+                "title": "What is new is back on the update screen",
+                "body": "The update screen now lists and describes every change in each new version again, so you always know what you are getting before you tap Update now."
+              }
+            ]
+          },
+          {
             "id": "2026-10-26-fixes",
             "date": "2026-10-26",
             "title": "Fixes for events, cards and updates",
