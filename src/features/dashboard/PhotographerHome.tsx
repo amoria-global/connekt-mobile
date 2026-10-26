@@ -41,6 +41,7 @@ import { DashboardGreeting } from './DashboardGreeting';
 import { photographerProfileUrl } from '@/features/photographer/profileLink';
 import { useForegroundPolling } from '@/hooks/useForegroundPolling';
 import { GoalsSection } from '@/features/photographer/GoalsSection';
+import { HostEntry } from '@/features/hosting/HostEntry';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
@@ -437,6 +438,9 @@ export function PhotographerHome() {
             onPress={() => open('/event/new')}
             icon={<Ionicons name="add" size={20} color={colors.textOnPrimary} />}
           />
+        </View>
+        <View style={styles.gutter}>
+          <HostEntry />
         </View>
 
         {/* 3b. Priority today */}
