@@ -364,7 +364,10 @@ type GlassBackdropProps = {
 export function GlassBackdrop({ ref, style, variant = 'panel' }: GlassBackdropProps) {
   const { colors, isDark } = useTheme();
   const id = useId().replace(/:/g, '');
-  const strength = (variant === 'aurora' ? 0.85 : 1) * (isDark ? 0.55 : 0.4);
+  // Aurora screen glow disabled: users reported the vibrant gradient was too
+  // harsh on the eyes. The solid dark navy-blue `background` now shows through.
+  // Panel glow behind individual glass cards is kept.
+  const strength = (variant === 'aurora' ? 0 : 1) * (isDark ? 0.55 : 0.4);
   const orbs = ORBS[variant];
 
   return (
