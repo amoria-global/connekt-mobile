@@ -13,11 +13,17 @@ import { SkeletonList } from '@/components/ui/Skeleton';
 import { Segmented } from '@/components/ui/Segmented';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAsync } from '@/hooks/useAsync';
+import { useNow } from '@/hooks/useNow';
 import type { EventItem } from '@/features/events/types';
-import { makeStyles, spacing, useTheme } from '@/theme';
+import { formatEventDay, getEventStatus, isStartingSoon } from '@/features/events/eventStatus';
+import { publishEvent, unpublishEvent } from '@/features/events/api';
+import { StatusChip, type ChipTone } from '@/components/ui/StatusChip';
+import { alpha, makeStyles, spacing, useTheme } from '@/theme';
 import { getHostingEligibility, listHostedEvents } from './api';
 import { bucketOf, type HostedBucket } from './hostFlow';
 import { NotAvailable } from './HostEventScreen';
+import { EventOverflowMenu } from './EventOverflowMenu';
+import { publishActionFor } from './publishFlow';
 
 const TABS: { value: HostedBucket; label: string }[] = [
   { value: 'upcoming', label: 'Upcoming' },
@@ -33,7 +39,9 @@ export default function HostedEventsScreen() {
   const eligibility = useAsync(getHostingEligibility);
   const events = useAsync(() => listHostedEvents());
 
-  const shown = useMemo(() => (events.data ?? []).filter((e) => bucketOf(e.status) === tab), [events.data, tab]);
+  // One rule for the tab, the badge and the actions: getEventStatus, from the stream and the date-times.
+  const now = useNow();
+  const shown = useMemo(() => (events.data ?? []).filter((e) => bucketOf(e, now) === tab), [events.data, tab, now]);
 
   if (eligibility.loading && !eligibility.data) {
     return (
@@ -81,7 +89,7 @@ export default function HostedEventsScreen() {
               action={tab === 'ended' ? undefined : { label: 'Host an event', onPress: host }}
             />
           }
-          renderItem={({ item }) => <HostedRow event={item} onOpen={() => router.push(`/event/${item.id}` as Href)} onLive={() => router.push(`/stream/control/${item.id}` as Href)} />}
+          renderItem={({ item }) => <HostedRow event={item} onOpen={() => router.push(`/event/${item.id}` as Href)} onLive={() => router.push(`/stream/control/${item.id}` as Href)} onChanged={events.refresh} now={now} />}
         />
       )}
       <View style={styles.footer}>
@@ -91,31 +99,56 @@ export default function HostedEventsScreen() {
   );
 }
 
-function HostedRow({ event, onOpen, onLive }: { event: EventItem; onOpen: () => void; onLive: () => void }) {
+function HostedRow({ event, now, onOpen, onLive, onChanged }: { event: EventItem; now: number; onOpen: () => void; onLive: () => void; onChanged: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const bucket = bucketOf(event.status);
+  const status = getEventStatus(event, now);
+  const unpublished = event.published === false;
+  const soon = isStartingSoon(event, now);
+  const tone: ChipTone = status === 'LIVE' ? 'live' : status === 'ENDED' ? 'neutral' : 'primary';
+  const label = status === 'LIVE' ? 'Live now' : status === 'ENDED' ? 'Ended' : soon ? 'Starting soon' : 'Upcoming';
+  const action = publishActionFor(event.published, status);
+  // Going live needs a public event that is not over.
+  const canGoLive = status !== 'ENDED' && !unpublished;
   return (
     <GlassCard style={styles.card}>
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`${event.title}. Open`} style={styles.row}>
-        <View style={styles.rowText}>
-          <Text style={styles.title} numberOfLines={2}>
-            {event.title}
-          </Text>
-          <Text style={styles.meta}>{[event.eventDate, bucket === 'live' ? 'Live now' : undefined].filter(Boolean).join('  ')}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-      </Pressable>
-      {bucket !== 'ended' ? (
+      <View style={styles.row}>
+        <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`${event.title}. Open`} style={styles.rowMain}>
+          <View style={styles.rowText}>
+            <Text style={styles.title} numberOfLines={2}>
+              {event.title}
+            </Text>
+            <Text style={styles.meta}>{formatEventDay(event.eventDate) || event.eventDate}</Text>
+            <View style={styles.badges}>
+              <StatusChip label={label} tone={tone} dot={status === 'LIVE'} />
+              {unpublished ? <StatusChip label="Unpublished" tone="pending" /> : null}
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
+        <EventOverflowMenu
+          title={event.title}
+          action={action}
+          onUnpublish={async () => {
+            await unpublishEvent(event.id);
+            onChanged();
+          }}
+          onRepublish={async () => {
+            await publishEvent(event.id);
+            onChanged();
+          }}
+        />
+      </View>
+      {canGoLive ? (
         <Pressable
           onPress={onLive}
           accessibilityRole="button"
-          accessibilityLabel={bucket === 'live' ? `Return to the live stream of ${event.title}` : `Go live with ${event.title}`}
-          style={styles.liveBtn}
+          accessibilityLabel={status === 'LIVE' ? `Return to the live stream of ${event.title}` : `Go live with ${event.title}`}
+          style={({ pressed }) => [styles.liveBtn, pressed && styles.liveBtnPressed]}
           hitSlop={6}
         >
-          <Ionicons name="radio-outline" size={18} color={colors.primary} />
-          <Text style={styles.liveText}>{bucket === 'live' ? 'Back to stream' : 'Go live'}</Text>
+          <Ionicons name="radio-outline" size={18} color={colors.liveText} />
+          <Text style={styles.liveText}>{status === 'LIVE' ? 'Back to stream' : 'Go live'}</Text>
         </Pressable>
       ) : null}
     </GlassCard>
@@ -126,10 +159,14 @@ const useStyles = makeStyles((c) => ({
   list: { gap: spacing.md, paddingVertical: spacing.md, flexGrow: 1 },
   footer: { paddingVertical: spacing.md },
   card: { padding: spacing.md, gap: spacing.xs },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 48 },
+  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
   rowText: { flex: 1, gap: 2 },
   title: { color: c.text, fontSize: 16, fontWeight: '700' },
   meta: { color: c.textMuted, fontSize: 13 },
-  liveBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 44, marginTop: spacing.xs },
-  liveText: { color: c.primary, fontSize: 14, fontWeight: '700' },
+  // A red secondary button: red tint fill, 1px red border, red label (Compact Glass: tappable means a coloured signal).
+  liveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: 44, marginTop: spacing.sm, borderRadius: 12, borderWidth: 1, borderColor: alpha(c.live, 0.5), backgroundColor: alpha(c.live, 0.12) },
+  liveBtnPressed: { transform: [{ scale: 0.97 }], borderColor: c.live },
+  liveText: { color: c.liveText, fontSize: 14, fontWeight: '700' },
 }));
