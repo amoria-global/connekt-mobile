@@ -33,7 +33,8 @@ import { LiveOverlay } from '../components/LiveOverlay';
 import { LiveVideoSurface } from '../components/LiveVideoSurface';
 import { ReactionOverlay, ReactionRail } from '../components/ReactionOverlay';
 import { ShareSheet } from '../components/ShareSheet';
-import { StreamHeader } from '../components/StreamHeader';
+import { EventHeader, EventInfo, EventTabs, LivePlayer, WishesPanel, AccessChip, LiveScrubber, type LiveTab } from '@/features/live/sections';
+import { useLiveEventInfo } from '@/features/live/liveEventInfo';
 import { StreamStateOverlay } from '../components/StreamStateOverlay';
 import { ViewerError, ViewerSkeleton } from '../components/ViewerStates';
 
@@ -67,6 +68,8 @@ export default function LiveViewerScreen() {
   const chat = useStreamChat(pb.data?.eventId);
   const { items: floating, burst } = useFloatingReactions(reduced);
 
+  const eventInfo = useLiveEventInfo(pb.data?.eventId);
+  const [tab, setTab] = useState<LiveTab>('live');
   const [ui, dispatch] = useReducer(uiReducer, initialUI);
   const [mode, setMode] = useState<ChatMode>('all');
   const [draft, setDraft] = useState('');
@@ -243,6 +246,9 @@ export default function LiveViewerScreen() {
         playing={pb.playing}
         fullscreen={fs}
         canControl={canControl}
+        showBack={fs}
+        accessChip={eventInfo ? <AccessChip access={eventInfo.access} /> : undefined}
+        scrubber={<LiveScrubber atLive={model.isLive && pb.phase === 'playing'} onGoLive={() => { if (!(model.isLive && pb.phase === 'playing')) pb.retry(); }} />}
         onBack={fs ? exitFullscreen : goBack}
         onMore={openOptions}
         onShare={openShare}
@@ -333,6 +339,20 @@ export default function LiveViewerScreen() {
     />
   );
 
+  const info = (
+    <EventInfo
+      title={model.title}
+      tagline={eventInfo?.tagline}
+      location={eventInfo?.location}
+      hostName={model.creatorName}
+      live={model.isLive && pb.phase !== 'ended'}
+      viewerCount={model.viewerCount}
+    />
+  );
+  const wishes = (
+    <WishesPanel eventId={model.eventId} title={model.title} closed={eventInfo?.wishesClosed} bottomInset={insets.bottom} />
+  );
+
   /* ── Tablet / desktop: video + info left, chat right ── */
   if (wide) {
     return (
@@ -341,13 +361,17 @@ export default function LiveViewerScreen() {
         <StatusBar style="light" />
         <View style={styles.wideRow}>
           <View style={styles.wideMain}>
-            <View style={{ paddingTop: insets.top, backgroundColor: onMedia.black }}>
-              <View style={{ aspectRatio: VIDEO_ASPECT }}>{video}</View>
-            </View>
-            <StreamHeader model={model} live={model.isLive && pb.phase !== 'ended'} onShare={openShare} />
-            <View style={styles.railRow}>
-              <ReactionRail onReact={react} onGift={giftsEnabled ? openGift : undefined} />
-            </View>
+            <EventHeader title={model.title} onBack={goBack} onShare={openShare} topInset={insets.top} />
+            <LivePlayer>{video}</LivePlayer>
+            {info}
+            <EventTabs value={tab} onChange={setTab} />
+            {tab === 'live' ? (
+              <View style={styles.railRow}>
+                <ReactionRail onReact={react} onGift={giftsEnabled ? openGift : undefined} />
+              </View>
+            ) : (
+              wishes
+            )}
           </View>
           <View style={[styles.sideChat, { width: CHAT_SIDE_WIDTH, paddingTop: insets.top }]}>{chatPanel}</View>
         </View>
@@ -365,18 +389,26 @@ export default function LiveViewerScreen() {
     >
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style="light" />
-      <View style={{ paddingTop: insets.top, backgroundColor: onMedia.black }}>
-        <View style={{ aspectRatio: VIDEO_ASPECT }}>{video}</View>
-      </View>
+      {keyboardUp ? null : <EventHeader title={model.title} onBack={goBack} onShare={openShare} topInset={insets.top} />}
+      <LivePlayer topInset={keyboardUp ? insets.top : 0}>{video}</LivePlayer>
       {keyboardUp ? null : (
         <>
-          <StreamHeader model={model} live={model.isLive && pb.phase !== 'ended'} onShare={openShare} />
-          <View style={styles.railRow}>
-            <ReactionRail onReact={react} onGift={giftsEnabled ? openGift : undefined} />
-          </View>
+          {info}
+          <EventTabs value={tab} onChange={setTab} />
         </>
       )}
-      <View style={[styles.chatWrap, !ui.chatOpen && styles.chatCollapsed]}>{chatPanel}</View>
+      {tab === 'live' ? (
+        <>
+          {keyboardUp ? null : (
+            <View style={styles.railRow}>
+              <ReactionRail onReact={react} onGift={giftsEnabled ? openGift : undefined} />
+            </View>
+          )}
+          <View style={[styles.chatWrap, !ui.chatOpen && styles.chatCollapsed]}>{chatPanel}</View>
+        </>
+      ) : (
+        <View style={styles.chatWrap}>{wishes}</View>
+      )}
       {sheets}
     </KeyboardAvoidingView>
   );

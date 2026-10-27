@@ -138,6 +138,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-28-live-wishes",
+            "date": "2026-10-28",
+            "title": "A new live event page, with wishes",
+            "items": [
+              {
+                "icon": "sparkles-outline",
+                "title": "Wishes & Memories",
+                "body": "Viewers can send a video wish of up to a minute or a short message, and choose whether it is public or private before sending. Public wishes appear in the event feed once the host approves them."
+              },
+              {
+                "icon": "qr-code-outline",
+                "title": "Invite with a link or QR",
+                "body": "Hosts and guests can share an event link or save its QR code as a picture, so friends can send wishes too."
+              },
+              {
+                "icon": "albums-outline",
+                "title": "A clearer live page",
+                "body": "The live page now shows the event name, host and location under the video, with Live and Wishes & Memories tabs. Hosts see the same layout on the Go live page, with their wishes waiting for approval."
+              }
+            ]
+          },
+          {
             "id": "2026-10-27-host-events",
             "date": "2026-10-27",
             "title": "Host your own events and go live",
