@@ -39,7 +39,7 @@ import {
 import { getReactionIcon, isGiftChat } from '@/features/streams/studio/chatUtils';
 import type { FloatingReaction } from '@/features/streams/studio/FloatingReactions';
 import { BootLoading, StartFailure } from '@/features/streams/studio/StateOverlays';
-import { StreamerLiveScreen } from '@/features/streams/studio/StreamerLiveScreen';
+import { HostEventPage } from '@/features/streams/studio/HostEventPage';
 import {
   createStreamerLiveViewModel,
   nextOnAirLatch,
@@ -447,7 +447,8 @@ export default function StreamControlScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: !(vm.isLive || vm.isPaused) }} />
-      <StreamerLiveScreen
+      <HostEventPage
+        eventId={id}
         vm={vm}
         eventTitle={eventTitle}
         mode={mode}
