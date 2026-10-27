@@ -2,61 +2,53 @@
  * The photographer's entry to hosting: "Go live" starts the quick flow, "My hosted events" lists them.
  * Renders nothing unless the server says this account can host, so with the feature off the app looks
  * exactly as it did, and a failed or slow answer never leaves a broken control behind.
+ *
+ * Both are Compact Glass action tiles (tinted fill, 1px border, solid icon tile, scale on press): Go live is
+ * the live-red one, My hosted events the blue one with a count line.
  */
-import { Pressable, Text, View } from 'react-native';
+import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
+import { ActionTile, TileRow } from '@/components/ui/Compact';
 import { useAsync } from '@/hooks/useAsync';
-import { makeStyles, radii, spacing, useTheme } from '@/theme';
-import { getHostingEligibility } from './api';
+import { useTheme } from '@/theme';
+import { getHostingEligibility, listHostedEvents } from './api';
+import { hostedCaption } from './hostFlow';
 
 export function HostEntry() {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const router = useRouter();
   const eligibility = useAsync(getHostingEligibility);
-
   if (!eligibility.data?.canHostFree) return null;
-
-  return (
-    <View style={styles.row}>
-      <Pressable
-        onPress={() => router.push('/host/new' as Href)}
-        accessibilityRole="button"
-        accessibilityLabel="Go live. Host your own event"
-        style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-      >
-        <Ionicons name="radio-outline" size={20} color={colors.accent} />
-        <Text style={styles.label}>Go live</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push('/host' as Href)}
-        accessibilityRole="button"
-        accessibilityLabel="My hosted events"
-        style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-      >
-        <Ionicons name="albums-outline" size={20} color={colors.primary} />
-        <Text style={styles.label}>My hosted events</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-      </Pressable>
-    </View>
-  );
+  return <HostTiles />;
 }
 
-const useStyles = makeStyles((c) => ({
-  row: { flexDirection: 'row', gap: spacing.sm },
-  tile: {
-    flex: 1,
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surface,
-  },
-  label: { flex: 1, color: c.text, fontSize: 14, fontWeight: '700' },
-  pressed: { opacity: 0.85 },
-}));
+/** Only mounted once the server has said this account can host, so the events are fetched for hosts alone. */
+function HostTiles() {
+  const { colors } = useTheme();
+  const router = useRouter();
+  const hosted = useAsync(listHostedEvents);
+  const caption = useMemo(() => hostedCaption(hosted.data ?? undefined), [hosted.data]);
+  const chevron = <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />;
+  return (
+    <TileRow>
+      <ActionTile
+        icon="radio-outline"
+        tone="live"
+        title="Go live"
+        caption="Start"
+        style={{ flex: 0.68 }}
+        accessibilityLabel="Go live. Host your own event"
+        onPress={() => router.push('/host/new' as Href)}
+      />
+      <ActionTile
+        icon="albums-outline"
+        tone="primary"
+        title="My hosted events"
+        caption={caption}
+        badge={chevron}
+        style={{ flex: 1.32 }}
+        accessibilityLabel={`My hosted events. ${caption}`}
+        onPress={() => router.push('/host' as Href)}
+      />
+    </TileRow>
+  );
+}

@@ -1,4 +1,5 @@
 import type { ID } from '@/types';
+import { getEventStatus } from './eventStatus';
 
 export type EventStatus = string;
 /** How guests attend: a physical event (ticket consumed outside the app) or stream only. */export type AttendanceMode = 'IN_PERSON' | 'HYBRID' | 'STREAM_ONLY';export function parseAttendanceMode(v: unknown): AttendanceMode | undefined {  const s = typeof v === 'string' ? v.trim().toUpperCase() : '';  return s === 'IN_PERSON' || s === 'HYBRID' || s === 'STREAM_ONLY' ? s : undefined;}
@@ -229,33 +230,10 @@ export type PublicEventsPage = {
  * For older list responses that do not include it, it falls back to the
  * event's ONGOING state plus its live-stream metadata.
  */
-const FINISHED_EVENT_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'CANCELED']);
-
 export function isEventLive(event: PublicEvent, liveStreamIds?: Set<string>): boolean {
-  const eventStatus = (event.eventStatus || '').toUpperCase();
-  const streamStatus = (event.streamStatus || '').toLowerCase();
-  if (streamStatus === 'ended') return false;
-
-  // A finished event is never live. The stream input's status is not reset
-  // when an event completes, so completed rows from months ago still report
-  // 'connected' and showed a LIVE badge in the Ended tab. The web requires
-  // ONGOING outright; here the event's terminal status wins over the stream.
-  if (FINISHED_EVENT_STATUSES.has(eventStatus)) return false;
-
-  // The stream lifecycle is the most reliable signal once broadcasting has
-  // started. Some backend rows remain PUBLISHED while the input is already
-  // connected, so requiring ONGOING here hid genuine live events.
-  if (['live', 'connected', 'active', 'broadcasting', 'streaming'].includes(streamStatus)) {
-    return true;
-  }
-
-  if (eventStatus !== 'ONGOING') return false;
-  if (event.hasLiveStream === true) return true;
-  if (event.hlsManifestUrl || event.whepUrl) return true;
-  return liveStreamIds?.has(event.id) ?? false;
+  return getEventStatus(event, Date.now(), liveStreamIds) === 'LIVE';
 }
 
 export function isEventEnded(event: PublicEvent): boolean {
-  return (event.eventStatus || '').toUpperCase() === 'COMPLETED' ||
-    (event.streamStatus || '').toLowerCase() === 'ended';
+  return getEventStatus(event, Date.now()) === 'ENDED';
 }
