@@ -37,21 +37,21 @@ export default function HostedEventsScreen() {
 
   if (eligibility.loading && !eligibility.data) {
     return (
-      <Screen>
+      <Screen edges={[]}>
         <SkeletonList rows={3} accessibilityLabel="Loading" />
       </Screen>
     );
   }
   if (eligibility.error && !eligibility.data) {
     return (
-      <Screen>
+      <Screen edges={[]}>
         <ErrorState message={eligibility.error} onRetry={eligibility.refresh} />
       </Screen>
     );
   }
   if (!eligibility.data?.canHostFree) {
     return (
-      <Screen>
+      <Screen edges={[]}>
         <NotAvailable eligibility={eligibility.data ?? { enabled: false, canHostFree: false, canHostPaid: false, reason: 'HOSTING_DISABLED' }} />
       </Screen>
     );
@@ -60,7 +60,7 @@ export default function HostedEventsScreen() {
   const host = () => router.push('/host/new' as Href);
 
   return (
-    <Screen>
+    <Screen edges={[]}>
       <Segmented value={tab} options={TABS} onChange={setTab} />
       {events.loading && !events.data ? (
         <SkeletonList rows={3} accessibilityLabel="Loading your events" />
@@ -96,7 +96,7 @@ function HostedRow({ event, onOpen, onLive }: { event: EventItem; onOpen: () => 
   const { colors } = useTheme();
   const bucket = bucketOf(event.status);
   return (
-    <GlassCard>
+    <GlassCard style={styles.card}>
       <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`${event.title}. Open`} style={styles.row}>
         <View style={styles.rowText}>
           <Text style={styles.title} numberOfLines={2}>
@@ -125,6 +125,7 @@ function HostedRow({ event, onOpen, onLive }: { event: EventItem; onOpen: () => 
 const useStyles = makeStyles((c) => ({
   list: { gap: spacing.md, paddingVertical: spacing.md, flexGrow: 1 },
   footer: { paddingVertical: spacing.md },
+  card: { padding: spacing.md, gap: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48 },
   rowText: { flex: 1, gap: 2 },
   title: { color: c.text, fontSize: 16, fontWeight: '700' },

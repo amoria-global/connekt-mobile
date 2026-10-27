@@ -173,14 +173,14 @@ export default function HostEventScreen() {
 
   if (eligibility.loading && !eligibility.data) {
     return (
-      <Screen>
+      <Screen edges={[]}>
         <SkeletonList rows={4} accessibilityLabel="Checking if you can host" />
       </Screen>
     );
   }
   if (eligibility.error && !eligibility.data) {
     return (
-      <Screen>
+      <Screen edges={[]}>
         <ErrorState message={eligibility.error} onRetry={eligibility.refresh} />
       </Screen>
     );
@@ -188,7 +188,7 @@ export default function HostEventScreen() {
   const elig = eligibility.data;
   if (!elig || !elig.canHostFree) {
     return (
-      <Screen>
+      <Screen edges={[]}>
         <NotAvailable eligibility={elig ?? { enabled: false, canHostFree: false, canHostPaid: false, reason: 'HOSTING_DISABLED' }} />
       </Screen>
     );
@@ -200,8 +200,8 @@ export default function HostEventScreen() {
   const previewFailed = paid && previewFailedFor === priceNow && priceNow > 0;
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <Screen edges={[]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.lead}>{tr('Create your event, then go live. Viewers can find it on the Events page.')}</Text>
 
         <Pressable
@@ -335,12 +335,14 @@ export default function HostEventScreen() {
           </Text>
         </View>
 
+      </ScrollView>
+      {/* Pinned, so the main action is always on screen however long the form grows. */}
+      <View style={styles.footer}>
         {failure ? (
           <Text style={[styles.err, { color: colors.error }]} accessibilityRole="alert">
             {failure}
           </Text>
         ) : null}
-
         <PrimaryButton
           title={busy ? 'Working...' : failure && saved ? 'Try again' : 'Publish and go live'}
           loading={busy}
@@ -348,13 +350,15 @@ export default function HostEventScreen() {
           onPress={() => void submit(true)}
         />
         <GhostButton title="Publish and schedule for later" disabled={busy} onPress={() => void submit(false)} />
-      </ScrollView>
+      </View>
     </Screen>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  content: { gap: spacing.md, paddingBottom: spacing.xxl },
+  content: { gap: spacing.md, paddingBottom: spacing.lg },
+  footer: { gap: spacing.sm, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  scroll: { flex: 1 },
   lead: { color: c.textSoft, fontSize: 14 },
   group: { gap: spacing.sm },
   label: { color: c.textSoft, fontSize: 13, fontWeight: '600' },
