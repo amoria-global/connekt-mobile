@@ -138,6 +138,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-27-host-events",
+            "date": "2026-10-27",
+            "title": "Host your own events and go live",
+            "items": [
+              {
+                "icon": "radio-outline",
+                "title": "Host an event and go live",
+                "body": "Photographers can create their own event, publish it and go live from the app in a few taps. It is rolling out to photographers gradually, so you will see it on Home when it is ready for you."
+              },
+              {
+                "icon": "albums-outline",
+                "title": "My hosted events",
+                "body": "Events you host are listed apart from the events you were booked for, grouped as upcoming, live and ended. Paid events need your identity verification to be approved first."
+              },
+              {
+                "icon": "person-outline",
+                "title": "Hosted by on event cards",
+                "body": "Events that a photographer hosts now say who is hosting them, so viewers can see who is behind the stream."
+              }
+            ]
+          },
+          {
             "id": "2026-10-26-brand-polish",
             "date": "2026-10-26",
             "title": "Brand polish and update screen fix",
