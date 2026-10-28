@@ -138,6 +138,50 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-28-event-status",
+            "date": "2026-10-28",
+            "title": "Events show the right state, and hosts can unpublish",
+            "items": [
+              {
+                "icon": "calendar-outline",
+                "title": "Events sit in the right tab",
+                "body": "An event that has already ended no longer shows under Soon or Upcoming. Explore, your stories, the badges and My hosted events now agree on whether an event is upcoming, live or ended."
+              },
+              {
+                "icon": "eye-off-outline",
+                "title": "Unpublish and republish",
+                "body": "Hosts can hide an event, upcoming or ended, from Explore from the menu on its card, and republish it later. Unpublished events stay visible to you with an Unpublished badge."
+              },
+              {
+                "icon": "radio-outline",
+                "title": "Clearer Go live buttons",
+                "body": "Go live and My hosted events on Home now look like buttons, and hosted event cards show the date, a status badge and a red Go live button."
+              }
+            ]
+          },
+          {
+            "id": "2026-10-28-live-wishes",
+            "date": "2026-10-28",
+            "title": "A new live event page, with wishes",
+            "items": [
+              {
+                "icon": "sparkles-outline",
+                "title": "Wishes & Memories",
+                "body": "Viewers can send a video wish of up to a minute or a short message, and choose whether it is public or private before sending. Public wishes appear in the event feed once the host approves them."
+              },
+              {
+                "icon": "qr-code-outline",
+                "title": "Invite with a link or QR",
+                "body": "Hosts and guests can share an event link or save its QR code as a picture, so friends can send wishes too."
+              },
+              {
+                "icon": "albums-outline",
+                "title": "A clearer live page",
+                "body": "The live page now shows the event name, host and location under the video, with Live and Wishes & Memories tabs. Hosts see the same layout on the Go live page, with their wishes waiting for approval."
+              }
+            ]
+          },
+          {
             "id": "2026-10-27-host-events",
             "date": "2026-10-27",
             "title": "Host your own events and go live",

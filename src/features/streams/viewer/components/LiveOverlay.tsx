@@ -39,6 +39,11 @@ type Props = {
   insetRight: number;
   live: boolean;
   statusLabel?: string;
+  /** Section 2 extras: the Free / Ticket chip next to the LIVE badge, and the live scrubber between the controls. */
+  accessChip?: ReactNode;
+  scrubber?: ReactNode;
+  /** Hide the in-video Back when the page has its own header above the player. Default shown. */
+  showBack?: boolean;
   viewerCount: number | null;
   muted: boolean;
   playing: boolean;
@@ -73,9 +78,10 @@ export const LiveOverlay = memo(function LiveOverlay(p: Props) {
         style={[styles.top, { paddingTop: p.insetTop + 6, paddingLeft: p.insetLeft + 8, paddingRight: p.insetRight + 8 }]}
         pointerEvents={pe}
       >
-        <RoundButton icon="chevron-back" label="Back" onPress={p.onBack} />
-        <View style={styles.badges}>
+        {p.showBack === false ? null : <RoundButton icon="chevron-back" label="Back" onPress={p.onBack} />}
+        <View style={[styles.badges, p.showBack === false && { paddingLeft: 8 }]}>
           <LiveBadge live={p.live} label={p.statusLabel} />
+          {p.accessChip}
           {p.viewerCount != null ? <ViewerCount count={p.viewerCount} /> : null}
         </View>
         <View style={styles.right}>
@@ -99,7 +105,7 @@ export const LiveOverlay = memo(function LiveOverlay(p: Props) {
             label={p.muted ? 'Unmute' : 'Mute'}
             onPress={p.onToggleMute}
           />
-          <View style={{ flex: 1 }} />
+          {p.scrubber ? <View style={{ flex: 1 }}>{p.scrubber}</View> : <View style={{ flex: 1 }} />}
           <RoundButton
             icon={p.fullscreen ? 'contract' : 'expand'}
             label={p.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}

@@ -19,6 +19,7 @@ import {
   declineEventBooking,
   deleteEvent,
   getEvent,
+  getUnpublishImpact,
   markEventCompletedByPhotographer,
   pauseEvent,
   publishEvent,
@@ -26,6 +27,9 @@ import {
   unpublishEvent,
 } from '@/features/events/api';
 import { EventQrSheet } from '@/features/events/EventQrSheet';
+import { getEventStatus } from '@/features/events/eventStatus';
+import { EventOverflowMenu } from '@/features/hosting/EventOverflowMenu';
+import { publishActionFor } from '@/features/hosting/publishFlow';
 import { SatisfactionSurveySheet } from '@/features/events/SatisfactionSurveySheet';
 import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/events/survey';
 import { submitReview } from '@/features/reviews/api';
@@ -484,9 +488,11 @@ export default function EventDetailScreen() {
   // Private events are self-streamed by the owner; public events are streamed
   // by the photographer. So the owner's "Go Live" only exists on private events.
   const isPrivate = (ev?.eventVisibility ?? '').toUpperCase() === 'PRIVATE';
-  const canGoLive = isAccepted && !isEventDone && streamStatus !== 'ended' && !isStreamLive;
+  // The same rule as Explore and My hosted events decides when an event is over, so Go live is never offered for one.
+  const isOver = !!ev && getEventStatus(ev) === 'ENDED';
+  const canGoLive = isAccepted && !isEventDone && !isOver && streamStatus !== 'ended' && !isStreamLive;
   const ownerCanGoLive =
-    isPrivate && !isEventDone && streamStatus !== 'ended' && !isStreamLive;
+    isPrivate && !isEventDone && !isOver && streamStatus !== 'ended' && !isStreamLive;
   const canMarkComplete = isAccepted && !isEventDone;
   const canCreateAlbum = s === 'COMPLETED' || booking === 'ACCEPTED';
 
@@ -737,6 +743,21 @@ export default function EventDetailScreen() {
                 loading={busy === 'publish'}
               />
               <PrimaryBtn icon="create-outline" label={tr('b3_evdet_edit')} variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
+              {ev ? (
+                <EventOverflowMenu
+                  title={ev.title}
+                  action={publishActionFor(ev.published, getEventStatus(ev))}
+                  loadImpact={() => getUnpublishImpact(id)}
+                  onUnpublish={async () => {
+                    await unpublishEvent(id, isCoordinator);
+                    await refresh();
+                  }}
+                  onRepublish={async () => {
+                    await publishEvent(id, isCoordinator);
+                    await refresh();
+                  }}
+                />
+              ) : null}
               <PrimaryBtn icon="earth-outline" label={tr('b3_evdet_geo_pricing')} variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
               {ev?.published ? (
                 <PrimaryBtn icon="share-social-outline" label={tr('b3_evdet_share')} variant="outline" onPress={onShare} />
