@@ -9,6 +9,7 @@
 import type { PickedImage } from '@/services/imagePicker';
 import type { HostedEventInput } from './api';
 import { getEventStatus, type StatusInput } from '@/features/events/eventStatus';
+import { wishInvitesError } from '@/features/wishes/wishInvites';
 
 export type HostProgress = { eventId?: string; coverDone?: boolean };
 
@@ -66,9 +67,11 @@ export type HostForm = {
   startTime: string;
   paid: boolean;
   price: string;
+  /** null until the host chooses; the form blocks both publish buttons until then. */
+  allowWishInvites?: boolean | null;
 };
 
-export type HostFormErrors = Partial<Record<'title' | 'date' | 'startTime' | 'price' | 'cover', string>>;
+export type HostFormErrors = Partial<Record<'title' | 'date' | 'startTime' | 'price' | 'cover' | 'wishInvites', string>>;
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -84,6 +87,8 @@ export function validateHostForm(form: HostForm, hasCover: boolean, today: strin
     const n = Number(form.price);
     if (!Number.isFinite(n) || n <= 0) errors.price = 'Enter a price above zero.';
   }
+  const invites = wishInvitesError(form.allowWishInvites);
+  if (invites) errors.wishInvites = invites;
   if (!hasCover) errors.cover = 'Add a cover photo.';
   return errors;
 }

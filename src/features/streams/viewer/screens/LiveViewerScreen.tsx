@@ -350,7 +350,7 @@ export default function LiveViewerScreen() {
     />
   );
   const wishes = (
-    <WishesPanel eventId={model.eventId} title={model.title} closed={eventInfo?.wishesClosed} bottomInset={insets.bottom} />
+    <WishesPanel eventId={model.eventId} title={model.title} closed={eventInfo?.wishesClosed} invites={eventInfo?.allowWishInvites} bottomInset={insets.bottom} />
   );
 
   /* ── Tablet / desktop: video + info left, chat right ── */
