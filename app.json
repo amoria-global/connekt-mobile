@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.2.2",
+    "version": "2.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -26,7 +26,10 @@
         "NSCameraUsageDescription": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live.",
         "NSMicrophoneUsageDescription": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message.",
         "NSPhotoLibraryAddUsageDescription": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library."
-      }
+      },
+      "associatedDomains": [
+        "applinks:connekyt.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -47,6 +50,23 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "connekyt.com",
+              "pathPrefix": "/wish"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
