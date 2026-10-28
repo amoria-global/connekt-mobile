@@ -138,6 +138,33 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-29-album-share",
+            "date": "2026-10-29",
+            "title": "Share your albums with a link or QR code",
+            "items": [
+              {
+                "icon": "qr-code-outline",
+                "title": "Link and QR for Find My Photos",
+                "body": "When an album is live on Find My Photos, open it and tap Share to get a QR code and a link. Attendees scan or open it, take a selfie and find their photos."
+              },
+              {
+                "icon": "scan-outline",
+                "title": "Paid albums go live on their own",
+                "body": "A paid personal album is now published to Find My Photos as soon as its photos are uploaded, with the price you set, and the share sheet opens right away."
+              },
+              {
+                "icon": "pricetag-outline",
+                "title": "Set a price before publishing an event album",
+                "body": "The first time you publish an event album, you choose the price per photo and its currency, the same as on the web dashboard."
+              },
+              {
+                "icon": "image-outline",
+                "title": "The Connekyt logo in every QR code",
+                "body": "Every QR code in the app, and the ones you save, now carries the Connekyt logo in the middle and still scans."
+              }
+            ]
+          },
+          {
             "id": "2026-10-28-event-page-wishes",
             "date": "2026-10-28",
             "title": "A clearer event page, and wishes you can invite others to send",
@@ -227,213 +254,6 @@
                 "icon": "person-outline",
                 "title": "Hosted by on event cards",
                 "body": "Events that a photographer hosts now say who is hosting them, so viewers can see who is behind the stream."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-26-brand-polish",
-            "date": "2026-10-26",
-            "title": "Brand polish and update screen fix",
-            "items": [
-              {
-                "icon": "image-outline",
-                "title": "Logo and name sit together",
-                "body": "The Connekyt icon and wordmark in the top bar are now closer together, so they read as a single brand mark instead of two separate items."
-              },
-              {
-                "icon": "megaphone-outline",
-                "title": "What is new is back on the update screen",
-                "body": "The update screen now lists and describes every change in each new version again, so you always know what you are getting before you tap Update now."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-26-fixes",
-            "date": "2026-10-26",
-            "title": "Fixes for events, cards and updates",
-            "items": [
-              {
-                "icon": "pricetag-outline",
-                "title": "Easier event pricing",
-                "body": "When you create an event, the currency choices now sit under the price in a tidy grid, so every currency is visible and easy to tap."
-              },
-              {
-                "icon": "person-circle-outline",
-                "title": "Photographer cards fixed",
-                "body": "The round profile picture no longer covers the photographer's name on their card."
-              },
-              {
-                "icon": "megaphone-outline",
-                "title": "See what is new before you update",
-                "body": "The update screen lists the changes in each new version again, above the Update now button."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-25-compact-glass",
-            "date": "2026-10-25",
-            "title": "Tighter, clearer screens",
-            "items": [
-              {
-                "icon": "contract-outline",
-                "title": "Less scrolling",
-                "body": "Text, icons, tiles and spacing are smaller across the app, so more fits on one screen. Home now shows your balance, schedule and actions without scrolling."
-              },
-              {
-                "icon": "hand-left-outline",
-                "title": "Buttons that look like buttons",
-                "body": "Everything you can tap now has a colour: a tinted border, a coloured icon, or an arrow. Plain information cards stay flat."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-25-live-stream-screen",
-            "date": "2026-10-25",
-            "title": "A new look for watching live",
-            "items": [
-              {
-                "icon": "tv-outline",
-                "title": "Live stream, redesigned",
-                "body": "The video now fills the top of the screen with glass controls that fade after a few seconds and return when you tap. The host bar has a red live ring, a Gift button and a Like button, chat has coloured names and a HOST tag, and reactions float up over the video."
-              },
-              {
-                "icon": "chatbubbles-outline",
-                "title": "Friendlier chat",
-                "body": "An empty chat now offers quick hello chips that fill the message box, and a dropped connection shows a clear Reconnecting screen with a Retry button."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-25-broadcast-red",
-            "date": "2026-10-25",
-            "title": "Live events are red again",
-            "items": [
-              {
-                "icon": "radio-outline",
-                "title": "Red means live right now",
-                "body": "Live event cards, the Live filter, story rings, LIVE badges and Watch Live buttons are red again, with a glowing edge, a pulsing dot and a shimmering button. Upcoming events stay blue and ended events are grey."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-25-midnight-glass",
-            "date": "2026-10-25",
-            "title": "A new look: Midnight Glass",
-            "items": [
-              {
-                "icon": "sparkles-outline",
-                "title": "A fresh, darker design across the app",
-                "body": "Every screen now uses frosted glass panels on a deep navy, with clearer headings and colour that means something: blue for actions, pink for what needs your attention, cyan for live and amber for pending."
-              },
-              {
-                "icon": "home-outline",
-                "title": "A clearer Home",
-                "body": "Home leads with your balance, your next shoot on a calendar card and quick tiles for opportunities, collaboration, upcoming shoots and sharing your profile, plus a Withdraw button right on the balance."
-              },
-              {
-                "icon": "calendar-outline",
-                "title": "The whole week, Sunday included",
-                "body": "The Events week view now shows all seven days at once, and an empty day points you to your next shoot with a button to jump to it."
-              },
-              {
-                "icon": "help-circle-outline",
-                "title": "Help in the header, never in the way",
-                "body": "Help now sits at the top of each screen instead of floating over buttons, and create buttons moved into the header too."
-              },
-              {
-                "icon": "sunny-outline",
-                "title": "Light or dark, your choice",
-                "body": "The new look is dark by default. Tap the sun button on your Profile, or use Appearance in Settings, to switch to light."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-25-sheets-open-fully",
-            "date": "2026-10-25",
-            "title": "Forms open fully, and every sheet can be closed",
-            "items": [
-              {
-                "icon": "expand-outline",
-                "title": "New event and new album open at full height",
-                "body": "Creating an event or an album now opens the whole form straight away, so you no longer have to drag the sheet up to see it, and a close button sits at the top."
-              },
-              {
-                "icon": "close-circle-outline",
-                "title": "A close button on every pop up sheet",
-                "body": "Report, rebook, rating, completion, rejection, viewer and picker sheets now all have a clear close button, and forms move above the keyboard so their buttons stay visible."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-25-share-when-published",
-            "date": "2026-10-25",
-            "title": "Share is ready when your event is",
-            "items": [
-              {
-                "icon": "share-social-outline",
-                "title": "Share appears once an event is published",
-                "body": "The Share button on an event now shows only after you publish it, because a link to an unpublished event cannot be opened by your guests. Publish first, then share with everyone."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-24-invitation-emails",
-            "date": "2026-10-24",
-            "title": "Invited photographers now get an email too",
-            "items": [
-              {
-                "icon": "mail-outline",
-                "title": "Invitations reach the inbox as well as the app",
-                "body": "When you invite a photographer who already has an account, they now get an email as well as the notification in their app, so they do not miss it. A resend emails them again, with a short pause so their inbox is not flooded."
-              },
-              {
-                "icon": "notifications-outline",
-                "title": "You are told by email when access ends",
-                "body": "If a workspace owner ends your access, you now get an email about it as well as the in-app notification, so you always know why a workspace is no longer there."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-24-collaborate-invites-help",
-            "date": "2026-10-24",
-            "title": "Clearer Collaborate, invitations by email and a Help button",
-            "items": [
-              {
-                "icon": "people-outline",
-                "title": "Workspace access comes first, with a clear choice",
-                "body": "Collaborate now opens on Workspace access and shows two cards: share your whole workspace with another photographer, or share just one album. Each card says what the other person can and cannot do, so it is clear which one you want."
-              },
-              {
-                "icon": "mail-outline",
-                "title": "Invite photographers who do not have an account yet",
-                "body": "Enter any email address and we send an invitation by email if it has no account. They create a photographer account with that exact address and then accept, and they can paste the link into the sign in screen to continue."
-              },
-              {
-                "icon": "chatbubbles-outline",
-                "title": "Get help from any screen",
-                "body": "A Help button now stays in the bottom right corner of the app and opens the Help Center in one tap. It steps aside on screens where it would cover a button, like chat, live streams and the creation forms."
-              },
-              {
-                "icon": "cloud-download-outline",
-                "title": "A new look for the update screen",
-                "body": "The update screen now shows a glowing arrow dropping into a tray, so it is easy to see that a new version is ready to install."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-23-collaborator-progress",
-            "date": "2026-10-23",
-            "title": "Follow your collaborators' progress",
-            "items": [
-              {
-                "icon": "stats-chart-outline",
-                "title": "See how each photographer is getting on",
-                "body": "Open one of your shared albums and tap Progress. Each photographer who joined has a card showing how many of their photos were added, how many are waiting for you, how many were not accepted, how much of the album they account for and when they last sent something."
-              },
-              {
-                "icon": "images-outline",
-                "title": "Jump straight to their photos",
-                "body": "From a photographer's card, review their waiting photos or see everything they sent with one tap. The list is narrowed to that person until you choose Show everyone, and photographers who left still count in the totals."
               }
             ]
           }

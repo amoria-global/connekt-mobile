@@ -1,16 +1,11 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
-import { fonts, lightPalette, onFill } from '@/theme';
-import { qrMatrix } from '@/features/events/scanIntent';
+import { BrandedQr } from '@/features/qr/BrandedQrView';
+import { fonts } from '@/theme';
 import { wishLink } from '@/features/wishes/qrPng';
 import { saveQrToPhotos } from '@/features/wishes/saveQr';
 import { V } from '@/features/streams/viewer/viewerTheme';
 import { PillButton, SectionCard } from './shared';
-
-const QUIET = 2;
-// The code is navy on white in either scheme, so it scans.
-const NAVY = lightPalette.primary;
 
 /**
  * Section 6: share the wish link, and save its QR as a PNG. The link opens the event on its wishes tab. Same props on web.
@@ -19,13 +14,6 @@ export const InviteOthers = memo(function InviteOthers({ eventId, title, promine
   const link = wishLink(eventId);
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-
-  const path = useMemo(() => {
-    const { size, dark } = qrMatrix(link);
-    let d = '';
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (dark[y * size + x]) d += `M${x + QUIET} ${y + QUIET}h1v1h-1z`;
-    return { d, box: size + QUIET * 2 };
-  }, [link]);
 
   const onShare = async () => {
     setNote(null);
@@ -56,10 +44,7 @@ export const InviteOthers = memo(function InviteOthers({ eventId, title, promine
           <PillButton label="Save QR" icon="download-outline" onPress={onSave} busy={saving} />
         </View>
         <View style={s.qr} accessible accessibilityRole="image" accessibilityLabel="QR code for the wish link">
-          <Svg width="100%" height="100%" viewBox={`0 0 ${path.box} ${path.box}`}>
-            <Rect width={path.box} height={path.box} fill={onFill} />
-            <Path d={path.d} fill={NAVY} />
-          </Svg>
+          <BrandedQr value={link} size="100%" accessibilityLabel="QR code for the wish link" />
         </View>
       </View>
       {note ? (
