@@ -121,6 +121,15 @@ describe('HostEventScreen', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
+  it('shows every field by default, with no More details, and the two publish buttons in different colours', async () => {
+    serve(eligibility({}));
+    const r = await mount();
+    expect(text(r)).not.toContain('More details');
+    for (const l of ['End time', 'Where', 'Description']) expect(r.root.findAll((n) => n.props?.label === l).length).toBeGreaterThan(0);
+    expect(titled(r, 'Publish and go live').props.variant).not.toBe('accent');
+    expect(titled(r, 'Publish and schedule for later').props.variant).toBe('accent');
+  });
+
   it('blocks both publish buttons until Wish invites is chosen, shows the error, then sends the choice', async () => {
     serve(eligibility({}));
     const r = await mount();

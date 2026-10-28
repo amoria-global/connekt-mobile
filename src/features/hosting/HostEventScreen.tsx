@@ -1,6 +1,6 @@
 /**
  * Host an event: the photographer's fast path to going live. Title, cover, Free or Paid, then
- * "Publish and go live". Everything else (description, place, end time) sits under "More details".
+ * "Publish and go live". Description, place and end time are always shown below the date.
  *
  * The server decides who may host (flag, photographer account, verification for paid) and this screen
  * only reads that answer. Success is shown only after the server has confirmed create, cover and publish;
@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
-import { PrimaryButton, GhostButton } from '@/components/ui/Button';
+import { Button, PrimaryButton } from '@/components/ui/Button';
 import { InsetField } from '@/components/ui/Input';
 import { DateField } from '@/components/ui/DateField';
 import { TimeField } from '@/components/ui/TimeField';
@@ -73,7 +73,6 @@ export default function HostEventScreen() {
   const [price, setPrice] = useState('');
   const [currencyCode, setCurrencyCode] = useState('RWF');
   const [cover, setCover] = useState<PickedImage | null>(null);
-  const [more, setMore] = useState(false);
   const [wishInvites, setWishInvites] = useState<boolean | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const wishInvitesY = useRef(0);
@@ -328,30 +327,16 @@ export default function HostEventScreen() {
         <DateField label="Date" value={date} onChange={setDate} error={errors.date} minimumDate={new Date()} />
         <TimeField label="Start time (optional)" value={startTime} onChange={setStartTime} error={errors.startTime} />
 
-        <Pressable
-          onPress={() => setMore((m) => !m)}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: more }}
-          style={styles.moreRow}
-          hitSlop={8}
-        >
-          <Text style={styles.moreText}>{more ? tr('Fewer details') : tr('More details')}</Text>
-          <Ionicons name={more ? 'chevron-up' : 'chevron-down'} size={18} color={colors.primary} />
-        </Pressable>
-        {more ? (
-          <View style={styles.group}>
-            <TimeField label="End time" value={endTime} onChange={setEndTime} />
-            <InsetField label="Where" value={location} onChangeText={setLocation} placeholder="Place or online" editable={!busy} />
-            <InsetField
-              label="Description"
-              value={description}
-              onChangeText={setDescription}
-              placeholder="What will you stream?"
-              multiline
-              editable={!busy}
-            />
-          </View>
-        ) : null}
+        <TimeField label="End time" value={endTime} onChange={setEndTime} />
+        <InsetField label="Where" value={location} onChangeText={setLocation} placeholder="Place or online" editable={!busy} />
+        <InsetField
+          label="Description"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="What will you stream?"
+          multiline
+          editable={!busy}
+        />
 
         <View style={styles.notice}>
           <Ionicons name="videocam-outline" size={18} color={colors.primary} />
@@ -374,7 +359,7 @@ export default function HostEventScreen() {
           disabled={busy}
           onPress={() => void submit(true)}
         />
-        <GhostButton title="Publish and schedule for later" disabled={busy} onPress={() => void submit(false)} />
+        <Button title="Publish and schedule for later" variant="accent" disabled={busy} onPress={() => void submit(false)} />
       </View>
     </Screen>
   );
@@ -427,7 +412,5 @@ const useStyles = makeStyles((c) => ({
   noticeText: { flex: 1, gap: spacing.xs },
   noticeBody: { flex: 1, color: c.textSoft, fontSize: 13, lineHeight: 18 },
   noticeLink: { color: c.primary, fontSize: 13, fontWeight: '700' },
-  moreRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 44 },
-  moreText: { color: c.primary, fontSize: 14, fontWeight: '600' },
   err: { fontSize: 13 },
 }));
