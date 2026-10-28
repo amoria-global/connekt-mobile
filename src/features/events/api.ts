@@ -308,6 +308,7 @@ function mapPublicEvent(r: RawEvent): PublicEvent {
 
   const creatorObj: PublicEventCreator | undefined = creator && Object.keys(creator).length
     ? {
+        id: str(creator.id),
         firstName: str(creator.firstName),
         lastName: str(creator.lastName),
         profilePicture: str(creator.profilePicture),

@@ -126,6 +126,7 @@ export type EventItem = {
  * unchanged. Used by the public (guest) flows in (public)/events/*.
  */
 export type PublicEventCreator = {
+  id?: string;
   firstName?: string;
   lastName?: string;
   profilePicture?: string;

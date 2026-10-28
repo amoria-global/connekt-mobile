@@ -165,7 +165,7 @@ describe('wishes on an upcoming event', () => {
     const video = { uri: 'file:///wish.mp4', name: 'wish.mp4', mimeType: 'video/mp4' };
     mockPick.mockResolvedValue(video);
     const r = await mount();
-    expect(flat(r.root)).toContain('Record a 1 minute video wish');
+    expect(flat(r.root)).toContain('Video · 1 min');
     await type(r, /name/i, 'Aline');
     await type(r, /email/i, 'aline@example.test');
     await type(r, /message|wish/i, 'Best wishes');
@@ -216,3 +216,32 @@ describe('a signed-in user', () => {
   });
 });
 
+
+describe('the event page cards', () => {
+  it('runs in the new order: date and time, wishes and memories, the heartfelt line, hosted by, stream entry, donation', async () => {
+    const text = flat((await mount()).root);
+    const at = (s: string) => text.indexOf(s);
+    const order = ['Starts in', 'Wed, 2 Jan 2999', 'Wishes & memories', "Some of the people you love can't be here", 'Hosted by', 'Event ticket (includes live stream)', 'Support this event with a donation', 'Get notified'];
+    order.forEach((s) => expect(at(s)).toBeGreaterThan(-1));
+    expect(order.map(at)).toEqual([...order.map(at)].sort((a, b) => a - b));
+  });
+
+  it('shows the date and the time with its timezone in one card, with Add to calendar', async () => {
+    const text = flat((await mount()).root);
+    expect(text).toContain('Wed, 2 Jan 2999 | 12:00 PM · Kigali time (CAT)');
+    expect(text).toContain('Add to calendar');
+    expect(text).not.toContain('Hosts & crew');
+  });
+
+  it('switches the wishes card to Invite loved ones, with the QR, Share link and Save QR', async () => {
+    const r = await mount();
+    expect(flat(r.root)).not.toContain('Save QR');
+    await press(r, 'Invite loved ones');
+    const text = flat(r.root);
+    expect(text).toContain('Share link');
+    expect(text).toContain('Save QR');
+    expect(r.root.findAll((n) => n.props?.accessibilityLabel === 'QR code for wish link').length).toBeGreaterThan(0);
+    await press(r, 'Send my wish');
+    expect(flat(r.root)).toContain('Video · 1 min');
+  });
+});

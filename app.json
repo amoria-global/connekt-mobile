@@ -138,6 +138,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-28-event-page-wishes",
+            "date": "2026-10-28",
+            "title": "A clearer event page, and wishes you can invite others to send",
+            "items": [
+              {
+                "icon": "heart-outline",
+                "title": "Wishes and memories in one card",
+                "body": "Send your own wish, or switch to Invite loved ones to share a QR code and a link. Anyone who opens it sees the event and can send a wish without an account."
+              },
+              {
+                "icon": "calendar-outline",
+                "title": "Date and time together",
+                "body": "The date, the time with its timezone and an Add to calendar button now sit in one card."
+              },
+              {
+                "icon": "people-outline",
+                "title": "One Hosted by card",
+                "body": "When the organizer is also the photographer you see one row with both roles. The photographer opens their profile."
+              }
+            ]
+          },
+          {
             "id": "2026-10-28-event-status",
             "date": "2026-10-28",
             "title": "Events show the right state, and hosts can unpublish",
