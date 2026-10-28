@@ -37,7 +37,7 @@ describe('unpublishCopy', () => {
 
 describe('hosted tabs and the Home caption agree', () => {
   const ended = { ...base, streamStatus: 'ended' };
-  const upcoming = { ...base, eventDate: '2026-10-28' };
+  const upcoming = { ...base, eventDate: '2099-01-01' };
   const live = { ...base, streamStatus: 'connected' };
   const now = at('2026-10-27T12:00:00+02:00');
   it('puts an event that ended today under ended, not upcoming', () => {
