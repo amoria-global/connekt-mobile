@@ -65,8 +65,6 @@ async function mountList() {
   await act(async () => {
     r = TestRenderer.create(<PhotographerEventsDashboard />);
   });
-  const list = r.root.find((n) => n.props?.accessibilityRole === 'tab' && text(n) === 'List');
-  await act(async () => list.props.onPress());
   return r;
 }
 

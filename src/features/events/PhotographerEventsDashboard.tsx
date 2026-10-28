@@ -20,9 +20,8 @@
  * schedule. Cards on photographs keep fixed light-on-dark text (`onMedia`), and colour means
  * what it means everywhere: blue action, magenta attention, cyan live, amber pending.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -30,8 +29,6 @@ import {
   Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -40,16 +37,19 @@ import { Alert } from '@/components/ui/dialog';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { GlassOnMedia, glassTile } from '@/components/ui/GlassCard';
+import { glassTile } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/Input';
 import { useAsync } from '@/hooks/useAsync';
+import { useNow } from '@/hooks/useNow';
 import { isApiError } from '@/store/auth';
-import { ScheduleView, type ScheduleMode } from '@/features/photographer/ScheduleView';
 import { bucketOf } from '@/features/photographer/schedule';
-import { SegmentedTabs } from '@/features/photographer/kit';
-import { alpha, darkPalette, spacing, radii, fonts, makeStyles, onMedia, shadows, tracking, useTheme, type Palette } from '@/theme';
+import { SectionTabs } from '@/components/ui/SectionTabs';
+import { EventsToolbar, type EventsLayout } from './EventsToolbar';
+import { EventsCalendar, type CalendarMode } from './EventsCalendar';
+import { EventRow } from './EventRow';
+import { countsOf, dayFilter, emptyInfo, filterEvents, groupEvents, type DateFilter, type StatusFilter, type StatusKey } from './eventsFilter';
+import { spacing, radii, fonts, makeStyles, onMedia, shadows, tracking, useTheme } from '@/theme';
 import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
-import { StatusChip, type ChipTone } from '@/components/ui/StatusChip';
 import { formatDate } from '@/utils/format';
 import {
   acceptEventBooking,
@@ -60,78 +60,14 @@ import {
 import type { EventItem } from './types';
 import { Sheet } from '@/components/ui/Sheet';
 import { EventQrSheet } from './EventQrSheet';
-import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
 import { useLanguage } from '@/store/language';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
-const PAGE_SIZE = 8;
-
-export type EventSortOption = 'newest' | 'oldest' | 'date_asc' | 'title_asc';
-
-export const SORT_OPTIONS: {
-  key: EventSortOption;
-  label: string;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}[] = [
-  {
-    key: 'newest',
-    label: 'Newest created first',
-    description: 'Recently booked or created events appear first',
-    icon: 'sparkles-outline',
-  },
-  {
-    key: 'oldest',
-    label: 'Oldest created first',
-    description: 'Earliest booked or created events first',
-    icon: 'time-outline',
-  },
-  {
-    key: 'date_asc',
-    label: 'Event date (Upcoming first)',
-    description: 'Scheduled event date & time in chronological order',
-    icon: 'calendar-outline',
-  },
-  {
-    key: 'title_asc',
-    label: 'Title (A to Z)',
-    description: 'Alphabetical order by event name',
-    icon: 'text-outline',
-  },
-];
-
-type ViewTab = 'events' | 'albums' | 'photobooks' | 'content';
-type EventFilter = 'all' | 'pending' | 'upcoming' | 'ongoing' | 'completed';
-type PhotogStatus = 'pending' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-
-/** Same buckets as the schedule view, so the list and the calendar never disagree. */
-const statusOf = (e: EventItem): PhotogStatus => bucketOf(e);
-
-const STATUS_LABEL: Record<PhotogStatus, string> = {
-  pending: 'PENDING',
-  upcoming: 'UPCOMING',
-  ongoing: 'ONGOING',
-  completed: 'COMPLETED',
-  cancelled: 'CANCELLED',
-};
-
-/** A bucket's meaning as a colour: amber pending, blue scheduled, cyan live, green done, red cancelled. */
-const statusColor = (c: Palette, s: PhotogStatus) =>
-  ({ pending: c.pending, upcoming: c.primaryLight, ongoing: c.active, completed: c.success, cancelled: c.error })[s];
-
-const FILTER_TONE: Record<EventFilter, ChipTone> = {
-  all: 'primary',
-  pending: 'pending',
-  upcoming: 'primary',
-  ongoing: 'active',
-  completed: 'success',
-};
-
 /** "8:20 PM" from an "HH:mm[:ss]" or ISO time. */
 function fmtTime(t?: string): string {
   if (!t) return '';
-  const hm = /^(\d{1,2}):(\d{2})/.exec(t);
+  const hm = /^(d{1,2}):(d{2})/.exec(t);
   let h: number;
   let m: number;
   if (hm) {
@@ -143,12 +79,10 @@ function fmtTime(t?: string): string {
     h = d.getHours();
     m = d.getMinutes();
   }
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
-/** "Jun 26, 2026" (screenshot style). */
+/** "Jun 26, 2026". */
 function fmtShortDate(iso?: string): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -156,126 +90,76 @@ function fmtShortDate(iso?: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// Events is the in-place default; the other three link to their existing
-// (or newly-created) library screens.
-const VIEW_TABS: { key: ViewTab; label: string; icon: keyof typeof Ionicons.glyphMap; route?: Href }[] = [
-  { key: 'events', label: 'Events', icon: 'calendar' },
-  { key: 'albums', label: 'Albums', icon: 'images', route: '/gallery' as Href },
-  { key: 'photobooks', label: 'Photobooks', icon: 'book', route: '/photobooks' as Href },
-  { key: 'content', label: 'Content', icon: 'newspaper', route: '/content-albums' as Href },
-];
+type ViewTab = 'events' | 'albums' | 'photobooks' | 'content';
+
+// What the user last chose this session. A fresh app launch starts here again: List, with the calendar on Month. The
+// status chip and the date are never remembered: the screen always opens on All and Any date.
+const session: { layout: EventsLayout; calMode: CalendarMode } = { layout: 'list', calMode: 'month' };
+
+type Row = { kind: 'section'; key: string; title: string; count: number } | { kind: 'event'; key: string; event: EventItem; status: StatusKey };
 
 export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: number }) {
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const styles = useStyles();
   const clearance = useTabBarClearance();
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
 
-  const viewTabs: { key: ViewTab; label: string; icon: keyof typeof Ionicons.glyphMap; route?: Href }[] = useMemo(() => [
-    { key: 'events', label: t('eventsTitle'), icon: 'calendar' },
-    { key: 'albums', label: t('albums'), icon: 'images', route: '/gallery' as Href },
-    { key: 'photobooks', label: t('photobooks'), icon: 'book', route: '/photobooks' as Href },
-    { key: 'content', label: t('content'), icon: 'newspaper', route: '/content-albums' as Href },
-  ], [t]);
+  const viewTabs: { key: ViewTab; label: string; icon: keyof typeof Ionicons.glyphMap; route?: Href }[] = useMemo(
+    () => [
+      { key: 'events', label: t('eventsTitle'), icon: 'calendar-outline' },
+      { key: 'albums', label: t('albums'), icon: 'images-outline', route: '/gallery' as Href },
+      { key: 'photobooks', label: t('photobooks'), icon: 'book-outline', route: '/photobooks' as Href },
+      { key: 'content', label: t('content'), icon: 'newspaper-outline', route: '/content-albums' as Href },
+    ],
+    [t],
+  );
 
-  const listRef = useRef<FlatList<EventItem>>(null);
   const [view, setView] = useState<ViewTab>('events');
-  // Schedule (calendar) is the default workspace; List keeps the paginated card grid.
-  // One switch for the whole events view: the three calendar modes or the original list.
-  const [layout, setLayout] = useState<ScheduleMode | 'list'>('week');
-  const [filter, setFilter] = useState<EventFilter>('all');
+  const [layout, setLayoutState] = useState<EventsLayout>(session.layout);
+  const [calMode, setCalModeState] = useState<CalendarMode>(session.calMode);
+  const [status, setStatus] = useState<StatusFilter>('all');
+  const [date, setDate] = useState<DateFilter>(null);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<EventSortOption>('newest');
-  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [acceptTarget, setAcceptTarget] = useState<EventItem | null>(null);
   const [declineTarget, setDeclineTarget] = useState<EventItem | null>(null);
   const [declineReason, setDeclineReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [qrTarget, setQrTarget] = useState<EventItem | null>(null);
 
-  const events = data ?? [];
-
-  const counts = useMemo(() => {
-    const c = { all: events.length, pending: 0, upcoming: 0, ongoing: 0, completed: 0 };
-    for (const e of events) {
-      const s = statusOf(e);
-      if (s === 'pending') c.pending += 1;
-      else if (s === 'upcoming') c.upcoming += 1;
-      else if (s === 'ongoing') c.ongoing += 1;
-      else if (s === 'completed') c.completed += 1;
-    }
-    return c;
-  }, [events]);
-
-  const [page, setPage] = useState(1);
-
-  // Reset to first page when filtering, searching or sorting
-  useEffect(() => {
-    setPage(1);
-  }, [filter, search, sortBy]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return events.filter((e) => {
-      const s = statusOf(e);
-      if (filter !== 'all' && s !== filter) return false;
-      if (!q) return true;
-      return (
-        e.title.toLowerCase().includes(q) ||
-        (e.clientName ?? '').toLowerCase().includes(q) ||
-        (e.category ?? '').toLowerCase().includes(q)
-      );
-    });
-  }, [events, filter, search]);
-
-  const sortedAndFiltered = useMemo(() => {
-    const list = [...filtered];
-    switch (sortBy) {
-      case 'newest':
-        return list.sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return timeB - timeA;
-        });
-      case 'oldest':
-        return list.sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return timeA - timeB;
-        });
-      case 'date_asc':
-        return list.sort((a, b) => {
-          const parseTime = (item: EventItem) => {
-            if (!item.eventDate) return 0;
-            const dateStr = item.eventDate.includes('T')
-              ? item.eventDate
-              : `${item.eventDate}T${item.startTime || '00:00'}:00`;
-            const t = new Date(dateStr).getTime();
-            return Number.isNaN(t) ? new Date(item.eventDate).getTime() || 0 : t;
-          };
-          return parseTime(a) - parseTime(b);
-        });
-      case 'title_asc':
-        return list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-      default:
-        return list;
-    }
-  }, [filtered, sortBy]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedAndFiltered.length / PAGE_SIZE));
-
-  const pagedEvents = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return sortedAndFiltered.slice(start, start + PAGE_SIZE);
-  }, [sortedAndFiltered, page]);
-
-  const goToPage = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages || newPage === page) return;
-    setPage(newPage);
-    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  const setLayout = (l: EventsLayout) => {
+    session.layout = l;
+    setLayoutState(l);
+    // Back to the list means no date filter at all.
+    if (l === 'list') setDate(null);
   };
+  const setCalMode = (m: CalendarMode) => {
+    session.calMode = m;
+    setCalModeState(m);
+  };
+
+  const events = useMemo(() => data ?? [], [data]);
+  const now = useNow();
+  const filters = { status, date, search };
+  const counts = data ? countsOf(events, { date, search }, now) : null;
+  const list = filterEvents(events, filters, now);
+  const empty = data && list.length === 0 ? emptyInfo(events, filters, now) : null;
+
+  const rows = useMemo<Row[]>(() => {
+    const g = groupEvents(filterEvents(events, { status, date, search }, now), now);
+    const out: Row[] = [];
+    const add = (key: StatusKey, title: string, items: EventItem[]) => {
+      if (!items.length) return;
+      out.push({ kind: 'section', key: `s-${key}`, title, count: items.length });
+      for (const e of items) out.push({ kind: 'event', key: e.id, event: e, status: key });
+    };
+    add('ongoing', 'Ongoing now', g.ongoing);
+    add('upcoming', 'Upcoming', g.upcoming);
+    add('completed', 'Completed', g.completed);
+    return out;
+  }, [events, status, date, search, now]);
 
   const onAcceptConfirmed = async (e: EventItem) => {
     setBusyId(e.id);
@@ -328,46 +212,34 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
   };
 
   /**
-   * Streaming and albums both hang off the public event page, so the backend
-   * only accepts them once the event is published. The photographer can't
-   * publish it themselves — that's the event creator's call — so say so.
+   * Streaming and albums both hang off the public event page, so the backend only accepts them once the event is
+   * published. The photographer can't publish it themselves, so say so.
    */
   const requirePublished = (e: EventItem, action: string): boolean => {
     if (e.published) return true;
-    Alert.alert(
-      'Event not published yet',
-      `${action} is only available for published events. Ask the event creator to publish "${e.title}" first.`,
-    );
+    Alert.alert('Event not published yet', `${action} is only available for published events. Ask the event creator to publish "${e.title}" first.`);
     return false;
   };
 
-  const onLiveStream = (e: EventItem) => {
-    if (!requirePublished(e, 'Live streaming')) return;
-    router.push(`/stream/control/${e.id}` as Href);
+  // The row is one tap to the event. Press and hold keeps what the old cards offered: stream, album, QR, reply, remove.
+  const onRowActions = (e: EventItem, st: StatusKey) => {
+    const bucket = bucketOf(e);
+    const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [{ text: 'Open', onPress: () => router.push(`/event/${e.id}` as Href) }];
+    if (bucket === 'pending') {
+      buttons.push({ text: 'Accept booking', onPress: () => setAcceptTarget(e) }, { text: 'Decline booking', onPress: () => setDeclineTarget(e) });
+    }
+    if (st !== 'completed' && bucket !== 'pending') {
+      buttons.push({ text: 'Live stream', onPress: () => requirePublished(e, 'Live streaming') && router.push(`/stream/control/${e.id}` as Href) });
+    }
+    buttons.push({ text: 'Create album', onPress: () => requirePublished(e, 'Album creation') && router.push(`/album/new?eventId=${e.id}` as Href) }, { text: 'Event QR code', onPress: () => setQrTarget(e) });
+    if (st === 'completed' || bucket === 'cancelled') buttons.push({ text: 'Remove from my list', style: 'destructive', onPress: () => onDismissEvent(e) });
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert(e.title, undefined, buttons);
   };
-
-  const onCreateAlbum = (e: EventItem) => {
-    if (!requirePublished(e, 'Album creation')) return;
-    router.push(`/album/new?eventId=${e.id}` as Href);
-  };
-
-  const scheduleMode = view === 'events' && layout !== 'list';
-
-  const [searchOpen, setSearchOpen] = useState(false);
-  const filterLabel = (f: EventFilter) =>
-    f === 'all'
-      ? t('filterAll')
-      : f === 'pending'
-        ? t('pending')
-        : f === 'upcoming'
-          ? t('filterUpcoming')
-          : f === 'ongoing'
-            ? t('filterOngoing')
-            : t('filterCompleted');
 
   const header = (
     <View style={{ paddingTop: topInset + spacing.sm, gap: spacing.md }}>
-      {/* Large title: search, Help and Create stay one tap away, nothing floats over a card. */}
+      {/* Large title: search, Help and Create stay one tap away, nothing floats over a row. */}
       <View style={styles.titleRow}>
         <Text style={styles.title} accessibilityRole="header" numberOfLines={1}>
           {t('eventsTitle')}
@@ -384,104 +256,47 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
           </Pressable>
         ) : null}
         <HeaderHelpButton />
-        <Pressable
-          onPress={() => router.push('/event/new' as Href)}
-          accessibilityRole="button"
-          accessibilityLabel="Create new event"
-          style={({ pressed }) => [styles.createBtn, pressed && styles.pressed]}
-        >
+        <Pressable onPress={() => router.push('/event/new' as Href)} accessibilityRole="button" accessibilityLabel="Create new event" style={({ pressed }) => [styles.createBtn, pressed && styles.pressed]}>
           <Ionicons name="add" size={24} color={colors.textOnPrimary} />
         </Pressable>
       </View>
 
-      {/* Library tabs: Events here, the other three open their screens. */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.viewTabs}>
-        {viewTabs.map((tab) => {
-          const active = view === tab.key;
-          return (
-            <Pressable
-              key={tab.key}
-              onPress={() => (tab.route ? router.push(tab.route) : setView('events'))}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              style={styles.viewTab}
-            >
-              <Text style={[styles.viewTabText, active && styles.viewTabTextActive]}>{tab.label}</Text>
-              <View style={[styles.viewTabRule, active && styles.viewTabRuleOn]} />
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {/* Library sections: Events here, the other three open their screens. */}
+      <SectionTabs tabs={viewTabs} value={view} onChange={(k) => { const tab = viewTabs.find((v) => v.key === k); if (tab?.route) router.push(tab.route); else setView('events'); }} label="Library sections" />
 
       {view === 'events' ? (
         <>
-          {/* The kit's blocks carry their own side margins; cancel this list's padding. */}
-          <View style={{ marginHorizontal: -spacing.lg }}>
-            <SegmentedTabs
-              label="Events layout"
-              value={layout}
-              onChange={setLayout}
-              tabs={[
-                { key: 'month', label: 'Month' },
-                { key: 'week', label: 'Week' },
-                { key: 'agenda', label: 'Agenda' },
-                { key: 'list', label: 'List' },
-              ]}
-            />
-          </View>
+          <EventsToolbar
+            counts={counts}
+            status={status}
+            onStatus={setStatus}
+            date={date}
+            onClearDate={() => setDate(null)}
+            onPickDate={() => setLayout('calendar')}
+            layout={layout}
+            onLayout={setLayout}
+          />
 
-          {/* Filter chips with live counts. A bucket with nothing in it is left out rather than shown as "0", unless
-              it is the one selected, so the row never spends space saying nothing. */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-            {(['all', 'pending', 'upcoming', 'ongoing', 'completed'] as const)
-              .filter((f) => f === 'all' || f === filter || !data || counts[f] > 0)
-              .map((f) => (
-                <StatusChip
-                  key={f}
-                  label={filterLabel(f)}
-                  tone={FILTER_TONE[f]}
-                  dot={f === 'ongoing'}
-                  count={data ? counts[f] : undefined}
-                  selected={filter === f}
-                  onPress={() => setFilter(f)}
-                />
-              ))}
-          </ScrollView>
+          {layout === 'calendar' ? <EventsCalendar events={events} date={date} onSelect={setDate} mode={calMode} onMode={setCalMode} /> : null}
 
-          {searchOpen || search || !scheduleMode ? (
-            <View style={styles.searchRow}>
-              <View style={styles.search}>
-                <Ionicons name="search" size={16} color={colors.textMuted} />
-                <TextInput
-                  value={search}
-                  onChangeText={setSearch}
-                  placeholder={t('searchEventsPlaceholder')}
-                  placeholderTextColor={colors.textMuted}
-                  style={styles.searchInput}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoFocus={searchOpen && !search}
-                />
-                {search ? (
-                  <Pressable onPress={() => setSearch('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search">
-                    <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                  </Pressable>
-                ) : null}
-              </View>
-
-              {/* Sorting means nothing on a calendar, so only List mode shows it. */}
-              {scheduleMode ? null : (
-                <Pressable
-                  style={[styles.sortBtn, sortBy !== 'newest' && styles.sortBtnActive]}
-                  onPress={() => setSortSheetOpen(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('sortEvents')}
-                >
-                  <Ionicons name="swap-vertical" size={16} color={sortBy !== 'newest' ? colors.textOnPrimary : colors.text} />
-                  <Text style={[styles.sortBtnText, sortBy !== 'newest' && styles.sortBtnTextActive]}>{t('sort')}</Text>
-                  {sortBy !== 'newest' && <View style={styles.sortActiveDot} />}
+          {searchOpen || search ? (
+            <View style={styles.search}>
+              <Ionicons name="search" size={16} color={colors.textMuted} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder={t('searchEventsPlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                style={styles.searchInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus={searchOpen && !search}
+              />
+              {search ? (
+                <Pressable onPress={() => setSearch('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search">
+                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                 </Pressable>
-              )}
+              ) : null}
             </View>
           ) : null}
         </>
@@ -489,158 +304,57 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
     </View>
   );
 
-  const headerWithSchedule = scheduleMode ? (
-    <View style={{ gap: spacing.md }}>
-      {header}
-      {loading && !data ? (
-        <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
-      ) : error && !data ? (
-        <View style={{ paddingTop: spacing.md }}>
-          <EmptyState icon="cloud-offline-outline" title="Couldn't load events" message={error} />
-        </View>
-      ) : (
-        <View style={{ marginHorizontal: -spacing.lg }}>
-          <ScheduleView
-            mode={layout}
-            onModeChange={setLayout}
-            events={filtered}
-            allEvents={events}
-            busyId={busyId}
-            onOpen={(e) => router.push(`/event/${e.id}` as Href)}
-            onAccept={(e) => setAcceptTarget(e)}
-            onDecline={(e) => setDeclineTarget(e)}
-            onCreate={() => router.push('/event/new' as Href)}
-          />
-        </View>
-      )}
-    </View>
-  ) : (
-    header
-  );
-
   return (
     <View style={styles.container}>
       <FlatList
-        ref={listRef}
-        key="photographer-events-grid"
-        data={scheduleMode ? [] : pagedEvents}
-        keyExtractor={(e) => e.id}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        ItemSeparatorComponent={ListGap}
-        ListHeaderComponent={headerWithSchedule}
+        key="photographer-events-list"
+        data={view === 'events' ? rows : []}
+        keyExtractor={(r) => r.key}
+        ItemSeparatorComponent={RowGap}
+        ListHeaderComponent={header}
         contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />}
-        renderItem={({ item }) => (
-          <PhotographerEventCard
-            event={item}
-            busy={busyId === item.id}
-            onOpen={() => router.push(`/event/${item.id}` as Href)}
-            onAccept={() => setAcceptTarget(item)}
-            onDecline={() => setDeclineTarget(item)}
-            onLiveStream={() => onLiveStream(item)}
-            onCreateAlbum={() => onCreateAlbum(item)}
-            onQr={() => setQrTarget(item)}
-            onDismiss={() => onDismissEvent(item)}
-          />
-        )}
-        ListFooterComponent={
-          !scheduleMode && sortedAndFiltered.length > 0 ? (
-            <View style={styles.paginationFooter}>
-              <View style={styles.pagerBar}>
-                <Pressable
-                  style={[styles.pagerBtn, page <= 1 && styles.pagerBtnDisabled]}
-                  onPress={() => goToPage(page - 1)}
-                  disabled={page <= 1}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('previous')}
-                >
-                  <Ionicons
-                    name="chevron-back"
-                    size={16}
-                    color={page <= 1 ? colors.textMuted : colors.text}
-                  />
-                  <Text
-                    style={[
-                      styles.pagerBtnText,
-                      page <= 1 && styles.pagerBtnTextDisabled,
-                    ]}
-                  >
-                    {t('previous')}
-                  </Text>
-                </Pressable>
-
-                <View style={styles.pagerIndicator}>
-                  <Text style={styles.pagerIndicatorText}>
-                    {t('pageOf', { page, total: totalPages })}
-                  </Text>
-                  <Text style={styles.pagerTotalText}>
-                    ({sortedAndFiltered.length === 1 ? t('singleEventCount', { count: 1 }) : t('eventsCount', { count: sortedAndFiltered.length })})
-                  </Text>
-                </View>
-
-                <Pressable
-                  style={[styles.pagerBtn, page >= totalPages && styles.pagerBtnDisabled]}
-                  onPress={() => goToPage(page + 1)}
-                  disabled={page >= totalPages}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('next')}
-                >
-                  <Text
-                    style={[
-                      styles.pagerBtnText,
-                      page >= totalPages && styles.pagerBtnTextDisabled,
-                    ]}
-                  >
-                    {t('next')}
-                  </Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={16}
-                    color={page >= totalPages ? colors.textMuted : colors.text}
-                  />
-                </Pressable>
+        renderItem={({ item }) =>
+          item.kind === 'section' ? (
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle} accessibilityRole="header">
+                {item.title.toUpperCase()}
+              </Text>
+              <Text style={styles.sectionCount}>{item.count}</Text>
+            </View>
+          ) : (
+            <EventRow event={item.event} status={item.status} pending={bucketOf(item.event) === 'pending'} onOpen={() => router.push(`/event/${item.event.id}` as Href)} onLongPress={() => onRowActions(item.event, item.status)} onAccept={() => setAcceptTarget(item.event)} onDecline={() => setDeclineTarget(item.event)} />
+          )
+        }
+        ListEmptyComponent={
+          view !== 'events' ? null : loading && !data ? (
+            <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
+          ) : error && !data ? (
+            <View style={{ paddingTop: spacing.xl }}>
+              <EmptyState icon="cloud-offline-outline" title={t('couldNotLoadEvents')} message={t('pullToRefresh')} />
+            </View>
+          ) : events.length === 0 ? (
+            <View style={{ paddingTop: spacing.xl }}>
+              <EmptyState icon="calendar-outline" title={t('noEventsYet')} message={t('eventsBookedAppear')} />
+            </View>
+          ) : empty ? (
+            <View style={styles.empty} accessibilityLiveRegion="polite">
+              <Text style={styles.emptyTitle}>{empty.title}</Text>
+              {empty.otherDays ? <Text style={styles.emptySub}>{empty.otherDays}</Text> : null}
+              <View style={styles.emptyActions}>
+                {date || status !== 'all' || search ? (
+                  <Button title={date ? 'Show all dates' : 'Show all events'} variant="outline" onPress={() => (date ? setDate(null) : (setStatus('all'), setSearch('')))} style={styles.emptyBtn} />
+                ) : null}
+                {empty.nextDay ? <Button title="Jump to next" variant="outline" onPress={() => setDate(dayFilter(empty.nextDay!))} style={styles.emptyBtn} /> : null}
               </View>
             </View>
           ) : null
         }
-        ListEmptyComponent={
-          scheduleMode ? null : loading ? (
-            <ActivityIndicator style={{ marginTop: spacing.xl }} color={colors.primary} />
-          ) : error ? (
-            <View style={{ paddingTop: spacing.xl }}>
-              <EmptyState icon="cloud-offline-outline" title={t('couldNotLoadEvents')} message={t('pullToRefresh')} />
-            </View>
-          ) : (
-            <View style={{ paddingTop: spacing.xl }}>
-              <EmptyState
-                icon="calendar-outline"
-                title={search || filter !== 'all' ? t('noMatchingEvents') : t('noEventsYet')}
-                message={
-                  search || filter !== 'all'
-                    ? t('tryDifferentFilter')
-                    : t('eventsBookedAppear')
-                }
-              />
-            </View>
-          )
-        }
       />
 
-      <EventQrSheet
-        visible={!!qrTarget}
-        onClose={() => setQrTarget(null)}
-        eventId={qrTarget?.id ?? ''}
-        title={qrTarget?.title ?? ''}
-        published={!!qrTarget?.published}
-      />
+      <EventQrSheet visible={!!qrTarget} onClose={() => setQrTarget(null)} eventId={qrTarget?.id ?? ''} title={qrTarget?.title ?? ''} published={!!qrTarget?.published} />
 
-      <AcceptBookingSheet
-        event={acceptTarget}
-        busy={busyId === acceptTarget?.id}
-        onCancel={() => setAcceptTarget(null)}
-        onConfirm={() => acceptTarget && onAcceptConfirmed(acceptTarget)}
-      />
+      <AcceptBookingSheet event={acceptTarget} busy={busyId === acceptTarget?.id} onCancel={() => setAcceptTarget(null)} onConfirm={() => acceptTarget && onAcceptConfirmed(acceptTarget)} />
 
       <DeclineBookingSheet
         event={declineTarget}
@@ -653,251 +367,13 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
         }}
         onConfirm={() => declineTarget && onDeclineConfirmed(declineTarget)}
       />
-
-      {/* Sort options: the shared Sheet scrolls, so large text or a short phone never cuts off the last option. */}
-      <Sheet
-        visible={sortSheetOpen}
-        title={t('sortEvents')}
-        subtitle={t('chooseOrder')}
-        onClose={() => setSortSheetOpen(false)}
-      >
-        <View style={styles.sortOptionsList}>
-          {SORT_OPTIONS.map((opt) => {
-            const active = sortBy === opt.key;
-            const label =
-              opt.key === 'newest'
-                ? t('newestCreatedFirst')
-                : opt.key === 'oldest'
-                ? t('oldestCreatedFirst')
-                : opt.key === 'date_asc'
-                ? t('eventDateUpcomingFirst')
-                : t('titleAZ');
-            const description =
-              opt.key === 'newest'
-                ? t('newestCreatedDesc')
-                : opt.key === 'oldest'
-                ? t('oldestCreatedDesc')
-                : opt.key === 'date_asc'
-                ? t('eventDateUpcomingDesc')
-                : t('titleAZDesc');
-            return (
-              <Pressable
-                key={opt.key}
-                style={[styles.sortOptionItem, active && styles.sortOptionItemActive]}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={`${label}. ${description}`}
-                onPress={() => {
-                  setSortBy(opt.key);
-                  setSortSheetOpen(false);
-                }}
-              >
-                <View style={[styles.sortOptionIconBox, active && styles.sortOptionIconBoxActive]}>
-                  <Ionicons name={opt.icon} size={18} color={active ? colors.textOnPrimary : colors.link} />
-                </View>
-                <View style={styles.sortOptionTextCol}>
-                  <Text style={[styles.sortOptionLabel, active && styles.sortOptionLabelActive]}>{label}</Text>
-                  <Text style={styles.sortOptionDesc}>{description}</Text>
-                </View>
-                {active ? (
-                  <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-                ) : (
-                  <View style={styles.sortOptionRadio} />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      </Sheet>
     </View>
   );
 }
 
-// ─── Event card ──────────────────────────────────────────────────────────
-
-function PhotographerEventCard({
-  event,
-  busy,
-  onOpen,
-  onAccept,
-  onDecline,
-  onLiveStream,
-  onCreateAlbum,
-  onQr,
-  onDismiss,
-}: {
-  event: EventItem;
-  busy: boolean;
-  onOpen: () => void;
-  onAccept: () => void;
-  onDecline: () => void;
-  onLiveStream: () => void;
-  onCreateAlbum: () => void;
-  onQr: () => void;
-  onDismiss: () => void;
-}) {
-  const styles = useStyles();
-  const { t } = useLanguage();
-  const { colors } = useTheme();
-  const s = statusOf(event);
-  const booking = (event.bookingStatus ?? '').toUpperCase();
-  const isPending = booking === 'PENDING';
-  const isAccepted = booking === 'ACCEPTED';
-  const canStream = event.hasLiveStream && (s === 'upcoming' || s === 'ongoing');
-  const canCreateAlbum = s === 'completed' || isAccepted;
-  const showStreamPill = event.hasLiveStream && s !== 'completed';
-
-  return (
-    <Pressable
-      style={styles.card}
-      onPress={onOpen}
-      android_ripple={{ color: onMedia.glass }}
-      accessibilityRole="button"
-      accessibilityLabel={`${event.title}, ${STATUS_LABEL[s].toLowerCase()}`}
-    >
-      <Image
-        source={event.coverImage ? { uri: event.coverImage } : EVENT_COVER_PLACEHOLDER}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        transition={200}
-      />
-      {/* Solid dark scrim overlay (no gradients) */}
-      <View style={styles.cardScrim} />
-
-      {/* Top row: date + status (left), stream (right) */}
-      <View style={styles.cardTop}>
-        <View style={styles.topLeft}>
-          <GlassOnMedia style={styles.datePill} edge>
-            <Ionicons name="calendar" size={11} color={onMedia.text} />
-            <Text style={styles.datePillText}>{fmtShortDate(event.eventDate)}</Text>
-          </GlassOnMedia>
-          <GlassOnMedia style={styles.statusPill} edge>
-            <View style={[styles.statusDot, { backgroundColor: statusColor(colors, s) }]} />
-            <Text style={styles.statusPillText}>{STATUS_LABEL[s]}</Text>
-          </GlassOnMedia>
-        </View>
-        {showStreamPill ? (
-          <GlassOnMedia style={styles.streamPill} edge>
-            <Ionicons name="radio" size={11} color={onMedia.text} />
-            <Text style={styles.streamPillText}>STREAM</Text>
-          </GlassOnMedia>
-        ) : null}
-      </View>
-
-      {/* Bottom content */}
-      <GlassOnMedia style={styles.cardBottom} intensity={40}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {event.title}
-        </Text>
-        {event.location ? (
-          <View style={styles.locRow}>
-            <Ionicons name="location" size={12} color={onMedia.soft} />
-            <Text style={styles.locText} numberOfLines={2}>
-              {event.location}
-            </Text>
-          </View>
-        ) : null}
-
-        {/* Client + time strip */}
-        <View style={styles.clientRow}>
-          <View style={styles.clientLeft}>
-            {event.clientAvatar ? (
-              <Image source={{ uri: event.clientAvatar }} style={styles.avatar} contentFit="cover" />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarInitial}>
-                  {(event.clientName || 'C').charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-            <Text style={styles.clientName} numberOfLines={2}>
-              {event.clientName || 'Client'}
-            </Text>
-          </View>
-          {event.startTime ? (
-            <View style={styles.timePill}>
-              <Ionicons name="time-outline" size={12} color={onMedia.soft} />
-              <Text style={styles.timeText}>{fmtTime(event.startTime)}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Actions */}
-        <View style={styles.actions}>
-          {isPending ? (
-            <>
-              <Pressable
-                style={[styles.actBtn, styles.actAccept, busy && styles.actBusy]}
-                onPress={onAccept}
-                disabled={busy}
-                accessibilityRole="button"
-              >
-                <Ionicons name="checkmark-circle" size={13} color={onMedia.text} />
-                <Text style={styles.actText}>{t('acceptBooking')}</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.actBtn, styles.actDeny, busy && styles.actBusy]}
-                onPress={onDecline}
-                disabled={busy}
-                accessibilityRole="button"
-              >
-                <Ionicons name="close-circle" size={13} color={onMedia.text} />
-                <Text style={styles.actText}>{t('declineBooking')}</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              {canStream ? (
-                <Pressable style={[styles.actBtn, styles.actStream]} onPress={onLiveStream} accessibilityRole="button">
-                  <Ionicons name="radio" size={13} color={colors.active} />
-                  <Text style={styles.actText}>{t('liveStream')}</Text>
-                </Pressable>
-              ) : null}
-              {canCreateAlbum ? (
-                <Pressable style={[styles.actBtn, styles.actAlbum]} onPress={onCreateAlbum}>
-                  <Ionicons name="add-circle" size={13} color={onMedia.text} />
-                  <Text style={styles.actText}>{t('createAlbum')}</Text>
-                </Pressable>
-              ) : null}
-              {isAccepted && event.published ? (
-                <Pressable style={[styles.actBtn, styles.actQr]} onPress={onQr} accessibilityLabel="Show event QR code">
-                  <Ionicons name="qr-code" size={13} color={onMedia.text} />
-                  <Text style={styles.actText}>{t('qrCode')}</Text>
-                </Pressable>
-              ) : null}
-              {s === 'completed' || s === 'cancelled' ? (
-                <Pressable
-                  style={[styles.actBtn, styles.actQr, busy && styles.actBusy]}
-                  onPress={onDismiss}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${event.title} from my list`}
-                >
-                  <Ionicons name="eye-off-outline" size={13} color={onMedia.text} />
-                  <Text style={styles.actText}>Remove</Text>
-                </Pressable>
-              ) : null}
-              {isAccepted ? (
-                <View style={[styles.actBtn, styles.actAcceptedChip]}>
-                  <Ionicons name="checkmark-circle" size={13} color={colors.success} />
-                  <Text style={styles.actText}>{t('accepted')}</Text>
-                </View>
-              ) : null}
-              {event.packageName ? (
-                <View style={styles.pkgBadge}>
-                  <Ionicons name="cube" size={12} color={onMedia.text} />
-                  <Text style={styles.pkgText}>{event.packageName}</Text>
-                </View>
-              ) : null}
-            </>
-          )}
-        </View>
-      </GlassOnMedia>
-    </Pressable>
-  );
+function RowGap() {
+  return <View style={{ height: spacing.sm }} />;
 }
-
-// ─── Accept-booking confirmation sheet ───────────────────────────────────
 
 function AcceptBookingSheet({
   event,
@@ -1034,6 +510,14 @@ function SheetMeta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text:
 const useStyles = makeStyles((c) => ({
   container: { flex: 1 },
   listContent: { paddingHorizontal: spacing.lg },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: spacing.md },
+  sectionTitle: { color: c.textMuted, fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1 },
+  sectionCount: { color: c.textMuted, fontFamily: fonts.semibold, fontSize: 12 },
+  empty: { paddingTop: spacing.xl, alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md },
+  emptyTitle: { color: c.text, fontFamily: fonts.bold, fontSize: 17, textAlign: 'center' },
+  emptySub: { color: c.textMuted, fontSize: 14, textAlign: 'center' },
+  emptyActions: { flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch', marginTop: spacing.sm },
+  emptyBtn: { flex: 1 },
   columnWrapper: { gap: spacing.md },
 
 
@@ -1457,6 +941,3 @@ const useStyles = makeStyles((c) => ({
 }));
 
 /** Module level, so the list keeps one separator type and does not remount every gap on each render. */
-function ListGap() {
-  return <View style={{ height: spacing.md }} />;
-}
