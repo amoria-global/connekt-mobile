@@ -1,3 +1,4 @@
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -37,6 +38,7 @@ export default function InboxScreen() {
   const { language, t } = useLanguage();
   const router = useRouter();
   const topBarHeight = useTopBarHeight();
+  const clearance = useTabBarClearance();
   const { colors } = useTheme();
   const styles = useStyles();
   const user = useAuth((s) => s.user);
@@ -340,7 +342,7 @@ export default function InboxScreen() {
           styles.listContent,
           {
             paddingTop: topBarHeight + spacing.xs,
-            paddingBottom: spacing.lg,
+            paddingBottom: clearance,
           },
         ]}
         keyboardShouldPersistTaps="handled"
