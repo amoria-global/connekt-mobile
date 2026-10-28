@@ -31,9 +31,9 @@ jest.mock('@/store/auth', () => ({
 const ok = (data: unknown) => ({ action: 1, message: 'ok', data });
 const elig = (o: Record<string, unknown> = {}) => ok({ enabled: true, canHostFree: true, canHostPaid: false, reason: null, ...o });
 const events = [
-  { id: 'u1', title: 'Friday set', eventStatus: 'PUBLISHED', eventDate: '2026-11-10', hostedByPhotographer: true },
-  { id: 'l1', title: 'Live now show', eventStatus: 'ONGOING', eventDate: '2026-11-01', hostedByPhotographer: true },
-  { id: 'e1', title: 'Old set', eventStatus: 'COMPLETED', eventDate: '2026-10-01', hostedByPhotographer: true },
+  { id: 'u1', title: 'Friday set', eventStatus: 'PUBLISHED', eventDate: '2026-11-10', hostedByPhotographer: true, isPublished: true },
+  { id: 'l1', title: 'Live now show', eventStatus: 'ONGOING', eventDate: '2026-11-01', hostedByPhotographer: true, isPublished: true },
+  { id: 'e1', title: 'Old set', eventStatus: 'COMPLETED', eventDate: '2026-10-01', hostedByPhotographer: true, isPublished: true },
 ];
 
 const text = (r: TestRenderer.ReactTestRenderer) =>
@@ -63,6 +63,31 @@ describe('HostedEventsScreen', () => {
       byLabel(r, /^Go live with Friday set/).props.onPress();
     });
     expect(mockPush).toHaveBeenCalledWith('/stream/control/u1');
+  });
+
+
+  it("puts an event that ended today under Ended, never Upcoming, and offers no Go live for it", async () => {
+    const today = new Date();
+    const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const gaming = { id: "g1", title: "Gaming Center", eventStatus: "PUBLISHED", streamStatus: "ended", eventDate: day, hostedByPhotographer: true, isPublished: true };
+    mockGet.mockImplementation(async (url: string) => (url.includes("eligibility") ? elig() : ok([gaming])));
+    const r = await mount(<HostedEventsScreen />);
+    expect(text(r)).not.toContain("Gaming Center");
+    await act(async () => {
+      r.root.findAll((n) => n.props?.accessibilityRole === "button" && n.props?.onPress && /Ended/.test(String(n.props?.children?.props?.children ?? n.props?.accessibilityLabel ?? "")))[0]?.props.onPress();
+    });
+    expect(text(r)).toContain("Gaming Center");
+    expect(byLabel(r, /^Go live with Gaming Center/)).toBeUndefined();
+  });
+
+  it("badges an unpublished event and offers Republish in its menu, with no Go live", async () => {
+    const hidden = { id: "h1", title: "Hidden set", eventStatus: "UPCOMING", eventDate: "2099-01-05", hostedByPhotographer: true, isPublished: false };
+    mockGet.mockImplementation(async (url: string) => (url.includes("eligibility") ? elig() : ok([hidden])));
+    const r = await mount(<HostedEventsScreen />);
+    expect(text(r)).toContain("Unpublished");
+    expect(text(r)).toContain("Mon, 5 Jan");
+    expect(byLabel(r, /^Go live with Hidden set/)).toBeUndefined();
+    expect(byLabel(r, /^More options for Hidden set/)).toBeDefined();
   });
 
   it('shows an empty state with a next step when nothing is hosted', async () => {
@@ -118,7 +143,7 @@ describe('HostEntry', () => {
 
 describe('mapEvent', () => {
   it('reads the hosted flag, and an older server without it means not hosted', () => {
-    expect(mapEvent({ id: 'a', title: 'x', hostedByPhotographer: true }).hostedByPhotographer).toBe(true);
+    expect(mapEvent({ id: 'a', title: 'x', hostedByPhotographer: true, isPublished: true }).hostedByPhotographer).toBe(true);
     expect(mapEvent({ id: 'a', title: 'x' }).hostedByPhotographer).toBe(false);
   });
 });

@@ -492,6 +492,16 @@ export function unpublishEvent(id: string, asCoordinator = false): Promise<void>
   return action(`${base}/${encodeURIComponent(id)}/unpublish`, 'Could not unpublish the event.');
 }
 
+/** What hiding an event affects: bookings and sold tickets, for the confirm warning. Never throws. */
+export async function getUnpublishImpact(id: string): Promise<{ bookings?: number; ticketsSold?: number } | undefined> {
+  try {
+    const res = await api.get<ApiEnvelope<{ bookings?: number; ticketsSold?: number }>>(`/customer/events/${encodeURIComponent(id)}/unpublish-impact`);
+    return res?.action === 1 ? (res.data ?? undefined) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Pauses an in-flight event. The Customer endpoint is aliased at both
  * /api/remote/customer/events/{id}/pause and /api/remote/events/{id}/pause;

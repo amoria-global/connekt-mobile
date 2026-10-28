@@ -138,6 +138,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-28-event-status",
+            "date": "2026-10-28",
+            "title": "Events show the right state, and hosts can unpublish",
+            "items": [
+              {
+                "icon": "calendar-outline",
+                "title": "Events sit in the right tab",
+                "body": "An event that has already ended no longer shows under Soon or Upcoming. Explore, your stories, the badges and My hosted events now agree on whether an event is upcoming, live or ended."
+              },
+              {
+                "icon": "eye-off-outline",
+                "title": "Unpublish and republish",
+                "body": "Hosts can hide an event, upcoming or ended, from Explore from the menu on its card, and republish it later. Unpublished events stay visible to you with an Unpublished badge."
+              },
+              {
+                "icon": "radio-outline",
+                "title": "Clearer Go live buttons",
+                "body": "Go live and My hosted events on Home now look like buttons, and hosted event cards show the date, a status badge and a red Go live button."
+              }
+            ]
+          },
+          {
             "id": "2026-10-28-live-wishes",
             "date": "2026-10-28",
             "title": "A new live event page, with wishes",
