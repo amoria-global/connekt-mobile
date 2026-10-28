@@ -69,6 +69,7 @@ import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { AlbumShareSheet } from '@/features/gallery/AlbumShareSheet';
+import { PublishPriceSheet } from '@/features/gallery/PublishPriceSheet';
 import { albumShareUrl } from '@/features/gallery/albumShare';
 
 const APPROVAL_META: Record<string, { label: string; tone: SwatchTone; }> = {
@@ -105,6 +106,7 @@ export default function AlbumDetailScreen() {
   const [gridCols, setGridCols] = useState<2 | 3>(3);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [priceOpen, setPriceOpen] = useState(false);
   const [justPublished, setJustPublished] = useState(false);
   // A code made on demand when the album came back without one (the web asks for one before opening Face AI).
   const [madeCode, setMadeCode] = useState<string | undefined>();
@@ -222,11 +224,19 @@ export default function AlbumDetailScreen() {
       'The client has been emailed the link to view this album.',
     );
 
-  const onPublishToFaceSearch = async () => {
+  // An event album has no price until it is published, so the first publish asks for one, as the dashboard does.
+  // Re-syncing an album that is already live keeps the price it has.
+  const onPublishToFaceSearch = () => {
+    setMoreSheetOpen(false);
+    if (data?.eventId && !faceStatus?.isPublished) setPriceOpen(true);
+    else void publishNow();
+  };
+
+  const publishNow = async (opts?: { pricePerImage: string; currencyId: string }) => {
     setMoreSheetOpen(false);
     setBusy('publish');
     try {
-      const pub = await publishAlbumToFaceSearch(id);
+      const pub = await publishAlbumToFaceSearch(id, opts);
       let code = pub.inviteCode;
       if (!code && !data?.inviteCode) code = await ensureAlbumInviteCode(id).catch(() => undefined);
       if (code) setMadeCode(code);
@@ -945,6 +955,18 @@ export default function AlbumDetailScreen() {
         handoff={data?.eventId ? { type: 'ARCHIVE', eventId: data.eventId } : null}
         title={data?.name ?? 'Restore album'}
         subtitle="Archive unlock"
+      />
+      <PublishPriceSheet
+        visible={priceOpen}
+        onClose={() => setPriceOpen(false)}
+        title={data?.name ?? 'Album'}
+        busy={busy === 'publish'}
+        onPublish={async (price, currencyId) => {
+          await publishNow({ pricePerImage: price, currencyId });
+          setPriceOpen(false);
+          // The face-status chip and the live check read this; refresh it so a second publish is a re-sync.
+          getAlbumFaceStatus(id).then(setFaceStatus).catch(() => {});
+        }}
       />
       {shareLink ? (
         <AlbumShareSheet
