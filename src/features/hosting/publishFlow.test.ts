@@ -13,11 +13,11 @@ describe('publishActionFor', () => {
     expect(publishActionFor(true, 'LIVE')).toEqual({ kind: 'blocked', reason: 'End the stream first' });
     expect(publishActionFor(false, 'LIVE').kind).toBe('blocked');
   });
-  it('offers nothing for an ended event until the server supports it, then the same two actions', () => {
-    expect(publishActionFor(true, 'ENDED')).toEqual({ kind: 'none' });
-    expect(publishActionFor(false, 'ENDED')).toEqual({ kind: 'none' });
-    expect(publishActionFor(true, 'ENDED', true)).toEqual({ kind: 'unpublish' });
-    expect(publishActionFor(false, 'ENDED', true)).toEqual({ kind: 'republish' });
+  it('offers an ended event the same two actions, and nothing when the server cannot', () => {
+    expect(publishActionFor(true, 'ENDED')).toEqual({ kind: 'unpublish' });
+    expect(publishActionFor(false, 'ENDED')).toEqual({ kind: 'republish' });
+    expect(publishActionFor(true, 'ENDED', false)).toEqual({ kind: 'none' });
+    expect(publishActionFor(false, 'ENDED', false)).toEqual({ kind: 'none' });
   });
 });
 

@@ -3,13 +3,13 @@
  * an "Unpublished" badge and never appear in Explore, search, story rings or counts (the server already lists only
  * published events publicly).
  *
- * The server refuses to unpublish a completed event and, on republish, sets the status back to PUBLISHED, so ended
- * events are only offered the action once the backend supports it (ENDED_UNPUBLISH_SUPPORTED).
+ * For an ended event the server now flips only the publish flag, keeping its status and face data, so every state with
+ * a stream that is not live may be hidden and restored.
  */
 import type { EventStatus } from '@/features/events/eventStatus';
 
-/** Flip once the backend change for ended events is deployed (see the proposal in the audit). */
-export const ENDED_UNPUBLISH_SUPPORTED = false;
+/** The backend hides and restores ended events without touching their status (deployed 2026-10-28). */
+export const ENDED_UNPUBLISH_SUPPORTED = true;
 
 export type PublishAction =
   | { kind: 'unpublish' }

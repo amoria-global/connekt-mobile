@@ -19,6 +19,7 @@ import {
   declineEventBooking,
   deleteEvent,
   getEvent,
+  getUnpublishImpact,
   markEventCompletedByPhotographer,
   pauseEvent,
   publishEvent,
@@ -746,6 +747,7 @@ export default function EventDetailScreen() {
                 <EventOverflowMenu
                   title={ev.title}
                   action={publishActionFor(ev.published, getEventStatus(ev))}
+                  loadImpact={() => getUnpublishImpact(id)}
                   onUnpublish={async () => {
                     await unpublishEvent(id, isCoordinator);
                     await refresh();
