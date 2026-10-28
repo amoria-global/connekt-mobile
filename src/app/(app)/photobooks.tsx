@@ -25,6 +25,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { listPhotobooks, listReceivedPhotobooks, type Photobook } from '@/features/photobooks/api';
@@ -135,6 +136,7 @@ export default function PhotobooksScreen() {
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const clearance = useTabBarClearance();
   const { isPhotographer, isCoordinator } = useRole();
   const canCreate = isPhotographer || isCoordinator;
   const { language } = useLanguage();
@@ -291,7 +293,7 @@ export default function PhotobooksScreen() {
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: insets.bottom + spacing.xl },
+          { paddingBottom: clearance },
         ]}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
@@ -353,7 +355,7 @@ export default function PhotobooksScreen() {
         <Pressable
           style={[
             styles.fab,
-            { bottom: Math.max(insets.bottom + 18, 28) },
+            { bottom: clearance },
           ]}
           onPress={() => router.push('/photobook/new' as Href)}
           android_ripple={{ color: 'rgba(255,255,255,0.25)' }}

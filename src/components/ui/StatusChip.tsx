@@ -35,9 +35,11 @@ type Props = {
   onPress?: () => void;
   selected?: boolean;
   accessibilityLabel?: string;
+  /** Tighter padding, so a row of four filter chips fits a 390pt phone. */
+  compact?: boolean;
 };
 
-export function StatusChip({ label, tone = 'primary', dot = false, count, onPress, selected = false, accessibilityLabel }: Props) {
+export function StatusChip({ label, tone = 'primary', dot = false, count, onPress, selected = false, accessibilityLabel, compact = false }: Props) {
   const styles = useStyles();
   const { colors, gradients, isDark } = useTheme();
   const { fg, bg } = chipColors(colors, gradients, isDark, tone);
@@ -49,15 +51,16 @@ export function StatusChip({ label, tone = 'primary', dot = false, count, onPres
       style={[
         styles.chip,
         filter && styles.chipFilter,
+        compact && styles.chipCompact,
         { backgroundColor: filter && !selected ? colors.glassTop : bg, borderColor: filter && !selected ? colors.stroke : alpha(fg, 0.35) },
       ]}
     >
       {dot ? <View style={[styles.dot, { backgroundColor: fg }]} /> : null}
-      <Text style={[styles.text, filter && styles.textFilter, { color: filter && selected ? colors.text : shownFg }]} numberOfLines={1}>
+      <Text style={[styles.text, filter && styles.textFilter, compact && styles.textCompact, { color: filter && selected ? colors.text : shownFg }]} numberOfLines={1}>
         {label}
       </Text>
       {count !== undefined ? (
-        <View style={[styles.count, { backgroundColor: filter && selected ? alpha(fg, 0.22) : colors.well }]}>
+        <View style={[styles.count, compact && styles.countCompact, { backgroundColor: filter && selected ? alpha(fg, 0.22) : colors.well }]}>
           <Text style={[styles.countText, { color: filter && selected ? colors.text : shownFg }]}>{count}</Text>
         </View>
       ) : null}
@@ -90,6 +93,9 @@ const useStyles = makeStyles(() => ({
     borderWidth: 1,
   },
   chipFilter: { minHeight: 38, paddingHorizontal: spacing.lg },
+  chipCompact: { paddingHorizontal: 7, gap: 4 },
+  textCompact: { fontSize: fontSize.xs },
+  countCompact: { minWidth: 18, height: 18, paddingHorizontal: 5 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   text: { fontSize: fontSize.xs, fontFamily: fonts.semibold },
   textFilter: { fontSize: fontSize.sm },
