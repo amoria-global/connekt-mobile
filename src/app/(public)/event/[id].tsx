@@ -48,14 +48,15 @@ import {
   redeemGroupCode,
   registerAnonymousViewer,
   retryAnonymousDeviceAccess,
-  sendEventWish,
-  sendEventVideoWish,
 } from '@/features/streams/api';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
-import { accountIdentity, isEmail, loadGuestIdentity, saveGuestIdentity } from '@/features/events/guestIdentity';
-import { pickShortVideo } from '@/features/streams/pickShortVideo';
+import { EventWhenCard } from '@/features/events/EventWhenCard';
+import { HostedByCard } from '@/features/events/HostedByCard';
+import { hostRows } from '@/features/events/hostRows';
+import { WishesMemoriesCard } from '@/features/wishes/WishesMemoriesCard';
+import { invitesOn } from '@/features/wishes/wishInvites';
 import { getDeviceId } from '@/utils/deviceId';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
@@ -97,15 +98,6 @@ const SHARE_BASE = 'https://connekyt.com/user/events/view-event?id=';
 // alphanumerics, '.', '-' and '_', so the old key rejected every read and
 // write and saved events never persisted on device.
 const SAVED_KEY = 'connekyt_savedEvents';
-
-function formatTime12h(t?: string): string {
-  if (!t) return '';
-  const [h, m] = t.split(':');
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const h12 = hour % 12 || 12;
-  return `${h12}:${m} ${ampm}`;
-}
 
 function priceLabel(
   e: {
@@ -558,77 +550,6 @@ export default function PublicEventDetailScreen() {
     }
   };
 
-  // Send a wish (web `.ve-wishes`): a text wish or a video wish of up to one minute, for an event that has not started.
-  // A signed-in user is sent as their account (name and email are not asked again); a guest is asked once and remembered.
-  const [wishName, setWishName] = useState('');
-  const [wishEmail, setWishEmail] = useState('');
-  const [wishMessage, setWishMessage] = useState('');
-  const [wishBusy, setWishBusy] = useState(false);
-  const [wishVideoBusy, setWishVideoBusy] = useState(false);
-  const [wishError, setWishError] = useState<string | null>(null);
-  const [wishSuccess, setWishSuccess] = useState<string | null>(null);
-  const account = accountIdentity(currentUser);
-  useEffect(() => {
-    if (account) return;
-    loadGuestIdentity().then((g) => {
-      if (g.name) setWishName((n) => n || g.name!);
-      if (g.email) setWishEmail((e) => e || g.email!);
-    });
-  }, [account]);
-  /** Who the wish comes from, or null with the reason shown. */
-  const wishIdentity = (): { name: string; email: string } | null => {
-    const who = account ?? { name: wishName.trim(), email: wishEmail.trim() };
-    if (!who.name) {
-      setWishError('Please enter your name.');
-      return null;
-    }
-    if (!isEmail(who.email)) {
-      setWishError('Please enter a valid email.');
-      return null;
-    }
-    return who;
-  };
-  const onSendWish = async () => {
-    const who = wishIdentity();
-    if (!who) return;
-    if (!wishMessage.trim()) {
-      setWishError('Please write your message.');
-      return;
-    }
-    setWishBusy(true);
-    setWishError(null);
-    setWishSuccess(null);
-    try {
-      await sendEventWish(id, { ...who, message: wishMessage.trim() });
-      setWishSuccess(t('b4_wishSentSuccess'));
-      setWishMessage('');
-      if (!account) void saveGuestIdentity(who);
-    } catch (e) {
-      setWishError(isApiError(e) ? e.message : t('b4_wishSendError'));
-    } finally {
-      setWishBusy(false);
-    }
-  };
-  const onSendVideoWish = async () => {
-    const who = wishIdentity();
-    if (!who) return;
-    setWishError(null);
-    setWishSuccess(null);
-    try {
-      const video = await pickShortVideo();
-      if (!video) return;
-      setWishVideoBusy(true);
-      await sendEventVideoWish(id, { ...who, message: wishMessage, video });
-      setWishSuccess('Your video wish was sent to the event organizer!');
-      setWishMessage('');
-      if (!account) void saveGuestIdentity(who);
-    } catch (e) {
-      setWishError(isApiError(e) ? e.message : 'Could not send your video wish. Please try again.');
-    } finally {
-      setWishVideoBusy(false);
-    }
-  };
-
   const onShare = async () => {
     if (!data) return;
     try {
@@ -711,11 +632,6 @@ export default function PublicEventDetailScreen() {
         }
       : baseCta;
   const price = priceLabel(data, t);
-  const organizer = data.creator
-    ? `${data.creator.firstName ?? ''} ${data.creator.lastName ?? ''}`.trim() ||
-      data.eventOrganizer
-    : data.eventOrganizer;
-
   const desc = data.description ?? '';
   const descTruncated = desc.length > DESC_LIMIT && !descExpanded;
   const descText = descTruncated ? `${desc.slice(0, DESC_LIMIT)}…` : desc;
@@ -899,31 +815,16 @@ export default function PublicEventDetailScreen() {
           {/* Countdown card (web `.ve-countdown-card`) */}
           {status.isUpcoming ? <EventCountdown start={parseEventStart(data.eventDate, data.startTime)} /> : null}
 
-          {/* Event quick-info card */}
+          {/* Date and time in one card; venue and capacity stay inside it */}
           {!status.isCompleted ? (
-            <View style={styles.infoCard}>
-              {data.eventDate ? (
-                <Row icon="calendar-outline" text={formatDate(data.eventDate)} />
-              ) : null}
-              {data.startTime ? (
-                <Row
-                  icon="time-outline"
-                  text={
-                    data.endTime
-                      ? `${formatTime12h(data.startTime)} – ${formatTime12h(data.endTime)}`
-                      : formatTime12h(data.startTime)
-                  }
-                />
-              ) : null}
+            <EventWhenCard event={data} title={data.title} location={data.location}>
               {data.location ? <Row icon="location-outline" text={data.location} /> : null}
-              {data.maxGuests ? (
-                <Row
-                  icon="people-outline"
-                  text={t('b4_upToGuests', { count: data.maxGuests.toLocaleString() })}
-                />
-              ) : null}
-            </View>
+              {data.maxGuests ? <Row icon="people-outline" text={t('b4_upToGuests', { count: data.maxGuests.toLocaleString() })} /> : null}
+            </EventWhenCard>
           ) : null}
+
+          {/* Wishes & memories: send a wish or invite loved ones, with the heartfelt line under it */}
+          {status.isUpcoming ? <WishesMemoriesCard eventId={id} title={data.title} invites={invitesOn(data.allowWishInvites)} /> : null}
 
           {/* Scanned from a QR code: the short version first, the rest one tap away. */}
           {fromQr && !status.isCompleted ? (
@@ -938,6 +839,9 @@ export default function PublicEventDetailScreen() {
             </Pressable>
           ) : null}
 
+          {/* Hosted by: organizer and photographer in one card, one row when they are the same user */}
+          {showDetails && !status.isCompleted ? <HostedByCard rows={hostRows(data)} /> : null}
+
           {/* About this event (web `.ve-card` about section + `.ve-readmore`) */}
           {showDetails && !status.isCompleted && desc ? (
             <View style={styles.section}>
@@ -950,47 +854,6 @@ export default function PublicEventDetailScreen() {
                   </Text>
                 </Pressable>
               ) : null}
-            </View>
-          ) : null}
-
-          {/* Hosts & crew (web `.ve-hosts-grid`) */}
-          {showDetails && !status.isCompleted && (organizer || data.photographerName || data.photographerId) ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('b4_hostsAndCrew')}</Text>
-              <View style={styles.hostsGrid}>
-                {organizer ? (
-                  <View style={styles.hostCard}>
-                    <View style={[styles.hostAvatarWrap, styles.hostAvatarOrganizer]}>
-                      <Ionicons name="mic" size={20} color={onFill} />
-                    </View>
-                    <View style={styles.hostInfo}>
-                      <Text style={styles.hostRole}>{t('b4_organizedBy')}</Text>
-                      <Text style={styles.hostName}>{organizer}</Text>
-                      <Text style={styles.hostSub}>{t('b4_eventOrganizerRole')}</Text>
-                    </View>
-                  </View>
-                ) : null}
-                {data.photographerName ? (
-                  <View style={styles.hostCard}>
-                    <View style={styles.hostAvatarWrap}>
-                      {data.photographerImage ? (
-                        <Image
-                          source={{ uri: data.photographerImage }}
-                          style={styles.hostAvatar}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <Ionicons name="camera" size={20} color={onFill} />
-                      )}
-                    </View>
-                    <View style={styles.hostInfo}>
-                      <Text style={styles.hostRole}>{t('b4_photographerRole')}</Text>
-                      <Text style={styles.hostName}>{data.photographerName}</Text>
-                      <Text style={styles.hostSub}>{t('b4_capturingTheMoment')}</Text>
-                    </View>
-                  </View>
-                ) : null}
-              </View>
             </View>
           ) : null}
 
@@ -1067,78 +930,6 @@ export default function PublicEventDetailScreen() {
                 </View>
               ) : null}
             </>
-          ) : null}
-
-          {/* Send a wish (web `.ve-wishes`) — only for upcoming events */}
-          {status.isUpcoming ? (
-            <View style={styles.wishCard}>
-              <View style={styles.wishHeader}>
-                <Ionicons name="chatbubble-ellipses" size={18} color={colors.accent} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.wishTitle}>{t('b4_sendWishTitle')}</Text>
-                  <Text style={styles.wishSub}>
-                    {t('b4_sendWishSub')}
-                  </Text>
-                </View>
-              </View>
-              {account ? (
-                <Text style={styles.wishSub}>{`Sending as ${account.name} (${account.email})`}</Text>
-              ) : (
-                <>
-                  <Input
-                    placeholder={t('b4_yourNamePlaceholder')}
-                    value={wishName}
-                    onChangeText={(v) => {
-                      setWishName(v);
-                      setWishError(null);
-                    }}
-                    autoCapitalize="words"
-                  />
-                  <Input
-                    placeholder={t('b4_emailPlaceholder')}
-                    value={wishEmail}
-                    onChangeText={(v) => {
-                      setWishEmail(v);
-                      setWishError(null);
-                    }}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                  />
-                </>
-              )}
-              <TextInput
-                value={wishMessage}
-                onChangeText={setWishMessage}
-                placeholder={t('b4_writeMessagePlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                multiline
-                style={styles.wishTextarea}
-              />
-              {wishError ? <Text style={styles.wishMsg}>{wishError}</Text> : null}
-              {wishSuccess ? (
-                <View style={styles.wishSuccessBox}>
-                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                  <Text style={styles.wishSuccessText}>{wishSuccess}</Text>
-                </View>
-              ) : null}
-              <Button title={wishBusy ? t('b4_sending') : t('b4_sendWishBtn')} onPress={onSendWish} loading={wishBusy} />
-              <Pressable
-                style={({ pressed }) => [styles.secondary, (pressed || wishVideoBusy) && { opacity: 0.7 }]}
-                onPress={onSendVideoWish}
-                disabled={wishVideoBusy || wishBusy}
-                accessibilityRole="button"
-                accessibilityLabel="Record a 1 minute video wish"
-                accessibilityState={{ busy: wishVideoBusy }}
-              >
-                {wishVideoBusy ? (
-                  <ActivityIndicator size="small" color={colors.accent} />
-                ) : (
-                  <Ionicons name="videocam-outline" size={18} color={colors.accent} />
-                )}
-                <Text style={styles.secondaryText}>{wishVideoBusy ? 'Sending your video…' : 'Record a 1 minute video wish'}</Text>
-              </Pressable>
-              <Text style={styles.wishSub}>The message above is added to your video as a caption. Videos can be up to 1 minute.</Text>
-            </View>
           ) : null}
 
           {/* Donation */}

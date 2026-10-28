@@ -1052,7 +1052,7 @@ export function wishErrorMessage(raw: string | undefined, kind: 'text' | 'video'
  */
 export async function sendEventWish(
   eventId: string,
-  data: { name: string; email: string; message: string; visibility?: 'public' | 'private' },
+  data: { name: string; email: string; message: string; visibility?: 'public' | 'private'; via?: 'invite' },
 ): Promise<void> {
   const res = await api.post<ApiEnvelope<Raw>>(
     `/public/events/${encodeURIComponent(eventId)}/wishes`,
@@ -1076,6 +1076,8 @@ export async function sendEventVideoWish(
     email: string;
     message?: string;
     visibility?: 'public' | 'private';
+    /** "invite" when the wish came from a shared invite link or QR. */
+    via?: 'invite';
     /** Clip length in whole seconds; the server refuses more than 60. */
     durationSeconds?: number;
     video: { uri: string; name?: string; mimeType?: string };
@@ -1091,6 +1093,7 @@ export async function sendEventVideoWish(
   form.append('email', data.email);
   form.append('deviceFingerprint', await getDeviceId());
   form.append('visibility', data.visibility ?? 'private');
+  if (data.via) form.append('via', data.via);
   if (data.durationSeconds && data.durationSeconds > 0) form.append('duration', String(Math.ceil(data.durationSeconds)));
   if (data.message?.trim()) form.append('message', data.message.trim());
   const res = await api.post<ApiEnvelope<Raw>>(

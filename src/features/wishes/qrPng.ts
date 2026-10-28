@@ -5,10 +5,7 @@
  */
 import { qrMatrix } from '@/features/events/scanIntent';
 
-/** Opens the public event page on its wishes tab. The web viewer reads `tab=wishes`. */
-export function wishLink(eventId: string): string {
-  return `https://connekyt.com/user/events/view-event?id=${encodeURIComponent(eventId)}&tab=wishes`;
-}
+export { wishLink } from './wishPage';
 
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
