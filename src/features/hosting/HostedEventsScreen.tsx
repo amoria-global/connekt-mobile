@@ -16,7 +16,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useNow } from '@/hooks/useNow';
 import type { EventItem } from '@/features/events/types';
 import { formatEventDay, getEventStatus, isStartingSoon } from '@/features/events/eventStatus';
-import { publishEvent, unpublishEvent } from '@/features/events/api';
+import { getUnpublishImpact, publishEvent, unpublishEvent } from '@/features/events/api';
 import { StatusChip, type ChipTone } from '@/components/ui/StatusChip';
 import { alpha, makeStyles, spacing, useTheme } from '@/theme';
 import { getHostingEligibility, listHostedEvents } from './api';
@@ -129,6 +129,7 @@ function HostedRow({ event, now, onOpen, onLive, onChanged }: { event: EventItem
         <EventOverflowMenu
           title={event.title}
           action={action}
+          loadImpact={() => getUnpublishImpact(event.id)}
           onUnpublish={async () => {
             await unpublishEvent(event.id);
             onChanged();
