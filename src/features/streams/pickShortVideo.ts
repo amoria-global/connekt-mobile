@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 export const MAX_VIDEO_SECONDS = 60;
 
-export type PickedVideo = { uri: string; name: string; mimeType: string };
+export type PickedVideo = { uri: string; name: string; mimeType: string; durationSeconds?: number };
 
 const OPTIONS: ImagePicker.ImagePickerOptions = { mediaTypes: ['videos'], videoMaxDuration: MAX_VIDEO_SECONDS, quality: 0.7 };
 
@@ -22,5 +22,7 @@ export async function pickShortVideo(): Promise<PickedVideo | null> {
   }
   if (result.canceled || !result.assets?.length) return null;
   const a = result.assets[0];
-  return { uri: a.uri, name: a.fileName ?? `wish-${Date.now()}.mp4`, mimeType: a.mimeType ?? 'video/mp4' };
+  // expo-image-picker reports the length in milliseconds. A library clip can be longer than the camera's cap.
+  const durationSeconds = typeof a.duration === 'number' && a.duration > 0 ? Math.round(a.duration / 1000) : undefined;
+  return { uri: a.uri, name: a.fileName ?? `wish-${Date.now()}.mp4`, mimeType: a.mimeType ?? 'video/mp4', durationSeconds };
 }

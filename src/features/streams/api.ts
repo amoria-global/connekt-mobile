@@ -1038,7 +1038,7 @@ export async function redeemGroupCode(
  */
 export function wishErrorMessage(raw: string | undefined, kind: 'text' | 'video'): string {
   const msg = (raw ?? '').toLowerCase();
-  if (msg.includes('only allowed before')) return 'The event is now live. Please join the stream to send messages.';
+  if (msg.includes('closed for this event') || msg.includes('only allowed before')) return 'Wishes are closed for this event.';
   if (msg.includes('rate') || msg.includes('limit')) return 'You are sending wishes too quickly. Please wait a moment.';
   if (msg.includes('restricted') || msg.includes('blocked')) return 'Your message contains restricted content (emails, phone numbers, or links).';
   if (kind === 'video' && (msg.includes('size') || msg.includes('large'))) return 'Video upload failed. Please try a shorter clip.';
@@ -1052,11 +1052,11 @@ export function wishErrorMessage(raw: string | undefined, kind: 'text' | 'video'
  */
 export async function sendEventWish(
   eventId: string,
-  data: { name: string; email: string; message: string },
+  data: { name: string; email: string; message: string; visibility?: 'public' | 'private' },
 ): Promise<void> {
   const res = await api.post<ApiEnvelope<Raw>>(
     `/public/events/${encodeURIComponent(eventId)}/wishes`,
-    { ...data, deviceFingerprint: await getDeviceId() },
+    { ...data, visibility: data.visibility ?? 'private', deviceFingerprint: await getDeviceId() },
     { skipAuth: true },
   );
   if (res?.action !== 1) {
@@ -1067,11 +1067,19 @@ export async function sendEventWish(
 /**
  * Send a pre-event video wish (at most one minute, see pickShortVideo).
  * Web: POST /api/remote/public/events/{id}/wishes/video, multipart with name, email, video, deviceFingerprint and an
- * optional message. Only accepted while the event is PUBLISHED or UPCOMING.
+ * optional message, visibility and duration. Accepted until the event ends (PUBLISHED, UPCOMING or ONGOING).
  */
 export async function sendEventVideoWish(
   eventId: string,
-  data: { name: string; email: string; message?: string; video: { uri: string; name?: string; mimeType?: string } },
+  data: {
+    name: string;
+    email: string;
+    message?: string;
+    visibility?: 'public' | 'private';
+    /** Clip length in whole seconds; the server refuses more than 60. */
+    durationSeconds?: number;
+    video: { uri: string; name?: string; mimeType?: string };
+  },
 ): Promise<void> {
   const form = new FormData();
   await appendFile(form, 'video', {
@@ -1082,6 +1090,8 @@ export async function sendEventVideoWish(
   form.append('name', data.name);
   form.append('email', data.email);
   form.append('deviceFingerprint', await getDeviceId());
+  form.append('visibility', data.visibility ?? 'private');
+  if (data.durationSeconds && data.durationSeconds > 0) form.append('duration', String(Math.ceil(data.durationSeconds)));
   if (data.message?.trim()) form.append('message', data.message.trim());
   const res = await api.post<ApiEnvelope<Raw>>(
     `/public/events/${encodeURIComponent(eventId)}/wishes/video`,

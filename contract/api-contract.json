@@ -6239,6 +6239,19 @@
     "pathVariables" : [ "eventId" ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/photographer/events/{eventId}/wishes",
+    "controller" : "EventWishController#queue",
+    "pathVariables" : [ "eventId" ]
+  }, {
+    "method" : "PUT",
+    "path" : "/api/remote/photographer/events/{eventId}/wishes/{wishId}/moderation",
+    "controller" : "EventWishController#moderate",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "eventId", "wishId" ]
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/photographer/favorite-clients",
     "controller" : "PhotographerDashboardController#getFavoriteClients"
   }, {
@@ -7284,6 +7297,21 @@
     "controller" : "PublicRemoteController#getPublicViewerCount",
     "pathVariables" : [ "eventId" ]
   }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/events/{eventId}/wishes",
+    "controller" : "EventWishController#feed",
+    "pathVariables" : [ "eventId" ],
+    "params" : [ {
+      "name" : "page",
+      "required" : false
+    }, {
+      "name" : "size",
+      "required" : false
+    }, {
+      "name" : "deviceFingerprint",
+      "required" : false
+    } ]
+  }, {
     "method" : "POST",
     "path" : "/api/remote/public/events/{eventId}/wishes",
     "controller" : "PublicRemoteController#sendTextWish",
@@ -7308,6 +7336,12 @@
     }, {
       "name" : "message",
       "required" : false
+    }, {
+      "name" : "visibility",
+      "required" : false
+    }, {
+      "name" : "duration",
+      "required" : false
     } ],
     "parts" : [ {
       "name" : "video",
@@ -7315,6 +7349,14 @@
       "file" : true
     } ],
     "consumes" : [ "multipart/form-data" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/public/events/{eventId}/wishes/{wishId}/hide",
+    "controller" : "EventWishController#hideOwn",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "eventId", "wishId" ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/public/events/{id}",
