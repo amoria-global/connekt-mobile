@@ -17,7 +17,7 @@ beforeEach(() => {
 
 describe('wish link and QR PNG', () => {
   it('points at the public event page on its wishes tab', () => {
-    expect(wishLink('ev 1')).toBe('https://connekyt.com/user/events/view-event?id=ev%201&tab=wishes');
+    expect(wishLink('ev 1')).toBe('https://connekyt.com/wish/ev%201');
   });
 
   it('writes a valid PNG whose pixels are the QR modules', () => {

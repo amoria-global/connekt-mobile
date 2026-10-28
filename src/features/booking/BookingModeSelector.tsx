@@ -11,6 +11,9 @@
  * the event name, the venue and optional notes. The live count is the
  * server's, from the same engine that sends the alerts.
  */
+import { WishInvitesField } from '@/features/wishes/WishInvitesField';
+import { useScrollToField } from '@/features/wishes/useScrollToField';
+import { wishInvitesError } from '@/features/wishes/wishInvites';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -424,6 +427,10 @@ export function BookingModeSelector({
   const [city, setCity] = useState('Kigali');
   const [venue, setVenue] = useState('');
   const [notes, setNotes] = useState('');
+  // Wish invites: no default, so the choice is required before step 1 can continue.
+  const [wishInvites, setWishInvites] = useState<boolean | null>(null);
+  const [wishInvitesErr, setWishInvitesErr] = useState<string | null>(null);
+  const { scrollRef, fieldRef, onScroll, scrollToField } = useScrollToField();
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [listSheet, setListSheet] = useState<null | 'start' | 'end' | 'city'>(null);
 
@@ -534,6 +541,12 @@ export function BookingModeSelector({
       if (startTime <= `${pad(now.getHours())}:${pad(now.getMinutes())}`) return tr('That start time has passed. Choose a later time.');
     }
     if (!venue.trim()) return tr('Add the venue or address so photographers know where to go.');
+    const missing = wishInvitesError(wishInvites);
+    if (missing) {
+      setWishInvitesErr(missing);
+      scrollToField();
+      return missing;
+    }
     return null;
   };
 
@@ -576,6 +589,7 @@ export function BookingModeSelector({
             // least 100 RWF, and the backend refused every post. The backend keeps a
             // posted event off public listings until a photographer is booked.
             eventVisibility: 'PUBLIC',
+            allowWishInvites: wishInvites === true,
           },
           isCoordinator,
         );
@@ -857,6 +871,16 @@ export function BookingModeSelector({
           <Label text="Notes for photographers" hint="Optional: shots you want, indoor or outdoor, dress code." />
           <TextInput value={notes} onChangeText={setNotes} maxLength={600} multiline style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]} placeholderTextColor={colors.textMuted} />
         </View>
+        <WishInvitesField
+          value={wishInvites}
+          containerRef={fieldRef}
+          error={wishInvitesErr}
+          onChange={(v) => {
+            setWishInvites(v);
+            setWishInvitesErr(null);
+            setError(null);
+          }}
+        />
       </View>
     );
   } else if (step === 2 && options) {
@@ -1007,7 +1031,7 @@ export function BookingModeSelector({
             />
           </View>
         )}
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'], gap: spacing.md }} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} onScroll={onScroll} scrollEventThrottle={32} contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'], gap: spacing.md }} keyboardShouldPersistTaps="handled">
           {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
           {body}
         </ScrollView>
