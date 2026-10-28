@@ -3,21 +3,19 @@
  * "Invite loved ones" shows the QR for the wish page with Share link and Save QR. The heartfelt line sits under the card.
  * Copy is left to the share sheet: the installed app has no clipboard module, so a Copy button would need a new build.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path, Rect } from 'react-native-svg';
+import { BrandedQr } from '@/features/qr/BrandedQrView';
 import { Button } from '@/components/ui/Button';
 import { Segmented } from '@/components/ui/Segmented';
 import { accountIdentity, loadGuestIdentity } from '@/features/events/guestIdentity';
-import { qrMatrix } from '@/features/events/scanIntent';
 import { useAuth } from '@/store/auth';
 import { fontSize, fontWeight, lightPalette, makeStyles, onFill, radii, spacing, useTheme } from '@/theme';
 import { WishForm } from './WishForm';
 import { saveQrToPhotos } from './saveQr';
 import { HEARTFELT_LINE, sanitizeFrom, wishLink } from './wishPage';
 
-const QUIET = 2;
 type Tab = 'send' | 'invite';
 
 export function WishesMemoriesCard({ eventId, title, invites = true }: { eventId: string; title: string; invites?: boolean }) {
@@ -75,13 +73,6 @@ function InviteTab({ eventId, title }: { eventId: string; title: string }) {
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
-  const qr = useMemo(() => {
-    const { size, dark } = qrMatrix(link);
-    let d = '';
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (dark[y * size + x]) d += `M${x + QUIET} ${y + QUIET}h1v1h-1z`;
-    return { d, box: size + QUIET * 2 };
-  }, [link]);
-
   const onShare = async () => {
     setNote(null);
     try {
@@ -106,10 +97,7 @@ function InviteTab({ eventId, title }: { eventId: string; title: string }) {
     <View style={styles.invite}>
       <View style={styles.inviteRow}>
         <View style={styles.qr} accessible accessibilityRole="image" accessibilityLabel="QR code for wish link">
-          <Svg width="100%" height="100%" viewBox={`0 0 ${qr.box} ${qr.box}`}>
-            <Rect width={qr.box} height={qr.box} fill={onFill} />
-            <Path d={qr.d} fill={lightPalette.primary} />
-          </Svg>
+          <BrandedQr value={link} size="100%" accessibilityLabel="QR code for wish link" />
         </View>
         <View style={styles.flex}>
           <Text style={styles.sub}>They scan or open the link, see this event, and send their wish. No account needed.</Text>

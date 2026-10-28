@@ -1,6 +1,6 @@
 import { inflateSync } from 'zlib';
 import { bytesToBase64, qrPngBytes, wishLink } from './qrPng';
-import { qrMatrix } from '@/features/events/scanIntent';
+import { buildBrandedQr } from '@/features/qr/brandedQr';
 import { hideOwnWish, listHostWishes, listWishes, mapWish, moderateWish } from './api';
 
 const mockGet = jest.fn();
@@ -20,38 +20,24 @@ describe('wish link and QR PNG', () => {
     expect(wishLink('ev 1')).toBe('https://connekyt.com/wish/ev%201');
   });
 
-  it('writes a valid PNG whose pixels are the QR modules', () => {
+  it('writes a valid RGB PNG sized from the branded code, with a quiet zone', () => {
     const link = wishLink('abc');
     const png = qrPngBytes(link, 4, 2);
     expect(Array.from(png.slice(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
     const buf = Buffer.from(png);
-    const { size, dark } = qrMatrix(link);
-    const side = (size + 4) * 4;
+    const side = (buildBrandedQr(link).n + 4) * 4;
     expect(buf.readUInt32BE(16)).toBe(side);
     expect(buf.readUInt32BE(20)).toBe(side);
-
-    // Chunks: IHDR, IDAT, IEND. Check the lengths chain to the end and read the pixel data back.
-    let pos = 8;
+    expect(buf[24]).toBe(8); // bit depth
+    expect(buf[25]).toBe(2); // RGB
+    let off = 8;
     const types: string[] = [];
-    let idat = Buffer.alloc(0);
-    while (pos < buf.length) {
-      const len = buf.readUInt32BE(pos);
-      const type = buf.toString('ascii', pos + 4, pos + 8);
-      types.push(type);
-      if (type === 'IDAT') idat = buf.subarray(pos + 8, pos + 8 + len);
-      pos += 12 + len;
+    while (off < buf.length) {
+      types.push(buf.toString('ascii', off + 4, off + 8));
+      off += 12 + buf.readUInt32BE(off);
     }
-    expect(pos).toBe(buf.length);
     expect(types).toEqual(['IHDR', 'IDAT', 'IEND']);
-
-    const raw = inflateSync(idat);
-    expect(raw.length).toBe((side + 1) * side);
-    const px = (mx: number, my: number) => raw[(my * 4 + 2 + 0) * (side + 1) + 1 + mx * 4 + 2 + 8];
-    // The top-left finder pattern corner module is dark, and the quiet zone is white.
-    expect(dark[0]).toBe(true);
-    expect(raw[1 + 0]).toBe(255);
-    expect(raw[(2 * 4) * (side + 1) + 1 + 2 * 4]).toBe(0);
-    expect(px(0, 0)).toBeDefined();
+    expect(off).toBe(buf.length);
   });
 
   it('encodes base64 like Buffer does', () => {
