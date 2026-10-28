@@ -50,6 +50,7 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
     attendanceMode: input.attendanceMode,
     eventOrganizer: input.organizer || 'Organizer',
     eventVisibility: input.eventVisibility || 'PUBLIC',
+    ...(typeof input.allowWishInvites === 'boolean' ? { allowWishInvites: input.allowWishInvites } : {}),
     eventTags: input.tags && input.tags.length ? input.tags.join(',') : input.category,
     price: input.price ?? 0,
     priceCurrency: input.currency || 'RWF',
@@ -161,6 +162,7 @@ export function mapEvent(r: RawEvent): EventItem {
     organizer: str(r.eventOrganizer) ?? str(r.organizer),
     tags,
     eventVisibility: str(r.eventVisibility),
+    allowWishInvites: typeof r.allowWishInvites === 'boolean' ? r.allowWishInvites : undefined,
     completionStatus: str(r.completionStatus),
     albumDelivered: r.albumDelivered === true,
     notes: str(r.notes),
@@ -308,6 +310,7 @@ function mapPublicEvent(r: RawEvent): PublicEvent {
 
   const creatorObj: PublicEventCreator | undefined = creator && Object.keys(creator).length
     ? {
+        id: str(creator.id),
         firstName: str(creator.firstName),
         lastName: str(creator.lastName),
         profilePicture: str(creator.profilePicture),
@@ -339,6 +342,7 @@ function mapPublicEvent(r: RawEvent): PublicEvent {
     streamFeeCurrencySymbol: str(r.streamFeeCurrencySymbol),
     streamFeeCurrencyAbbreviation: str(r.streamFeeCurrencyAbbreviation),
     hasLiveStream: r.hasLiveStream === true || r.hasLiveStream === 'true' || r.hasLiveStream === 1,
+    allowWishInvites: typeof r.allowWishInvites === 'boolean' ? r.allowWishInvites : undefined,
     streamType: (str(r.streamType) as PublicEvent['streamType']) ?? null,
     groupDiscountPercentage: num(r.groupDiscountPercentage) ?? null,
     hasInviteCode: r.hasInviteCode === true,
@@ -469,6 +473,18 @@ async function action(path: string, fallback: string): Promise<void> {
   const res = await api.post<ApiEnvelope<unknown>>(path);
   if (res.action !== 1) {
     throw { status: 400, message: res.message || fallback } satisfies ApiError;
+  }
+}
+
+/**
+ * The host turns wish invites on or off, at any time including while live. Only that flag changes on the server.
+ * Coordinator-owned events go through the coordinator route.
+ */
+export async function setWishInvites(id: string, allow: boolean, asCoordinator = false): Promise<void> {
+  const base = asCoordinator ? '/coordinator/events' : '/customer/events';
+  const res = await api.put<ApiEnvelope<unknown>>(`${base}/${encodeURIComponent(id)}/wish-invites`, { allowWishInvites: allow });
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not change wish invites.' } satisfies ApiError;
   }
 }
 

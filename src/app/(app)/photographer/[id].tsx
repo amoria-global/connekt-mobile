@@ -1,4 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
+import { WishInvitesField } from '@/features/wishes/WishInvitesField';
+import { wishInvitesError } from '@/features/wishes/wishInvites';
 import { RefreshControl, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, Share, Alert } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -88,6 +90,8 @@ export default function PhotographerProfileScreen() {
   const [rebookEnd, setRebookEnd] = useState('');
   const [rebookLocation, setRebookLocation] = useState('');
   const [rebookNotes, setRebookNotes] = useState('');
+  const [rebookInvites, setRebookInvites] = useState<boolean | null>(null);
+  const [rebookInvitesErr, setRebookInvitesErr] = useState<string | null>(null);
   const [rebookSubmitting, setRebookSubmitting] = useState(false);
 
   // Hydrate the block list so the menu shows Block vs Unblock correctly.
@@ -159,6 +163,9 @@ export default function PhotographerProfileScreen() {
       Alert.alert('Missing fields', 'Title, date, start/end time, and location are required.');
       return;
     }
+    const missingInvites = wishInvitesError(rebookInvites);
+    setRebookInvitesErr(missingInvites ?? null);
+    if (missingInvites) return;
     setRebookSubmitting(true);
     try {
       const input: RebookInput = {
@@ -170,6 +177,7 @@ export default function PhotographerProfileScreen() {
         endTime: rebookEnd.length === 5 ? `${rebookEnd}:00` : rebookEnd,
         location: rebookLocation,
         notes: rebookNotes,
+        allowWishInvites: rebookInvites === true,
       };
       await rebookPhotographer(input, isCoordinator);
       setRebookOpen(false);
@@ -791,6 +799,14 @@ export default function PhotographerProfileScreen() {
                 onChangeText={setRebookNotes}
                 multiline
                 style={styles.modalInput}
+              />
+              <WishInvitesField
+                value={rebookInvites}
+                error={rebookInvitesErr}
+                onChange={(v) => {
+                  setRebookInvites(v);
+                  setRebookInvitesErr(null);
+                }}
               />
               <Button
                 title={rebookSubmitting ? 'Sending…' : 'Submit rebook'}

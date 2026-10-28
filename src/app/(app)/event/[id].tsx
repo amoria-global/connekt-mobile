@@ -29,6 +29,8 @@ import {
 import { EventQrSheet } from '@/features/events/EventQrSheet';
 import { getEventStatus } from '@/features/events/eventStatus';
 import { EventOverflowMenu } from '@/features/hosting/EventOverflowMenu';
+import { HostWishInvitesRow } from '@/features/wishes/HostWishInvitesRow';
+import { invitesOn } from '@/features/wishes/wishInvites';
 import { publishActionFor } from '@/features/hosting/publishFlow';
 import { SatisfactionSurveySheet } from '@/features/events/SatisfactionSurveySheet';
 import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/events/survey';
@@ -743,6 +745,7 @@ export default function EventDetailScreen() {
                 loading={busy === 'publish'}
               />
               <PrimaryBtn icon="create-outline" label={tr('b3_evdet_edit')} variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
+              {ev ? <HostWishInvitesRow eventId={id} initial={invitesOn(ev.allowWishInvites)} asCoordinator={isCoordinator} /> : null}
               {ev ? (
                 <EventOverflowMenu
                   title={ev.title}
