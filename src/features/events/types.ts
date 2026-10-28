@@ -29,6 +29,8 @@ export type CreateEventInput = {
   currency?: string;
   maxGuests?: number;
   eventVisibility?: string;
+  /** Wish invites: required when creating, optional when editing. */
+  allowWishInvites?: boolean;
   organizer?: string;
   tags?: string[];
   /** Optional booking context when created from a photographer's package. */
@@ -103,6 +105,8 @@ export type EventItem = {
   organizer?: string;
   tags?: string[];
   eventVisibility?: string;
+  /** Whether viewers may invite others to send wishes. Undefined on a server that predates the setting (treated as on). */
+  allowWishInvites?: boolean;
   /** Client completion state, e.g. NOT_COMPLETED / COMPLETED / REQUIRE_CHANGES. */
   completionStatus?: string;
   /** True once the photographer has delivered the album. Gates completion. */
@@ -170,6 +174,8 @@ export type PublicEvent = {
   streamFeeCurrencySymbol?: string | null;
   streamFeeCurrencyAbbreviation?: string | null;
   hasLiveStream?: boolean | null;
+  /** Whether viewers may invite others to send wishes. Undefined on a server that predates the setting (treated as on). */
+  allowWishInvites?: boolean;
   streamType?: 'entry_fee' | 'invite_token' | null;
   groupDiscountPercentage?: number | null;
   hasInviteCode?: boolean | null;

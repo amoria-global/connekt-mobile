@@ -16,6 +16,7 @@ import { getPublicEventDetailed } from '@/features/events/api';
 import { eventWhen } from '@/features/events/eventWhen';
 import { WishForm } from '@/features/wishes/WishForm';
 import { invitedByLine, wishesOpen, wishLink } from '@/features/wishes/wishPage';
+import { invitesOn, WISH_INVITES_OFF_NOTICE } from '@/features/wishes/wishInvites';
 import { useAsync } from '@/hooks/useAsync';
 import { fontSize, fontWeight, makeStyles, onFill, radii, spacing, useTheme } from '@/theme';
 import { EVENT_COVER_PLACEHOLDER } from '@/utils/placeholders';
@@ -64,7 +65,8 @@ export default function WishPageScreen() {
     );
   }
 
-  const open = wishesOpen(data);
+  const invitesAllowed = invitesOn(data.allowWishInvites);
+  const open = wishesOpen(data) && invitesAllowed;
   const when = eventWhen(data);
   const invited = invitedByLine(from);
   const chip = [when.date.toUpperCase(), when.time.split(' · ')[0]].filter(Boolean).join(' · ');
@@ -103,7 +105,7 @@ export default function WishPageScreen() {
           ) : (
             <View style={styles.closed}>
               <Ionicons name="lock-closed-outline" size={22} color={colors.textMuted} />
-              <Text style={styles.closedTitle}>Wishes for this event are closed</Text>
+              <Text style={styles.closedTitle}>{invitesAllowed ? 'Wishes for this event are closed' : WISH_INVITES_OFF_NOTICE}</Text>
             </View>
           )}
           <View style={styles.links}>

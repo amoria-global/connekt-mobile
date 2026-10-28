@@ -61,7 +61,7 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
     setWishError(null);
     setWishSuccess(null);
     try {
-      await sendEventWish(eventId, { ...who, message: wishMessage.trim() });
+      await sendEventWish(eventId, { ...who, message: wishMessage.trim(), ...(variant === 'page' ? { via: 'invite' as const } : {}) });
       setWishSuccess(t('b4_wishSentSuccess'));
       setWishMessage('');
       if (!account) void saveGuestIdentity(who);
@@ -80,7 +80,7 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
       const video = await pickShortVideo();
       if (!video) return;
       setWishVideoBusy(true);
-      await sendEventVideoWish(eventId, { ...who, message: wishMessage, video });
+      await sendEventVideoWish(eventId, { ...who, message: wishMessage, video, ...(variant === 'page' ? { via: 'invite' as const } : {}) });
       setWishSuccess('Your video wish was sent to the event organizer!');
       setWishMessage('');
       if (!account) void saveGuestIdentity(who);

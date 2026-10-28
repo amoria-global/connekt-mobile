@@ -56,6 +56,7 @@ import { EventWhenCard } from '@/features/events/EventWhenCard';
 import { HostedByCard } from '@/features/events/HostedByCard';
 import { hostRows } from '@/features/events/hostRows';
 import { WishesMemoriesCard } from '@/features/wishes/WishesMemoriesCard';
+import { invitesOn } from '@/features/wishes/wishInvites';
 import { getDeviceId } from '@/utils/deviceId';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
@@ -823,7 +824,7 @@ export default function PublicEventDetailScreen() {
           ) : null}
 
           {/* Wishes & memories: send a wish or invite loved ones, with the heartfelt line under it */}
-          {status.isUpcoming ? <WishesMemoriesCard eventId={id} title={data.title} /> : null}
+          {status.isUpcoming ? <WishesMemoriesCard eventId={id} title={data.title} invites={invitesOn(data.allowWishInvites)} /> : null}
 
           {/* Scanned from a QR code: the short version first, the rest one tap away. */}
           {fromQr && !status.isCompleted ? (

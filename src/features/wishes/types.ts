@@ -22,7 +22,7 @@ export type Wish = {
   mine: boolean;
 };
 
-export type WishPage = { items: Wish[]; page: number; totalPages: number; total: number };
+export type WishPage = { items: Wish[]; page: number; totalPages: number; total: number; allowWishInvites?: boolean };
 
 export const MAX_WISH_TEXT = 500;
 export const MAX_WISH_VIDEO_SECONDS = 60;

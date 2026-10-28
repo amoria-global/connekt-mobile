@@ -263,6 +263,8 @@ export type RebookInput = {
   eventOrganizer?: string;
   eventType?: string;
   notes?: string;
+  /** Required by the server when a new event is created: whether viewers may invite others to send wishes. */
+  allowWishInvites: boolean;
 };
 
 export async function rebookPhotographer(
@@ -282,6 +284,7 @@ export async function rebookPhotographer(
     eventOrganizer: input.eventOrganizer ?? 'Organizer',
     eventType: input.eventType ?? 'Event',
     notes: input.notes ?? '',
+    allowWishInvites: input.allowWishInvites,
   });
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not rebook photographer.' };
